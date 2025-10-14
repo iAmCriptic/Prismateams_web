@@ -3,18 +3,39 @@
 {% block title %}E-Mail - Team Portal{% endblock %}
 
 {% block content %}
+<div class="email-content">
 <!-- Mobile Header -->
 <div class="d-md-none mb-3">
     <div class="d-flex justify-content-between align-items-center">
-        <h1 class="h4 mb-0"><i class="bi bi-envelope"></i> E-Mail</h1>
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-outline-accent" onclick="document.getElementById('syncForm').submit()">
-                <i class="bi bi-arrow-clockwise"></i>
-            </button>
-            <a href="{{ url_for('email.compose') }}" class="btn btn-sm btn-accent">
-                <i class="bi bi-pencil-square"></i>
-            </a>
+        <div class="d-flex align-items-center">
+            <h1 class="h4 mb-0 me-2"><i class="bi bi-envelope"></i> E-Mail</h1>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('INBOX')">
+                        <i class="bi bi-inbox me-2"></i>Posteingang
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Sent')">
+                        <i class="bi bi-send me-2"></i>Gesendet
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Drafts')">
+                        <i class="bi bi-file-earmark-text me-2"></i>Entwürfe
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Trash')">
+                        <i class="bi bi-trash me-2"></i>Papierkorb
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="document.getElementById('syncForm').submit()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Synchronisieren
+                    </a></li>
+                </ul>
+            </div>
         </div>
+        <a href="{{ url_for('email.compose') }}" class="btn btn-sm btn-accent">
+            <i class="bi bi-pencil-square"></i>
+        </a>
     </div>
     <form id="syncForm" method="POST" action="{{ url_for('email.sync_emails') }}" style="display: none;"></form>
 </div>
@@ -22,7 +43,28 @@
 <!-- Desktop Header -->
 <div class="d-none d-md-flex row mb-3">
     <div class="col">
-        <h1><i class="bi bi-envelope"></i> E-Mail</h1>
+        <div class="d-flex align-items-center">
+            <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> E-Mail</h1>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-folder me-2"></i><span id="currentFolder">Posteingang</span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('INBOX')">
+                        <i class="bi bi-inbox me-2"></i>Posteingang
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Sent')">
+                        <i class="bi bi-send me-2"></i>Gesendet
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Drafts')">
+                        <i class="bi bi-file-earmark-text me-2"></i>Entwürfe
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Trash')">
+                        <i class="bi bi-trash me-2"></i>Papierkorb
+                    </a></li>
+                </ul>
+            </div>
+        </div>
     </div>
     <div class="col-auto">
         <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2">
@@ -49,10 +91,10 @@
                 <div class="d-md-none">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 text-truncate">{{ email.sender }}</h6>
-                            <p class="mb-1 text-truncate">{{ email.subject }}</p>
+                            <h6 class="mb-1 email-sender">{{ email.sender }}</h6>
+                            <p class="mb-1 email-subject">{{ email.subject }}</p>
                             {% if email.body_text %}
-                            <small class="text-muted d-block text-truncate">{{ email.body_text[:80] }}...</small>
+                            <small class="text-muted email-preview">{{ email.body_text[:80] }}</small>
                             {% endif %}
                         </div>
                         <div class="text-end">
@@ -69,12 +111,12 @@
                     <div class="d-flex w-100 justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <h6 class="mb-0">{{ email.sender }}</h6>
+                                <h6 class="mb-0 email-sender">{{ email.sender }}</h6>
                                 <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
                             </div>
-                            <p class="mb-1">{{ email.subject }}</p>
+                            <p class="mb-1 email-subject">{{ email.subject }}</p>
                             {% if email.body_text %}
-                            <small class="text-muted text-truncate d-block">{{ email.body_text[:100] }}...</small>
+                            <small class="text-muted email-preview">{{ email.body_text[:100] }}</small>
                             {% endif %}
                         </div>
                         {% if not email.is_read %}
@@ -93,6 +135,50 @@
         {% endif %}
     </div>
 </div>
+</div>
+
+<script>
+function loadFolder(folderName) {
+    // Update current folder display
+    const folderNames = {
+        'INBOX': 'Posteingang',
+        'Sent': 'Gesendet', 
+        'Drafts': 'Entwürfe',
+        'Trash': 'Papierkorb'
+    };
+    
+    const folderElement = document.getElementById('currentFolder');
+    if (folderElement) {
+        folderElement.textContent = folderNames[folderName] || folderName;
+    }
+    
+    // Show loading state
+    const emailList = document.querySelector('.list-group');
+    if (emailList) {
+        emailList.innerHTML = '<div class="p-4 text-center"><i class="bi bi-hourglass-split"></i> Lade Ordner...</div>';
+    }
+    
+    // Simulate folder loading (in real implementation, this would make an AJAX call)
+    setTimeout(() => {
+        // For now, just show a message
+        if (emailList) {
+            emailList.innerHTML = `
+                <div class="p-4 text-center text-muted">
+                    <i class="bi bi-folder2-open fs-1 d-block mb-2"></i>
+                    Ordner "${folderNames[folderName]}" ist noch nicht implementiert.<br>
+                    <small>Diese Funktion wird in einer zukünftigen Version verfügbar sein.</small>
+                </div>
+            `;
+        }
+    }, 500);
+    
+    // Close dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
+    if (dropdown) {
+        dropdown.hide();
+    }
+}
+</script>
 {% endblock %}
 
 

@@ -120,6 +120,17 @@ body {
     padding-bottom: 70px; /* Reduzierte Space für mobile nav */
 }
 
+/* Email specific mobile adjustments */
+@media (max-width: 767.98px) {
+    .main-content {
+        padding-bottom: 90px; /* Extra space for mobile nav */
+    }
+    
+    .email-content {
+        padding-bottom: 20px; /* Additional space for email content */
+    }
+}
+
 @media (min-width: 768px) {
     .main-content {
         margin-left: 280px;
@@ -468,6 +479,44 @@ body {
 
 .badge.bg-accent {
     background-color: var(--accent-color) !important;
+}
+
+/* Text overflow fixes */
+.email-sender {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.email-subject {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.email-preview {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+}
+
+/* Mobile specific text handling */
+@media (max-width: 767.98px) {
+    .email-sender {
+        max-width: 70%;
+    }
+    
+    .email-subject {
+        max-width: 70%;
+    }
+    
+    .email-preview {
+        max-width: 70%;
+    }
 }
 
 /* Badges */
