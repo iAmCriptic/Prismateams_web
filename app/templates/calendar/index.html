@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Termine - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-calendar-event"></i> Termine</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('calendar.create_event') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Neuer Termin
+        </a>
+    </div>
+</div>
+
+{% if events %}
+<div class="row g-3">
+    {% for event in events %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card event-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">{{ event.title }}</h5>
+                    {% set participation = participations.get(event.id) %}
+                    {% if participation %}
+                        {% if participation.status == 'accepted' %}
+                        <span class="badge bg-success">Zugesagt</span>
+                        {% elif participation.status == 'declined' %}
+                        <span class="badge bg-danger">Abgesagt</span>
+                        {% elif participation.status == 'removed' %}
+                        <span class="badge bg-secondary">Entfernt</span>
+                        {% else %}
+                        <span class="badge bg-warning">Ausstehend</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                
+                {% if event.description %}
+                <p class="card-text text-truncate-2">{{ event.description }}</p>
+                {% endif %}
+                
+                <div class="mb-2">
+                    <small class="text-muted">
+                        <i class="bi bi-calendar"></i> {{ event.start_time.strftime('%d.%m.%Y') }}<br>
+                        <i class="bi bi-clock"></i> {{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }} Uhr
+                    </small>
+                    {% if event.location %}
+                    <br><small class="text-muted"><i class="bi bi-geo-alt"></i> {{ event.location }}</small>
+                    {% endif %}
+                </div>
+                
+                <a href="{{ url_for('calendar.view_event', event_id=event.id) }}" class="btn btn-sm btn-outline-primary">
+                    Details anzeigen
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Keine Termine vorhanden. Erstellen Sie den ersten Termin!
+</div>
+{% endif %}
+{% endblock %}
+
+
+

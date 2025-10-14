@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}E-Mail-Berechtigungen - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">E-Mail-Berechtigungen</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4">E-Mail-Berechtigungen</h2>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Benutzer</th>
+                        <th>E-Mails lesen</th>
+                        <th>E-Mails senden</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    {% set perm = permissions.get(user.id) %}
+                    <tr>
+                        <td>{{ user.full_name }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('settings.toggle_email_read', user_id=user.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm {% if perm and perm.can_read %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="bi bi-{% if perm and perm.can_read %}check-circle{% else %}x-circle{% endif %}"></i>
+                                    {% if perm and perm.can_read %}Aktiviert{% else %}Deaktiviert{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('settings.toggle_email_send', user_id=user.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm {% if perm and perm.can_send %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="bi bi-{% if perm and perm.can_send %}check-circle{% else %}x-circle{% endif %}"></i>
+                                    {% if perm and perm.can_send %}Aktiviert{% else %}Deaktiviert{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

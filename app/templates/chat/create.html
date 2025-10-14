@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Neuer Chat - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}">Chats</a></li>
+                <li class="breadcrumb-item active">Neuer Chat</li>
+            </ol>
+        </nav>
+        
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Neuen Gruppen-Chat erstellen</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Chat-Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Mitglieder hinzufügen</label>
+                        <div class="list-group" style="max-height: 300px; overflow-y: auto;">
+                            {% for user in users %}
+                            {% if user.id != current_user.id %}
+                            <label class="list-group-item">
+                                <input class="form-check-input me-2" type="checkbox" name="members" value="{{ user.id }}">
+                                {{ user.full_name }}
+                                <small class="text-muted">({{ user.email }})</small>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Chat erstellen</button>
+                        <a href="{{ url_for('chat.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

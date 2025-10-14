@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Willkommen, {{ current_user.first_name }}!</h1>
+        <p class="text-muted">Hier ist Ihre Übersicht</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Upcoming Events Widget -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card widget" onclick="location.href='{{ url_for('calendar.index') }}'">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-event widget-icon text-primary"></i>
+                        Termine
+                    </h5>
+                    <span class="badge bg-primary">{{ upcoming_events|length }}</span>
+                </div>
+                
+                {% if upcoming_events %}
+                    <div class="list-group list-group-flush">
+                        {% for event in upcoming_events %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ event.title }}</h6>
+                                <small class="text-muted">{{ event.start_time.strftime('%d.%m.') }}</small>
+                            </div>
+                            <small class="text-muted">{{ event.start_time.strftime('%H:%M') }} Uhr</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Keine anstehenden Termine</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Unread Messages Widget -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card widget" onclick="location.href='{{ url_for('chat.index') }}'">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-chat-dots widget-icon text-success"></i>
+                        Nachrichten
+                    </h5>
+                    <span class="badge bg-success">{{ unread_messages|length }}</span>
+                </div>
+                
+                {% if unread_messages %}
+                    <div class="list-group list-group-flush">
+                        {% for message in unread_messages[:3] %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ message.sender.full_name }}</h6>
+                                <small class="text-muted">{{ message.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                            <p class="mb-0 text-truncate">{{ message.content or '[Datei]' }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Keine neuen Nachrichten</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Emails Widget -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card widget" onclick="location.href='{{ url_for('email.index') }}'">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-envelope widget-icon text-info"></i>
+                        E-Mails
+                    </h5>
+                    <span class="badge bg-info">{{ recent_emails|length }}</span>
+                </div>
+                
+                {% if recent_emails %}
+                    <div class="list-group list-group-flush">
+                        {% for email in recent_emails[:3] %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 text-truncate">{{ email.subject }}</h6>
+                                {% if not email.is_read %}
+                                <span class="badge bg-danger">Neu</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ email.sender }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Keine E-Mails</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-speedometer2"></i>
+                    Schnellzugriff
+                </h5>
+                <div class="row g-3 mt-2">
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('files.index') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-folder d-block fs-3 mb-2"></i>
+                            Dateien
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('credentials.index') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-key d-block fs-3 mb-2"></i>
+                            Zugangsdaten
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('manuals.index') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-book d-block fs-3 mb-2"></i>
+                            Anleitungen
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('canvas.index') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-palette d-block fs-3 mb-2"></i>
+                            Canvas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

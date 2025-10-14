@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Darstellung - Einstellungen{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item active">Darstellung</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Darstellung anpassen</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="accent_color" class="form-label">Akzentfarbe</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="color" class="form-control form-control-color" id="accent_color" name="accent_color" value="{{ user.accent_color }}" title="Wählen Sie eine Farbe">
+                            <span id="color-preview" class="badge" style="background-color: {{ user.accent_color }}; padding: 1rem 2rem;">Vorschau</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Design-Modus</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode" {% if user.dark_mode %}checked{% endif %}>
+                            <label class="form-check-label" for="dark_mode">
+                                <i class="bi bi-moon-stars"></i> Dark Mode
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+                        <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('accent_color').addEventListener('input', function(e) {
+    document.getElementById('color-preview').style.backgroundColor = e.target.value;
+});
+</script>
+{% endblock %}
+
+
+

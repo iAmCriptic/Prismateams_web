@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}{{ file.name }} bearbeiten - Dateien{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('files.index') }}">Dateien</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('files.browse_folder', folder_id=file.folder_id) }}">{{ file.folder.name if file.folder else 'Root' }}</a></li>
+                <li class="breadcrumb-item active">{{ file.name }}</li>
+            </ol>
+        </nav>
+        
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ file.name }} bearbeiten</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <textarea class="form-control font-monospace" name="content" rows="20" style="font-size: 0.875rem;">{{ content }}</textarea>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                        <a href="{{ url_for('files.browse_folder', folder_id=file.folder_id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

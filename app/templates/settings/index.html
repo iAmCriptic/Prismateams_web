@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen - Team Portal{% endblock %}
+
+{% block content %}
+<h1><i class="bi bi-gear"></i> Einstellungen</h1>
+
+<div class="row g-3 mt-3">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-person-circle text-primary"></i>
+                    Profil
+                </h5>
+                <p class="card-text">Persönliche Daten und Passwort ändern</p>
+                <a href="{{ url_for('settings.profile') }}" class="btn btn-outline-primary">
+                    Bearbeiten <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-palette text-info"></i>
+                    Darstellung
+                </h5>
+                <p class="card-text">Akzentfarbe und Dark Mode anpassen</p>
+                <a href="{{ url_for('settings.appearance') }}" class="btn btn-outline-primary">
+                    Bearbeiten <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% if current_user.is_admin %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100 border-warning">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-shield-lock text-warning"></i>
+                    Administration
+                </h5>
+                <p class="card-text">Benutzerverwaltung und System-Einstellungen</p>
+                <a href="{{ url_for('settings.admin') }}" class="btn btn-warning">
+                    Öffnen <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}E-Mail - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-envelope"></i> E-Mail</h1>
+    </div>
+    <div class="col-auto">
+        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise"></i> Synchronisieren
+            </button>
+        </form>
+        <a href="{{ url_for('email.compose') }}" class="btn btn-primary">
+            <i class="bi bi-pencil-square"></i> Neue E-Mail
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Posteingang</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if emails %}
+        <div class="list-group list-group-flush">
+            {% for email in emails %}
+            <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="list-group-item list-group-item-action {% if not email.is_read %}fw-bold{% endif %}">
+                <div class="d-flex w-100 justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h6 class="mb-0">{{ email.sender }}</h6>
+                            <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
+                        </div>
+                        <p class="mb-1">{{ email.subject }}</p>
+                        {% if email.body_text %}
+                        <small class="text-muted text-truncate d-block">{{ email.body_text[:100] }}...</small>
+                        {% endif %}
+                    </div>
+                    {% if not email.is_read %}
+                    <span class="badge bg-primary ms-2">Neu</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            Keine E-Mails vorhanden
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+
+

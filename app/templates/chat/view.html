@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ chat.name }} - Chats{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}">Chats</a></li>
+                <li class="breadcrumb-item active">{{ chat.name }}</li>
+            </ol>
+        </nav>
+        <h2>{{ chat.name }}</h2>
+        <p class="text-muted">{{ members|length }} Mitglieder</p>
+    </div>
+</div>
+
+<!-- Messages Container -->
+<div class="card mb-5" style="height: 60vh;">
+    <div class="card-body overflow-auto" id="messages-container">
+        {% for message in messages %}
+        <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
+            <div class="d-flex justify-content-between mb-1">
+                <strong>{{ message.sender.full_name }}</strong>
+                <small class="text-muted">{{ message.created_at.strftime('%H:%M') }}</small>
+            </div>
+            
+            {% if message.message_type == 'text' %}
+                <p class="mb-0">{{ message.content }}</p>
+            {% elif message.message_type == 'image' %}
+                <img src="{{ url_for('static', filename='../' + message.media_url) }}" class="img-fluid rounded" style="max-width: 300px;">
+                {% if message.content %}
+                <p class="mt-2 mb-0">{{ message.content }}</p>
+                {% endif %}
+            {% elif message.message_type == 'video' %}
+                <video controls class="rounded" style="max-width: 300px;">
+                    <source src="{{ url_for('static', filename='../' + message.media_url) }}">
+                </video>
+                {% if message.content %}
+                <p class="mt-2 mb-0">{{ message.content }}</p>
+                {% endif %}
+            {% elif message.message_type == 'voice' %}
+                <audio controls>
+                    <source src="{{ url_for('static', filename='../' + message.media_url) }}">
+                </audio>
+                {% if message.content %}
+                <p class="mt-2 mb-0">{{ message.content }}</p>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Message Input -->
+<div class="chat-input-container">
+    <form method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
+        <div class="input-group">
+            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-upload').click()">
+                <i class="bi bi-paperclip"></i>
+            </button>
+            <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*">
+            <input type="text" class="form-control" name="content" placeholder="Nachricht schreiben..." autocomplete="off">
+            <button class="btn btn-primary" type="submit">
+                <i class="bi bi-send"></i>
+            </button>
+        </div>
+        <small class="text-muted" id="file-name"></small>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-scroll to bottom
+    const container = document.getElementById('messages-container');
+    container.scrollTop = container.scrollHeight;
+    
+    // Show selected file name
+    document.getElementById('file-upload').addEventListener('change', function(e) {
+        const fileName = e.target.files[0]?.name;
+        document.getElementById('file-name').textContent = fileName ? `Datei: ${fileName}` : '';
+    });
+</script>
+{% endblock %}
+
+
+

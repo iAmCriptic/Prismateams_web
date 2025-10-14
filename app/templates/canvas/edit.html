@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{{ canvas.name }} - Canvas{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('canvas.index') }}">Canvas</a></li>
+                <li class="breadcrumb-item active">{{ canvas.name }}</li>
+            </ol>
+        </nav>
+        <h2>{{ canvas.name }}</h2>
+        {% if canvas.description %}
+        <p class="text-muted">{{ canvas.description }}</p>
+        {% endif %}
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('canvas.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="canvas-container" id="canvas-area" style="min-height: 800px;">
+            {% for field in text_fields %}
+            <div class="canvas-text-field" 
+                 id="field-{{ field.id }}" 
+                 data-field-id="{{ field.id }}"
+                 style="left: {{ field.pos_x }}px; top: {{ field.pos_y }}px; width: {{ field.width }}px; height: {{ field.height }}px; color: {{ field.color }}; background-color: {{ field.background_color }}; font-size: {{ field.font_size }}px;">
+                <textarea class="form-control border-0 h-100" style="resize: none; background: transparent; color: inherit; font-size: inherit;">{{ field.content }}</textarea>
+                <button class="btn btn-sm btn-danger position-absolute top-0 end-0" onclick="deleteField({{ field.id }})">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1000;">
+    <button class="btn btn-primary btn-lg shadow" id="add-text-btn">
+        <i class="bi bi-plus-circle"></i> Textfeld hinzufügen
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const canvasId = {{ canvas.id }};
+const canvasArea = document.getElementById('canvas-area');
+
+// Add new text field
+document.getElementById('add-text-btn').addEventListener('click', function() {
+    const data = {
+        content: '',
+        pos_x: 100,
+        pos_y: 100,
+        width: 200,
+        height: 100,
+        font_size: 14,
+        color: '#000000',
+        background_color: '#ffffff'
+    };
+    
+    fetch(`/canvas/${canvasId}/add-text-field`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        location.reload();
+    });
+});
+
+// Make text fields draggable and save position
+document.querySelectorAll('.canvas-text-field').forEach(field => {
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+    
+    field.addEventListener('mousedown', function(e) {
+        if (e.target.tagName !== 'TEXTAREA') {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startLeft = parseInt(this.style.left);
+            startTop = parseInt(this.style.top);
+        }
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            field.style.left = (startLeft + dx) + 'px';
+            field.style.top = (startTop + dy) + 'px';
+        }
+    });
+    
+    document.addEventListener('mouseup', function(e) {
+        if (isDragging) {
+            isDragging = false;
+            updateField(field);
+        }
+    });
+    
+    // Save content on blur
+    const textarea = field.querySelector('textarea');
+    textarea.addEventListener('blur', function() {
+        updateField(field);
+    });
+});
+
+function updateField(field) {
+    const fieldId = field.getAttribute('data-field-id');
+    const data = {
+        content: field.querySelector('textarea').value,
+        pos_x: parseInt(field.style.left),
+        pos_y: parseInt(field.style.top),
+        width: parseInt(field.style.width),
+        height: parseInt(field.style.height)
+    };
+    
+    fetch(`/canvas/text-field/${fieldId}/update`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+}
+
+function deleteField(fieldId) {
+    if (confirm('Textfeld wirklich löschen?')) {
+        fetch(`/canvas/text-field/${fieldId}/delete`, {
+            method: 'POST'
+        })
+        .then(() => {
+            location.reload();
+        });
+    }
+}
+</script>
+{% endblock %}
+
+
+

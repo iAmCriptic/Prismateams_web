@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Neue E-Mail - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('email.index') }}">E-Mail</a></li>
+                <li class="breadcrumb-item active">Neue E-Mail</li>
+            </ol>
+        </nav>
+        
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Neue E-Mail verfassen</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="to" class="form-label">An</label>
+                        <input type="text" class="form-control" id="to" name="to" placeholder="empfaenger@example.com" required>
+                        <div class="form-text">Mehrere Empfänger mit Komma trennen</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cc" class="form-label">CC (optional)</label>
+                        <input type="text" class="form-control" id="cc" name="cc" placeholder="cc@example.com">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Betreff</label>
+                        <input type="text" class="form-control" id="subject" name="subject" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="body" class="form-label">Nachricht</label>
+                        <textarea class="form-control" id="body" name="body" rows="10" required></textarea>
+                        <div class="form-text">Der E-Mail-Footer wird automatisch hinzugefügt.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Senden
+                        </button>
+                        <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

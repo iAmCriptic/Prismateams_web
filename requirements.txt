@@ -1,0 +1,33 @@
+# Core Flask
+Flask>=3.0.0
+Flask-SQLAlchemy>=3.1.0
+Flask-Login>=0.6.3
+Flask-WTF>=1.2.0
+Flask-Mail>=0.9.1
+Werkzeug>=3.0.0
+
+# Forms and Validation
+WTForms>=3.1.0
+email-validator>=2.1.0
+
+# Database
+pymysql>=1.1.0
+SQLAlchemy>=2.0.0
+
+# Security
+cryptography>=41.0.0
+argon2-cffi>=23.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+Pillow>=10.1.0
+requests>=2.31.0
+
+# Email (optional)
+imapclient>=2.3.1
+
+# Production server (optional for development)
+gunicorn>=21.2.0
+
+
+

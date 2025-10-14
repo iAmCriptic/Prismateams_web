@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Chats - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-chat-dots"></i> Chats</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('chat.create_chat') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Neuer Chat
+        </a>
+    </div>
+</div>
+
+<!-- Main Chat -->
+{% if main_chat %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">
+            <i class="bi bi-people-fill text-primary"></i>
+            {{ main_chat.name }}
+            <span class="badge bg-primary">Haupt-Chat</span>
+        </h5>
+        <p class="card-text text-muted">Team-weiter Chat für alle Mitglieder</p>
+        <a href="{{ url_for('chat.view_chat', chat_id=main_chat.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-right-circle"></i> Öffnen
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Group Chats -->
+{% if group_chats %}
+<h4 class="mt-4 mb-3">Gruppen-Chats</h4>
+<div class="row g-3">
+    {% for chat in group_chats %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-chat-left-text"></i>
+                    {{ chat.name }}
+                </h5>
+                <p class="card-text text-muted">{{ chat.members|length }} Mitglieder</p>
+                <a href="{{ url_for('chat.view_chat', chat_id=chat.id) }}" class="btn btn-outline-primary btn-sm">
+                    Öffnen
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Direct Messages -->
+{% if direct_chats %}
+<h4 class="mt-4 mb-3">Direktnachrichten</h4>
+<div class="list-group">
+    {% for chat in direct_chats %}
+    <a href="{{ url_for('chat.view_chat', chat_id=chat.id) }}" class="list-group-item list-group-item-action">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-person-circle"></i>
+                {{ chat.name }}
+            </h6>
+            <i class="bi bi-chevron-right"></i>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not group_chats and not direct_chats %}
+<div class="alert alert-info mt-3">
+    <i class="bi bi-info-circle"></i>
+    Sie haben noch keine Gruppen-Chats oder Direktnachrichten. Erstellen Sie einen neuen Chat!
+</div>
+{% endif %}
+{% endblock %}
+
+
+

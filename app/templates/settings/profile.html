@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Profil - Einstellungen{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item active">Profil</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Profil bearbeiten</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="text-center mb-4">
+                        {% if user.profile_picture %}
+                        <img src="{{ url_for('static', filename='../' + user.profile_picture) }}" class="avatar-lg rounded-circle mb-2" alt="Profilbild">
+                        {% else %}
+                        <i class="bi bi-person-circle" style="font-size: 5rem;"></i>
+                        {% endif %}
+                        <div class="mt-2">
+                            <label for="profile_picture" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-upload"></i> Profilbild ändern
+                            </label>
+                            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">Vorname</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">Nachname</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefon</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone or '' }}">
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="mb-3">Passwort ändern</h5>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">Neues Passwort (optional)</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" minlength="8">
+                        <div class="form-text">Leer lassen, um Passwort nicht zu ändern</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+                        <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

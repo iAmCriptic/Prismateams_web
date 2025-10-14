@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Benutzerverwaltung - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Benutzerverwaltung</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4">Benutzerverwaltung</h2>
+
+<!-- Pending Users -->
+{% if pending_users %}
+<div class="card mb-4">
+    <div class="card-header bg-warning">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Ausstehende Registrierungen ({{ pending_users|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for user in pending_users %}
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">{{ user.full_name }}</h6>
+                        <small class="text-muted">{{ user.email }} • {{ user.phone or 'Keine Telefonnummer' }}</small><br>
+                        <small class="text-muted">Registriert: {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                    </div>
+                    <div class="btn-group">
+                        <form method="POST" action="{{ url_for('settings.activate_user', user_id=user.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-success">
+                                <i class="bi bi-check-circle"></i> Aktivieren
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-danger" data-confirm-delete="Registrierung ablehnen und löschen?">
+                                <i class="bi bi-x-circle"></i> Ablehnen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Active Users -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-people"></i> Aktive Benutzer ({{ active_users|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>E-Mail</th>
+                        <th>Rolle</th>
+                        <th>Letzter Login</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in active_users %}
+                    <tr>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.is_admin %}
+                            <span class="badge bg-warning">Administrator</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Benutzer</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.last_login.strftime('%d.%m.%Y') if user.last_login else 'Nie' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if not user.is_admin %}
+                                <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-warning" title="Zum Admin machen">
+                                        <i class="bi bi-shield-plus"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('settings.remove_admin', user_id=user.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-secondary" title="Admin-Rechte entziehen" {% if user.id == current_user.id %}disabled{% endif %}>
+                                        <i class="bi bi-shield-minus"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=user.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-warning" title="Deaktivieren" {% if user.id == current_user.id %}disabled{% endif %}>
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('settings.delete_user', user_id=user.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger" data-confirm-delete="Benutzer wirklich löschen?" title="Löschen" {% if user.id == current_user.id %}disabled{% endif %}>
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+

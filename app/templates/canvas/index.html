@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Canvas - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-palette"></i> Canvas</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('canvas.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Neues Canvas
+        </a>
+    </div>
+</div>
+
+{% if canvases %}
+<div class="row g-3">
+    {% for canvas in canvases %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ canvas.name }}</h5>
+                {% if canvas.description %}
+                <p class="card-text text-muted">{{ canvas.description }}</p>
+                {% endif %}
+                <p class="card-text small text-muted">
+                    <i class="bi bi-textarea-t"></i> {{ canvas.text_fields|length }} Textfelder<br>
+                    <i class="bi bi-clock"></i> {{ canvas.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                </p>
+                
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('canvas.edit', canvas_id=canvas.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                    <form method="POST" action="{{ url_for('canvas.delete', canvas_id=canvas.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="Canvas wirklich löschen?">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Keine Canvas vorhanden. Erstellen Sie Ihr erstes Canvas!
+</div>
+{% endif %}
+{% endblock %}
+
+
+

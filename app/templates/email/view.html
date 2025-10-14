@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}{{ email.subject }} - E-Mail{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('email.index') }}">E-Mail</a></li>
+        <li class="breadcrumb-item active">{{ email.subject }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-2">{{ email.subject }}</h4>
+        <div class="text-muted small">
+            <strong>Von:</strong> {{ email.sender }}<br>
+            <strong>An:</strong> {{ email.recipients }}<br>
+            {% if email.cc %}
+            <strong>CC:</strong> {{ email.cc }}<br>
+            {% endif %}
+            <strong>Datum:</strong> {{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else email.sent_at.strftime('%d.%m.%Y %H:%M') }}
+        </div>
+    </div>
+    <div class="card-body">
+        {% if email.body_html %}
+        <div>{{ email.body_html|safe }}</div>
+        {% else %}
+        <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ email.body_text }}</pre>
+        {% endif %}
+    </div>
+    <div class="card-footer">
+        <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+
+

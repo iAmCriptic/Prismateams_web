@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Dateien - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-folder"></i> Dateien</h1>
+        {% if current_folder %}
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('files.index') }}">Root</a></li>
+                <li class="breadcrumb-item active">{{ current_folder.name }}</li>
+            </ol>
+        </nav>
+        {% endif %}
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="bi bi-upload"></i> Hochladen
+        </button>
+        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newFolderModal">
+            <i class="bi bi-folder-plus"></i> Neuer Ordner
+        </button>
+    </div>
+</div>
+
+<!-- Folders -->
+{% if subfolders %}
+<h5 class="mb-3">Ordner</h5>
+<div class="row g-3 mb-4">
+    {% for folder in subfolders %}
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card folder-item" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <i class="bi bi-folder-fill text-warning fs-1"></i>
+                        <h6 class="mt-2 mb-0">{{ folder.name }}</h6>
+                    </div>
+                    <div class="dropdown" onclick="event.stopPropagation()">
+                        <button class="btn btn-sm btn-link" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
+                                    <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Ordner und alle Inhalte löschen?">
+                                        <i class="bi bi-trash"></i> Löschen
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Files -->
+{% if files %}
+<h5 class="mb-3">Dateien</h5>
+<div class="list-group">
+    {% for file in files %}
+    <div class="list-group-item">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+            <div class="flex-grow-1">
+                <h6 class="mb-1">
+                    <i class="bi bi-file-earmark"></i>
+                    {{ file.name }}
+                    {% if file.version_number > 1 %}
+                    <span class="badge bg-info">v{{ file.version_number }}</span>
+                    {% endif %}
+                </h6>
+                <small class="text-muted">
+                    {{ (file.file_size / 1024)|round(2) }} KB • 
+                    Hochgeladen von {{ file.uploader.full_name }} • 
+                    {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
+                </small>
+            </div>
+            <div class="btn-group">
+                <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-download"></i>
+                </a>
+                {% if file.name.endswith(('.txt', '.md')) %}
+                <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    {% if file.versions %}
+                    <li><h6 class="dropdown-header">Versionen</h6></li>
+                    {% for version in file.versions %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('files.download_version', version_id=version.id) }}">
+                            <i class="bi bi-clock-history"></i> Version {{ version.version_number }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li>
+                        <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
+                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Datei wirklich löschen?">
+                                <i class="bi bi-trash"></i> Löschen
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not subfolders and not files %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Dieser Ordner ist leer. Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner.
+</div>
+{% endif %}
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Datei hochladen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('files.upload_file') }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Datei auswählen</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hochladen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal fade" id="newFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neuer Ordner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('files.create_folder') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <div class="mb-3">
+                        <label for="folder_name" class="form-label">Ordnername</label>
+                        <input type="text" class="form-control" id="folder_name" name="folder_name" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
