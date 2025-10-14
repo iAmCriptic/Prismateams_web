@@ -299,11 +299,11 @@ def sync_emails():
     return redirect(url_for('email.index'))
 
 
-def email_sync_scheduler():
+def email_sync_scheduler(app):
     """Background thread for automatic email synchronization every 15 minutes."""
     while True:
         try:
-            with current_app.app_context():
+            with app.app_context():
                 success, message = sync_emails_from_server()
                 if success:
                     print(f"🔄 Auto-sync: {message}")
@@ -319,11 +319,11 @@ def email_sync_scheduler():
 # Start background sync thread
 sync_thread = None
 
-def start_email_sync():
+def start_email_sync(app):
     """Start the background email synchronization thread."""
     global sync_thread
     if sync_thread is None or not sync_thread.is_alive():
-        sync_thread = threading.Thread(target=email_sync_scheduler, daemon=True)
+        sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True)
         sync_thread.start()
         print("🔄 E-Mail Auto-Sync gestartet (alle 15 Minuten)")
 

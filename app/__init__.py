@@ -132,7 +132,7 @@ def create_app(config_name='default'):
         db.session.commit()
     
     # Start email auto-sync
-    start_email_sync()
+    start_email_sync(app)
     
     return app
 
