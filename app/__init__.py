@@ -54,6 +54,10 @@ def create_app(config_name='default'):
         app_name = app.config.get('APP_NAME', 'Team Portal')
         app_logo = app.config.get('APP_LOGO')
         
+        # Fix logo path - remove 'static/' prefix if present since Flask adds it automatically
+        if app_logo and app_logo.startswith('static/'):
+            app_logo = app_logo[7:]  # Remove 'static/' prefix
+        
         # Debug output
         print(f"DEBUG: app_name = {app_name}")
         print(f"DEBUG: app_logo = {app_logo}")
