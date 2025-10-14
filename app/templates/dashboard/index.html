@@ -90,12 +90,12 @@
                         {% for email in recent_emails[:3] %}
                         <div class="list-group-item px-0">
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ email.subject }}</h6>
+                                <h6 class="mb-1 text-truncate">{{ email.subject|decode_email_header }}</h6>
                                 {% if not email.is_read %}
                                 <span class="badge bg-danger">Neu</span>
                                 {% endif %}
                             </div>
-                            <small class="text-muted">{{ email.sender }}</small>
+                            <small class="text-muted">{{ email.sender|decode_email_header }}</small>
                         </div>
                         {% endfor %}
                     </div>

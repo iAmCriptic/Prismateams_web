@@ -1,7 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, Response
 from flask_login import login_required, current_user
 from app import db, mail
-from app.models.email import EmailMessage, EmailPermission
+from app.models.email import EmailMessage, EmailPermission, EmailAttachment
 from app.models.settings import SystemSettings
 from flask_mail import Message
 from datetime import datetime, timedelta
@@ -13,6 +13,7 @@ import smtplib
 import threading
 import time
 import logging
+import io
 
 email_bp = Blueprint('email', __name__)
 
@@ -132,15 +133,33 @@ def sync_emails_from_server():
                 body_text = ""
                 body_html = ""
                 has_attachments = False
+                attachments_data = []
                 
                 if email_message.is_multipart():
                     for part in email_message.walk():
                         content_type = part.get_content_type()
                         content_disposition = part.get('Content-Disposition', '')
                         
-                        # Handle attachments
+                        # Handle attachments and inline images
                         if 'attachment' in content_disposition or 'inline' in content_disposition:
                             has_attachments = True
+                            
+                            # Get filename
+                            filename = part.get_filename()
+                            if filename:
+                                # Decode filename if encoded
+                                filename = decode_header_field(filename)
+                                
+                                # Get file content
+                                file_content = part.get_payload(decode=True)
+                                if file_content:
+                                    attachments_data.append({
+                                        'filename': filename,
+                                        'content_type': content_type,
+                                        'size': len(file_content),
+                                        'content': file_content
+                                    })
+                            
                             continue
                         
                         # Handle text content
@@ -197,6 +216,20 @@ def sync_emails_from_server():
                 )
                 
                 db.session.add(email_entry)
+                db.session.flush()  # Get the ID for attachments
+                
+                # Save attachments
+                for attachment_data in attachments_data:
+                    from app.models.email import EmailAttachment
+                    attachment = EmailAttachment(
+                        email_id=email_entry.id,
+                        filename=attachment_data['filename'],
+                        content_type=attachment_data['content_type'],
+                        size=attachment_data['size'],
+                        content=attachment_data['content']
+                    )
+                    db.session.add(attachment)
+                
                 synced_count += 1
                 
             except Exception as e:
@@ -263,6 +296,33 @@ def view_email(email_id):
         html_content = re.sub(r'src="cid:([^"]+)"', r'data:image/png;base64,', html_content)
     
     return render_template('email/view.html', email=email_msg, html_content=html_content)
+
+
+@email_bp.route('/attachment/<int:attachment_id>')
+@login_required
+def download_attachment(attachment_id):
+    """Download an email attachment."""
+    if not check_email_permission('read'):
+        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    
+    attachment = EmailAttachment.query.get_or_404(attachment_id)
+    
+    # Check if user has permission to view this email
+    email_msg = attachment.email
+    if not email_msg:
+        flash('Anhang nicht gefunden.', 'danger')
+        return redirect(url_for('email.index'))
+    
+    # Create file-like object from binary data
+    file_obj = io.BytesIO(attachment.content)
+    
+    return send_file(
+        file_obj,
+        as_attachment=True,
+        download_name=attachment.filename,
+        mimetype=attachment.content_type
+    )
 
 
 @email_bp.route('/compose', methods=['GET', 'POST'])
@@ -426,7 +486,7 @@ def start_email_sync(app):
     if sync_thread is None or not sync_thread.is_alive():
         sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True)
         sync_thread.start()
-        print("🔄 E-Mail Auto-Sync gestartet (alle 15 Minuten)")
+        print("E-Mail Auto-Sync gestartet (alle 15 Minuten)")
 
 
 

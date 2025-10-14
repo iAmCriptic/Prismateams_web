@@ -1,5 +1,6 @@
 from datetime import datetime
 from app import db
+import json
 
 
 class EmailMessage(db.Model):
@@ -27,8 +28,31 @@ class EmailMessage(db.Model):
     sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
+    # Relationships
+    attachments = db.relationship('EmailAttachment', back_populates='email', cascade='all, delete-orphan')
+    
     def __repr__(self):
         return f'<EmailMessage {self.subject}>'
+
+
+class EmailAttachment(db.Model):
+    __tablename__ = 'email_attachments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email_id = db.Column(db.Integer, db.ForeignKey('email_messages.id'), nullable=False)
+    
+    filename = db.Column(db.String(255), nullable=False)
+    content_type = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)  # Size in bytes
+    content = db.Column(db.LargeBinary, nullable=False)  # File content
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    email = db.relationship('EmailMessage', back_populates='attachments')
+    
+    def __repr__(self):
+        return f'<EmailAttachment {self.filename}>'
 
 
 class EmailPermission(db.Model):
