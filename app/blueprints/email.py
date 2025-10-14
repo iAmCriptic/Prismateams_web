@@ -140,8 +140,10 @@ def sync_emails_from_server():
                         content_type = part.get_content_type()
                         content_disposition = part.get('Content-Disposition', '')
                         
-                        # Handle attachments and inline images
-                        if 'attachment' in content_disposition or 'inline' in content_disposition or content_type.startswith('image/'):
+                        # Handle attachments and inline images (but NOT HTML content)
+                        if (('attachment' in content_disposition or 'inline' in content_disposition) and 
+                            not content_type.startswith('text/html') and 
+                            content_type != 'text/plain'):
                             has_attachments = True
                             
                             # Get filename or generate one
@@ -176,13 +178,33 @@ def sync_emails_from_server():
                             
                             continue
                         
-                        # Handle text content
+                        # Handle text content with better encoding
                         if content_type == "text/plain":
                             if not body_text:  # Only take the first plain text part
-                                body_text = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                try:
+                                    payload = part.get_payload(decode=True)
+                                    if payload:
+                                        # Try to detect encoding
+                                        import chardet
+                                        detected = chardet.detect(payload)
+                                        encoding = detected.get('encoding', 'utf-8')
+                                        body_text = payload.decode(encoding, errors='ignore')
+                                except:
+                                    # Fallback to utf-8
+                                    body_text = part.get_payload(decode=True).decode('utf-8', errors='ignore')
                         elif content_type == "text/html":
                             if not body_html:  # Only take the first HTML part
-                                body_html = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                                try:
+                                    payload = part.get_payload(decode=True)
+                                    if payload:
+                                        # Try to detect encoding
+                                        import chardet
+                                        detected = chardet.detect(payload)
+                                        encoding = detected.get('encoding', 'utf-8')
+                                        body_html = payload.decode(encoding, errors='ignore')
+                                except:
+                                    # Fallback to utf-8
+                                    body_html = part.get_payload(decode=True).decode('utf-8', errors='ignore')
                 else:
                     content_type = email_message.get_content_type()
                     if content_type == "text/html":
@@ -195,12 +217,12 @@ def sync_emails_from_server():
                     import re
                     body_text = re.sub(r'\s+', ' ', body_text).strip()
                 
-                # Clean HTML version (basic sanitization)
+                # Clean HTML version (preserve links and basic formatting)
                 if body_html:
                     import re
                     # Remove script tags for security
                     body_html = re.sub(r'<script[^>]*>.*?</script>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
-                    # Remove style tags that might break layout
+                    # Remove dangerous style tags but preserve basic formatting
                     body_html = re.sub(r'<style[^>]*>.*?</style>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
                     # Remove problematic HTML entities that cause "OBJ" placeholders
                     body_html = re.sub(r'<o:p\s*/>', '', body_html)
@@ -212,8 +234,9 @@ def sync_emails_from_server():
                     # Remove Microsoft Word artifacts
                     body_html = re.sub(r'<v:.*?>.*?</v:.*?>', '', body_html, flags=re.DOTALL)
                     body_html = re.sub(r'<![^>]*>', '', body_html)  # Remove comments
-                    # Normalize whitespace
-                    body_html = re.sub(r'\s+', ' ', body_html).strip()
+                    # Normalize whitespace but preserve line breaks
+                    body_html = re.sub(r'[ \t]+', ' ', body_html)  # Multiple spaces to single
+                    body_html = re.sub(r'\n\s*\n', '\n\n', body_html)  # Preserve paragraph breaks
                 
                 # Parse date
                 received_at = datetime.utcnow()
@@ -358,7 +381,7 @@ def view_email(email_id):
         email_msg.is_read = True
         db.session.commit()
     
-    # Clean and prepare HTML content for display
+    # Clean and prepare HTML content for display with clickable links
     html_content = None
     if email_msg.body_html:
         import re
@@ -372,6 +395,9 @@ def view_email(email_id):
         html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
         html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
         html_content = re.sub(r'<![^>]*>', '', html_content)  # Remove comments
+        
+        # Make sure links are clickable and secure
+        html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
         
         # Replace cid: references with actual inline images
         for attachment in email_msg.attachments:

@@ -570,6 +570,8 @@ body {
     max-width: 100%;
     overflow-x: hidden;
     word-wrap: break-word;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
 }
 
 .email-html-content img {
@@ -577,12 +579,14 @@ body {
     height: auto !important;
     display: block;
     margin: 0.5rem 0;
+    border-radius: 4px;
 }
 
 .email-html-content table {
     max-width: 100% !important;
     table-layout: fixed;
     word-wrap: break-word;
+    border-collapse: collapse;
 }
 
 .email-html-content p,
@@ -591,6 +595,38 @@ body {
     max-width: 100%;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    margin-bottom: 1rem;
+}
+
+/* Link styling for HTML emails */
+.email-html-content a {
+    color: var(--accent-color, #007bff);
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.email-html-content a:hover {
+    color: var(--accent-color, #0056b3);
+    text-decoration: none;
+}
+
+/* Preserve email formatting */
+.email-html-content ul,
+.email-html-content ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.email-html-content li {
+    margin-bottom: 0.25rem;
+}
+
+.email-html-content blockquote {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1rem;
+    margin-left: 0;
+    font-style: italic;
+    color: #6c757d;
 }
 
 /* Ensure email content doesn't break layout */
