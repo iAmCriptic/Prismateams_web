@@ -13,7 +13,9 @@ mail = Mail()
 
 def create_app(config_name='default'):
     """Create and configure the Flask application."""
-    app = Flask(__name__)
+    import os
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    app = Flask(__name__, static_folder=os.path.join(basedir, 'static'))
     
     # Load configuration
     app.config.from_object(config[config_name])
