@@ -45,6 +45,7 @@ class EmailAttachment(db.Model):
     content_type = db.Column(db.String(100), nullable=False)
     size = db.Column(db.Integer, nullable=False)  # Size in bytes
     content = db.Column(db.LargeBinary, nullable=False)  # File content
+    is_inline = db.Column(db.Boolean, default=False)  # True if inline image
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
@@ -53,6 +54,13 @@ class EmailAttachment(db.Model):
     
     def __repr__(self):
         return f'<EmailAttachment {self.filename}>'
+    
+    def get_data_url(self):
+        """Get data URL for inline images."""
+        if self.is_inline and self.content_type.startswith('image/'):
+            import base64
+            return f"data:{self.content_type};base64,{base64.b64encode(self.content).decode()}"
+        return None
 
 
 class EmailPermission(db.Model):

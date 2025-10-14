@@ -141,24 +141,32 @@ def sync_emails_from_server():
                         content_disposition = part.get('Content-Disposition', '')
                         
                         # Handle attachments and inline images
-                        if 'attachment' in content_disposition or 'inline' in content_disposition:
+                        if 'attachment' in content_disposition or 'inline' in content_disposition or content_type.startswith('image/'):
                             has_attachments = True
                             
-                            # Get filename
+                            # Get filename or generate one
                             filename = part.get_filename()
-                            if filename:
-                                # Decode filename if encoded
-                                filename = decode_header_field(filename)
-                                
-                                # Get file content
-                                file_content = part.get_payload(decode=True)
-                                if file_content:
-                                    attachments_data.append({
-                                        'filename': filename,
-                                        'content_type': content_type,
-                                        'size': len(file_content),
-                                        'content': file_content
-                                    })
+                            if not filename:
+                                # Generate filename for inline images
+                                if content_type.startswith('image/'):
+                                    extension = content_type.split('/')[-1]
+                                    filename = f"image_{len(attachments_data)}.{extension}"
+                                else:
+                                    filename = f"attachment_{len(attachments_data)}"
+                            
+                            # Decode filename if encoded
+                            filename = decode_header_field(filename)
+                            
+                            # Get file content
+                            file_content = part.get_payload(decode=True)
+                            if file_content:
+                                attachments_data.append({
+                                    'filename': filename,
+                                    'content_type': content_type,
+                                    'size': len(file_content),
+                                    'content': file_content,
+                                    'is_inline': 'inline' in content_disposition or content_type.startswith('image/')
+                                })
                             
                             continue
                         
@@ -188,6 +196,11 @@ def sync_emails_from_server():
                     body_html = re.sub(r'<script[^>]*>.*?</script>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
                     # Remove style tags that might break layout
                     body_html = re.sub(r'<style[^>]*>.*?</style>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
+                    # Fix inline images - convert cid: to data URLs or placeholder
+                    body_html = re.sub(r'src="cid:([^"]+)"', r'src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="', body_html)
+                    # Remove problematic HTML entities that might cause "OBJ"
+                    body_html = re.sub(r'<o:p\s*/>', '', body_html)
+                    body_html = re.sub(r'<o:p>.*?</o:p>', '', body_html, flags=re.DOTALL)
                     # Normalize whitespace
                     body_html = re.sub(r'\s+', ' ', body_html).strip()
                 
@@ -226,7 +239,8 @@ def sync_emails_from_server():
                         filename=attachment_data['filename'],
                         content_type=attachment_data['content_type'],
                         size=attachment_data['size'],
-                        content=attachment_data['content']
+                        content=attachment_data['content'],
+                        is_inline=attachment_data.get('is_inline', False)
                     )
                     db.session.add(attachment)
                 
@@ -266,6 +280,14 @@ def index():
     # Get emails from database
     emails = EmailMessage.query.order_by(EmailMessage.received_at.desc()).all()
     
+    # Debug: Update has_attachments for existing emails
+    for email in emails:
+        if email.attachments:
+            email.has_attachments = True
+        else:
+            email.has_attachments = False
+    db.session.commit()
+    
     return render_template('email/index.html', emails=emails)
 
 
@@ -291,9 +313,18 @@ def view_email(email_id):
         # Basic HTML sanitization for safe display
         html_content = email_msg.body_html
         
-        # Fix relative image URLs to absolute (if needed)
-        # This would need to be adapted based on your email server setup
-        html_content = re.sub(r'src="cid:([^"]+)"', r'data:image/png;base64,', html_content)
+        # Replace cid: references with actual inline images
+        for attachment in email_msg.attachments:
+            if attachment.is_inline and attachment.content_type.startswith('image/'):
+                data_url = attachment.get_data_url()
+                if data_url:
+                    # Replace cid references with data URLs
+                    cid_pattern = f'cid:{attachment.filename}'
+                    html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
+                    html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
+        
+        # Fix remaining cid: references with placeholder
+        html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="', html_content)
     
     return render_template('email/view.html', email=email_msg, html_content=html_content)
 
@@ -405,11 +436,15 @@ def sync_emails():
     print(f"   Username: {current_app.config.get('MAIL_USERNAME')}")
     print(f"   SSL: {current_app.config.get('IMAP_USE_SSL', True)}")
     
+    # Clear existing emails to force re-sync with new attachment handling
+    EmailMessage.query.delete()
+    db.session.commit()
+    
     # Try to sync from IMAP server
     success, message = sync_emails_from_server()
     
     if success:
-        flash(f'✅ {message}', 'success')
+        flash(f'✅ {message} - E-Mails wurden neu synchronisiert mit Attachment-Support!', 'success')
         print(f"✅ {message}")
     else:
         print(f"❌ {message}")

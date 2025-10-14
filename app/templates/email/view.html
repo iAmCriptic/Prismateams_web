@@ -32,12 +32,19 @@
                 {% for attachment in email.attachments %}
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
+                        {% if attachment.is_inline and attachment.content_type.startswith('image/') %}
+                        <i class="bi bi-image me-2"></i>
+                        {% else %}
                         <i class="bi bi-file-earmark me-2"></i>
+                        {% endif %}
                         <div>
                             <strong>{{ attachment.filename }}</strong>
                             <br>
                             <small class="text-muted">
                                 {{ (attachment.size / 1024)|round(1) }} KB • {{ attachment.content_type }}
+                                {% if attachment.is_inline %}
+                                • Inline
+                                {% endif %}
                             </small>
                         </div>
                     </div>
