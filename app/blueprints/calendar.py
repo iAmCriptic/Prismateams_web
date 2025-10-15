@@ -250,7 +250,7 @@ def get_events_for_month(year, month):
             'url': url_for('calendar.view_event', event_id=event.id)
         })
     
-            return jsonify(events_data)
+        return jsonify(events_data)
 
 
 @calendar_bp.route('/api/events/range/<start_date>/<end_date>')
