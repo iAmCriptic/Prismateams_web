@@ -31,15 +31,19 @@ def decode_header_field(field):
         for part, encoding in decoded_parts:
             if isinstance(part, bytes):
                 if encoding:
-                    decoded_string += part.decode(encoding)
+                    try:
+                        decoded_string += part.decode(encoding, errors='ignore')
+                    except (UnicodeDecodeError, LookupError):
+                        decoded_string += part.decode('utf-8', errors='ignore')
                 else:
                     decoded_string += part.decode('utf-8', errors='ignore')
             else:
                 decoded_string += str(part)
         
         return decoded_string.strip()
-    except Exception:
-        return str(field)
+    except Exception as e:
+        print(f"Warning: Failed to decode header field: {e}")
+        return str(field) if field else ''
 
 
 def connect_imap():
@@ -99,13 +103,17 @@ def sync_emails_from_server():
                 # Extract data with proper decoding
                 from email.header import decode_header
                 
-                # Decode sender
+                # Decode sender with error handling
                 sender_raw = email_message.get('From', '')
                 sender = decode_header_field(sender_raw)
+                if not sender:
+                    sender = "Unknown Sender"
                 
-                # Decode subject
+                # Decode subject with error handling
                 subject_raw = email_message.get('Subject', '')
                 subject = decode_header_field(subject_raw)
+                if not subject:
+                    subject = "(No Subject)"
                 
                 # Decode other fields
                 date_str = email_message.get('Date', '')
@@ -372,7 +380,12 @@ def sync_emails_from_server():
                 synced_count += 1
                 
             except Exception as e:
-                logging.error(f"Failed to process email {email_id}: {str(e)}")
+                # Handle Unicode errors gracefully
+                error_msg = str(e)
+                if 'charmap' in error_msg or 'codec' in error_msg:
+                    logging.warning(f"Skipping email {email_id}: Unicode encoding issue")
+                else:
+                    logging.error(f"Failed to process email {email_id}: {error_msg}")
                 # Rollback session on error
                 db.session.rollback()
                 continue
