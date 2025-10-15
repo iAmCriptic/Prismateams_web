@@ -239,8 +239,8 @@ body {
 
 /* Chat Messages - WhatsApp Form with Original Colors */
 .chat-message {
-    margin-bottom: 0.5rem;
-    padding: 0.5rem 0.75rem 0.75rem 0.75rem; /* More padding at bottom for timestamp */
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem 0.75rem 1rem; /* More padding for better height */
     border-radius: 1rem; /* More rounded like WhatsApp */
     max-width: 80%; /* Limit width to 80% as requested */
     min-width: 200px; /* Minimum width to prevent too narrow bubbles */
@@ -249,6 +249,7 @@ body {
     word-wrap: break-word;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
     display: inline-block; /* Allow proper alignment */
+    min-height: 60px; /* Minimum height to prevent flat appearance */
 }
 
 .chat-message.own {
@@ -271,6 +272,23 @@ body {
 .chat-message.other .message-content,
 .chat-message.other .message-time {
     text-align: left !important;
+}
+
+/* Message Elements Styling */
+.message-header {
+    margin-bottom: 0.25rem;
+    font-weight: bold;
+}
+
+.message-content {
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
 }
 
 .chat-message.other {
