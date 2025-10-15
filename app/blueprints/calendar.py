@@ -212,4 +212,45 @@ def remove_participant(event_id, user_id):
     return redirect(url_for('calendar.view_event', event_id=event_id))
 
 
+@calendar_bp.route('/api/events/<int:year>/<int:month>')
+@login_required
+def get_events_for_month(year, month):
+    """Get all events for a specific month."""
+    # Get start and end dates for the month
+    start_date = datetime(year, month, 1)
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1)
+    else:
+        end_date = datetime(year, month + 1, 1)
+    
+    # Get all events in this month
+    events = CalendarEvent.query.filter(
+        CalendarEvent.start_time >= start_date,
+        CalendarEvent.start_time < end_date
+    ).order_by(CalendarEvent.start_time).all()
+    
+    # Get user's participation status for each event
+    events_data = []
+    for event in events:
+        participation = EventParticipant.query.filter_by(
+            event_id=event.id,
+            user_id=current_user.id
+        ).first()
+        
+        events_data.append({
+            'id': event.id,
+            'title': event.title,
+            'start_time': event.start_time.isoformat(),
+            'end_time': event.end_time.isoformat(),
+            'location': event.location,
+            'description': event.description,
+            'day': event.start_time.day,
+            'time': event.start_time.strftime('%H:%M'),
+            'participation_status': participation.status if participation else None,
+            'url': url_for('calendar.view_event', event_id=event.id)
+        })
+    
+    return jsonify(events_data)
+
+
 

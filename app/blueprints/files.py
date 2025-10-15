@@ -76,6 +76,73 @@ def create_folder():
     return redirect(url_for('files.index'))
 
 
+@files_bp.route('/create-file', methods=['POST'])
+@login_required
+def create_file():
+    """Create a new text or markdown file."""
+    filename = request.form.get('filename', '').strip()
+    content = request.form.get('content', '')
+    file_type = request.form.get('file_type', 'txt')
+    folder_id = request.form.get('folder_id')
+    folder_id = int(folder_id) if folder_id else None
+    
+    if not filename:
+        flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
+    # Add file extension
+    if file_type == 'md' and not filename.endswith('.md'):
+        filename += '.md'
+    elif file_type == 'txt' and not filename.endswith('.txt'):
+        filename += '.txt'
+    
+    # Check if file with same name exists in folder
+    existing_file = File.query.filter_by(
+        name=filename,
+        folder_id=folder_id,
+        is_current=True
+    ).first()
+    
+    if existing_file:
+        flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
+    # Create file
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    stored_filename = f"{timestamp}_{filename}"
+    filepath = os.path.join('uploads', 'files', stored_filename)
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    
+    # Write content to file
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    # Store absolute path in database
+    absolute_filepath = os.path.abspath(filepath)
+    
+    new_file = File(
+        name=filename,
+        original_name=filename,
+        folder_id=folder_id,
+        uploaded_by=current_user.id,
+        file_path=absolute_filepath,
+        file_size=os.path.getsize(absolute_filepath),
+        mime_type='text/plain' if file_type == 'txt' else 'text/markdown',
+        version_number=1,
+        is_current=True
+    )
+    db.session.add(new_file)
+    db.session.commit()
+    
+    flash(f'Datei "{filename}" wurde erstellt.', 'success')
+    
+    if folder_id:
+        return redirect(url_for('files.browse_folder', folder_id=folder_id))
+    return redirect(url_for('files.index'))
+
+
 @files_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
@@ -90,6 +157,16 @@ def upload_file():
     
     if file.filename == '':
         flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
+    # Check file size (100MB limit)
+    file.seek(0, 2)  # Seek to end
+    file_size = file.tell()
+    file.seek(0)  # Reset to beginning
+    
+    max_size = 100 * 1024 * 1024  # 100MB in bytes
+    if file_size > max_size:
+        flash(f'Datei ist zu groß. Maximale Größe: 100MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     original_name = secure_filename(file.filename)

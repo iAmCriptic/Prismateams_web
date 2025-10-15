@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         generateCalendar(year, month);
     }
     
-    function generateCalendar(year, month) {
+    async function generateCalendar(year, month) {
         const calendarBody = document.getElementById('calendarBody');
         calendarBody.innerHTML = '';
         
@@ -186,28 +186,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 dayCell.classList.add('today');
             }
             
-            // Events für diesen Tag hinzufügen
-            addEventsToDay(dayCell, year, month, day);
-            
             calendarBody.appendChild(dayCell);
+        }
+        
+        // Events für alle Tage laden (einmal für den ganzen Monat)
+        await loadEventsForMonth(year, month + 1);
+    }
+    
+    async function loadEventsForMonth(year, month) {
+        try {
+            const response = await fetch(`/calendar/api/events/${year}/${month}`);
+            if (response.ok) {
+                const events = await response.json();
+                
+                // Events zu den entsprechenden Tagen hinzufügen
+                events.forEach(event => {
+                    const dayCells = document.querySelectorAll('.calendar-day:not(.empty)');
+                    dayCells.forEach(dayCell => {
+                        if (parseInt(dayCell.textContent) === event.day) {
+                            const eventElement = document.createElement('div');
+                            eventElement.className = 'calendar-event';
+                            
+                            // Add status-based styling
+                            if (event.participation_status === 'accepted') {
+                                eventElement.classList.add('accepted');
+                            } else if (event.participation_status === 'declined') {
+                                eventElement.classList.add('declined');
+                            } else if (event.participation_status === 'removed') {
+                                eventElement.classList.add('removed');
+                            } else {
+                                eventElement.classList.add('pending');
+                            }
+                            
+                            eventElement.textContent = event.title;
+                            eventElement.title = `${event.title} - ${event.time}${event.location ? ' - ' + event.location : ''}`;
+                            
+                            // Make event clickable
+                            eventElement.style.cursor = 'pointer';
+                            eventElement.addEventListener('click', function() {
+                                window.location.href = event.url;
+                            });
+                            
+                            dayCell.appendChild(eventElement);
+                        }
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('Error loading events:', error);
         }
     }
     
-    function addEventsToDay(dayCell, year, month, day) {
-        // Hier würden die Events aus dem Backend geladen werden
-        // Für jetzt fügen wir ein Beispiel-Event hinzu
-        const events = [
-            // Beispiel: Event am 15. Oktober
-            { date: 15, title: 'Team Meeting', time: '10:00' }
-        ];
-        
-        const event = events.find(e => e.date === day);
-        if (event) {
-            const eventElement = document.createElement('div');
-            eventElement.className = 'calendar-event';
-            eventElement.textContent = event.title;
-            eventElement.title = event.title + ' - ' + event.time;
-            dayCell.appendChild(eventElement);
+    async function addEventsToDay(dayCell, year, month, day) {
+        try {
+            const response = await fetch(`/calendar/api/events/${year}/${month + 1}`);
+            if (response.ok) {
+                const events = await response.json();
+                const dayEvents = events.filter(event => event.day === day);
+                
+                dayEvents.forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.className = 'calendar-event';
+                    
+                    // Add status-based styling
+                    if (event.participation_status === 'accepted') {
+                        eventElement.classList.add('accepted');
+                    } else if (event.participation_status === 'declined') {
+                        eventElement.classList.add('declined');
+                    } else if (event.participation_status === 'removed') {
+                        eventElement.classList.add('removed');
+                    } else {
+                        eventElement.classList.add('pending');
+                    }
+                    
+                    eventElement.textContent = event.title;
+                    eventElement.title = `${event.title} - ${event.time}${event.location ? ' - ' + event.location : ''}`;
+                    
+                    // Make event clickable
+                    eventElement.style.cursor = 'pointer';
+                    eventElement.addEventListener('click', function() {
+                        window.location.href = event.url;
+                    });
+                    
+                    dayCell.appendChild(eventElement);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading events:', error);
         }
     }
     

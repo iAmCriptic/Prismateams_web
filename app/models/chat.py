@@ -7,6 +7,7 @@ class Chat(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    group_avatar = db.Column(db.String(255), nullable=True)  # Pfad zum Gruppenbild
     is_main_chat = db.Column(db.Boolean, default=False, nullable=False)
     is_direct_message = db.Column(db.Boolean, default=False, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

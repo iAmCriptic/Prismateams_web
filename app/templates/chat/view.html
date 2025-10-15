@@ -23,15 +23,36 @@
         <a href="{{ url_for('chat.index') }}" class="btn btn-link p-2 me-2">
             <i class="bi bi-arrow-left fs-4"></i>
         </a>
+        
+        <!-- Group Avatar -->
+        <div class="me-3">
+            {% if chat.group_avatar %}
+                <img src="{{ url_for('static', filename='../' + chat.group_avatar) }}" 
+                     class="rounded-circle" 
+                     style="width: 40px; height: 40px; object-fit: cover;" 
+                     alt="Gruppenbild">
+            {% else %}
+                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" 
+                     style="width: 40px; height: 40px;">
+                    <i class="bi bi-people-fill text-white fs-5"></i>
+                </div>
+            {% endif %}
+        </div>
+        
         <div class="flex-grow-1">
             <h5 class="mb-0 fw-bold">{{ chat.name }}</h5>
             <small class="text-muted">{{ members|length }} Mitglieder</small>
         </div>
+        
         <div class="dropdown">
             <button class="btn btn-link p-2" data-bs-toggle="dropdown">
                 <i class="bi bi-three-dots-vertical fs-5"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" onclick="toggleNotifications()">
+                    <i class="bi bi-bell" id="notification-icon"></i>
+                    <span id="notification-text">Benachrichtigungen stummschalten</span>
+                </a></li>
                 <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle me-2"></i>Chat-Info</a></li>
                 <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Einstellungen</a></li>
             </ul>
@@ -82,19 +103,42 @@
 </div>
 
 <!-- Message Input -->
-<div class="chat-input-container">
+<div class="chat-input-container d-md-none">
     <form id="message-form" method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
-        <div class="input-group">
-            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-upload').click()">
-                <i class="bi bi-paperclip"></i>
+        <div class="input-group mobile-input-group">
+            <button class="btn btn-link p-2" type="button" onclick="document.getElementById('file-upload').click()">
+                <i class="bi bi-paperclip fs-5"></i>
+            </button>
+            <button class="btn btn-link p-2" type="button" onclick="startVoiceRecording()">
+                <i class="bi bi-mic fs-5" id="mic-icon"></i>
             </button>
             <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*">
-            <input type="text" id="message-input" class="form-control" name="content" placeholder="Nachricht schreiben..." autocomplete="off">
-            <button class="btn btn-accent" type="submit" id="send-button">
+            <input type="text" id="message-input" class="form-control border-0" name="content" 
+                   placeholder="Nachricht schreiben..." autocomplete="off" style="background: transparent;">
+            <button class="btn btn-link p-2" type="submit" id="send-button">
+                <i class="bi bi-send-fill fs-5 text-primary"></i>
+            </button>
+        </div>
+        <div class="file-info" id="file-info" style="display: none;">
+            <small class="text-muted" id="file-name"></small>
+        </div>
+    </form>
+</div>
+
+<!-- Desktop Message Input -->
+<div class="chat-input-container d-none d-md-block">
+    <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
+        <div class="input-group">
+            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-upload-desktop').click()">
+                <i class="bi bi-paperclip"></i>
+            </button>
+            <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*">
+            <input type="text" id="message-input-desktop" class="form-control" name="content" placeholder="Nachricht schreiben..." autocomplete="off">
+            <button class="btn btn-accent" type="submit" id="send-button-desktop">
                 <i class="bi bi-send"></i>
             </button>
         </div>
-        <small class="text-muted" id="file-name"></small>
+        <small class="text-muted" id="file-name-desktop"></small>
     </form>
 </div>
 {% endblock %}
@@ -288,6 +332,156 @@
             document.getElementById('message-form').dispatchEvent(new Event('submit'));
         }
     });
+    
+    // Desktop form handling
+    document.getElementById('message-input-desktop').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('message-form-desktop').dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    // Desktop file upload handling
+    document.getElementById('file-upload-desktop').addEventListener('change', function(e) {
+        const fileName = e.target.files[0]?.name;
+        document.getElementById('file-name-desktop').textContent = fileName ? `Datei: ${fileName}` : '';
+    });
+    
+    // Desktop form submission
+    document.getElementById('message-form-desktop').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const messageInput = document.getElementById('message-input-desktop');
+        const sendButton = document.getElementById('send-button-desktop');
+        
+        if (!messageInput.value.trim() && !formData.get('file').name) {
+            return;
+        }
+        
+        // Disable send button
+        sendButton.disabled = true;
+        sendButton.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        
+        try {
+            const response = await fetch(`/chat/${chatId}/send`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                addMessageToChat(data);
+                messageInput.value = '';
+                document.getElementById('file-upload-desktop').value = '';
+                document.getElementById('file-name-desktop').textContent = '';
+                lastMessageId = data.id;
+                scrollToBottom();
+            } else {
+                const error = await response.json();
+                alert('Fehler beim Senden: ' + error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Fehler beim Senden der Nachricht');
+        } finally {
+            // Re-enable send button
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<i class="bi bi-send"></i>';
+        }
+    });
+    
+    // Notification toggle functionality
+    let notificationsMuted = false;
+    function toggleNotifications() {
+        notificationsMuted = !notificationsMuted;
+        const icon = document.getElementById('notification-icon');
+        const text = document.getElementById('notification-text');
+        
+        if (notificationsMuted) {
+            icon.className = 'bi bi-bell-slash';
+            text.textContent = 'Benachrichtigungen aktivieren';
+        } else {
+            icon.className = 'bi bi-bell';
+            text.textContent = 'Benachrichtigungen stummschalten';
+        }
+        
+        // Store preference in localStorage
+        localStorage.setItem(`chat_${chatId}_notifications_muted`, notificationsMuted);
+    }
+    
+    // Load notification preference
+    const savedMuteState = localStorage.getItem(`chat_${chatId}_notifications_muted`);
+    if (savedMuteState === 'true') {
+        toggleNotifications();
+    }
+    
+    // Voice recording functionality
+    let mediaRecorder;
+    let audioChunks = [];
+    
+    async function startVoiceRecording() {
+        const micIcon = document.getElementById('mic-icon');
+        
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            // Stop recording
+            mediaRecorder.stop();
+            micIcon.className = 'bi bi-mic fs-5';
+            return;
+        }
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = function(event) {
+                audioChunks.push(event.data);
+            };
+            
+            mediaRecorder.onstop = function() {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                sendVoiceMessage(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            mediaRecorder.start();
+            micIcon.className = 'bi bi-stop-circle fs-5 text-danger';
+            
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Mikrofonzugriff wurde verweigert');
+        }
+    }
+    
+    async function sendVoiceMessage(audioBlob) {
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'voice_message.wav');
+        formData.append('content', '');
+        
+        try {
+            const response = await fetch(`/chat/${chatId}/send`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                addMessageToChat(data);
+                lastMessageId = data.id;
+                scrollToBottom();
+            }
+        } catch (error) {
+            console.error('Error sending voice message:', error);
+            alert('Fehler beim Senden der Sprachnachricht');
+        }
+    }
 </script>
 {% endblock %}
 

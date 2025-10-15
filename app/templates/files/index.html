@@ -16,12 +16,14 @@
         {% endif %}
     </div>
     <div class="col-auto">
-        <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="bi bi-upload"></i> Hochladen
-        </button>
-        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newFolderModal">
-            <i class="bi bi-folder-plus"></i> Neuer Ordner
-        </button>
+        <div class="btn-group" role="group">
+            <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#createModal">
+                <i class="bi bi-plus-circle"></i> Erstellen
+            </button>
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="bi bi-upload"></i> Hochladen
+            </button>
+        </div>
     </div>
 </div>
 
@@ -127,6 +129,94 @@
 </div>
 {% endif %}
 
+<!-- Create Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neue Datei/Ordner erstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createFileModal" data-bs-dismiss="modal">
+                        <i class="bi bi-file-earmark-text"></i> Markdown-Datei (.md)
+                    </button>
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createTxtModal" data-bs-dismiss="modal">
+                        <i class="bi bi-file-earmark-text"></i> Textdatei (.txt)
+                    </button>
+                    <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#newFolderModal" data-bs-dismiss="modal">
+                        <i class="bi bi-folder-plus"></i> Neuer Ordner
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create MD File Modal -->
+<div class="modal fade" id="createFileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Markdown-Datei erstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('files.create_file') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <input type="hidden" name="file_type" value="md">
+                    <div class="mb-3">
+                        <label for="md_filename" class="form-label">Dateiname (ohne .md)</label>
+                        <input type="text" class="form-control" id="md_filename" name="filename" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="md_content" class="form-label">Inhalt</label>
+                        <textarea class="form-control" id="md_content" name="content" rows="8" placeholder="# Titel&#10;&#10;Hier können Sie Markdown-Inhalt schreiben..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create TXT File Modal -->
+<div class="modal fade" id="createTxtModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Textdatei erstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('files.create_file') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <input type="hidden" name="file_type" value="txt">
+                    <div class="mb-3">
+                        <label for="txt_filename" class="form-label">Dateiname (ohne .txt)</label>
+                        <input type="text" class="form-control" id="txt_filename" name="filename" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="txt_content" class="form-label">Inhalt</label>
+                        <textarea class="form-control" id="txt_content" name="content" rows="8" placeholder="Hier können Sie Text schreiben..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Upload Modal -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
@@ -135,17 +225,21 @@
                 <h5 class="modal-title">Datei hochladen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('files.upload_file') }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('files.upload_file') }}" enctype="multipart/form-data" id="uploadForm">
                 <div class="modal-body">
                     <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
                     <div class="mb-3">
-                        <label for="file" class="form-label">Datei auswählen</label>
+                        <label for="file" class="form-label">Datei auswählen (max. 100MB)</label>
                         <input type="file" class="form-control" id="file" name="file" required>
+                        <div class="form-text">Maximale Dateigröße: 100MB</div>
+                    </div>
+                    <div class="progress mb-3" style="display: none;" id="uploadProgress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-accent">Hochladen</button>
+                    <button type="submit" class="btn btn-accent" id="uploadBtn">Hochladen</button>
                 </div>
             </form>
         </div>
@@ -176,6 +270,51 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // File size validation
+    const fileInput = document.getElementById('file');
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadProgress = document.getElementById('uploadProgress');
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+            
+            if (file && file.size > maxSize) {
+                alert('Die Datei ist zu groß. Maximale Größe: 100MB');
+                this.value = '';
+                uploadBtn.disabled = true;
+            } else {
+                uploadBtn.disabled = false;
+            }
+        });
+    }
+    
+    // Upload progress simulation
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function() {
+            uploadProgress.style.display = 'block';
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Hochladen...';
+            
+            // Simulate progress (since we can't get real progress without AJAX)
+            let progress = 0;
+            const interval = setInterval(function() {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                uploadProgress.querySelector('.progress-bar').style.width = progress + '%';
+            }, 200);
+        });
+    }
+});
+</script>
 {% endblock %}
 
 

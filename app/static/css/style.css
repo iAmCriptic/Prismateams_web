@@ -323,6 +323,119 @@ body {
     margin-right: calc(-50vw + 50%) !important;
 }
 
+/* WhatsApp/Signal Style Messages */
+.chat-message {
+    margin-bottom: 0.5rem;
+    max-width: 70%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-message.own {
+    margin-left: auto;
+    align-items: flex-end;
+}
+
+.chat-message.other {
+    margin-right: auto;
+    align-items: flex-start;
+}
+
+.message-header {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+    padding: 0 0.5rem;
+}
+
+.chat-message.own .message-header {
+    color: #007bff;
+    text-align: right;
+}
+
+.message-content {
+    background-color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    word-wrap: break-word;
+    position: relative;
+    max-width: 100%;
+}
+
+/* WhatsApp-style message bubbles */
+.chat-message.own .message-content {
+    background-color: #dcf8c6;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.chat-message.other .message-content {
+    background-color: white;
+    border-bottom-left-radius: 0.25rem;
+}
+
+/* Dark mode message bubbles */
+[data-bs-theme="dark"] .chat-message.own .message-content {
+    background-color: #056162;
+    color: white;
+}
+
+[data-bs-theme="dark"] .chat-message.other .message-content {
+    background-color: #2a2f32;
+    color: white;
+}
+
+[data-bs-theme="dark"] .message-header {
+    color: #aaa;
+}
+
+[data-bs-theme="dark"] .chat-message.own .message-header {
+    color: #4fc3f7;
+}
+
+.message-time {
+    font-size: 0.65rem;
+    color: #999;
+    margin-top: 0.25rem;
+    padding: 0 0.5rem;
+}
+
+[data-bs-theme="dark"] .message-time {
+    color: #666;
+}
+
+/* Mobile Input Styling */
+.mobile-input-group {
+    background-color: #f0f0f0;
+    border-radius: 25px;
+    padding: 0.25rem;
+    border: 1px solid #ddd;
+}
+
+[data-bs-theme="dark"] .mobile-input-group {
+    background-color: #2a2f32;
+    border-color: #444;
+}
+
+.mobile-input-group .form-control {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.mobile-input-group .btn {
+    border: none;
+    background: transparent;
+}
+
+.mobile-input-group .btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-bs-theme="dark"] .mobile-input-group .btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
 [data-bs-theme="dark"] .mobile-chat-header {
     background-color: #212529;
     border-bottom-color: #495057;
@@ -639,6 +752,38 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all 0.2s ease;
+}
+
+.calendar-event:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Event status styling */
+.calendar-event.accepted {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 3px solid #28a745;
+}
+
+.calendar-event.declined {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 3px solid #dc3545;
+}
+
+.calendar-event.removed {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    border-left: 3px solid #6c757d;
+    opacity: 0.6;
+}
+
+.calendar-event.pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 3px solid #ffc107;
 }
 
 .calendar-day.today .calendar-event {
