@@ -45,6 +45,9 @@
         {% for message in messages %}
         <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
             {% if message.message_type == 'text' %}
+                <div class="message-header">
+                    <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                </div>
                 <div class="message-content">
                     {{ message.content }}
                 </div>
@@ -180,6 +183,9 @@
         let contentHtml = '';
         if (message.message_type === 'text') {
             contentHtml = `
+                <div class="message-header">
+                    <strong>${parseInt(message.sender_id) === parseInt(currentUserId) ? 'Du' : escapeHtml(message.sender)}</strong>
+                </div>
                 <div class="message-content">
                     ${escapeHtml(message.content)}
                 </div>

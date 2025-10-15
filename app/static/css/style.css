@@ -242,7 +242,7 @@ body {
     margin-bottom: 0.5rem;
     padding: 0.5rem 0.75rem 0.75rem 0.75rem; /* More padding at bottom for timestamp */
     border-radius: 1rem; /* More rounded like WhatsApp */
-    max-width: 70%; /* Limit width - not full screen */
+    max-width: 80%; /* Limit width to 80% as requested */
     position: relative;
     word-wrap: break-word;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
@@ -251,8 +251,8 @@ body {
 .chat-message.own {
     background-color: var(--accent-color); /* Original blue color */
     color: white;
-    margin-left: auto;
-    margin-right: 0.5rem;
+    margin-left: auto; /* Push to right side */
+    margin-right: 1rem;
     text-align: left; /* Text aligned left even for own messages */
     border-bottom-right-radius: 0.25rem; /* Tail effect like WhatsApp */
 }
@@ -260,8 +260,8 @@ body {
 .chat-message.other {
     background-color: #f8f9fa; /* Original light background */
     color: #000;
-    margin-right: auto;
-    margin-left: 0.5rem;
+    margin-right: auto; /* Push to left side */
+    margin-left: 1rem;
     text-align: left;
     border-bottom-left-radius: 0.25rem; /* Tail effect like WhatsApp */
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
@@ -312,8 +312,8 @@ body {
         overflow-y: auto;
         padding: 1rem;
         background-color: #f0f2f5; /* Original background color */
-        height: calc(100vh - 180px); /* Increased height to eliminate white space */
-        max-height: calc(100vh - 180px); /* Maximum height */
+        height: calc(100vh - 160px); /* Larger height for bigger container */
+        max-height: calc(100vh - 160px); /* Maximum height */
         padding-bottom: 0px; /* No bottom padding to eliminate white space */
         width: 100%; /* Full width */
         overflow-x: hidden; /* Prevent horizontal scrolling */
