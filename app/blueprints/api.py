@@ -99,15 +99,24 @@ def get_messages(chat_id):
     if not membership:
         return jsonify({'error': 'Nicht autorisiert'}), 403
     
-    messages = ChatMessage.query.filter_by(
+    # Check if we want messages since a specific ID
+    since_id = request.args.get('since', type=int)
+    
+    query = ChatMessage.query.filter_by(
         chat_id=chat_id,
         is_deleted=False
-    ).order_by(ChatMessage.created_at).all()
+    )
+    
+    if since_id:
+        query = query.filter(ChatMessage.id > since_id)
+    
+    messages = query.order_by(ChatMessage.created_at).all()
     
     return jsonify([{
         'id': msg.id,
         'sender_id': msg.sender_id,
         'sender_name': msg.sender.full_name,
+        'sender': msg.sender.full_name,  # Alias for compatibility
         'content': msg.content,
         'message_type': msg.message_type,
         'media_url': msg.media_url,

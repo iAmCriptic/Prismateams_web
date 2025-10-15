@@ -118,7 +118,7 @@ def upload_file():
         old_version = FileVersion(
             file_id=existing_file.id,
             version_number=existing_file.version_number,
-            file_path=existing_file.file_path,
+            file_path=os.path.abspath(existing_file.file_path),
             file_size=existing_file.file_size,
             uploaded_by=existing_file.uploaded_by
         )
@@ -141,8 +141,11 @@ def upload_file():
         filepath = os.path.join('uploads', 'files', filename)
         file.save(filepath)
         
-        existing_file.file_path = filepath
-        existing_file.file_size = os.path.getsize(filepath)
+        # Store absolute path in database
+        absolute_filepath = os.path.abspath(filepath)
+        
+        existing_file.file_path = absolute_filepath
+        existing_file.file_size = os.path.getsize(absolute_filepath)
         existing_file.version_number = version_number
         existing_file.uploaded_by = current_user.id
         existing_file.updated_at = datetime.utcnow()
@@ -156,13 +159,16 @@ def upload_file():
         filepath = os.path.join('uploads', 'files', filename)
         file.save(filepath)
         
+        # Store absolute path in database
+        absolute_filepath = os.path.abspath(filepath)
+        
         new_file = File(
             name=original_name,
             original_name=original_name,
             folder_id=folder_id,
             uploaded_by=current_user.id,
-            file_path=filepath,
-            file_size=os.path.getsize(filepath),
+            file_path=absolute_filepath,
+            file_size=os.path.getsize(absolute_filepath),
             mime_type=file.content_type,
             version_number=1,
             is_current=True
@@ -181,7 +187,19 @@ def upload_file():
 def download_file(file_id):
     """Download a file."""
     file = File.query.get_or_404(file_id)
-    return send_file(file.file_path, as_attachment=True, download_name=file.original_name)
+    
+    # Ensure we have an absolute path
+    if not os.path.isabs(file.file_path):
+        file_path = os.path.join(os.getcwd(), file.file_path)
+    else:
+        file_path = file.file_path
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+        return redirect(url_for('files.index'))
+    
+    return send_file(file_path, as_attachment=True, download_name=file.original_name)
 
 
 @files_bp.route('/download-version/<int:version_id>')
@@ -190,7 +208,19 @@ def download_version(version_id):
     """Download a specific file version."""
     version = FileVersion.query.get_or_404(version_id)
     file = File.query.get_or_404(version.file_id)
-    return send_file(version.file_path, as_attachment=True, download_name=f"{file.original_name}_v{version.version_number}")
+    
+    # Ensure we have an absolute path
+    if not os.path.isabs(version.file_path):
+        file_path = os.path.join(os.getcwd(), version.file_path)
+    else:
+        file_path = version.file_path
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        flash(f'Datei-Version "{file.original_name} v{version.version_number}" wurde nicht gefunden.', 'danger')
+        return redirect(url_for('files.index'))
+    
+    return send_file(file_path, as_attachment=True, download_name=f"{file.original_name}_v{version.version_number}")
 
 
 @files_bp.route('/edit/<int:file_id>', methods=['GET', 'POST'])
@@ -214,7 +244,7 @@ def edit_file(file_id):
         version = FileVersion(
             file_id=file.id,
             version_number=file.version_number,
-            file_path=file.file_path,
+            file_path=os.path.abspath(file.file_path),
             file_size=file.file_size,
             uploaded_by=file.uploaded_by
         )
@@ -239,8 +269,11 @@ def edit_file(file_id):
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
         
-        file.file_path = filepath
-        file.file_size = os.path.getsize(filepath)
+        # Store absolute path in database
+        absolute_filepath = os.path.abspath(filepath)
+        
+        file.file_path = absolute_filepath
+        file.file_size = os.path.getsize(absolute_filepath)
         file.version_number += 1
         file.uploaded_by = current_user.id
         file.updated_at = datetime.utcnow()
@@ -252,7 +285,13 @@ def edit_file(file_id):
     
     # Read file content
     try:
-        with open(file.file_path, 'r', encoding='utf-8') as f:
+        # Ensure we have an absolute path
+        if not os.path.isabs(file.file_path):
+            file_path = os.path.join(os.getcwd(), file.file_path)
+        else:
+            file_path = file.file_path
+            
+        with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
@@ -269,12 +308,22 @@ def delete_file(file_id):
     folder_id = file.folder_id
     
     # Delete file and all versions
-    if os.path.exists(file.file_path):
-        os.remove(file.file_path)
+    if not os.path.isabs(file.file_path):
+        file_path = os.path.join(os.getcwd(), file.file_path)
+    else:
+        file_path = file.file_path
+        
+    if os.path.exists(file_path):
+        os.remove(file_path)
     
     for version in file.versions:
-        if os.path.exists(version.file_path):
-            os.remove(version.file_path)
+        if not os.path.isabs(version.file_path):
+            version_path = os.path.join(os.getcwd(), version.file_path)
+        else:
+            version_path = version.file_path
+            
+        if os.path.exists(version_path):
+            os.remove(version_path)
     
     db.session.delete(file)
     db.session.commit()
@@ -293,11 +342,22 @@ def delete_folder(folder_id):
     def delete_folder_recursive(folder):
         # Delete all files in folder
         for file in folder.files:
-            if os.path.exists(file.file_path):
-                os.remove(file.file_path)
+            if not os.path.isabs(file.file_path):
+                file_path = os.path.join(os.getcwd(), file.file_path)
+            else:
+                file_path = file.file_path
+                
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
             for version in file.versions:
-                if os.path.exists(version.file_path):
-                    os.remove(version.file_path)
+                if not os.path.isabs(version.file_path):
+                    version_path = os.path.join(os.getcwd(), version.file_path)
+                else:
+                    version_path = version.file_path
+                    
+                if os.path.exists(version_path):
+                    os.remove(version_path)
         
         # Delete all subfolders
         for subfolder in folder.subfolders:

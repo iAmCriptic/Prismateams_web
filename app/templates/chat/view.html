@@ -55,14 +55,14 @@
 
 <!-- Message Input -->
 <div class="chat-input-container">
-    <form method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
+    <form id="message-form" method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
         <div class="input-group">
             <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-upload').click()">
                 <i class="bi bi-paperclip"></i>
             </button>
             <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*">
-            <input type="text" class="form-control" name="content" placeholder="Nachricht schreiben..." autocomplete="off">
-            <button class="btn btn-accent" type="submit">
+            <input type="text" id="message-input" class="form-control" name="content" placeholder="Nachricht schreiben..." autocomplete="off">
+            <button class="btn btn-accent" type="submit" id="send-button">
                 <i class="bi bi-send"></i>
             </button>
         </div>
@@ -73,14 +73,170 @@
 
 {% block extra_js %}
 <script>
+    const chatId = {{ chat.id }};
+    const currentUserId = {{ current_user.id }};
+    let lastMessageId = {{ messages[-1].id if messages else 0 }};
+    let isPolling = true;
+    
     // Auto-scroll to bottom
-    const container = document.getElementById('messages-container');
-    container.scrollTop = container.scrollHeight;
+    function scrollToBottom() {
+        const container = document.getElementById('messages-container');
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    // Initial scroll
+    scrollToBottom();
     
     // Show selected file name
     document.getElementById('file-upload').addEventListener('change', function(e) {
         const fileName = e.target.files[0]?.name;
         document.getElementById('file-name').textContent = fileName ? `Datei: ${fileName}` : '';
+    });
+    
+    // Send message via AJAX
+    document.getElementById('message-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        
+        if (!messageInput.value.trim() && !formData.get('file').name) {
+            return;
+        }
+        
+        // Disable send button
+        sendButton.disabled = true;
+        sendButton.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        
+        try {
+            const response = await fetch(`/chat/${chatId}/send`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                addMessageToChat(data);
+                messageInput.value = '';
+                document.getElementById('file-upload').value = '';
+                document.getElementById('file-name').textContent = '';
+                lastMessageId = data.id;
+                scrollToBottom();
+            } else {
+                const error = await response.json();
+                alert('Fehler beim Senden: ' + error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Fehler beim Senden der Nachricht');
+        } finally {
+            // Re-enable send button
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<i class="bi bi-send"></i>';
+        }
+    });
+    
+    // Add new message to chat
+    function addMessageToChat(message) {
+        const container = document.getElementById('messages-container');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${message.sender_id === currentUserId ? 'own' : 'other'}`;
+        
+        const time = new Date(message.created_at).toLocaleTimeString('de-DE', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        let contentHtml = '';
+        if (message.message_type === 'text') {
+            contentHtml = `<p class="mb-0">${escapeHtml(message.content)}</p>`;
+        } else if (message.message_type === 'image') {
+            contentHtml = `<img src="/static/../${message.media_url}" class="img-fluid rounded" style="max-width: 300px;">`;
+            if (message.content) {
+                contentHtml += `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>`;
+            }
+        } else if (message.message_type === 'video') {
+            contentHtml = `<video controls class="rounded" style="max-width: 300px;"><source src="/static/../${message.media_url}"></video>`;
+            if (message.content) {
+                contentHtml += `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>`;
+            }
+        } else if (message.message_type === 'voice') {
+            contentHtml = `<audio controls><source src="/static/../${message.media_url}"></audio>`;
+            if (message.content) {
+                contentHtml += `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>`;
+            }
+        }
+        
+        messageDiv.innerHTML = `
+            <div class="d-flex justify-content-between mb-1">
+                <strong>${escapeHtml(message.sender)}</strong>
+                <small class="text-muted">${time}</small>
+            </div>
+            ${contentHtml}
+        `;
+        
+        container.appendChild(messageDiv);
+    }
+    
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Poll for new messages
+    async function pollForNewMessages() {
+        if (!isPolling) return;
+        
+        try {
+            const response = await fetch(`/api/chats/${chatId}/messages?since=${lastMessageId}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const messages = await response.json();
+                if (messages.length > 0) {
+                    messages.forEach(message => {
+                        if (message.id > lastMessageId) {
+                            addMessageToChat(message);
+                            lastMessageId = message.id;
+                        }
+                    });
+                    scrollToBottom();
+                }
+            }
+        } catch (error) {
+            console.error('Error polling messages:', error);
+        }
+        
+        // Poll again after 2 seconds
+        setTimeout(pollForNewMessages, 2000);
+    }
+    
+    // Start polling when page loads
+    pollForNewMessages();
+    
+    // Stop polling when page is hidden
+    document.addEventListener('visibilitychange', function() {
+        isPolling = !document.hidden;
+        if (isPolling) {
+            pollForNewMessages();
+        }
+    });
+    
+    // Send message on Enter key
+    document.getElementById('message-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('message-form').dispatchEvent(new Event('submit'));
+        }
     });
 </script>
 {% endblock %}

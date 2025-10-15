@@ -20,7 +20,13 @@ body {
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
-    display: block !important;
+}
+
+/* Ensure mobile nav is hidden on desktop */
+@media (min-width: 768px) {
+    .mobile-nav {
+        display: none !important;
+    }
 }
 
 .mobile-nav .nav-link {
