@@ -243,9 +243,12 @@ body {
     padding: 0.5rem 0.75rem 0.75rem 0.75rem; /* More padding at bottom for timestamp */
     border-radius: 1rem; /* More rounded like WhatsApp */
     max-width: 80%; /* Limit width to 80% as requested */
+    min-width: fit-content; /* Shrink to content size */
+    width: fit-content; /* Shrink to content size */
     position: relative;
     word-wrap: break-word;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    display: inline-block; /* Allow proper alignment */
 }
 
 .chat-message.own {
@@ -255,6 +258,7 @@ body {
     margin-right: 1rem;
     text-align: right; /* Text aligned right for own messages */
     border-bottom-right-radius: 0.25rem; /* Tail effect like WhatsApp */
+    display: block; /* Force block display for margin auto to work */
 }
 
 .chat-message.other {
@@ -265,6 +269,7 @@ body {
     text-align: left; /* Text aligned left for other messages */
     border-bottom-left-radius: 0.25rem; /* Tail effect like WhatsApp */
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+    display: block; /* Force block display for margin auto to work */
 }
 
 [data-bs-theme="dark"] .chat-message.other {
@@ -317,6 +322,8 @@ body {
         padding-bottom: 0px; /* No bottom padding to eliminate white space */
         width: 100%; /* Full width */
         overflow-x: hidden; /* Prevent horizontal scrolling */
+        display: flex;
+        flex-direction: column; /* Stack messages vertically */
     }
     
     [data-bs-theme="dark"] .messages-area {
