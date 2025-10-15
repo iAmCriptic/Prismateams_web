@@ -41,7 +41,7 @@
 
 <!-- Messages Container -->
 <div class="chat-container">
-    <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column;">
+    <div class="messages-area" id="messages-container">
         {% for message in messages %}
         <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
             <div class="d-flex justify-content-between mb-1">

@@ -134,14 +134,28 @@ body {
 
 /* Mobile Chat Full Width Override */
 @media (max-width: 767.98px) {
-    .main-content:has(.chat-container),
-    .main-content .container-fluid {
+    .main-content:has(.chat-container) {
         padding-left: 0 !important;
         padding-right: 0 !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
-        max-width: 100vw !important;
+    }
+    
+    .main-content:has(.chat-container) .container-fluid {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        max-width: none !important;
         width: 100vw !important;
+    }
+    
+    /* Override Bootstrap container for chat pages */
+    .chat-container {
+        width: 100vw !important;
+        margin-left: calc(-50vw + 50%) !important;
+        margin-right: calc(-50vw + 50%) !important;
+        max-width: 100vw !important;
     }
 }
 
@@ -228,26 +242,20 @@ body {
     margin-bottom: 1rem;
     padding: 0.75rem;
     border-radius: 0.5rem;
-    max-width: 80%; /* Limit message width */
-    display: flex;
-    flex-direction: column;
+    max-width: 80%;
 }
 
 .chat-message.own {
     background-color: var(--accent-color);
     color: white;
-    margin-left: auto !important; /* Force to right */
-    margin-right: 1rem !important;
-    text-align: right !important; /* Force text alignment */
-    align-self: flex-end !important; /* Force container alignment */
+    margin-left: auto;
+    text-align: right;
 }
 
 .chat-message.other {
     background-color: #f8f9fa;
-    margin-left: 1rem !important; /* Force to left */
-    margin-right: auto !important;
-    text-align: left !important; /* Force text alignment */
-    align-self: flex-start !important; /* Force container alignment */
+    margin-right: auto;
+    text-align: left;
 }
 
 [data-bs-theme="dark"] .chat-message.other {
@@ -267,6 +275,8 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     width: 100vw !important;
     margin: 0 !important;
+    margin-left: calc(-50vw + 50%) !important;
+    margin-right: calc(-50vw + 50%) !important;
 }
 
 [data-bs-theme="dark"] .mobile-chat-header {
@@ -282,9 +292,10 @@ body {
         display: flex;
         flex-direction: column;
         position: relative;
-        margin-left: -15px; /* Remove left margin */
-        margin-right: -15px; /* Remove right margin */
-        width: calc(100vw); /* Full viewport width */
+        width: 100vw !important;
+        margin-left: calc(-50vw + 50%) !important;
+        margin-right: calc(-50vw + 50%) !important;
+        max-width: 100vw !important;
     }
     
     .messages-area {
@@ -351,8 +362,11 @@ body {
         padding: 0.75rem 1rem;
         box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
         margin: 0; /* Remove all margins */
-        width: 100vw; /* Full viewport width */
+        width: 100vw !important; /* Full viewport width */
         position: fixed; /* Ensure proper positioning */
+        margin-left: calc(-50vw + 50%) !important;
+        margin-right: calc(-50vw + 50%) !important;
+        max-width: 100vw !important;
     }
 }
 
