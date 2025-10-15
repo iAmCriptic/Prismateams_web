@@ -134,11 +134,14 @@ body {
 
 /* Mobile Chat Full Width Override */
 @media (max-width: 767.98px) {
-    .main-content:has(.chat-container) {
+    .main-content:has(.chat-container),
+    .main-content .container-fluid {
         padding-left: 0 !important;
         padding-right: 0 !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
+        max-width: 100vw !important;
+        width: 100vw !important;
     }
 }
 
@@ -226,21 +229,25 @@ body {
     padding: 0.75rem;
     border-radius: 0.5rem;
     max-width: 80%; /* Limit message width */
+    display: flex;
+    flex-direction: column;
 }
 
 .chat-message.own {
     background-color: var(--accent-color);
     color: white;
-    margin-left: auto; /* Push to right */
-    margin-right: 1rem;
-    text-align: right; /* Align text to right */
+    margin-left: auto !important; /* Force to right */
+    margin-right: 1rem !important;
+    text-align: right !important; /* Force text alignment */
+    align-self: flex-end !important; /* Force container alignment */
 }
 
 .chat-message.other {
     background-color: #f8f9fa;
-    margin-left: 1rem;
-    margin-right: auto; /* Push to left */
-    text-align: left; /* Align text to left */
+    margin-left: 1rem !important; /* Force to left */
+    margin-right: auto !important;
+    text-align: left !important; /* Force text alignment */
+    align-self: flex-start !important; /* Force container alignment */
 }
 
 [data-bs-theme="dark"] .chat-message.other {
@@ -285,10 +292,11 @@ body {
         overflow-y: auto;
         padding: 1rem;
         background-color: #f0f2f5;
-        min-height: calc(100vh - 130px); /* Full height minus header and input */
-        height: auto; /* Allow content to expand */
-        padding-bottom: 80px; /* Space for input */
+        height: calc(100vh - 250px); /* Fixed height to prevent over-scrolling */
+        max-height: calc(100vh - 250px); /* Maximum height */
+        padding-bottom: 20px; /* Minimal padding */
         width: 100%; /* Full width */
+        overflow-x: hidden; /* Prevent horizontal scrolling */
     }
     
     [data-bs-theme="dark"] .messages-area {
