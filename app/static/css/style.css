@@ -13,7 +13,7 @@ body {
 /* Mobile Navigation */
 .mobile-nav {
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    z-index: 9999; /* Higher z-index to ensure it's always on top */
+    z-index: 1001; /* Higher than chat elements but lower than modals */
     height: 60px; /* Feste Höhe */
     position: fixed !important;
     bottom: 0 !important;
@@ -141,6 +141,11 @@ body {
         margin-bottom: 60px; /* Ensure space for fixed nav */
     }
     
+    /* Chat-specific mobile adjustments */
+    .main-content:has(.mobile-chat-header) {
+        padding-top: 0; /* Remove top padding when chat header is present */
+    }
+    
     .email-content {
         padding-bottom: 20px; /* Additional space for email content */
         overflow-x: hidden; /* Prevent horizontal scrolling */
@@ -232,10 +237,13 @@ body {
     background-color: var(--bs-body-bg);
     border-bottom: 1px solid var(--bs-border-color);
     padding: 0.75rem 1rem;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100% !important;
 }
 
 [data-bs-theme="dark"] .mobile-chat-header {
@@ -243,21 +251,27 @@ body {
     border-bottom-color: #495057;
 }
 
-.chat-container {
-    height: calc(100vh - 140px); /* Full height minus header and input */
-    display: flex;
-    flex-direction: column;
-}
-
-.messages-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    background-color: #f0f2f5;
-}
-
-[data-bs-theme="dark"] .messages-area {
-    background-color: #1a1a1a;
+/* Mobile Chat Container */
+@media (max-width: 767.98px) {
+    .chat-container {
+        height: calc(100vh - 120px); /* Full height minus fixed header and input */
+        margin-top: 70px; /* Space for fixed header */
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+    
+    .messages-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: #f0f2f5;
+        height: calc(100vh - 190px); /* Full height minus header, input and padding */
+    }
+    
+    [data-bs-theme="dark"] .messages-area {
+        background-color: #1a1a1a;
+    }
 }
 
 /* Desktop Chat Styles */
@@ -290,6 +304,16 @@ body {
     padding: 1rem;
     border-top: 1px solid var(--bs-border-color);
     z-index: 999;
+}
+
+@media (max-width: 767.98px) {
+    .chat-input-container {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        padding: 0.75rem 1rem;
+    }
 }
 
 @media (min-width: 768px) {
