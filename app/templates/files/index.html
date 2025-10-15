@@ -3,11 +3,11 @@
 {% block title %}Dateien - Team Portal{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
+<div class="row mb-4">
     <div class="col">
-        <h1><i class="bi bi-folder"></i> Dateien</h1>
+        <h1 class="mb-3"><i class="bi bi-folder"></i> Dateien</h1>
         {% if current_folder %}
-        <nav aria-label="breadcrumb">
+        <nav aria-label="breadcrumb" class="mb-3">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('files.index') }}">Root</a></li>
                 <li class="breadcrumb-item active">{{ current_folder.name }}</li>
@@ -38,7 +38,9 @@
 <!-- Folders -->
 {% if subfolders %}
 <h5 class="mb-3">Ordner</h5>
-<div class="row g-3 mb-4">
+
+<!-- Folders Grid View -->
+<div id="foldersGridView" class="row g-3 mb-4">
     {% for folder in subfolders %}
     <div class="col-12 col-md-6 col-lg-3">
         <div class="card folder-item" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'">
@@ -68,6 +70,32 @@
     </div>
     {% endfor %}
 </div>
+
+<!-- Folders List View -->
+<div id="foldersListView" class="list-group mb-4" style="display: none;">
+    {% for folder in subfolders %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'" style="cursor: pointer;">
+            <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
+            <span class="fw-medium">{{ folder.name }}</span>
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-link" data-bs-toggle="dropdown">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
+                        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Ordner und alle Inhalte löschen?">
+                            <i class="bi bi-trash"></i> Löschen
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endif %}
 
 <!-- Files -->
@@ -80,19 +108,38 @@
     <div class="col-12 col-md-6 col-lg-4">
         <div class="card file-item h-100">
             <div class="card-body">
+                <!-- File Preview/Icon -->
+                <div class="text-center mb-3">
+                    {% if file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}
+                        <img src="{{ url_for('files.download_file', file_id=file.id) }}" 
+                             class="file-preview img-fluid rounded" 
+                             style="max-height: 120px; max-width: 100%; object-fit: cover;"
+                             alt="Vorschau" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <i class="bi bi-file-earmark-image fs-1 text-success" style="display: none;"></i>
+                    {% elif file.name.endswith('.pdf') %}
+                        <div class="pdf-preview bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;">
+                            <i class="bi bi-file-earmark-pdf fs-1 text-danger"></i>
+                        </div>
+                    {% elif file.name.endswith(('.md', '.markdown')) %}
+                        <div class="text-preview bg-light rounded p-3" style="height: 120px; overflow: hidden;">
+                            <i class="bi bi-file-earmark-text fs-1 text-info mb-2"></i>
+                            <div class="text-muted small">Markdown-Datei</div>
+                        </div>
+                    {% elif file.name.endswith('.txt') %}
+                        <div class="text-preview bg-light rounded p-3" style="height: 120px; overflow: hidden;">
+                            <i class="bi bi-file-earmark-text fs-1 text-secondary mb-2"></i>
+                            <div class="text-muted small">Text-Datei</div>
+                        </div>
+                    {% else %}
+                        <i class="bi bi-file-earmark fs-1 text-primary"></i>
+                    {% endif %}
+                </div>
+                
+                <!-- File Info -->
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <i class="bi bi-file-earmark fs-2 text-primary"></i>
-                        {% if file.name.endswith('.md') %}
-                        <i class="bi bi-file-earmark-text fs-2 text-info"></i>
-                        {% elif file.name.endswith('.txt') %}
-                        <i class="bi bi-file-earmark-text fs-2 text-secondary"></i>
-                        {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
-                        <i class="bi bi-file-earmark-image fs-2 text-success"></i>
-                        {% elif file.name.endswith('.pdf') %}
-                        <i class="bi bi-file-earmark-pdf fs-2 text-danger"></i>
-                        {% endif %}
-                        <h6 class="mt-2 mb-1">{{ file.name }}</h6>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1 text-truncate" title="{{ file.name }}">{{ file.name }}</h6>
                         {% if file.version_number > 1 %}
                         <span class="badge bg-info">v{{ file.version_number }}</span>
                         {% endif %}
@@ -135,8 +182,15 @@
                         </ul>
                     </div>
                 </div>
+                
+                <!-- File Details -->
                 <small class="text-muted">
-                    {{ (file.file_size / 1024)|round(2) }} KB<br>
+                    {% if file.file_size > 1024*1024 %}
+                        {{ (file.file_size / (1024*1024))|round(1) }} MB
+                    {% else %}
+                        {{ (file.file_size / 1024)|round(1) }} KB
+                    {% endif %}
+                    <br>
                     Von {{ file.uploader.full_name }}<br>
                     {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
                 </small>
@@ -151,47 +205,56 @@
     {% for file in files %}
     <div class="list-group-item">
         <div class="d-flex w-100 justify-content-between align-items-center">
-            <div class="flex-grow-1">
-                <h6 class="mb-1">
+            <div class="d-flex align-items-center">
+                <!-- File Icon -->
+                <div class="me-3">
                     {% if file.name.endswith('.md') %}
-                    <i class="bi bi-file-earmark-text text-info"></i>
+                    <i class="bi bi-file-earmark-text fs-4 text-info"></i>
                     {% elif file.name.endswith('.txt') %}
-                    <i class="bi bi-file-earmark-text text-secondary"></i>
-                    {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
-                    <i class="bi bi-file-earmark-image text-success"></i>
+                    <i class="bi bi-file-earmark-text fs-4 text-secondary"></i>
+                    {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}
+                    <i class="bi bi-file-earmark-image fs-4 text-success"></i>
                     {% elif file.name.endswith('.pdf') %}
-                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                    <i class="bi bi-file-earmark-pdf fs-4 text-danger"></i>
                     {% else %}
-                    <i class="bi bi-file-earmark text-primary"></i>
+                    <i class="bi bi-file-earmark fs-4 text-primary"></i>
                     {% endif %}
-                    {{ file.name }}
-                    {% if file.version_number > 1 %}
-                    <span class="badge bg-info">v{{ file.version_number }}</span>
-                    {% endif %}
-                </h6>
-                <small class="text-muted">
-                    {{ (file.file_size / 1024)|round(2) }} KB • 
-                    Hochgeladen von {{ file.uploader.full_name }} • 
-                    {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
-                </small>
+                </div>
+                
+                <!-- File Name -->
+                <div class="flex-grow-1">
+                    <h6 class="mb-0 fw-medium">
+                        {{ file.name }}
+                        {% if file.version_number > 1 %}
+                        <span class="badge bg-info ms-1">v{{ file.version_number }}</span>
+                        {% endif %}
+                    </h6>
+                </div>
             </div>
-            <div class="btn-group">
-                <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-download"></i>
-                </a>
-                {% if file.name.endswith(('.txt', '.md')) %}
-                <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="btn btn-sm btn-outline-info">
-                    <i class="bi bi-eye"></i>
-                </a>
-                <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                {% endif %}
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+            
+            <!-- Details Button -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-link" data-bs-toggle="dropdown">
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu">
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><h6 class="dropdown-header">Details</h6></li>
+                    <li><span class="dropdown-item-text">
+                        <strong>Größe:</strong> 
+                        {% if file.file_size > 1024*1024 %}
+                            {{ (file.file_size / (1024*1024))|round(1) }} MB
+                        {% else %}
+                            {{ (file.file_size / 1024)|round(1) }} KB
+                        {% endif %}
+                    </span></li>
+                    <li><span class="dropdown-item-text">
+                        <strong>Hochgeladen von:</strong> {{ file.uploader.full_name }}
+                    </span></li>
+                    <li><span class="dropdown-item-text">
+                        <strong>Datum:</strong> {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
+                    </span></li>
                     {% if file.versions %}
+                    <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Versionen</h6></li>
                     {% for version in file.versions %}
                     <li>
@@ -200,8 +263,20 @@
                         </a>
                     </li>
                     {% endfor %}
-                    <li><hr class="dropdown-divider"></li>
                     {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('files.download_file', file_id=file.id) }}">
+                        <i class="bi bi-download"></i> Herunterladen
+                    </a></li>
+                    {% if file.name.endswith(('.txt', '.md')) %}
+                    <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">
+                        <i class="bi bi-eye"></i> Anzeigen
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('files.edit_file', file_id=file.id) }}">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a></li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
                     <li>
                         <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
                             <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Datei wirklich löschen?">
@@ -373,19 +448,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const gridViewBtn = document.getElementById('gridViewBtn');
     const listView = document.getElementById('listView');
     const gridView = document.getElementById('gridView');
+    const foldersListView = document.getElementById('foldersListView');
+    const foldersGridView = document.getElementById('foldersGridView');
     
     if (listViewBtn && gridViewBtn) {
         listViewBtn.addEventListener('click', function() {
-            listView.style.display = 'block';
-            gridView.style.display = 'none';
+            // Switch files view
+            if (listView) listView.style.display = 'block';
+            if (gridView) gridView.style.display = 'none';
+            
+            // Switch folders view
+            if (foldersListView) foldersListView.style.display = 'block';
+            if (foldersGridView) foldersGridView.style.display = 'none';
+            
             listViewBtn.classList.add('active');
             gridViewBtn.classList.remove('active');
             localStorage.setItem('filesViewMode', 'list');
         });
         
         gridViewBtn.addEventListener('click', function() {
-            gridView.style.display = 'block';
-            listView.style.display = 'none';
+            // Switch files view
+            if (gridView) gridView.style.display = 'block';
+            if (listView) listView.style.display = 'none';
+            
+            // Switch folders view
+            if (foldersGridView) foldersGridView.style.display = 'block';
+            if (foldersListView) foldersListView.style.display = 'none';
+            
             gridViewBtn.classList.add('active');
             listViewBtn.classList.remove('active');
             localStorage.setItem('filesViewMode', 'grid');

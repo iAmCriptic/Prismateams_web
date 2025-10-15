@@ -24,6 +24,7 @@ Pillow>=10.1.0
 requests>=2.31.0
 chardet>=5.2.0
 pytz>=2023.3
+markdown>=3.9.0
 
 # Email (optional)
 imapclient>=2.3.1
