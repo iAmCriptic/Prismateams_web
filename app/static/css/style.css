@@ -237,25 +237,34 @@ body {
     border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 }
 
-/* Chat Messages */
+/* Chat Messages - WhatsApp Style */
 .chat-message {
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    max-width: 90%;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem 0.75rem 0.75rem; /* More padding at bottom for timestamp */
+    border-radius: 1rem; /* More rounded like WhatsApp */
+    max-width: 75%; /* WhatsApp-like width */
+    position: relative;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
 .chat-message.own {
-    background-color: var(--accent-color);
-    color: white;
+    background-color: #dcf8c6; /* WhatsApp green */
+    color: #000;
     margin-left: auto;
-    text-align: right;
+    margin-right: 0.5rem;
+    text-align: left; /* Text aligned left even for own messages */
+    border-bottom-right-radius: 0.25rem; /* Tail effect like WhatsApp */
 }
 
 .chat-message.other {
-    background-color: #f8f9fa;
+    background-color: #ffffff; /* White background */
+    color: #000;
     margin-right: auto;
+    margin-left: 0.5rem;
     text-align: left;
+    border-bottom-left-radius: 0.25rem; /* Tail effect like WhatsApp */
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
 }
 
 [data-bs-theme="dark"] .chat-message.other {
@@ -301,11 +310,11 @@ body {
     .messages-area {
         flex: 1;
         overflow-y: auto;
-        padding: 1rem;
-        background-color: #f0f2f5;
-        height: calc(100vh - 240px); /* Fixed height to prevent over-scrolling */
-        max-height: calc(100vh - 240px); /* Maximum height */
-        padding-bottom: 5px; /* Minimal padding to reduce white space */
+        padding: 0.5rem 1rem; /* Reduced padding */
+        background-color: #e5ddd5; /* WhatsApp-like background */
+        height: calc(100vh - 200px); /* Reduced height calculation */
+        max-height: calc(100vh - 200px); /* Maximum height */
+        padding-bottom: 0px; /* No bottom padding to eliminate white space */
         width: 100%; /* Full width */
         overflow-x: hidden; /* Prevent horizontal scrolling */
     }

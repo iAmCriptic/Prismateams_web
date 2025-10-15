@@ -44,17 +44,15 @@
     <div class="messages-area" id="messages-container">
         {% for message in messages %}
         <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
-            <div class="d-flex justify-content-between mb-1">
-                {% if message.sender_id != current_user.id %}
-                <strong>{{ message.sender.full_name }}</strong>
-                {% else %}
-                <strong>Du</strong>
-                {% endif %}
-                <small class="text-muted">{{ message.created_at | localtime('%H:%M') }}</small>
-            </div>
-            
             {% if message.message_type == 'text' %}
-                <p class="mb-0">{{ message.content }}</p>
+                <div class="message-content">
+                    {{ message.content }}
+                </div>
+                <div class="message-time {% if message.sender_id == current_user.id %}text-right{% else %}text-left{% endif %}">
+                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                        {{ message.created_at | localtime('%H:%M') }}
+                    </small>
+                </div>
             {% elif message.message_type == 'image' %}
                 <img src="{{ url_for('static', filename='../' + message.media_url) }}" class="img-fluid rounded" style="max-width: 300px;">
                 {% if message.content %}
@@ -181,33 +179,49 @@
         
         let contentHtml = '';
         if (message.message_type === 'text') {
-            contentHtml = `<p class="mb-0">${escapeHtml(message.content)}</p>`;
+            contentHtml = `
+                <div class="message-content">
+                    ${escapeHtml(message.content)}
+                </div>
+                <div class="message-time ${parseInt(message.sender_id) === parseInt(currentUserId) ? 'text-right' : 'text-left'}">
+                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                        ${time}
+                    </small>
+                </div>
+            `;
         } else if (message.message_type === 'image') {
-            contentHtml = `<img src="/static/../${message.media_url}" class="img-fluid rounded" style="max-width: 300px;">`;
-            if (message.content) {
-                contentHtml += `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>`;
-            }
+            contentHtml = `
+                <img src="/static/../${message.media_url}" class="img-fluid rounded" style="max-width: 300px;">
+                ${message.content ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ''}
+                <div class="message-time ${parseInt(message.sender_id) === parseInt(currentUserId) ? 'text-right' : 'text-left'}">
+                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                        ${time}
+                    </small>
+                </div>
+            `;
         } else if (message.message_type === 'video') {
-            contentHtml = `<video controls class="rounded" style="max-width: 300px;"><source src="/static/../${message.media_url}"></video>`;
-            if (message.content) {
-                contentHtml += `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>`;
-            }
+            contentHtml = `
+                <video controls class="rounded" style="max-width: 300px;"><source src="/static/../${message.media_url}"></video>
+                ${message.content ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ''}
+                <div class="message-time ${parseInt(message.sender_id) === parseInt(currentUserId) ? 'text-right' : 'text-left'}">
+                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                        ${time}
+                    </small>
+                </div>
+            `;
         } else if (message.message_type === 'voice') {
-            contentHtml = `<audio controls><source src="/static/../${message.media_url}"></audio>`;
-            if (message.content) {
-                contentHtml += `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>`;
-            }
+            contentHtml = `
+                <audio controls><source src="/static/../${message.media_url}"></audio>
+                ${message.content ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ''}
+                <div class="message-time ${parseInt(message.sender_id) === parseInt(currentUserId) ? 'text-right' : 'text-left'}">
+                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                        ${time}
+                    </small>
+                </div>
+            `;
         }
         
-        const isOwnMessage = parseInt(message.sender_id) === parseInt(currentUserId);
-        
-        messageDiv.innerHTML = `
-            <div class="d-flex justify-content-between mb-1">
-                <strong>${isOwnMessage ? 'Du' : escapeHtml(message.sender)}</strong>
-                <small class="text-muted">${time}</small>
-            </div>
-            ${contentHtml}
-        `;
+        messageDiv.innerHTML = contentHtml;
         
         container.appendChild(messageDiv);
     }
