@@ -237,20 +237,20 @@ body {
     border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 }
 
-/* Chat Messages - WhatsApp Style */
+/* Chat Messages - WhatsApp Form with Original Colors */
 .chat-message {
     margin-bottom: 0.5rem;
     padding: 0.5rem 0.75rem 0.75rem 0.75rem; /* More padding at bottom for timestamp */
     border-radius: 1rem; /* More rounded like WhatsApp */
-    max-width: 75%; /* WhatsApp-like width */
+    max-width: 70%; /* Limit width - not full screen */
     position: relative;
     word-wrap: break-word;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
 .chat-message.own {
-    background-color: #dcf8c6; /* WhatsApp green */
-    color: #000;
+    background-color: var(--accent-color); /* Original blue color */
+    color: white;
     margin-left: auto;
     margin-right: 0.5rem;
     text-align: left; /* Text aligned left even for own messages */
@@ -258,7 +258,7 @@ body {
 }
 
 .chat-message.other {
-    background-color: #ffffff; /* White background */
+    background-color: #f8f9fa; /* Original light background */
     color: #000;
     margin-right: auto;
     margin-left: 0.5rem;
@@ -310,10 +310,10 @@ body {
     .messages-area {
         flex: 1;
         overflow-y: auto;
-        padding: 0.5rem 1rem; /* Reduced padding */
-        background-color: #e5ddd5; /* WhatsApp-like background */
-        height: calc(100vh - 200px); /* Reduced height calculation */
-        max-height: calc(100vh - 200px); /* Maximum height */
+        padding: 1rem;
+        background-color: #f0f2f5; /* Original background color */
+        height: calc(100vh - 180px); /* Increased height to eliminate white space */
+        max-height: calc(100vh - 180px); /* Maximum height */
         padding-bottom: 0px; /* No bottom padding to eliminate white space */
         width: 100%; /* Full width */
         overflow-x: hidden; /* Prevent horizontal scrolling */
