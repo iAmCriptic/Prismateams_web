@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models.file import File, FileVersion, Folder
@@ -420,7 +420,20 @@ def view_file(file_id):
         else:
             return redirect(url_for('files.index'))
     
-    return render_template('files/view.html', file=file, content=content)
+    # Process markdown if it's a markdown file
+    if file.name.endswith('.md'):
+        try:
+            import markdown
+            md = markdown.Markdown(extensions=['tables', 'fenced_code', 'codehilite', 'nl2br'])
+            processed_content = md.convert(content)
+            current_app.logger.info(f"Markdown processed. Table detected: {'<table>' in processed_content}")
+        except Exception as e:
+            current_app.logger.error(f"Markdown processing error: {e}")
+            processed_content = content
+    else:
+        processed_content = content
+    
+    return render_template('files/view.html', file=file, content=content, processed_content=processed_content)
 
 
 @files_bp.route('/delete/<int:file_id>', methods=['POST'])

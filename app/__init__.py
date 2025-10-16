@@ -111,10 +111,56 @@ def create_app(config_name='default'):
         """Filter to render markdown text."""
         try:
             import markdown
-            md = markdown.Markdown(extensions=['tables', 'fenced_code', 'codehilite'])
-            return md.convert(text)
+            from flask import current_app
+            
+            # Test if tables extension is available
+            try:
+                import markdown.extensions.tables
+                tables_available = True
+            except ImportError:
+                tables_available = False
+            
+            current_app.logger.info(f"Tables extension available: {tables_available}")
+            
+            if tables_available:
+                # Create markdown instance with tables extension
+                md = markdown.Markdown(
+                    extensions=[
+                        'tables',
+                        'fenced_code',
+                        'codehilite',
+                        'nl2br'
+                    ]
+                )
+            else:
+                # Fallback without tables extension
+                md = markdown.Markdown(
+                    extensions=[
+                        'fenced_code',
+                        'codehilite',
+                        'nl2br'
+                    ]
+                )
+            
+            # Convert markdown to HTML
+            html = md.convert(text)
+            
+            # Debug logging
+            current_app.logger.info(f"Markdown input: {text[:200]}...")
+            current_app.logger.info(f"Markdown output: {html[:200]}...")
+            current_app.logger.info(f"Table detected in output: {'<table>' in html}")
+            
+            return html
+            
         except ImportError:
             # Fallback to plain text if markdown is not installed
+            from flask import current_app
+            current_app.logger.warning("Markdown library not available, using plain text fallback")
+            return text.replace('\n', '<br>')
+        except Exception as e:
+            # Fallback if markdown processing fails
+            from flask import current_app
+            current_app.logger.error(f"Markdown processing error: {e}")
             return text.replace('\n', '<br>')
 
     # Register blueprints
@@ -141,6 +187,11 @@ def create_app(config_name='default'):
     app.register_blueprint(canvas_bp, url_prefix='/canvas')
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')
+    
+    # PWA Manifest Route
+    @app.route('/manifest.json')
+    def manifest():
+        return app.send_static_file('manifest.json')
     
     # Create database tables
     with app.app_context():

@@ -27,6 +27,17 @@ body {
     width: 100% !important;
 }
 
+/* Fix for vertical text display issues */
+.mobile-nav .nav-link,
+.mobile-nav .nav-link div,
+.mobile-nav .nav-link .small {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    direction: ltr !important;
+    transform: none !important;
+    white-space: nowrap !important;
+}
+
 /* Ensure mobile nav is hidden on desktop */
 @media (min-width: 768px) {
     .mobile-nav {
@@ -82,6 +93,18 @@ body {
     left: 0;
     z-index: 100;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Fix for vertical text display issues in sidebar */
+.sidebar .nav-link,
+.sidebar .nav-link span,
+.sidebar a,
+.sidebar span {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    direction: ltr !important;
+    transform: none !important;
+    white-space: normal !important;
 }
 
 /* Darkmode Sidebar - Immer dunkel */

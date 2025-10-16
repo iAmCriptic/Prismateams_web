@@ -71,20 +71,67 @@
     }
     
     .markdown-content table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 1rem;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 1rem 0 !important;
+        border: 2px solid #007bff !important;
+        border-radius: 0.5rem !important;
+        overflow: hidden !important;
+        background: white !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
     }
     
     .markdown-content th, .markdown-content td {
-        border: 1px solid var(--bs-border-color);
-        padding: 0.5rem;
-        text-align: left;
+        border: 1px solid #dee2e6 !important;
+        padding: 0.75rem !important;
+        text-align: left !important;
+        vertical-align: top !important;
+        font-size: 0.9rem !important;
     }
     
     .markdown-content th {
-        background: var(--bs-secondary-bg);
-        font-weight: 600;
+        background: #f8f9fa !important;
+        font-weight: 600 !important;
+        border-bottom: 2px solid #007bff !important;
+        color: #495057 !important;
+    }
+    
+    .markdown-content tr:nth-child(even) {
+        background: #f8f9fa !important;
+    }
+    
+    .markdown-content tr:hover {
+        background: #e9ecef !important;
+    }
+    
+    .markdown-content tbody tr {
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+    
+    /* Dark mode support */
+    [data-bs-theme="dark"] .markdown-content table {
+        background: #212529 !important;
+        border-color: #495057 !important;
+    }
+    
+    [data-bs-theme="dark"] .markdown-content th {
+        background: #343a40 !important;
+        color: #fff !important;
+        border-bottom-color: #007bff !important;
+    }
+    
+    [data-bs-theme="dark"] .markdown-content th, 
+    [data-bs-theme="dark"] .markdown-content td {
+        border-color: #495057 !important;
+        color: #fff !important;
+    }
+    
+    [data-bs-theme="dark"] .markdown-content tr:nth-child(even) {
+        background: #343a40 !important;
+    }
+    
+    [data-bs-theme="dark"] .markdown-content tr:hover {
+        background: #495057 !important;
     }
     
     .markdown-content ul, .markdown-content ol {
@@ -148,7 +195,7 @@
     <div class="file-viewer-content">
         {% if file.name.endswith('.md') %}
             <div class="markdown-content">
-                {{ content | markdown | safe }}
+                {{ processed_content | safe }}
             </div>
         {% else %}
             <div class="text-content">{{ content }}</div>
