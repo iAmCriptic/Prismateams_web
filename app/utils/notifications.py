@@ -64,6 +64,17 @@ def send_push_notification(
     
     if not subscriptions:
         logging.info(f"Keine Push-Subscriptions für Benutzer {user_id}")
+        # Speichere die Benachrichtigung trotzdem in der Datenbank
+        notification_log = NotificationLog(
+            user_id=user_id,
+            title=title,
+            body=body,
+            icon=icon,
+            url=url,
+            success=False  # False, da keine Push-Subscription vorhanden
+        )
+        db.session.add(notification_log)
+        db.session.commit()
         return False
     
     success_count = 0

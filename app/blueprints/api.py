@@ -448,4 +448,62 @@ def update_chat_notification_settings(chat_id):
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/notifications/pending', methods=['GET'])
+@login_required
+def get_pending_notifications():
+    """Hole ausstehende Benachrichtigungen für den aktuellen Benutzer."""
+    try:
+        from app.models.notification import NotificationLog
+        
+        # Hole die letzten 10 Benachrichtigungen
+        notifications = NotificationLog.query.filter_by(
+            user_id=current_user.id
+        ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
+        
+        result = []
+        for notif in notifications:
+            result.append({
+                'id': notif.id,
+                'title': notif.title,
+                'body': notif.body,
+                'icon': notif.icon,
+                'url': notif.url,
+                'sent_at': notif.sent_at.isoformat(),
+                'success': notif.success
+            })
+        
+        return jsonify({
+            'notifications': result,
+            'count': len(result)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/notifications/mark-read/<int:notification_id>', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    """Markiere eine Benachrichtigung als gelesen."""
+    try:
+        from app.models.notification import NotificationLog
+        
+        notification = NotificationLog.query.filter_by(
+            id=notification_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not notification:
+            return jsonify({'error': 'Benachrichtigung nicht gefunden'}), 404
+        
+        # Hier könnten wir ein "read" Feld hinzufügen, aber für jetzt löschen wir die Benachrichtigung
+        db.session.delete(notification)
+        db.session.commit()
+        
+        return jsonify({'message': 'Benachrichtigung als gelesen markiert'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 

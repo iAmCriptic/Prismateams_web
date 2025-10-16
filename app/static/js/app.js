@@ -250,6 +250,173 @@ class PermissionManager {
 // Initialisiere Berechtigungs-Manager
 const permissionManager = new PermissionManager();
 
+// Benachrichtigungs-Manager für lokale Benachrichtigungen
+class NotificationManager {
+    constructor() {
+        this.checkInterval = null;
+        this.lastCheck = null;
+        this.init();
+    }
+    
+    init() {
+        // Prüfe alle 30 Sekunden nach neuen Benachrichtigungen
+        this.startPolling();
+        
+        // Prüfe auch beim Fokus der Seite
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.checkForNotifications();
+            }
+        });
+    }
+    
+    startPolling() {
+        if (this.checkInterval) {
+            clearInterval(this.checkInterval);
+        }
+        
+        this.checkInterval = setInterval(() => {
+            this.checkForNotifications();
+        }, 30000); // Alle 30 Sekunden
+        
+        // Erste Prüfung nach 5 Sekunden
+        setTimeout(() => {
+            this.checkForNotifications();
+        }, 5000);
+    }
+    
+    async checkForNotifications() {
+        try {
+            const response = await fetch('/api/notifications/pending');
+            if (response.ok) {
+                const data = await response.json();
+                this.handleNotifications(data.notifications);
+            }
+        } catch (error) {
+            console.log('Fehler beim Prüfen der Benachrichtigungen:', error);
+        }
+    }
+    
+    handleNotifications(notifications) {
+        // Filtere nur neue Benachrichtigungen
+        const newNotifications = notifications.filter(notif => {
+            if (!this.lastCheck) return true;
+            return new Date(notif.sent_at) > this.lastCheck;
+        });
+        
+        if (newNotifications.length > 0) {
+            this.lastCheck = new Date();
+            
+            // Zeige lokale Browser-Benachrichtigungen
+            newNotifications.forEach(notif => {
+                this.showLocalNotification(notif);
+            });
+            
+            // Aktualisiere Badge im Dashboard
+            this.updateNotificationBadge(notifications.length);
+        }
+    }
+    
+    showLocalNotification(notification) {
+        // Prüfe ob Browser-Benachrichtigungen erlaubt sind
+        if (Notification.permission === 'granted') {
+            const notif = new Notification(notification.title, {
+                body: notification.body,
+                icon: notification.icon || '/static/img/logo.png',
+                tag: `notification-${notification.id}`,
+                requireInteraction: false,
+                silent: false
+            });
+            
+            // Bei Klick zur entsprechenden Seite navigieren
+            notif.onclick = () => {
+                window.focus();
+                if (notification.url) {
+                    window.location.href = notification.url;
+                }
+                notif.close();
+            };
+            
+            // Automatisch nach 5 Sekunden schließen
+            setTimeout(() => {
+                notif.close();
+            }, 5000);
+        } else {
+            // Fallback: Toast-Benachrichtigung
+            this.showToastNotification(notification);
+        }
+    }
+    
+    showToastNotification(notification) {
+        const toast = document.createElement('div');
+        toast.className = 'toast align-items-center text-white bg-primary border-0';
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${notification.title}</strong><br>
+                    ${notification.body}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        // Füge Toast-Container hinzu falls nicht vorhanden
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1060';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.appendChild(toast);
+        
+        // Zeige Toast
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        // Bei Klick zur entsprechenden Seite navigieren
+        toast.addEventListener('click', () => {
+            if (notification.url) {
+                window.location.href = notification.url;
+            }
+        });
+        
+        // Entferne Toast nach dem Ausblenden
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    }
+    
+    updateNotificationBadge(count) {
+        // Aktualisiere Badge im Dashboard
+        const badge = document.querySelector('.notification-badge');
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline' : 'none';
+        }
+        
+        // Aktualisiere auch den Chat-Badge
+        const chatBadge = document.querySelector('.chat-notification-badge');
+        if (chatBadge) {
+            chatBadge.textContent = count;
+            chatBadge.style.display = count > 0 ? 'inline' : 'none';
+        }
+    }
+    
+    stopPolling() {
+        if (this.checkInterval) {
+            clearInterval(this.checkInterval);
+            this.checkInterval = null;
+        }
+    }
+}
+
+// Initialisiere Benachrichtigungs-Manager
+const notificationManager = new NotificationManager();
+
 async function registerPushNotifications() {
     try {
         const registration = await navigator.serviceWorker.ready;
