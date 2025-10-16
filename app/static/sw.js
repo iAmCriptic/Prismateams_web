@@ -214,35 +214,45 @@ self.addEventListener('notificationclick', function(event) {
   }
 });
 
-// Hintergrund-Überprüfung für Benachrichtigungen - DEAKTIVIERT
+// Hintergrund-Überprüfung für Benachrichtigungen - REPARIERT
 function startBackgroundNotificationCheck() {
-  console.log('Service Worker: Hintergrund-Überprüfung DEAKTIVIERT - keine Spam-Benachrichtigungen mehr!');
+  console.log('Service Worker: Starte reparierte Hintergrund-Überprüfung');
   
-  // KEINE automatischen Überprüfungen mehr!
-  // Benachrichtigungen kommen nur noch bei echten neuen Nachrichten
-  // über die Push-API oder wenn explizit angefragt
+  // Chat-Nachrichten alle 10 Sekunden - aber NUR für Dashboard-Updates
+  chatCheckInterval = setInterval(() => {
+    checkForChatUpdates();
+  }, 10000);
+  
+  // Erste Prüfung nach 5 Sekunden
+  setTimeout(() => {
+    checkForChatUpdates();
+  }, 5000);
 }
 
-// Chat-Benachrichtigungen alle 10 Sekunden
-async function checkForChatNotifications() {
+// Chat-Updates für Dashboard (ohne Benachrichtigungen)
+async function checkForChatUpdates() {
   try {
-    console.log('Service Worker: Prüfe auf neue Chat-Nachrichten');
+    console.log('Service Worker: Prüfe Chat-Updates für Dashboard');
     
-    // NUR Chat-Count prüfen, KEINE alten Benachrichtigungen mehr holen
+    // NUR Chat-Count für Dashboard-Updates
     const chatResponse = await fetch('/api/chat/unread-count', { credentials: 'include' });
     
-    // Verarbeite Chat-Updates
     if (chatResponse.ok) {
       const data = await chatResponse.json();
-      if (data.count > 0) {
-        console.log(`Service Worker: ${data.count} neue Chat-Nachrichten`);
-        // Hier könnten wir eine generische Benachrichtigung senden
-        // aber KEINE alten Benachrichtigungen aus der DB
-      }
+      console.log(`Service Worker: ${data.count} neue Chat-Nachrichten für Dashboard`);
+      
+      // Sende Message an alle offenen Tabs für Dashboard-Update
+      const clients = await self.clients.matchAll();
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'CHAT_UPDATE',
+          count: data.count
+        });
+      });
     }
     
   } catch (error) {
-    console.log('Service Worker: Fehler beim Prüfen der Chat-Nachrichten:', error);
+    console.log('Service Worker: Fehler beim Prüfen der Chat-Updates:', error);
   }
 }
 
@@ -391,7 +401,7 @@ setInterval(() => {
   });
 }, 5 * 60 * 1000); // Alle 5 Minuten
 
-// Stoppe Hintergrund-Überprüfung wenn Service Worker beendet wird
+// Höre auf Nachrichten vom Frontend
 self.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'STOP_BACKGROUND_CHECK') {
     if (notificationCheckInterval) {
@@ -402,5 +412,10 @@ self.addEventListener('message', function(event) {
       clearInterval(chatCheckInterval);
       chatCheckInterval = null;
     }
+  }
+  
+  // Behandle Chat-Updates vom Frontend
+  if (event.data && event.data.type === 'CHAT_UPDATE') {
+    console.log('Service Worker: Chat-Update erhalten:', event.data.count);
   }
 });

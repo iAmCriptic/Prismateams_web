@@ -523,8 +523,9 @@ def get_unread_chat_count():
         user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
         chat_ids = [member.chat_id for member in user_chats]
         
-        # Zähle Nachrichten der letzten 24 Stunden, die nicht vom aktuellen Benutzer sind
-        since = datetime.utcnow() - timedelta(hours=24)
+        # Zähle nur Nachrichten der letzten 2 Stunden, die nicht vom aktuellen Benutzer sind
+        # Das zeigt nur wirklich neue Nachrichten
+        since = datetime.utcnow() - timedelta(hours=2)
         unread_count = ChatMessage.query.filter(
             ChatMessage.chat_id.in_(chat_ids),
             ChatMessage.sender_id != current_user.id,
