@@ -158,7 +158,7 @@ class DashboardUpdater {
     }
     
     init() {
-        // Starte Live-Updates alle 30 Sekunden
+        // Starte Live-Updates mit unterschiedlichen Intervallen
         this.startUpdates();
         
         // Update auch beim Fokus der Seite
@@ -174,9 +174,16 @@ class DashboardUpdater {
             clearInterval(this.updateInterval);
         }
         
+        // Chat-Nachrichten alle 10 Sekunden
+        setInterval(() => {
+            this.updateChatMessages();
+        }, 10000);
+        
+        // Andere Updates alle 30 Sekunden
         this.updateInterval = setInterval(() => {
-            this.updateDashboard();
-        }, 30000); // Alle 30 Sekunden
+            this.updateEmails();
+            this.updateCalendar();
+        }, 30000);
         
         // Erste Aktualisierung nach 5 Sekunden
         setTimeout(() => {

@@ -116,9 +116,17 @@ class NotificationLog(db.Model):
     sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     success = db.Column(db.Boolean, default=True, nullable=False)
     error_message = db.Column(db.Text, nullable=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)  # Neu: Gelesen-Status
+    read_at = db.Column(db.DateTime, nullable=True)  # Neu: Zeitpunkt des Lesens
     
     # Relationships
     user = db.relationship('User', backref='notification_logs')
     
     def __repr__(self):
         return f'<NotificationLog {self.id} for user {self.user_id}>'
+    
+    def mark_as_read(self):
+        """Markiere Benachrichtigung als gelesen."""
+        self.is_read = True
+        self.read_at = datetime.utcnow()
+        db.session.commit()

@@ -12,7 +12,10 @@ const urlsToCache = [
 
 // Hintergrund-Überprüfung für Benachrichtigungen
 let notificationCheckInterval = null;
+let chatCheckInterval = null;
 let lastNotificationCheck = null;
+let lastChatCheck = null;
+let shownNotificationIds = new Set(); // Tracke bereits angezeigte Benachrichtigungen
 
 // Install Event - Cache wichtige Ressourcen
 self.addEventListener('install', function(event) {
@@ -215,33 +218,37 @@ self.addEventListener('notificationclick', function(event) {
 function startBackgroundNotificationCheck() {
   console.log('Service Worker: Starte Hintergrund-Überprüfung');
   
-  // Prüfe alle 30 Sekunden
+  // Chat-Nachrichten alle 10 Sekunden
+  chatCheckInterval = setInterval(() => {
+    checkForChatNotifications();
+  }, 10000);
+  
+  // Andere Benachrichtigungen alle 30 Sekunden
   notificationCheckInterval = setInterval(() => {
-    checkForNotifications();
+    checkForOtherNotifications();
   }, 30000);
   
-  // Erste Prüfung nach 5 Sekunden
+  // Erste Prüfungen nach 5 Sekunden
   setTimeout(() => {
-    checkForNotifications();
+    checkForChatNotifications();
+    checkForOtherNotifications();
   }, 5000);
 }
 
-async function checkForNotifications() {
+// Chat-Benachrichtigungen alle 10 Sekunden
+async function checkForChatNotifications() {
   try {
-    console.log('Service Worker: Prüfe auf neue Benachrichtigungen');
+    console.log('Service Worker: Prüfe auf neue Chat-Nachrichten');
     
-    // Prüfe alle Benachrichtigungstypen parallel
-    const [notificationsResponse, chatResponse, emailResponse, calendarResponse] = await Promise.all([
+    const [notificationsResponse, chatResponse] = await Promise.all([
       fetch('/api/notifications/pending', { credentials: 'include' }),
-      fetch('/api/chat/unread-count', { credentials: 'include' }),
-      fetch('/api/email/unread-count', { credentials: 'include' }),
-      fetch('/api/calendar/upcoming-count', { credentials: 'include' })
+      fetch('/api/chat/unread-count', { credentials: 'include' })
     ]);
     
-    // Verarbeite Benachrichtigungen
+    // Verarbeite Chat-Benachrichtigungen
     if (notificationsResponse.ok) {
       const data = await notificationsResponse.json();
-      handleNewNotifications(data.notifications);
+      handleNewChatNotifications(data.notifications);
     }
     
     // Verarbeite Chat-Updates
@@ -251,6 +258,21 @@ async function checkForNotifications() {
         console.log(`Service Worker: ${data.count} neue Chat-Nachrichten`);
       }
     }
+    
+  } catch (error) {
+    console.log('Service Worker: Fehler beim Prüfen der Chat-Nachrichten:', error);
+  }
+}
+
+// Andere Benachrichtigungen alle 30 Sekunden
+async function checkForOtherNotifications() {
+  try {
+    console.log('Service Worker: Prüfe auf andere Benachrichtigungen');
+    
+    const [emailResponse, calendarResponse] = await Promise.all([
+      fetch('/api/email/unread-count', { credentials: 'include' }),
+      fetch('/api/calendar/upcoming-count', { credentials: 'include' })
+    ]);
     
     // Verarbeite E-Mail-Updates
     if (emailResponse.ok) {
@@ -269,13 +291,46 @@ async function checkForNotifications() {
     }
     
   } catch (error) {
-    console.log('Service Worker: Fehler beim Prüfen der Benachrichtigungen:', error);
+    console.log('Service Worker: Fehler beim Prüfen der anderen Benachrichtigungen:', error);
   }
 }
 
-function handleNewNotifications(notifications) {
-  // Filtere nur neue Benachrichtigungen
+// Verarbeite Chat-Benachrichtigungen
+function handleNewChatNotifications(notifications) {
+  // Filtere nur neue Chat-Benachrichtigungen, die noch nicht angezeigt wurden
   const newNotifications = notifications.filter(notif => {
+    // Prüfe ob bereits angezeigt
+    if (shownNotificationIds.has(notif.id)) {
+      return false;
+    }
+    
+    // Prüfe Zeitstempel
+    if (!lastChatCheck) return true;
+    return new Date(notif.sent_at) > lastChatCheck;
+  });
+  
+  if (newNotifications.length > 0) {
+    console.log(`Service Worker: ${newNotifications.length} neue Chat-Benachrichtigungen gefunden`);
+    lastChatCheck = new Date();
+    
+    // Zeige jede neue Chat-Benachrichtigung und markiere als angezeigt
+    newNotifications.forEach(notif => {
+      shownNotificationIds.add(notif.id);
+      showNotification(notif);
+    });
+  }
+}
+
+// Verarbeite andere Benachrichtigungen
+function handleNewNotifications(notifications) {
+  // Filtere nur neue Benachrichtigungen, die noch nicht angezeigt wurden
+  const newNotifications = notifications.filter(notif => {
+    // Prüfe ob bereits angezeigt
+    if (shownNotificationIds.has(notif.id)) {
+      return false;
+    }
+    
+    // Prüfe Zeitstempel
     if (!lastNotificationCheck) return true;
     return new Date(notif.sent_at) > lastNotificationCheck;
   });
@@ -284,8 +339,9 @@ function handleNewNotifications(notifications) {
     console.log(`Service Worker: ${newNotifications.length} neue Benachrichtigungen gefunden`);
     lastNotificationCheck = new Date();
     
-    // Zeige jede neue Benachrichtigung
+    // Zeige jede neue Benachrichtigung und markiere als angezeigt
     newNotifications.forEach(notif => {
+      shownNotificationIds.add(notif.id);
       showNotification(notif);
     });
   }
@@ -320,7 +376,38 @@ function showNotification(notification) {
   };
 
   self.registration.showNotification(notification.title, options);
+  
+  // Markiere Benachrichtigung als gelesen nach 5 Sekunden
+  setTimeout(() => {
+    markNotificationAsRead(notification.id);
+  }, 5000);
 }
+
+// Markiere Benachrichtigung als gelesen
+async function markNotificationAsRead(notificationId) {
+  try {
+    await fetch(`/api/notifications/mark-read/${notificationId}`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    console.log(`Service Worker: Benachrichtigung ${notificationId} als gelesen markiert`);
+  } catch (error) {
+    console.log('Service Worker: Fehler beim Markieren als gelesen:', error);
+  }
+}
+
+// Bereinige alte Benachrichtigungs-IDs (alle 5 Minuten)
+setInterval(() => {
+  // Entferne IDs älter als 1 Stunde
+  const oneHourAgo = Date.now() - (60 * 60 * 1000);
+  shownNotificationIds.forEach(id => {
+    // Hier könnten wir die Zeit aus der ID extrahieren, aber für jetzt
+    // begrenzen wir einfach die Anzahl der gespeicherten IDs
+    if (shownNotificationIds.size > 100) {
+      shownNotificationIds.clear();
+    }
+  });
+}, 5 * 60 * 1000); // Alle 5 Minuten
 
 // Stoppe Hintergrund-Überprüfung wenn Service Worker beendet wird
 self.addEventListener('message', function(event) {
@@ -328,6 +415,10 @@ self.addEventListener('message', function(event) {
     if (notificationCheckInterval) {
       clearInterval(notificationCheckInterval);
       notificationCheckInterval = null;
+    }
+    if (chatCheckInterval) {
+      clearInterval(chatCheckInterval);
+      chatCheckInterval = null;
     }
   }
 });

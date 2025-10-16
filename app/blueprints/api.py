@@ -455,9 +455,14 @@ def get_pending_notifications():
     try:
         from app.models.notification import NotificationLog
         
-        # Hole die letzten 10 Benachrichtigungen
-        notifications = NotificationLog.query.filter_by(
-            user_id=current_user.id
+        # Hole nur ungelesene Benachrichtigungen der letzten 24 Stunden
+        from datetime import datetime, timedelta
+        since = datetime.utcnow() - timedelta(hours=24)
+        
+        notifications = NotificationLog.query.filter(
+            NotificationLog.user_id == current_user.id,
+            NotificationLog.is_read == False,
+            NotificationLog.sent_at > since
         ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
         
         result = []
@@ -496,9 +501,8 @@ def mark_notification_read(notification_id):
         if not notification:
             return jsonify({'error': 'Benachrichtigung nicht gefunden'}), 404
         
-        # Hier könnten wir ein "read" Feld hinzufügen, aber für jetzt löschen wir die Benachrichtigung
-        db.session.delete(notification)
-        db.session.commit()
+        # Markiere als gelesen statt zu löschen
+        notification.mark_as_read()
         
         return jsonify({'message': 'Benachrichtigung als gelesen markiert'})
         
