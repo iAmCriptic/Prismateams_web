@@ -20,7 +20,7 @@
                         <i class="bi bi-calendar-event widget-icon text-primary"></i>
                         Termine
                     </h5>
-                    <span class="badge bg-primary">{{ upcoming_events|length }}</span>
+                    <span class="badge bg-primary calendar-badge">{{ upcoming_events|length }}</span>
                 </div>
                 
                 {% if upcoming_events %}
@@ -51,7 +51,7 @@
                         <i class="bi bi-chat-dots widget-icon text-success"></i>
                         Nachrichten
                     </h5>
-                    <span class="badge bg-success">{{ unread_messages|length }}</span>
+                    <span class="badge bg-success notification-badge">{{ unread_messages|length }}</span>
                 </div>
                 
                 {% if unread_messages %}
@@ -82,7 +82,7 @@
                         <i class="bi bi-envelope widget-icon text-info"></i>
                         E-Mails
                     </h5>
-                    <span class="badge bg-info">{{ recent_emails|length }}</span>
+                    <span class="badge bg-info email-badge">{{ recent_emails|length }}</span>
                 </div>
                 
                 {% if recent_emails %}
@@ -145,6 +145,117 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Dashboard Live-Updates
+class DashboardUpdater {
+    constructor() {
+        this.updateInterval = null;
+        this.lastUpdate = null;
+        this.init();
+    }
+    
+    init() {
+        // Starte Live-Updates alle 30 Sekunden
+        this.startUpdates();
+        
+        // Update auch beim Fokus der Seite
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.updateDashboard();
+            }
+        });
+    }
+    
+    startUpdates() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+        }
+        
+        this.updateInterval = setInterval(() => {
+            this.updateDashboard();
+        }, 30000); // Alle 30 Sekunden
+        
+        // Erste Aktualisierung nach 5 Sekunden
+        setTimeout(() => {
+            this.updateDashboard();
+        }, 5000);
+    }
+    
+    async updateDashboard() {
+        try {
+            // Aktualisiere Chat-Nachrichten
+            await this.updateChatMessages();
+            
+            // Aktualisiere E-Mails
+            await this.updateEmails();
+            
+            // Aktualisiere Termine
+            await this.updateCalendar();
+            
+            this.lastUpdate = new Date();
+        } catch (error) {
+            console.log('Fehler beim Aktualisieren des Dashboards:', error);
+        }
+    }
+    
+    async updateChatMessages() {
+        try {
+            const response = await fetch('/api/chat/unread-count');
+            if (response.ok) {
+                const data = await response.json();
+                this.updateBadge('.notification-badge', data.count);
+            }
+        } catch (error) {
+            console.log('Fehler beim Aktualisieren der Chat-Nachrichten:', error);
+        }
+    }
+    
+    async updateEmails() {
+        try {
+            const response = await fetch('/api/email/unread-count');
+            if (response.ok) {
+                const data = await response.json();
+                this.updateBadge('.email-badge', data.count);
+            }
+        } catch (error) {
+            console.log('Fehler beim Aktualisieren der E-Mails:', error);
+        }
+    }
+    
+    async updateCalendar() {
+        try {
+            const response = await fetch('/api/calendar/upcoming-count');
+            if (response.ok) {
+                const data = await response.json();
+                this.updateBadge('.calendar-badge', data.count);
+            }
+        } catch (error) {
+            console.log('Fehler beim Aktualisieren der Termine:', error);
+        }
+    }
+    
+    updateBadge(selector, count) {
+        const badge = document.querySelector(selector);
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline' : 'none';
+        }
+    }
+    
+    stopUpdates() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+        }
+    }
+}
+
+// Initialisiere Dashboard-Updater
+const dashboardUpdater = new DashboardUpdater();
+</script>
 {% endblock %}
 
 

@@ -190,19 +190,19 @@ def send_chat_notification(
             continue
         
         # Kürze Nachricht für Benachrichtigung
-        if len(message_content) > 100:
-            display_content = message_content[:97] + "..."
+        if len(message_content) > 50:
+            display_content = message_content[:47] + "..."
         else:
             display_content = message_content
         
-        title = f"Neue Nachricht von {sender.full_name}"
-        if chat_name and not chat_name.startswith(sender.full_name):
-            title = f"{chat_name}: {title}"
+        # Neues Format: "Gruppenname" / "Sender: Nachricht"
+        title = chat_name or "Team Chat"
+        body = f"{sender.full_name}: {display_content}"
         
         if send_push_notification(
             user_id=user.id,
             title=title,
-            body=display_content,
+            body=body,
             url=f"/chat/{chat_id}"
         ):
             sent_count += 1

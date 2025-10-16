@@ -10,6 +10,10 @@ const urlsToCache = [
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'
 ];
 
+// Hintergrund-Überprüfung für Benachrichtigungen
+let notificationCheckInterval = null;
+let lastNotificationCheck = null;
+
 // Install Event - Cache wichtige Ressourcen
 self.addEventListener('install', function(event) {
   console.log('Service Worker: Install Event');
@@ -40,6 +44,9 @@ self.addEventListener('activate', function(event) {
       );
     })
   );
+  
+  // Starte Hintergrund-Überprüfung
+  startBackgroundNotificationCheck();
 });
 
 // Fetch Event - Cache-First Strategie
@@ -201,5 +208,126 @@ self.addEventListener('notificationclick', function(event) {
         }
       })
     );
+  }
+});
+
+// Hintergrund-Überprüfung für Benachrichtigungen
+function startBackgroundNotificationCheck() {
+  console.log('Service Worker: Starte Hintergrund-Überprüfung');
+  
+  // Prüfe alle 30 Sekunden
+  notificationCheckInterval = setInterval(() => {
+    checkForNotifications();
+  }, 30000);
+  
+  // Erste Prüfung nach 5 Sekunden
+  setTimeout(() => {
+    checkForNotifications();
+  }, 5000);
+}
+
+async function checkForNotifications() {
+  try {
+    console.log('Service Worker: Prüfe auf neue Benachrichtigungen');
+    
+    // Prüfe alle Benachrichtigungstypen parallel
+    const [notificationsResponse, chatResponse, emailResponse, calendarResponse] = await Promise.all([
+      fetch('/api/notifications/pending', { credentials: 'include' }),
+      fetch('/api/chat/unread-count', { credentials: 'include' }),
+      fetch('/api/email/unread-count', { credentials: 'include' }),
+      fetch('/api/calendar/upcoming-count', { credentials: 'include' })
+    ]);
+    
+    // Verarbeite Benachrichtigungen
+    if (notificationsResponse.ok) {
+      const data = await notificationsResponse.json();
+      handleNewNotifications(data.notifications);
+    }
+    
+    // Verarbeite Chat-Updates
+    if (chatResponse.ok) {
+      const data = await chatResponse.json();
+      if (data.count > 0) {
+        console.log(`Service Worker: ${data.count} neue Chat-Nachrichten`);
+      }
+    }
+    
+    // Verarbeite E-Mail-Updates
+    if (emailResponse.ok) {
+      const data = await emailResponse.json();
+      if (data.count > 0) {
+        console.log(`Service Worker: ${data.count} neue E-Mails`);
+      }
+    }
+    
+    // Verarbeite Kalender-Updates
+    if (calendarResponse.ok) {
+      const data = await calendarResponse.json();
+      if (data.count > 0) {
+        console.log(`Service Worker: ${data.count} anstehende Termine`);
+      }
+    }
+    
+  } catch (error) {
+    console.log('Service Worker: Fehler beim Prüfen der Benachrichtigungen:', error);
+  }
+}
+
+function handleNewNotifications(notifications) {
+  // Filtere nur neue Benachrichtigungen
+  const newNotifications = notifications.filter(notif => {
+    if (!lastNotificationCheck) return true;
+    return new Date(notif.sent_at) > lastNotificationCheck;
+  });
+  
+  if (newNotifications.length > 0) {
+    console.log(`Service Worker: ${newNotifications.length} neue Benachrichtigungen gefunden`);
+    lastNotificationCheck = new Date();
+    
+    // Zeige jede neue Benachrichtigung
+    newNotifications.forEach(notif => {
+      showNotification(notif);
+    });
+  }
+}
+
+function showNotification(notification) {
+  const options = {
+    body: notification.body,
+    icon: notification.icon || '/static/img/logo.png',
+    badge: '/static/img/logo.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: notification.url || '/',
+      id: notification.id,
+      dateOfArrival: Date.now()
+    },
+    actions: [
+      {
+        action: 'open',
+        title: 'Öffnen',
+        icon: '/static/img/logo.png'
+      },
+      {
+        action: 'close',
+        title: 'Schließen',
+        icon: '/static/img/logo.png'
+      }
+    ],
+    requireInteraction: false,
+    silent: false,
+    tag: `notification-${notification.id}`
+  };
+
+  self.registration.showNotification(notification.title, options);
+}
+
+// Stoppe Hintergrund-Überprüfung wenn Service Worker beendet wird
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'STOP_BACKGROUND_CHECK') {
+    if (notificationCheckInterval) {
+      clearInterval(notificationCheckInterval);
+      notificationCheckInterval = null;
+    }
   }
 });

@@ -506,4 +506,68 @@ def mark_notification_read(notification_id):
         return jsonify({'error': str(e)}), 500
 
 
+# Dashboard Update APIs
+@api_bp.route('/chat/unread-count', methods=['GET'])
+@login_required
+def get_unread_chat_count():
+    """Hole Anzahl ungelesener Chat-Nachrichten."""
+    try:
+        from app.models.chat import ChatMessage, ChatMember
+        from datetime import datetime, timedelta
+        
+        # Hole alle Chats des Benutzers
+        user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
+        chat_ids = [member.chat_id for member in user_chats]
+        
+        # Zähle Nachrichten der letzten 24 Stunden, die nicht vom aktuellen Benutzer sind
+        since = datetime.utcnow() - timedelta(hours=24)
+        unread_count = ChatMessage.query.filter(
+            ChatMessage.chat_id.in_(chat_ids),
+            ChatMessage.sender_id != current_user.id,
+            ChatMessage.created_at > since
+        ).count()
+        
+        return jsonify({'count': unread_count})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/email/unread-count', methods=['GET'])
+@login_required
+def get_unread_email_count():
+    """Hole Anzahl ungelesener E-Mails."""
+    try:
+        unread_count = EmailMessage.query.filter_by(
+            is_read=False
+        ).count()
+        
+        return jsonify({'count': unread_count})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/calendar/upcoming-count', methods=['GET'])
+@login_required
+def get_upcoming_events_count():
+    """Hole Anzahl anstehender Termine."""
+    try:
+        from datetime import datetime, timedelta
+        
+        # Termine der nächsten 7 Tage
+        now = datetime.utcnow()
+        week_from_now = now + timedelta(days=7)
+        
+        upcoming_count = CalendarEvent.query.filter(
+            CalendarEvent.start_time > now,
+            CalendarEvent.start_time <= week_from_now
+        ).count()
+        
+        return jsonify({'count': upcoming_count})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 
