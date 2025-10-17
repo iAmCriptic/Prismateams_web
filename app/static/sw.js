@@ -408,6 +408,5 @@ setInterval(() => {
 // Service Worker ist bereit für Push-Benachrichtigungen
 console.log('Service Worker: Bereit für Push-Benachrichtigungen');
 
-// Starte lokale Benachrichtigungsprüfung nur wenn explizit angefordert
-// (für Fallback wenn Push-Benachrichtigungen nicht funktionieren)
-// startNotificationCheck();
+// Starte lokale Benachrichtigungsprüfung als Fallback
+startNotificationCheck();

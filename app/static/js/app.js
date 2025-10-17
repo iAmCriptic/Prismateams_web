@@ -422,14 +422,15 @@ class NotificationManager {
     }
 }
 
-// Initialisiere Benachrichtigungs-Manager (nur für Fallback)
-// const notificationManager = new NotificationManager();
+// Initialisiere Benachrichtigungs-Manager
+const notificationManager = new NotificationManager();
 
 // Service Worker ist bereit für Push-Benachrichtigungen
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(function(registration) {
         console.log('Service Worker bereit für Push-Benachrichtigungen');
-        // Keine lokalen Benachrichtigungen mehr - nur noch echte Push-Benachrichtigungen
+        // Starte lokale Benachrichtigungen als Fallback
+        registration.active.postMessage({ type: 'START_NOTIFICATIONS' });
     });
 }
 
