@@ -112,10 +112,17 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
             
             // Starte Push-Notification Registrierung sofort
             console.log('Starte Push-Notification Registrierung sofort...');
+            console.log('DEBUG: Rufe registerPushNotifications() auf...');
             registerPushNotifications();
         }).catch(function(error) {
             console.error('Fehler beim Warten auf Service Worker:', error);
         });
+        
+        // Zusätzlicher Fallback: Versuche es auch nach 2 Sekunden
+        setTimeout(() => {
+            console.log('FALLBACK: Versuche Push-Notification Registrierung nach 2 Sekunden...');
+            registerPushNotifications();
+        }, 2000);
     } else {
         console.log('UNSICHERER KONTEXT: Push-Benachrichtigungen funktionieren nur mit HTTPS!');
         console.log('Aktuelle URL:', location.href);
@@ -465,41 +472,49 @@ async function registerPushNotifications() {
         console.log('Aktuelle URL:', location.href);
         console.log('Protokoll:', location.protocol);
         console.log('Hostname:', location.hostname);
+        console.log('DEBUG: registerPushNotifications() wurde aufgerufen!');
         
+        console.log('DEBUG: Warte auf Service Worker ready...');
         const registration = await navigator.serviceWorker.ready;
+        console.log('DEBUG: Service Worker ready erhalten!');
         console.log('Service Worker Registration:', registration);
         
         // Prüfe ob bereits eine Subscription existiert
+        console.log('DEBUG: Prüfe bestehende Push-Subscription...');
         pushSubscription = await registration.pushManager.getSubscription();
+        console.log('DEBUG: Push-Subscription Prüfung abgeschlossen!');
         console.log('Bestehende Push-Subscription:', pushSubscription);
         
         if (!pushSubscription) {
-            console.log('Keine bestehende Push-Subscription gefunden, erstelle neue...');
+            console.log('DEBUG: Keine bestehende Push-Subscription gefunden, erstelle neue...');
             
             // Prüfe ob Benachrichtigungen erlaubt sind
+            console.log('DEBUG: Prüfe Notification Permission...');
             console.log('Aktuelle Notification Permission:', Notification.permission);
             if (Notification.permission === 'default') {
-                console.log('Frage nach Benachrichtigungsberechtigung...');
+                console.log('DEBUG: Frage nach Benachrichtigungsberechtigung...');
                 const permission = await Notification.requestPermission();
-                console.log('Benachrichtigungsberechtigung erhalten:', permission);
+                console.log('DEBUG: Benachrichtigungsberechtigung erhalten:', permission);
                 if (permission !== 'granted') {
-                    console.log('Push-Benachrichtigungen nicht erlaubt');
+                    console.log('DEBUG: Push-Benachrichtigungen nicht erlaubt');
                     return;
                 }
             } else if (Notification.permission !== 'granted') {
-                console.log('Push-Benachrichtigungen nicht erlaubt');
+                console.log('DEBUG: Push-Benachrichtigungen nicht erlaubt');
                 return;
             }
             
             // Erstelle neue Subscription
-            console.log('Erstelle neue Push-Subscription...');
+            console.log('DEBUG: Erstelle neue Push-Subscription...');
             const applicationServerKey = urlBase64ToUint8Array('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG4ECv1S2TNUvpqoXcq4hbpVrFKruYoRRc1A8NMDhmU_a597YCT1e3_61_ujJLDDEwSnkauzSkjXh_QgeMb6Nsg');
             
+            console.log('DEBUG: Rufe pushManager.subscribe() auf...');
             pushSubscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: applicationServerKey
             });
             
+            console.log('DEBUG: Push-Subscription erfolgreich erstellt!');
             console.log('Push-Subscription erstellt:', pushSubscription);
         } else {
             console.log('Bestehende Push-Subscription gefunden');
