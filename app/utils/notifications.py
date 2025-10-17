@@ -68,6 +68,8 @@ def send_push_notification(
         # Keine Push-Benachrichtigung möglich
         return False
     
+    print(f"Gefunden {len(subscriptions)} Push-Subscriptions für Benutzer {user_id}")
+    
     success_count = 0
     total_count = len(subscriptions)
     
@@ -84,6 +86,7 @@ def send_push_notification(
             
             # Sende Push-Benachrichtigung
             print(f"Sende Push-Benachrichtigung an Benutzer {user_id}: {payload}")
+            print(f"Subscription Info: {subscription.to_dict()}")
             webpush(
                 subscription_info=subscription.to_dict(),
                 data=json.dumps(payload),
@@ -100,14 +103,17 @@ def send_push_notification(
             
         except WebPushException as e:
             logging.error(f"WebPush Fehler für Benutzer {user_id}: {e}")
+            print(f"WebPush Fehler für Benutzer {user_id}: {e}")
             
             # Deaktiviere Subscription bei Fehlern
             if e.response and e.response.status_code in [410, 404]:
                 subscription.is_active = False
                 logging.info(f"Push-Subscription {subscription.id} deaktiviert")
+                print(f"Push-Subscription {subscription.id} deaktiviert")
             
         except Exception as e:
             logging.error(f"Unerwarteter Fehler beim Senden der Push-Benachrichtigung: {e}")
+            print(f"Unerwarteter Fehler beim Senden der Push-Benachrichtigung: {e}")
     
     # Logge das Ergebnis nur bei erfolgreichen Push-Benachrichtigungen
     if success_count > 0:
@@ -123,10 +129,13 @@ def send_push_notification(
             )
             db.session.add(log_entry)
             db.session.commit()
+            print(f"NotificationLog erstellt für Benutzer {user_id}")
         except Exception as e:
             logging.error(f"Fehler beim Loggen der Push-Benachrichtigung: {e}")
+            print(f"Fehler beim Loggen der Push-Benachrichtigung: {e}")
             db.session.rollback()
     
+    print(f"Push-Benachrichtigung Ergebnis: {success_count}/{total_count} erfolgreich")
     return success_count > 0
 
 
@@ -467,10 +476,17 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         bool: True wenn erfolgreich registriert
     """
     try:
+        print(f"Registriere Push-Subscription für Benutzer {user_id}")
+        print(f"Subscription-Daten: {subscription_data}")
+        
         endpoint = subscription_data.get('endpoint')
         keys = subscription_data.get('keys', {})
         
+        print(f"Endpoint: {endpoint}")
+        print(f"Keys: {keys}")
+        
         if not endpoint or not keys.get('p256dh') or not keys.get('auth'):
+            print("Fehler: Endpoint oder Keys fehlen")
             return False
         
         # Prüfe ob Subscription bereits existiert
@@ -480,12 +496,14 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         ).first()
         
         if existing:
+            print(f"Update bestehende Push-Subscription für Benutzer {user_id}")
             # Update bestehende Subscription
             existing.p256dh_key = keys['p256dh']
             existing.auth_key = keys['auth']
             existing.last_used = datetime.utcnow()
             existing.is_active = True
         else:
+            print(f"Erstelle neue Push-Subscription für Benutzer {user_id}")
             # Erstelle neue Subscription
             new_subscription = PushSubscription(
                 user_id=user_id,

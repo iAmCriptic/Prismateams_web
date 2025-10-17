@@ -4,6 +4,7 @@ from app import db
 from app.models.user import User
 from app.models.email import EmailPermission
 from app.models.chat import Chat, ChatMember
+from app.models.whitelist import WhitelistEntry
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
@@ -49,13 +50,16 @@ def register():
             flash('Diese E-Mail-Adresse ist bereits registriert.', 'danger')
             return render_template('auth/register.html')
         
-        # Create new user (inactive by default)
+        # Check if email is whitelisted
+        is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
+        
+        # Create new user (active if whitelisted, inactive otherwise)
         new_user = User(
             email=email,
             first_name=first_name,
             last_name=last_name,
             phone=phone,
-            is_active=False,
+            is_active=is_whitelisted,
             is_admin=False
         )
         new_user.set_password(password)
@@ -83,7 +87,10 @@ def register():
         
         db.session.commit()
         
-        flash('Registrierung erfolgreich! Ein Administrator muss Ihr Konto noch freischalten.', 'success')
+        if is_whitelisted:
+            flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert.', 'success')
+        else:
+            flash('Registrierung erfolgreich! Ein Administrator muss Ihr Konto noch freischalten.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html')

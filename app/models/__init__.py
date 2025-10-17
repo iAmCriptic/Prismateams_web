@@ -7,6 +7,7 @@ from .credential import Credential
 from .manual import Manual
 from .canvas import Canvas, CanvasTextField
 from .settings import SystemSettings
+from .whitelist import WhitelistEntry
 
 __all__ = [
     'User',
@@ -17,7 +18,8 @@ __all__ = [
     'Credential',
     'Manual',
     'Canvas', 'CanvasTextField',
-    'SystemSettings'
+    'SystemSettings',
+    'WhitelistEntry'
 ]
 
 

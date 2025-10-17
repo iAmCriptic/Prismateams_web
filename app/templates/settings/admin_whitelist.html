@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Whitelist-Verwaltung - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Whitelist-Verwaltung</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4">Whitelist-Verwaltung</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Whitelist Entries -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Whitelist-Einträge</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if whitelist_entries %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Eintrag</th>
+                                <th>Typ</th>
+                                <th>Beschreibung</th>
+                                <th>Status</th>
+                                <th>Erstellt</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in whitelist_entries %}
+                            <tr>
+                                <td>
+                                    <code>{{ entry.entry }}</code>
+                                </td>
+                                <td>
+                                    {% if entry.entry_type == 'email' %}
+                                    <span class="badge bg-primary">E-Mail</span>
+                                    {% else %}
+                                    <span class="badge bg-info">Domain</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ entry.description or '-' }}</td>
+                                <td>
+                                    {% if entry.is_active %}
+                                    <span class="badge bg-success">Aktiv</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inaktiv</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <form method="POST" action="{{ url_for('settings.toggle_whitelist_entry', entry_id=entry.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-{% if entry.is_active %}warning{% else %}success{% endif %}" 
+                                                    title="{% if entry.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}">
+                                                <i class="bi bi-{% if entry.is_active %}pause{% else %}play{% endif %}-circle"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('settings.delete_whitelist_entry', entry_id=entry.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-danger" 
+                                                    data-confirm-delete="Whitelist-Eintrag wirklich löschen?" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center p-4">
+                    <i class="bi bi-shield-x text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-2">Keine Whitelist-Einträge vorhanden</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Add New Entry -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Neuen Eintrag hinzufügen</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('settings.add_whitelist_entry') }}">
+                    <div class="mb-3">
+                        <label for="entry_type" class="form-label">Typ</label>
+                        <select class="form-select" id="entry_type" name="entry_type" required>
+                            <option value="">Bitte wählen...</option>
+                            <option value="email">E-Mail-Adresse</option>
+                            <option value="domain">Domain</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="entry" class="form-label">Eintrag</label>
+                        <input type="text" class="form-control" id="entry" name="entry" 
+                               placeholder="z.B. user@example.com oder @example.com" required>
+                        <div class="form-text">
+                            <strong>E-Mail:</strong> Vollständige E-Mail-Adresse<br>
+                            <strong>Domain:</strong> Domain mit @ (z.B. @merian.schule)
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung (optional)</label>
+                        <input type="text" class="form-control" id="description" name="description" 
+                               placeholder="z.B. Lehrer der Schule">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-accent w-100">
+                        <i class="bi bi-plus-circle"></i> Hinzufügen
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informationen</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    <strong>Whitelist-System:</strong> E-Mail-Adressen und Domains auf der Whitelist werden bei der Registrierung automatisch aktiviert.
+                </p>
+                <p class="small mb-2">
+                    <strong>E-Mail-Adressen:</strong> Exakte Übereinstimmung erforderlich (z.B. user@example.com)
+                </p>
+                <p class="small mb-0">
+                    <strong>Domains:</strong> Alle E-Mails von dieser Domain werden automatisch aktiviert (z.B. @merian.schule)
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ from app.models.email import EmailPermission
 from app.models.settings import SystemSettings
 from app.models.notification import NotificationSettings, ChatNotificationSettings
 from app.models.chat import Chat, ChatMember
+from app.models.whitelist import WhitelistEntry
 from app.utils.notifications import get_or_create_notification_settings
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -367,6 +368,96 @@ def admin_system():
     footer_text = SystemSettings.query.filter_by(key='email_footer_text').first()
     
     return render_template('settings/admin_system.html', footer_text=footer_text)
+
+
+@settings_bp.route('/admin/whitelist')
+@login_required
+def admin_whitelist():
+    """Manage whitelist entries (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    # Get all whitelist entries
+    whitelist_entries = WhitelistEntry.query.order_by(WhitelistEntry.entry_type, WhitelistEntry.entry).all()
+    
+    return render_template('settings/admin_whitelist.html', whitelist_entries=whitelist_entries)
+
+
+@settings_bp.route('/admin/whitelist/add', methods=['POST'])
+@login_required
+def add_whitelist_entry():
+    """Add a new whitelist entry (admin only)."""
+    if not current_user.is_admin:
+        return redirect(url_for('settings.index'))
+    
+    entry = request.form.get('entry', '').strip()
+    entry_type = request.form.get('entry_type', '')
+    description = request.form.get('description', '').strip()
+    
+    if not entry or entry_type not in ['email', 'domain']:
+        flash('Bitte geben Sie einen gültigen Eintrag und Typ an.', 'danger')
+        return redirect(url_for('settings.admin_whitelist'))
+    
+    # Validate entry format
+    if entry_type == 'email':
+        if '@' not in entry:
+            flash('Bitte geben Sie eine gültige E-Mail-Adresse ein.', 'danger')
+            return redirect(url_for('settings.admin_whitelist'))
+    elif entry_type == 'domain':
+        if not entry.startswith('@'):
+            entry = '@' + entry
+    
+    # Add entry
+    result = WhitelistEntry.add_entry(entry, entry_type, description, current_user.id)
+    
+    if result:
+        flash(f'Whitelist-Eintrag "{entry}" wurde hinzugefügt.', 'success')
+    else:
+        flash('Fehler beim Hinzufügen des Whitelist-Eintrags. Möglicherweise existiert er bereits.', 'danger')
+    
+    return redirect(url_for('settings.admin_whitelist'))
+
+
+@settings_bp.route('/admin/whitelist/<int:entry_id>/toggle', methods=['POST'])
+@login_required
+def toggle_whitelist_entry(entry_id):
+    """Toggle whitelist entry active status (admin only)."""
+    if not current_user.is_admin:
+        return redirect(url_for('settings.index'))
+    
+    result = WhitelistEntry.toggle_active(entry_id)
+    
+    if result:
+        entry = WhitelistEntry.query.get(entry_id)
+        status = "aktiviert" if entry.is_active else "deaktiviert"
+        flash(f'Whitelist-Eintrag "{entry.entry}" wurde {status}.', 'success')
+    else:
+        flash('Fehler beim Ändern des Whitelist-Eintrags.', 'danger')
+    
+    return redirect(url_for('settings.admin_whitelist'))
+
+
+@settings_bp.route('/admin/whitelist/<int:entry_id>/delete', methods=['POST'])
+@login_required
+def delete_whitelist_entry(entry_id):
+    """Delete a whitelist entry (admin only)."""
+    if not current_user.is_admin:
+        return redirect(url_for('settings.index'))
+    
+    entry = WhitelistEntry.query.get(entry_id)
+    if not entry:
+        flash('Whitelist-Eintrag nicht gefunden.', 'danger')
+        return redirect(url_for('settings.admin_whitelist'))
+    
+    result = WhitelistEntry.remove_entry(entry_id)
+    
+    if result:
+        flash(f'Whitelist-Eintrag "{entry.entry}" wurde gelöscht.', 'success')
+    else:
+        flash('Fehler beim Löschen des Whitelist-Eintrags.', 'danger')
+    
+    return redirect(url_for('settings.admin_whitelist'))
 
 
 

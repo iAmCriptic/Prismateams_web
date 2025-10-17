@@ -258,22 +258,31 @@ def get_dashboard_stats():
 def subscribe_push():
     """Register push subscription for current user."""
     try:
+        print(f"Push-Subscription Registrierung für Benutzer {current_user.id}")
         data = request.get_json()
+        print(f"Empfangene Daten: {data}")
+        
         subscription_data = data.get('subscription')
         user_agent = data.get('user_agent', '')
         
         if not subscription_data:
+            print("Fehler: Subscription-Daten fehlen")
             return jsonify({'error': 'Subscription-Daten fehlen'}), 400
+        
+        print(f"Subscription-Daten: {subscription_data}")
         
         # Registriere Push-Subscription
         success = register_push_subscription(current_user.id, subscription_data)
         
         if success:
+            print(f"Push-Subscription erfolgreich registriert für Benutzer {current_user.id}")
             return jsonify({'message': 'Push-Subscription erfolgreich registriert'})
         else:
+            print(f"Fehler bei der Push-Subscription Registrierung für Benutzer {current_user.id}")
             return jsonify({'error': 'Fehler bei der Registrierung'}), 500
             
     except Exception as e:
+        print(f"Exception bei Push-Subscription Registrierung: {e}")
         return jsonify({'error': str(e)}), 500
 
 

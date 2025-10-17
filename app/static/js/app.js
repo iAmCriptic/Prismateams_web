@@ -99,7 +99,10 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
     // Warte bis Service Worker bereit ist, dann registriere Push-Subscription
     navigator.serviceWorker.ready.then(function(registration) {
         console.log('Service Worker bereit, registriere Push-Subscription');
-        registerPushNotifications();
+        // Warte 2 Sekunden bevor Push-Subscription registriert wird
+        setTimeout(() => {
+            registerPushNotifications();
+        }, 2000);
     });
 }
 
@@ -436,15 +439,23 @@ if ('serviceWorker' in navigator) {
 
 async function registerPushNotifications() {
     try {
+        console.log('Starte Push-Notification Registrierung...');
         const registration = await navigator.serviceWorker.ready;
+        console.log('Service Worker Registration:', registration);
         
         // Prüfe ob bereits eine Subscription existiert
         pushSubscription = await registration.pushManager.getSubscription();
+        console.log('Bestehende Push-Subscription:', pushSubscription);
         
         if (!pushSubscription) {
+            console.log('Keine bestehende Push-Subscription gefunden, erstelle neue...');
+            
             // Prüfe ob Benachrichtigungen erlaubt sind
+            console.log('Aktuelle Notification Permission:', Notification.permission);
             if (Notification.permission === 'default') {
+                console.log('Frage nach Benachrichtigungsberechtigung...');
                 const permission = await Notification.requestPermission();
+                console.log('Benachrichtigungsberechtigung erhalten:', permission);
                 if (permission !== 'granted') {
                     console.log('Push-Benachrichtigungen nicht erlaubt');
                     return;
@@ -455,6 +466,7 @@ async function registerPushNotifications() {
             }
             
             // Erstelle neue Subscription
+            console.log('Erstelle neue Push-Subscription...');
             const applicationServerKey = urlBase64ToUint8Array('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG4ECv1S2TNUvpqoXcq4hbpVrFKruYoRRc1A8NMDhmU_a597YCT1e3_61_ujJLDDEwSnkauzSkjXh_QgeMb6Nsg');
             
             pushSubscription = await registration.pushManager.subscribe({
@@ -463,9 +475,12 @@ async function registerPushNotifications() {
             });
             
             console.log('Push-Subscription erstellt:', pushSubscription);
+        } else {
+            console.log('Bestehende Push-Subscription gefunden');
         }
         
         // Sende Subscription an Server
+        console.log('Sende Push-Subscription an Server...');
         await sendSubscriptionToServer(pushSubscription);
         
         console.log('Push-Benachrichtigungen erfolgreich registriert');
@@ -492,6 +507,7 @@ function urlBase64ToUint8Array(base64String) {
 
 async function sendSubscriptionToServer(subscription) {
     try {
+        console.log('Sende Push-Subscription an Server:', subscription);
         const response = await fetch('/api/push/subscribe', {
             method: 'POST',
             headers: {
@@ -503,6 +519,8 @@ async function sendSubscriptionToServer(subscription) {
                 user_agent: navigator.userAgent
             })
         });
+        
+        console.log('Server-Response Status:', response.status);
         
         if (response.ok) {
             console.log('Push-Subscription erfolgreich an Server gesendet');
