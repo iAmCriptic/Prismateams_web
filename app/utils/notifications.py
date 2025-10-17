@@ -148,8 +148,8 @@ def send_chat_notification(
     message_id: int = None
 ) -> int:
     """
-    Sendet Push-Benachrichtigungen für eine neue Chat-Nachricht.
-    Nur für Benutzer, die die Nachricht noch nicht gelesen haben.
+    Sendet zusammengefasste Push-Benachrichtigungen für neue Chat-Nachrichten.
+    Eine Benachrichtigung pro Chat mit Anzahl der ungelesenen Nachrichten.
     
     Args:
         chat_id: ID des Chats
@@ -190,28 +190,36 @@ def send_chat_notification(
         if chat_settings and not chat_settings.notifications_enabled:
             continue
         
-        # WICHTIG: Prüfe ob bereits eine Benachrichtigung für diese Nachricht gesendet wurde
-        if message_id:
-            existing_notification = NotificationLog.query.filter_by(
-                user_id=user.id,
-                url=f"/chat/{chat_id}",
-                success=True
-            ).filter(
-                NotificationLog.sent_at >= datetime.utcnow() - timedelta(minutes=5)
-            ).first()
-            
-            if existing_notification:
-                continue  # Benachrichtigung bereits gesendet
+        # Prüfe ob bereits eine Benachrichtigung für diesen Chat in den letzten 5 Minuten gesendet wurde
+        existing_notification = NotificationLog.query.filter_by(
+            user_id=user.id,
+            url=f"/chat/{chat_id}",
+            success=True
+        ).filter(
+            NotificationLog.sent_at >= datetime.utcnow() - timedelta(minutes=5)
+        ).first()
         
-        # Kürze Nachricht für Benachrichtigung
-        if len(message_content) > 50:
-            display_content = message_content[:47] + "..."
+        if existing_notification:
+            continue  # Benachrichtigung bereits gesendet
+        
+        # Zähle ungelesene Nachrichten in diesem Chat
+        unread_count = ChatMessage.query.filter(
+            ChatMessage.chat_id == chat_id,
+            ChatMessage.sender_id != user.id,
+            ChatMessage.created_at > member.last_read_at,
+            ChatMessage.is_deleted == False
+        ).count()
+        
+        if unread_count == 0:
+            continue  # Keine ungelesenen Nachrichten
+        
+        # Erstelle zusammengefasste Benachrichtigung
+        if unread_count == 1:
+            title = f'"{chat_name or "Team Chat"}"'
+            body = f'1 neue Nachricht'
         else:
-            display_content = message_content
-        
-        # Neues Format: "Gruppenname" / "Sender: Nachricht"
-        title = f'"{chat_name or "Team Chat"}"'
-        body = f'"{sender.full_name}": {display_content}'
+            title = f'"{chat_name or "Team Chat"}"'
+            body = f'{unread_count} neue Nachrichten'
         
         # IMMER eine Benachrichtigung erstellen (für lokale Anzeige)
         try:
@@ -226,7 +234,7 @@ def send_chat_notification(
             )
             db.session.add(notification_log)
             db.session.commit()
-            print(f"Benachrichtigung erstellt für Benutzer {user.id}")
+            print(f"Zusammengefasste Benachrichtigung erstellt für Benutzer {user.id}: {unread_count} Nachrichten")
         except Exception as e:
             print(f"Fehler beim Erstellen der Benachrichtigung: {e}")
         
@@ -239,9 +247,9 @@ def send_chat_notification(
         )
         
         if push_success:
-            print(f"Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
+            print(f"Zusammengefasste Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
         else:
-            print(f"Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
+            print(f"Zusammengefasste Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
         
         sent_count += 1
     
