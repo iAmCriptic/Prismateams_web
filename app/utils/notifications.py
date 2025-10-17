@@ -108,17 +108,21 @@ def send_push_notification(
     
     # Logge das Ergebnis nur bei erfolgreichen Push-Benachrichtigungen
     if success_count > 0:
-        log_entry = NotificationLog(
-            user_id=user_id,
-            title=title,
-            body=body,
-            icon=icon,
-            url=url,
-            success=True,
-            is_read=True  # Push-Benachrichtigungen sind automatisch "gelesen"
-        )
-        db.session.add(log_entry)
-        db.session.commit()
+        try:
+            log_entry = NotificationLog(
+                user_id=user_id,
+                title=title,
+                body=body,
+                icon=icon,
+                url=url,
+                success=True,
+                is_read=True  # Push-Benachrichtigungen sind automatisch "gelesen"
+            )
+            db.session.add(log_entry)
+            db.session.commit()
+        except Exception as e:
+            logging.error(f"Fehler beim Loggen der Push-Benachrichtigung: {e}")
+            db.session.rollback()
     
     return success_count > 0
 
@@ -190,7 +194,7 @@ def send_chat_notification(
                 url=f"/chat/{chat_id}",
                 success=True
             ).filter(
-                NotificationLog.created_at >= datetime.utcnow() - timedelta(minutes=5)
+                NotificationLog.sent_at >= datetime.utcnow() - timedelta(minutes=5)
             ).first()
             
             if existing_notification:
@@ -219,18 +223,23 @@ def send_chat_notification(
         else:
             # Fallback: Speichere Benachrichtigung für lokale Anzeige
             # IMMER erstellen, auch wenn keine Push-Subscription vorhanden ist
-            notification_log = NotificationLog(
-                user_id=user.id,
-                title=title,
-                body=body,
-                icon="/static/img/logo.png",
-                url=f"/chat/{chat_id}",
-                success=False,
-                is_read=False
-            )
-            db.session.add(notification_log)
-            db.session.commit()
-            sent_count += 1
+            try:
+                notification_log = NotificationLog(
+                    user_id=user.id,
+                    title=title,
+                    body=body,
+                    icon="/static/img/logo.png",
+                    url=f"/chat/{chat_id}",
+                    success=False,
+                    is_read=False
+                )
+                db.session.add(notification_log)
+                db.session.commit()
+                sent_count += 1
+            except Exception as e:
+                print(f"Fehler beim Erstellen der Benachrichtigung: {e}")
+                # Trotzdem als gesendet zählen
+                sent_count += 1
     
     return sent_count
 
