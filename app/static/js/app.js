@@ -497,9 +497,13 @@ async function registerPushNotifications() {
         
         // Sende Subscription an Server
         console.log('Sende Push-Subscription an Server...');
-        await sendSubscriptionToServer(pushSubscription);
+        const serverResult = await sendSubscriptionToServer(pushSubscription);
         
-        console.log('Push-Benachrichtigungen erfolgreich registriert');
+        if (serverResult) {
+            console.log('Push-Benachrichtigungen erfolgreich registriert');
+        } else {
+            console.log('Push-Benachrichtigungen Registrierung fehlgeschlagen');
+        }
         
     } catch (error) {
         console.error('Fehler bei Push-Notification Registrierung:', error);
@@ -557,24 +561,17 @@ async function sendSubscriptionToServer(subscription) {
             console.log('Push-Subscription erfolgreich an Server gesendet');
             const result = await response.json();
             console.log('Server-Antwort:', result);
+            return true;
         } else {
             console.error('Fehler beim Senden der Push-Subscription');
             const error = await response.text();
             console.error('Server-Fehler:', error);
-            // Versuche es erneut nach 3 Sekunden
-            setTimeout(() => {
-                console.log('Versuche Push-Subscription erneut zu senden...');
-                sendSubscriptionToServer(subscription);
-            }, 3000);
+            return false;
         }
     } catch (error) {
         console.error('Fehler beim Senden der Push-Subscription:', error);
         console.error('Fehler-Details:', error.message);
-        // Versuche es erneut nach 3 Sekunden
-        setTimeout(() => {
-            console.log('Versuche Push-Subscription erneut zu senden...');
-            sendSubscriptionToServer(subscription);
-        }, 3000);
+        return false;
     }
 }
 

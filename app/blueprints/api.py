@@ -258,40 +258,40 @@ def get_dashboard_stats():
 def subscribe_push():
     """Register push subscription for current user."""
     try:
-        print(f"Push-Subscription Registrierung für Benutzer {current_user.id}")
-        print(f"Request Headers: {dict(request.headers)}")
-        print(f"Request Method: {request.method}")
-        print(f"Request Content-Type: {request.content_type}")
+        print(f"API: Push-Subscription Registrierung für Benutzer {current_user.id}")
+        print(f"API: Request Headers: {dict(request.headers)}")
+        print(f"API: Request Method: {request.method}")
+        print(f"API: Request Content-Type: {request.content_type}")
         
         data = request.get_json()
-        print(f"Empfangene Daten: {data}")
+        print(f"API: Empfangene Daten: {data}")
         
         subscription_data = data.get('subscription')
         user_agent = data.get('user_agent', '')
         
         if not subscription_data:
-            print("Fehler: Subscription-Daten fehlen")
+            print("API: Fehler: Subscription-Daten fehlen")
             return jsonify({'error': 'Subscription-Daten fehlen'}), 400
         
-        print(f"Subscription-Daten: {subscription_data}")
-        print(f"Subscription Endpoint: {subscription_data.get('endpoint')}")
-        print(f"Subscription Keys: {subscription_data.get('keys')}")
+        print(f"API: Subscription-Daten: {subscription_data}")
+        print(f"API: Subscription Endpoint: {subscription_data.get('endpoint')}")
+        print(f"API: Subscription Keys: {subscription_data.get('keys')}")
         
         # Registriere Push-Subscription
         success = register_push_subscription(current_user.id, subscription_data)
         
         if success:
-            print(f"Push-Subscription erfolgreich registriert für Benutzer {current_user.id}")
+            print(f"API: Push-Subscription erfolgreich registriert für Benutzer {current_user.id}")
             return jsonify({'message': 'Push-Subscription erfolgreich registriert', 'success': True})
         else:
-            print(f"Fehler bei der Push-Subscription Registrierung für Benutzer {current_user.id}")
+            print(f"API: Fehler bei der Push-Subscription Registrierung für Benutzer {current_user.id}")
             return jsonify({'error': 'Fehler bei der Registrierung', 'success': False}), 500
             
     except Exception as e:
-        print(f"Exception bei Push-Subscription Registrierung: {e}")
-        print(f"Exception Details: {str(e)}")
+        print(f"API: Exception bei Push-Subscription Registrierung: {e}")
+        print(f"API: Exception Details: {str(e)}")
         import traceback
-        print(f"Exception Stack: {traceback.format_exc()}")
+        print(f"API: Exception Stack: {traceback.format_exc()}")
         return jsonify({'error': str(e), 'success': False}), 500
 
 
@@ -471,6 +471,7 @@ def update_chat_notification_settings(chat_id):
 def get_pending_notifications():
     """Hole ausstehende Benachrichtigungen für den aktuellen Benutzer."""
     try:
+        print(f"API: Hole ausstehende Benachrichtigungen für Benutzer {current_user.id}")
         from app.models.notification import NotificationLog
         
         # Hole nur ungelesene Benachrichtigungen der letzten 24 Stunden
@@ -482,6 +483,8 @@ def get_pending_notifications():
             NotificationLog.is_read == False,
             NotificationLog.sent_at > since
         ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
+        
+        print(f"API: Gefunden {len(notifications)} Benachrichtigungen")
         
         result = []
         for notif in notifications:
@@ -495,12 +498,16 @@ def get_pending_notifications():
                 'success': notif.success
             })
         
-        return jsonify({
+        response_data = {
             'notifications': result,
             'count': len(result)
-        })
+        }
+        
+        print(f"API: Sende Response: {response_data}")
+        return jsonify(response_data)
         
     except Exception as e:
+        print(f"API: Fehler beim Holen der Benachrichtigungen: {e}")
         return jsonify({'error': str(e)}), 500
 
 
