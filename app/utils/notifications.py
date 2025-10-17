@@ -207,16 +207,18 @@ def send_chat_notification(
         body = f"{sender.full_name}: {display_content}"
         
         # Sende Push-Benachrichtigung
-        if send_push_notification(
+        push_success = send_push_notification(
             user_id=user.id,
             title=title,
             body=body,
             url=f"/chat/{chat_id}"
-        ):
+        )
+        
+        if push_success:
             sent_count += 1
         else:
             # Fallback: Speichere Benachrichtigung für lokale Anzeige
-            # aber nur wenn keine Push-Subscription vorhanden ist
+            # IMMER erstellen, auch wenn keine Push-Subscription vorhanden ist
             notification_log = NotificationLog(
                 user_id=user.id,
                 title=title,

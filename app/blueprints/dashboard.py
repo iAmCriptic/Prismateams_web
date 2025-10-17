@@ -29,7 +29,8 @@ def index():
             and_(
                 ChatMessage.chat_id == membership.chat_id,
                 ChatMessage.created_at > membership.last_read_at,
-                ChatMessage.sender_id != current_user.id
+                ChatMessage.sender_id != current_user.id,
+                ChatMessage.is_deleted == False
             )
         ).order_by(ChatMessage.created_at.desc()).limit(5).all()
         unread_messages.extend(messages)
