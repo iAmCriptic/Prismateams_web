@@ -492,6 +492,7 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         bool: True wenn erfolgreich registriert
     """
     try:
+        print(f"=== UTILS: PUSH-SUBSCRIPTION REGISTRIERUNG ===")
         print(f"UTILS: Registriere Push-Subscription für Benutzer {user_id}")
         print(f"UTILS: Subscription-Daten: {subscription_data}")
         
@@ -543,15 +544,18 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         ).first()
         
         if saved_subscription:
+            print(f"=== UTILS: PUSH-SUBSCRIPTION ERFOLGREICH VERIFIZIERT ===")
             print(f"UTILS: Push-Subscription erfolgreich verifiziert für Benutzer {user_id}")
             print(f"UTILS: Verifizierte Subscription ID: {saved_subscription.id}")
             return True
         else:
+            print(f"=== UTILS: PUSH-SUBSCRIPTION VERIFIZIERUNG FEHLGESCHLAGEN ===")
             print(f"UTILS: Fehler: Push-Subscription konnte nicht verifiziert werden für Benutzer {user_id}")
             return False
         
     except Exception as e:
         logging.error(f"Fehler beim Registrieren der Push-Subscription: {e}")
+        print(f"=== UTILS: EXCEPTION BEI PUSH-SUBSCRIPTION REGISTRIERUNG ===")
         print(f"UTILS: Fehler beim Registrieren der Push-Subscription: {e}")
         import traceback
         print(f"UTILS: Exception Stack: {traceback.format_exc()}")

@@ -258,6 +258,7 @@ def get_dashboard_stats():
 def subscribe_push():
     """Register push subscription for current user."""
     try:
+        print(f"=== API: PUSH-SUBSCRIPTION REGISTRIERUNG ===")
         print(f"API: Push-Subscription Registrierung für Benutzer {current_user.id}")
         print(f"API: Request Headers: {dict(request.headers)}")
         print(f"API: Request Method: {request.method}")
@@ -281,13 +282,16 @@ def subscribe_push():
         success = register_push_subscription(current_user.id, subscription_data)
         
         if success:
+            print(f"=== API: PUSH-SUBSCRIPTION ERFOLGREICH REGISTRIERT ===")
             print(f"API: Push-Subscription erfolgreich registriert für Benutzer {current_user.id}")
             return jsonify({'message': 'Push-Subscription erfolgreich registriert', 'success': True})
         else:
+            print(f"=== API: PUSH-SUBSCRIPTION REGISTRIERUNG FEHLGESCHLAGEN ===")
             print(f"API: Fehler bei der Push-Subscription Registrierung für Benutzer {current_user.id}")
             return jsonify({'error': 'Fehler bei der Registrierung', 'success': False}), 500
             
     except Exception as e:
+        print(f"=== API: EXCEPTION BEI PUSH-SUBSCRIPTION REGISTRIERUNG ===")
         print(f"API: Exception bei Push-Subscription Registrierung: {e}")
         print(f"API: Exception Details: {str(e)}")
         import traceback

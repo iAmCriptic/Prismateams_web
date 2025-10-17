@@ -101,13 +101,22 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
     // Prüfe ob wir in einem sicheren Kontext sind
     if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
         console.log('Sicherer Kontext erkannt, registriere Push-Subscription');
+        console.log('Aktuelle URL:', location.href);
+        console.log('Protokoll:', location.protocol);
+        console.log('Hostname:', location.hostname);
+        
         // Warte bis Service Worker bereit ist, dann registriere Push-Subscription
         navigator.serviceWorker.ready.then(function(registration) {
             console.log('Service Worker bereit, registriere Push-Subscription');
+            console.log('Service Worker Registration:', registration);
+            
             // Warte 3 Sekunden bevor Push-Subscription registriert wird
             setTimeout(() => {
+                console.log('Starte Push-Notification Registrierung nach 3 Sekunden...');
                 registerPushNotifications();
             }, 3000);
+        }).catch(function(error) {
+            console.error('Fehler beim Warten auf Service Worker:', error);
         });
     } else {
         console.log('UNSICHERER KONTEXT: Push-Benachrichtigungen funktionieren nur mit HTTPS!');
@@ -116,6 +125,8 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
     }
 } else {
     console.log('Push-Benachrichtigungen werden NICHT unterstützt');
+    console.log('ServiceWorker unterstützt:', 'serviceWorker' in navigator);
+    console.log('PushManager unterstützt:', 'PushManager' in window);
 }
 
 // Berechtigungs-Manager
@@ -451,6 +462,7 @@ if ('serviceWorker' in navigator) {
 
 async function registerPushNotifications() {
     try {
+        console.log('=== STARTE PUSH-NOTIFICATION REGISTRIERUNG ===');
         console.log('Starte Push-Notification Registrierung...');
         console.log('Aktuelle URL:', location.href);
         console.log('Protokoll:', location.protocol);
@@ -500,12 +512,13 @@ async function registerPushNotifications() {
         const serverResult = await sendSubscriptionToServer(pushSubscription);
         
         if (serverResult) {
-            console.log('Push-Benachrichtigungen erfolgreich registriert');
+            console.log('=== PUSH-BENACHRICHTIGUNGEN ERFOLGREICH REGISTRIERT ===');
         } else {
-            console.log('Push-Benachrichtigungen Registrierung fehlgeschlagen');
+            console.log('=== PUSH-BENACHRICHTIGUNGEN REGISTRIERUNG FEHLGESCHLAGEN ===');
         }
         
     } catch (error) {
+        console.error('=== FEHLER BEI PUSH-NOTIFICATION REGISTRIERUNG ===');
         console.error('Fehler bei Push-Notification Registrierung:', error);
         console.error('Fehler-Details:', error.message);
         console.error('Fehler-Stack:', error.stack);
@@ -535,6 +548,7 @@ function urlBase64ToUint8Array(base64String) {
 
 async function sendSubscriptionToServer(subscription) {
     try {
+        console.log('=== SENDE PUSH-SUBSCRIPTION AN SERVER ===');
         console.log('Sende Push-Subscription an Server:', subscription);
         console.log('Subscription Endpoint:', subscription.endpoint);
         console.log('Subscription Keys:', subscription.getKey ? {
@@ -569,6 +583,7 @@ async function sendSubscriptionToServer(subscription) {
             return false;
         }
     } catch (error) {
+        console.error('=== FEHLER BEIM SENDEN DER PUSH-SUBSCRIPTION ===');
         console.error('Fehler beim Senden der Push-Subscription:', error);
         console.error('Fehler-Details:', error.message);
         return false;
