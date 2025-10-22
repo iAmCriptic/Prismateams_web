@@ -20,6 +20,11 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=False, nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     
+    # Email confirmation
+    confirmation_code = db.Column(db.String(6), nullable=True)
+    confirmation_code_expires = db.Column(db.DateTime, nullable=True)
+    is_email_confirmed = db.Column(db.Boolean, default=False, nullable=False)
+    
     # Profile settings
     profile_picture = db.Column(db.String(255), nullable=True)
     accent_color = db.Column(db.String(7), default='#0d6efd')  # Bootstrap primary blue

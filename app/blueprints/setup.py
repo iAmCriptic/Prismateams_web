@@ -85,12 +85,20 @@ def setup_complete():
             print(f"DEBUG: Admin user created with ID: {admin_user.id}")
             
             # E-Mail-Berechtigungen für Admin erstellen
-            email_perm = EmailPermission(
-                user_id=admin_user.id,
-                can_read=True,
-                can_send=True
-            )
-            db.session.add(email_perm)
+            email_perm = EmailPermission.query.filter_by(user_id=admin_user.id).first()
+            if not email_perm:
+                email_perm = EmailPermission(
+                    user_id=admin_user.id,
+                    can_read=True,
+                    can_send=True
+                )
+                db.session.add(email_perm)
+                print(f"DEBUG: EmailPermission created for admin")
+            else:
+                # Falls bereits vorhanden, Berechtigungen aktualisieren
+                email_perm.can_read = True
+                email_perm.can_send = True
+                print(f"DEBUG: EmailPermission updated for admin")
             
             # Haupt-Chat erstellen
             main_chat = Chat(
