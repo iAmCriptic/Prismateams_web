@@ -12,7 +12,12 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/')
 def index():
-    """Redirect to login or dashboard."""
+    """Redirect to login, dashboard, or setup."""
+    # Prüfe ob Setup nötig ist
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+    
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
     return redirect(url_for('auth.login'))
@@ -21,6 +26,11 @@ def index():
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration."""
+    # Prüfe ob Setup nötig ist
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+    
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
     
@@ -99,6 +109,11 @@ def register():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """User login."""
+    # Prüfe ob Setup nötig ist
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+    
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
     

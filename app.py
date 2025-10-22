@@ -22,11 +22,17 @@ def make_shell_context():
         'EventParticipant': EventParticipant,
         'EmailMessage': EmailMessage,
         'EmailPermission': EmailPermission,
+        'EmailAttachment': EmailAttachment,
         'Credential': Credential,
         'Manual': Manual,
         'Canvas': Canvas,
         'CanvasTextField': CanvasTextField,
         'SystemSettings': SystemSettings,
+        'WhitelistEntry': WhitelistEntry,
+        'NotificationSettings': NotificationSettings,
+        'ChatNotificationSettings': ChatNotificationSettings,
+        'PushSubscription': PushSubscription,
+        'NotificationLog': NotificationLog,
     }
 
 

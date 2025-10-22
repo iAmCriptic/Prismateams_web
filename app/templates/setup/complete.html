@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Setup - Team Portal{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    <div class="setup-card">
+        <div class="setup-header">
+            <h1>
+                {% if app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                {% else %}
+                <i class="bi bi-gear-fill"></i>
+                {% endif %}
+                {{ app_name or 'Team Portal' }}
+            </h1>
+            <p class="subtitle">Ersteinrichtung</p>
+        </div>
+        <div class="setup-body">
+            <div class="setup-step">
+                <h5><i class="bi bi-rocket me-2"></i>Setup-Assistent</h5>
+                <p>Lassen Sie uns Ihr Team-Portal einrichten.</p>
+            </div>
+            
+            <form method="POST">
+                <!-- Organisation -->
+                <div class="mb-4">
+                    <h6 class="mb-3">Organisation</h6>
+                    <div class="mb-3">
+                        <label for="organization_name" class="form-label">Organisationsname *</label>
+                        <input type="text" class="form-control" id="organization_name" name="organization_name" required>
+                        <div class="form-text">Name Ihrer Organisation oder Ihres Teams.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="color_gradient" class="form-label">Farbverlauf für Login/Register</label>
+                        <select class="form-select" id="color_gradient" name="color_gradient">
+                            <option value="">Standard (Blau-Violett)</option>
+                            <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">Blau-Violett</option>
+                            <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)">Pink-Rot</option>
+                            <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)">Blau-Cyan</option>
+                            <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)">Grün-Türkis</option>
+                            <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)">Pink-Gelb</option>
+                            <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)">Pastell</option>
+                            <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)">Rosa-Pastell</option>
+                            <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)">Orange-Pastell</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Whitelist -->
+                <div class="mb-4">
+                    <h6 class="mb-3">E-Mail-Whitelist</h6>
+                    <p class="text-muted small mb-3">
+                        Fügen Sie E-Mail-Adressen hinzu, die sich automatisch registrieren können.
+                    </p>
+                    
+                    <div id="whitelist-container">
+                        <div class="mb-3 whitelist-entry">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input type="email" class="form-control" name="whitelist_email_1" placeholder="E-Mail-Adresse">
+                                <button type="button" class="btn btn-outline-danger remove-email" style="display: none;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="add-email">
+                        <i class="bi bi-plus me-1"></i>
+                        Weitere E-Mail hinzufügen
+                    </button>
+                </div>
+                
+                <!-- Administrator -->
+                <div class="mb-4">
+                    <h6 class="mb-3">Administrator-Account</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="first_name" class="form-label">Vorname *</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="last_name" class="form-label">Nachname *</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail-Adresse *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-text">Diese E-Mail wird als Administrator-Account verwendet.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefonnummer</label>
+                        <input type="tel" class="form-control" id="phone" name="phone">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Passwort *</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <button class="btn btn-outline-secondary password-toggle" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Mindestens 8 Zeichen.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label">Passwort bestätigen *</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
+                            <button class="btn btn-outline-secondary password-toggle" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
+                            <label class="form-check-label" for="dark_mode">
+                                <i class="bi bi-moon me-2"></i>
+                                Dark Mode aktivieren
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setup-info">
+                    <i class="bi bi-info-circle icon"></i>
+                    <strong>Hinweis:</strong> Nach dem Setup können Sie weitere Benutzer über die Einstellungen hinzufügen und verwalten.
+                </div>
+                
+                <div class="text-center">
+                    <button type="submit" class="btn btn-setup btn-lg">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Setup abschließen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Passwort-Sichtbarkeit umschalten
+document.querySelectorAll('.password-toggle').forEach(button => {
+    button.addEventListener('click', function() {
+        const input = this.parentElement.querySelector('input');
+        const icon = this.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    });
+});
+
+// Passwort-Bestätigung validieren
+document.getElementById('password_confirm').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    const confirm = this.value;
+    
+    if (confirm && password !== confirm) {
+        this.setCustomValidity('Die Passwörter stimmen nicht überein.');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Farbverlauf-Vorschau
+document.getElementById('color_gradient').addEventListener('change', function() {
+    const gradient = this.value;
+    if (gradient) {
+        document.querySelector('.setup-container').style.background = gradient;
+    } else {
+        document.querySelector('.setup-container').style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+});
+
+// Whitelist-Einträge verwalten
+let emailCount = 1;
+
+document.getElementById('add-email').addEventListener('click', function() {
+    if (emailCount >= 5) {
+        alert('Sie können maximal 5 E-Mail-Adressen hinzufügen.');
+        return;
+    }
+    
+    emailCount++;
+    const container = document.getElementById('whitelist-container');
+    const newEntry = document.createElement('div');
+    newEntry.className = 'mb-3 whitelist-entry';
+    newEntry.innerHTML = `
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="form-control" name="whitelist_email_${emailCount}" placeholder="E-Mail-Adresse">
+            <button type="button" class="btn btn-outline-danger remove-email">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newEntry);
+    
+    // Alle Remove-Buttons anzeigen wenn mehr als 1 Eintrag
+    if (emailCount > 1) {
+        document.querySelectorAll('.remove-email').forEach(btn => btn.style.display = 'inline-block');
+    }
+});
+
+// Remove-Button Funktionalität
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-email')) {
+        e.target.closest('.whitelist-entry').remove();
+        emailCount--;
+        
+        // Remove-Buttons verstecken wenn nur noch 1 Eintrag
+        if (emailCount <= 1) {
+            document.querySelectorAll('.remove-email').forEach(btn => btn.style.display = 'none');
+        }
+    }
+});
+</script>
+{% endblock %}

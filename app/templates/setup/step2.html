@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Schritt 2 - Team Portal{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    <div class="setup-card">
+        <div class="setup-header">
+            <h1>
+                {% if app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                {% else %}
+                <i class="bi bi-gear-fill"></i>
+                {% endif %}
+                {{ app_name or 'Team Portal' }}
+            </h1>
+            <p class="subtitle">Schritt 2 von 3</p>
+        </div>
+        <div class="setup-body">
+            <div class="setup-step">
+                <h5><i class="bi bi-shield-check me-2"></i>Einstellungen & Whitelist</h5>
+                <p>Konfigurieren Sie die Registrierungseinstellungen und fügen Sie E-Mail-Adressen zur Whitelist hinzu.</p>
+            </div>
+            
+            <form method="POST">
+                <div class="mb-4">
+                    <h6 class="mb-3">E-Mail-Whitelist</h6>
+                    <p class="text-muted small mb-3">
+                        Fügen Sie E-Mail-Adressen hinzu, die sich automatisch registrieren können. 
+                        Diese Benutzer werden sofort aktiviert und müssen nicht manuell freigeschaltet werden.
+                    </p>
+                    
+                    <div id="whitelist-container">
+                        <div class="mb-3 whitelist-entry">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input type="email" class="form-control" name="whitelist_email_1" placeholder="E-Mail-Adresse">
+                                <button type="button" class="btn btn-outline-danger remove-email" style="display: none;">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="add-email">
+                        <i class="bi bi-plus me-1"></i>
+                        Weitere E-Mail hinzufügen
+                    </button>
+                </div>
+                
+                <div class="setup-info">
+                    <i class="bi bi-info-circle icon"></i>
+                    <strong>Hinweis:</strong> Sie können später jederzeit weitere E-Mail-Adressen zur Whitelist hinzufügen oder entfernen.
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('setup.setup_step1') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Zurück
+                    </a>
+                    <button type="submit" class="btn btn-setup">
+                        <i class="bi bi-arrow-right me-2"></i>
+                        Weiter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let emailCount = 1;
+
+document.getElementById('add-email').addEventListener('click', function() {
+    if (emailCount >= 5) {
+        alert('Sie können maximal 5 E-Mail-Adressen hinzufügen.');
+        return;
+    }
+    
+    emailCount++;
+    const container = document.getElementById('whitelist-container');
+    const newEntry = document.createElement('div');
+    newEntry.className = 'mb-3 whitelist-entry';
+    newEntry.innerHTML = `
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="form-control" name="whitelist_email_${emailCount}" placeholder="E-Mail-Adresse">
+            <button type="button" class="btn btn-outline-danger remove-email">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newEntry);
+    
+    // Alle Remove-Buttons anzeigen wenn mehr als 1 Eintrag
+    if (emailCount > 1) {
+        document.querySelectorAll('.remove-email').forEach(btn => btn.style.display = 'inline-block');
+    }
+});
+
+// Remove-Button Funktionalität
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-email')) {
+        e.target.closest('.whitelist-entry').remove();
+        emailCount--;
+        
+        // Remove-Buttons verstecken wenn nur noch 1 Eintrag
+        if (emailCount <= 1) {
+            document.querySelectorAll('.remove-email').forEach(btn => btn.style.display = 'none');
+        }
+    }
+});
+</script>
+{% endblock %}

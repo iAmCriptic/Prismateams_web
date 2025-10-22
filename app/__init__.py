@@ -58,13 +58,25 @@ def create_app(config_name='default'):
         if app_logo and app_logo.startswith('static/'):
             app_logo = app_logo[7:]  # Remove 'static/' prefix
         
+        # Load color gradient from database
+        color_gradient = None
+        try:
+            from app.models.settings import SystemSettings
+            gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+            if gradient_setting and gradient_setting.value:
+                color_gradient = gradient_setting.value
+        except:
+            pass  # Ignore errors during setup
+        
         # Debug output
         print(f"DEBUG: app_name = {app_name}")
         print(f"DEBUG: app_logo = {app_logo}")
+        print(f"DEBUG: color_gradient = {color_gradient}")
         
         return {
             'app_name': app_name,
-            'app_logo': app_logo
+            'app_logo': app_logo,
+            'color_gradient': color_gradient
         }
     
     # Email header decoder filter
@@ -216,6 +228,7 @@ def create_app(config_name='default'):
         return render_template('errors/403.html'), 403
 
     # Register blueprints
+    from app.blueprints.setup import setup_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.dashboard import dashboard_bp
     from app.blueprints.chat import chat_bp
@@ -229,6 +242,7 @@ def create_app(config_name='default'):
     from app.blueprints.api import api_bp
     from app.blueprints.errors import errors_bp
     
+    app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(chat_bp, url_prefix='/chat')

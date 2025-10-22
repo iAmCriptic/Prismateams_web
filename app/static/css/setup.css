@@ -1,0 +1,143 @@
+/* Setup-spezifische Styles */
+.setup-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.setup-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    max-width: 500px;
+    width: 100%;
+}
+
+.setup-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.setup-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.setup-header .subtitle {
+    margin-top: 0.5rem;
+    opacity: 0.9;
+    font-size: 1.1rem;
+}
+
+.setup-body {
+    padding: 2rem;
+}
+
+.setup-step {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0 8px 8px 0;
+}
+
+.setup-step h5 {
+    margin: 0 0 0.5rem 0;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.setup-step p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.form-floating {
+    position: relative;
+}
+
+.form-floating > .form-control {
+    height: calc(3.5rem + 2px);
+    padding: 1rem 0.75rem;
+}
+
+.form-floating > label {
+    padding: 1rem 0.75rem;
+}
+
+.btn-setup {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-setup:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    color: white;
+}
+
+.setup-info {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.setup-info .icon {
+    color: #1976d2;
+    margin-right: 0.5rem;
+}
+
+.password-strength {
+    margin-top: 0.5rem;
+}
+
+.strength-bar {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+}
+
+.strength-fill {
+    height: 100%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.strength-weak { background: #dc3545; }
+.strength-medium { background: #ffc107; }
+.strength-strong { background: #28a745; }
+
+@media (max-width: 576px) {
+    .setup-container {
+        padding: 10px;
+    }
+    
+    .setup-header {
+        padding: 1.5rem;
+    }
+    
+    .setup-body {
+        padding: 1.5rem;
+    }
+    
+    .setup-header h1 {
+        font-size: 1.5rem;
+    }
+}

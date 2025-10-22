@@ -3,7 +3,7 @@
 {% block title %}Anmelden - Team Portal{% endblock %}
 
 {% block content %}
-<div class="auth-container">
+<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }};"{% endif %}>
     <div class="auth-card">
         <div class="card">
             <div class="card-body p-4">
