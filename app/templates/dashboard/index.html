@@ -3,6 +3,19 @@
 {% block title %}Dashboard - Team Portal{% endblock %}
 
 {% block content %}
+{% if setup_completed %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill me-3 fs-4"></i>
+        <div>
+            <h5 class="alert-heading mb-1">🎉 Setup erfolgreich abgeschlossen!</h5>
+            <p class="mb-0">Willkommen in Ihrem Team-Portal! Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.</p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
 <div class="row mb-4">
     <div class="col">
         <h1>Willkommen, {{ current_user.first_name }}!</h1>

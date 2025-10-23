@@ -5,9 +5,16 @@ from app.models.user import User
 from app.models.email import EmailPermission
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
+from app.models.settings import SystemSettings
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
+
+
+def get_color_gradient():
+    """Holt den Farbverlauf aus den System-Einstellungen."""
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    return gradient_setting.value if gradient_setting else None
 
 
 @auth_bp.route('/')
@@ -41,24 +48,25 @@ def register():
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         phone = request.form.get('phone', '').strip()
+        dark_mode = request.form.get('dark_mode') == 'on'
         
         # Validation
         if not all([email, password, first_name, last_name]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
-            return render_template('auth/register.html')
+            return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         if password != password_confirm:
             flash('Die Passwörter stimmen nicht überein.', 'danger')
-            return render_template('auth/register.html')
+            return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         if len(password) < 8:
             flash('Das Passwort muss mindestens 8 Zeichen lang sein.', 'danger')
-            return render_template('auth/register.html')
+            return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         # Check if user already exists
         if User.query.filter_by(email=email).first():
             flash('Diese E-Mail-Adresse ist bereits registriert.', 'danger')
-            return render_template('auth/register.html')
+            return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         # Check if email is whitelisted
         is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
@@ -70,7 +78,8 @@ def register():
             last_name=last_name,
             phone=phone,
             is_active=is_whitelisted,
-            is_admin=False
+            is_admin=False,
+            dark_mode=dark_mode
         )
         new_user.set_password(password)
         
@@ -85,6 +94,10 @@ def register():
         )
         db.session.add(email_perm)
         
+        # Send confirmation email
+        from app.utils.email_sender import send_confirmation_email
+        email_sent = send_confirmation_email(new_user)
+        
         # Add user to main chat if it exists
         from app.models.chat import Chat, ChatMember
         main_chat = Chat.query.filter_by(is_main_chat=True).first()
@@ -98,12 +111,18 @@ def register():
         db.session.commit()
         
         if is_whitelisted:
-            flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert.', 'success')
+            if email_sent:
+                flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Eine Bestätigungs-E-Mail wurde an Sie gesendet.', 'success')
+            else:
+                flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.', 'warning')
         else:
-            flash('Registrierung erfolgreich! Ein Administrator muss Ihr Konto noch freischalten.', 'success')
+            if email_sent:
+                flash('Registrierung erfolgreich! Eine Bestätigungs-E-Mail wurde an Sie gesendet. Ein Administrator muss Ihr Konto noch freischalten.', 'success')
+            else:
+                flash('Registrierung erfolgreich! E-Mail-Bestätigung konnte nicht gesendet werden. Ein Administrator muss Ihr Konto noch freischalten.', 'warning')
         return redirect(url_for('auth.login'))
     
-    return render_template('auth/register.html')
+    return render_template('auth/register.html', color_gradient=get_color_gradient())
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -124,17 +143,23 @@ def login():
         
         if not email or not password:
             flash('Bitte geben Sie E-Mail und Passwort ein.', 'danger')
-            return render_template('auth/login.html')
+            return render_template('auth/login.html', color_gradient=get_color_gradient())
         
         user = User.query.filter_by(email=email).first()
         
         if not user or not user.check_password(password):
             flash('Ungültige E-Mail oder Passwort.', 'danger')
-            return render_template('auth/login.html')
+            return render_template('auth/login.html', color_gradient=get_color_gradient())
         
         if not user.is_active:
             flash('Ihr Konto wurde noch nicht aktiviert. Bitte warten Sie auf die Freischaltung durch einen Administrator.', 'warning')
-            return render_template('auth/login.html')
+            return render_template('auth/login.html', color_gradient=get_color_gradient())
+        
+        # Check if email confirmation is required (nicht für Admins)
+        if not user.is_email_confirmed and not user.is_admin:
+            login_user(user, remember=remember)
+            flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
+            return redirect(url_for('auth.confirm_email'))
         
         # Update last login
         user.last_login = datetime.utcnow()
@@ -169,7 +194,131 @@ def login():
             return redirect(next_page)
         return redirect(url_for('dashboard.index'))
     
-    return render_template('auth/login.html')
+    return render_template('auth/login.html', color_gradient=get_color_gradient())
+
+
+@auth_bp.route('/confirm-email', methods=['GET', 'POST'])
+@login_required
+def confirm_email():
+    """E-Mail-Bestätigung."""
+    if current_user.is_email_confirmed:
+        flash('Ihre E-Mail-Adresse wurde bereits bestätigt.', 'info')
+        return redirect(url_for('dashboard.index'))
+    
+    if request.method == 'POST':
+        confirmation_code = request.form.get('confirmation_code', '').strip()
+        
+        if not confirmation_code:
+            flash('Bitte geben Sie den Bestätigungscode ein.', 'danger')
+            return render_template('auth/confirm_email.html', color_gradient=get_color_gradient())
+        
+        from app.utils.email_sender import verify_confirmation_code
+        
+        if verify_confirmation_code(current_user, confirmation_code):
+            flash('E-Mail-Adresse erfolgreich bestätigt!', 'success')
+            return redirect(url_for('dashboard.index'))
+        else:
+            flash('Ungültiger oder abgelaufener Bestätigungscode.', 'danger')
+            return render_template('auth/confirm_email.html', color_gradient=get_color_gradient())
+    
+    return render_template('auth/confirm_email.html', color_gradient=get_color_gradient())
+
+
+@auth_bp.route('/resend-confirmation')
+@login_required
+def resend_confirmation():
+    """Bestätigungs-E-Mail erneut senden."""
+    if current_user.is_email_confirmed:
+        flash('Ihre E-Mail-Adresse wurde bereits bestätigt.', 'info')
+        return redirect(url_for('dashboard.index'))
+    
+    from app.utils.email_sender import resend_confirmation_email
+    
+    if resend_confirmation_email(current_user):
+        flash('Bestätigungs-E-Mail wurde erneut gesendet.', 'success')
+    else:
+        flash('Bestätigungs-E-Mail konnte nicht gesendet werden. Der Code wurde in der Konsole ausgegeben.', 'warning')
+    
+    return redirect(url_for('auth.confirm_email'))
+
+
+@auth_bp.route('/admin/show-confirmation-codes')
+@login_required
+def show_confirmation_codes():
+    """Zeigt alle ausstehenden Bestätigungscodes an (Admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    
+    from app.models.user import User
+    from datetime import datetime
+    
+    # Hole alle Benutzer mit ausstehenden Bestätigungen
+    pending_users = User.query.filter(
+        User.is_email_confirmed == False,
+        User.confirmation_code.isnot(None)
+    ).all()
+    
+    # Filtere abgelaufene Codes
+    current_time = datetime.utcnow()
+    valid_users = []
+    for user in pending_users:
+        if user.confirmation_code_expires and user.confirmation_code_expires > current_time:
+            valid_users.append(user)
+    
+    return render_template('auth/admin_confirmation_codes.html', users=valid_users)
+
+
+@auth_bp.route('/admin/test-email')
+@login_required
+def test_email():
+    """Testet die E-Mail-Konfiguration (Admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    
+    from flask import current_app
+    from flask_mail import Message
+    from app import mail
+    
+    try:
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        mail_port = current_app.config.get('MAIL_PORT', 587)
+        mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
+        
+        config_info = {
+            'MAIL_SERVER': mail_server,
+            'MAIL_USERNAME': mail_username,
+            'MAIL_PASSWORD': '***' if mail_password else None,
+            'MAIL_PORT': mail_port,
+            'MAIL_USE_TLS': mail_use_tls
+        }
+        
+        # Versuche Test-E-Mail zu senden
+        msg = Message(
+            subject='Test-E-Mail - Tech Portal',
+            recipients=[current_user.email],
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER', mail_username)
+        )
+        msg.body = 'Dies ist eine Test-E-Mail vom Tech Portal.'
+        
+        mail.send(msg)
+        
+        flash('Test-E-Mail erfolgreich gesendet!', 'success')
+        return render_template('auth/email_test_result.html', 
+                             success=True, 
+                             config=config_info,
+                             message='E-Mail wurde erfolgreich gesendet.')
+        
+    except Exception as e:
+        flash(f'Fehler beim Senden der Test-E-Mail: {str(e)}', 'danger')
+        return render_template('auth/email_test_result.html', 
+                             success=False, 
+                             config=config_info,
+                             error=str(e))
 
 
 @auth_bp.route('/logout')

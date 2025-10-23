@@ -32,7 +32,14 @@
                     <span class="member-count">{{ members|length }} Mitglieder</span>
                     <div class="member-avatars">
                         {% for member in members[:4] %}
-                        <div class="member-avatar" title="{{ member.full_name }}">
+                        <div class="member-avatar clickable-member" 
+                             title="{{ member.full_name }}"
+                             data-member-id="{{ member.id }}"
+                             data-member-name="{{ member.full_name }}"
+                             data-member-email="{{ member.email }}"
+                             data-member-phone="{{ member.phone or '' }}"
+                             data-member-picture="{{ member.profile_picture or '' }}"
+                             onclick="showMemberModal(this)">
                             {% if member.profile_picture %}
                                 <img src="{{ url_for('static', filename='../' + member.profile_picture) }}" 
                                      alt="{{ member.full_name }}" 
@@ -43,7 +50,9 @@
                         </div>
                         {% endfor %}
                         {% if members|length > 4 %}
-                        <div class="member-avatar member-avatar-more">
+                        <div class="member-avatar member-avatar-more clickable-member" 
+                             title="Alle Mitglieder anzeigen"
+                             onclick="showAllMembersModal()">
                             +{{ members|length - 4 }}
                         </div>
                         {% endif %}
@@ -102,12 +111,10 @@
             <i class="bi bi-three-dots-vertical fs-5"></i>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="#" onclick="toggleNotifications()">
-                <i class="bi bi-bell me-2" id="notification-icon"></i>
-                <span id="notification-text">Benachrichtigungen stummschalten</span>
+            <li><a class="dropdown-item" href="#" onclick="showAllMembersModal()">
+                <i class="bi bi-people me-2"></i>
+                <span>Mitglieder</span>
             </a></li>
-            <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle me-2"></i>Chat-Info</a></li>
-            <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Einstellungen</a></li>
         </ul>
     </div>
 </div>
@@ -120,7 +127,13 @@
         </div>
         <div class="sidebar-members">
             {% for member in members %}
-            <div class="sidebar-member">
+            <div class="sidebar-member clickable-member" 
+                 data-member-id="{{ member.id }}"
+                 data-member-name="{{ member.full_name }}"
+                 data-member-email="{{ member.email }}"
+                 data-member-phone="{{ member.phone or '' }}"
+                 data-member-picture="{{ member.profile_picture or '' }}"
+                 onclick="showMemberModal(this)">
                 <div class="member-info">
                     {% if member.profile_picture %}
                         <img src="{{ url_for('static', filename='../' + member.profile_picture) }}" 
@@ -621,6 +634,140 @@
             alert('Fehler beim Senden der Sprachnachricht');
         }
     }
+</script>
+
+<!-- Member Profile Modal -->
+<div class="modal fade" id="memberModal" tabindex="-1" aria-labelledby="memberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memberModalLabel">Mitgliederprofil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="member-profile">
+                    <div class="member-profile-avatar">
+                        <img id="modal-member-avatar" src="" alt="" class="rounded-circle">
+                        <div id="modal-member-initial" class="member-avatar-initial-large" style="display: none;"></div>
+                    </div>
+                    <div class="member-profile-info">
+                        <h4 id="modal-member-name" class="member-name-large"></h4>
+                        <div class="member-contact-info">
+                            <div class="contact-item" id="modal-member-email-container">
+                                <i class="bi bi-envelope me-2"></i>
+                                <span id="modal-member-email"></span>
+                            </div>
+                            <div class="contact-item" id="modal-member-phone-container" style="display: none;">
+                                <i class="bi bi-telephone me-2"></i>
+                                <span id="modal-member-phone"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- All Members Modal -->
+<div class="modal fade" id="allMembersModal" tabindex="-1" aria-labelledby="allMembersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="allMembersModalLabel">
+                    <i class="bi bi-people me-2"></i>
+                    Alle Mitglieder
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="members-grid">
+                    {% for member in members %}
+                    <div class="member-card clickable-member" 
+                         data-member-id="{{ member.id }}"
+                         data-member-name="{{ member.full_name }}"
+                         data-member-email="{{ member.email }}"
+                         data-member-phone="{{ member.phone or '' }}"
+                         data-member-picture="{{ member.profile_picture or '' }}"
+                         onclick="showMemberModal(this)">
+                        <div class="member-card-avatar">
+                            {% if member.profile_picture %}
+                                <img src="{{ url_for('static', filename='../' + member.profile_picture) }}" 
+                                     alt="{{ member.full_name }}" 
+                                     class="rounded-circle">
+                            {% else %}
+                                <div class="member-avatar-initial">{{ member.full_name[0].upper() }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="member-card-info">
+                            <h6 class="member-card-name">{{ member.full_name }}</h6>
+                            <small class="member-card-email">{{ member.email }}</small>
+                            {% if member.phone %}
+                            <small class="member-card-phone text-muted d-block">{{ member.phone }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="member-card-arrow">
+                            <i class="bi bi-chevron-right"></i>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Member Modal Functions
+function showMemberModal(element) {
+    const memberId = element.getAttribute('data-member-id');
+    const memberName = element.getAttribute('data-member-name');
+    const memberEmail = element.getAttribute('data-member-email');
+    const memberPhone = element.getAttribute('data-member-phone');
+    const memberPicture = element.getAttribute('data-member-picture');
+    
+    // Set modal content
+    document.getElementById('modal-member-name').textContent = memberName;
+    document.getElementById('modal-member-email').textContent = memberEmail;
+    
+    // Handle profile picture
+    const avatarImg = document.getElementById('modal-member-avatar');
+    const avatarInitial = document.getElementById('modal-member-initial');
+    
+    if (memberPicture) {
+        avatarImg.src = '/static/' + memberPicture;
+        avatarImg.style.display = 'block';
+        avatarInitial.style.display = 'none';
+    } else {
+        avatarImg.style.display = 'none';
+        avatarInitial.style.display = 'flex';
+        avatarInitial.textContent = memberName[0].toUpperCase();
+    }
+    
+    // Handle phone number
+    const phoneContainer = document.getElementById('modal-member-phone-container');
+    if (memberPhone && memberPhone.trim() !== '') {
+        document.getElementById('modal-member-phone').textContent = memberPhone;
+        phoneContainer.style.display = 'block';
+    } else {
+        phoneContainer.style.display = 'none';
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('memberModal'));
+    modal.show();
+}
+
+function showAllMembersModal() {
+    const modal = new bootstrap.Modal(document.getElementById('allMembersModal'));
+    modal.show();
+}
 </script>
 {% endblock %}
 

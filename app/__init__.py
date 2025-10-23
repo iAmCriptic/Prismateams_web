@@ -30,6 +30,35 @@ def create_app(config_name='default'):
     login_manager.login_message = 'Bitte melden Sie sich an, um auf diese Seite zuzugreifen.'
     login_manager.login_message_category = 'info'
     
+    # Add email confirmation check to all routes
+    @app.before_request
+    def check_email_confirmation():
+        """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
+        from flask import request, redirect, url_for, flash
+        from flask_login import current_user
+        
+        # Skip check for auth routes, setup, static files, and API
+        if (request.endpoint and 
+            (request.endpoint.startswith('auth.') or 
+             request.endpoint.startswith('setup.') or
+             request.endpoint.startswith('static') or
+             request.endpoint.startswith('api.') or
+             request.endpoint == 'manifest')):
+            return
+        
+        # Skip check if user is not logged in
+        if not current_user.is_authenticated:
+            return
+        
+        # Check if email confirmation is required
+        if not current_user.is_email_confirmed:
+            # Allow access to confirmation page
+            if request.endpoint == 'auth.confirm_email':
+                return
+            # Redirect to confirmation page
+            flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
+            return redirect(url_for('auth.confirm_email'))
+    
     # User loader for Flask-Login
     from app.models.user import User
     
@@ -267,6 +296,30 @@ def create_app(config_name='default'):
             # Erstelle alle Tabellen (nur neue werden hinzugefügt)
             db.create_all()
             print("[OK] Datenbank-Tabellen erfolgreich erstellt/aktualisiert")
+            
+            # CRITICAL: Ensure standard email folders always exist
+            from app.models.email import EmailFolder
+            
+            # Create standard folders if they don't exist
+            standard_folders = [
+                {'name': 'INBOX', 'display_name': 'Posteingang', 'folder_type': 'standard', 'is_system': True},
+                {'name': 'Sent', 'display_name': 'Gesendet', 'folder_type': 'standard', 'is_system': True},
+                {'name': 'Drafts', 'display_name': 'Entwürfe', 'folder_type': 'standard', 'is_system': True},
+                {'name': 'Trash', 'display_name': 'Papierkorb', 'folder_type': 'standard', 'is_system': True},
+                {'name': 'Spam', 'display_name': 'Spam', 'folder_type': 'standard', 'is_system': True},
+                {'name': 'Archive', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True}
+            ]
+            
+            for folder_data in standard_folders:
+                existing_folder = EmailFolder.query.filter_by(name=folder_data['name']).first()
+                if not existing_folder:
+                    folder = EmailFolder(**folder_data)
+                    db.session.add(folder)
+                    print(f"Created standard folder: {folder_data['display_name']}")
+            
+            db.session.commit()
+            print("[OK] Standard email folders ensured")
+            
         except Exception as e:
             print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
             # Versuche trotzdem fortzufahren
@@ -317,20 +370,24 @@ def create_app(config_name='default'):
         # Also ensure all new users are added to the main chat
         else:
             from app.models.chat import ChatMember
-            # Get all active users
-            active_users = User.query.filter_by(is_active=True).all()
-            # Get existing members of main chat
-            existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
-            existing_user_ids = [member.user_id for member in existing_members]
-            
-            # Add any users who aren't already members
-            for user in active_users:
-                if user.id not in existing_user_ids:
-                    member = ChatMember(
-                        chat_id=main_chat.id,
-                        user_id=user.id
-                    )
-                    db.session.add(member)
+            try:
+                # Get all active users
+                active_users = User.query.filter_by(is_active=True).all()
+                # Get existing members of main chat
+                existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                existing_user_ids = [member.user_id for member in existing_members]
+                
+                # Add any users who aren't already members
+                for user in active_users:
+                    if user.id not in existing_user_ids:
+                        member = ChatMember(
+                            chat_id=main_chat.id,
+                            user_id=user.id
+                        )
+                        db.session.add(member)
+            except Exception as e:
+                print(f"WARNING: Could not update main chat members: {e}")
+                # Continue without failing
         
         db.session.commit()
     

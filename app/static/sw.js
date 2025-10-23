@@ -1,5 +1,5 @@
-// Service Worker für Team Portal PWA - REPARIERT
-const CACHE_NAME = 'team-portal-v2';
+// Service Worker für Team Portal PWA - Serverbasiertes Push-System
+const CACHE_NAME = 'team-portal-v3';
 const urlsToCache = [
   '/',
   '/static/css/style.css',
@@ -9,11 +9,6 @@ const urlsToCache = [
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js'
 ];
-
-// Globale Variablen für Benachrichtigungen
-let notificationCheckInterval = null;
-let shownNotificationIds = new Set();
-let isOnline = navigator.onLine;
 
 // Install Event - Cache wichtige Ressourcen
 self.addEventListener('install', function(event) {
@@ -45,9 +40,6 @@ self.addEventListener('activate', function(event) {
           }
         })
       );
-    }).then(() => {
-      // Starte Benachrichtigungen nach Cache-Bereinigung
-      startNotificationCheck();
     })
   );
   
@@ -154,7 +146,7 @@ self.addEventListener('fetch', function(event) {
   );
 });
 
-// Push Notifications - Echte Push-Benachrichtigungen
+// Push Notifications - Serverbasiertes Push-System
 self.addEventListener('push', function(event) {
   console.log('Service Worker: Push Event empfangen');
   
@@ -167,11 +159,11 @@ self.addEventListener('push', function(event) {
     data: {}
   };
   
-  // Parse Push-Daten falls vorhanden
+  // Parse Push-Daten vom Server
   if (event.data) {
     try {
       const pushData = event.data.json();
-      console.log('Push-Daten empfangen:', pushData);
+      console.log('Server Push-Daten empfangen:', pushData);
       notificationData = {
         title: pushData.title || 'Team Portal',
         body: pushData.body || 'Neue Benachrichtigung',
@@ -210,10 +202,10 @@ self.addEventListener('push', function(event) {
     ],
     requireInteraction: false,
     silent: false,
-    tag: `notification-${Date.now()}` // Eindeutige Tags für jede Benachrichtigung
+    tag: `notification-${Date.now()}`
   };
 
-  console.log('Zeige Push-Benachrichtigung:', notificationData.title, notificationData.body);
+  console.log('Zeige Server-Push-Benachrichtigung:', notificationData.title, notificationData.body);
 
   event.waitUntil(
     self.registration.showNotification(notificationData.title, options)
@@ -264,170 +256,5 @@ self.addEventListener('sync', function(event) {
   }
 });
 
-// Starte Benachrichtigungs-Check nach Aktivierung
-self.addEventListener('message', function(event) {
-  if (event.data && event.data.type === 'START_NOTIFICATIONS') {
-    startNotificationCheck();
-  }
-  
-  if (event.data && event.data.type === 'STOP_NOTIFICATIONS') {
-    stopNotificationCheck();
-  }
-});
-
-// Vereinfachte Benachrichtigungs-Überprüfung
-function startNotificationCheck() {
-  console.log('Service Worker: Starte Benachrichtigungs-Überprüfung');
-  
-  // Stoppe vorherige Intervalle
-  if (notificationCheckInterval) {
-    clearInterval(notificationCheckInterval);
-  }
-  
-  // Prüfe alle 15 Sekunden auf neue Benachrichtigungen
-  notificationCheckInterval = setInterval(() => {
-    checkForNotifications();
-  }, 15000);
-  
-  // Erste Prüfung nach 5 Sekunden
-  setTimeout(() => {
-    checkForNotifications();
-  }, 5000);
-}
-
-function stopNotificationCheck() {
-  console.log('Service Worker: Stoppe Benachrichtigungs-Überprüfung');
-  if (notificationCheckInterval) {
-    clearInterval(notificationCheckInterval);
-    notificationCheckInterval = null;
-  }
-}
-
-// Prüfe auf neue Benachrichtigungen
-async function checkForNotifications() {
-  try {
-    console.log('Service Worker: Prüfe auf neue Benachrichtigungen');
-    
-    const response = await fetch('/api/notifications/pending', { 
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('Service Worker: Response Status:', response.status);
-    console.log('Service Worker: Response Headers:', response.headers);
-    
-    if (response.ok) {
-      const contentType = response.headers.get('content-type');
-      console.log('Service Worker: Content-Type:', contentType);
-      
-      if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
-        console.log('Service Worker: JSON Data:', data);
-        
-        if (data.notifications && data.notifications.length > 0) {
-          console.log(`Service Worker: ${data.notifications.length} neue Benachrichtigungen gefunden`);
-          
-          // Zeige jede neue Benachrichtigung nur einmal
-          data.notifications.forEach(notif => {
-            if (!shownNotificationIds.has(notif.id)) {
-              shownNotificationIds.add(notif.id);
-              showNotification(notif);
-            }
-          });
-        } else {
-          console.log('Service Worker: Keine neuen Benachrichtigungen');
-        }
-      } else {
-        const text = await response.text();
-        console.log('Service Worker: Non-JSON Response:', text.substring(0, 200));
-      }
-    } else {
-      console.log('Service Worker: Response nicht OK:', response.status);
-      const text = await response.text();
-      console.log('Service Worker: Error Response:', text.substring(0, 200));
-    }
-    
-  } catch (error) {
-    console.log('Service Worker: Fehler beim Prüfen der Benachrichtigungen:', error);
-    console.log('Service Worker: Error Details:', error.message);
-  }
-}
-
-// Periodic Background Sync (falls unterstützt)
-if ('serviceWorker' in self && 'periodicSync' in self.registration) {
-  self.addEventListener('periodicsync', function(event) {
-    if (event.tag === 'notification-check') {
-      event.waitUntil(checkForNotifications());
-    }
-  });
-}
-
-// Zeige Benachrichtigung an
-function showNotification(notification) {
-  const options = {
-    body: notification.body,
-    icon: notification.icon || '/static/img/logo.png',
-    badge: '/static/img/logo.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: notification.url || '/',
-      id: notification.id,
-      dateOfArrival: Date.now()
-    },
-    actions: [
-      {
-        action: 'open',
-        title: 'Öffnen',
-        icon: '/static/img/logo.png'
-      },
-      {
-        action: 'close',
-        title: 'Schließen',
-        icon: '/static/img/logo.png'
-      }
-    ],
-    requireInteraction: false,
-    silent: false,
-    tag: `notification-${notification.id}`
-  };
-
-  self.registration.showNotification(notification.title, options);
-  
-  // Markiere Benachrichtigung als gelesen nach 5 Sekunden
-  setTimeout(() => {
-    markNotificationAsRead(notification.id);
-  }, 5000);
-}
-
-// Markiere Benachrichtigung als gelesen
-async function markNotificationAsRead(notificationId) {
-  try {
-    await fetch(`/api/notifications/mark-read/${notificationId}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
-    });
-    console.log(`Service Worker: Benachrichtigung ${notificationId} als gelesen markiert`);
-  } catch (error) {
-    console.log('Service Worker: Fehler beim Markieren als gelesen:', error);
-  }
-}
-
-// Bereinige alte Benachrichtigungs-IDs (alle 10 Minuten)
-setInterval(() => {
-  // Begrenze die Anzahl der gespeicherten IDs
-  if (shownNotificationIds.size > 100) {
-    shownNotificationIds.clear();
-  }
-}, 10 * 60 * 1000); // Alle 10 Minuten
-
-// Service Worker ist bereit für Push-Benachrichtigungen
-console.log('Service Worker: Bereit für Push-Benachrichtigungen');
-
-// Starte lokale Benachrichtigungsprüfung für offene App
-startNotificationCheck();
+// Service Worker ist bereit für Server-Push-Benachrichtigungen
+console.log('Service Worker: Bereit für Server-Push-Benachrichtigungen');

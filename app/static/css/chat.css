@@ -757,16 +757,22 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.75rem 1.5rem;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     cursor: pointer;
+    border-radius: 0.5rem;
+    margin: 0.25rem 0.5rem;
 }
 
 .sidebar-member:hover {
     background-color: rgba(0, 0, 0, 0.05);
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 [data-bs-theme="dark"] .sidebar-member:hover {
     background-color: rgba(255, 255, 255, 0.05);
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .member-info {
@@ -1169,5 +1175,293 @@
     [data-bs-theme="dark"] .chat-input-container {
         background-color: #212529;
         border-top-color: #495057;
+    }
+}
+
+/* Member Modal Styles */
+.clickable-member {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clickable-member:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.member-profile {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.member-profile-avatar {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.member-profile-avatar img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border: 4px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.member-avatar-initial-large {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--accent-style);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin: 0 auto;
+    border: 4px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.member-name-large {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+[data-bs-theme="dark"] .member-name-large {
+    color: #e2e8f0;
+}
+
+.member-contact-info {
+    text-align: left;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+    color: #6c757d;
+}
+
+.contact-item:last-child {
+    border-bottom: none;
+}
+
+.contact-item i {
+    color: var(--accent-color);
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+[data-bs-theme="dark"] .contact-item {
+    color: #adb5bd;
+    border-bottom-color: #495057;
+}
+
+/* All Members Modal Styles */
+.members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.member-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    background: white;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.member-card:hover {
+    background: #f8f9fa;
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-bs-theme="dark"] .member-card {
+    background: #212529;
+    border-color: #495057;
+}
+
+[data-bs-theme="dark"] .member-card:hover {
+    background: #2d3748;
+    border-color: var(--accent-color);
+}
+
+.member-card-avatar {
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.member-card-avatar img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+}
+
+.member-card-avatar .member-avatar-initial {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--accent-style);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.member-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.member-card-name {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #333;
+    margin: 0 0 0.25rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+[data-bs-theme="dark"] .member-card-name {
+    color: #e2e8f0;
+}
+
+.member-card-email {
+    color: #6c757d;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.member-card-phone {
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.member-card-arrow {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-left: auto;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+}
+
+.member-card:hover .member-card-arrow {
+    color: var(--accent-color);
+    opacity: 1;
+    transform: translateX(2px);
+}
+
+[data-bs-theme="dark"] .member-card-email {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .member-card-phone {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .member-card-arrow {
+    color: #adb5bd;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 767.98px) {
+    .members-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    
+    .member-card {
+        padding: 1rem;
+        border-radius: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .member-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .member-card-avatar img,
+    .member-card-avatar .member-avatar-initial {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .member-card-avatar .member-avatar-initial {
+        font-size: 1.2rem;
+    }
+    
+    .member-card-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .member-card-email {
+        font-size: 0.9rem;
+    }
+    
+    .member-card-phone {
+        font-size: 0.85rem;
+    }
+    
+    .member-card-arrow {
+        font-size: 1rem;
+    }
+    
+    .member-name-large {
+        font-size: 1.25rem;
+    }
+    
+    .member-profile-avatar img,
+    .member-avatar-initial-large {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .member-avatar-initial-large {
+        font-size: 2rem;
+    }
+    
+    /* Modal adjustments for mobile */
+    .modal-dialog {
+        margin: 1rem;
+        max-height: 90vh;
+    }
+    
+    .modal-content {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .modal-body {
+        flex: 1;
+        overflow: hidden;
+        padding: 1rem;
     }
 }

@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 import shutil
+import logging
 
 files_bp = Blueprint('files', __name__)
 
@@ -234,7 +235,7 @@ def upload_file():
         try:
             send_file_notification(existing_file.id, 'modified')
         except Exception as e:
-            print(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+            logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
         
         flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
     else:
@@ -265,7 +266,7 @@ def upload_file():
         try:
             send_file_notification(new_file.id, 'new')
         except Exception as e:
-            print(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+            logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
         
         flash(f'Datei "{original_name}" wurde hochgeladen.', 'success')
     
@@ -291,7 +292,31 @@ def download_file(file_id):
         flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
         return redirect(url_for('files.index'))
     
-    return send_file(file_path, as_attachment=True, download_name=file.original_name)
+    # Determine MIME type based on file extension
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext == '.md':
+        mimetype = 'text/markdown'
+    elif file_ext == '.txt':
+        mimetype = 'text/plain'
+    elif file_ext == '.pdf':
+        mimetype = 'application/pdf'
+    elif file_ext in ['.jpg', '.jpeg']:
+        mimetype = 'image/jpeg'
+    elif file_ext == '.png':
+        mimetype = 'image/png'
+    elif file_ext == '.gif':
+        mimetype = 'image/gif'
+    elif file_ext == '.webp':
+        mimetype = 'image/webp'
+    else:
+        mimetype = 'application/octet-stream'
+    
+    return send_file(
+        file_path, 
+        as_attachment=True, 
+        download_name=file.original_name,
+        mimetype=mimetype
+    )
 
 
 @files_bp.route('/download-version/<int:version_id>')
@@ -312,7 +337,36 @@ def download_version(version_id):
         flash(f'Datei-Version "{file.original_name} v{version.version_number}" wurde nicht gefunden.', 'danger')
         return redirect(url_for('files.index'))
     
-    return send_file(file_path, as_attachment=True, download_name=f"{file.original_name}_v{version.version_number}")
+    # Determine MIME type based on file extension
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext == '.md':
+        mimetype = 'text/markdown'
+    elif file_ext == '.txt':
+        mimetype = 'text/plain'
+    elif file_ext == '.pdf':
+        mimetype = 'application/pdf'
+    elif file_ext in ['.jpg', '.jpeg']:
+        mimetype = 'image/jpeg'
+    elif file_ext == '.png':
+        mimetype = 'image/png'
+    elif file_ext == '.gif':
+        mimetype = 'image/gif'
+    elif file_ext == '.webp':
+        mimetype = 'image/webp'
+    else:
+        mimetype = 'application/octet-stream'
+    
+    # Create versioned filename
+    name_without_ext = os.path.splitext(file.original_name)[0]
+    file_ext = os.path.splitext(file.original_name)[1]
+    versioned_filename = f"{name_without_ext}_v{version.version_number}{file_ext}"
+    
+    return send_file(
+        file_path, 
+        as_attachment=True, 
+        download_name=versioned_filename,
+        mimetype=mimetype
+    )
 
 
 @files_bp.route('/edit/<int:file_id>', methods=['GET', 'POST'])

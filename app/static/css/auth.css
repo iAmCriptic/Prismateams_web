@@ -1,12 +1,22 @@
 /* Auth Pages Styles */
 
+/* Body-Override für Auth-Seiten */
+body:has(.auth-container) {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 /* Auth Pages */
 .auth-container {
     min-height: 100vh;
+    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-style);
+    background: var(--accent-style, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+    background-attachment: fixed;
+    background-size: cover;
     margin: 0;
     padding: 1rem;
 }

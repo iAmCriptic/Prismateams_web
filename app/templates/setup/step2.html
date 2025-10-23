@@ -9,87 +9,95 @@
 {% block content %}
 <div class="setup-container">
     <div class="setup-card">
-        <div class="setup-header">
-            <h1>
-                {% if app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
-                {% else %}
-                <i class="bi bi-gear-fill"></i>
-                {% endif %}
-                {{ app_name or 'Team Portal' }}
-            </h1>
-            <p class="subtitle">Schritt 2 von 3</p>
-        </div>
-        <div class="setup-body">
-            <div class="setup-step">
-                <h5><i class="bi bi-shield-check me-2"></i>Einstellungen & Whitelist</h5>
-                <p>Konfigurieren Sie die Registrierungseinstellungen und fügen Sie E-Mail-Adressen zur Whitelist hinzu.</p>
-            </div>
-            
-            <form method="POST">
-                <div class="mb-4">
-                    <h6 class="mb-3">E-Mail-Whitelist</h6>
-                    <p class="text-muted small mb-3">
-                        Fügen Sie E-Mail-Adressen hinzu, die sich automatisch registrieren können. 
-                        Diese Benutzer werden sofort aktiviert und müssen nicht manuell freigeschaltet werden.
-                    </p>
-                    
-                    <div id="whitelist-container">
-                        <div class="mb-3 whitelist-entry">
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                                <input type="email" class="form-control" name="whitelist_email_1" placeholder="E-Mail-Adresse">
-                                <button type="button" class="btn btn-outline-danger remove-email" style="display: none;">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="text-center mb-4">
+                    {% if app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% else %}
+                    <i class="bi bi-gear-fill text-primary"></i>
+                    {% endif %}
+                    {{ app_name or 'Team Portal' }}
+                </h1>
+                <h5 class="text-center mb-4">Schritt 2 von 3</h5>
+                <div class="setup-step">
+                    <h5><i class="bi bi-shield-check me-2"></i>Einstellungen & Whitelist</h5>
+                    <p>Konfigurieren Sie die Registrierungseinstellungen und fügen Sie E-Mail-Adressen zur Whitelist hinzu.</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-4">
+                        <h6 class="mb-3">E-Mail-Whitelist</h6>
+                        <p class="text-muted small mb-3">
+                            Fügen Sie E-Mail-Adressen oder ganze Domains hinzu, die sich automatisch registrieren können. 
+                            Diese Benutzer werden sofort aktiviert und müssen nicht manuell freigeschaltet werden.
+                        </p>
+                        
+                        <div id="whitelist-container">
+                            <div class="mb-3 whitelist-entry">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                    <select class="form-select" name="whitelist_type_1" style="max-width: 120px;">
+                                        <option value="email">E-Mail</option>
+                                        <option value="domain">Domain</option>
+                                    </select>
+                                    <input type="text" class="form-control" name="whitelist_entry_1" placeholder="E-Mail-Adresse oder Domain">
+                                    <button type="button" class="btn btn-outline-danger remove-entry" style="display: none;">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                        
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-entry">
+                            <i class="bi bi-plus me-1"></i>
+                            Weitere E-Mail oder Domain hinzufügen
+                        </button>
                     </div>
                     
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="add-email">
-                        <i class="bi bi-plus me-1"></i>
-                        Weitere E-Mail hinzufügen
-                    </button>
-                </div>
-                
-                <div class="setup-info">
-                    <i class="bi bi-info-circle icon"></i>
-                    <strong>Hinweis:</strong> Sie können später jederzeit weitere E-Mail-Adressen zur Whitelist hinzufügen oder entfernen.
-                </div>
-                
-                <div class="d-flex justify-content-between">
-                    <a href="{{ url_for('setup.setup_step1') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left me-2"></i>
-                        Zurück
-                    </a>
-                    <button type="submit" class="btn btn-setup">
-                        <i class="bi bi-arrow-right me-2"></i>
-                        Weiter
-                    </button>
-                </div>
-            </form>
+                    <div class="setup-info">
+                        <i class="bi bi-info-circle icon"></i>
+                        <strong>Hinweis:</strong> Sie können später jederzeit weitere E-Mail-Adressen oder Domains zur Whitelist hinzufügen oder entfernen.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('setup.setup_step1') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>
+                            Zurück
+                        </a>
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-arrow-right me-2"></i>
+                            Weiter
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-let emailCount = 1;
+let entryCount = 1;
 
-document.getElementById('add-email').addEventListener('click', function() {
-    if (emailCount >= 5) {
-        alert('Sie können maximal 5 E-Mail-Adressen hinzufügen.');
+document.getElementById('add-entry').addEventListener('click', function() {
+    if (entryCount >= 5) {
+        alert('Sie können maximal 5 Einträge hinzufügen.');
         return;
     }
     
-    emailCount++;
+    entryCount++;
     const container = document.getElementById('whitelist-container');
     const newEntry = document.createElement('div');
     newEntry.className = 'mb-3 whitelist-entry';
     newEntry.innerHTML = `
         <div class="input-group">
             <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-            <input type="email" class="form-control" name="whitelist_email_${emailCount}" placeholder="E-Mail-Adresse">
-            <button type="button" class="btn btn-outline-danger remove-email">
+            <select class="form-select" name="whitelist_type_${entryCount}" style="max-width: 120px;">
+                <option value="email">E-Mail</option>
+                <option value="domain">Domain</option>
+            </select>
+            <input type="text" class="form-control" name="whitelist_entry_${entryCount}" placeholder="E-Mail-Adresse oder Domain">
+            <button type="button" class="btn btn-outline-danger remove-entry">
                 <i class="bi bi-trash"></i>
             </button>
         </div>
@@ -97,22 +105,41 @@ document.getElementById('add-email').addEventListener('click', function() {
     container.appendChild(newEntry);
     
     // Alle Remove-Buttons anzeigen wenn mehr als 1 Eintrag
-    if (emailCount > 1) {
-        document.querySelectorAll('.remove-email').forEach(btn => btn.style.display = 'inline-block');
+    if (entryCount > 1) {
+        document.querySelectorAll('.remove-entry').forEach(btn => btn.style.display = 'inline-block');
     }
 });
 
 // Remove-Button Funktionalität
 document.addEventListener('click', function(e) {
-    if (e.target.closest('.remove-email')) {
+    if (e.target.closest('.remove-entry')) {
         e.target.closest('.whitelist-entry').remove();
-        emailCount--;
+        entryCount--;
         
         // Remove-Buttons verstecken wenn nur noch 1 Eintrag
-        if (emailCount <= 1) {
-            document.querySelectorAll('.remove-email').forEach(btn => btn.style.display = 'none');
+        if (entryCount <= 1) {
+            document.querySelectorAll('.remove-entry').forEach(btn => btn.style.display = 'none');
         }
     }
+});
+</script>
+
+<script>
+// Farbverlauf-Vorschau
+document.addEventListener('DOMContentLoaded', function() {
+    const body = document.body;
+    
+    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
+    {% if color_gradient %}
+    body.style.background = '{{ color_gradient }}';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    {% else %}
+    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    {% endif %}
 });
 </script>
 {% endblock %}

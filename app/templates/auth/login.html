@@ -3,7 +3,7 @@
 {% block title %}Anmelden - Team Portal{% endblock %}
 
 {% block content %}
-<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }};"{% endif %}>
+<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }}; background-attachment: fixed; background-size: cover;"{% endif %}>
     <div class="auth-card">
         <div class="card">
             <div class="card-body p-4">
@@ -52,6 +52,32 @@
         </div>
     </div>
 </div>
+
+<script>
+// Farbverlauf-Vorschau für Auth-Seiten
+document.addEventListener('DOMContentLoaded', function() {
+    const body = document.body;
+    const container = document.querySelector('.auth-container');
+    
+    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
+    {% if color_gradient %}
+    body.style.background = '{{ color_gradient }}';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    container.style.background = '{{ color_gradient }}';
+    container.style.backgroundAttachment = 'fixed';
+    container.style.backgroundSize = 'cover';
+    {% else %}
+    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    container.style.backgroundAttachment = 'fixed';
+    container.style.backgroundSize = 'cover';
+    {% endif %}
+});
+</script>
 {% endblock %}
 
 

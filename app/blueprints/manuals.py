@@ -50,14 +50,16 @@ def upload():
         filename = f"{timestamp}_{filename}"
         filepath = os.path.join('uploads', 'manuals', filename)
         
-        file.save(filepath)
+        # Ensure we use absolute path for saving
+        absolute_filepath = os.path.abspath(filepath)
+        file.save(absolute_filepath)
         
         # Create manual record
         manual = Manual(
             title=title,
             filename=filename,
-            file_path=filepath,
-            file_size=os.path.getsize(filepath),
+            file_path=absolute_filepath,
+            file_size=os.path.getsize(absolute_filepath),
             uploaded_by=current_user.id
         )
         
@@ -75,7 +77,26 @@ def upload():
 def view(manual_id):
     """View a manual (PDF in browser)."""
     manual = Manual.query.get_or_404(manual_id)
-    return send_file(manual.file_path, mimetype='application/pdf')
+    
+    # Ensure we have the correct absolute path
+    file_path = manual.file_path
+    if not os.path.isabs(file_path):
+        # Convert relative path to absolute path
+        file_path = os.path.abspath(file_path)
+    
+    # If file still doesn't exist, try to find it in uploads directory
+    if not os.path.exists(file_path):
+        # Try to construct the path from project root
+        from flask import current_app
+        project_root = current_app.root_path
+        uploads_path = os.path.join(project_root, '..', 'uploads', 'manuals', manual.filename)
+        file_path = os.path.abspath(uploads_path)
+    
+    if not os.path.exists(file_path):
+        flash('Die Anleitung-Datei konnte nicht gefunden werden.', 'danger')
+        return redirect(url_for('manuals.index'))
+    
+    return send_file(file_path, mimetype='application/pdf')
 
 
 @manuals_bp.route('/download/<int:manual_id>')
@@ -83,7 +104,26 @@ def view(manual_id):
 def download(manual_id):
     """Download a manual."""
     manual = Manual.query.get_or_404(manual_id)
-    return send_file(manual.file_path, as_attachment=True, download_name=f"{manual.title}.pdf")
+    
+    # Ensure we have the correct absolute path
+    file_path = manual.file_path
+    if not os.path.isabs(file_path):
+        # Convert relative path to absolute path
+        file_path = os.path.abspath(file_path)
+    
+    # If file still doesn't exist, try to find it in uploads directory
+    if not os.path.exists(file_path):
+        # Try to construct the path from project root
+        from flask import current_app
+        project_root = current_app.root_path
+        uploads_path = os.path.join(project_root, '..', 'uploads', 'manuals', manual.filename)
+        file_path = os.path.abspath(uploads_path)
+    
+    if not os.path.exists(file_path):
+        flash('Die Anleitung-Datei konnte nicht gefunden werden.', 'danger')
+        return redirect(url_for('manuals.index'))
+    
+    return send_file(file_path, as_attachment=True, download_name=f"{manual.title}.pdf")
 
 
 @manuals_bp.route('/delete/<int:manual_id>', methods=['POST'])
@@ -96,9 +136,23 @@ def delete(manual_id):
     
     manual = Manual.query.get_or_404(manual_id)
     
-    # Delete file
-    if os.path.exists(manual.file_path):
-        os.remove(manual.file_path)
+    # Ensure we have the correct absolute path for deletion
+    file_path = manual.file_path
+    if not os.path.isabs(file_path):
+        # Convert relative path to absolute path
+        file_path = os.path.abspath(file_path)
+    
+    # If file still doesn't exist, try to find it in uploads directory
+    if not os.path.exists(file_path):
+        # Try to construct the path from project root
+        from flask import current_app
+        project_root = current_app.root_path
+        uploads_path = os.path.join(project_root, '..', 'uploads', 'manuals', manual.filename)
+        file_path = os.path.abspath(uploads_path)
+    
+    # Delete file if it exists
+    if os.path.exists(file_path):
+        os.remove(file_path)
     
     db.session.delete(manual)
     db.session.commit()

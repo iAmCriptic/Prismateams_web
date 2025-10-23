@@ -1,20 +1,37 @@
 /* Setup-spezifische Styles */
+html, body:has(.setup-container) {
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+body:has(.setup-container) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-attachment: fixed !important;
+    background-size: cover !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
 .setup-container {
-    min-height: 100vh;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
+    background: transparent;
+    margin: 0;
+    padding: 2rem;
+    position: relative;
 }
 
 .setup-card {
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
     max-width: 500px;
     width: 100%;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 .setup-header {

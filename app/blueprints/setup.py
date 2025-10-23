@@ -7,6 +7,7 @@ from app.models.chat import Chat, ChatMember
 from app.models.settings import SystemSettings
 from app.models.whitelist import WhitelistEntry
 from datetime import datetime
+import logging
 
 setup_bp = Blueprint('setup', __name__)
 
@@ -16,13 +17,25 @@ def is_setup_needed():
     return User.query.count() == 0
 
 
+def get_color_gradient():
+    """Holt den Farbverlauf aus den System-Einstellungen."""
+    from app.models.settings import SystemSettings
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    return gradient_setting.value if gradient_setting else None
+
+
 @setup_bp.route('/setup')
 def setup():
     """Setup-Seite für die Ersteinrichtung."""
     if not is_setup_needed():
         return redirect(url_for('auth.login'))
     
-    return render_template('setup/index.html')
+    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
+    from app.models.settings import SystemSettings
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
+    
+    return render_template('setup/index.html', color_gradient=current_gradient)
 
 
 @setup_bp.route('/setup/complete', methods=['GET', 'POST'])
@@ -66,7 +79,7 @@ def setup_complete():
             return render_template('setup/complete.html')
         
         try:
-            print(f"DEBUG: Starting complete setup")
+            logging.info("Starting complete setup")
             
             # Ersten Administrator erstellen
             admin_user = User(
@@ -82,7 +95,7 @@ def setup_complete():
             
             db.session.add(admin_user)
             db.session.commit()
-            print(f"DEBUG: Admin user created with ID: {admin_user.id}")
+            logging.info(f"Admin user created with ID: {admin_user.id}")
             
             # E-Mail-Berechtigungen für Admin erstellen
             email_perm = EmailPermission.query.filter_by(user_id=admin_user.id).first()
@@ -93,12 +106,12 @@ def setup_complete():
                     can_send=True
                 )
                 db.session.add(email_perm)
-                print(f"DEBUG: EmailPermission created for admin")
+                logging.info("EmailPermission created for admin")
             else:
                 # Falls bereits vorhanden, Berechtigungen aktualisieren
                 email_perm.can_read = True
                 email_perm.can_send = True
-                print(f"DEBUG: EmailPermission updated for admin")
+                logging.info("EmailPermission updated for admin")
             
             # Haupt-Chat erstellen
             main_chat = Chat(
@@ -152,18 +165,18 @@ def setup_complete():
             db.session.add(admin_whitelist_entry)
             
             db.session.commit()
-            print(f"DEBUG: All data committed successfully")
+            logging.info("All data committed successfully")
             
             # Admin automatisch einloggen
             login_user(admin_user)
-            print(f"DEBUG: Admin user logged in")
+            logging.info("Admin user logged in")
             
             flash('Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.', 'success')
             return redirect(url_for('dashboard.index'))
             
         except Exception as e:
             db.session.rollback()
-            print(f"DEBUG: Error during setup: {str(e)}")
+            logging.error(f"Error during setup: {str(e)}")
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
             return render_template('setup/complete.html')
     
@@ -189,11 +202,15 @@ def setup_step1():
         session['setup_color_gradient'] = color_gradient
         
         # Debug: Session-Daten prüfen
-        print(f"DEBUG: Step1 - Session data saved: {dict(session)}")
         
         return redirect(url_for('setup.setup_step2'))
     
-    return render_template('setup/step1.html')
+    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
+    from app.models.settings import SystemSettings
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
+    
+    return render_template('setup/step1.html', color_gradient=current_gradient)
 
 
 @setup_bp.route('/setup/step2', methods=['GET', 'POST'])
@@ -207,21 +224,29 @@ def setup_step2():
     
     if request.method == 'POST':
         # Whitelist-Einträge verarbeiten
-        whitelist_emails = []
-        for i in range(1, 6):  # Bis zu 5 E-Mail-Adressen
-            email = request.form.get(f'whitelist_email_{i}', '').strip().lower()
-            if email:
-                whitelist_emails.append(email)
+        whitelist_entries = []
+        for i in range(1, 6):  # Bis zu 5 Einträge
+            entry = request.form.get(f'whitelist_entry_{i}', '').strip().lower()
+            entry_type = request.form.get(f'whitelist_type_{i}', 'email')
+            if entry:
+                whitelist_entries.append({
+                    'entry': entry,
+                    'type': entry_type
+                })
         
         # Speichere in Session
-        session['setup_whitelist_emails'] = whitelist_emails
+        session['setup_whitelist_entries'] = whitelist_entries
         
         # Debug: Session-Daten prüfen
-        print(f"DEBUG: Step2 - Session data saved: {dict(session)}")
         
         return redirect(url_for('setup.setup_step3'))
     
-    return render_template('setup/step2.html')
+    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
+    from app.models.settings import SystemSettings
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
+    
+    return render_template('setup/step2.html', color_gradient=current_gradient)
 
 
 @setup_bp.route('/setup/step3', methods=['GET', 'POST'])
@@ -231,10 +256,8 @@ def setup_step3():
         return redirect(url_for('auth.login'))
     
     # Debug: Session-Daten prüfen
-    print(f"DEBUG: Session data: {dict(session)}")
     
     if 'setup_organization_name' not in session:
-        print(f"DEBUG: Missing organization name in session, redirecting to step1")
         return redirect(url_for('setup.setup_step1'))
     
     if request.method == 'POST':
@@ -261,7 +284,7 @@ def setup_step3():
             return render_template('setup/step3.html')
         
         try:
-            print(f"DEBUG: Creating admin user with email: {email}")
+            logging.info(f"Creating admin user with email: {email}")
             # Ersten Administrator erstellen
             admin_user = User(
                 email=email,
@@ -270,21 +293,19 @@ def setup_step3():
                 phone=phone,
                 is_active=True,
                 is_admin=True,
+                is_email_confirmed=True,  # Admin ist automatisch bestätigt
                 dark_mode=dark_mode
             )
             admin_user.set_password(password)
             
             db.session.add(admin_user)
             db.session.commit()
-            print(f"DEBUG: Admin user created successfully with ID: {admin_user.id}")
+            logging.info(f"Admin user created successfully with ID: {admin_user.id}")
             
             # E-Mail-Berechtigungen für Admin erstellen
-            email_perm = EmailPermission(
-                user_id=admin_user.id,
-                can_read=True,
-                can_send=True
-            )
-            db.session.add(email_perm)
+            logging.info(f"Creating email permissions for admin user {admin_user.id}")
+            email_perm = admin_user.ensure_email_permissions()
+            logging.info(f"Email permissions created for admin user - can_read: {email_perm.can_read}, can_send: {email_perm.can_send}")
             
             # Haupt-Chat erstellen
             main_chat = Chat(
@@ -304,69 +325,105 @@ def setup_step3():
             db.session.add(chat_member)
             
             # System-Einstellungen erstellen
-            print(f"DEBUG: Creating system settings")
+            logging.info("Creating system settings")
             system_settings = SystemSettings(
                 key='organization_name',
                 value=session.get('setup_organization_name', ''),
                 description='Name der Organisation'
             )
             db.session.add(system_settings)
-            print(f"DEBUG: Organization name setting created")
+            logging.info("Organization name setting created")
             
             # Farbverlauf speichern
             if session.get('setup_color_gradient'):
-                print(f"DEBUG: Creating color gradient setting")
+                logging.info("Creating color gradient setting")
                 gradient_setting = SystemSettings(
                     key='color_gradient',
                     value=session.get('setup_color_gradient', ''),
                     description='Farbverlauf für Login/Register-Seiten'
                 )
                 db.session.add(gradient_setting)
-                print(f"DEBUG: Color gradient setting created")
+                logging.info("Color gradient setting created")
             
             # Whitelist-Einträge hinzufügen
-            whitelist_emails = session.get('setup_whitelist_emails', [])
-            for email_addr in whitelist_emails:
+            whitelist_entries = session.get('setup_whitelist_entries', [])
+            for entry_data in whitelist_entries:
+                entry = entry_data['entry']
+                entry_type = entry_data['type']
+                
+                # Domain-Format korrigieren
+                if entry_type == 'domain' and not entry.startswith('@'):
+                    entry = '@' + entry
+                
                 whitelist_entry = WhitelistEntry(
-                    email=email_addr,
-                    added_by=admin_user.id,
-                    reason="Hinzugefügt beim Setup"
+                    entry=entry,
+                    entry_type=entry_type,
+                    description="Hinzugefügt beim Setup",
+                    created_by=admin_user.id
                 )
                 db.session.add(whitelist_entry)
             
             # Admin-E-Mail zur Whitelist hinzufügen
             admin_whitelist_entry = WhitelistEntry(
-                email=email,
-                added_by=admin_user.id,
-                reason="Automatisch hinzugefügt beim Setup"
+                entry=email,
+                entry_type='email',
+                description="Automatisch hinzugefügt beim Setup",
+                created_by=admin_user.id
             )
             db.session.add(admin_whitelist_entry)
             
-            print(f"DEBUG: Committing all changes to database")
+            logging.info("Committing all changes to database")
             db.session.commit()
-            print(f"DEBUG: Database commit successful")
+            logging.info("Database commit successful")
+            
+            # Überprüfe E-Mail-Berechtigungen für Admin
+            admin_email_perm = EmailPermission.query.filter_by(user_id=admin_user.id).first()
+            if admin_email_perm:
+                logging.info(f"Admin email permissions verified - can_read: {admin_email_perm.can_read}, can_send: {admin_email_perm.can_send}")
+            else:
+                logging.error("Admin email permissions not found!")
+                # E-Mail-Berechtigungen erneut erstellen falls sie fehlen
+                email_perm = EmailPermission(
+                    user_id=admin_user.id,
+                    can_read=True,
+                    can_send=True
+                )
+                db.session.add(email_perm)
+                db.session.commit()
+                logging.info("Admin email permissions recreated")
             
             # Session-Daten löschen
             session.pop('setup_organization_name', None)
             session.pop('setup_color_gradient', None)
-            session.pop('setup_whitelist_emails', None)
-            print(f"DEBUG: Session data cleared")
+            session.pop('setup_whitelist_entries', None)
+            logging.info("Session data cleared")
             
             # Admin automatisch einloggen
-            print(f"DEBUG: Logging in admin user")
+            logging.info("Logging in admin user")
             login_user(admin_user)
-            print(f"DEBUG: Admin user logged in successfully")
+            logging.info("Admin user logged in successfully")
             
-            flash('Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.', 'success')
-            print(f"DEBUG: Redirecting to dashboard")
+            # Setup-Abschluss-Markierung für Dashboard
+            session['setup_completed'] = True
+            
+            # Erfolgreiche Setup-Abschluss-Meldung
+            flash('🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.', 'success')
+            flash('Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.', 'info')
+            flash('Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt.', 'info')
+            logging.info("Redirecting to dashboard")
             return redirect(url_for('dashboard.index'))
             
         except Exception as e:
             db.session.rollback()
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
-            return render_template('setup/step3.html')
+            return render_template('setup/step3.html', color_gradient=get_color_gradient())
     
-    return render_template('setup/step3.html')
+    # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
+    from app.models.settings import SystemSettings
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
+    
+    return render_template('setup/step3.html', color_gradient=current_gradient)
 
 
 @setup_bp.route('/setup/check')

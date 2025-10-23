@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}E-Mail-Test - Team Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-envelope me-2"></i>E-Mail-Test</h1>
+                <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Zurück zur Administration
+                </a>
+            </div>
+            
+            {% if success %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i>
+                <strong>Erfolg!</strong> {{ message }}
+            </div>
+            {% else %}
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Fehler!</strong> {{ error }}
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>E-Mail-Konfiguration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Server:</strong></td>
+                                    <td>
+                                        {% if config.MAIL_SERVER %}
+                                            <span class="text-success">{{ config.MAIL_SERVER }}</span>
+                                        {% else %}
+                                            <span class="text-danger">Nicht konfiguriert</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Port:</strong></td>
+                                    <td>{{ config.MAIL_PORT }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>TLS:</strong></td>
+                                    <td>
+                                        {% if config.MAIL_USE_TLS %}
+                                            <span class="text-success">Aktiviert</span>
+                                        {% else %}
+                                            <span class="text-warning">Deaktiviert</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Benutzername:</strong></td>
+                                    <td>
+                                        {% if config.MAIL_USERNAME %}
+                                            <span class="text-success">{{ config.MAIL_USERNAME }}</span>
+                                        {% else %}
+                                            <span class="text-danger">Nicht konfiguriert</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Passwort:</strong></td>
+                                    <td>
+                                        {% if config.MAIL_PASSWORD %}
+                                            <span class="text-success">Konfiguriert</span>
+                                        {% else %}
+                                            <span class="text-danger">Nicht konfiguriert</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if not success %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Lösungsvorschläge</h5>
+                </div>
+                <div class="card-body">
+                    <h6>1. E-Mail-Konfiguration prüfen</h6>
+                    <p>Stellen Sie sicher, dass alle E-Mail-Einstellungen in der <code>.env</code> Datei korrekt sind:</p>
+                    <pre class="bg-light p-3"><code>MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=ihre-email@gmail.com
+MAIL_PASSWORD=ihr-app-passwort
+MAIL_DEFAULT_SENDER=ihre-email@gmail.com</code></pre>
+                    
+                    <h6 class="mt-4">2. Gmail App-Passwort verwenden</h6>
+                    <p>Für Gmail müssen Sie ein App-Passwort verwenden, nicht Ihr normales Passwort:</p>
+                    <ol>
+                        <li>Gehen Sie zu <a href="https://myaccount.google.com/security" target="_blank">Google Konto Sicherheit</a></li>
+                        <li>Aktivieren Sie die 2-Faktor-Authentifizierung</li>
+                        <li>Erstellen Sie ein App-Passwort für "Mail"</li>
+                        <li>Verwenden Sie dieses Passwort in der <code>.env</code> Datei</li>
+                    </ol>
+                    
+                    <h6 class="mt-4">3. Firewall/Netzwerk prüfen</h6>
+                    <p>Stellen Sie sicher, dass ausgehende SMTP-Verbindungen (Port 587) nicht blockiert sind.</p>
+                    
+                    <h6 class="mt-4">4. Alternative E-Mail-Anbieter</h6>
+                    <p>Falls Gmail nicht funktioniert, versuchen Sie andere Anbieter:</p>
+                    <ul>
+                        <li><strong>Outlook/Hotmail:</strong> smtp-mail.outlook.com, Port 587</li>
+                        <li><strong>Yahoo:</strong> smtp.mail.yahoo.com, Port 587</li>
+                        <li><strong>Eigener Server:</strong> Ihre SMTP-Server-Details</li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <a href="{{ url_for('auth.test_email') }}" class="btn btn-primary">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Test erneut ausführen
+                </a>
+                <a href="{{ url_for('auth.show_confirmation_codes') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-key me-2"></i>Bestätigungscodes anzeigen
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

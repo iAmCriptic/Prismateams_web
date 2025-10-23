@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for, session
 from flask_login import login_required, current_user
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import ChatMessage, ChatMember
@@ -13,6 +13,10 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @login_required
 def index():
     """Main dashboard view."""
+    
+    # Sicherstelle, dass der aktuelle Benutzer E-Mail-Berechtigungen hat
+    if current_user.is_admin:
+        current_user.ensure_email_permissions()
     
     # Get upcoming events (next 3)
     upcoming_events = CalendarEvent.query.filter(
@@ -46,11 +50,15 @@ def index():
             is_sent=False
         ).order_by(EmailMessage.received_at.desc()).limit(5).all()
     
+    # Prüfe ob Setup gerade abgeschlossen wurde
+    setup_completed = session.pop('setup_completed', False)
+    
     return render_template(
         'dashboard/index.html',
         upcoming_events=upcoming_events,
         unread_messages=unread_messages,
-        recent_emails=recent_emails
+        recent_emails=recent_emails,
+        setup_completed=setup_completed
     )
 
 

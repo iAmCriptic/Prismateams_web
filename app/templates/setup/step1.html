@@ -9,67 +9,89 @@
 {% block content %}
 <div class="setup-container">
     <div class="setup-card">
-        <div class="setup-header">
-            <h1>
-                {% if app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
-                {% else %}
-                <i class="bi bi-gear-fill"></i>
-                {% endif %}
-                {{ app_name or 'Team Portal' }}
-            </h1>
-            <p class="subtitle">Schritt 1 von 3</p>
-        </div>
-        <div class="setup-body">
-            <div class="setup-step">
-                <h5><i class="bi bi-building me-2"></i>Organisation einrichten</h5>
-                <p>Legen Sie den Namen Ihrer Organisation und das Design fest.</p>
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="text-center mb-4">
+                    {% if app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% else %}
+                    <i class="bi bi-gear-fill text-primary"></i>
+                    {% endif %}
+                    {{ app_name or 'Team Portal' }}
+                </h1>
+                <h5 class="text-center mb-4">Schritt 1 von 3</h5>
+                <div class="setup-step">
+                    <h5><i class="bi bi-building me-2"></i>Organisation einrichten</h5>
+                    <p>Legen Sie den Namen Ihrer Organisation und das Design fest.</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="organization_name" class="form-label">Organisationsname *</label>
+                        <input type="text" class="form-control" id="organization_name" name="organization_name" required autofocus>
+                        <div class="form-text">Name Ihrer Organisation oder Ihres Teams.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="color_gradient" class="form-label">Farbverlauf für Login/Register</label>
+                        <select class="form-select" id="color_gradient" name="color_gradient">
+                            <option value="" {% if not color_gradient %}selected{% endif %}>Standard (Blau-Violett)</option>
+                            <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" {% if color_gradient == 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}selected{% endif %}>Blau-Violett</option>
+                            <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" {% if color_gradient == 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' %}selected{% endif %}>Pink-Rot</option>
+                            <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" {% if color_gradient == 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' %}selected{% endif %}>Blau-Cyan</option>
+                            <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" {% if color_gradient == 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' %}selected{% endif %}>Grün-Türkis</option>
+                            <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" {% if color_gradient == 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' %}selected{% endif %}>Pink-Gelb</option>
+                            <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" {% if color_gradient == 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' %}selected{% endif %}>Pastell</option>
+                            <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" {% if color_gradient == 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)' %}selected{% endif %}>Rosa-Pastell</option>
+                            <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)" {% if color_gradient == 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' %}selected{% endif %}>Orange-Pastell</option>
+                        </select>
+                        <div class="form-text">Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div></div>
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-arrow-right me-2"></i>
+                            Weiter
+                        </button>
+                    </div>
+                </form>
             </div>
-            
-            <form method="POST">
-                <div class="mb-4">
-                    <label for="organization_name" class="form-label">Organisationsname *</label>
-                    <input type="text" class="form-control" id="organization_name" name="organization_name" required autofocus>
-                    <div class="form-text">Name Ihrer Organisation oder Ihres Teams.</div>
-                </div>
-                
-                <div class="mb-4">
-                    <label for="color_gradient" class="form-label">Farbverlauf für Login/Register</label>
-                    <select class="form-select" id="color_gradient" name="color_gradient">
-                        <option value="">Standard (Blau-Violett)</option>
-                        <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">Blau-Violett</option>
-                        <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)">Pink-Rot</option>
-                        <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)">Blau-Cyan</option>
-                        <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)">Grün-Türkis</option>
-                        <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)">Pink-Gelb</option>
-                        <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)">Pastell</option>
-                        <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)">Rosa-Pastell</option>
-                        <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)">Orange-Pastell</option>
-                    </select>
-                    <div class="form-text">Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.</div>
-                </div>
-                
-                <div class="d-flex justify-content-between">
-                    <div></div>
-                    <button type="submit" class="btn btn-setup">
-                        <i class="bi bi-arrow-right me-2"></i>
-                        Weiter
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
 
 <script>
 // Farbverlauf-Vorschau
-document.getElementById('color_gradient').addEventListener('change', function() {
-    const gradient = this.value;
-    if (gradient) {
-        document.querySelector('.setup-container').style.background = gradient;
-    } else {
-        document.querySelector('.setup-container').style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    const colorSelect = document.getElementById('color_gradient');
+    const body = document.body;
+    
+    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
+    {% if color_gradient %}
+    body.style.background = '{{ color_gradient }}';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    {% else %}
+    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    {% endif %}
+    
+    // Event Listener für Farbverlauf-Änderungen
+    colorSelect.addEventListener('change', function() {
+        const gradient = this.value;
+        if (gradient) {
+            body.style.background = gradient;
+            body.style.backgroundAttachment = 'fixed';
+            body.style.backgroundSize = 'cover';
+        } else {
+            body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            body.style.backgroundAttachment = 'fixed';
+            body.style.backgroundSize = 'cover';
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -14,18 +14,30 @@
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('INBOX')">
-                        <i class="bi bi-inbox me-2"></i>Posteingang
+                    {% for folder in folders %}
+                    <li><a class="dropdown-item" href="{{ url_for('email.folder_view', folder_name=folder.name) }}">
+                        {% if folder.folder_type == 'standard' %}
+                            {% if folder.name == 'INBOX' %}
+                                <i class="bi bi-inbox me-2"></i>
+                            {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                                <i class="bi bi-send me-2"></i>
+                            {% elif folder.name == 'Drafts' %}
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                            {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                                <i class="bi bi-trash me-2"></i>
+                            {% elif folder.name in ['Spam', 'Junk'] %}
+                                <i class="bi bi-shield-exclamation me-2"></i>
+                            {% elif folder.name == 'Archive' %}
+                                <i class="bi bi-archive me-2"></i>
+                            {% else %}
+                                <i class="bi bi-folder me-2"></i>
+                            {% endif %}
+                        {% else %}
+                            <i class="bi bi-folder me-2"></i>
+                        {% endif %}
+                        {{ folder.display_name }}
                     </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Sent')">
-                        <i class="bi bi-send me-2"></i>Gesendet
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Drafts')">
-                        <i class="bi bi-file-earmark-text me-2"></i>Entwürfe
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Trash')">
-                        <i class="bi bi-trash me-2"></i>Papierkorb
-                    </a></li>
+                    {% endfor %}
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="document.getElementById('syncForm').submit()">
                         <i class="bi bi-arrow-clockwise me-2"></i>Synchronisieren
@@ -47,21 +59,33 @@
             <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> E-Mail</h1>
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-folder me-2"></i><span id="currentFolder">Posteingang</span>
+                    <i class="bi bi-folder me-2"></i><span id="currentFolder">{{ folder_display_name or 'Posteingang' }}</span>
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('INBOX')">
-                        <i class="bi bi-inbox me-2"></i>Posteingang
+                    {% for folder in folders %}
+                    <li><a class="dropdown-item" href="{{ url_for('email.folder_view', folder_name=folder.name) }}">
+                        {% if folder.folder_type == 'standard' %}
+                            {% if folder.name == 'INBOX' %}
+                                <i class="bi bi-inbox me-2"></i>
+                            {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                                <i class="bi bi-send me-2"></i>
+                            {% elif folder.name == 'Drafts' %}
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                            {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                                <i class="bi bi-trash me-2"></i>
+                            {% elif folder.name in ['Spam', 'Junk'] %}
+                                <i class="bi bi-shield-exclamation me-2"></i>
+                            {% elif folder.name == 'Archive' %}
+                                <i class="bi bi-archive me-2"></i>
+                            {% else %}
+                                <i class="bi bi-folder me-2"></i>
+                            {% endif %}
+                        {% else %}
+                            <i class="bi bi-folder me-2"></i>
+                        {% endif %}
+                        {{ folder.display_name }}
                     </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Sent')">
-                        <i class="bi bi-send me-2"></i>Gesendet
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Drafts')">
-                        <i class="bi bi-file-earmark-text me-2"></i>Entwürfe
-                    </a></li>
-                    <li><a class="dropdown-item" href="#" onclick="loadFolder('Trash')">
-                        <i class="bi bi-trash me-2"></i>Papierkorb
-                    </a></li>
+                    {% endfor %}
                 </ul>
             </div>
         </div>
@@ -80,13 +104,15 @@
 
 <div class="card">
     <div class="card-header d-none d-md-block">
-        <h5 class="mb-0">Posteingang</h5>
+        <h5 class="mb-0">{{ folder_display_name or 'Posteingang' }}</h5>
     </div>
     <div class="card-body p-0">
         {% if emails %}
         <div class="list-group list-group-flush">
             {% for email in emails %}
-            <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="list-group-item list-group-item-action email-item {% if not email.is_read %}fw-bold{% endif %}">
+            <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
                 <!-- Mobile Layout -->
                 <div class="d-md-none">
                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -134,7 +160,43 @@
                         {% endif %}
                     </div>
                 </div>
-            </a>
+                    </a>
+                    
+                    <!-- Action Buttons -->
+                    <div class="dropdown ms-2">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
+                                <i class="bi bi-eye me-2"></i>Anzeigen
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
+                                    <select name="folder" class="form-select form-select-sm" onchange="this.form.submit()">
+                                        <option value="">In Ordner verschieben...</option>
+                                        {% for folder in folders %}
+                                        {% if folder.name != email.folder %}
+                                        <option value="{{ folder.name }}">{{ folder.display_name }}</option>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
+                                      onsubmit="return confirm('E-Mail wirklich löschen?')" class="d-inline">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-trash me-2"></i>Löschen
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
         </div>
         {% else %}
@@ -147,48 +209,7 @@
 </div>
 </div>
 
-<script>
-function loadFolder(folderName) {
-    // Update current folder display
-    const folderNames = {
-        'INBOX': 'Posteingang',
-        'Sent': 'Gesendet', 
-        'Drafts': 'Entwürfe',
-        'Trash': 'Papierkorb'
-    };
-    
-    const folderElement = document.getElementById('currentFolder');
-    if (folderElement) {
-        folderElement.textContent = folderNames[folderName] || folderName;
-    }
-    
-    // Show loading state
-    const emailList = document.querySelector('.list-group');
-    if (emailList) {
-        emailList.innerHTML = '<div class="p-4 text-center"><i class="bi bi-hourglass-split"></i> Lade Ordner...</div>';
-    }
-    
-    // Simulate folder loading (in real implementation, this would make an AJAX call)
-    setTimeout(() => {
-        // For now, just show a message
-        if (emailList) {
-            emailList.innerHTML = `
-                <div class="p-4 text-center text-muted">
-                    <i class="bi bi-folder2-open fs-1 d-block mb-2"></i>
-                    Ordner "${folderNames[folderName]}" ist noch nicht implementiert.<br>
-                    <small>Diese Funktion wird in einer zukünftigen Version verfügbar sein.</small>
-                </div>
-            `;
-        }
-    }, 500);
-    
-    // Close dropdown
-    const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
-    if (dropdown) {
-        dropdown.hide();
-    }
-}
-</script>
+<!-- Ordner-Navigation ist jetzt vollständig implementiert -->
 {% endblock %}
 
 

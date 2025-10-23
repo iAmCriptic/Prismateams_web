@@ -76,7 +76,29 @@ class User(UserMixin, db.Model):
         """Return the user's accent color or gradient for CSS."""
         if self.accent_gradient:
             return self.accent_gradient
-        return self.accent_color
+        # For solid colors, create a gradient with the same start and end color
+        # This ensures background-clip: text works properly
+        return f"linear-gradient(45deg, {self.accent_color}, {self.accent_color})"
+    
+    def ensure_email_permissions(self):
+        """Stellt sicher, dass der Benutzer E-Mail-Berechtigungen hat."""
+        from app.models.email import EmailPermission
+        
+        # Prüfe ob bereits E-Mail-Berechtigungen existieren
+        existing_perm = EmailPermission.query.filter_by(user_id=self.id).first()
+        if existing_perm:
+            return existing_perm
+        
+        # Erstelle E-Mail-Berechtigungen
+        # Admins haben automatisch alle Rechte
+        email_perm = EmailPermission(
+            user_id=self.id,
+            can_read=True,
+            can_send=True
+        )
+        db.session.add(email_perm)
+        db.session.commit()
+        return email_perm
     
     def __repr__(self):
         return f'<User {self.email}>'

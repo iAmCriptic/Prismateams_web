@@ -16,6 +16,14 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_recycle': 280,
         'pool_pre_ping': True,
+        'pool_timeout': 20,
+        'pool_size': 10,
+        'max_overflow': 20,
+        'connect_args': {
+            'connect_timeout': 10,
+            'read_timeout': 30,
+            'write_timeout': 30,
+        }
     }
     
     # Session
@@ -55,6 +63,11 @@ class Config:
     # VAPID Keys for Push Notifications
     VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY')
     VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY')
+    
+    # Email HTML Storage Configuration
+    EMAIL_HTML_MAX_LENGTH = int(os.environ.get('EMAIL_HTML_MAX_LENGTH', 0))  # 0 = unlimited
+    EMAIL_TEXT_MAX_LENGTH = int(os.environ.get('EMAIL_TEXT_MAX_LENGTH', 10000))  # 10KB for text
+    EMAIL_HTML_STORAGE_TYPE = os.environ.get('EMAIL_HTML_STORAGE_TYPE', 'TEXT')  # TEXT, MEDIUMTEXT, LONGTEXT
 
 
 class DevelopmentConfig(Config):

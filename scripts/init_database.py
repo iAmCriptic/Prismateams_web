@@ -82,6 +82,25 @@ def init_database():
                 db.session.add(footer_img)
                 print("E-Mail-Footer-Bild-Einstellung hinzugefuegt")
             
+            # E-Mail HTML-Speicherung konfigurieren
+            if not SystemSettings.query.filter_by(key='email_html_storage_type').first():
+                html_storage = SystemSettings(
+                    key='email_html_storage_type',
+                    value=app.config.get('EMAIL_HTML_STORAGE_TYPE', 'LONGTEXT'),
+                    description='Datenbank-Typ fuer HTML-E-Mail-Speicherung'
+                )
+                db.session.add(html_storage)
+                print("E-Mail HTML-Speicherung konfiguriert")
+            
+            if not SystemSettings.query.filter_by(key='email_html_max_length').first():
+                html_max_length = SystemSettings(
+                    key='email_html_max_length',
+                    value=str(app.config.get('EMAIL_HTML_MAX_LENGTH', 0)),
+                    description='Maximale HTML-E-Mail-Laenge (0 = unbegrenzt)'
+                )
+                db.session.add(html_max_length)
+                print("E-Mail HTML-Maximallaenge konfiguriert")
+            
             # Haupt-Chat erstellen
             main_chat = Chat.query.filter_by(is_main_chat=True).first()
             if not main_chat:

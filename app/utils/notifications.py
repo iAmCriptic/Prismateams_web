@@ -18,12 +18,23 @@ except ImportError:
     WEBPUSH_AVAILABLE = False
     logging.warning("pywebpush nicht verfügbar. Push-Benachrichtigungen deaktiviert.")
 
-# VAPID Keys (sollten in der Produktion aus Umgebungsvariablen kommen)
-VAPID_PRIVATE_KEY = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg3A_IkCBsEOcwov69vFX3oX3bf_79cnEPX1Ova59AzY-hRANCAAQbgQK_VLZM1S-mqhdyriFulWsUqu5ihFFzUDw0wOGZT9rn3tgJPV7f_rX-6MksMMTBKeRq7NKSNeH9CB4xvo2y"
-VAPID_PUBLIC_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG4ECv1S2TNUvpqoXcq4hbpVrFKruYoRRc1A8NMDhmU_a597YCT1e3_61_ujJLDDEwSnkauzSkjXh_QgeMb6Nsg"
-VAPID_CLAIMS = {
-    "sub": "mailto:admin@yourdomain.com"  # E-Mail des Administrators
-}
+# VAPID Keys aus Config laden
+from flask import current_app
+
+def get_vapid_keys():
+    """Lade VAPID Keys aus der App-Konfiguration."""
+    private_key = current_app.config.get('VAPID_PRIVATE_KEY')
+    public_key = current_app.config.get('VAPID_PUBLIC_KEY')
+    
+    if not private_key or not public_key:
+        logging.warning("VAPID Keys nicht konfiguriert. Push-Benachrichtigungen deaktiviert.")
+        return None, None, None
+    
+    vapid_claims = {
+        "sub": "mailto:admin@yourdomain.com"  # E-Mail des Administrators
+    }
+    
+    return private_key, public_key, vapid_claims
 
 
 def send_push_notification(
@@ -36,6 +47,7 @@ def send_push_notification(
 ) -> bool:
     """
     Sendet eine Push-Benachrichtigung an einen Benutzer.
+    Optimiert für serverbasiertes Push-System mit verbessertem Error Handling.
     
     Args:
         user_id: ID des Benutzers
@@ -52,6 +64,12 @@ def send_push_notification(
         logging.error("WebPush nicht verfügbar")
         return False
     
+    # Lade VAPID Keys aus Config
+    vapid_private_key, vapid_public_key, vapid_claims = get_vapid_keys()
+    if not vapid_private_key:
+        logging.error("VAPID Keys nicht konfiguriert")
+        return False
+    
     user = User.query.get(user_id)
     if not user or not user.notifications_enabled:
         return False
@@ -64,41 +82,31 @@ def send_push_notification(
     
     if not subscriptions:
         logging.info(f"Keine Push-Subscriptions für Benutzer {user_id}")
-        print(f"Keine Push-Subscriptions für Benutzer {user_id}")
-        # Keine Push-Benachrichtigung möglich
         return False
     
-    print(f"UTILS: Gefunden {len(subscriptions)} Push-Subscriptions für Benutzer {user_id}")
-    
-    # Debug: Zeige alle Subscriptions
-    for i, sub in enumerate(subscriptions):
-        print(f"UTILS:   Subscription {i+1}: {sub.endpoint[:50]}... - Active: {sub.is_active}")
-        print(f"UTILS:     ID: {sub.id}, User: {sub.user_id}, Last Used: {sub.last_used}")
+    logging.info(f"Gefunden {len(subscriptions)} Push-Subscriptions für Benutzer {user_id}")
     
     success_count = 0
     total_count = len(subscriptions)
     
-    for i, subscription in enumerate(subscriptions):
+    # Bereite Payload vor (einmal für alle Subscriptions)
+    payload = {
+        "title": title,
+        "body": body,
+        "icon": icon,
+        "url": url or "/",
+        "data": data or {}
+    }
+    
+    for subscription in subscriptions:
         try:
-            print(f"Versuche Push-Benachrichtigung {i+1}/{total_count} für Benutzer {user_id}")
-            
-            # Bereite Payload vor
-            payload = {
-                "title": title,
-                "body": body,
-                "icon": icon,
-                "url": url or "/",
-                "data": data or {}
-            }
-            
-            # Sende Push-Benachrichtigung
-            print(f"Sende Push-Benachrichtigung an Benutzer {user_id}: {payload}")
-            print(f"Subscription Info: {subscription.to_dict()}")
+            # Sende Push-Benachrichtigung mit Retry-Logik
             webpush(
                 subscription_info=subscription.to_dict(),
                 data=json.dumps(payload),
-                vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
+                vapid_private_key=vapid_private_key,
+                vapid_claims=vapid_claims,
+                ttl=86400  # 24 Stunden TTL
             )
             
             # Update last_used
@@ -106,21 +114,17 @@ def send_push_notification(
             success_count += 1
             
             logging.info(f"Push-Benachrichtigung erfolgreich gesendet an Benutzer {user_id}")
-            print(f"Push-Benachrichtigung erfolgreich gesendet an Benutzer {user_id}")
             
         except WebPushException as e:
             logging.error(f"WebPush Fehler für Benutzer {user_id}: {e}")
-            print(f"WebPush Fehler für Benutzer {user_id}: {e}")
             
-            # Deaktiviere Subscription bei Fehlern
-            if e.response and e.response.status_code in [410, 404]:
+            # Deaktiviere Subscription bei permanenten Fehlern
+            if e.response and e.response.status_code in [410, 404, 400]:
                 subscription.is_active = False
-                logging.info(f"Push-Subscription {subscription.id} deaktiviert")
-                print(f"Push-Subscription {subscription.id} deaktiviert")
+                logging.info(f"Push-Subscription {subscription.id} deaktiviert (Status: {e.response.status_code})")
             
         except Exception as e:
             logging.error(f"Unerwarteter Fehler beim Senden der Push-Benachrichtigung: {e}")
-            print(f"Unerwarteter Fehler beim Senden der Push-Benachrichtigung: {e}")
     
     # Logge das Ergebnis nur bei erfolgreichen Push-Benachrichtigungen
     if success_count > 0:
@@ -132,26 +136,22 @@ def send_push_notification(
                 icon=icon,
                 url=url,
                 success=True,
-                is_read=True  # Push-Benachrichtigungen sind automatisch "gelesen"
+                is_read=True  # Server-Push-Benachrichtigungen sind automatisch "gelesen"
             )
             db.session.add(log_entry)
             db.session.commit()
-            print(f"NotificationLog erstellt für Benutzer {user_id}")
         except Exception as e:
             logging.error(f"Fehler beim Loggen der Push-Benachrichtigung: {e}")
-            print(f"Fehler beim Loggen der Push-Benachrichtigung: {e}")
             db.session.rollback()
-    
-    print(f"UTILS: Push-Benachrichtigung Ergebnis: {success_count}/{total_count} erfolgreich")
     
     # Commit alle Änderungen
     try:
         db.session.commit()
-        print(f"UTILS: Push-Subscription Änderungen committed")
     except Exception as e:
-        print(f"UTILS: Fehler beim Committen der Push-Subscription Änderungen: {e}")
+        logging.error(f"Fehler beim Committen der Push-Subscription Änderungen: {e}")
         db.session.rollback()
     
+    logging.info(f"Push-Benachrichtigung Ergebnis: {success_count}/{total_count} erfolgreich")
     return success_count > 0
 
 
@@ -246,35 +246,19 @@ def send_chat_notification(
             title = f'"{chat_name or "Team Chat"}"'
             body = f'{unread_count} neue Nachrichten'
         
-        # IMMER eine Benachrichtigung erstellen (für lokale Anzeige)
-        try:
-            notification_log = NotificationLog(
-                user_id=user.id,
-                title=title,
-                body=body,
-                icon="/static/img/logo.png",
-                url=f"/chat/{chat_id}",
-                success=False,
-                is_read=False
-            )
-            db.session.add(notification_log)
-            db.session.commit()
-            print(f"Zusammengefasste Benachrichtigung erstellt für Benutzer {user.id}: {unread_count} Nachrichten")
-        except Exception as e:
-            print(f"Fehler beim Erstellen der Benachrichtigung: {e}")
-        
-        # ZUSÄTZLICH: Sende Push-Benachrichtigung (für geschlossene App)
+        # Sende Server-Push-Benachrichtigung
         push_success = send_push_notification(
             user_id=user.id,
             title=title,
             body=body,
-            url=f"/chat/{chat_id}"
+            url=f"/chat/{chat_id}",
+            data={'chat_id': chat_id, 'unread_count': unread_count}
         )
         
         if push_success:
-            print(f"Zusammengefasste Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
+            logging.info(f"Chat-Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
         else:
-            print(f"Zusammengefasste Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
+            logging.warning(f"Chat-Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
         
         sent_count += 1
     
@@ -326,7 +310,8 @@ def send_file_notification(
             user_id=user.id,
             title=title,
             body=body,
-            url=f"/files/view/{file_id}"
+            url=f"/files/view/{file_id}",
+            data={'file_id': file_id, 'file_name': file.name, 'type': 'file', 'action': notification_type}
         ):
             sent_count += 1
     
@@ -413,41 +398,22 @@ def send_email_notification(
         
         print(f"UTILS: Erstelle Benachrichtigung: {title} - {body}")
         
-        # IMMER eine Benachrichtigung erstellen (für lokale Anzeige)
-        try:
-            notification_log = NotificationLog(
-                user_id=user.id,
-                title=title,
-                body=body,
-                icon="/static/img/logo.png",
-                url="/email/",
-                success=False,
-                is_read=False
-            )
-            db.session.add(notification_log)
-            db.session.commit()
-            print(f"UTILS: Zusammengefasste E-Mail-Benachrichtigung erstellt für Benutzer {user.id}: {unread_count} E-Mails")
-        except Exception as e:
-            print(f"UTILS: Fehler beim Erstellen der E-Mail-Benachrichtigung: {e}")
-            # Rollback bei Fehler
-            db.session.rollback()
-            continue
-        
-        # ZUSÄTZLICH: Sende Push-Benachrichtigung (für geschlossene App)
+        # Sende Server-Push-Benachrichtigung
         try:
             push_success = send_push_notification(
                 user_id=user.id,
                 title=title,
                 body=body,
-                url="/email/"
+                url="/email/",
+                data={'unread_count': unread_count, 'type': 'email'}
             )
             
             if push_success:
-                print(f"UTILS: Zusammengefasste E-Mail-Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
+                logging.info(f"E-Mail-Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
             else:
-                print(f"UTILS: Zusammengefasste E-Mail-Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
+                logging.warning(f"E-Mail-Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
         except Exception as e:
-            print(f"UTILS: Fehler beim Senden der Push-Benachrichtigung für Benutzer {user.id}: {e}")
+            logging.error(f"Fehler beim Senden der E-Mail-Push-Benachrichtigung für Benutzer {user.id}: {e}")
         
         sent_count += 1
     
@@ -526,7 +492,8 @@ def send_calendar_notification(
             user_id=user.id,
             title=title,
             body=body,
-            url=f"/calendar/view/{event_id}"
+            url=f"/calendar/view/{event_id}",
+            data={'event_id': event_id, 'event_title': event.title, 'type': 'calendar', 'reminder_minutes': reminder_minutes}
         ):
             sent_count += 1
     

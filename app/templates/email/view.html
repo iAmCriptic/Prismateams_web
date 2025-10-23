@@ -91,7 +91,7 @@
                     <button class="btn btn-outline-secondary" id="textViewBtn">Plain Text</button>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content">{{ html_content|safe }}</div>
+            <div id="htmlContent" class="email-html-content" style="font-family: inherit; line-height: inherit; color: inherit;">{{ html_content|safe }}</div>
             <div id="textContent" class="email-text-content" style="display: none;">
                 <pre style="white-space: pre-wrap; font-family: inherit; background: transparent; border: none; padding: 0; margin: 0;">{{ email.body_text }}</pre>
             </div>
@@ -106,7 +106,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content">{{ email.body_html|safe }}</div>
+            <div id="htmlContent" class="email-html-content" style="font-family: inherit; line-height: inherit; color: inherit;">{{ email.body_html|safe }}</div>
             {% if email.body_text %}
             <div id="textContent" class="email-text-content" style="display: none;">
                 <pre style="white-space: pre-wrap; font-family: inherit; background: transparent; border: none; padding: 0; margin: 0;">{{ email.body_text }}</pre>

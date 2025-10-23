@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}E-Mail bestätigen - Team Portal{% endblock %}
+
+{% block content %}
+<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }}; background-attachment: fixed; background-size: cover;"{% endif %}>
+    <div class="auth-card">
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="text-center mb-4">
+                    {% if app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% else %}
+                    <i class="bi bi-envelope-check text-primary"></i>
+                    {% endif %}
+                    {{ app_name or 'Team Portal' }}
+                </h1>
+                <h5 class="text-center mb-4">E-Mail bestätigen</h5>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Bestätigung erforderlich:</strong> Wir haben Ihnen eine E-Mail mit einem 6-stelligen Bestätigungscode gesendet.
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="confirmation_code" class="form-label">Bestätigungscode</label>
+                        <input type="text" class="form-control text-center" id="confirmation_code" name="confirmation_code" 
+                               placeholder="123456" maxlength="6" pattern="[0-9]{6}" required autofocus>
+                        <div class="form-text">Geben Sie den 6-stelligen Code aus Ihrer E-Mail ein.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-accent w-100 mb-3">
+                        <i class="bi bi-check-circle me-2"></i>
+                        E-Mail bestätigen
+                    </button>
+                </form>
+                
+                <div class="text-center">
+                    <p class="mb-2">Keine E-Mail erhalten?</p>
+                    <a href="{{ url_for('auth.resend_confirmation') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-clockwise me-2"></i>
+                        E-Mail erneut senden
+                    </a>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Hinweis:</strong> Der Bestätigungscode ist 24 Stunden gültig. Prüfen Sie auch Ihren Spam-Ordner.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-format input to show only numbers
+document.getElementById('confirmation_code').addEventListener('input', function(e) {
+    // Remove any non-numeric characters
+    this.value = this.value.replace(/[^0-9]/g, '');
+    
+    // Limit to 6 digits
+    if (this.value.length > 6) {
+        this.value = this.value.slice(0, 6);
+    }
+});
+
+// Auto-submit when 6 digits are entered
+document.getElementById('confirmation_code').addEventListener('input', function(e) {
+    if (this.value.length === 6) {
+        // Small delay to show the complete code
+        setTimeout(() => {
+            this.form.submit();
+        }, 500);
+    }
+});
+
+// Farbverlauf-Vorschau für Auth-Seiten
+document.addEventListener('DOMContentLoaded', function() {
+    const body = document.body;
+    const container = document.querySelector('.auth-container');
+    
+    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
+    {% if color_gradient %}
+    body.style.background = '{{ color_gradient }}';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    container.style.background = '{{ color_gradient }}';
+    container.style.backgroundAttachment = 'fixed';
+    container.style.backgroundSize = 'cover';
+    {% else %}
+    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    container.style.backgroundAttachment = 'fixed';
+    container.style.backgroundSize = 'cover';
+    {% endif %}
+});
+</script>
+{% endblock %}
+

@@ -1,13 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, Response
 from flask_login import login_required, current_user
 from app import db, mail
-from app.models.email import EmailMessage, EmailPermission, EmailAttachment
+from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_email_notification
 from flask_mail import Message
 from datetime import datetime, timedelta
 import imaplib
-import email
+import email as email_module
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
@@ -32,14 +32,12 @@ def decode_header_field(field):
         for part, encoding in decoded_parts:
             if isinstance(part, bytes):
                 if encoding:
-                    # Try the detected encoding first
                     try:
                         decoded_string += part.decode(encoding, errors='ignore')
                         continue
                     except (UnicodeDecodeError, LookupError):
                         pass
                 
-                # Fallback strategies for bytes
                 for fallback_encoding in ['utf-8', 'latin-1', 'cp1252', 'ascii']:
                     try:
                         decoded_string += part.decode(fallback_encoding, errors='ignore')
@@ -47,19 +45,16 @@ def decode_header_field(field):
                     except (UnicodeDecodeError, LookupError):
                         continue
                 else:
-                    # If all encodings fail, use ascii with replacement
                     decoded_string += part.decode('ascii', errors='replace')
             else:
                 decoded_string += str(part)
         
-        # Clean up the result
         result = decoded_string.strip()
         if not result:
             return str(field) if field else ''
         return result
         
     except Exception as e:
-        # Ultimate fallback
         try:
             return str(field) if field else ''
         except:
@@ -67,7 +62,7 @@ def decode_header_field(field):
 
 
 def connect_imap():
-    """Connect to IMAP server and return connection."""
+    """Connect to IMAP server with robust error handling."""
     try:
         imap_server = current_app.config.get('IMAP_SERVER')
         imap_port = current_app.config.get('IMAP_PORT', 993)
@@ -76,83 +71,168 @@ def connect_imap():
         password = current_app.config.get('MAIL_PASSWORD')
         
         if not all([imap_server, username, password]):
-            raise Exception("IMAP configuration missing")
+            raise Exception("IMAP configuration missing - check .env file")
         
-        # Connect to IMAP server
         if imap_use_ssl:
             mail = imaplib.IMAP4_SSL(imap_server, imap_port)
         else:
             mail = imaplib.IMAP4(imap_server, imap_port)
         
-        # Login
         mail.login(username, password)
         mail.select('INBOX')
         
         return mail
     except Exception as e:
-        logging.error(f"IMAP connection failed: {str(e)}")
+        error_msg = str(e).encode('ascii', errors='replace').decode('ascii')
+        logging.error(f"IMAP connection failed: {error_msg}")
         return None
 
 
-def sync_emails_from_server():
-    """Sync emails from IMAP server to database."""
+def sync_imap_folders():
+    """Sync IMAP folders from server to database."""
     mail_conn = connect_imap()
     if not mail_conn:
         return False, "IMAP-Verbindung fehlgeschlagen"
     
     try:
-        # Search for all emails
+        status, folders = mail_conn.list()
+        if status != 'OK':
+            return False, "Ordner-Liste konnte nicht abgerufen werden"
+        
+        synced_folders = []
+        
+        for folder_info in folders:
+            try:
+                folder_str = folder_info.decode('utf-8')
+                parts = folder_str.split('"')
+                if len(parts) >= 3:
+                    folder_name = parts[-2]
+                    
+                    skip_folders = ['[Gmail]', '[Google Mail]', '&XfJT0ZAB-', '&XfJSI-']
+                    if any(skip in folder_name for skip in skip_folders):
+                        continue
+                    
+                    is_system = folder_name in ['INBOX', 'Sent', 'Sent Messages', 'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk', 'Archive']
+                    display_name = EmailFolder.get_folder_display_name(folder_name)
+                    
+                    existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
+                    if not existing_folder:
+                        folder = EmailFolder(
+                            name=folder_name,
+                            display_name=display_name,
+                            folder_type='standard' if is_system else 'custom',
+                            is_system=is_system,
+                            last_synced=datetime.utcnow()
+                        )
+                        db.session.add(folder)
+                        synced_folders.append(folder_name)
+                    else:
+                        existing_folder.last_synced = datetime.utcnow()
+                        synced_folders.append(folder_name)
+                        
+            except Exception as e:
+                logging.error(f"Fehler beim Verarbeiten des Ordners: {e}")
+                continue
+        
+        db.session.commit()
+        mail_conn.close()
+        mail_conn.logout()
+        
+        return True, f"{len(synced_folders)} Ordner synchronisiert"
+        
+    except Exception as e:
+        logging.error(f"Folder sync failed: {str(e)}")
+        return False, f"Ordner-Sync-Fehler: {str(e)}"
+
+
+def sync_emails_from_folder(folder_name):
+    """Sync emails from a specific IMAP folder with bidirectional support."""
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return False, "IMAP-Verbindung fehlgeschlagen"
+    
+    # Statistiken für strukturierte Ausgabe
+    stats = {
+        'new_emails': 0,
+        'updated_emails': 0,
+        'moved_emails': 0,
+        'deleted_emails': 0,
+        'skipped_emails': 0,
+        'errors': 0
+    }
+    
+    try:
+        status, messages = mail_conn.select(folder_name)
+        if status != 'OK':
+            return False, f"Ordner '{folder_name}' konnte nicht geöffnet werden"
+        
         status, messages = mail_conn.search(None, 'ALL')
         if status != 'OK':
-            return False, "E-Mail-Suche fehlgeschlagen"
+            return False, f"E-Mail-Suche in Ordner '{folder_name}' fehlgeschlagen"
         
         email_ids = messages[0].split()
         synced_count = 0
+        moved_count = 0
+        deleted_count = 0
         
-        for email_id in email_ids[-50:]:  # Only process last 50 emails
+        current_imap_uids = set()
+        for email_id in email_ids:
+            current_imap_uids.add(email_id.decode())
+        
+        existing_emails = EmailMessage.query.filter_by(folder=folder_name).all()
+        for email_obj in existing_emails:
+            if email_obj.imap_uid and email_obj.imap_uid not in current_imap_uids:
+                if email_obj.is_deleted_imap:
+                    db.session.delete(email_obj)
+                    stats['deleted_emails'] += 1
+                else:
+                    other_folder_email = EmailMessage.query.filter_by(
+                        message_id=email_obj.message_id
+                    ).filter(EmailMessage.folder != folder_name).first()
+                    
+                    if other_folder_email:
+                        db.session.delete(email_obj)
+                        stats['moved_emails'] += 1
+                    else:
+                        email_obj.is_deleted_imap = True
+                        email_obj.last_imap_sync = datetime.utcnow()
+                        stats['deleted_emails'] += 1
+        
+        max_emails = 200 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive'] else 50
+        for email_id in email_ids[-max_emails:]:
             try:
-                # Fetch email
                 status, msg_data = mail_conn.fetch(email_id, '(RFC822)')
                 if status != 'OK':
                     continue
                 
-                # Parse email
                 raw_email = msg_data[0][1]
-                email_message = email.message_from_bytes(raw_email)
+                email_msg = email_module.message_from_bytes(raw_email)
                 
-                # Extract data with proper decoding
-                from email.header import decode_header
-                
-                # Decode sender with error handling
-                sender_raw = email_message.get('From', '')
+                sender_raw = email_msg.get('From', '')
                 sender = decode_header_field(sender_raw)
                 if not sender:
                     sender = "Unknown Sender"
                 
-                # Decode subject with error handling
-                subject_raw = email_message.get('Subject', '')
+                subject_raw = email_msg.get('Subject', '')
                 subject = decode_header_field(subject_raw)
                 if not subject:
                     subject = "(No Subject)"
                 
-                # Decode other fields
-                date_str = email_message.get('Date', '')
-                message_id = email_message.get('Message-ID', '')
+                date_str = email_msg.get('Date', '')
+                message_id = email_msg.get('Message-ID', '')
                 
-                recipients_raw = email_message.get('To', '')
+                recipients_raw = email_msg.get('To', '')
                 recipients = decode_header_field(recipients_raw)
                 
-                cc_raw = email_message.get('Cc', '')
+                cc_raw = email_msg.get('Cc', '')
                 cc = decode_header_field(cc_raw)
                 
-                bcc_raw = email_message.get('Bcc', '')
+                bcc_raw = email_msg.get('Bcc', '')
                 bcc = decode_header_field(bcc_raw)
                 
-                # Skip if no message ID (required for uniqueness)
                 if not message_id:
                     continue
                 
-                # Parse date first (needed for duplicate check)
                 received_at = datetime.utcnow()
                 try:
                     from email.utils import parsedate_to_datetime
@@ -160,126 +240,122 @@ def sync_emails_from_server():
                 except:
                     pass
                 
-                # Check if email already exists (mit besserer Duplikat-Prüfung)
+                # Check if email already exists anywhere in the database
                 existing = EmailMessage.query.filter_by(message_id=message_id).first()
                 if existing:
-                    print(f"EMAIL: E-Mail bereits vorhanden, überspringe: {message_id}")
-                    continue
+                    # Update sync timestamp and folder if moved
+                    try:
+                        existing.last_imap_sync = datetime.utcnow()
+                        existing.is_deleted_imap = False
+                        if existing.folder != folder_name:
+                            existing.folder = folder_name
+                            stats['moved_emails'] += 1
+                        else:
+                            stats['updated_emails'] += 1
+                        db.session.commit()
+                        continue
+                    except Exception as update_error:
+                        # If update fails due to connection issues, try to reconnect
+                        if "MySQL server has gone away" in str(update_error) or "ConnectionResetError" in str(update_error):
+                            logging.warning("Database connection lost during update, attempting to reconnect...")
+                            db.session.rollback()
+                            db.session.close()
+                            db.session = db.create_scoped_session()
+                            # Retry the update
+                            existing = EmailMessage.query.filter_by(message_id=message_id).first()
+                            if existing:
+                                existing.last_imap_sync = datetime.utcnow()
+                                existing.is_deleted_imap = False
+                                if existing.folder != folder_name:
+                                    existing.folder = folder_name
+                                    stats['moved_emails'] += 1
+                                else:
+                                    stats['updated_emails'] += 1
+                                db.session.commit()
+                                logging.info("Database reconnection successful for update")
+                            continue
+                        else:
+                            raise update_error
                 
-                # Zusätzliche Prüfung: Gleicher Absender + Betreff + Zeitstempel
-                existing_by_content = EmailMessage.query.filter_by(
-                    sender=sender,
-                    subject=subject,
-                    received_at=received_at
-                ).first()
-                if existing_by_content:
-                    print(f"EMAIL: E-Mail mit gleichem Inhalt bereits vorhanden, überspringe: {subject}")
-                    continue
+                # If we reach here, the email doesn't exist in the database yet
                 
-                # Only process attachments if email is new
-                print(f"EMAIL: Verarbeite neue E-Mail: {subject}")
-                
-                # Parse body with HTML and attachments support
                 body_text = ""
                 body_html = ""
                 has_attachments = False
                 attachments_data = []
                 
-                if email_message.is_multipart():
-                    for part in email_message.walk():
+                if email_msg.is_multipart():
+                    for part in email_msg.walk():
                         content_type = part.get_content_type()
                         content_disposition = part.get('Content-Disposition', '')
                         
-                        # Handle attachments and inline images (but NOT text content)
-                        if (('attachment' in content_disposition or 'inline' in content_disposition) and 
-                            not content_type.startswith('text/') and 
-                            not content_type.startswith('message/')):
+                        if ('attachment' in content_disposition or 'inline' in content_disposition) and not content_type.startswith('text/'):
                             has_attachments = True
                             
-                            # Get filename or generate one
-                            filename = part.get_filename()
-                            if not filename:
-                                # Generate filename for inline images
-                                if content_type.startswith('image/'):
-                                    extension = content_type.split('/')[-1]
-                                    filename = f"image_{len(attachments_data)}.{extension}"
-                                else:
-                                    filename = f"attachment_{len(attachments_data)}"
-                            
-                            # Decode filename if encoded
-                            filename = decode_header_field(filename)
-                            
-                            # Get file content with size limit
-                            file_content = part.get_payload(decode=True)
-                            if file_content:
-                                # Limit attachment size to 100MB for central email access
-                                max_size = 100 * 1024 * 1024  # 100MB
-                                if len(file_content) > max_size:
-                                    print(f"WARNING: Attachment zu groß ({len(file_content)} bytes): {filename} - wird übersprungen (Max: 100MB)")
-                                    continue
+                            # Process attachment
+                            try:
+                                filename = part.get_filename()
+                                if not filename:
+                                    # Generate filename from content type
+                                    extension = content_type.split('/')[-1] if '/' in content_type else 'bin'
+                                    filename = f"attachment_{len(attachments_data)}.{extension}"
                                 
-                                attachments_data.append({
-                                    'filename': filename,
-                                    'content_type': content_type,
-                                    'size': len(file_content),
-                                    'content': file_content,
-                                    'is_inline': 'inline' in content_disposition or content_type.startswith('image/')
-                                })
-                            
-                            continue
+                                # Decode filename if needed
+                                if filename:
+                                    from email.header import decode_header
+                                    decoded_filename = decode_header(filename)
+                                    if decoded_filename and decoded_filename[0][0]:
+                                        filename = decoded_filename[0][0]
+                                
+                                # Get content
+                                payload = part.get_payload(decode=True)
+                                if payload:
+                                    attachments_data.append({
+                                        'filename': filename,
+                                        'content_type': content_type,
+                                        'content': payload,
+                                        'size': len(payload),
+                                        'is_inline': 'inline' in content_disposition,
+                                        'content_id': part.get('Content-ID', '').strip('<>')
+                                    })
+                            except Exception as e:
+                                logging.error(f"Error processing attachment: {e}")
+                                continue
                         
-                        # Handle text content with better encoding and priority
                         if content_type == "text/plain":
-                            # Always take the latest plain text part (some emails have multiple)
                             try:
                                 payload = part.get_payload(decode=True)
                                 if payload:
-                                    # Try to detect encoding
                                     import chardet
                                     detected = chardet.detect(payload)
                                     encoding = detected.get('encoding', 'utf-8')
                                     decoded_text = payload.decode(encoding, errors='ignore')
-                                    if decoded_text.strip():  # Only use if not empty
+                                    if decoded_text.strip():
                                         body_text = decoded_text
                             except:
-                                # Fallback to utf-8
-                                try:
-                                    payload = part.get_payload(decode=True)
-                                    if payload:
-                                        decoded_text = payload.decode('utf-8', errors='ignore')
-                                        if decoded_text.strip():  # Only use if not empty
-                                            body_text = decoded_text
-                                except:
-                                    pass
+                                pass
                         elif content_type == "text/html":
-                            # Always take the latest HTML part (some emails have multiple)
                             try:
                                 payload = part.get_payload(decode=True)
                                 if payload:
-                                    # Try to detect encoding
                                     import chardet
                                     detected = chardet.detect(payload)
                                     encoding = detected.get('encoding', 'utf-8')
                                     decoded_html = payload.decode(encoding, errors='ignore')
-                                    if decoded_html.strip():  # Only use if not empty
-                                        body_html = decoded_html
-                            except:
-                                # Fallback to utf-8
-                                try:
-                                    payload = part.get_payload(decode=True)
-                                    if payload:
-                                        decoded_html = payload.decode('utf-8', errors='ignore')
-                                        if decoded_html.strip():  # Only use if not empty
+                                    if decoded_html.strip():
+                                        # Append to existing HTML content if multipart
+                                        if body_html:
+                                            body_html += "\n" + decoded_html
+                                        else:
                                             body_html = decoded_html
-                                except:
-                                    pass
+                            except Exception as e:
+                                logging.error(f"Error processing HTML part: {e}")
+                                pass
                 else:
-                    # Handle single-part emails
-                    content_type = email_message.get_content_type()
+                    content_type = email_msg.get_content_type()
                     try:
-                        payload = email_message.get_payload(decode=True)
+                        payload = email_msg.get_payload(decode=True)
                         if payload:
-                            # Try to detect encoding
                             import chardet
                             detected = chardet.detect(payload)
                             encoding = detected.get('encoding', 'utf-8')
@@ -291,58 +367,22 @@ def sync_emails_from_server():
                             else:
                                 if decoded_content.strip():
                                     body_text = decoded_content
-                    except:
-                        # Fallback to utf-8
-                        try:
-                            payload = email_message.get_payload(decode=True)
-                            if payload:
-                                decoded_content = payload.decode('utf-8', errors='ignore')
-                                if content_type == "text/html":
-                                    if decoded_content.strip():
-                                        body_html = decoded_content
-                                else:
-                                    if decoded_content.strip():
-                                        body_text = decoded_content
-                        except:
-                            pass
+                    except Exception as e:
+                        logging.error(f"Error processing single part email: {e}")
+                        pass
                 
-                # Debug logging for content extraction
-                print(f"📧 E-Mail Content Debug:")
-                print(f"   Subject: {subject}")
-                print(f"   Body Text Length: {len(body_text) if body_text else 0}")
-                print(f"   Body HTML Length: {len(body_html) if body_html else 0}")
-                print(f"   Attachments: {len(attachments_data)}")
                 
-                # Clean text version (remove excessive whitespace)
-                if body_text:
-                    import re
-                    body_text = re.sub(r'\s+', ' ', body_text).strip()
-                    print(f"   Cleaned Body Text Length: {len(body_text)}")
+                # Apply configuration limits
+                html_max_length = current_app.config.get('EMAIL_HTML_MAX_LENGTH', 0)
+                text_max_length = current_app.config.get('EMAIL_TEXT_MAX_LENGTH', 10000)
                 
-                # Clean HTML version (preserve links and basic formatting)
-                if body_html:
-                    import re
-                    # Remove script tags for security
-                    body_html = re.sub(r'<script[^>]*>.*?</script>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
-                    # Remove dangerous style tags but preserve basic formatting
-                    body_html = re.sub(r'<style[^>]*>.*?</style>', '', body_html, flags=re.DOTALL | re.IGNORECASE)
-                    # Remove problematic HTML entities that cause "OBJ" placeholders
-                    body_html = re.sub(r'<o:p\s*/>', '', body_html)
-                    body_html = re.sub(r'<o:p>.*?</o:p>', '', body_html, flags=re.DOTALL)
-                    body_html = re.sub(r'<w:.*?>.*?</w:.*?>', '', body_html, flags=re.DOTALL)
-                    body_html = re.sub(r'<m:.*?>.*?</m:.*?>', '', body_html, flags=re.DOTALL)
-                    # Fix inline images - convert cid: to data URLs or placeholder
-                    body_html = re.sub(r'src="cid:([^"]+)"', r'src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="', body_html)
-                    # Remove Microsoft Word artifacts
-                    body_html = re.sub(r'<v:.*?>.*?</v:.*?>', '', body_html, flags=re.DOTALL)
-                    body_html = re.sub(r'<![^>]*>', '', body_html)  # Remove comments
-                    # Normalize whitespace but preserve line breaks
-                    body_html = re.sub(r'[ \t]+', ' ', body_html)  # Multiple spaces to single
-                    body_html = re.sub(r'\n\s*\n', '\n\n', body_html)  # Preserve paragraph breaks
+                # Truncate if limits are set
+                if html_max_length > 0 and body_html and len(body_html) > html_max_length:
+                    body_html = body_html[:html_max_length]
                 
-                # received_at already parsed above
+                if text_max_length > 0 and body_text and len(body_text) > text_max_length:
+                    body_text = body_text[:text_max_length]
                 
-                # Create database entry
                 email_entry = EmailMessage(
                     message_id=message_id,
                     sender=sender,
@@ -350,170 +390,82 @@ def sync_emails_from_server():
                     recipients=recipients or 'Unknown',
                     cc=cc,
                     bcc=bcc,
-                    body_text=body_text[:1000] if body_text else '',  # Limit body length
-                    body_html=body_html[:5000] if body_html else '',  # Limit HTML length
+                    body_text=body_text if body_text else '',
+                    body_html=body_html if body_html else '',
                     has_attachments=has_attachments,
+                    folder=folder_name,
+                    imap_uid=email_id.decode(),
+                    last_imap_sync=datetime.utcnow(),
+                    is_deleted_imap=False,
                     received_at=received_at,
                     is_read=False,
                     is_sent=False
                 )
                 
-                db.session.add(email_entry)
-                db.session.flush()  # Get the ID for attachments
-                
-                # Save attachments with error handling and smart storage
-                for attachment_data in attachments_data:
-                    try:
-                        from app.models.email import EmailAttachment
-                        import os
-                        
-                        # For large files (>10MB), consider file system storage
-                        file_content = attachment_data['content']
-                        file_size = attachment_data['size']
-                        filename = attachment_data['filename']
-                        
-                        # Store in database for smaller files, file system for larger ones
-                        # MySQL max_allowed_packet is usually 16MB, but we use 10MB to be safe
-                        if file_size > 10 * 1024 * 1024:  # 10MB threshold (safer for MySQL)
-                            # Store in file system
-                            upload_dir = os.path.join(current_app.root_path, 'static', 'attachments')
-                            os.makedirs(upload_dir, exist_ok=True)
-                            
-                            # Create unique filename
-                            import uuid
-                            unique_filename = f"{uuid.uuid4()}_{filename}"
-                            file_path = os.path.join(upload_dir, unique_filename)
-                            
-                            # Write to file system
-                            with open(file_path, 'wb') as f:
-                                f.write(file_content)
-                            
-                            attachment = EmailAttachment(
-                                email_id=email_entry.id,
-                                filename=filename,
-                                content_type=attachment_data['content_type'],
-                                size=file_size,
-                                content=None,  # Not stored in DB
-                                file_path=file_path,  # Stored on disk
-                                is_inline=attachment_data.get('is_inline', False)
-                            )
-                        else:
-                            # Store in database for smaller files
-                            attachment = EmailAttachment(
-                                email_id=email_entry.id,
-                                filename=filename,
-                                content_type=attachment_data['content_type'],
-                                size=file_size,
-                                content=file_content,  # Stored in DB
-                                file_path=None,  # Not on disk
-                                is_inline=attachment_data.get('is_inline', False)
-                            )
-                        
-                        db.session.add(attachment)
-                        print(f"EMAIL: Anhang gespeichert: {filename} ({file_size} bytes)")
-                    except Exception as e:
-                        print(f"EMAIL: Fehler beim Speichern des Attachments {attachment_data['filename']}: {str(e)}")
-                        # Rollback für diesen Anhang
-                        db.session.rollback()
-                        continue
-                
-                # Sende Benachrichtigung für neue E-Mail (in derselben Session)
                 try:
-                    print(f"=== EMAIL: SENDE BENACHRICHTIGUNG FÜR NEUE E-MAIL ===")
-                    print(f"EMAIL: Sende Benachrichtigung für E-Mail ID: {email_entry.id}")
-                    print(f"EMAIL: E-Mail Betreff: {email_entry.subject}")
-                    print(f"EMAIL: E-Mail Absender: {email_entry.sender}")
-                    print(f"EMAIL: E-Mail Empfänger: {email_entry.recipients}")
-                    print(f"EMAIL: E-Mail Zeitstempel: {email_entry.received_at}")
+                    db.session.add(email_entry)
+                    db.session.flush()  # Get the email ID
                     
-                    # Verwende dieselbe Session für Benachrichtigungen
-                    send_email_notification(email_entry.id)
+                    # Process attachments
+                    for attachment_data in attachments_data:
+                        try:
+                            attachment = EmailAttachment(
+                                email_id=email_entry.id,
+                                filename=attachment_data['filename'],
+                                content_type=attachment_data['content_type'],
+                                size=attachment_data['size'],
+                                content=attachment_data['content'],
+                                is_inline=attachment_data['is_inline'],
+                                content_id=attachment_data['content_id'] if attachment_data['content_id'] else None
+                            )
+                            db.session.add(attachment)
+                        except Exception as e:
+                            logging.error(f"Error saving attachment {attachment_data['filename']}: {e}")
+                            continue
                     
-                    print(f"EMAIL: E-Mail-Benachrichtigung erfolgreich gesendet für E-Mail ID: {email_entry.id}")
-                    
+                    # Commit with retry logic for MySQL connection issues
+                    try:
+                        db.session.commit()
+                        stats['new_emails'] += 1
+                    except Exception as commit_error:
+                        # If commit fails due to connection issues, try to reconnect
+                        if "MySQL server has gone away" in str(commit_error) or "ConnectionResetError" in str(commit_error):
+                            logging.warning("Database connection lost, attempting to reconnect...")
+                            db.session.rollback()
+                            db.session.close()
+                            db.session = db.create_scoped_session()
+                            # Retry the commit
+                            db.session.add(email_entry)
+                            db.session.flush()
+                            for attachment_data in attachments_data:
+                                try:
+                                    attachment = EmailAttachment(
+                                        email_id=email_entry.id,
+                                        filename=attachment_data['filename'],
+                                        content_type=attachment_data['content_type'],
+                                        size=attachment_data['size'],
+                                        content=attachment_data['content'],
+                                        is_inline=attachment_data['is_inline'],
+                                        content_id=attachment_data['content_id'] if attachment_data['content_id'] else None
+                                    )
+                                    db.session.add(attachment)
+                                except Exception as e:
+                                    logging.error(f"Error saving attachment {attachment_data['filename']}: {e}")
+                                    continue
+                            db.session.commit()
+                            stats['new_emails'] += 1
+                            logging.info("Database reconnection successful")
+                        else:
+                            raise commit_error
                 except Exception as e:
-                    print(f"=== EMAIL: FEHLER BEI E-MAIL-BENACHRICHTIGUNG ===")
-                    print(f"EMAIL: Fehler beim Senden der E-Mail-Benachrichtigung: {e}")
-                    import traceback
-                    print(f"EMAIL: Exception Stack: {traceback.format_exc()}")
-                    # Fehler bei Benachrichtigung soll E-Mail-Sync nicht stoppen
-                
-                synced_count += 1
-                print(f"EMAIL: E-Mail erfolgreich synchronisiert: {email_entry.subject}")
+                    stats['errors'] += 1
+                    logging.error(f"Error saving email {subject}: {e}")
+                    db.session.rollback()
+                    continue
                 
             except Exception as e:
-                print(f"EMAIL: Fehler beim Synchronisieren der E-Mail: {e}")
-                # Rollback bei Fehler
-                db.session.rollback()
-                # Handle Unicode errors gracefully - try to process with fallbacks
-                error_msg = str(e)
-                if 'charmap' in error_msg or 'codec' in error_msg:
-                    try:
-                        # Try to process the email with minimal data extraction
-                        status, msg_data = mail_conn.fetch(email_id, '(RFC822)')
-                        if status == 'OK':
-                            raw_email = msg_data[0][1]
-                            email_message = email.message_from_bytes(raw_email)
-                            
-                            # Extract minimal data with fallbacks
-                            sender = "Unknown Sender"
-                            subject = "(No Subject)"
-                            message_id = f"fallback-{email_id.decode()}"
-                            
-                            try:
-                                sender_raw = email_message.get('From', '')
-                                if sender_raw:
-                                    sender = decode_header_field(sender_raw)
-                                if not sender or sender == '':
-                                    sender = "Unknown Sender"
-                            except:
-                                pass
-                            
-                            try:
-                                subject_raw = email_message.get('Subject', '')
-                                if subject_raw:
-                                    subject = decode_header_field(subject_raw)
-                                if not subject or subject == '':
-                                    subject = "(No Subject)"
-                            except:
-                                pass
-                            
-                            try:
-                                message_id = email_message.get('Message-ID', f"fallback-{email_id.decode()}")
-                            except:
-                                pass
-                            
-                            # Create minimal email record
-                            existing = EmailMessage.query.filter_by(message_id=message_id).first()
-                            if not existing:
-                                email_record = EmailMessage(
-                                    uid=email_id.decode(),
-                                    message_id=message_id,
-                                    sender=sender,
-                                    subject=subject,
-                                    recipients="Unknown Recipients",
-                                    body_text="E-Mail-Content konnte nicht verarbeitet werden (Unicode-Probleme)",
-                                    body_html="<p>E-Mail-Content konnte nicht verarbeitet werden (Unicode-Probleme)</p>",
-                                    has_attachments=False,
-                                    received_at=datetime.utcnow(),
-                                    is_read=False,
-                                    is_sent=False
-                                )
-                                db.session.add(email_record)
-                                synced_count += 1
-                                
-                                # Only log every 10th successful fallback
-                                if int(email_id.decode()) % 10 == 0:
-                                    logging.info(f"Processed {int(email_id.decode()) % 10} emails with Unicode fallback method")
-                        
-                    except Exception as fallback_error:
-                        # Only log every 10th fallback error to reduce spam
-                        if int(email_id.decode()) % 10 == 0:
-                            logging.warning(f"Could not process email {email_id} even with fallback: {str(fallback_error)}")
-                else:
-                    logging.error(f"Failed to process email {email_id}: {error_msg}")
-                
-                # Rollback session on error
+                stats['errors'] += 1
+                logging.error(f"Error syncing email from folder '{folder_name}': {e}")
                 db.session.rollback()
                 continue
         
@@ -521,11 +473,66 @@ def sync_emails_from_server():
         mail_conn.close()
         mail_conn.logout()
         
-        return True, f"{synced_count} E-Mails synchronisiert"
+        # Strukturierte Ausgabe der Synchronisationsstatistiken
+        print(f"\n--- E-Mail Synchronisation ---")
+        print(f"Ordner: {folder_name}")
+        print(f"Neue E-Mails: {stats['new_emails']}")
+        print(f"Übersprungene E-Mails: {stats['updated_emails']}")
+        print(f"Geänderte E-Mails: {stats['moved_emails']}")
+        print(f"Gelöschte E-Mails: {stats['deleted_emails']}")
+        if stats['errors'] > 0:
+            print(f"Fehler: {stats['errors']}")
+        print(f"--- --- ---\n")
+        
+        sync_details = []
+        if stats['new_emails'] > 0:
+            sync_details.append(f"{stats['new_emails']} neu")
+        if stats['updated_emails'] > 0:
+            sync_details.append(f"{stats['updated_emails']} übersprungen")
+        if stats['moved_emails'] > 0:
+            sync_details.append(f"{stats['moved_emails']} verschoben")
+        if stats['deleted_emails'] > 0:
+            sync_details.append(f"{stats['deleted_emails']} gelöscht")
+        
+        if sync_details:
+            return True, f"Ordner '{folder_name}': {', '.join(sync_details)}"
+        else:
+            return True, f"Ordner '{folder_name}': Keine Änderungen"
         
     except Exception as e:
-        logging.error(f"Email sync failed: {str(e)}")
-        return False, f"Sync-Fehler: {str(e)}"
+        logging.error(f"Email sync from folder failed: {str(e)}")
+        return False, f"E-Mail-Sync-Fehler für Ordner '{folder_name}': {str(e)}"
+
+
+def sync_emails_from_server():
+    """Sync emails from IMAP server to database with folder support."""
+    folder_success, folder_message = sync_imap_folders()
+    if not folder_success:
+        logging.warning(f"Ordner-Sync-Warnung: {folder_message}")
+    
+    folders = EmailFolder.query.all()
+    if not folders:
+        folders = [EmailFolder(name='INBOX', display_name='Posteingang', folder_type='standard', is_system=True)]
+    
+    total_synced = 0
+    folder_results = []
+    
+    for folder in folders:
+        success, message = sync_emails_from_folder(folder.name)
+        if success:
+            import re
+            match = re.search(r'(\d+) E-Mails', message)
+            if match:
+                count = int(match.group(1))
+                total_synced += count
+            folder_results.append(f"{folder.display_name}: {message}")
+        else:
+            folder_results.append(f"{folder.display_name}: Fehler - {message}")
+    
+    if total_synced > 0:
+        return True, f"{total_synced} E-Mails aus {len(folders)} Ordnern synchronisiert"
+    else:
+        return False, "Keine E-Mails synchronisiert"
 
 
 def check_email_permission(permission_type='read'):
@@ -539,23 +546,41 @@ def check_email_permission(permission_type='read'):
 @email_bp.route('/')
 @login_required
 def index():
-    """Email inbox."""
+    """Email inbox with folder support."""
     if not check_email_permission('read'):
         flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
         return redirect(url_for('dashboard.index'))
     
-    # Get emails from database
-    emails = EmailMessage.query.order_by(EmailMessage.received_at.desc()).all()
+    current_folder = request.args.get('folder', 'INBOX')
+    emails = EmailMessage.query.filter_by(folder=current_folder).order_by(EmailMessage.received_at.desc()).all()
+    folders = EmailFolder.query.order_by(EmailFolder.folder_type, EmailFolder.display_name).all()
     
-    # Debug: Update has_attachments for existing emails
-    for email in emails:
-        if email.attachments:
-            email.has_attachments = True
+    for email_obj in emails:
+        if email_obj.attachments:
+            email_obj.has_attachments = True
         else:
-            email.has_attachments = False
+            email_obj.has_attachments = False
     db.session.commit()
     
-    return render_template('email/index.html', emails=emails)
+    return render_template('email/index.html', emails=emails, folders=folders, current_folder=current_folder)
+
+
+@email_bp.route('/folder/<folder_name>')
+@login_required
+def folder_view(folder_name):
+    """View emails in a specific folder."""
+    if not check_email_permission('read'):
+        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    
+    emails = EmailMessage.query.filter_by(folder=folder_name).order_by(EmailMessage.received_at.desc()).all()
+    
+    
+    folders = EmailFolder.query.order_by(EmailFolder.folder_type, EmailFolder.display_name).all()
+    folder_obj = EmailFolder.query.filter_by(name=folder_name).first()
+    folder_display_name = folder_obj.display_name if folder_obj else folder_name
+    
+    return render_template('email/index.html', emails=emails, folders=folders, current_folder=folder_name, folder_display_name=folder_display_name)
 
 
 @email_bp.route('/view/<int:email_id>')
@@ -568,48 +593,70 @@ def view_email(email_id):
     
     email_msg = EmailMessage.query.get_or_404(email_id)
     
-    # Mark as read
     if not email_msg.is_read:
         email_msg.is_read = True
         db.session.commit()
     
-    # Debug email content
-    print(f"🔍 E-Mail View Debug:")
-    print(f"   ID: {email_msg.id}")
-    print(f"   Subject: {email_msg.subject}")
-    print(f"   Body Text: {'✅' if email_msg.body_text else '❌'} ({len(email_msg.body_text) if email_msg.body_text else 0} chars)")
-    print(f"   Body HTML: {'✅' if email_msg.body_html else '❌'} ({len(email_msg.body_html) if email_msg.body_html else 0} chars)")
     
-    # Clean and prepare HTML content for display with clickable links
     html_content = None
     if email_msg.body_html:
-        import re
-        # Basic HTML sanitization for safe display
-        html_content = email_msg.body_html
-        
-        # Remove Microsoft Word artifacts that cause "OBJ" placeholders
-        html_content = re.sub(r'<o:p\s*/>', '', html_content)
-        html_content = re.sub(r'<o:p>.*?</o:p>', '', html_content, flags=re.DOTALL)
-        html_content = re.sub(r'<w:.*?>.*?</w:.*?>', '', html_content, flags=re.DOTALL)
-        html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
-        html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
-        html_content = re.sub(r'<![^>]*>', '', html_content)  # Remove comments
-        
-        # Make sure links are clickable and secure
-        html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
-        
-        # Replace cid: references with actual inline images
-        for attachment in email_msg.attachments:
-            if attachment.is_inline and attachment.content_type.startswith('image/'):
-                data_url = attachment.get_data_url()
-                if data_url:
-                    # Replace cid references with data URLs
-                    cid_pattern = f'cid:{attachment.filename}'
-                    html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
-                    html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
-        
-        # Fix remaining cid: references with placeholder
-        html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="', html_content)
+        try:
+            # Decode HTML content properly
+            if isinstance(email_msg.body_html, bytes):
+                html_content = email_msg.body_html.decode('utf-8', errors='replace')
+            else:
+                html_content = str(email_msg.body_html)
+            
+            
+            # Clean up problematic characters that break display
+            import re
+            
+            # Replace problematic Unicode characters
+            html_content = html_content.replace('\u2011', '-')
+            html_content = html_content.replace('\u2013', '-')
+            html_content = html_content.replace('\u2014', '--')
+            html_content = html_content.replace('\u2018', "'")
+            html_content = html_content.replace('\u2019', "'")
+            html_content = html_content.replace('\u201c', '"')
+            html_content = html_content.replace('\u201d', '"')
+            html_content = html_content.replace('\u2026', '...')
+            html_content = html_content.replace('\ufffc', '')
+            
+            # Remove Microsoft Word artifacts
+            html_content = re.sub(r'<o:p\s*/>', '', html_content)
+            html_content = re.sub(r'<o:p>.*?</o:p>', '', html_content, flags=re.DOTALL)
+            html_content = re.sub(r'<w:.*?>.*?</w:.*?>', '', html_content, flags=re.DOTALL)
+            html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
+            html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
+            
+            # Make links secure but preserve original styling
+            html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
+            
+            # Ensure proper HTML structure if missing
+            if not html_content.strip().startswith('<'):
+                html_content = f'<div>{html_content}</div>'
+            
+            # Handle inline images
+            for attachment in email_msg.attachments:
+                if attachment.is_inline and attachment.content_type.startswith('image/'):
+                    data_url = attachment.get_data_url()
+                    if data_url:
+                        cid_pattern = f'cid:{attachment.filename}'
+                        html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
+                        html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
+                        # Also handle content-id references
+                        content_id = attachment.content_id
+                        if content_id:
+                            html_content = html_content.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
+                            html_content = html_content.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
+            
+            # Fix remaining cid: references with placeholder
+            html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"', html_content)
+            
+            
+        except Exception as e:
+            logging.error(f"HTML processing error: {e}")
+            html_content = None
     
     return render_template('email/view.html', email=email_msg, html_content=html_content)
 
@@ -620,23 +667,19 @@ def download_attachment(attachment_id):
     """Download an email attachment."""
     if not check_email_permission('read'):
         flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for('email.index'))
     
     attachment = EmailAttachment.query.get_or_404(attachment_id)
-    
-    # Check if user has permission to view this email
     email_msg = attachment.email
     if not email_msg:
         flash('Anhang nicht gefunden.', 'danger')
         return redirect(url_for('email.index'))
     
-    # Get content from database or file system
     content = attachment.get_content()
     if not content:
         flash('Anhang nicht gefunden oder beschädigt.', 'danger')
         return redirect(url_for('email.index'))
     
-    # Create file-like object from content
     file_obj = io.BytesIO(content)
     
     return send_file(
@@ -665,18 +708,15 @@ def compose():
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
             return render_template('email/compose.html')
         
-        # Get email footer from settings
         footer_text = SystemSettings.query.filter_by(key='email_footer_text').first()
         footer_img = SystemSettings.query.filter_by(key='email_footer_image').first()
         
-        # Build footer
         footer = f"\n\n---\n{footer_text.value if footer_text else ''}\n"
         footer += f"Gesendet von {current_user.full_name}"
         
         full_body = body + footer
         
         try:
-            # Send email using Flask-Mail
             msg = Message(
                 subject=subject,
                 recipients=to.split(','),
@@ -687,7 +727,6 @@ def compose():
             if cc:
                 msg.cc = cc.split(',')
             
-            # Handle attachments
             if 'attachments' in request.files:
                 attachments = request.files.getlist('attachments')
                 for attachment in attachments:
@@ -697,17 +736,17 @@ def compose():
                             attachment.content_type or 'application/octet-stream',
                             attachment.read()
                         )
-                        attachment.seek(0)  # Reset file pointer
+                        attachment.seek(0)
             
             mail.send(msg)
             
-            # Save to database
             email_record = EmailMessage(
                 subject=subject,
                 sender=mail.default_sender,
                 recipients=to,
                 cc=cc,
                 body_text=full_body,
+                folder='Sent',
                 is_sent=True,
                 sent_by_user_id=current_user.id,
                 sent_at=datetime.utcnow(),
@@ -733,79 +772,142 @@ def sync_emails():
     if not check_email_permission('read'):
         return jsonify({'error': 'Nicht autorisiert'}), 403
 
-    # Test IMAP connection first
-    print(f"🔍 Testing IMAP connection...")
-    print(f"   Server: {current_app.config.get('IMAP_SERVER')}")
-    print(f"   Port: {current_app.config.get('IMAP_PORT', 993)}")
-    print(f"   Username: {current_app.config.get('MAIL_USERNAME')}")
-    print(f"   SSL: {current_app.config.get('IMAP_USE_SSL', True)}")
     
-    # Clear existing emails to force re-sync with new attachment handling
-    try:
-        EmailMessage.query.delete()
-        db.session.commit()
-    except Exception as e:
-        print(f"ERROR: Fehler beim Löschen der E-Mails: {str(e)}")
-        db.session.rollback()
+    current_folder = request.form.get('folder', None)
     
-    # Try to sync from IMAP server
-    success, message = sync_emails_from_server()
+    if current_folder:
+        success, message = sync_emails_from_folder(current_folder)
+    else:
+        success, message = sync_emails_from_server()
     
     if success:
-        flash(f'✅ {message} - E-Mails wurden neu synchronisiert mit Attachment-Support!', 'success')
-        print(f"✅ {message}")
+        flash(f'✅ {message} - E-Mails wurden mit bidirektionaler Synchronisation aktualisiert!', 'success')
     else:
-        print(f"❌ {message}")
-        
-        # Fallback: Add sample emails if IMAP fails and no emails exist
-        existing_emails = EmailMessage.query.count()
-        if existing_emails == 0:
-            sample_emails = [
-                {
-                    'subject': 'Willkommen im Team Portal',
-                    'sender': 'admin@example.com',
-                    'recipients': 'team@example.com',
-                    'body_text': 'Willkommen in Ihrem neuen Team Portal! Hier können Sie E-Mails verwalten, chatten und zusammenarbeiten.',
-                    'body_html': '<p>Willkommen in Ihrem neuen <strong>Team Portal</strong>!</p><p>Hier können Sie:</p><ul><li>E-Mails verwalten</li><li>Chatten</li><li>Zusammenarbeiten</li></ul>',
-                    'is_sent': False,
-                    'received_at': datetime.utcnow(),
-                    'message_id': 'sample-1',
-                    'has_attachments': False
-                },
-                {
-                    'subject': 'Meeting morgen um 10:00',
-                    'sender': 'kollege@example.com',
-                    'recipients': 'team@example.com',
-                    'body_text': 'Hi Team,\n\nunser Meeting morgen um 10:00 Uhr findet im Konferenzraum statt.\n\nBeste Grüße',
-                    'body_html': '<p>Hi Team,</p><p>unser Meeting morgen um <strong>10:00 Uhr</strong> findet im Konferenzraum statt.</p><p>Beste Grüße</p>',
-                    'is_sent': False,
-                    'received_at': datetime.utcnow(),
-                    'message_id': 'sample-2',
-                    'has_attachments': True
-                },
-                {
-                    'subject': 'Projekt Update',
-                    'sender': 'manager@example.com',
-                    'recipients': 'team@example.com',
-                    'body_text': 'Das Projekt läuft gut voran. Hier ist das aktuelle Update...',
-                    'body_html': '<p>Das Projekt läuft gut voran. Hier ist das aktuelle <em>Update</em>...</p>',
-                    'is_sent': False,
-                    'received_at': datetime.utcnow(),
-                    'message_id': 'sample-3'
-                }
-            ]
-
-            for email_data in sample_emails:
-                email = EmailMessage(**email_data)
-                db.session.add(email)
-
-            db.session.commit()
-            flash(f'WARNING: IMAP-Sync fehlgeschlagen. {len(sample_emails)} Beispiel-E-Mails hinzugefügt.', 'warning')
-            print(f"WARNING: Fallback: {len(sample_emails)} Beispiel-E-Mails hinzugefügt")
-        else:
-            flash(f'WARNING: {message}', 'warning')
+        flash(f'❌ FEHLER: {message} - Bitte IMAP-Konfiguration prüfen!', 'danger')
 
     return redirect(url_for('email.index'))
+
+
+@email_bp.route('/delete/<int:email_id>', methods=['POST'])
+@login_required
+def delete_email(email_id):
+    """Delete email from both portal and IMAP."""
+    if not check_email_permission('read'):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    email = EmailMessage.query.get_or_404(email_id)
+    
+    if email.imap_uid:
+        success, message = delete_email_from_imap(email.imap_uid, email.folder)
+        if not success:
+            flash(f'WARNING: E-Mail konnte nicht in IMAP gelöscht werden: {message}', 'warning')
+    
+    db.session.delete(email)
+    db.session.commit()
+    
+    flash('E-Mail wurde erfolgreich gelöscht.', 'success')
+    return redirect(url_for('email.folder_view', folder_name=email.folder))
+
+
+@email_bp.route('/move/<int:email_id>', methods=['POST'])
+@login_required
+def move_email(email_id):
+    """Move email to another folder in both portal and IMAP."""
+    if not check_email_permission('read'):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    email = EmailMessage.query.get_or_404(email_id)
+    new_folder = request.form.get('folder')
+    
+    if not new_folder:
+        flash('Zielordner nicht angegeben.', 'danger')
+        return redirect(url_for('email.folder_view', folder_name=email.folder))
+    
+    if email.imap_uid:
+        success, message = move_email_in_imap(email.imap_uid, email.folder, new_folder)
+        if not success:
+            flash(f'WARNING: E-Mail konnte nicht in IMAP verschoben werden: {message}', 'warning')
+    
+    old_folder = email.folder
+    email.folder = new_folder
+    email.last_imap_sync = datetime.utcnow()
+    db.session.commit()
+    
+    flash(f'E-Mail wurde erfolgreich von {old_folder} nach {new_folder} verschoben.', 'success')
+    return redirect(url_for('email.folder_view', folder_name=new_folder))
+
+
+def delete_email_from_imap(email_id, folder_name):
+    """Delete email from IMAP server."""
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return False, "IMAP-Verbindung fehlgeschlagen"
+    
+    try:
+        status, messages = mail_conn.select(folder_name)
+        if status != 'OK':
+            return False, f"Ordner '{folder_name}' konnte nicht geöffnet werden"
+        
+        status, response = mail_conn.store(email_id, '+FLAGS', '\\Deleted')
+        if status != 'OK':
+            return False, "E-Mail konnte nicht als gelöscht markiert werden"
+        
+        status, response = mail_conn.expunge()
+        if status != 'OK':
+            return False, "E-Mail konnte nicht gelöscht werden"
+        
+        mail_conn.close()
+        mail_conn.logout()
+        return True, "E-Mail erfolgreich gelöscht"
+        
+    except Exception as e:
+        logging.error(f"IMAP delete failed: {str(e)}")
+        return False, f"Lösch-Fehler: {str(e)}"
+
+
+def move_email_in_imap(email_id, from_folder, to_folder):
+    """Move email between IMAP folders."""
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return False, "IMAP-Verbindung fehlgeschlagen"
+    
+    try:
+        # First, try to select the source folder
+        status, messages = mail_conn.select(from_folder)
+        if status != 'OK':
+            # If source folder doesn't exist, try to create it or use INBOX
+            if from_folder != 'INBOX':
+                status, messages = mail_conn.select('INBOX')
+                if status != 'OK':
+                    return False, f"Quellordner '{from_folder}' und INBOX konnten nicht geöffnet werden"
+        
+        # Try to copy the email
+        status, response = mail_conn.copy(email_id, to_folder)
+        if status != 'OK':
+            # If target folder doesn't exist, try to create it
+            try:
+                mail_conn.create(to_folder)
+                status, response = mail_conn.copy(email_id, to_folder)
+                if status != 'OK':
+                    return False, f"E-Mail konnte nicht nach '{to_folder}' kopiert werden (auch nach Ordner-Erstellung nicht)"
+            except:
+                return False, f"E-Mail konnte nicht nach '{to_folder}' kopiert werden"
+        
+        status, response = mail_conn.store(email_id, '+FLAGS', '\\Deleted')
+        if status != 'OK':
+            return False, "E-Mail konnte nicht als gelöscht markiert werden"
+        
+        status, response = mail_conn.expunge()
+        if status != 'OK':
+            return False, "E-Mail konnte nicht verschoben werden"
+        
+        mail_conn.close()
+        mail_conn.logout()
+        return True, f"E-Mail erfolgreich nach '{to_folder}' verschoben"
+        
+    except Exception as e:
+        logging.error(f"IMAP move failed: {str(e)}")
+        return False, f"Verschieb-Fehler: {str(e)}"
 
 
 def email_sync_scheduler(app):
@@ -815,17 +917,15 @@ def email_sync_scheduler(app):
             with app.app_context():
                 success, message = sync_emails_from_server()
                 if success:
-                    print(f"Auto-sync: {message}")
+                    logging.info(f"Auto-sync: {message}")
                 else:
-                    print(f"Auto-sync failed: {message}")
+                    logging.error(f"Auto-sync failed: {message}")
         except Exception as e:
-            print(f"Auto-sync error: {str(e)}")
+            logging.error(f"Auto-sync error: {e}")
         
-        # Wait 15 minutes (900 seconds)
         time.sleep(900)
 
 
-# Start background sync thread
 sync_thread = None
 
 def start_email_sync(app):
@@ -834,7 +934,4 @@ def start_email_sync(app):
     if sync_thread is None or not sync_thread.is_alive():
         sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True)
         sync_thread.start()
-        print("E-Mail Auto-Sync gestartet (alle 15 Minuten)")
-
-
-
+        logging.info("E-Mail Auto-Sync gestartet (alle 15 Minuten)")

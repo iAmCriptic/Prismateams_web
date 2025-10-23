@@ -9,98 +9,98 @@
 {% block content %}
 <div class="setup-container">
     <div class="setup-card">
-        <div class="setup-header">
-            <h1>
-                {% if app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
-                {% else %}
-                <i class="bi bi-gear-fill"></i>
-                {% endif %}
-                {{ app_name or 'Team Portal' }}
-            </h1>
-            <p class="subtitle">Schritt 3 von 3</p>
-        </div>
-        <div class="setup-body">
-            <div class="setup-step">
-                <h5><i class="bi bi-person-plus me-2"></i>Administrator-Account erstellen</h5>
-                <p>Erstellen Sie Ihren Administrator-Account und wählen Sie Ihre persönlichen Einstellungen.</p>
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="text-center mb-4">
+                    {% if app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% else %}
+                    <i class="bi bi-gear-fill text-primary"></i>
+                    {% endif %}
+                    {{ app_name or 'Team Portal' }}
+                </h1>
+                <h5 class="text-center mb-4">Schritt 3 von 3</h5>
+                <div class="setup-step">
+                    <h5><i class="bi bi-person-plus me-2"></i>Administrator-Account erstellen</h5>
+                    <p>Erstellen Sie Ihren Administrator-Account und wählen Sie Ihre persönlichen Einstellungen.</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="first_name" class="form-label">Vorname *</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" required autofocus>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="last_name" class="form-label">Nachname *</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail-Adresse *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-text">Diese E-Mail wird als Administrator-Account verwendet.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefonnummer</label>
+                        <input type="tel" class="form-control" id="phone" name="phone">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Passwort *</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <button class="btn btn-outline-secondary password-toggle" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Mindestens 8 Zeichen.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label">Passwort bestätigen *</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
+                            <button class="btn btn-outline-secondary password-toggle" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
+                            <label class="form-check-label" for="dark_mode">
+                                <i class="bi bi-moon me-2"></i>
+                                Dark Mode aktivieren
+                            </label>
+                        </div>
+                        <div class="form-text">Sie können dies später in den Einstellungen ändern.</div>
+                    </div>
+                    
+                    <div class="setup-info">
+                        <i class="bi bi-info-circle icon"></i>
+                        <strong>Hinweis:</strong> Nach dem Setup können Sie weitere Benutzer über die Einstellungen hinzufügen und verwalten.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('setup.setup_step2') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>
+                            Zurück
+                        </a>
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Setup abschließen
+                        </button>
+                    </div>
+                </form>
             </div>
-            
-            <form method="POST">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="first_name" class="form-label">Vorname *</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" required autofocus>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="last_name" class="form-label">Nachname *</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="email" class="form-label">E-Mail-Adresse *</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
-                    <div class="form-text">Diese E-Mail wird als Administrator-Account verwendet.</div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="phone" class="form-label">Telefonnummer</label>
-                    <input type="tel" class="form-control" id="phone" name="phone">
-                </div>
-                
-                <div class="mb-3">
-                    <label for="password" class="form-label">Passwort *</label>
-                    <div class="input-group">
-                        <input type="password" class="form-control" id="password" name="password" required>
-                        <button class="btn btn-outline-secondary password-toggle" type="button">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                    </div>
-                    <div class="form-text">Mindestens 8 Zeichen.</div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="password_confirm" class="form-label">Passwort bestätigen *</label>
-                    <div class="input-group">
-                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
-                        <button class="btn btn-outline-secondary password-toggle" type="button">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
-                        <label class="form-check-label" for="dark_mode">
-                            <i class="bi bi-moon me-2"></i>
-                            Dark Mode aktivieren
-                        </label>
-                    </div>
-                    <div class="form-text">Sie können dies später in den Einstellungen ändern.</div>
-                </div>
-                
-                <div class="setup-info">
-                    <i class="bi bi-info-circle icon"></i>
-                    <strong>Hinweis:</strong> Nach dem Setup können Sie weitere Benutzer über die Einstellungen hinzufügen und verwalten.
-                </div>
-                
-                <div class="d-flex justify-content-between">
-                    <a href="{{ url_for('setup.setup_step2') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left me-2"></i>
-                        Zurück
-                    </a>
-                    <button type="submit" class="btn btn-setup">
-                        <i class="bi bi-check-circle me-2"></i>
-                        Setup abschließen
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -132,6 +132,25 @@ document.getElementById('password_confirm').addEventListener('input', function()
     } else {
         this.setCustomValidity('');
     }
+});
+</script>
+
+<script>
+// Farbverlauf-Vorschau
+document.addEventListener('DOMContentLoaded', function() {
+    const body = document.body;
+    
+    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
+    {% if color_gradient %}
+    body.style.background = '{{ color_gradient }}';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    {% else %}
+    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    body.style.backgroundAttachment = 'fixed';
+    body.style.backgroundSize = 'cover';
+    {% endif %}
 });
 </script>
 {% endblock %}
