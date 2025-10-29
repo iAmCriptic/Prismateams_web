@@ -25,21 +25,26 @@
                     Diese Berechtigungen sind erforderlich, damit die Anwendung alle Funktionen nutzen kann.
                 </p>
                 
-                <!-- Benachrichtigungsberechtigung -->
+                <!-- Push-Benachrichtigungen -->
                 <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
                     <div>
                         <h6 class="mb-1">
                             <i class="bi bi-bell me-2"></i>
                             Push-Benachrichtigungen
                         </h6>
-                        <small class="text-muted">Erforderlich für Chat-, Datei- und E-Mail-Benachrichtigungen</small>
+                        <small class="text-muted">Serverbasierte Benachrichtigungen für Chat, Dateien und E-Mails</small>
                         <div class="mt-1">
-                            <span class="badge" id="notification-status-badge">Prüfe...</span>
+                            <span class="badge" id="push-status">Prüfe...</span>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-outline-primary" id="request-notification-btn">
-                        Berechtigung anfordern
-                    </button>
+                    <div>
+                        <button type="button" class="btn btn-outline-primary me-2" id="subscribe-push-btn">
+                            Push aktivieren
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="test-push-btn">
+                            Test senden
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Mikrofon-Berechtigung -->
@@ -71,6 +76,50 @@
                     <button type="button" class="btn btn-outline-success" id="install-app-btn" style="display: none;">
                         App installieren
                     </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Push-Benachrichtigungs-Status -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-gear me-2"></i>
+                    Push-Benachrichtigungs-Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Browser-Unterstützung</h6>
+                        <p class="text-muted">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Web Push API wird unterstützt
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Service Worker</h6>
+                        <p class="text-muted">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            Service Worker ist aktiv
+                        </p>
+                    </div>
+                </div>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Serverbasierte Benachrichtigungen:</strong> 
+                    Sie erhalten Push-Benachrichtigungen auch wenn der Browser geschlossen ist. 
+                    Das System funktioniert über den Server und ist nicht auf lokales Polling angewiesen.
+                </div>
+                
+                <div class="alert alert-warning" id="push-setup-alert" style="display: none;">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Push-Benachrichtigungen nicht aktiviert:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li>Klicken Sie auf <strong>"Push-Benachrichtigungen aktivieren"</strong></li>
+                        <li>Erteilen Sie die Browser-Berechtigung wenn gefragt</li>
+                        <li>Versuchen Sie dann den <strong>"Test senden"</strong> Button</li>
+                    </ol>
                 </div>
             </div>
         </div>

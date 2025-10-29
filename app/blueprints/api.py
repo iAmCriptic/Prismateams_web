@@ -267,8 +267,15 @@ def subscribe_push():
         data = request.get_json()
         print(f"API: Empfangene Daten: {data}")
         
-        subscription_data = data.get('subscription')
-        user_agent = data.get('user_agent', '')
+        # Unterstütze sowohl altes als auch neues Format
+        if 'subscription' in data:
+            # Altes Format: {subscription: {...}, user_agent: '...'}
+            subscription_data = data.get('subscription')
+            user_agent = data.get('user_agent', '')
+        else:
+            # Neues Format: direkt die Subscription-Daten
+            subscription_data = data
+            user_agent = data.get('user_agent', '')
         
         if not subscription_data:
             print("API: Fehler: Subscription-Daten fehlen")
@@ -470,49 +477,77 @@ def update_chat_notification_settings(chat_id):
         return jsonify({'error': str(e)}), 500
 
 
-@api_bp.route('/notifications/pending', methods=['GET'])
+# Polling-Endpoint entfernt - Server-Push-System verwendet
+
+# VAPID Public Key Endpoint
+@api_bp.route('/push/vapid-key', methods=['GET'])
 @login_required
-def get_pending_notifications():
-    """Hole ausstehende Benachrichtigungen für den aktuellen Benutzer."""
+def get_vapid_public_key():
+    """Gibt den VAPID Public Key für Push-Subscriptions zurück."""
     try:
-        print(f"API: Hole ausstehende Benachrichtigungen für Benutzer {current_user.id}")
-        from app.models.notification import NotificationLog
+        from flask import current_app
+        public_key = current_app.config.get('VAPID_PUBLIC_KEY')
         
-        # Hole nur ungelesene Benachrichtigungen der letzten 24 Stunden
-        from datetime import datetime, timedelta
-        since = datetime.utcnow() - timedelta(hours=24)
+        if not public_key:
+            print("VAPID Public Key nicht konfiguriert")
+            return jsonify({
+                'error': 'VAPID Keys nicht konfiguriert', 
+                'message': 'Bitte konfigurieren Sie VAPID Keys in der .env Datei'
+            }), 500
         
-        notifications = NotificationLog.query.filter(
-            NotificationLog.user_id == current_user.id,
-            NotificationLog.is_read == False,
-            NotificationLog.sent_at > since
-        ).order_by(NotificationLog.sent_at.desc()).limit(10).all()
-        
-        print(f"API: Gefunden {len(notifications)} Benachrichtigungen")
-        
-        result = []
-        for notif in notifications:
-            result.append({
-                'id': notif.id,
-                'title': notif.title,
-                'body': notif.body,
-                'icon': notif.icon,
-                'url': notif.url,
-                'sent_at': notif.sent_at.isoformat(),
-                'success': notif.success
-            })
-        
-        response_data = {
-            'notifications': result,
-            'count': len(result)
-        }
-        
-        print(f"API: Sende Response: {response_data}")
-        return jsonify(response_data)
+        return jsonify({
+            'public_key': public_key
+        })
         
     except Exception as e:
-        print(f"API: Fehler beim Holen der Benachrichtigungen: {e}")
-        return jsonify({'error': str(e)}), 500
+        print(f"VAPID Key Fehler: {e}")
+        return jsonify({'error': str(e), 'message': 'Fehler beim Laden der VAPID Keys'}), 500
+
+# Test Push Notification Endpoint
+@api_bp.route('/push/test', methods=['POST'])
+@login_required
+def test_push_notification():
+    """Sendet eine Test-Push-Benachrichtigung an den aktuellen Benutzer."""
+    try:
+        from app.utils.notifications import send_push_notification
+        from app.models.notification import PushSubscription
+        
+        # Prüfe ob User Push-Subscriptions hat
+        subscriptions = PushSubscription.query.filter_by(
+            user_id=current_user.id,
+            is_active=True
+        ).all()
+        
+        if not subscriptions:
+            return jsonify({
+                'success': False, 
+                'message': 'Keine aktiven Push-Subscriptions gefunden. Bitte registrieren Sie sich zuerst für Push-Benachrichtigungen.',
+                'action_required': 'subscribe'
+            }), 400
+        
+        # Sende Test-Push-Benachrichtigung
+        success = send_push_notification(
+            user_id=current_user.id,
+            title="Test-Benachrichtigung",
+            body="Dies ist eine Test-Push-Benachrichtigung vom Team Portal.",
+            url="/dashboard/",
+            data={'type': 'test', 'timestamp': datetime.utcnow().isoformat()}
+        )
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': f'Test-Benachrichtigung erfolgreich gesendet an {len(subscriptions)} Gerät(e)'
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': 'Fehler beim Senden der Test-Benachrichtigung. Bitte prüfen Sie Ihre VAPID-Konfiguration.'
+            }), 500
+            
+    except Exception as e:
+        print(f"Test-Push Fehler: {e}")
+        return jsonify({'error': str(e), 'message': 'Interner Server-Fehler beim Senden der Test-Benachrichtigung'}), 500
 
 
 @api_bp.route('/notifications/mark-read/<int:notification_id>', methods=['POST'])

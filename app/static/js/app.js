@@ -340,7 +340,8 @@ class ServerPushManager {
             });
             
             if (!vapidResponse.ok) {
-                throw new Error('VAPID Key konnte nicht geladen werden');
+                const errorData = await vapidResponse.json();
+                throw new Error(errorData.message || 'VAPID Key konnte nicht geladen werden');
             }
             
             const vapidData = await vapidResponse.json();
@@ -361,19 +362,26 @@ class ServerPushManager {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    ...subscription,
+                    endpoint: subscription.endpoint,
+                    keys: subscription.getKey ? {
+                        p256dh: subscription.getKey('p256dh'),
+                        auth: subscription.getKey('auth')
+                    } : subscription.keys,
                     user_agent: navigator.userAgent
                 })
             });
             
             if (response.ok) {
-                console.log('Push-Benachrichtigungen erfolgreich registriert');
+                const result = await response.json();
+                console.log('Push-Benachrichtigungen erfolgreich registriert:', result);
                 this.updatePushStatusUI({ supported: true, subscribed: true, permission: permission });
+                this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
                 return true;
             } else {
                 const errorData = await response.json();
                 console.error('Fehler beim Registrieren der Push-Benachrichtigungen:', errorData);
                 this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission, error: errorData.message });
+                this.showTestResult('error', 'Fehler beim Aktivieren: ' + (errorData.message || 'Unbekannter Fehler'));
                 return false;
             }
             
@@ -431,6 +439,16 @@ class ServerPushManager {
                 subscribeBtn.textContent = 'Push-Benachrichtigungen aktivieren';
             }
         }
+        
+        // Zeige/Verstecke Setup-Warnung
+        const setupAlert = document.getElementById('push-setup-alert');
+        if (setupAlert) {
+            if (status.supported && !status.subscribed && status.permission !== 'denied') {
+                setupAlert.style.display = 'block';
+            } else {
+                setupAlert.style.display = 'none';
+            }
+        }
     }
     
     setupPushEventListeners() {
@@ -461,15 +479,58 @@ class ServerPushManager {
                 }
             });
             
-            if (response.ok) {
-                alert('Test-Benachrichtigung gesendet!');
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Erfolgreich gesendet
+                this.showTestResult('success', data.message);
             } else {
-                const error = await response.json();
-                alert('Fehler beim Senden der Test-Benachrichtigung: ' + error.message);
+                // Fehler beim Senden
+                if (data.action_required === 'subscribe') {
+                    this.showTestResult('warning', data.message + ' Klicken Sie auf "Push aktivieren" um sich zu registrieren.');
+                } else {
+                    this.showTestResult('error', data.message || 'Unbekannter Fehler beim Senden der Test-Benachrichtigung');
+                }
             }
         } catch (error) {
-            alert('Fehler beim Senden der Test-Benachrichtigung: ' + error.message);
+            this.showTestResult('error', 'Netzwerk-Fehler: ' + error.message);
         }
+    }
+    
+    showTestResult(type, message) {
+        // Erstelle Toast-Benachrichtigung
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'danger'} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>Test-Push:</strong> ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        // Füge Toast-Container hinzu falls nicht vorhanden
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1060';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.appendChild(toast);
+        
+        // Zeige Toast
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        // Entferne Toast nach dem Ausblenden
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
     }
 }
 
@@ -483,78 +544,7 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-async function registerPushNotifications() {
-    try {
-        const registration = await navigator.serviceWorker.ready;
-        
-        // Prüfe ob bereits eine Subscription existiert
-        pushSubscription = await registration.pushManager.getSubscription();
-        
-        if (!pushSubscription) {
-            // Prüfe ob Benachrichtigungen erlaubt sind
-            if (Notification.permission === 'default') {
-                const permission = await Notification.requestPermission();
-                if (permission !== 'granted') {
-                    return;
-                }
-            } else if (Notification.permission !== 'granted') {
-                return;
-            }
-            
-            // Erstelle neue Subscription
-            const applicationServerKey = urlBase64ToUint8Array('MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG4ECv1S2TNUvpqoXcq4hbpVrFKruYoRRc1A8NMDhmU_a597YCT1e3_61_ujJLDDEwSnkauzSkjXh_QgeMb6Nsg');
-            
-            pushSubscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey
-            });
-        }
-        
-        // Sende Subscription an Server
-        await sendSubscriptionToServer(pushSubscription);
-        
-    } catch (error) {
-        // Versuche es erneut nach 5 Sekunden
-        setTimeout(() => {
-            registerPushNotifications();
-        }, 5000);
-    }
-}
-
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-    
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-}
-
-async function sendSubscriptionToServer(subscription) {
-    try {
-        const response = await fetch('/api/push/subscribe', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                subscription: subscription,
-                user_agent: navigator.userAgent
-            })
-        });
-        
-        return response.ok;
-    } catch (error) {
-        return false;
-    }
-}
+// Legacy-Funktionen entfernt - verwende ServerPushManager
 
 function showNotificationButton() {
     // Erstelle Benachrichtigungs-Button falls noch nicht vorhanden

@@ -1,5 +1,5 @@
 // Service Worker für Team Portal PWA - Serverbasiertes Push-System
-const CACHE_NAME = 'team-portal-v3';
+const CACHE_NAME = 'team-portal-v4';
 const urlsToCache = [
   '/',
   '/static/css/style.css',
@@ -258,3 +258,4 @@ self.addEventListener('sync', function(event) {
 
 // Service Worker ist bereit für Server-Push-Benachrichtigungen
 console.log('Service Worker: Bereit für Server-Push-Benachrichtigungen');
+console.log('Service Worker: Polling-System entfernt - nur noch Server-Push');

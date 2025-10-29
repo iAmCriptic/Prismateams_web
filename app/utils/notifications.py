@@ -67,7 +67,8 @@ def send_push_notification(
     # Lade VAPID Keys aus Config
     vapid_private_key, vapid_public_key, vapid_claims = get_vapid_keys()
     if not vapid_private_key:
-        logging.error("VAPID Keys nicht konfiguriert")
+        logging.error("VAPID Keys nicht konfiguriert - Push-Benachrichtigungen deaktiviert")
+        print("VAPID Keys nicht konfiguriert - Push-Benachrichtigungen deaktiviert")
         return False
     
     user = User.query.get(user_id)
