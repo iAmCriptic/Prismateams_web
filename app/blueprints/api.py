@@ -328,25 +328,7 @@ def unsubscribe_push():
         return jsonify({'error': str(e)}), 500
 
 
-@api_bp.route('/push/test', methods=['POST'])
-@login_required
-def test_push():
-    """Send test push notification to current user."""
-    try:
-        success = send_push_notification(
-            user_id=current_user.id,
-            title='Test-Benachrichtigung',
-            body='Dies ist eine Test-Benachrichtigung vom Team Portal.',
-            url='/dashboard'
-        )
-        
-        if success:
-            return jsonify({'message': 'Test-Benachrichtigung gesendet'})
-        else:
-            return jsonify({'error': 'Keine aktive Push-Subscription gefunden'}), 400
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# Entfernt: doppelte /push/test Route, siehe weiter unten test_push_notification
 
 
 @api_bp.route('/push/status', methods=['GET'])
@@ -487,17 +469,64 @@ def get_vapid_public_key():
     try:
         from flask import current_app
         public_key = current_app.config.get('VAPID_PUBLIC_KEY')
-        
+
         if not public_key:
             print("VAPID Public Key nicht konfiguriert")
             return jsonify({
                 'error': 'VAPID Keys nicht konfiguriert', 
                 'message': 'Bitte konfigurieren Sie VAPID Keys in der .env Datei'
             }), 500
-        
-        return jsonify({
-            'public_key': public_key
-        })
+
+        # Unterstütze verschiedene Formate: PEM (-----BEGIN PUBLIC KEY-----) oder bereits Base64URL
+        try:
+            import re, base64
+            key_out = public_key.strip()
+            if 'BEGIN PUBLIC KEY' in key_out:
+                # Entferne PEM-Header/Trailer und Whitespaces
+                pem_b64_any = re.sub(r"-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\\n|\n|\r|\s", "", key_out)
+                # Einige Generatoren liefern im PEM bereits base64url-Zeichen - in Standard-Base64 überführen
+                pem_b64_std = pem_b64_any.replace('-', '+').replace('_', '/')
+                # Padding ergänzen
+                missing = len(pem_b64_std) % 4
+                if missing:
+                    pem_b64_std += '=' * (4 - missing)
+                # Dekodiere DER SubjectPublicKeyInfo
+                der = base64.b64decode(pem_b64_std)
+                # Sehr einfache Extraktion des EC Public Key (uncompressed 65 bytes, beginnt mit 0x04)
+                # Suche nach erstem 0x04 gefolgt von 64 weiteren Bytes
+                idx = der.find(b"\x04")
+                raw = None
+                if idx != -1 and idx + 65 <= len(der):
+                    candidate = der[idx:idx+65]
+                    if len(candidate) == 65:
+                        raw = candidate
+                # Fallback: manchmal enthält BIT STRING ein Präfix 0x03 <len> 0x00 0x04...
+                if raw is None:
+                    try:
+                        # finde BIT STRING (0x03), überspringe Länge und 1 Byte unused-bits
+                        bit_idx = der.find(b"\x03")
+                        if bit_idx != -1 and bit_idx + 3 < len(der):
+                            # Länge-Byte kann lange Form sein; handle nur kurze Form (<128)
+                            bit_len = der[bit_idx+1]
+                            offset = bit_idx + 2  # nach Länge
+                            # ein Byte 'unused bits'
+                            unused = der[offset]
+                            point_start = offset + 1
+                            if point_start < len(der) and der[point_start] == 0x04 and point_start + 65 <= len(der):
+                                raw = der[point_start:point_start+65]
+                    except Exception:
+                        pass
+                if raw is None:
+                    raise ValueError('Konnte EC Public Key (65 Bytes) nicht aus PEM extrahieren')
+                # URL-safe Base64 ohne Padding
+                key_out = base64.urlsafe_b64encode(raw).decode('ascii').rstrip('=')
+            else:
+                # Angenommen bereits base64url
+                key_out = key_out.strip()
+            return jsonify({'public_key': key_out})
+        except Exception as e:
+            print(f"VAPID Key Normalisierung fehlgeschlagen: {e}")
+            return jsonify({'error': 'VAPID Key Formatfehler', 'message': str(e)}), 500
         
     except Exception as e:
         print(f"VAPID Key Fehler: {e}")
@@ -509,6 +538,16 @@ def get_vapid_public_key():
 def test_push_notification():
     """Sendet eine Test-Push-Benachrichtigung an den aktuellen Benutzer."""
     try:
+        # Prüfe VAPID-Konfiguration frühzeitig und liefere sinnvolle Fehlermeldung statt 500
+        from flask import current_app
+        vapid_priv = current_app.config.get('VAPID_PRIVATE_KEY')
+        vapid_pub = current_app.config.get('VAPID_PUBLIC_KEY')
+        if not vapid_priv or not vapid_pub:
+            return jsonify({
+                'success': False,
+                'message': 'VAPID Keys sind nicht konfiguriert. Bitte `VAPID_PUBLIC_KEY` und `VAPID_PRIVATE_KEY` in .env setzen oder `vapid_keys.json` bereitstellen.',
+                'action_required': 'configure_vapid'
+            }), 400
         from app.utils.notifications import send_push_notification
         from app.models.notification import PushSubscription
         
@@ -542,8 +581,8 @@ def test_push_notification():
         else:
             return jsonify({
                 'success': False, 
-                'message': 'Fehler beim Senden der Test-Benachrichtigung. Bitte prüfen Sie Ihre VAPID-Konfiguration.'
-            }), 500
+                'message': 'Fehler beim Senden der Test-Benachrichtigung. Bitte prüfen Sie VAPID-Keys und Browser-Subscription.'
+            }), 400
             
     except Exception as e:
         print(f"Test-Push Fehler: {e}")

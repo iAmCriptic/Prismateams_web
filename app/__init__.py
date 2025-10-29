@@ -290,6 +290,11 @@ def create_app(config_name='default'):
     def manifest():
         return app.send_static_file('manifest.json')
     
+    # Service Worker unter Root-Scope ausliefern, damit er die gesamte App kontrolliert
+    @app.route('/sw.js')
+    def service_worker():
+        return app.send_static_file('sw.js')
+    
     # Create database tables
     with app.app_context():
         try:

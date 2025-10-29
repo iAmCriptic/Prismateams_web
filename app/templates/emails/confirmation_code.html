@@ -4,173 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>E-Mail-Bestätigung - {{ app_name or 'Team Portal' }}</title>
+    <!-- Um maximale Kompatibilität zu gewährleisten, werden die meisten Styles im <style> Block definiert. -->
     <style>
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+
+        /* Stilverbesserungen für moderne Darstellung */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #333333;
+            background-color: #f4f6f8;
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
-        .email-container {
+        .container {
             max-width: 600px;
             margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
+            background: #ffffff; /* Weißer Hintergrund, um das Logo hervorzuheben */
+            padding: 30px 20px 20px 20px;
             text-align: center;
         }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
+        .header img {
+            max-width: 150px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
         }
-        .header p {
-            margin: 10px 0 0 0;
-            opacity: 0.9;
-            font-size: 16px;
+        .header h1 {
+            color: #5B6DE6; /* Markenfarbe */
+            margin: 15px 0 0 0;
+            font-size: 24px;
+            font-weight: 700;
         }
         .content {
-            padding: 40px 30px;
+            padding: 30px 40px;
         }
-        .confirmation-code {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
+        .confirmation-code-box {
+            background: #EEF2FF; /* Helles Blau/Lila */
+            border-radius: 12px;
+            padding: 25px 20px;
             text-align: center;
             margin: 30px 0;
         }
-        .confirmation-code .code {
-            font-size: 32px;
+        .confirmation-code-box .code {
+            font-size: 36px;
             font-weight: bold;
-            color: #667eea;
-            letter-spacing: 4px;
+            color: #5B6DE6;
+            letter-spacing: 6px;
             font-family: 'Courier New', monospace;
+            display: block;
+            margin: 10px 0;
         }
-        .confirmation-code .label {
+        .confirmation-code-box .label {
             font-size: 14px;
-            color: #6c757d;
-            margin-top: 10px;
+            color: #6C757D;
+            margin-top: 5px;
         }
         .instructions {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 0 8px 8px 0;
+            border-left: 4px solid #5B6DE6;
+            padding-left: 15px;
+            margin: 25px 0;
+            color: #555555;
         }
-        .instructions h3 {
-            margin: 0 0 10px 0;
-            color: #1976d2;
-            font-size: 18px;
-        }
-        .instructions ol {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        .instructions li {
-            margin: 8px 0;
+        .security-note {
+            background: #FFFBEB;
+            border: 1px solid #FFE573;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 25px 0;
+            font-size: 14px;
+            color: #856404;
         }
         .footer {
-            background: #f8f9fa;
-            padding: 20px 30px;
+            background: #f4f6f8;
+            padding: 25px 40px;
             text-align: center;
-            border-top: 1px solid #dee2e6;
+            border-top: 1px solid #E5E7EB;
         }
         .footer p {
             margin: 0;
-            color: #6c757d;
-            font-size: 14px;
+            color: #9CA3AF;
+            font-size: 12px;
+            line-height: 1.5;
         }
-        .security-note {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 20px 0;
-        }
-        .security-note .icon {
-            color: #856404;
-            margin-right: 8px;
-        }
-        .button {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        a {
+            color: #5B6DE6;
             text-decoration: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-weight: 500;
-            margin: 20px 0;
         }
-        @media (max-width: 600px) {
-            .email-container {
-                margin: 0;
-                border-radius: 0;
-            }
-            .header, .content, .footer {
+        
+        /* Responsive Anpassungen */
+        @media only screen and (max-width: 600px) {
+            .content, .footer {
                 padding: 20px;
             }
-            .confirmation-code .code {
-                font-size: 24px;
-                letter-spacing: 2px;
+            .container {
+                border-radius: 0;
             }
         }
     </style>
 </head>
-<body>
-    <div class="email-container">
-        <div class="header">
-            <h1>{{ app_name or 'Team Portal' }}</h1>
-            <p>E-Mail-Bestätigung</p>
-        </div>
-        
-        <div class="content">
-            <h2>Hallo {{ user.first_name }}!</h2>
+<body style="margin: 0; padding: 0; background-color: #f4f6f8;">
+    <!-- Äußere Tabelle für die Zentrierung und den Hintergrund -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; background-color: #f4f6f8;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                
+                <!-- Hauptcontainer -->
+                <table border="0" cellpadding="0" cellspacing="0" class="container" width="100%" style="border-collapse: collapse; max-width: 600px; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
+                    
+                    <!-- Header mit Logo -->
+                    <tr>
+                        <td align="center" class="header" style="padding: 30px 20px 20px 20px; text-align: center;">
+                            <!-- Das Logo wird hier über den Pfad /static/img/logo.png eingebunden -->
+                            <img src="/static/img/logo.png" alt="{{ app_name or 'Team Portal' }} Logo" width="150" style="display: block; margin: 0 auto; max-width: 150px; height: auto;">
+                            <h1 style="color: #5B6DE6; margin: 15px 0 0 0; font-size: 24px; font-weight: 700;">
+                                {{ app_name or 'Team Portal' }}
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <!-- Hauptinhalt -->
+                    <tr>
+                        <td class="content" style="padding: 30px 40px; color: #333333; font-size: 16px;">
+                            
+                            <h2 style="margin: 0 0 20px 0; font-size: 22px; font-weight: 600;">Hallo {{ user.first_name }}!</h2>
+                            
+                            <p style="margin: 0 0 15px 0;">
+                                vielen Dank für Ihre Registrierung bei <strong>{{ app_name or 'Team Portal' }}</strong>!
+                            </p>
+                            
+                            <p style="margin: 0 0 25px 0;">
+                                Um Ihr Konto zu aktivieren und die Sicherheit zu gewährleisten, benötigen wir eine E-Mail-Bestätigung.
+                            </p>
+                            
+                            <!-- Bestätigungscode-Box -->
+                            <div class="confirmation-code-box" style="background: #EEF2FF; border-radius: 12px; padding: 25px 20px; text-align: center; margin: 30px 0;">
+                                <div class="label" style="font-size: 14px; color: #6C757D; margin-top: 5px;">Ihr 6-stelliger Bestätigungscode</div>
+                                <span class="code" style="font-size: 36px; font-weight: bold; color: #5B6DE6; letter-spacing: 6px; font-family: 'Courier New', monospace; display: block; margin: 10px 0;">{{ confirmation_code }}</span>
+                            </div>
+                            
+                            <!-- Anweisungen -->
+                            <div class="instructions" style="border-left: 4px solid #5B6DE6; padding-left: 15px; margin: 25px 0; color: #555555;">
+                                <p style="margin: 0 0 10px 0; font-weight: 600;">So bestätigen Sie Ihre E-Mail-Adresse:</p>
+                                <ol style="margin: 0; padding-left: 20px;">
+                                    <li style="margin: 5px 0;">Melden Sie sich mit Ihren Zugangsdaten an.</li>
+                                    <li style="margin: 5px 0;">Geben Sie den obigen 6-stelligen Code ein.</li>
+                                    <li style="margin: 5px 0;">Ihr Konto wird automatisch aktiviert.</li>
+                                </ol>
+                            </div>
+                            
+                            <!-- Sicherheitshinweis -->
+                            <div class="security-note" style="background: #FFFBEB; border: 1px solid #FFE573; border-radius: 8px; padding: 15px; margin: 25px 0; font-size: 14px; color: #856404;">
+                                <strong>🔒 Sicherheitshinweis:</strong> Dieser Code ist nur 24 Stunden gültig und darf nicht an Dritte weitergegeben werden.
+                            </div>
+                            
+                            <p style="margin: 0 0 15px 0;">Falls Sie sich nicht registriert haben, können Sie diese E-Mail ignorieren.</p>
+                            
+                            <p style="margin: 0 0 15px 0;">Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+                            
+                            <p style="margin: 25px 0 0 0;">Mit freundlichen Grüßen,<br>
+                            Ihr {{ app_name or 'Team Portal' }} Team</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td class="footer" align="center" style="background: #f4f6f8; padding: 25px 40px; text-align: center; border-top: 1px solid #E5E7EB;">
+                            <p style="margin: 0 0 5px 0; color: #9CA3AF; font-size: 12px;">Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht darauf.</p>
+                            <p style="margin: 0; color: #9CA3AF; font-size: 12px;">&copy; {{ current_year }} {{ app_name or 'Team Portal' }}. Alle Rechte vorbehalten.</p>
+                        </td>
+                    </tr>
+                </table>
+                <!-- Ende Hauptcontainer -->
             
-            <p>vielen Dank für Ihre Registrierung bei <strong>{{ app_name or 'Team Portal' }}</strong>!</p>
-            
-            <p>Um Ihr Konto zu aktivieren und die Sicherheit zu gewährleisten, benötigen wir eine E-Mail-Bestätigung.</p>
-            
-            <div class="confirmation-code">
-                <div class="code">{{ confirmation_code }}</div>
-                <div class="label">Ihr 6-stelliger Bestätigungscode</div>
-            </div>
-            
-            <div class="instructions">
-                <h3>📧 So bestätigen Sie Ihre E-Mail-Adresse:</h3>
-                <ol>
-                    <li>Melden Sie sich mit Ihren Zugangsdaten an</li>
-                    <li>Geben Sie den obigen 6-stelligen Code ein</li>
-                    <li>Ihr Konto wird automatisch aktiviert</li>
-                </ol>
-            </div>
-            
-            <div class="security-note">
-                <strong>🔒 Sicherheitshinweis:</strong> Dieser Code ist nur 24 Stunden gültig und darf nicht an Dritte weitergegeben werden.
-            </div>
-            
-            <p>Falls Sie sich nicht registriert haben, können Sie diese E-Mail ignorieren.</p>
-            
-            <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-            
-            <p>Mit freundlichen Grüßen,<br>
-            Ihr {{ app_name or 'Team Portal' }} Team</p>
-        </div>
-        
-        <div class="footer">
-            <p>Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht darauf.</p>
-            <p>&copy; {{ current_year }} {{ app_name or 'Team Portal' }}. Alle Rechte vorbehalten.</p>
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
-

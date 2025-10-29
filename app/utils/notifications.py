@@ -20,6 +20,10 @@ except ImportError:
 
 # VAPID Keys aus Config laden
 from flask import current_app
+import re
+import base64
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
 
 def get_vapid_keys():
     """Lade VAPID Keys aus der App-Konfiguration."""
@@ -30,6 +34,46 @@ def get_vapid_keys():
         logging.warning("VAPID Keys nicht konfiguriert. Push-Benachrichtigungen deaktiviert.")
         return None, None, None
     
+    # Normalisiere verschiedene Private-Key-Formate auf PEM (PKCS8, P-256)
+    try:
+        # Ersetze literale \n in echten Zeilenumbruch (falls .env die PEM-Zeilen als einzeilige Zeichenfolge enthält)
+        if isinstance(private_key, str) and '\\n' in private_key:
+            private_key = private_key.replace('\\n', '\n')
+
+        key_clean = private_key.strip()
+        # 1) base64url-RAW (43 Zeichen)
+        if re.fullmatch(r"[A-Za-z0-9_-]{43}", key_clean):
+            raw = private_key.strip().replace('-', '+').replace('_', '/')
+            raw += '=' * ((4 - len(raw) % 4) % 4)
+            raw_bytes = base64.b64decode(raw)
+            if len(raw_bytes) == 32:
+                priv_int = int.from_bytes(raw_bytes, 'big')
+                priv_obj = ec.derive_private_key(priv_int, ec.SECP256R1())
+                # Erzeuge klassisches EC PRIVATE KEY (SEC1), einige Libraries bevorzugen dieses Format
+                private_key = priv_obj.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption()
+                ).decode('ascii')
+        # 2) base64url DER PKCS8 (z. B. lange Zeichenkette aus Generatoren)
+        elif re.fullmatch(r"[A-Za-z0-9_-]{60,}", key_clean) and 'BEGIN' not in key_clean:
+            der_b64 = key_clean.replace('-', '+').replace('_', '/')
+            der_b64 += '=' * ((4 - len(der_b64) % 4) % 4)
+            der_bytes = base64.b64decode(der_b64)
+            try:
+                priv_obj = serialization.load_der_private_key(der_bytes, password=None)
+                private_key = priv_obj.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption()
+                ).decode('ascii')
+            except Exception:
+                pass
+        # 3) Falls PEM bereits vorhanden: nichts tun
+    except Exception as e:
+        logging.error(f"VAPID Private Key Umwandlung fehlgeschlagen: {e}")
+        # Fallback: verwende Originalwert – pywebpush wird sonst selbst Fehler werfen
+
     vapid_claims = {
         "sub": "mailto:admin@yourdomain.com"  # E-Mail des Administrators
     }
@@ -99,11 +143,28 @@ def send_push_notification(
         "data": data or {}
     }
     
+    def ensure_padded_base64url(value: Optional[str]) -> Optional[str]:
+        if not isinstance(value, str):
+            return value
+        v = value.strip()
+        # Belasse urlsafe-Zeichen, füge nur Padding hinzu
+        padding = (4 - (len(v) % 4)) % 4
+        if padding:
+            v += '=' * padding
+        return v
+
     for subscription in subscriptions:
         try:
-            # Sende Push-Benachrichtigung mit Retry-Logik
+            # Subscription vorbereiten: korrekte Base64url-Padding hinzufügen
+            sub_info = subscription.to_dict()
+            if 'keys' in sub_info:
+                sub_info['keys'] = dict(sub_info['keys'])
+                sub_info['keys']['p256dh'] = ensure_padded_base64url(sub_info['keys'].get('p256dh'))
+                sub_info['keys']['auth'] = ensure_padded_base64url(sub_info['keys'].get('auth'))
+
+            # Sende Push-Benachrichtigung
             webpush(
-                subscription_info=subscription.to_dict(),
+                subscription_info=sub_info,
                 data=json.dumps(payload),
                 vapid_private_key=vapid_private_key,
                 vapid_claims=vapid_claims,
@@ -126,6 +187,34 @@ def send_push_notification(
             
         except Exception as e:
             logging.error(f"Unerwarteter Fehler beim Senden der Push-Benachrichtigung: {e}")
+            # Fallback: Wenn das Deserialisieren des Keys scheitert, versuche PEM-Rebuild aus base64url erneut
+            try:
+                if isinstance(vapid_private_key, str) and not vapid_private_key.startswith('-----BEGIN'):
+                    raw = vapid_private_key.strip().replace('-', '+').replace('_', '/')
+                    raw += '=' * ((4 - len(raw) % 4) % 4)
+                    raw_bytes = base64.b64decode(raw)
+                    if len(raw_bytes) == 32:
+                        priv_int = int.from_bytes(raw_bytes, 'big')
+                        priv_obj = ec.derive_private_key(priv_int, ec.SECP256R1())
+                        pem = priv_obj.private_bytes(
+                            encoding=serialization.Encoding.PEM,
+                            format=serialization.PrivateFormat.PKCS8,
+                            encryption_algorithm=serialization.NoEncryption()
+                        ).decode('ascii')
+                        # Beim Fallback ebenfalls Keys korrekt padden
+                        sub_info_fallback = sub_info
+                        webpush(
+                            subscription_info=subscription.to_dict(),
+                            data=json.dumps(payload),
+                            vapid_private_key=pem,
+                            vapid_claims=vapid_claims,
+                            ttl=86400
+                        )
+                        subscription.last_used = datetime.utcnow()
+                        success_count += 1
+                        continue
+            except Exception as e2:
+                logging.error(f"Fallback PEM-Rebuild fehlgeschlagen: {e2}")
     
     # Logge das Ergebnis nur bei erfolgreichen Push-Benachrichtigungen
     if success_count > 0:
@@ -550,6 +639,21 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         
         endpoint = subscription_data.get('endpoint')
         keys = subscription_data.get('keys', {})
+
+        # Normalisiere Schlüssel auf base64url (pywebpush erwartet urlsafe, ohne Padding)
+        def to_base64url(value: str) -> str:
+            if not isinstance(value, str):
+                return value
+            v = value.strip()
+            # wenn bereits urlsafe, nur Padding entfernen
+            v = v.replace('+', '-').replace('/', '_')
+            v = v.rstrip('=')
+            return v
+
+        if 'p256dh' in keys:
+            keys['p256dh'] = to_base64url(keys['p256dh'])
+        if 'auth' in keys:
+            keys['auth'] = to_base64url(keys['auth'])
         
         print(f"UTILS: Endpoint: {endpoint}")
         print(f"UTILS: Keys: {keys}")

@@ -419,9 +419,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Browser-Berechtigungen verwalten
-    const notificationStatusBadge = document.getElementById('notification-status-badge');
+    const notificationStatusBadge = document.getElementById('push-status');
     const microphoneStatusBadge = document.getElementById('microphone-status-badge');
-    const requestNotificationBtn = document.getElementById('request-notification-btn');
+    const requestNotificationBtn = document.getElementById('subscribe-push-btn');
     const requestMicrophoneBtn = document.getElementById('request-microphone-btn');
     const installAppBtn = document.getElementById('install-app-btn');
     
@@ -489,49 +489,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Event-Listener für Berechtigungsanfragen
-    requestNotificationBtn.addEventListener('click', async function() {
-        if ('Notification' in window) {
-            const permission = await Notification.requestPermission();
-            updateBadge(notificationStatusBadge, permission);
-            
-            if (permission === 'granted') {
-                requestNotificationBtn.style.display = 'none';
-                showToast('Benachrichtigungen aktiviert', 'Sie erhalten jetzt Push-Benachrichtigungen.', 'success');
-            } else {
-                showToast('Benachrichtigungen verweigert', 'Sie können Benachrichtigungen in den Browser-Einstellungen aktivieren.', 'warning');
-            }
-        }
-    });
-    
-    requestMicrophoneBtn.addEventListener('click', async function() {
-        if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop());
+    if (requestNotificationBtn) {
+        requestNotificationBtn.addEventListener('click', async function() {
+            if ('Notification' in window) {
+                const permission = await Notification.requestPermission();
+                updateBadge(notificationStatusBadge, permission);
                 
-                updateBadge(microphoneStatusBadge, 'granted');
-                requestMicrophoneBtn.style.display = 'none';
-                showToast('Mikrofon aktiviert', 'Sie können jetzt Sprachnachrichten aufnehmen.', 'success');
-            } catch (error) {
-                updateBadge(microphoneStatusBadge, 'denied');
-                showToast('Mikrofon verweigert', 'Mikrofon-Zugriff ist für Sprachnachrichten erforderlich.', 'warning');
+                if (permission === 'granted') {
+                    requestNotificationBtn.style.display = 'none';
+                    showToast('Benachrichtigungen aktiviert', 'Sie erhalten jetzt Push-Benachrichtigungen.', 'success');
+                } else {
+                    showToast('Benachrichtigungen verweigert', 'Sie können Benachrichtigungen in den Browser-Einstellungen aktivieren.', 'warning');
+                }
             }
-        }
-    });
+        });
+    }
     
-    installAppBtn.addEventListener('click', async function() {
-        if (window.deferredPrompt) {
-            window.deferredPrompt.prompt();
-            const { outcome } = await window.deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
-                showToast('App installiert', 'Die App wurde erfolgreich installiert!', 'success');
-                installAppBtn.style.display = 'none';
+    if (requestMicrophoneBtn) {
+        requestMicrophoneBtn.addEventListener('click', async function() {
+            if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    updateBadge(microphoneStatusBadge, 'granted');
+                    requestMicrophoneBtn.style.display = 'none';
+                    showToast('Mikrofon aktiviert', 'Sie können jetzt Sprachnachrichten aufnehmen.', 'success');
+                } catch (error) {
+                    updateBadge(microphoneStatusBadge, 'denied');
+                    showToast('Mikrofon verweigert', 'Mikrofon-Zugriff ist für Sprachnachrichten erforderlich.', 'warning');
+                }
             }
-            
-            window.deferredPrompt = null;
-        }
-    });
+        });
+    }
+    
+    if (installAppBtn) {
+        installAppBtn.addEventListener('click', async function() {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const { outcome } = await window.deferredPrompt.userChoice;
+                
+                if (outcome === 'accepted') {
+                    showToast('App installiert', 'Die App wurde erfolgreich installiert!', 'success');
+                    installAppBtn.style.display = 'none';
+                }
+                
+                window.deferredPrompt = null;
+            }
+        });
+    }
     
     function showToast(title, message, type) {
         const toast = document.createElement('div');

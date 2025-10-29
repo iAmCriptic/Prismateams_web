@@ -15,7 +15,7 @@ function showStatusInfo() {
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/static/sw.js')
+        navigator.serviceWorker.register('/sw.js')
             .then(function(registration) {
                 // Starte Benachrichtigungen im Service Worker
                 if (registration.active) {
@@ -98,21 +98,17 @@ window.addEventListener('appinstalled', function(evt) {
 let pushSubscription = null;
 
 // Prüfe ob Push-Benachrichtigungen unterstützt werden
-if ('serviceWorker' in navigator && 'PushManager' in window) {
-    // Prüfe ob wir in einem sicheren Kontext sind
-    if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-        // Warte bis Service Worker bereit ist, dann registriere Push-Subscription
-        navigator.serviceWorker.ready.then(function(registration) {
-            registerPushNotifications();
-        }).catch(function(error) {
-            console.error('Fehler beim Warten auf Service Worker:', error);
-        });
-        
-        // Zusätzlicher Fallback: Versuche es auch nach 2 Sekunden
-        setTimeout(() => {
-            registerPushNotifications();
-        }, 2000);
-    }
+// Sicheren Kontext zuverlässig über window.isSecureContext prüfen
+const isPushEnvironmentReady = () => (
+    window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window
+);
+
+if (isPushEnvironmentReady()) {
+    // Kein unmittelbarer Doppelaufruf – die eigentliche Auto-Registrierung
+    // erfolgt in ServerPushManager.init(), sobald Berechtigungen erteilt sind
+    navigator.serviceWorker.ready.catch(function(error) {
+        console.error('Fehler beim Warten auf Service Worker:', error);
+    });
 }
 
 // Berechtigungs-Manager
@@ -175,7 +171,7 @@ class PermissionManager {
                     
                     // Registriere Push-Subscription nach erfolgreicher Berechtigung
                     if ('serviceWorker' in navigator && 'PushManager' in window) {
-                        await registerPushNotifications();
+                        await serverPushManager.registerPushNotifications();
                     }
                 } else {
                     this.showPermissionInfo('Benachrichtigungen', 'Sie können Benachrichtigungen in den Browser-Einstellungen aktivieren.');
@@ -270,12 +266,29 @@ const permissionManager = new PermissionManager();
 class ServerPushManager {
     constructor() {
         this.pushStatus = null;
+        this.isRegistering = false;
+        this.registerDebounceTimer = null;
         this.init();
     }
     
     init() {
         // Prüfe Push-Status beim Laden
-        this.checkPushStatus();
+        this.checkPushStatus().then((status) => {
+            // Automatisch registrieren, wenn:
+            // 1. Berechtigung bereits erteilt wurde UND keine Subscription existiert
+            // 2. ODER Berechtigung noch nicht angefragt wurde (default) UND keine Subscription existiert
+            if (status && !status.subscribed && isPushEnvironmentReady()) {
+                if (status.permission === 'granted') {
+                    // Berechtigung bereits erteilt - sofort registrieren
+                    this.debouncedRegister();
+                } else if (status.permission === 'default') {
+                    // Berechtigung noch nicht angefragt - nach kurzer Verzögerung anfragen und registrieren
+                    setTimeout(() => {
+                        this.debouncedRegister();
+                    }, 1000);
+                }
+            }
+        });
         
         // Setup Event Listeners für Push-Buttons
         this.setupPushEventListeners();
@@ -283,6 +296,7 @@ class ServerPushManager {
     
     async checkPushStatus() {
         if (!this.isPushSupported()) {
+            console.log('Push-Benachrichtigungen werden nicht unterstützt');
             this.updatePushStatusUI({ supported: false, subscribed: false, permission: 'denied' });
             return;
         }
@@ -290,11 +304,14 @@ class ServerPushManager {
         const permission = Notification.permission;
         let subscribed = false;
         
+        console.log('Prüfe Push-Status - Berechtigung:', permission);
+        
         if (permission === 'granted') {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 const subscription = await registration.pushManager.getSubscription();
                 subscribed = !!subscription;
+                console.log('Service Worker bereit, Subscription vorhanden:', subscribed);
             } catch (error) {
                 console.error('Fehler beim Prüfen des Push-Status:', error);
             }
@@ -306,6 +323,7 @@ class ServerPushManager {
             permission: permission
         };
         
+        console.log('Push-Status ermittelt:', status);
         this.pushStatus = status;
         this.updatePushStatusUI(status);
         return status;
@@ -315,7 +333,18 @@ class ServerPushManager {
         return 'serviceWorker' in navigator && 'PushManager' in window;
     }
     
+    debouncedRegister() {
+        if (this.registerDebounceTimer) {
+            clearTimeout(this.registerDebounceTimer);
+        }
+        this.registerDebounceTimer = setTimeout(() => {
+            this.registerPushNotifications();
+        }, 300);
+    }
+
     async registerPushNotifications() {
+        console.log('=== PUSH-REGISTRIERUNG GESTARTET ===');
+        
         if (!this.isPushSupported()) {
             console.log('Push-Benachrichtigungen werden nicht unterstützt');
             this.updatePushStatusUI({ supported: false, subscribed: false, permission: 'denied' });
@@ -323,53 +352,70 @@ class ServerPushManager {
         }
         
         try {
-            // Prüfe aktuelle Berechtigung
-            let permission = await Notification.requestPermission();
+            if (this.isRegistering) {
+                console.log('Registrierung bereits im Gange, überspringe...');
+                return false;
+            }
+            this.isRegistering = true;
+            console.log('Starte Push-Registrierung...');
+            
+            // Prüfe aktuelle Berechtigung und frage bei Bedarf an
+            let permission = Notification.permission;
+            if (permission === 'default') {
+                console.log('Frage Browser-Berechtigung für Push-Benachrichtigungen an...');
+                permission = await Notification.requestPermission();
+            }
+            
             if (permission !== 'granted') {
-                console.log('Push-Benachrichtigungen nicht erlaubt');
+                console.log('Push-Benachrichtigungen nicht erlaubt:', permission);
                 this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission });
+                this.showTestResult('warning', 'Push-Benachrichtigungen wurden verweigert. Bitte erlauben Sie Benachrichtigungen in den Browser-Einstellungen.');
                 return false;
             }
             
             // Registriere Service Worker
             const registration = await navigator.serviceWorker.ready;
             
+            // Prüfe, ob bereits eine Subscription existiert
+            let subscription = await registration.pushManager.getSubscription();
+            if (subscription) {
+                // Sende bestehende Subscription an den Server
+                const sendOk = await this.sendSubscriptionToServer(subscription, permission);
+                if (sendOk) {
+                    this.updatePushStatusUI({ supported: true, subscribed: true, permission: permission });
+                    this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
+                    return true;
+                }
+                // Falls das Senden fehlschlug, versuche Neu-Subscribe
+            }
+            
             // Hole VAPID Public Key vom Server
+            console.log('Lade VAPID Public Key...');
             const vapidResponse = await fetch('/api/push/vapid-key', {
                 credentials: 'include'
             });
             
             if (!vapidResponse.ok) {
                 const errorData = await vapidResponse.json();
+                console.error('VAPID Key Fehler:', errorData);
                 throw new Error(errorData.message || 'VAPID Key konnte nicht geladen werden');
             }
             
             const vapidData = await vapidResponse.json();
+            console.log('VAPID Key erhalten:', vapidData.public_key ? 'Ja' : 'Nein');
             const applicationServerKey = this.urlBase64ToUint8Array(vapidData.public_key);
             
             // Subscribe zu Push Manager
-            const subscription = await registration.pushManager.subscribe({
+            console.log('Erstelle Push-Subscription...');
+            subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: applicationServerKey
             });
+            console.log('Push-Subscription erstellt:', subscription.endpoint ? 'Ja' : 'Nein');
             
             // Sende Subscription an Server
-            const response = await fetch('/api/push/subscribe', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    endpoint: subscription.endpoint,
-                    keys: subscription.getKey ? {
-                        p256dh: subscription.getKey('p256dh'),
-                        auth: subscription.getKey('auth')
-                    } : subscription.keys,
-                    user_agent: navigator.userAgent
-                })
-            });
+            console.log('Sende Subscription an Server...');
+            const response = await this.postSubscription(subscription);
             
             if (response.ok) {
                 const result = await response.json();
@@ -379,9 +425,9 @@ class ServerPushManager {
                 return true;
             } else {
                 const errorData = await response.json();
-                console.error('Fehler beim Registrieren der Push-Benachrichtigungen:', errorData);
+                console.error('Server-Fehler beim Registrieren:', response.status, errorData);
                 this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission, error: errorData.message });
-                this.showTestResult('error', 'Fehler beim Aktivieren: ' + (errorData.message || 'Unbekannter Fehler'));
+                this.showTestResult('error', 'Server-Fehler: ' + (errorData.message || 'Unbekannter Fehler'));
                 return false;
             }
             
@@ -389,10 +435,63 @@ class ServerPushManager {
             console.error('Fehler bei Push-Benachrichtigungen:', error);
             this.updatePushStatusUI({ supported: true, subscribed: false, permission: 'denied', error: error.message });
             return false;
+        } finally {
+            this.isRegistering = false;
+        }
+    }
+
+    subscriptionToPayload(subscription) {
+        const keyToBase64 = (key) => {
+            if (!key) return null;
+            const buffer = new Uint8Array(key);
+            let binary = '';
+            for (let i = 0; i < buffer.byteLength; i++) {
+                binary += String.fromCharCode(buffer[i]);
+            }
+            return btoa(binary);
+        };
+        return {
+            endpoint: subscription.endpoint,
+            keys: subscription.getKey ? {
+                p256dh: keyToBase64(subscription.getKey('p256dh')),
+                auth: keyToBase64(subscription.getKey('auth'))
+            } : subscription.keys,
+            user_agent: navigator.userAgent
+        };
+    }
+
+    async postSubscription(subscription) {
+        const payload = this.subscriptionToPayload(subscription);
+        console.log('Sende Subscription-Payload:', payload);
+        
+        return fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+    }
+
+    async sendSubscriptionToServer(subscription, permission) {
+        try {
+            const response = await this.postSubscription(subscription);
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Bestehende Subscription bestätigt:', result);
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.error('Senden bestehender Subscription fehlgeschlagen:', e);
+            return false;
         }
     }
     
     urlBase64ToUint8Array(base64String) {
+        console.log('Konvertiere VAPID Key:', base64String.substring(0, 20) + '...');
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
         const base64 = (base64String + padding)
             .replace(/-/g, '+')
@@ -404,6 +503,7 @@ class ServerPushManager {
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
+        console.log('VAPID Key konvertiert, Länge:', outputArray.length);
         return outputArray;
     }
     
@@ -486,10 +586,19 @@ class ServerPushManager {
                 this.showTestResult('success', data.message);
             } else {
                 // Fehler beim Senden
-                if (data.action_required === 'subscribe') {
-                    this.showTestResult('warning', data.message + ' Klicken Sie auf "Push aktivieren" um sich zu registrieren.');
+                if (data && data.action_required === 'subscribe') {
+                    console.warn('Test-Push: Keine aktive Subscription. Versuche automatische Registrierung...');
+                    this.showTestResult('warning', data.message || 'Keine aktive Subscription. Registrierung wird gestartet...');
+                    const registered = await this.registerPushNotifications();
+                    if (registered) {
+                        console.log('Automatische Registrierung erfolgreich. Sende Test erneut...');
+                        // kurzer Retry nach Erfolg
+                        setTimeout(() => {
+                            this.testPushNotification();
+                        }, 500);
+                    }
                 } else {
-                    this.showTestResult('error', data.message || 'Unbekannter Fehler beim Senden der Test-Benachrichtigung');
+                    this.showTestResult('error', (data && data.message) || 'Unbekannter Fehler beim Senden der Test-Benachrichtigung');
                 }
             }
         } catch (error) {
