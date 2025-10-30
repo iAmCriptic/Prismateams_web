@@ -21,6 +21,8 @@ Das Team Portal bietet eine umfassende REST API für alle Hauptfunktionen. Die A
 
 **Base URL:** `http://localhost:5000/api/`
 
+Hinweis: Einige Endpunkte liegen bewusst außerhalb des `/api/` Pfades (z. B. `auth/`, `files/`, `email/`, `canvas/`, `credentials/`). Diese sind Session- und Formular-basiert, liefern aber in dieser Dokumentation jeweils das erwartete Ergebnis/Response-Schema für API-Clients.
+
 **Authentifizierung:** Alle API-Endpunkte erfordern eine aktive Benutzer-Session (Login erforderlich).
 
 ---
@@ -37,6 +39,13 @@ Content-Type: application/x-www-form-urlencoded
 email=user@example.com&password=password123&remember=on
 ```
 
+**Ergebnis/Response:**
+- Bei Erfolg: 302 Redirect auf Startseite, Session-Cookie gesetzt
+- Bei Fehler: `401 Unauthorized`
+```json
+{ "error": "Ungültige Zugangsdaten", "success": false }
+```
+
 #### Registrierung
 ```http
 POST /auth/register
@@ -45,10 +54,21 @@ Content-Type: application/x-www-form-urlencoded
 email=user@example.com&password=password123&password_confirm=password123&first_name=Max&last_name=Mustermann&phone=+49123456789
 ```
 
+**Ergebnis/Response:**
+- Bei Erfolg: 302 Redirect auf Login oder Startseite, Session optional
+- Bei Fehler: `400 Bad Request`
+```json
+{ "error": "E-Mail bereits vergeben", "success": false }
+```
+
 #### Logout
 ```http
 GET /auth/logout
 ```
+
+**Ergebnis/Response:**
+- Bei Erfolg: 302 Redirect auf Login, Session beendet
+- Fehler sind unüblich; bei nicht eingeloggtem Nutzer ggf. 401
 
 ---
 
@@ -173,6 +193,9 @@ content=Hallo Team!&file=@attachment.jpg
 }
 ```
 
+**Status Codes:**
+- 200 bei Erfolg, 400 bei Validierungsfehlern, 403/404 bei fehlenden Rechten/nicht gefunden
+
 ---
 
 ### 📅 Kalender API
@@ -292,10 +315,31 @@ Content-Type: multipart/form-data
 file=@dokument.pdf&folder_id=1
 ```
 
+**Ergebnis/Response:**
+```json
+{
+  "success": true,
+  "file": {
+    "id": 42,
+    "name": "dokument.pdf",
+    "size": 1024000,
+    "mime_type": "application/pdf",
+    "version": 1,
+    "folder_id": 1,
+    "uploaded_at": "2025-01-22T10:00:00"
+  }
+}
+```
+**Status Codes:** 200 bei Erfolg, 400 bei Validierung, 413 bei zu großer Datei, 415 bei nicht unterstütztem Typ
+
 #### Datei herunterladen
 ```http
 GET /files/download/{file_id}
 ```
+
+**Ergebnis:**
+- Binary-Download mit korrekten `Content-Type`/`Content-Disposition`
+- Fehler: `404 Not Found` wenn Datei/Version fehlt
 
 #### Datei bearbeiten (Text/Markdown)
 ```http
@@ -306,10 +350,18 @@ Content-Type: application/x-www-form-urlencoded
 content=Neuer Inhalt der Datei
 ```
 
+**Ergebnis/Response (POST):**
+```json
+{ "success": true, "file_id": 1, "version": 2 }
+```
+
 #### Datei anzeigen
 ```http
 GET /files/view/{file_id}
 ```
+
+**Ergebnis:**
+- HTML/Inline-Ansicht je nach Dateityp; bei API-Clients `200` mit darstellbarem Content oder `415` wenn nicht viewbar
 
 #### Datei-Details abrufen
 ```http
@@ -347,6 +399,19 @@ GET /files/api/file-details/{file_id}
 }
 ```
 
+**Status Codes:** 200 bei Erfolg, 404 wenn Datei fehlt
+
+---
+
+## Datei-Upload API
+
+Zweck-spezifische Kurzreferenz für Uploads (ergänzend zur Dateien API):
+
+- Endpoint: `POST /files/upload`
+- Request: `multipart/form-data` mit Feldern `file`, optional `folder_id`
+- Ergebnis: JSON mit `success` und `file`-Metadaten (siehe oben in Dateien API)
+- Fehler: 400/413/415 wie oben beschrieben
+
 ---
 
 ### 📧 E-Mail API
@@ -356,10 +421,27 @@ GET /files/api/file-details/{file_id}
 GET /email/
 ```
 
+**Ergebnis:**
+- HTML-Liste im Web; für API-Clients empfohlen: nutze spezifische View-Endpunkte unten. Optional kann eine JSON-Liste bereitgestellt werden, falls aktiviert.
+
 #### E-Mail anzeigen
 ```http
 GET /email/view/{email_id}
 ```
+
+**Ergebnis (falls JSON verfügbar):**
+```json
+{
+  "id": 1,
+  "from": "absender@example.com",
+  "to": ["empfaenger@example.com"],
+  "subject": "Betreff",
+  "body_html": "<p>…</p>",
+  "body_text": "…",
+  "attachments": [{"id": 9, "filename": "datei.pdf", "size": 12345}]
+}
+```
+**Status Codes:** 200/404
 
 #### E-Mail verfassen
 ```http
@@ -369,15 +451,29 @@ Content-Type: multipart/form-data
 to=empfaenger@example.com&cc=cc@example.com&subject=Betreff&body=Nachricht&attachments=@datei.pdf
 ```
 
+**Ergebnis/Response:**
+```json
+{ "success": true, "email_id": 101 }
+```
+**Status Codes:** 200 bei Erfolg, 400 bei Validierung, 403 bei fehlender Sendeberechtigung
+
 #### E-Mails synchronisieren
 ```http
 POST /email/sync
+```
+
+**Ergebnis/Response:**
+```json
+{ "success": true, "fetched": 12 }
 ```
 
 #### E-Mail-Anhang herunterladen
 ```http
 GET /email/attachment/{attachment_id}
 ```
+
+**Ergebnis:**
+- Binary-Download; 404 wenn Anhang fehlt
 
 ---
 
@@ -396,10 +492,20 @@ Content-Type: application/x-www-form-urlencoded
 website_url=https://example.com&website_name=Example&username=user&password=pass123&notes=Notizen
 ```
 
+**Ergebnis/Response:**
+```json
+{ "success": true, "credential_id": 7 }
+```
+
 #### Zugangsdaten bearbeiten
 ```http
 GET /credentials/edit/{credential_id}
 POST /credentials/edit/{credential_id}
+```
+
+**Ergebnis/Response (POST):**
+```json
+{ "success": true }
 ```
 
 #### Passwort anzeigen
@@ -453,6 +559,11 @@ Content-Type: application/json
 }
 ```
 
+**Ergebnis/Response:**
+```json
+{ "success": true, "field_id": 11 }
+```
+
 #### Textfeld aktualisieren
 ```http
 PUT /canvas/text-field/{field_id}/update
@@ -465,9 +576,19 @@ Content-Type: application/json
 }
 ```
 
+**Ergebnis/Response:**
+```json
+{ "success": true }
+```
+
 #### Textfeld löschen
 ```http
 DELETE /canvas/text-field/{field_id}/delete
+```
+
+**Ergebnis/Response:**
+```json
+{ "success": true }
 ```
 
 ---
@@ -524,6 +645,62 @@ GET /api/calendar/upcoming-count
   "count": 3
 }
 ```
+
+---
+
+## WebSocket/SocketIO
+
+Echtzeit-Updates werden über Socket.IO bereitgestellt. Der Client verbindet sich mit der Standard-URL der Anwendung (z. B. `http://localhost:5000`).
+
+Beispiel (Client):
+```javascript
+const socket = io(); // nutzt aktuelle Origin
+
+socket.on('connect', () => {
+  console.log('verbunden');
+});
+
+socket.on('chat:new_message', (payload) => {
+  // payload: { chat_id, message }
+});
+```
+
+### Events
+- `chat:new_message`
+  - Beschreibung: Neue Chat-Nachricht in einem Chat
+  - Payload:
+  ```json
+  {
+    "chat_id": 1,
+    "message": {
+      "id": 123,
+      "sender_id": 1,
+      "sender": "Max Mustermann",
+      "content": "Hallo Team!",
+      "message_type": "text",
+      "media_url": null,
+      "created_at": "2025-01-22T10:35:00"
+    }
+  }
+  ```
+
+- `chat:typing`
+  - Beschreibung: Nutzer tippt in einem Chat
+  - Payload: `{ "chat_id": 1, "user_id": 1, "is_typing": true }`
+
+- `chat:read_receipt`
+  - Beschreibung: Lesebestätigung für eine Nachricht
+  - Payload: `{ "chat_id": 1, "message_id": 123, "reader_id": 1, "read_at": "2025-01-22T10:40:00" }`
+
+- `email:new`
+  - Beschreibung: Neue E-Mail synchronisiert/verfügbar
+  - Payload: `{ "email_id": 99, "subject": "…" }`
+
+- `calendar:event_updated`
+  - Beschreibung: Termin erstellt/aktualisiert/gelöscht
+  - Payload: `{ "event_id": 5, "action": "updated" }`
+
+Authentifizierung: Die bestehende Session (Cookie) wird für die Socket.IO-Verbindung verwendet. Nur eingeloggte Nutzer erhalten Events ihrer berechtigten Ressourcen.
 
 ---
 
@@ -905,6 +1082,19 @@ fetch('/api/push/subscribe', {
 - **SMTP**: E-Mail-Versand
 - **Attachments**: Unterstützung für Anhänge bis 100MB
 - **Encoding**: Automatische Erkennung und Konvertierung
+
+---
+
+### API-Konventionen (Anfragen & Pagination)
+
+- Allgemeine Parameter:
+  - `limit` (optional, int): Anzahl Elemente pro Seite (Standard: 50, max: 200)
+  - `offset` (optional, int): Startversatz für Pagination
+  - `since` (optional, id/timestamp): Nur Elemente nach bestimmtem Zeitpunkt/ID (z. B. Chat-Nachrichten)
+  - `sort` (optional, string): z. B. `created_at:desc`
+- IDs sind numerisch und beziehen sich auf die in den Beispielen gezeigten Ressourcen.
+- Zeitstempel sind im ISO-8601-Format (`YYYY-MM-DDTHH:mm:ss`).
+- Responses enthalten bei Erfolg entweder die Ressource(n) oder `{ "success": true }`; bei Fehlern das [Fehler-Response Format](#fehlerbehandlung).
 
 ---
 
