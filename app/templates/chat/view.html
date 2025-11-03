@@ -88,10 +88,17 @@
     <!-- Chat Info -->
     <div class="d-flex align-items-center flex-grow-1">
         {% if chat.is_main_chat %}
+            {% if portal_logo_filename %}
+            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" 
+                 class="rounded-circle me-2" 
+                 style="width: 32px; height: 32px; object-fit: cover;" 
+                 alt="Team Logo">
+            {% else %}
             <img src="{{ url_for('static', filename='img/logo.png') }}" 
                  class="rounded-circle me-2" 
                  style="width: 32px; height: 32px; object-fit: cover;" 
                  alt="Team Logo">
+            {% endif %}
         {% else %}
             <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
                  style="width: 32px; height: 32px;">

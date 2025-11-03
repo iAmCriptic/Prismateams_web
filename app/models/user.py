@@ -42,6 +42,9 @@ class User(UserMixin, db.Model):
     chat_notifications = db.Column(db.Boolean, default=True, nullable=False)
     email_notifications = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Inventory Permissions
+    can_borrow = db.Column(db.Boolean, default=True, nullable=False)  # Kann der User Artikel ausleihen?
+    
     # Relationships
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')
     sent_messages = db.relationship('ChatMessage', back_populates='sender', cascade='all, delete-orphan')

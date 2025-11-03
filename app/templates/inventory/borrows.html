@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Ausleihen - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-list-ul"></i> Ausleihen</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück
+        </a>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label for="filterBorrower" class="form-label">Ausleihender</label>
+                <input type="text" class="form-control" id="filterBorrower" placeholder="Name suchen...">
+            </div>
+            <div class="col-12 col-md-4">
+                <label for="filterProduct" class="form-label">Produkt</label>
+                <input type="text" class="form-control" id="filterProduct" placeholder="Produktname suchen...">
+            </div>
+            <div class="col-12 col-md-4">
+                <label for="filterStatus" class="form-label">Status</label>
+                <select class="form-select" id="filterStatus">
+                    <option value="all">Alle</option>
+                    <option value="active">Aktiv</option>
+                    <option value="overdue">Überfällig</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ausleihliste -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Aktuelle Ausleihen</h5>
+        <span class="badge bg-primary" id="borrowsCount">0</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="borrowsTable">
+                <thead>
+                    <tr>
+                        <th>Vorgangsnummer</th>
+                        <th>Produkt</th>
+                        <th>Ausleihender</th>
+                        <th>Ausleihdatum</th>
+                        <th>Rückgabedatum</th>
+                        <th>Status</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody id="borrowsTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Lädt...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const borrowsManager = new BorrowsManager();
+    borrowsManager.init();
+    
+    // Filter-Handler
+    document.getElementById('filterBorrower').addEventListener('input', () => borrowsManager.applyFilters());
+    document.getElementById('filterProduct').addEventListener('input', () => borrowsManager.applyFilters());
+    document.getElementById('filterStatus').addEventListener('change', () => borrowsManager.applyFilters());
+    
+    // URL-Parameter für Filter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('filter') === 'my') {
+        // Nur eigene Ausleihen anzeigen (wird in JavaScript implementiert)
+    }
+});
+</script>
+{% endblock %}
+

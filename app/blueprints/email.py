@@ -1258,7 +1258,7 @@ def compose():
             # Replace variables
             footer = footer.replace('<user>', current_user.full_name)
             footer = footer.replace('<email>', current_user.email)
-            footer = footer.replace('<app_name>', current_app.config.get('APP_NAME', 'Team Portal'))
+            footer = footer.replace('<app_name>', current_app.config.get('APP_NAME', 'Prismateams'))
             footer = footer.replace('<date>', datetime.utcnow().strftime('%d.%m.%Y'))
             footer = footer.replace('<time>', datetime.utcnow().strftime('%H:%M'))
         else:

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Lagerverwaltung - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-box-seam"></i> Lagerverwaltung</h1>
+        <p class="text-muted">Verwalten Sie Ihr Inventar und Ausleihen</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Hauptfunktionen: 3 große Punkte -->
+    <div class="col-12 col-md-4">
+        <div class="card h-100 shadow-sm" onclick="location.href='{{ url_for('inventory.stock') }}'" style="cursor: pointer; border: 2px solid #0d6efd;">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-box-seam text-primary" style="font-size: 2.5rem;"></i>
+                <h4 class="card-title mt-3 mb-2">Bestand</h4>
+                <p class="text-muted mb-0 small">Übersicht aller Produkte</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ausleihen geben (Scanner mit Warenkorb) -->
+    <div class="col-12 col-md-4">
+        <div class="card h-100 shadow-sm" onclick="location.href='{{ url_for('inventory.borrow_scanner') }}'" style="cursor: pointer; border: 2px solid #198754;">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-qr-code-scan text-success" style="font-size: 2.5rem;"></i>
+                <h4 class="card-title mt-3 mb-2">Ausleihen</h4>
+                <p class="text-muted mb-0 small">Produkte scannen und ausleihen</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rückgabe -->
+    <div class="col-12 col-md-4">
+        <div class="card h-100 shadow-sm" onclick="location.href='{{ url_for('inventory.return_item') }}'" style="cursor: pointer; border: 2px solid #ffc107;">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-arrow-counterclockwise text-warning" style="font-size: 2.5rem;"></i>
+                <h4 class="card-title mt-3 mb-2">Rückgabe</h4>
+                <p class="text-muted mb-0 small">Ausgeliehene Artikel zurückgeben</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Meine aktuellen Ausleihen -->
+{% if my_borrows %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Meine aktuellen Ausleihen</h5>
+                <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm btn-outline-primary">Alle anzeigen</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Produkt</th>
+                                <th>Ausleihdatum</th>
+                                <th>Rückgabedatum</th>
+                                <th>Status</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for borrow in my_borrows[:5] %}
+                            <tr {% if borrow.is_overdue %}class="table-danger"{% endif %}>
+                                <td>
+                                    <strong>{{ borrow.product.name }}</strong>
+                                    {% if borrow.product.serial_number %}
+                                    <br><small class="text-muted">SN: {{ borrow.product.serial_number }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ borrow.borrow_date.strftime('%d.%m.%Y') }}</td>
+                                <td>
+                                    {{ borrow.expected_return_date.strftime('%d.%m.%Y') }}
+                                    {% if borrow.is_overdue %}
+                                    <br><span class="badge bg-danger">Überfällig</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning">Ausgeliehen</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ borrow.transaction_number }}" 
+                                           class="btn btn-sm btn-success" 
+                                           title="Zurückgeben">
+                                            <i class="bi bi-arrow-return-left"></i> Rückgabe
+                                        </a>
+                                        <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.id) }}" 
+                                           class="btn btn-sm btn-outline-secondary" 
+                                           title="Ausleihschein herunterladen">
+                                            <i class="bi bi-file-pdf"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-speedometer2"></i>
+                    Weitere Funktionen
+                </h5>
+                <div class="row g-3 mt-2">
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-list-check d-block fs-3 mb-2"></i>
+                            Meine Ausleihen
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('inventory.borrows') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-list-ul d-block fs-3 mb-2"></i>
+                            Alle Ausleihen
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('inventory.print_qr') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-printer d-block fs-3 mb-2"></i>
+                            QR-Codes drucken
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <a href="{{ url_for('inventory.inventory_list') }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-file-earmark-text d-block fs-3 mb-2"></i>
+                            Inventurliste
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

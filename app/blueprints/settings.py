@@ -147,6 +147,25 @@ def profile_picture(filename):
         abort(404)
 
 
+@settings_bp.route('/portal-logo/<path:filename>')
+def portal_logo(filename):
+    """Serve portal logo (public access)."""
+    try:
+        from urllib.parse import unquote
+        filename = unquote(filename)
+        
+        project_root = os.path.dirname(current_app.root_path)
+        directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+        full_path = os.path.join(directory, filename)
+        
+        if not os.path.isfile(full_path):
+            abort(404)
+            
+        return send_from_directory(directory, filename)
+    except FileNotFoundError:
+        abort(404)
+
+
 @settings_bp.route('/notifications', methods=['GET', 'POST'])
 @login_required
 def notifications():
@@ -478,24 +497,80 @@ def admin_system():
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
-        # Update email footer
-        footer_text = request.form.get('email_footer_text', '').strip()
+        # Update portal name
+        portal_name = request.form.get('portal_name', '').strip()
         
-        footer_setting = SystemSettings.query.filter_by(key='email_footer_text').first()
-        if footer_setting:
-            footer_setting.value = footer_text
+        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+        if portal_name_setting:
+            portal_name_setting.value = portal_name
         else:
-            footer_setting = SystemSettings(key='email_footer_text', value=footer_text)
-            db.session.add(footer_setting)
+            portal_name_setting = SystemSettings(key='portal_name', value=portal_name)
+            db.session.add(portal_name_setting)
+        
+        # Handle portal logo upload
+        if 'portal_logo' in request.files:
+            file = request.files['portal_logo']
+            if file and file.filename:
+                # Validate file type
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                    # Validate file size (5MB limit)
+                    file.seek(0, 2)  # Seek to end
+                    file_size = file.tell()
+                    file.seek(0)  # Reset to beginning
+                    
+                    max_size = 5 * 1024 * 1024  # 5MB in bytes
+                    if file_size > max_size:
+                        flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+                        return redirect(url_for('settings.admin_system'))
+                    
+                    # Create filename with timestamp
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"portal_logo_{timestamp}_{filename}"
+                    
+                    # Ensure upload directory exists
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # Save file
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    
+                    # Delete old portal logo if it exists
+                    old_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+                    if old_logo_setting and old_logo_setting.value:
+                        try:
+                            old_path = os.path.join(upload_dir, old_logo_setting.value)
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                        except OSError:
+                            pass  # Ignore if file doesn't exist
+                    
+                    # Update portal logo setting
+                    if old_logo_setting:
+                        old_logo_setting.value = filename
+                    else:
+                        logo_setting = SystemSettings(key='portal_logo', value=filename)
+                        db.session.add(logo_setting)
+                    flash('Portalslogo wurde erfolgreich hochgeladen.', 'success')
+                else:
+                    flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
+                    return redirect(url_for('settings.admin_system'))
         
         db.session.commit()
         flash('System-Einstellungen wurden aktualisiert.', 'success')
         return redirect(url_for('settings.admin_system'))
     
     # Get current settings
-    footer_text = SystemSettings.query.filter_by(key='email_footer_text').first()
+    portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
     
-    return render_template('settings/admin_system.html', footer_text=footer_text)
+    portal_name = portal_name_setting.value if portal_name_setting else ''
+    portal_logo = portal_logo_setting.value if portal_logo_setting else None
+    
+    return render_template('settings/admin_system.html', portal_name=portal_name, portal_logo=portal_logo)
 
 
 @settings_bp.route('/admin/whitelist')
@@ -588,4 +663,106 @@ def delete_whitelist_entry(entry_id):
     return redirect(url_for('settings.admin_whitelist'))
 
 
+
+@settings_bp.route('/admin/inventory-categories', methods=['GET', 'POST'])
+@login_required
+def admin_inventory_categories():
+    """Manage inventory categories (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    # Lade Kategorien aus SystemSettings
+    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
+    categories = []
+    if categories_setting and categories_setting.value:
+        import json
+        try:
+            categories = json.loads(categories_setting.value)
+        except:
+            categories = []
+    
+    if request.method == 'POST':
+        category_name = request.form.get('category_name', '').strip()
+        if category_name:
+            if category_name not in categories:
+                categories.append(category_name)
+                categories.sort()
+                
+                # Speichere in SystemSettings
+                import json
+                if categories_setting:
+                    categories_setting.value = json.dumps(categories)
+                else:
+                    categories_setting = SystemSettings(
+                        key='inventory_categories',
+                        value=json.dumps(categories),
+                        description='Verfügbare Kategorien für Produkte'
+                    )
+                    db.session.add(categories_setting)
+                db.session.commit()
+                flash(f'Kategorie "{category_name}" wurde hinzugefügt.', 'success')
+            else:
+                flash(f'Kategorie "{category_name}" existiert bereits.', 'warning')
+        
+        return redirect(url_for('settings.admin_inventory_categories'))
+    
+    return render_template('settings/admin_inventory_categories.html', categories=categories)
+
+
+@settings_bp.route('/admin/inventory-categories/<category_name>/delete', methods=['POST'])
+@login_required
+def admin_delete_inventory_category(category_name):
+    """Delete an inventory category (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    # Lade Kategorien aus SystemSettings
+    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
+    if categories_setting and categories_setting.value:
+        import json
+        try:
+            categories = json.loads(categories_setting.value)
+            if category_name in categories:
+                categories.remove(category_name)
+                categories_setting.value = json.dumps(categories)
+                db.session.commit()
+                flash(f'Kategorie "{category_name}" wurde gelöscht.', 'success')
+            else:
+                flash(f'Kategorie "{category_name}" wurde nicht gefunden.', 'warning')
+        except:
+            flash('Fehler beim Löschen der Kategorie.', 'danger')
+    
+    return redirect(url_for('settings.admin_inventory_categories'))
+
+
+@settings_bp.route('/admin/inventory-permissions')
+@login_required
+def admin_inventory_permissions():
+    """Manage inventory borrow permissions (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
+    
+    return render_template('settings/admin_inventory_permissions.html', users=users)
+
+
+@settings_bp.route('/admin/inventory-permissions/<int:user_id>/toggle', methods=['POST'])
+@login_required
+def admin_toggle_borrow_permission(user_id):
+    """Toggle borrow permission for a user (admin only)."""
+    if not current_user.is_admin:
+        return redirect(url_for('settings.index'))
+    
+    user = User.query.get_or_404(user_id)
+    user.can_borrow = not user.can_borrow
+    db.session.commit()
+    
+    status = "erlaubt" if user.can_borrow else "gesperrt"
+    flash(f'Ausleihe-Berechtigung für {user.full_name} wurde {status}.', 'success')
+    
+    return redirect(url_for('settings.admin_inventory_permissions'))
 

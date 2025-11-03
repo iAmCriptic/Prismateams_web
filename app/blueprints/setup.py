@@ -46,8 +46,48 @@ def setup_complete():
     
     if request.method == 'POST':
         # Alle Formulardaten abrufen
-        organization_name = request.form.get('organization_name', '').strip()
+        portal_name = request.form.get('portal_name', '').strip()
+        default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
         color_gradient = request.form.get('color_gradient', '').strip()
+        
+        # Handle portal logo upload
+        portal_logo_filename = None
+        if 'portal_logo' in request.files:
+            file = request.files['portal_logo']
+            if file and file.filename:
+                # Validate file type
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                    # Validate file size (5MB limit)
+                    file.seek(0, 2)  # Seek to end
+                    file_size = file.tell()
+                    file.seek(0)  # Reset to beginning
+                    
+                    max_size = 5 * 1024 * 1024  # 5MB in bytes
+                    if file_size > max_size:
+                        flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+                        return render_template('setup/complete.html')
+                    
+                    # Create filename with timestamp
+                    from werkzeug.utils import secure_filename
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"portal_logo_{timestamp}_{filename}"
+                    
+                    # Ensure upload directory exists
+                    from flask import current_app
+                    import os
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # Save file
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    portal_logo_filename = filename
+                else:
+                    flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
+                    return render_template('setup/complete.html')
         
         # Whitelist-Einträge
         whitelist_emails = []
@@ -66,7 +106,7 @@ def setup_complete():
         dark_mode = request.form.get('dark_mode') == 'on'
         
         # Validierung
-        if not all([organization_name, email, password, first_name, last_name]):
+        if not all([portal_name, email, password, first_name, last_name]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
             return render_template('setup/complete.html')
         
@@ -81,6 +121,9 @@ def setup_complete():
         try:
             logging.info("Starting complete setup")
             
+            # Get default accent color from session
+            default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
+            
             # Ersten Administrator erstellen
             admin_user = User(
                 email=email,
@@ -89,7 +132,8 @@ def setup_complete():
                 phone=phone,
                 is_active=True,
                 is_admin=True,
-                dark_mode=dark_mode
+                dark_mode=dark_mode,
+                accent_color=default_accent_color
             )
             admin_user.set_password(password)
             
@@ -131,12 +175,29 @@ def setup_complete():
             db.session.add(chat_member)
             
             # System-Einstellungen erstellen
-            system_settings = SystemSettings(
-                key='organization_name',
-                value=organization_name,
-                description='Name der Organisation'
+            portal_name_setting = SystemSettings(
+                key='portal_name',
+                value=portal_name,
+                description='Name des Portals'
             )
-            db.session.add(system_settings)
+            db.session.add(portal_name_setting)
+            
+            # Portal logo speichern
+            if portal_logo_filename:
+                logo_setting = SystemSettings(
+                    key='portal_logo',
+                    value=portal_logo_filename,
+                    description='Portalslogo'
+                )
+                db.session.add(logo_setting)
+            
+            # Default-Akzentfarbe speichern
+            accent_color_setting = SystemSettings(
+                key='default_accent_color',
+                value=default_accent_color,
+                description='Standard-Akzentfarbe für neue Benutzer'
+            )
+            db.session.add(accent_color_setting)
             
             # Farbverlauf speichern
             if color_gradient:
@@ -190,15 +251,57 @@ def setup_step1():
         return redirect(url_for('auth.login'))
     
     if request.method == 'POST':
-        organization_name = request.form.get('organization_name', '').strip()
+        portal_name = request.form.get('portal_name', '').strip()
+        default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
         color_gradient = request.form.get('color_gradient', '').strip()
         
-        if not organization_name:
-            flash('Bitte geben Sie einen Organisationsnamen ein.', 'danger')
+        if not portal_name:
+            flash('Bitte geben Sie einen Portalsnamen ein.', 'danger')
             return render_template('setup/step1.html')
         
+        # Handle portal logo upload
+        portal_logo_filename = None
+        if 'portal_logo' in request.files:
+            file = request.files['portal_logo']
+            if file and file.filename:
+                # Validate file type
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+                    # Validate file size (5MB limit)
+                    file.seek(0, 2)  # Seek to end
+                    file_size = file.tell()
+                    file.seek(0)  # Reset to beginning
+                    
+                    max_size = 5 * 1024 * 1024  # 5MB in bytes
+                    if file_size > max_size:
+                        flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+                        return render_template('setup/step1.html')
+                    
+                    # Create filename with timestamp
+                    from werkzeug.utils import secure_filename
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"portal_logo_{timestamp}_{filename}"
+                    
+                    # Ensure upload directory exists
+                    from flask import current_app
+                    import os
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # Save file
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    portal_logo_filename = filename
+                else:
+                    flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
+                    return render_template('setup/step1.html')
+        
         # Speichere in Session für später
-        session['setup_organization_name'] = organization_name
+        session['setup_portal_name'] = portal_name
+        session['setup_portal_logo'] = portal_logo_filename
+        session['setup_default_accent_color'] = default_accent_color
         session['setup_color_gradient'] = color_gradient
         
         # Debug: Session-Daten prüfen
@@ -219,7 +322,7 @@ def setup_step2():
     if not is_setup_needed():
         return redirect(url_for('auth.login'))
     
-    if 'setup_organization_name' not in session:
+    if 'setup_portal_name' not in session:
         return redirect(url_for('setup.setup_step1'))
     
     if request.method == 'POST':
@@ -257,7 +360,7 @@ def setup_step3():
     
     # Debug: Session-Daten prüfen
     
-    if 'setup_organization_name' not in session:
+    if 'setup_portal_name' not in session:
         return redirect(url_for('setup.setup_step1'))
     
     if request.method == 'POST':
@@ -285,6 +388,9 @@ def setup_step3():
         
         try:
             logging.info(f"Creating admin user with email: {email}")
+            # Get default accent color from session
+            default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
+            
             # Ersten Administrator erstellen
             admin_user = User(
                 email=email,
@@ -294,7 +400,8 @@ def setup_step3():
                 is_active=True,
                 is_admin=True,
                 is_email_confirmed=True,  # Admin ist automatisch bestätigt
-                dark_mode=dark_mode
+                dark_mode=dark_mode,
+                accent_color=default_accent_color
             )
             admin_user.set_password(password)
             
@@ -326,13 +433,33 @@ def setup_step3():
             
             # System-Einstellungen erstellen
             logging.info("Creating system settings")
-            system_settings = SystemSettings(
-                key='organization_name',
-                value=session.get('setup_organization_name', ''),
-                description='Name der Organisation'
+            portal_name_setting = SystemSettings(
+                key='portal_name',
+                value=session.get('setup_portal_name', ''),
+                description='Name des Portals'
             )
-            db.session.add(system_settings)
-            logging.info("Organization name setting created")
+            db.session.add(portal_name_setting)
+            logging.info("Portal name setting created")
+            
+            # Portal logo speichern
+            if session.get('setup_portal_logo'):
+                logo_setting = SystemSettings(
+                    key='portal_logo',
+                    value=session.get('setup_portal_logo'),
+                    description='Portalslogo'
+                )
+                db.session.add(logo_setting)
+                logging.info("Portal logo setting created")
+            
+            # Default-Akzentfarbe speichern
+            default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
+            accent_color_setting = SystemSettings(
+                key='default_accent_color',
+                value=default_accent_color,
+                description='Standard-Akzentfarbe für neue Benutzer'
+            )
+            db.session.add(accent_color_setting)
+            logging.info("Default accent color setting created")
             
             # Farbverlauf speichern
             if session.get('setup_color_gradient'):
@@ -393,7 +520,9 @@ def setup_step3():
                 logging.info("Admin email permissions recreated")
             
             # Session-Daten löschen
-            session.pop('setup_organization_name', None)
+            session.pop('setup_portal_name', None)
+            session.pop('setup_portal_logo', None)
+            session.pop('setup_default_accent_color', None)
             session.pop('setup_color_gradient', None)
             session.pop('setup_whitelist_entries', None)
             logging.info("Session data cleared")

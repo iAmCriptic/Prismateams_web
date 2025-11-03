@@ -26,9 +26,15 @@
 <div class="chat-card main-chat-card">
     <div class="chat-card-header">
         <div class="chat-card-avatar">
+            {% if portal_logo_filename %}
+            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" 
+                 alt="Team Logo" 
+                 class="chat-card-avatar-img">
+            {% else %}
             <img src="{{ url_for('static', filename='img/logo.png') }}" 
                  alt="Team Logo" 
                  class="chat-card-avatar-img">
+            {% endif %}
         </div>
         <div class="chat-card-info">
             <h5 class="chat-card-title">

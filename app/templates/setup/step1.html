@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Setup Schritt 1 - Team Portal{% endblock %}
+{% block title %}Setup Schritt 1 - Prismateams{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
@@ -12,12 +12,14 @@
         <div class="card">
             <div class="card-body p-4">
                 <h1 class="text-center mb-4">
-                    {% if app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% if portal_logo_filename %}
+                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% elif app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
                     {% else %}
                     <i class="bi bi-gear-fill text-primary"></i>
                     {% endif %}
-                    {{ app_name or 'Team Portal' }}
+                    {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-4">Schritt 1 von 3</h5>
                 <div class="setup-step">
@@ -25,11 +27,26 @@
                     <p>Legen Sie den Namen Ihrer Organisation und das Design fest.</p>
                 </div>
                 
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data">
                     <div class="mb-4">
-                        <label for="organization_name" class="form-label">Organisationsname *</label>
-                        <input type="text" class="form-control" id="organization_name" name="organization_name" required autofocus>
-                        <div class="form-text">Name Ihrer Organisation oder Ihres Teams.</div>
+                        <label for="portal_name" class="form-label">Portalsname *</label>
+                        <input type="text" class="form-control" id="portal_name" name="portal_name" required autofocus>
+                        <div class="form-text">Der Name des Portals, der an verschiedenen Stellen angezeigt wird.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="portal_logo" class="form-label">Portalslogo</label>
+                        <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
+                        <div class="form-text">Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="default_accent_color" class="form-label">Standard-Akzentfarbe</label>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <input type="color" class="form-control form-control-color" id="default_accent_color" name="default_accent_color" value="#0d6efd" title="Wählen Sie eine Farbe">
+                            <span class="badge" id="default-color-preview" style="background-color: #0d6efd; padding: 1rem 2rem;">Vorschau</span>
+                        </div>
+                        <div class="form-text">Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.</div>
                     </div>
                     
                     <div class="mb-4">
@@ -92,6 +109,15 @@ document.addEventListener('DOMContentLoaded', function() {
             body.style.backgroundSize = 'cover';
         }
     });
+    
+    // Event Listener für Default-Akzentfarbe
+    const defaultAccentColor = document.getElementById('default_accent_color');
+    const colorPreview = document.getElementById('default-color-preview');
+    if (defaultAccentColor && colorPreview) {
+        defaultAccentColor.addEventListener('input', function() {
+            colorPreview.style.backgroundColor = this.value;
+        });
+    }
 });
 </script>
 {% endblock %}

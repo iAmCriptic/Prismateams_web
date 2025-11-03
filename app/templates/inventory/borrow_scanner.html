@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Ausleihen geben - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> Ausleihen geben</h1>
+        <p class="text-muted">Geben Sie Produkte ein, um sie auszuleihen</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Scanner-Bereich -->
+    <div class="col-12 col-lg-7 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Produkt eingeben</h5>
+            </div>
+            <div class="card-body">
+                <!-- Manuelle Eingabe -->
+                <div>
+                    <label for="manualQrInput" class="form-label">QR-Code oder Produkt-ID eingeben</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="manualQrInput" 
+                               placeholder="QR-Code oder Produkt-ID eingeben (z.B. PROD-123)" 
+                               autocomplete="off">
+                        <button class="btn btn-accent" id="addToCartBtn">
+                            <i class="bi bi-plus-circle"></i> Hinzufügen
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">Geben Sie den QR-Code oder die Produkt-ID ein, um ein Produkt zum Warenkorb hinzuzufügen.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warenkorb -->
+    <div class="col-12 col-lg-5">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Produkte</h5>
+                <span class="badge bg-primary" id="cartCount">{{ cart_products|length }}</span>
+            </div>
+            <div class="card-body">
+                <div id="cartItems">
+                    {% if cart_products %}
+                    {% for product in cart_products %}
+                    <div class="card mb-2 cart-item" data-product-id="{{ product.id }}">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ product.name }}</strong>
+                                    {% if product.category %}
+                                    <br><small class="text-muted">{{ product.category }}</small>
+                                    {% endif %}
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="{{ product.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>
+                    {% endif %}
+                </div>
+
+                {% if cart_products %}
+                <hr>
+                <form method="POST" action="{{ url_for('inventory.borrow_scanner_checkout') }}" id="checkoutForm">
+                    <div class="mb-3">
+                        <label for="borrower_id" class="form-label">Ausleihender</label>
+                        <select class="form-select" id="borrower_id" name="borrower_id">
+                            <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} (Ich)</option>
+                            {% for user in users %}
+                            {% if user.id != current_user.id %}
+                            <option value="{{ user.id }}">{{ user.full_name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="expected_return_date" class="form-label">
+                            Erwartetes Rückgabedatum <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" class="form-control" id="expected_return_date" 
+                               name="expected_return_date" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-accent w-100">
+                        <i class="bi bi-check-circle"></i> Produkte ausleihen
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manuelle Eingabe für Warenkorb
+    const manualInput = document.getElementById('manualQrInput');
+    const addBtn = document.getElementById('addToCartBtn');
+    
+    async function addToCart() {
+        if (!manualInput || !manualInput.value.trim()) {
+            alert('Bitte geben Sie einen QR-Code oder eine Produkt-ID ein.');
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('action', 'add_to_cart');
+            formData.append('qr_code', manualInput.value.trim());
+            
+            const response = await fetch('/inventory/borrow-scanner', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                manualInput.value = '';
+                window.location.reload();
+            } else {
+                alert(result.error || 'Fehler beim Hinzufügen zum Warenkorb.');
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler beim Hinzufügen zum Warenkorb.');
+        }
+    }
+    
+    if (addBtn) {
+        addBtn.addEventListener('click', addToCart);
+    }
+    
+    if (manualInput) {
+        manualInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addToCart();
+            }
+        });
+    }
+    
+    // Remove from cart buttons
+    document.querySelectorAll('.remove-from-cart').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            const productId = e.target.closest('.remove-from-cart').dataset.productId;
+            
+            try {
+                const formData = new FormData();
+                formData.append('action', 'remove_from_cart');
+                formData.append('product_id', productId);
+                
+                const response = await fetch('/inventory/borrow-scanner', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    alert('Fehler beim Entfernen aus dem Warenkorb.');
+                }
+            } catch (error) {
+                console.error('Fehler:', error);
+                alert('Fehler beim Entfernen aus dem Warenkorb.');
+            }
+        });
+    });
+    
+    // Checkout-Formular: PDF herunterladen und zum Dashboard weiterleiten
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        const dateInput = document.getElementById('expected_return_date');
+        if (dateInput) {
+            // Mindest-Datum auf morgen setzen
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.min = tomorrow.toISOString().split('T')[0];
+        }
+        
+        checkoutForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(checkoutForm);
+            
+            try {
+                const response = await fetch(checkoutForm.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok && response.headers.get('content-type')?.includes('application/pdf')) {
+                    // PDF herunterladen
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Ausleihscheine_${Date.now()}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    // Nach kurzer Verzögerung zum Dashboard weiterleiten
+                    setTimeout(() => {
+                        window.location.href = '/inventory/';
+                    }, 500);
+                } else {
+                    // Fehler oder andere Antwort
+                    const text = await response.text();
+                    if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
+                        alert('Bitte überprüfen Sie Ihre Eingaben.');
+                    } else {
+                        // Trotzdem zum Dashboard leiten
+                        window.location.href = '/inventory/';
+                    }
+                }
+            } catch (error) {
+                console.error('Fehler:', error);
+                alert('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{% if product %}Produkt bearbeiten{% else %}Produkt hinzufügen{% endif %} - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">
+            <i class="bi bi-{% if product %}pencil{% else %}plus-circle{% endif %}"></i> 
+            {% if product %}Produkt bearbeiten{% else %}Produkt hinzufügen{% endif %}
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <!-- Name (Pflichtfeld) -->
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Produktname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{{ product.name if product else '' }}" required>
+                    </div>
+
+                    <!-- Beschreibung -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung / Details</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <!-- Kategorie -->
+                        <div class="col-md-6 mb-3">
+                            <label for="category" class="form-label">Kategorie</label>
+                            {% if categories %}
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Keine Kategorie</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}" {% if product and product.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="category" name="category" 
+                                   value="{{ product.category if product else '' }}" 
+                                   placeholder="Keine Kategorien definiert" disabled>
+                            <small class="form-text text-muted">Bitte legen Sie in den Einstellungen Kategorien fest.</small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Zustand -->
+                        <div class="col-md-6 mb-3">
+                            <label for="condition" class="form-label">Zustand</label>
+                            <select class="form-select" id="condition" name="condition">
+                                <option value="">Bitte wählen...</option>
+                                <option value="Neu" {% if product and product.condition == 'Neu' %}selected{% endif %}>Neu</option>
+                                <option value="Gut" {% if product and product.condition == 'Gut' %}selected{% endif %}>Gut</option>
+                                <option value="Gebraucht" {% if product and product.condition == 'Gebraucht' %}selected{% endif %}>Gebraucht</option>
+                                <option value="Beschädigt" {% if product and product.condition == 'Beschädigt' %}selected{% endif %}>Beschädigt</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Seriennummer -->
+                        <div class="col-md-4 mb-3">
+                            <label for="serial_number" class="form-label">Seriennummer</label>
+                            <input type="text" class="form-control" id="serial_number" name="serial_number" 
+                                   value="{{ product.serial_number if product else '' }}">
+                        </div>
+
+                        <!-- Lagerort -->
+                        <div class="col-md-4 mb-3">
+                            <label for="location" class="form-label">Lagerort</label>
+                            <input type="text" class="form-control" id="location" name="location" 
+                                   value="{{ product.location if product else '' }}">
+                        </div>
+
+                        <!-- Länge -->
+                        <div class="col-md-4 mb-3">
+                            <label for="length" class="form-label">Länge</label>
+                            <input type="text" class="form-control" id="length" name="length" 
+                                   value="{{ product.length if product else '' }}" 
+                                   placeholder="z.B. 5m, 120cm">
+                        </div>
+                    </div>
+
+                    <!-- Anschaffungsdatum -->
+                    <div class="mb-3">
+                        <label for="purchase_date" class="form-label">Anschaffungsdatum</label>
+                        <input type="date" class="form-control" id="purchase_date" name="purchase_date" 
+                               value="{{ purchase_date_formatted if purchase_date_formatted else '' }}">
+                    </div>
+
+                    <!-- Status -->
+                    {% if product %}
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="available" {% if product.status == 'available' %}selected{% endif %}>Verfügbar</option>
+                            <option value="borrowed" {% if product.status == 'borrowed' %}selected{% endif %}>Ausgeliehen</option>
+                            <option value="missing" {% if product.status == 'missing' %}selected{% endif %}>Fehlend</option>
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Bild-Upload -->
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Produktbild</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        {% if product and product.image_path %}
+                        <div class="mt-2">
+                            <small class="text-muted">Aktuelles Bild:</small><br>
+                            <img src="file://{{ product.image_path }}" alt="Produktbild" class="img-thumbnail mt-2" style="max-width: 200px;">
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">Abbrechen</a>
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-check-circle"></i> {% if product %}Speichern{% else %}Erstellen{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Lager-Kategorien verwalten - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-tags"></i> Lager-Kategorien verwalten</h1>
+        <p class="text-muted">Definieren Sie die verfügbaren Kategorien für Produkte</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Neue Kategorie hinzufügen</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="category_name" class="form-label">Kategoriename</label>
+                        <input type="text" class="form-control" id="category_name" name="category_name" 
+                               placeholder="z.B. Mischpult, Mikrofon, Lautsprecher" required>
+                    </div>
+                    <button type="submit" class="btn btn-accent">
+                        <i class="bi bi-plus-circle"></i> Hinzufügen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Vorhandene Kategorien</h5>
+            </div>
+            <div class="card-body">
+                {% if categories %}
+                <div class="list-group">
+                    {% for category in categories %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ category }}</span>
+                        <form method="POST" action="{{ url_for('settings.admin_delete_inventory_category', category_name=category) }}" class="d-inline" onsubmit="return confirm('Kategorie wirklich löschen?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Noch keine Kategorien definiert</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{{ url_for('settings.admin') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück zu Einstellungen
+        </a>
+    </div>
+</div>
+{% endblock %}
+

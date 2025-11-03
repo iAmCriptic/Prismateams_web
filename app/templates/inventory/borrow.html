@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Produkt ausleihen - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> Produkt ausleihen</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Produktinformationen</h5>
+            </div>
+            <div class="card-body">
+                <h4>{{ product.name }}</h4>
+                {% if product.serial_number %}
+                <p class="text-muted"><strong>Seriennummer:</strong> {{ product.serial_number }}</p>
+                {% endif %}
+                {% if product.category %}
+                <p class="text-muted"><strong>Kategorie:</strong> {{ product.category }}</p>
+                {% endif %}
+                {% if product.description %}
+                <p>{{ product.description }}</p>
+                {% endif %}
+                {% if product.image_path %}
+                <img src="file://{{ product.image_path }}" alt="{{ product.name }}" class="img-thumbnail mt-3" style="max-width: 300px;">
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Ausleihinformationen</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="borrowForm">
+                    <!-- Ausleihender -->
+                    <div class="mb-3">
+                        <label for="borrower_id" class="form-label">Ausleihender</label>
+                        <select class="form-select" id="borrower_id" name="borrower_id">
+                            <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} (Ich)</option>
+                            {% for user in users %}
+                            {% if user.id != current_user.id %}
+                            <option value="{{ user.id }}">{{ user.full_name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Erwartetes Rückgabedatum -->
+                    <div class="mb-3">
+                        <label for="expected_return_date" class="form-label">
+                            Erwartetes Rückgabedatum <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" class="form-control" id="expected_return_date" 
+                               name="expected_return_date" required>
+                        <small class="form-text text-muted">Das Datum muss in der Zukunft liegen.</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        Nach dem Bestätigen wird automatisch der Ausleihschein als PDF heruntergeladen.
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">Abbrechen</a>
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-check-circle"></i> Ausleihe bestätigen
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('borrowForm');
+    const dateInput = document.getElementById('expected_return_date');
+    
+    // Mindest-Datum auf morgen setzen
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    dateInput.min = tomorrow.toISOString().split('T')[0];
+    
+    form.addEventListener('submit', async function(e) {
+        const selectedDate = new Date(dateInput.value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate <= today) {
+            e.preventDefault();
+            alert('Das Rückgabedatum muss in der Zukunft liegen.');
+            return false;
+        }
+        
+        // Formular via AJAX absenden, PDF herunterladen, dann zum Dashboard
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok && response.headers.get('content-type')?.includes('application/pdf')) {
+                // PDF herunterladen
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Ausleihschein_${Date.now()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Nach kurzer Verzögerung zum Dashboard weiterleiten
+                setTimeout(() => {
+                    window.location.href = '/inventory/';
+                }, 500);
+            } else {
+                // Fehler oder andere Antwort
+                const text = await response.text();
+                if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
+                    alert('Bitte überprüfen Sie Ihre Eingaben.');
+                } else {
+                    // Trotzdem zum Dashboard leiten
+                    window.location.href = '/inventory/';
+                }
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            alert('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.');
+        }
+    });
+});
+</script>
+{% endblock %}
+

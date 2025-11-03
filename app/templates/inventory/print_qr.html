@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}QR-Codes drucken - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-printer"></i> QR-Codes drucken</h1>
+        <p class="text-muted">Wählen Sie Produkte aus, um einen QR-Code-Druckbogen zu erstellen</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Produkte auswählen</h5>
+                <div>
+                    <button id="selectAllBtn" class="btn btn-sm btn-outline-primary">Alle auswählen</button>
+                    <button id="deselectAllBtn" class="btn btn-sm btn-outline-secondary">Alle abwählen</button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if products %}
+                <form method="POST" id="printForm">
+                    <div class="row g-3">
+                        {% for product in products %}
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               name="product_ids" value="{{ product.id }}" 
+                                               id="product_{{ product.id }}">
+                                        <label class="form-check-label" for="product_{{ product.id }}">
+                                            <strong>{{ product.name }}</strong>
+                                            {% if product.serial_number %}
+                                            <br><small class="text-muted">SN: {{ product.serial_number }}</small>
+                                            {% endif %}
+                                            {% if product.category %}
+                                            <br><small class="text-muted">Kategorie: {{ product.category }}</small>
+                                            {% endif %}
+                                            <br><small class="text-muted">Status: 
+                                                <span class="badge {% if product.status == 'available' %}bg-success{% else %}bg-warning{% endif %}">
+                                                    {% if product.status == 'available' %}Verfügbar{% else %}Ausgeliehen{% endif %}
+                                                </span>
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-accent" id="generatePdfBtn" disabled>
+                            <i class="bi bi-file-pdf"></i> PDF generieren
+                        </button>
+                        <span id="selectedCount" class="ms-3 text-muted">0 Produkte ausgewählt</span>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted">Keine Produkte vorhanden.</p>
+                    <a href="{{ url_for('inventory.product_new') }}" class="btn btn-accent">
+                        <i class="bi bi-plus-circle"></i> Produkt hinzufügen
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('input[name="product_ids"]');
+    const generateBtn = document.getElementById('generatePdfBtn');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    
+    function updateSelection() {
+        const selected = Array.from(checkboxes).filter(cb => cb.checked);
+        generateBtn.disabled = selected.length === 0;
+        selectedCount.textContent = `${selected.length} Produkt${selected.length !== 1 ? 'e' : ''} ausgewählt`;
+    }
+    
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelection);
+    });
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            checkboxes.forEach(cb => cb.checked = true);
+            updateSelection();
+        });
+    }
+    
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            checkboxes.forEach(cb => cb.checked = false);
+            updateSelection();
+        });
+    }
+    
+    updateSelection();
+});
+</script>
+{% endblock %}
+

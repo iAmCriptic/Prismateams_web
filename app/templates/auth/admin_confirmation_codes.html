@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Bestätigungscodes - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Bestätigungscodes</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4"><i class="bi bi-key"></i> Ausstehende E-Mail-Bestätigungscodes</h2>
+
+{% if users %}
+<div class="card">
+    <div class="card-header bg-info">
+        <h5 class="mb-0 text-white"><i class="bi bi-clock-history"></i> Ausstehende Bestätigungen ({{ users|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>E-Mail</th>
+                        <th>Bestätigungscode</th>
+                        <th>Gültig bis</th>
+                        <th>Registriert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <code class="bg-light p-2 rounded">{{ user.confirmation_code }}</code>
+                        </td>
+                        <td>
+                            {% if user.confirmation_code_expires %}
+                                {{ user.confirmation_code_expires.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">Unbegrenzt</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Es gibt derzeit keine ausstehenden E-Mail-Bestätigungscodes.
+</div>
+{% endif %}
+
+<div class="mt-3">
+    <a href="{{ url_for('settings.admin') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Zurück zur Administration
+    </a>
+</div>
+{% endblock %}
+

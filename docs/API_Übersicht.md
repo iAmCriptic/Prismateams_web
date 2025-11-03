@@ -72,6 +72,50 @@ GET /auth/logout
 
 ---
 
+### 🔐 Authentifizierung (zusätzliche JSON-API)
+
+Diese Endpunkte ergänzen die bestehenden formularbasierten Routen um API-freundliche JSON-Varianten.
+
+#### API Login
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "remember": true
+}
+```
+
+**Ergebnis/Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "id": 1,
+    "email": "user@example.com",
+    "full_name": "Max Mustermann",
+    "is_admin": false
+  }
+}
+```
+Hinweis: Bei Erfolg wird zusätzlich ein Session-Cookie per `Set-Cookie` gesetzt. Optional kann ein CSRF-Token im Header `X-CSRF-Token` ausgegeben werden, falls benötigt.
+
+**Status Codes:** 200 bei Erfolg, 400 bei Validierung, 401 bei falschen Credentials
+
+#### API Logout
+```http
+POST /api/auth/logout
+```
+
+**Ergebnis/Response:**
+```json
+{ "success": true }
+```
+
+**Status Codes:** 200 bei Erfolg, 401 wenn keine aktive Session vorhanden
+
 ### 👥 Benutzer API
 
 #### Alle Benutzer abrufen
@@ -414,6 +458,75 @@ Zweck-spezifische Kurzreferenz für Uploads (ergänzend zur Dateien API):
 
 ---
 
+### 📁 Dateien API (zusätzliche JSON-API)
+
+Diese Endpunkte ergänzen die bestehenden Datei-/Download-Routen um konsistente JSON-Responses.
+
+#### Dateien listen (JSON)
+```http
+GET /api/files?folder_id={folder_id}&limit=50&offset=0
+```
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "dokument.pdf",
+      "size": 1024000,
+      "mime_type": "application/pdf",
+      "version": 1,
+      "uploaded_by": "Max Mustermann",
+      "uploaded_at": "2025-01-22T10:00:00"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+#### Datei-Details (JSON)
+```http
+GET /api/files/{file_id}
+```
+
+**Response:** identisch zu `GET /files/api/file-details/{file_id}` oben.
+
+#### Datei hochladen (JSON)
+```http
+POST /api/files
+Content-Type: multipart/form-data
+
+file=@dokument.pdf&folder_id=1
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "file": {
+    "id": 42,
+    "name": "dokument.pdf",
+    "size": 1024000,
+    "mime_type": "application/pdf",
+    "version": 1,
+    "folder_id": 1,
+    "uploaded_at": "2025-01-22T10:00:00"
+  }
+}
+```
+
+#### Datei herunterladen (API)
+```http
+GET /api/files/{file_id}/download
+```
+
+**Ergebnis:** Binary-Stream mit korrekten Headern. 404 wenn nicht gefunden.
+
+**Status Codes allgemein:** 200/400/404/413/415 je nach Fall
+
 ### 📧 E-Mail API
 
 #### E-Mails abrufen
@@ -477,6 +590,94 @@ GET /email/attachment/{attachment_id}
 
 ---
 
+### 📧 E-Mail API (zusätzliche JSON-API)
+
+Diese Endpunkte ergänzen die HTML-zentrierten E-Mail-Routen um JSON-Varianten für Apps.
+
+#### E-Mails abrufen (JSON)
+```http
+GET /api/email?limit=50&offset=0
+```
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "from": "absender@example.com",
+      "to": ["empfaenger@example.com"],
+      "subject": "Betreff",
+      "snippet": "Erste Zeilen…",
+      "received_at": "2025-01-22T10:30:00",
+      "unread": true
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+#### E-Mail anzeigen (JSON)
+```http
+GET /api/email/{email_id}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "from": "absender@example.com",
+  "to": ["empfaenger@example.com"],
+  "cc": [],
+  "subject": "Betreff",
+  "body_html": "<p>…</p>",
+  "body_text": "…",
+  "attachments": [{"id": 9, "filename": "datei.pdf", "size": 12345}],
+  "received_at": "2025-01-22T10:30:00",
+  "unread": false
+}
+```
+
+#### E-Mail verfassen (JSON)
+```http
+POST /api/email
+Content-Type: application/json
+
+{
+  "to": ["empfaenger@example.com"],
+  "cc": ["cc@example.com"],
+  "subject": "Betreff",
+  "body": "Nachricht",
+  "attachments": [
+    { "filename": "dokument.pdf", "content_base64": "...", "mime_type": "application/pdf" }
+  ]
+}
+```
+
+**Response:**
+```json
+{ "success": true, "email_id": 101 }
+```
+
+#### E-Mails synchronisieren (JSON)
+```http
+POST /api/email/sync
+```
+
+**Response:**
+```json
+{ "success": true, "fetched": 12 }
+```
+
+#### E-Mail-Anhang herunterladen (API)
+```http
+GET /api/email/attachments/{attachment_id}
+```
+
+**Ergebnis:** Binary-Stream; 404 wenn nicht gefunden
+
 ### 🔑 Zugangsdaten API
 
 #### Alle Zugangsdaten abrufen
@@ -521,6 +722,111 @@ GET /credentials/view-password/{credential_id}
 ```
 
 ---
+
+### 🔑 Zugangsdaten API (zusätzliche JSON-API)
+
+Diese Endpunkte ergänzen die formularbasierten Routen um JSON-Varianten mit klaren Responses.
+
+#### Zugangsdaten listen (JSON)
+```http
+GET /api/credentials?limit=50&offset=0
+```
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": 7,
+      "website_url": "https://example.com",
+      "website_name": "Example",
+      "username": "user",
+      "notes": "Notizen",
+      "created_at": "2025-01-22T10:00:00"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+#### Zugangsdaten erstellen (JSON)
+```http
+POST /api/credentials
+Content-Type: application/json
+
+{
+  "website_url": "https://example.com",
+  "website_name": "Example",
+  "username": "user",
+  "password": "pass123",
+  "notes": "Notizen"
+}
+```
+
+**Response:**
+```json
+{ "success": true, "credential_id": 7 }
+```
+
+#### Zugangsdaten anzeigen (JSON)
+```http
+GET /api/credentials/{credential_id}
+```
+
+**Response:**
+```json
+{
+  "id": 7,
+  "website_url": "https://example.com",
+  "website_name": "Example",
+  "username": "user",
+  "notes": "Notizen",
+  "created_at": "2025-01-22T10:00:00"
+}
+```
+
+#### Zugangsdaten aktualisieren (JSON)
+```http
+PUT /api/credentials/{credential_id}
+Content-Type: application/json
+
+{
+  "website_url": "https://example.com",
+  "website_name": "Example",
+  "username": "user",
+  "password": "neuesPasswortOptional",
+  "notes": "Aktualisierte Notizen"
+}
+```
+
+**Response:**
+```json
+{ "success": true }
+```
+
+#### Zugangsdaten löschen (JSON)
+```http
+DELETE /api/credentials/{credential_id}
+```
+
+**Response:**
+```json
+{ "success": true }
+```
+
+#### Passwort im Klartext anzeigen (JSON)
+```http
+GET /api/credentials/{credential_id}/password
+```
+
+**Response:**
+```json
+{ "password": "entschlüsseltes_passwort" }
+```
+
+Sicherheits-Hinweis: Zugriff nur für berechtigte Nutzer; Zugriffe werden geloggt. Optional kann eine zusätzliche Bestätigung (z. B. Re-Auth) verlangt werden.
 
 ### 🎨 Canvas API
 

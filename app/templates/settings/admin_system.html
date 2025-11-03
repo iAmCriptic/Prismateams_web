@@ -18,12 +18,25 @@
                 <h4 class="mb-0">System-Einstellungen</h4>
             </div>
             <div class="card-body">
-                <form method="POST">
-                    <h5 class="mb-3">E-Mail-Footer</h5>
+                <form method="POST" enctype="multipart/form-data">
+                    <h5 class="mb-3">Portal-Einstellungen</h5>
+                    
                     <div class="mb-3">
-                        <label for="email_footer_text" class="form-label">Footer-Text</label>
-                        <textarea class="form-control" id="email_footer_text" name="email_footer_text" rows="4">{{ footer_text.value if footer_text else '' }}</textarea>
-                        <div class="form-text">Dieser Text wird automatisch am Ende jeder gesendeten E-Mail eingefügt, zusammen mit dem Namen des Absenders.</div>
+                        <label for="portal_name" class="form-label">Portalsname</label>
+                        <input type="text" class="form-control" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="z.B. Prismateams">
+                        <div class="form-text">Der Name des Portals, der an verschiedenen Stellen angezeigt wird.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="portal_logo" class="form-label">Portalslogo</label>
+                        {% if portal_logo %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="Portalslogo" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
+                            <p class="text-muted small mt-1">Aktuelles Logo</p>
+                        </div>
+                        {% endif %}
+                        <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
+                        <div class="form-text">Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)</div>
                     </div>
                     
                     <div class="d-grid gap-2">

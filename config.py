@@ -52,7 +52,7 @@ class Config:
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'md', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar'}
     
     # Application
-    APP_NAME = os.environ.get('APP_NAME', 'Team Portal')
+    APP_NAME = os.environ.get('APP_NAME', 'Prismateams')
     APP_LOGO = os.environ.get('APP_LOGO', 'static/img/logo.png')
     
     # Timezone

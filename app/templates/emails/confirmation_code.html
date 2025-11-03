@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Mail-Bestätigung - {{ app_name or 'Team Portal' }}</title>
+    <title>E-Mail-Bestätigung - {{ app_name or 'Prismateams' }}</title>
     <!-- Um maximale Kompatibilität zu gewährleisten, werden die meisten Styles im <style> Block definiert. -->
     <style>
         body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
@@ -124,9 +124,9 @@
                     <tr>
                         <td align="center" class="header" style="padding: 30px 20px 20px 20px; text-align: center;">
                             <!-- Das Logo wird hier über den Pfad /static/img/logo.png eingebunden -->
-                            <img src="/static/img/logo.png" alt="{{ app_name or 'Team Portal' }} Logo" width="150" style="display: block; margin: 0 auto; max-width: 150px; height: auto;">
+                            <img src="/static/img/logo.png" alt="{{ app_name or 'Prismateams' }} Logo" width="150" style="display: block; margin: 0 auto; max-width: 150px; height: auto;">
                             <h1 style="color: #5B6DE6; margin: 15px 0 0 0; font-size: 24px; font-weight: 700;">
-                                {{ app_name or 'Team Portal' }}
+                                {{ app_name or 'Prismateams' }}
                             </h1>
                         </td>
                     </tr>
@@ -138,7 +138,7 @@
                             <h2 style="margin: 0 0 20px 0; font-size: 22px; font-weight: 600;">Hallo {{ user.first_name }}!</h2>
                             
                             <p style="margin: 0 0 15px 0;">
-                                vielen Dank für Ihre Registrierung bei <strong>{{ app_name or 'Team Portal' }}</strong>!
+                                vielen Dank für Ihre Registrierung bei <strong>{{ app_name or 'Prismateams' }}</strong>!
                             </p>
                             
                             <p style="margin: 0 0 25px 0;">
@@ -171,7 +171,7 @@
                             <p style="margin: 0 0 15px 0;">Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
                             
                             <p style="margin: 25px 0 0 0;">Mit freundlichen Grüßen,<br>
-                            Ihr {{ app_name or 'Team Portal' }} Team</p>
+                            Ihr {{ app_name or 'Prismateams' }} Team</p>
                         </td>
                     </tr>
                     
@@ -179,7 +179,7 @@
                     <tr>
                         <td class="footer" align="center" style="background: #f4f6f8; padding: 25px 40px; text-align: center; border-top: 1px solid #E5E7EB;">
                             <p style="margin: 0 0 5px 0; color: #9CA3AF; font-size: 12px;">Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht darauf.</p>
-                            <p style="margin: 0; color: #9CA3AF; font-size: 12px;">&copy; {{ current_year }} {{ app_name or 'Team Portal' }}. Alle Rechte vorbehalten.</p>
+                            <p style="margin: 0; color: #9CA3AF; font-size: 12px;">&copy; {{ current_year }} {{ app_name or 'Prismateams' }}. Alle Rechte vorbehalten.</p>
                         </td>
                     </tr>
                 </table>

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Inventurliste - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-clipboard-checklist"></i> Inventurliste</h1>
+        <p class="text-muted">Vollständige Übersicht aller Produkte für die Inventur</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-primary">
+            <i class="bi bi-file-pdf"></i> Als PDF herunterladen
+        </a>
+        <button class="btn btn-outline-primary ms-2" onclick="window.print()">
+            <i class="bi bi-printer"></i> Drucken
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Produktname</th>
+                        <th>Kategorie</th>
+                        <th>Seriennummer</th>
+                        <th>Lagerort</th>
+                        <th>Länge</th>
+                        <th>Status</th>
+                        <th>Bemerkung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.id }}</td>
+                        <td><strong>{{ product.name }}</strong></td>
+                        <td>{{ product.category or '-' }}</td>
+                        <td>{{ product.serial_number or '-' }}</td>
+                        <td>{{ product.location or '-' }}</td>
+                        <td>{{ product.length or '-' }}</td>
+                        <td>
+                            {% if product.status == 'available' %}
+                            <span class="badge bg-success">Verfügbar</span>
+                            {% else %}
+                            <span class="badge bg-warning">Ausgeliehen</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.condition %}
+                            {{ product.condition }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if not products %}
+        <div class="text-center py-5">
+            <p class="text-muted">Keine Produkte vorhanden</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style media="print">
+    @media print {
+        .btn, nav, .sidebar, .mobile-nav {
+            display: none !important;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        table {
+            font-size: 10pt;
+        }
+    }
+</style>
+{% endblock %}
+

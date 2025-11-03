@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Ausleihe-Berechtigungen - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-shield-check"></i> Ausleihe-Berechtigungen verwalten</h1>
+        <p class="text-muted">Bestimmen Sie, welche Benutzer Artikel ausleihen dürfen</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Benutzer-Berechtigungen</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>E-Mail</th>
+                        <th>Berechtigung</th>
+                        <th>Aktion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.can_borrow %}
+                            <span class="badge bg-success">Ausleihen erlaubt</span>
+                            {% else %}
+                            <span class="badge bg-danger">Ausleihen gesperrt</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('settings.admin_toggle_borrow_permission', user_id=user.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm {% if user.can_borrow %}btn-warning{% else %}btn-success{% endif %}">
+                                    {% if user.can_borrow %}
+                                    <i class="bi bi-lock"></i> Sperren
+                                    {% else %}
+                                    <i class="bi bi-unlock"></i> Freigeben
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{{ url_for('settings.admin') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück zu Einstellungen
+        </a>
+    </div>
+</div>
+{% endblock %}
+

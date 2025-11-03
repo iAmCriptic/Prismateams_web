@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}E-Mail bestätigen - Team Portal{% endblock %}
+{% block title %}E-Mail bestätigen - Prismateams{% endblock %}
 
 {% block content %}
 <div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }}; background-attachment: fixed; background-size: cover;"{% endif %}>
@@ -9,11 +9,11 @@
             <div class="card-body p-4">
                 <h1 class="text-center mb-4">
                     {% if app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
                     {% else %}
                     <i class="bi bi-envelope-check text-primary"></i>
                     {% endif %}
-                    {{ app_name or 'Team Portal' }}
+                    {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-4">E-Mail bestätigen</h5>
                 

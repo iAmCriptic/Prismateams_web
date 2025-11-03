@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Rückgabe - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-arrow-counterclockwise"></i> Rückgabe</h1>
+        <p class="text-muted">Geben Sie ausgeliehene Artikel zurück</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-body">
+                <!-- Manuelle Eingabe -->
+                <div>
+                    <h5 class="mb-3">QR-Code oder Ausleihvorgangsnummer eingeben</h5>
+                    <form method="POST" id="returnForm">
+                        <div class="mb-3">
+                            <label for="qr_code" class="form-label">QR-Code</label>
+                            <input type="text" class="form-control" id="qr_code" name="qr_code" 
+                                   placeholder="QR-Code eingeben (z.B. BORROW-INV-... oder PROD-...)" 
+                                   autocomplete="off">
+                            <small class="form-text text-muted">Geben Sie den QR-Code des Produkts oder der Ausleihe ein.</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="transaction_number" class="form-label">oder Ausleihvorgangsnummer</label>
+                            <input type="text" class="form-control" id="transaction_number" name="transaction_number" 
+                                   value="{{ preset_transaction_number }}"
+                                   placeholder="z.B. INV-20251103-123456-ABCD"
+                                   autocomplete="off">
+                            <small class="form-text text-muted">Alternativ können Sie die Ausleihvorgangsnummer direkt eingeben.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-accent w-100">
+                            <i class="bi bi-check-circle"></i> Rückgabe bestätigen
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Nur Formular-Handler, kein Scanner
+    const form = document.getElementById('returnForm');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('/inventory/return', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // Prüfe die Antwort
+                if (response.ok || response.status === 200) {
+                    const result = await response.text();
+                    
+                    if (result.includes('erfolgreich') || 
+                        result.includes('Rückgabe erfolgreich') || 
+                        result.includes('Lagerverwaltung') ||
+                        response.redirected ||
+                        response.url.includes('/inventory/')) {
+                        // Erfolgreiche Rückgabe - Zum Dashboard leiten
+                        window.location.href = '/inventory/';
+                    } else if (result.includes('Keine aktive Ausleihe') || result.includes('fehlgeschlagen')) {
+                        // Fehler - Seite neu laden um Fehlermeldung zu sehen
+                        window.location.reload();
+                    } else {
+                        // Unbekannte Antwort, aber Status OK - trotzdem zum Dashboard
+                        window.location.href = '/inventory/';
+                    }
+                } else {
+                    // HTTP Fehler
+                    const result = await response.text();
+                    if (result.includes('Keine aktive Ausleihe')) {
+                        alert('Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.');
+                    } else {
+                        alert('Fehler bei der Rückgabe. Bitte versuchen Sie es erneut.');
+                    }
+                }
+            } catch (error) {
+                console.error('Fehler:', error);
+                alert('Fehler bei der Rückgabe. Bitte versuchen Sie es erneut.');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

@@ -71,6 +71,11 @@ def register():
         # Check if email is whitelisted
         is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
         
+        # Get default accent color from system settings
+        from app.models.settings import SystemSettings
+        default_accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+        default_accent_color = default_accent_color_setting.value if default_accent_color_setting else '#0d6efd'
+        
         # Create new user (active if whitelisted, inactive otherwise)
         new_user = User(
             email=email,
@@ -79,7 +84,8 @@ def register():
             phone=phone,
             is_active=is_whitelisted,
             is_admin=False,
-            dark_mode=dark_mode
+            dark_mode=dark_mode,
+            accent_color=default_accent_color
         )
         new_user.set_password(password)
         
@@ -299,11 +305,11 @@ def test_email():
         
         # Versuche Test-E-Mail zu senden
         msg = Message(
-            subject='Test-E-Mail - Tech Portal',
+            subject='Test-E-Mail - Prismateams',
             recipients=[current_user.email],
             sender=current_app.config.get('MAIL_DEFAULT_SENDER', mail_username)
         )
-        msg.body = 'Dies ist eine Test-E-Mail vom Tech Portal.'
+        msg.body = 'Dies ist eine Test-E-Mail von Prismateams.'
         
         mail.send(msg)
         

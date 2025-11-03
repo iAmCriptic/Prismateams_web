@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Bestandsübersicht - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-box-seam"></i> Bestandsübersicht</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.product_new') }}" class="btn btn-accent">
+            <i class="bi bi-plus-circle"></i> Produkt hinzufügen
+        </a>
+    </div>
+</div>
+
+<!-- Such- und Filterleiste -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label for="searchInput" class="form-label">Suchen</label>
+                <input type="text" class="form-control" id="searchInput" placeholder="Produktname, Seriennummer...">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="categoryFilter" class="form-label">Kategorie</label>
+                <select class="form-select" id="categoryFilter">
+                    <option value="">Alle Kategorien</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="statusFilter" class="form-label">Status</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Alle Status</option>
+                    <option value="available">Verfügbar</option>
+                    <option value="borrowed">Ausgeliehen</option>
+                    <option value="missing">Fehlend</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Produktliste -->
+<div class="card">
+    <div class="card-body">
+        <div id="productsContainer">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Lädt...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Produkt-Detail-Modal -->
+<div class="modal fade" id="productDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Produktdetails</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="productDetailContent">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script>
+// Bestandsübersicht-Initialisierung
+document.addEventListener('DOMContentLoaded', function() {
+    const stockManager = new StockManager();
+    stockManager.init();
+});
+</script>
+{% endblock %}
+

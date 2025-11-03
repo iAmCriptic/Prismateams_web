@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rückgabe-Bestätigung - {{ app_name or 'Prismateams' }}</title>
+    <style>
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        .header {
+            background: #ffffff;
+            padding: 30px 20px 20px 20px;
+            text-align: center;
+        }
+        .header img {
+            max-width: 150px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        .header h1 {
+            color: #198754;
+            margin: 15px 0 0 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .content {
+            padding: 30px 40px;
+        }
+        .details-box {
+            background: #E8F5E9;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .details-box h3 {
+            color: #198754;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        .details-box p {
+            margin: 8px 0;
+            color: #333333;
+        }
+        .success-note {
+            background: #E8F5E9;
+            border-left: 4px solid #198754;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }
+        .footer {
+            background: #f4f6f8;
+            padding: 25px 40px;
+            text-align: center;
+            border-top: 1px solid #E5E7EB;
+        }
+        .footer p {
+            margin: 0;
+            color: #9CA3AF;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .content, .footer {
+                padding: 20px;
+            }
+            .container {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f6f8;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; background-color: #f4f6f8;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" class="container" width="100%" style="border-collapse: collapse; max-width: 600px; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
+                    <tr>
+                        <td align="center" class="header" style="padding: 30px 20px 20px 20px; text-align: center;">
+                            <img src="/static/img/logo.png" alt="{{ app_name or 'Prismateams' }} Logo" width="150" style="display: block; margin: 0 auto; max-width: 150px; height: auto;">
+                            <h1 style="color: #198754; margin: 15px 0 0 0; font-size: 24px; font-weight: 700;">
+                                {{ app_name or 'Prismateams' }}
+                            </h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="content" style="padding: 30px 40px; color: #333333; font-size: 16px;">
+                            <h2 style="margin: 0 0 20px 0; font-size: 22px; font-weight: 600; color: #198754;">Rückgabe-Bestätigung</h2>
+                            
+                            <p style="margin: 0 0 15px 0;">Guten Tag {{ borrower.first_name }},</p>
+                            
+                            <p style="margin: 0 0 25px 0;">
+                                wir bestätigen Ihnen die erfolgreiche Rückgabe des folgenden Artikels:
+                            </p>
+                            
+                            <div class="details-box" style="background: #E8F5E9; border-radius: 12px; padding: 20px; margin: 25px 0;">
+                                <h3 style="color: #198754; margin: 0 0 15px 0; font-size: 18px;">Rückgabedetails</h3>
+                                <p style="margin: 8px 0; color: #333333;"><strong>Produkt:</strong> {{ product.name }}</p>
+                                {% if product.serial_number %}
+                                <p style="margin: 8px 0; color: #333333;"><strong>Seriennummer:</strong> {{ product.serial_number }}</p>
+                                {% endif %}
+                                <p style="margin: 8px 0; color: #333333;"><strong>Ausleihvorgangsnummer:</strong> {{ transaction.transaction_number }}</p>
+                                <p style="margin: 8px 0; color: #333333;"><strong>Rückgabedatum:</strong> {{ return_date }}</p>
+                            </div>
+                            
+                            <div class="success-note" style="background: #E8F5E9; border-left: 4px solid #198754; padding: 15px; margin: 25px 0; border-radius: 4px;">
+                                <p style="margin: 0; color: #333333;">
+                                    <strong>✓ Rückgabe erfolgreich registriert</strong><br>
+                                    Vielen Dank für die pünktliche Rückgabe!
+                                </p>
+                            </div>
+                            
+                            <p style="margin: 25px 0 15px 0;">
+                                Das Rückgabe-Dokument finden Sie als PDF-Anhang zu dieser E-Mail.
+                            </p>
+                            
+                            <p style="margin: 25px 0 0 0;">Mit freundlichen Grüßen,<br>
+                            Ihr {{ app_name or 'Prismateams' }} Team</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer" align="center" style="background: #f4f6f8; padding: 25px 40px; text-align: center; border-top: 1px solid #E5E7EB;">
+                            <p style="margin: 0 0 5px 0; color: #9CA3AF; font-size: 12px;">Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht darauf.</p>
+                            <p style="margin: 0; color: #9CA3AF; font-size: 12px;">&copy; {{ current_year }} {{ app_name or 'Prismateams' }}. Alle Rechte vorbehalten.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+

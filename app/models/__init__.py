@@ -9,6 +9,7 @@ from .canvas import Canvas, CanvasTextField
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
 from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
+from .inventory import Product, BorrowTransaction
 
 __all__ = [
     'User',
@@ -21,7 +22,8 @@ __all__ = [
     'Canvas', 'CanvasTextField',
     'SystemSettings',
     'WhitelistEntry',
-    'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog'
+    'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog',
+    'Product', 'BorrowTransaction'
 ]
 
 

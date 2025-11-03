@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -73,6 +73,8 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'chat'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'manuals'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'profile_pics'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'inventory', 'product_images'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'system'),  # For portal logo
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
@@ -80,32 +82,45 @@ def create_app(config_name='default'):
     # Make app config available in all templates
     @app.context_processor
     def inject_app_config():
-        app_name = app.config.get('APP_NAME', 'Team Portal')
+        # Load from SystemSettings first, fallback to config
+        app_name = app.config.get('APP_NAME', 'Prismateams')
         app_logo = app.config.get('APP_LOGO')
-        
-        # Fix logo path - remove 'static/' prefix if present since Flask adds it automatically
-        if app_logo and app_logo.startswith('static/'):
-            app_logo = app_logo[7:]  # Remove 'static/' prefix
-        
-        # Load color gradient from database
         color_gradient = None
+        portal_logo_filename = None
+        
         try:
             from app.models.settings import SystemSettings
+            
+            # Load portal name from SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            if portal_name_setting and portal_name_setting.value:
+                app_name = portal_name_setting.value
+            else:
+                app_name = app.config.get('APP_NAME', 'Prismateams')
+            
+            # Load portal logo from SystemSettings
+            portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+            if portal_logo_setting and portal_logo_setting.value:
+                portal_logo_filename = portal_logo_setting.value
+                # Portal logo is stored as filename in uploads/system/, not in static
+                app_logo = None  # Will be handled via portal_logo route
+            
+            # Load color gradient from database
             gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
             if gradient_setting and gradient_setting.value:
                 color_gradient = gradient_setting.value
         except:
             pass  # Ignore errors during setup
         
-        # Debug output
-        print(f"DEBUG: app_name = {app_name}")
-        print(f"DEBUG: app_logo = {app_logo}")
-        print(f"DEBUG: color_gradient = {color_gradient}")
+        # Fix logo path - remove 'static/' prefix if present since Flask adds it automatically
+        if app_logo and app_logo.startswith('static/'):
+            app_logo = app_logo[7:]  # Remove 'static/' prefix
         
         return {
             'app_name': app_name,
             'app_logo': app_logo,
-            'color_gradient': color_gradient
+            'color_gradient': color_gradient,
+            'portal_logo_filename': portal_logo_filename
         }
     
     # Email header decoder filter
@@ -270,6 +285,7 @@ def create_app(config_name='default'):
     from app.blueprints.settings import settings_bp
     from app.blueprints.api import api_bp
     from app.blueprints.errors import errors_bp
+    from app.blueprints.inventory import inventory_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -284,11 +300,32 @@ def create_app(config_name='default'):
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(errors_bp, url_prefix='/test')
+    app.register_blueprint(inventory_bp, url_prefix='/inventory')
     
-    # PWA Manifest Route
+    # PWA Manifest Route - Generate dynamically based on portal name
     @app.route('/manifest.json')
     def manifest():
-        return app.send_static_file('manifest.json')
+        import json
+        from app.models.settings import SystemSettings
+        
+        # Load portal name from SystemSettings
+        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+        portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else app.config.get('APP_NAME', 'Prismateams')
+        
+        # Load manifest.json and replace name dynamically
+        manifest_path = os.path.join(app.static_folder, 'manifest.json')
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                manifest_data = json.load(f)
+            
+            # Update with current portal name
+            manifest_data['name'] = portal_name
+            manifest_data['short_name'] = portal_name
+            
+            return jsonify(manifest_data)
+        except:
+            # Fallback to static file if something goes wrong
+            return app.send_static_file('manifest.json')
     
     # Service Worker unter Root-Scope ausliefern, damit er die gesamte App kontrolliert
     @app.route('/sw.js')

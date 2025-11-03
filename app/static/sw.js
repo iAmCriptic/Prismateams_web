@@ -106,7 +106,7 @@ self.addEventListener('push', function(event) {
   console.log('Service Worker: Push Event empfangen');
   
   let notificationData = {
-    title: 'Team Portal',
+    title: 'Prismateams',
     body: 'Neue Benachrichtigung',
     icon: '/static/img/logo.png',
     badge: '/static/img/logo.png',
@@ -120,7 +120,7 @@ self.addEventListener('push', function(event) {
       const pushData = event.data.json();
       console.log('Server Push-Daten empfangen:', pushData);
       notificationData = {
-        title: pushData.title || 'Team Portal',
+        title: pushData.title || 'Prismateams',
         body: pushData.body || 'Neue Benachrichtigung',
         icon: pushData.icon || '/static/img/logo.png',
         badge: pushData.badge || '/static/img/logo.png',

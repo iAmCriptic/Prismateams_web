@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ app_name or 'Team Portal' }}{% endblock %}</title>
+    <title>{% block title %}{{ app_name or 'Prismateams' }}{% endblock %}</title>
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="Team-Software für effektive Zusammenarbeit - Chat, Dateien, Termine und mehr">
     <meta name="theme-color" content="#0d6efd">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Team Portal">
+    <meta name="apple-mobile-web-app-title" content="Prismateams">
     <meta name="msapplication-TileColor" content="#0d6efd">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     
@@ -48,6 +48,8 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
         {% elif 'dashboard' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+        {% elif 'inventory' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
         {% endif %}
     {% endif %}
     
@@ -234,10 +236,12 @@
     <!-- Desktop Sidebar -->
     <div class="d-none d-md-flex flex-column flex-shrink-0 p-3 bg-light sidebar">
         <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
-            {% if app_logo %}
-            <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="32" class="me-2">
+            {% if portal_logo_filename %}
+            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
+            {% elif app_logo %}
+            <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
             {% endif %}
-            <span class="fs-4">{{ app_name or 'Team Portal' }}</span>
+            <span class="fs-4">{{ app_name or 'Prismateams' }}</span>
         </a>
         <hr>
         <ul class="nav nav-pills flex-column mb-auto">
@@ -287,6 +291,12 @@
                 <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-palette me-2"></i>
                     Canvas
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Lagerverwaltung
                 </a>
             </li>
             <li>
@@ -344,6 +354,12 @@
                     <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-palette me-2"></i>
                         Canvas
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-box-seam me-2"></i>
+                        Lagerverwaltung
                     </a>
                 </li>
                 <li>

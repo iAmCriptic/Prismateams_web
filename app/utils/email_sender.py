@@ -47,7 +47,15 @@ def send_confirmation_email(user):
         
         # Erstelle E-Mail
         msg = Message(
-            subject=f'E-Mail-Bestätigung - {current_app.config.get("APP_NAME", "Team Portal")}',
+            # Get portal name from SystemSettings
+            try:
+                from app.models.settings import SystemSettings
+                portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+                portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+            except:
+                portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+            
+            subject=f'E-Mail-Bestätigung - {portal_name}',
             recipients=[user.email],
             sender=current_app.config.get('MAIL_DEFAULT_SENDER', mail_username)
         )
@@ -57,7 +65,7 @@ def send_confirmation_email(user):
             'emails/confirmation_code.html',
             user=user,
             confirmation_code=confirmation_code,
-            app_name=current_app.config.get('APP_NAME', 'Team Portal'),
+            app_name=portal_name,
             current_year=datetime.utcnow().year
         )
         
@@ -77,7 +85,15 @@ def send_confirmation_email(user):
                 
                 # Erstelle neue Message mit korrigierter Konfiguration
                 msg_alt = Message(
-                    subject=f'E-Mail-Bestätigung - {current_app.config.get("APP_NAME", "Team Portal")}',
+                    # Get portal name from SystemSettings
+            try:
+                from app.models.settings import SystemSettings
+                portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+                portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+            except:
+                portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+            
+            subject=f'E-Mail-Bestätigung - {portal_name}',
                     recipients=[user.email],
                     sender=current_app.config.get('MAIL_DEFAULT_SENDER', mail_username)
                 )
@@ -87,7 +103,7 @@ def send_confirmation_email(user):
                     'emails/confirmation_code.html',
                     user=user,
                     confirmation_code=confirmation_code,
-                    app_name=current_app.config.get('APP_NAME', 'Team Portal'),
+                    app_name=portal_name,
                     current_year=datetime.utcnow().year
                 )
                 
@@ -135,3 +151,75 @@ def verify_confirmation_code(user, code):
 def resend_confirmation_email(user):
     """Sendet eine neue Bestätigungs-E-Mail."""
     return send_confirmation_email(user)
+
+
+def send_return_confirmation_email(borrow_transaction):
+    """Sendet eine Bestätigungs-E-Mail nach erfolgreicher Rückgabe mit PDF-Anhang."""
+    try:
+        from app.models.inventory import BorrowTransaction, Product
+        from app.utils.pdf_generator import generate_return_confirmation_pdf
+        from io import BytesIO
+        
+        product = borrow_transaction.product
+        borrower = borrow_transaction.borrower
+        
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Rückgabe-Bestätigung für {borrow_transaction.transaction_number} nicht gesendet.")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Team Portal')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Team Portal')
+        
+        # Erstelle E-Mail
+        msg = Message(
+            subject=f'Rückgabe-Bestätigung - {portal_name}',
+            recipients=[borrower.email],
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER', mail_username)
+        )
+        
+        # HTML-Template für Rückgabe-Bestätigung
+        return_date = borrow_transaction.actual_return_date.strftime('%d.%m.%Y') if borrow_transaction.actual_return_date else datetime.utcnow().strftime('%d.%m.%Y')
+        
+        html_content = render_template(
+            'emails/return_confirmation.html',
+            app_name=portal_name,
+            borrower=borrower,
+            product=product,
+            transaction=borrow_transaction,
+            return_date=return_date,
+            current_year=datetime.utcnow().year
+        )
+        
+        msg.html = html_content
+        
+        # PDF-Anhang generieren
+        pdf_buffer = BytesIO()
+        generate_return_confirmation_pdf(borrow_transaction, pdf_buffer)
+        pdf_buffer.seek(0)
+        
+        # PDF als Anhang hinzufügen
+        filename = f"Rueckgabe_Bestaetigung_{borrow_transaction.transaction_number}.pdf"
+        msg.attach(filename, "application/pdf", pdf_buffer.read())
+        
+        # E-Mail senden
+        try:
+            mail.send(msg)
+            logging.info(f"Return confirmation email sent to {borrower.email} for transaction {borrow_transaction.transaction_number}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send return confirmation email to {borrower.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send return confirmation email: {str(e)}")
+        return False

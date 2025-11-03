@@ -33,6 +33,8 @@ def make_shell_context():
         'ChatNotificationSettings': ChatNotificationSettings,
         'PushSubscription': PushSubscription,
         'NotificationLog': NotificationLog,
+        'Product': Product,
+        'BorrowTransaction': BorrowTransaction,
     }
 
 

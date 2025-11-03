@@ -50,7 +50,7 @@
             <div class="mb-3">
                 <h6>Vorschau:</h6>
                 <div class="border rounded p-3 bg-light">
-                    <pre id="preview" style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ footer_template.replace('<user>', 'Max Mustermann').replace('<email>', 'max@example.com').replace('<app_name>', 'Team Portal').replace('<date>', '29.10.2025').replace('<time>', '19:15') }}</pre>
+                    <pre id="preview" style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ footer_template.replace('<user>', 'Max Mustermann').replace('<email>', 'max@example.com').replace('<app_name>', 'Prismateams').replace('<date>', '29.10.2025').replace('<time>', '19:15') }}</pre>
                 </div>
             </div>
 
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Replace variables with sample data for preview
         content = content.replace(/<user>/g, 'Max Mustermann');
         content = content.replace(/<email>/g, 'max@example.com');
-        content = content.replace(/<app_name>/g, 'Team Portal');
+        content = content.replace(/<app_name>/g, 'Prismateams');
         content = content.replace(/<date>/g, '29.10.2025');
         content = content.replace(/<time>/g, '19:15');
         preview.textContent = content;
