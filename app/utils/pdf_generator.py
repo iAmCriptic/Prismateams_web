@@ -220,9 +220,13 @@ def generate_qr_code_sheet_pdf(products, output=None):
             qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
             
             # Container für QR-Code und Text erstellen
+            product_name = product.name
+            if product.length:
+                product_name = f"{product.name} ({product.length})"
+            
             product_data = [
                 [qr_image],
-                [Paragraph(f"<b>{product.name}</b>", styles['Normal'])]
+                [Paragraph(f"<b>{product_name}</b>", styles['Normal'])]
             ]
             
             if product.serial_number:

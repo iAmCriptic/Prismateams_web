@@ -176,9 +176,9 @@ def send_return_confirmation_email(borrow_transaction):
         try:
             from app.models.settings import SystemSettings
             portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Team Portal')
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
         except:
-            portal_name = current_app.config.get('APP_NAME', 'Team Portal')
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
         
         # Erstelle E-Mail
         msg = Message(

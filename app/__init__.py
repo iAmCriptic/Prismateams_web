@@ -37,13 +37,14 @@ def create_app(config_name='default'):
         from flask import request, redirect, url_for, flash
         from flask_login import current_user
         
-        # Skip check for auth routes, setup, static files, and API
+        # Skip check for auth routes, setup, static files, API, and portal logo
         if (request.endpoint and 
             (request.endpoint.startswith('auth.') or 
              request.endpoint.startswith('setup.') or
              request.endpoint.startswith('static') or
              request.endpoint.startswith('api.') or
-             request.endpoint == 'manifest')):
+             request.endpoint == 'manifest' or
+             request.endpoint == 'settings.portal_logo')):
             return
         
         # Skip check if user is not logged in
@@ -92,11 +93,17 @@ def create_app(config_name='default'):
             from app.models.settings import SystemSettings
             
             # Load portal name from SystemSettings
+            # Try portal_name first, then fallback to organization_name (for migration), then config
             portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            if portal_name_setting and portal_name_setting.value:
+            if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
                 app_name = portal_name_setting.value
             else:
-                app_name = app.config.get('APP_NAME', 'Prismateams')
+                # Check for old organization_name key (migration support)
+                org_name_setting = SystemSettings.query.filter_by(key='organization_name').first()
+                if org_name_setting and org_name_setting.value and org_name_setting.value.strip():
+                    app_name = org_name_setting.value
+                else:
+                    app_name = app.config.get('APP_NAME', 'Prismateams')
             
             # Load portal logo from SystemSettings
             portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()

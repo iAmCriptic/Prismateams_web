@@ -123,6 +123,35 @@ def send_push_notification(
     
     logging.info(f"Gefunden {len(subscriptions)} Push-Subscriptions für Benutzer {user_id}")
     
+    # Lade Portal-Name und Logo aus Datenbank für Standard-Werte
+    try:
+        from app.models.settings import SystemSettings
+        from flask import url_for, current_app
+        
+        # Portal-Name aus Datenbank (wenn title nicht angegeben oder Standard)
+        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+        portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # Portal-Logo aus Datenbank
+        portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+        if portal_logo_setting and portal_logo_setting.value:
+            # Portal-Logo URL erstellen
+            portal_logo_url = url_for('settings.portal_logo', filename=portal_logo_setting.value, _external=True)
+            if not icon or icon == "/static/img/logo.png":
+                icon = portal_logo_url
+        else:
+            # Fallback zu statischem Logo
+            if not icon or icon == "":
+                icon = url_for('static', filename='img/logo.png', _external=True)
+    except Exception as e:
+        logging.warning(f"Could not load portal settings for push notification: {e}")
+        # Fallback zu statischem Logo
+        if not icon or icon == "":
+            try:
+                icon = url_for('static', filename='img/logo.png', _external=True)
+            except:
+                icon = "/static/img/logo.png"
+    
     success_count = 0
     total_count = len(subscriptions)
     

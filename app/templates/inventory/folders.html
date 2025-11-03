@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Produktordner - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-folder"></i> Produktordner</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück zur Bestandsübersicht
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Neuen Ordner erstellen</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Ordnername <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="color" class="form-label">Farbe (optional)</label>
+                        <input type="color" class="form-control form-control-color" id="color" name="color" 
+                               value="#0d6efd" title="Ordnerfarbe">
+                        <small class="form-text text-muted">Wählen Sie eine Farbe zur visuellen Unterscheidung</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-accent">
+                        <i class="bi bi-plus-circle"></i> Ordner erstellen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Vorhandene Ordner</h5>
+            </div>
+            <div class="card-body">
+                {% if folders %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Beschreibung</th>
+                                <th>Produkte</th>
+                                <th>Farbe</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for folder in folders %}
+                            <tr>
+                                <td>
+                                    <strong>{{ folder.name }}</strong>
+                                </td>
+                                <td>
+                                    {{ folder.description or '-' }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ folder.product_count }}</span>
+                                </td>
+                                <td>
+                                    {% if folder.color %}
+                                    <span class="badge" style="background-color: {{ folder.color }};">
+                                        &nbsp;&nbsp;&nbsp;
+                                    </span>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('inventory.folder_delete', folder_id=folder.id) }}" 
+                                          style="display: inline;" 
+                                          onsubmit="return confirm('Möchten Sie den Ordner \"{{ folder.name }}\" wirklich löschen? Produkte in diesem Ordner werden nicht gelöscht, sondern nur der Ordnerzuweisung entfernt.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i> Löschen
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-folder-x fs-1 text-muted mb-3"></i>
+                    <p class="text-muted">Noch keine Ordner vorhanden.</p>
+                    <p class="text-muted">Erstellen Sie einen Ordner, um Produkte besser zu organisieren.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

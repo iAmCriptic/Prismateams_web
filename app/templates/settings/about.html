@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Über PrismaTeams - Einstellungen{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item active">Über PrismaTeams</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-info-circle"></i> Über PrismaTeams</h4>
+            </div>
+            <div class="card-body">
+                <!-- PrismaTeams Logo - Immer das PrismaTeams Logo aus static/img/logo.png -->
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="PrismaTeams Logo" class="img-fluid" style="max-height: 200px; width: auto;">
+                </div>
+                
+                <!-- Beschreibung -->
+                <div class="mb-4">
+                    <h5 class="mb-3">PrismaTeams</h5>
+                    <p class="text-muted">
+                        PrismaTeams ist eine umfassende Team-Kollaborationsplattform, die Ihnen hilft, 
+                        effizient mit Ihrem Team zu kommunizieren, zu organisieren und zusammenzuarbeiten. 
+                        Die Plattform bietet Funktionen für Chat, Dateiverwaltung, Kalender, E-Mail-Verwaltung 
+                        und vieles mehr.
+                    </p>
+                </div>
+                
+                <!-- Autor und Copyright -->
+                <div class="mb-4">
+                    <hr>
+                    <p class="mb-1"><strong>Autor:</strong> Enrico R. Matzke</p>
+                    <p class="mb-0 text-muted"><small>Copyright © Enrico R. Matzke 2025. Alle Rechte vorbehalten.</small></p>
+                </div>
+                
+                <!-- Über Dieses System -->
+                <div class="mt-4">
+                    <hr>
+                    <h5 class="mb-3">Über Dieses System</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <p class="mb-1"><strong>Version:</strong></p>
+                            <p class="text-muted">V1.5 - Beta 3</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <p class="mb-1"><strong>Ersteller:</strong></p>
+                            <p class="text-muted">{{ creator_name }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Zurück-Button -->
+                <div class="mt-4">
+                    <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Zurück zu Einstellungen
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

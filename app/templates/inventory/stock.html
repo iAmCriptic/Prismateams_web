@@ -7,7 +7,13 @@
     <div class="col">
         <h1 class="mb-3"><i class="bi bi-box-seam"></i> Bestandsübersicht</h1>
     </div>
-    <div class="col-auto">
+    <div class="col-auto d-flex gap-2">
+        <button id="borrowSelectedBtn" class="btn btn-primary" style="display: none;">
+            <i class="bi bi-cart-check"></i> Ausgewählte ausleihen (<span id="selectedCount">0</span>)
+        </button>
+        <a href="{{ url_for('inventory.folders') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-folder"></i> Ordner verwalten
+        </a>
         <a href="{{ url_for('inventory.product_new') }}" class="btn btn-accent">
             <i class="bi bi-plus-circle"></i> Produkt hinzufügen
         </a>
@@ -17,25 +23,89 @@
 <!-- Such- und Filterleiste -->
 <div class="card mb-4">
     <div class="card-body">
-        <div class="row g-3">
-            <div class="col-12 col-md-6">
+        <!-- Erweiterte Suche (immer sichtbar) -->
+        <div class="row g-3 mb-3">
+            <div class="col-12">
                 <label for="searchInput" class="form-label">Suchen</label>
-                <input type="text" class="form-control" id="searchInput" placeholder="Produktname, Seriennummer...">
+                <input type="text" class="form-control" id="searchInput" 
+                       placeholder="Name, Seriennummer, Länge (z.B. 5m), Beschreibung, Lagerort, Kategorie...">
+                <small class="form-text text-muted">Durchsucht alle Produktattribute</small>
             </div>
-            <div class="col-12 col-md-3">
-                <label for="categoryFilter" class="form-label">Kategorie</label>
-                <select class="form-select" id="categoryFilter">
-                    <option value="">Alle Kategorien</option>
-                </select>
-            </div>
-            <div class="col-12 col-md-3">
-                <label for="statusFilter" class="form-label">Status</label>
-                <select class="form-select" id="statusFilter">
-                    <option value="">Alle Status</option>
-                    <option value="available">Verfügbar</option>
-                    <option value="borrowed">Ausgeliehen</option>
-                    <option value="missing">Fehlend</option>
-                </select>
+        </div>
+        
+        <!-- Ausklappbare Filter -->
+        <div class="accordion" id="filterAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="filterHeading">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+                        <i class="bi bi-funnel me-2"></i> Filter
+                    </button>
+                </h2>
+                <div id="filterCollapse" class="accordion-collapse collapse" 
+                     aria-labelledby="filterHeading" data-bs-parent="#filterAccordion">
+                    <div class="accordion-body">
+                        <div class="row g-3">
+                            <!-- Filter-Reihe 1 -->
+                            <div class="col-12 col-md-4">
+                                <label for="folderFilter" class="form-label">Ordner</label>
+                                <select class="form-select" id="folderFilter">
+                                    <option value="">Alle Ordner</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="categoryFilter" class="form-label">Kategorie</label>
+                                <select class="form-select" id="categoryFilter">
+                                    <option value="">Alle Kategorien</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="statusFilter" class="form-label">Status</label>
+                                <select class="form-select" id="statusFilter">
+                                    <option value="">Alle Status</option>
+                                    <option value="available">Verfügbar</option>
+                                    <option value="borrowed">Ausgeliehen</option>
+                                    <option value="missing">Fehlend</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Filter-Reihe 2 -->
+                            <div class="col-12 col-md-4">
+                                <label for="conditionFilter" class="form-label">Zustand</label>
+                                <select class="form-select" id="conditionFilter">
+                                    <option value="">Alle Zustände</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="locationFilter" class="form-label">Lagerort</label>
+                                <select class="form-select" id="locationFilter">
+                                    <option value="">Alle Lagerorte</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="lengthFilter" class="form-label">Länge</label>
+                                <select class="form-select" id="lengthFilter">
+                                    <option value="">Alle Längen</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Filter-Reihe 3 -->
+                            <div class="col-12 col-md-4">
+                                <label for="purchaseYearFilter" class="form-label">Anschaffungsjahr</label>
+                                <select class="form-select" id="purchaseYearFilter">
+                                    <option value="">Alle Jahre</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Filter zurücksetzen -->
+                            <div class="col-12">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="resetFiltersBtn">
+                                    <i class="bi bi-x-circle"></i> Filter zurücksetzen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -44,6 +114,18 @@
 <!-- Produktliste -->
 <div class="card">
     <div class="card-body">
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <div>
+                <button id="selectAllBtn" class="btn btn-sm btn-outline-primary">Alle auswählen</button>
+                <button id="deselectAllBtn" class="btn btn-sm btn-outline-secondary">Alle abwählen</button>
+            </div>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="selectionModeToggle">
+                <label class="form-check-label" for="selectionModeToggle">
+                    Mehrfachauswahl aktivieren
+                </label>
+            </div>
+        </div>
         <div id="productsContainer">
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status">
@@ -78,8 +160,53 @@
 <script>
 // Bestandsübersicht-Initialisierung
 document.addEventListener('DOMContentLoaded', function() {
-    const stockManager = new StockManager();
-    stockManager.init();
+    try {
+        if (typeof StockManager === 'undefined') {
+            console.error('StockManager ist nicht definiert!');
+            document.getElementById('productsContainer').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    Fehler beim Laden der Bestandsverwaltung. Bitte Seite neu laden.
+                </div>
+            `;
+            return;
+        }
+        
+        window.stockManager = new StockManager();
+        if (window.stockManager && typeof window.stockManager.init === 'function') {
+            window.stockManager.init().catch(error => {
+                console.error('Fehler bei der Initialisierung:', error);
+                const container = document.getElementById('productsContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            Fehler beim Laden der Produkte: ${error.message || 'Unbekannter Fehler'}
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            console.error('stockManager oder init() ist nicht verfügbar');
+            const container = document.getElementById('productsContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Fehler: StockManager konnte nicht initialisiert werden.
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Kritischer Fehler:', error);
+        document.getElementById('productsContainer').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> 
+                Kritischer Fehler: ${error.message}
+            </div>
+        `;
+    }
 });
 </script>
 {% endblock %}

@@ -121,8 +121,11 @@ def setup_complete():
         try:
             logging.info("Starting complete setup")
             
-            # Get default accent color from session
+            # Get values from session (set in step1) or form
+            portal_name = session.get('setup_portal_name', portal_name if 'portal_name' in locals() else '')
+            portal_logo_filename = session.get('setup_portal_logo', portal_logo_filename if 'portal_logo_filename' in locals() else None)
             default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
+            color_gradient = session.get('setup_color_gradient', None)
             
             # Ersten Administrator erstellen
             admin_user = User(
@@ -175,12 +178,14 @@ def setup_complete():
             db.session.add(chat_member)
             
             # System-Einstellungen erstellen
-            portal_name_setting = SystemSettings(
-                key='portal_name',
-                value=portal_name,
-                description='Name des Portals'
-            )
-            db.session.add(portal_name_setting)
+            if portal_name:
+                portal_name_setting = SystemSettings(
+                    key='portal_name',
+                    value=portal_name,
+                    description='Name des Portals'
+                )
+                db.session.add(portal_name_setting)
+                logging.info(f"Portal name setting created: {portal_name}")
             
             # Portal logo speichern
             if portal_logo_filename:
@@ -190,6 +195,7 @@ def setup_complete():
                     description='Portalslogo'
                 )
                 db.session.add(logo_setting)
+                logging.info(f"Portal logo setting created: {portal_logo_filename}")
             
             # Default-Akzentfarbe speichern
             accent_color_setting = SystemSettings(
@@ -198,6 +204,7 @@ def setup_complete():
                 description='Standard-Akzentfarbe für neue Benutzer'
             )
             db.session.add(accent_color_setting)
+            logging.info(f"Default accent color setting created: {default_accent_color}")
             
             # Farbverlauf speichern
             if color_gradient:
@@ -207,6 +214,7 @@ def setup_complete():
                     description='Farbverlauf für Login/Register-Seiten'
                 )
                 db.session.add(gradient_setting)
+                logging.info("Color gradient setting created")
             
             # Whitelist-Einträge hinzufügen
             for email_addr in whitelist_emails:
@@ -304,7 +312,87 @@ def setup_step1():
         session['setup_default_accent_color'] = default_accent_color
         session['setup_color_gradient'] = color_gradient
         
-        # Debug: Session-Daten prüfen
+        # Speichere direkt in die Datenbank, damit die Werte sofort verfügbar sind
+        try:
+            from app.models.settings import SystemSettings
+            
+            # Portal name speichern/aktualisieren
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            if portal_name_setting:
+                portal_name_setting.value = portal_name
+            else:
+                portal_name_setting = SystemSettings(
+                    key='portal_name',
+                    value=portal_name,
+                    description='Name des Portals'
+                )
+                db.session.add(portal_name_setting)
+            logging.info(f"Portal name saved to database: {portal_name}")
+            
+            # Portal logo speichern/aktualisieren
+            if portal_logo_filename:
+                portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+                if portal_logo_setting:
+                    # Altes Logo löschen wenn vorhanden
+                    old_logo = portal_logo_setting.value
+                    if old_logo and old_logo != portal_logo_filename:
+                        try:
+                            from flask import current_app
+                            import os
+                            project_root = os.path.dirname(current_app.root_path)
+                            upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'system')
+                            old_path = os.path.join(upload_dir, old_logo)
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                        except:
+                            pass
+                    portal_logo_setting.value = portal_logo_filename
+                else:
+                    portal_logo_setting = SystemSettings(
+                        key='portal_logo',
+                        value=portal_logo_filename,
+                        description='Portalslogo'
+                    )
+                    db.session.add(portal_logo_setting)
+                logging.info(f"Portal logo saved to database: {portal_logo_filename}")
+            
+            # Default accent color speichern/aktualisieren
+            accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+            if accent_color_setting:
+                accent_color_setting.value = default_accent_color
+            else:
+                accent_color_setting = SystemSettings(
+                    key='default_accent_color',
+                    value=default_accent_color,
+                    description='Standard-Akzentfarbe für neue Benutzer'
+                )
+                db.session.add(accent_color_setting)
+            logging.info(f"Default accent color saved to database: {default_accent_color}")
+            
+            # Color gradient speichern/aktualisieren
+            if color_gradient:
+                gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+                if gradient_setting:
+                    gradient_setting.value = color_gradient
+                else:
+                    gradient_setting = SystemSettings(
+                        key='color_gradient',
+                        value=color_gradient,
+                        description='Farbverlauf für Login/Register-Seiten'
+                    )
+                    db.session.add(gradient_setting)
+                logging.info("Color gradient saved to database")
+            else:
+                # Wenn kein Farbverlauf gesetzt, entferne vorhandenen
+                gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+                if gradient_setting:
+                    db.session.delete(gradient_setting)
+            
+            db.session.commit()
+            logging.info("System settings committed to database in step 1")
+        except Exception as e:
+            logging.error(f"Error saving system settings in step 1: {e}")
+            db.session.rollback()
         
         return redirect(url_for('setup.setup_step2'))
     
@@ -433,23 +521,31 @@ def setup_step3():
             
             # System-Einstellungen erstellen
             logging.info("Creating system settings")
-            portal_name_setting = SystemSettings(
-                key='portal_name',
-                value=session.get('setup_portal_name', ''),
-                description='Name des Portals'
-            )
-            db.session.add(portal_name_setting)
-            logging.info("Portal name setting created")
+            portal_name = session.get('setup_portal_name', '')
+            portal_logo_filename = session.get('setup_portal_logo', None)
+            
+            if portal_name:
+                portal_name_setting = SystemSettings(
+                    key='portal_name',
+                    value=portal_name,
+                    description='Name des Portals'
+                )
+                db.session.add(portal_name_setting)
+                logging.info(f"Portal name setting created: {portal_name}")
+            else:
+                logging.warning("Portal name is empty, skipping creation")
             
             # Portal logo speichern
-            if session.get('setup_portal_logo'):
+            if portal_logo_filename:
                 logo_setting = SystemSettings(
                     key='portal_logo',
-                    value=session.get('setup_portal_logo'),
+                    value=portal_logo_filename,
                     description='Portalslogo'
                 )
                 db.session.add(logo_setting)
-                logging.info("Portal logo setting created")
+                logging.info(f"Portal logo setting created: {portal_logo_filename}")
+            else:
+                logging.info("No portal logo provided, skipping logo creation")
             
             # Default-Akzentfarbe speichern
             default_accent_color = session.get('setup_default_accent_color', '#0d6efd')

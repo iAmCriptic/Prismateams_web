@@ -2,6 +2,31 @@ from datetime import datetime, date
 from app import db
 
 
+class ProductFolder(db.Model):
+    """Ordner für Produkte zur besseren Organisation."""
+    __tablename__ = 'product_folders'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    description = db.Column(db.Text, nullable=True)
+    color = db.Column(db.String(7), nullable=True)  # Hex-Farbe für visuelle Unterscheidung
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    creator = db.relationship('User', foreign_keys=[created_by])
+    products = db.relationship('Product', back_populates='folder')
+    
+    def __repr__(self):
+        return f'<ProductFolder {self.name}>'
+    
+    @property
+    def product_count(self):
+        """Anzahl der Produkte in diesem Ordner."""
+        return len(self.products)
+
+
 class Product(db.Model):
     __tablename__ = 'products'
     
@@ -17,6 +42,7 @@ class Product(db.Model):
     status = db.Column(db.String(20), default='available', nullable=False, index=True)  # 'available', 'borrowed', 'missing'
     image_path = db.Column(db.String(500), nullable=True)  # Pfad zum Produktbild
     qr_code_data = db.Column(db.String(255), nullable=True)  # QR-Code-Wert (z.B. "PROD-{id}")
+    folder_id = db.Column(db.Integer, db.ForeignKey('product_folders.id'), nullable=True, index=True)  # Ordner-Zuordnung
     
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -24,6 +50,7 @@ class Product(db.Model):
     
     # Relationships
     creator = db.relationship('User', foreign_keys=[created_by])
+    folder = db.relationship('ProductFolder', back_populates='products')
     borrow_transactions = db.relationship('BorrowTransaction', back_populates='product', cascade='all, delete-orphan')
     
     def __repr__(self):

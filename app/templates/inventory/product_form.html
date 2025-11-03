@@ -31,6 +31,23 @@
                     </div>
 
                     <div class="row">
+                        <!-- Ordner -->
+                        <div class="col-md-6 mb-3">
+                            <label for="folder_id" class="form-label">Ordner</label>
+                            {% if folders %}
+                            <select class="form-select" id="folder_id" name="folder_id">
+                                <option value="">Kein Ordner</option>
+                                {% for folder in folders %}
+                                <option value="{{ folder.id }}" {% if product and product.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="folder_id" name="folder_id" 
+                                   value="" placeholder="Keine Ordner vorhanden" disabled>
+                            <small class="form-text text-muted">Bitte erstellen Sie zuerst einen Ordner.</small>
+                            {% endif %}
+                        </div>
+                        
                         <!-- Kategorie -->
                         <div class="col-md-6 mb-3">
                             <label for="category" class="form-label">Kategorie</label>

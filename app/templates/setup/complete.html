@@ -11,7 +11,9 @@
     <div class="setup-card">
         <div class="setup-header">
             <h1>
-                {% if app_logo %}
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
+                {% elif app_logo %}
                 <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
                 {% else %}
                 <i class="bi bi-gear-fill"></i>

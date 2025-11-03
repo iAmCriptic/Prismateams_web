@@ -173,3 +173,28 @@
     overflow-y: auto;
 }
 
+/* Selection Mode */
+.product-card.selection-mode {
+    border: 2px solid #0d6efd;
+    cursor: pointer;
+}
+
+.product-card.selection-mode:hover {
+    border-color: #0a58ca;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+}
+
+.product-checkbox {
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* Ordner-Badge */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.cursor-pointer:hover {
+    opacity: 0.8;
+}
+

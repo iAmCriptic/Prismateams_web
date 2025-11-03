@@ -12,12 +12,14 @@
         <div class="card">
             <div class="card-body p-4">
                 <h1 class="text-center mb-4">
-                    {% if app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Team Portal' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% if portal_logo_filename %}
+                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
+                    {% elif app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
                     {% else %}
                     <i class="bi bi-gear-fill text-primary"></i>
                     {% endif %}
-                    {{ app_name or 'Team Portal' }}
+                    {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-4">Schritt 3 von 3</h5>
                 <div class="setup-step">

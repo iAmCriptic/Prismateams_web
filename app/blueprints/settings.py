@@ -766,3 +766,14 @@ def admin_toggle_borrow_permission(user_id):
     
     return redirect(url_for('settings.admin_inventory_permissions'))
 
+
+@settings_bp.route('/about')
+@login_required
+def about():
+    """Über PrismaTeams Seite."""
+    # Finde den ersten Administrator (ältester Admin-User nach created_at)
+    first_admin = User.query.filter_by(is_admin=True).order_by(User.created_at.asc()).first()
+    creator_name = first_admin.full_name if first_admin else "Unbekannt"
+    
+    return render_template('settings/about.html', creator_name=creator_name)
+
