@@ -1,5 +1,4 @@
 # Team Portal
-### Archiviert. eine Neue Versuion ist under Construcktion
 Ein umfassendes, webbasiertes Team-Portal mit modernem Design und vollständiger Funktionalität für Teams. Entwickelt mit Flask (Python) und Bootstrap 5.
 
 ## 📋 Features
