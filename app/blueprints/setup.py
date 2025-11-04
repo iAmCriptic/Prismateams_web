@@ -19,9 +19,13 @@ def is_setup_needed():
 
 def get_color_gradient():
     """Holt den Farbverlauf aus den System-Einstellungen."""
-    from app.models.settings import SystemSettings
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    return gradient_setting.value if gradient_setting else None
+    try:
+        # SystemSettings ist bereits global importiert
+        gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+        return gradient_setting.value if gradient_setting else None
+    except Exception:
+        # Fallback auf Session-Daten bei Fehlern
+        return session.get('setup_color_gradient')
 
 
 @setup_bp.route('/setup')
@@ -31,7 +35,6 @@ def setup():
         return redirect(url_for('auth.login'))
     
     # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    from app.models.settings import SystemSettings
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     
@@ -163,7 +166,6 @@ def setup_complete():
             # Haupt-Chat erstellen
             main_chat = Chat(
                 name="Haupt-Chat",
-                description="Der Haupt-Chat für alle Teammitglieder",
                 is_main_chat=True,
                 created_by=admin_user.id
             )
@@ -314,7 +316,6 @@ def setup_step1():
         
         # Speichere direkt in die Datenbank, damit die Werte sofort verfügbar sind
         try:
-            from app.models.settings import SystemSettings
             
             # Portal name speichern/aktualisieren
             portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
@@ -397,7 +398,6 @@ def setup_step1():
         return redirect(url_for('setup.setup_step2'))
     
     # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    from app.models.settings import SystemSettings
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     
@@ -433,7 +433,6 @@ def setup_step2():
         return redirect(url_for('setup.setup_step3'))
     
     # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    from app.models.settings import SystemSettings
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     
@@ -505,7 +504,6 @@ def setup_step3():
             # Haupt-Chat erstellen
             main_chat = Chat(
                 name="Haupt-Chat",
-                description="Der Haupt-Chat für alle Teammitglieder",
                 is_main_chat=True,
                 created_by=admin_user.id
             )
@@ -519,54 +517,74 @@ def setup_step3():
             )
             db.session.add(chat_member)
             
-            # System-Einstellungen erstellen
-            logging.info("Creating system settings")
+            # System-Einstellungen erstellen oder aktualisieren
+            logging.info("Creating/updating system settings")
             portal_name = session.get('setup_portal_name', '')
             portal_logo_filename = session.get('setup_portal_logo', None)
             
             if portal_name:
-                portal_name_setting = SystemSettings(
-                    key='portal_name',
-                    value=portal_name,
-                    description='Name des Portals'
-                )
-                db.session.add(portal_name_setting)
-                logging.info(f"Portal name setting created: {portal_name}")
+                portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+                if portal_name_setting:
+                    portal_name_setting.value = portal_name
+                    logging.info(f"Portal name setting updated: {portal_name}")
+                else:
+                    portal_name_setting = SystemSettings(
+                        key='portal_name',
+                        value=portal_name,
+                        description='Name des Portals'
+                    )
+                    db.session.add(portal_name_setting)
+                    logging.info(f"Portal name setting created: {portal_name}")
             else:
                 logging.warning("Portal name is empty, skipping creation")
             
             # Portal logo speichern
             if portal_logo_filename:
-                logo_setting = SystemSettings(
-                    key='portal_logo',
-                    value=portal_logo_filename,
-                    description='Portalslogo'
-                )
-                db.session.add(logo_setting)
-                logging.info(f"Portal logo setting created: {portal_logo_filename}")
+                logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+                if logo_setting:
+                    logo_setting.value = portal_logo_filename
+                    logging.info(f"Portal logo setting updated: {portal_logo_filename}")
+                else:
+                    logo_setting = SystemSettings(
+                        key='portal_logo',
+                        value=portal_logo_filename,
+                        description='Portalslogo'
+                    )
+                    db.session.add(logo_setting)
+                    logging.info(f"Portal logo setting created: {portal_logo_filename}")
             else:
                 logging.info("No portal logo provided, skipping logo creation")
             
             # Default-Akzentfarbe speichern
             default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
-            accent_color_setting = SystemSettings(
-                key='default_accent_color',
-                value=default_accent_color,
-                description='Standard-Akzentfarbe für neue Benutzer'
-            )
-            db.session.add(accent_color_setting)
-            logging.info("Default accent color setting created")
+            accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+            if accent_color_setting:
+                accent_color_setting.value = default_accent_color
+                logging.info("Default accent color setting updated")
+            else:
+                accent_color_setting = SystemSettings(
+                    key='default_accent_color',
+                    value=default_accent_color,
+                    description='Standard-Akzentfarbe für neue Benutzer'
+                )
+                db.session.add(accent_color_setting)
+                logging.info("Default accent color setting created")
             
             # Farbverlauf speichern
             if session.get('setup_color_gradient'):
-                logging.info("Creating color gradient setting")
-                gradient_setting = SystemSettings(
-                    key='color_gradient',
-                    value=session.get('setup_color_gradient', ''),
-                    description='Farbverlauf für Login/Register-Seiten'
-                )
-                db.session.add(gradient_setting)
-                logging.info("Color gradient setting created")
+                logging.info("Creating/updating color gradient setting")
+                gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+                if gradient_setting:
+                    gradient_setting.value = session.get('setup_color_gradient', '')
+                    logging.info("Color gradient setting updated")
+                else:
+                    gradient_setting = SystemSettings(
+                        key='color_gradient',
+                        value=session.get('setup_color_gradient', ''),
+                        description='Farbverlauf für Login/Register-Seiten'
+                    )
+                    db.session.add(gradient_setting)
+                    logging.info("Color gradient setting created")
             
             # Whitelist-Einträge hinzufügen
             whitelist_entries = session.get('setup_whitelist_entries', [])
@@ -640,11 +658,13 @@ def setup_step3():
             
         except Exception as e:
             db.session.rollback()
+            logging.error(f"Error during setup: {str(e)}", exc_info=True)
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
-            return render_template('setup/step3.html', color_gradient=get_color_gradient())
+            # Verwende Session-Daten statt Datenbank-Abfrage nach Rollback
+            current_gradient = session.get('setup_color_gradient')
+            return render_template('setup/step3.html', color_gradient=current_gradient)
     
     # Hole aktuellen Farbverlauf aus den System-Einstellungen oder Session
-    from app.models.settings import SystemSettings
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     

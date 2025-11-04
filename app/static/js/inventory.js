@@ -12,6 +12,7 @@ class StockManager {
         this.lengths = new Set();
         this.purchaseYears = new Set();
         this.searchTimeout = null;
+        this.selectedProducts = new Set(); // Verwaltet ausgewählte Produkt-IDs
     }
     
     async init() {
@@ -282,7 +283,7 @@ class StockManager {
             selectionModeToggle.addEventListener('change', () => {
                 // Wenn Selection Mode deaktiviert wird, alle auswählen zurücksetzen
                 if (!selectionModeToggle.checked) {
-                    this.deselectAll();
+                    this.selectedProducts.clear();
                 }
                 this.renderProducts();
                 this.updateSelectionUI();
@@ -439,8 +440,20 @@ class StockManager {
     attachCheckboxHandlers() {
         // Event-Handler für alle Checkboxen setzen
         document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+            // Stelle sicher, dass der checked-Status mit selectedProducts synchronisiert ist
+            const productId = parseInt(checkbox.dataset.productId);
+            checkbox.checked = this.selectedProducts.has(productId);
+            this.updateCardSelection(productId);
+            
             checkbox.addEventListener('change', (e) => {
                 e.stopPropagation(); // Verhindere Card-Click
+                const productId = parseInt(e.target.dataset.productId);
+                if (e.target.checked) {
+                    this.selectedProducts.add(productId);
+                } else {
+                    this.selectedProducts.delete(productId);
+                }
+                this.updateCardSelection(productId);
                 this.updateSelectionUI();
             });
             
@@ -449,6 +462,24 @@ class StockManager {
                 e.stopPropagation();
             });
         });
+    }
+    
+    updateCardSelection(productId) {
+        // Aktualisiere die visuelle Darstellung einer einzelnen Karte
+        const checkbox = document.querySelector(`.product-checkbox[data-product-id="${productId}"]`);
+        if (!checkbox) return;
+        
+        const card = checkbox.closest('.product-card');
+        if (!card) return;
+        
+        const isSelected = this.selectedProducts.has(productId);
+        checkbox.checked = isSelected;
+        
+        if (isSelected) {
+            card.classList.add('selection-mode');
+        } else {
+            card.classList.remove('selection-mode');
+        }
     }
     
     renderProductCard(product) {
@@ -466,10 +497,13 @@ class StockManager {
             : '<div class="product-image d-flex align-items-center justify-content-center bg-light"><i class="bi bi-box-seam fs-1 text-muted"></i></div>';
         
         const isSelectionMode = document.getElementById('selectionModeToggle')?.checked || false;
-        const checkbox = isSelectionMode && product.status === 'available'
+        const isSelected = this.selectedProducts.has(product.id);
+        const showCheckbox = isSelectionMode && product.status === 'available';
+        const checkbox = showCheckbox
             ? `<div class="position-absolute top-0 start-0 m-2">
                 <input type="checkbox" class="form-check-input product-checkbox" 
                        value="${product.id}" data-product-id="${product.id}" 
+                       ${isSelected ? 'checked' : ''}
                        style="width: 1.2rem; height: 1.2rem; background-color: white;">
                </div>`
             : '';
@@ -479,8 +513,11 @@ class StockManager {
             ? `onclick="if(window.stockManager){window.stockManager.toggleProductSelection(${product.id});}"`
             : `onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}"`;
         
+        // selection-mode Klasse nur hinzufügen, wenn das Produkt tatsächlich ausgewählt ist
+        const selectionModeClass = (isSelectionMode && product.status === 'available' && isSelected) ? 'selection-mode' : '';
+        
         return `
-            <div class="card product-card ${isSelectionMode && product.status === 'available' ? 'selection-mode' : ''}" ${cardClickHandler}>
+            <div class="card product-card ${selectionModeClass}" ${cardClickHandler}>
                 <div class="position-relative">
                     ${imageHtml}
                     ${checkbox}
@@ -586,33 +623,48 @@ class StockManager {
         const checkbox = document.querySelector(`.product-checkbox[data-product-id="${productId}"]`);
         if (checkbox) {
             checkbox.checked = !checkbox.checked;
-            // Trigger change event manuell
-            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+            // Aktualisiere selectedProducts Set
+            if (checkbox.checked) {
+                this.selectedProducts.add(productId);
+            } else {
+                this.selectedProducts.delete(productId);
+            }
+            this.updateCardSelection(productId);
             this.updateSelectionUI();
         }
     }
     
     selectAllAvailable() {
+        // Füge alle verfügbaren Produkte zur Auswahl hinzu
+        this.filteredProducts.forEach(product => {
+            if (product.status === 'available') {
+                this.selectedProducts.add(product.id);
+            }
+        });
+        // Aktualisiere alle Checkboxen und Karten
         document.querySelectorAll('.product-checkbox').forEach(cb => {
-            cb.checked = true;
-            // Trigger change event
-            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            const productId = parseInt(cb.dataset.productId);
+            cb.checked = this.selectedProducts.has(productId);
+            this.updateCardSelection(productId);
         });
         this.updateSelectionUI();
     }
     
     deselectAll() {
+        // Entferne alle Produkte aus der Auswahl
+        this.selectedProducts.clear();
+        // Aktualisiere alle Checkboxen und Karten
         document.querySelectorAll('.product-checkbox').forEach(cb => {
+            const productId = parseInt(cb.dataset.productId);
             cb.checked = false;
-            // Trigger change event
-            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            this.updateCardSelection(productId);
         });
         this.updateSelectionUI();
     }
     
     getSelectedProducts() {
-        const checkboxes = document.querySelectorAll('.product-checkbox:checked');
-        return Array.from(checkboxes).map(cb => parseInt(cb.value));
+        // Verwende selectedProducts Set als einzige Quelle der Wahrheit
+        return Array.from(this.selectedProducts);
     }
     
     updateSelectionUI() {
@@ -627,6 +679,12 @@ class StockManager {
         if (borrowSelectedBtn) {
             borrowSelectedBtn.style.display = selected.length > 0 ? 'inline-block' : 'none';
         }
+        
+        // Stelle sicher, dass alle Karten visuell korrekt aktualisiert sind
+        document.querySelectorAll('.product-checkbox').forEach(cb => {
+            const productId = parseInt(cb.dataset.productId);
+            this.updateCardSelection(productId);
+        });
     }
     
     async borrowSelected() {
