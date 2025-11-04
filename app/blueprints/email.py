@@ -985,9 +985,24 @@ def view_email(email_id):
             # Make links secure but preserve original styling
             html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
             
+            # Remove body/html tags that might affect the page background
+            html_content = re.sub(r'<body[^>]*>', '<div class="email-body-wrapper">', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'</body>', '</div>', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'<html[^>]*>', '', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'</html>', '', html_content, flags=re.IGNORECASE)
+            
+            # Remove style tags that might affect the page
+            html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
+            
+            # Remove inline styles from body/html tags
+            html_content = re.sub(r'<body[^>]*style="[^"]*"[^>]*>', '<div class="email-body-wrapper">', html_content, flags=re.IGNORECASE)
+            
             # Ensure proper HTML structure if missing
             if not html_content.strip().startswith('<'):
-                html_content = f'<div>{html_content}</div>'
+                html_content = f'<div class="email-body-wrapper">{html_content}</div>'
+            
+            # Wrap in a container to isolate styles
+            html_content = f'<div class="email-content-isolated-inner">{html_content}</div>'
             
             # Handle inline images
             for attachment in email_msg.attachments:
@@ -1240,17 +1255,24 @@ def compose():
         to = request.form.get('to', '').strip()
         cc = request.form.get('cc', '').strip()
         subject = request.form.get('subject', '').strip()
-        body = request.form.get('body', '').strip()
+        # Get HTML body from Rich Text Editor
+        body_html = request.form.get('body', '').strip()
         in_reply_to = request.form.get('in_reply_to', '').strip()
         references = request.form.get('references', '').strip()
         forward_attachment_ids = request.form.get('forward_attachment_ids', '').strip()
         
-        if not all([to, subject, body]):
+        if not all([to, subject, body_html]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
             return render_template('email/compose.html')
         
         # Get configurable email footer
         footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
+        
+        # Convert HTML body to plain text for email body
+        import re
+        from html import unescape
+        body_plain = re.sub(r'<[^>]+>', '', body_html)
+        body_plain = unescape(body_plain).strip()
         
         if footer_template and footer_template.value:
             # Use configurable template with variables
@@ -1263,13 +1285,14 @@ def compose():
             footer = footer.replace('<time>', datetime.utcnow().strftime('%H:%M'))
         else:
             # Fallback to old system
-            footer_text = SystemSettings.query.filter_by(key='email_footer_text').first()
+            footer_text_setting = SystemSettings.query.filter_by(key='email_footer_text').first()
             footer_img = SystemSettings.query.filter_by(key='email_footer_image').first()
             
-            footer = f"\n\n---\n{footer_text.value if footer_text else ''}\n"
+            footer = f"\n\n---\n{footer_text_setting.value if footer_text_setting else ''}\n"
             footer += f"Gesendet von {current_user.full_name}"
         
-        full_body = body + footer
+        full_body_plain = body_plain + footer
+        full_body_html = body_html + footer
         
         try:
             # Get sender from config or use MAIL_USERNAME as fallback
@@ -1278,10 +1301,12 @@ def compose():
                 flash('E-Mail-Absender ist nicht konfiguriert. Bitte kontaktieren Sie den Administrator.', 'danger')
                 return render_template('email/compose.html')
             
+            # Create multipart message with HTML and plain text
             msg = Message(
                 subject=subject,
                 recipients=to.split(','),
-                body=full_body,
+                body=full_body_plain,
+                html=full_body_html,
                 sender=sender
             )
 
@@ -1341,7 +1366,8 @@ def compose():
                 sender=sender,
                 recipients=to,
                 cc=cc,
-                body_text=full_body,
+                body_text=full_body_plain,
+                body_html=full_body_html,
                 folder='Sent',
                 is_sent=True,
                 sent_by_user_id=current_user.id,

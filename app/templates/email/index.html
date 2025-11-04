@@ -3,47 +3,15 @@
 {% block title %}E-Mail - Team Portal{% endblock %}
 
 {% block content %}
-<div class="email-content">
+<div class="email-content w-100">
 <!-- Mobile Header -->
 <div class="d-md-none mb-3">
     <div class="d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
-            <h1 class="h4 mb-0 me-2"><i class="bi bi-envelope"></i> E-Mail</h1>
-            <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
-                    <i class="bi bi-three-dots-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    {% for folder in folders %}
-                    <li><a class="dropdown-item" href="{{ url_for('email.folder_view', folder_name=folder.name) }}">
-                        {% if folder.folder_type == 'standard' %}
-                            {% if folder.name == 'INBOX' %}
-                                <i class="bi bi-inbox me-2"></i>
-                            {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                                <i class="bi bi-send me-2"></i>
-                            {% elif folder.name == 'Drafts' %}
-                                <i class="bi bi-file-earmark-text me-2"></i>
-                            {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                                <i class="bi bi-trash me-2"></i>
-                            {% elif folder.name in ['Spam', 'Junk'] %}
-                                <i class="bi bi-shield-exclamation me-2"></i>
-                            {% elif folder.name == 'Archive' %}
-                                <i class="bi bi-archive me-2"></i>
-                            {% else %}
-                                <i class="bi bi-folder me-2"></i>
-                            {% endif %}
-                        {% else %}
-                            <i class="bi bi-folder me-2"></i>
-                        {% endif %}
-                        {{ folder.display_name }}
-                    </a></li>
-                    {% endfor %}
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="document.getElementById('syncForm').submit()">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Synchronisieren
-                    </a></li>
-                </ul>
-            </div>
+            <button class="btn btn-sm btn-outline-secondary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileFolderMenu" aria-controls="mobileFolderMenu">
+                <i class="bi bi-list"></i>
+            </button>
+            <h1 class="h5 mb-0"><i class="bi bi-envelope me-2"></i>E-Mail</h1>
         </div>
         <a href="{{ url_for('email.compose') }}" class="btn btn-sm btn-accent">
             <i class="bi bi-pencil-square"></i>
@@ -52,13 +20,393 @@
     <form id="syncForm" method="POST" action="{{ url_for('email.sync_emails') }}" style="display: none;"></form>
 </div>
 
-<!-- Desktop Header -->
-<div class="d-none d-md-flex row mb-3">
+<!-- Mobile Folder Menu Overlay -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="mobileFolderMenu" aria-labelledby="mobileFolderMenuLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="mobileFolderMenuLabel">
+            <i class="bi bi-envelope me-2"></i>E-Mail-Ordner
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <div class="list-group list-group-flush">
+            {% for folder in folders %}
+            <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}" 
+               class="list-group-item list-group-item-action {% if current_folder == folder.name %}active{% endif %}"
+               onclick="setTimeout(function(){ var offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('mobileFolderMenu')); if(offcanvas) offcanvas.hide(); }, 100);">
+                {% if folder.folder_type == 'standard' %}
+                    {% if folder.name == 'INBOX' %}
+                        <i class="bi bi-inbox me-2"></i>
+                    {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                        <i class="bi bi-send me-2"></i>
+                    {% elif folder.name == 'Drafts' %}
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                    {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                        <i class="bi bi-trash me-2"></i>
+                    {% elif folder.name in ['Spam', 'Junk'] %}
+                        <i class="bi bi-shield-exclamation me-2"></i>
+                    {% elif folder.name == 'Archive' %}
+                        <i class="bi bi-archive me-2"></i>
+                    {% else %}
+                        <i class="bi bi-folder me-2"></i>
+                    {% endif %}
+                {% else %}
+                    <i class="bi bi-folder me-2"></i>
+                {% endif %}
+                {{ folder.display_name }}
+            </a>
+            {% endfor %}
+        </div>
+        <div class="p-3 border-top">
+            <form method="POST" action="{{ url_for('email.sync_emails') }}">
+                <button type="submit" class="btn btn-outline-secondary w-100" data-bs-dismiss="offcanvas">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Synchronisieren
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Email List (außerhalb Desktop-Layout) -->
+<div class="d-md-none">
+    <div class="mb-3">
+        <h5 class="mb-0"><i class="bi bi-inbox me-2"></i>{{ folder_display_name or 'Posteingang' }}</h5>
+    </div>
+    <div class="card">
+        <div class="card-body p-0">
+            {% if emails %}
+            <div class="list-group list-group-flush">
+                {% for email in emails %}
+                <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
+                            <div class="d-flex align-items-start">
+                                <!-- Avatar mit Initialen -->
+                                <div class="email-avatar me-3 flex-shrink-0">
+                                    <div class="avatar-circle avatar-circle-mobile">{{ email.sender|email_sender_initials }}</div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
+                                                {% if email.has_attachments %}
+                                                <i class="bi bi-paperclip text-muted ms-2"></i>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="text-end ms-2 flex-shrink-0">
+                                            {% if not email.is_read %}
+                                            <span class="badge bg-accent mb-1 d-block">Neu</span>
+                                            {% endif %}
+                                            <small class="text-muted">{{ email.received_at.strftime('%d.%m %H:%M') if email.received_at else '' }}</small>
+                                        </div>
+                                    </div>
+                                    <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
+                                    {% if email.body_text %}
+                                    <small class="text-muted email-preview">{{ email.body_text[:80] }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </a>
+                        
+                        <!-- Action Buttons -->
+                        <div class="dropdown ms-2 flex-shrink-0">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
+                                    <i class="bi bi-eye me-2"></i>Anzeigen
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
+                                    <i class="bi bi-reply me-2"></i>Antworten
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
+                                    <i class="bi bi-reply-all me-2"></i>Allen antworten
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
+                                    <i class="bi bi-forward me-2"></i>Weiterleiten
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-folder me-2"></i>In Ordner verschieben
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        {% for folder in folders %}
+                                        {% if folder.name != email.folder %}
+                                        <li>
+                                            <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
+                                                <input type="hidden" name="folder" value="{{ folder.name }}">
+                                                <button type="submit" class="dropdown-item">
+                                                    {% if folder.folder_type == 'standard' %}
+                                                        {% if folder.name == 'INBOX' %}
+                                                            <i class="bi bi-inbox me-2"></i>
+                                                        {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                                                            <i class="bi bi-send me-2"></i>
+                                                        {% elif folder.name == 'Drafts' %}
+                                                            <i class="bi bi-file-earmark-text me-2"></i>
+                                                        {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                                                            <i class="bi bi-trash me-2"></i>
+                                                        {% elif folder.name in ['Spam', 'Junk'] %}
+                                                            <i class="bi bi-shield-exclamation me-2"></i>
+                                                        {% elif folder.name == 'Archive' %}
+                                                            <i class="bi bi-archive me-2"></i>
+                                                        {% else %}
+                                                            <i class="bi bi-folder me-2"></i>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <i class="bi bi-folder me-2"></i>
+                                                    {% endif %}
+                                                    {{ folder.display_name }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
+                                          onsubmit="return confirm('E-Mail wirklich löschen?')" class="d-inline">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash me-2"></i>Löschen
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Keine E-Mails vorhanden
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Desktop Layout with Sidebar -->
+<div class="d-none d-xl-flex email-layout-desktop">
+    <!-- Folder Sidebar (Desktop only, ab 1024px) -->
+    <div class="email-folder-sidebar">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="mb-0"><i class="bi bi-envelope me-2"></i>E-Mail</h5>
+            <a href="{{ url_for('email.compose') }}" class="btn btn-sm btn-accent" title="Neue E-Mail">
+                <i class="bi bi-pencil-square"></i>
+            </a>
+        </div>
+        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="mb-3">
+            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                <i class="bi bi-arrow-clockwise"></i> Synchronisieren
+            </button>
+        </form>
+        <hr>
+        <ul class="nav nav-pills flex-column email-folder-list">
+            {% for folder in folders %}
+            <li class="nav-item">
+                <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}" 
+                   class="nav-link email-folder-link {% if current_folder == folder.name %}active{% endif %}">
+                    {% if folder.folder_type == 'standard' %}
+                        {% if folder.name == 'INBOX' %}
+                            <i class="bi bi-inbox me-2"></i>
+                        {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                            <i class="bi bi-send me-2"></i>
+                        {% elif folder.name == 'Drafts' %}
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                        {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                            <i class="bi bi-trash me-2"></i>
+                        {% elif folder.name in ['Spam', 'Junk'] %}
+                            <i class="bi bi-shield-exclamation me-2"></i>
+                        {% elif folder.name == 'Archive' %}
+                            <i class="bi bi-archive me-2"></i>
+                        {% else %}
+                            <i class="bi bi-folder me-2"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="bi bi-folder me-2"></i>
+                    {% endif %}
+                    {{ folder.display_name }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <!-- Main Content Area -->
+    <div class="email-main-content">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">{{ folder_display_name or 'Posteingang' }}</h4>
+        </div>
+
+        <!-- Desktop: Email List Card (innerhalb email-main-content) -->
+        <div class="card">
+            <div class="card-body p-0">
+        {% if emails %}
+        <div class="list-group list-group-flush">
+            {% for email in emails %}
+            <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
+                <!-- Mobile Layout -->
+                <div class="d-md-none">
+                    <div class="d-flex align-items-start mb-2">
+                        <!-- Avatar mit Initialen -->
+                        <div class="email-avatar me-3 flex-shrink-0">
+                            <div class="avatar-circle avatar-circle-mobile">{{ email.sender|email_sender_initials }}</div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
+                                        {% if email.has_attachments %}
+                                        <i class="bi bi-paperclip text-muted ms-2"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end ms-2">
+                                    {% if not email.is_read %}
+                                    <span class="badge bg-accent mb-1 d-block">Neu</span>
+                                    {% endif %}
+                                    <small class="text-muted">{{ email.received_at.strftime('%d.%m %H:%M') if email.received_at else '' }}</small>
+                                </div>
+                            </div>
+                            <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
+                            {% if email.body_text %}
+                            <small class="text-muted email-preview">{{ email.body_text[:80] }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Desktop Layout -->
+                <div class="d-none d-md-block">
+                    <div class="d-flex w-100 justify-content-between align-items-start">
+                        <div class="flex-grow-1 d-flex align-items-start">
+                            <!-- Avatar mit Initialen -->
+                            <div class="email-avatar me-3">
+                                <div class="avatar-circle">{{ email.sender|email_sender_initials }}</div>
+                            </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div class="d-flex align-items-center">
+                                    <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
+                                    {% if email.has_attachments %}
+                                    <i class="bi bi-paperclip text-muted ms-2"></i>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
+                            </div>
+                            <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
+                            {% if email.body_text %}
+                            <small class="text-muted email-preview">{{ email.body_text[:100] }}</small>
+                            {% endif %}
+                            </div>
+                        </div>
+                        {% if not email.is_read %}
+                        <span class="badge bg-accent ms-2">Neu</span>
+                        {% endif %}
+                    </div>
+                </div>
+                    </a>
+                    
+                    <!-- Action Buttons -->
+                    <div class="dropdown ms-2">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
+                                <i class="bi bi-eye me-2"></i>Anzeigen
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
+                                <i class="bi bi-reply me-2"></i>Antworten
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
+                                <i class="bi bi-reply-all me-2"></i>Allen antworten
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
+                                <i class="bi bi-forward me-2"></i>Weiterleiten
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-folder me-2"></i>In Ordner verschieben
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    {% for folder in folders %}
+                                    {% if folder.name != email.folder %}
+                            <li>
+                                <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
+                                            <input type="hidden" name="folder" value="{{ folder.name }}">
+                                            <button type="submit" class="dropdown-item">
+                                                {% if folder.folder_type == 'standard' %}
+                                                    {% if folder.name == 'INBOX' %}
+                                                        <i class="bi bi-inbox me-2"></i>
+                                                    {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                                                        <i class="bi bi-send me-2"></i>
+                                                    {% elif folder.name == 'Drafts' %}
+                                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                                    {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                                                        <i class="bi bi-trash me-2"></i>
+                                                    {% elif folder.name in ['Spam', 'Junk'] %}
+                                                        <i class="bi bi-shield-exclamation me-2"></i>
+                                                    {% elif folder.name == 'Archive' %}
+                                                        <i class="bi bi-archive me-2"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-folder me-2"></i>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <i class="bi bi-folder me-2"></i>
+                                                {% endif %}
+                                                {{ folder.display_name }}
+                                            </button>
+                                        </form>
+                                    </li>
+                                        {% endif %}
+                                        {% endfor %}
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
+                                      onsubmit="return confirm('E-Mail wirklich löschen?')" class="d-inline">
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="bi bi-trash me-2"></i>Löschen
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            Keine E-Mails vorhanden
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+</div>
+
+<!-- Desktop Header für kleinere Bildschirme (ohne Sidebar) -->
+<div class="d-none d-md-flex d-xl-none row mb-3">
     <div class="col">
         <div class="d-flex align-items-center">
             <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> E-Mail</h1>
             <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside">
                     <i class="bi bi-folder me-2"></i><span id="currentFolder">{{ folder_display_name or 'Posteingang' }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
@@ -102,123 +450,129 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header d-none d-md-block">
-        <h5 class="mb-0">{{ folder_display_name or 'Posteingang' }}</h5>
-    </div>
-    <div class="card-body p-0">
-        {% if emails %}
-        <div class="list-group list-group-flush">
-            {% for email in emails %}
-            <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
-                <!-- Mobile Layout -->
-                <div class="d-md-none">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center mb-1">
-                                <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
-                                {% if email.has_attachments %}
-                                <i class="bi bi-paperclip text-muted ms-2"></i>
+<!-- Desktop: Email List Card (für kleinere Bildschirme ohne Sidebar) -->
+<div class="d-none d-md-block d-xl-none">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">{{ folder_display_name or 'Posteingang' }}</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if emails %}
+            <div class="list-group list-group-flush">
+                {% for email in emails %}
+                <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
+                            <div class="d-flex w-100 justify-content-between align-items-start">
+                                <div class="flex-grow-1 d-flex align-items-start">
+                                    <!-- Avatar mit Initialen -->
+                                    <div class="email-avatar me-3">
+                                        <div class="avatar-circle">{{ email.sender|email_sender_initials }}</div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <div class="d-flex align-items-center">
+                                                <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
+                                                {% if email.has_attachments %}
+                                                <i class="bi bi-paperclip text-muted ms-2"></i>
+                                                {% endif %}
+                                            </div>
+                                            <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
+                                        </div>
+                                        <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
+                                        {% if email.body_text %}
+                                        <small class="text-muted email-preview">{{ email.body_text[:100] }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if not email.is_read %}
+                                <span class="badge bg-accent ms-2">Neu</span>
                                 {% endif %}
                             </div>
-                            <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                            {% if email.body_text %}
-                            <small class="text-muted email-preview">{{ email.body_text[:80] }}</small>
-                            {% endif %}
-                        </div>
-                        <div class="text-end">
-                            {% if not email.is_read %}
-                            <span class="badge bg-accent mb-1">Neu</span><br>
-                            {% endif %}
-                            <small class="text-muted">{{ email.received_at.strftime('%d.%m %H:%M') if email.received_at else '' }}</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Desktop Layout -->
-                <div class="d-none d-md-block">
-                    <div class="d-flex w-100 justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <div class="d-flex align-items-center">
-                                    <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
-                                    {% if email.has_attachments %}
-                                    <i class="bi bi-paperclip text-muted ms-2"></i>
-                                    {% endif %}
-                                </div>
-                                <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
-                            </div>
-                            <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                            {% if email.body_text %}
-                            <small class="text-muted email-preview">{{ email.body_text[:100] }}</small>
-                            {% endif %}
-                        </div>
-                        {% if not email.is_read %}
-                        <span class="badge bg-accent ms-2">Neu</span>
-                        {% endif %}
-                    </div>
-                </div>
-                    </a>
-                    
-                    <!-- Action Buttons -->
-                    <div class="dropdown ms-2">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
-                            <i class="bi bi-three-dots-vertical"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
-                                <i class="bi bi-eye me-2"></i>Anzeigen
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
-                                <i class="bi bi-reply me-2"></i>Antworten
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
-                                <i class="bi bi-reply-all me-2"></i>Allen antworten
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
-                                <i class="bi bi-forward me-2"></i>Weiterleiten
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
-                                    <select name="folder" class="form-select form-select-sm" onchange="this.form.submit()">
-                                        <option value="">In Ordner verschieben...</option>
+                        </a>
+                        
+                        <!-- Action Buttons -->
+                        <div class="dropdown ms-2">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
+                                    <i class="bi bi-eye me-2"></i>Anzeigen
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
+                                    <i class="bi bi-reply me-2"></i>Antworten
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
+                                    <i class="bi bi-reply-all me-2"></i>Allen antworten
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
+                                    <i class="bi bi-forward me-2"></i>Weiterleiten
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-folder me-2"></i>In Ordner verschieben
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end">
                                         {% for folder in folders %}
                                         {% if folder.name != email.folder %}
-                                        <option value="{{ folder.name }}">{{ folder.display_name }}</option>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
+                                                <input type="hidden" name="folder" value="{{ folder.name }}">
+                                                <button type="submit" class="dropdown-item">
+                                                    {% if folder.folder_type == 'standard' %}
+                                                        {% if folder.name == 'INBOX' %}
+                                                            <i class="bi bi-inbox me-2"></i>
+                                                        {% elif folder.name in ['Sent', 'Sent Messages'] %}
+                                                            <i class="bi bi-send me-2"></i>
+                                                        {% elif folder.name == 'Drafts' %}
+                                                            <i class="bi bi-file-earmark-text me-2"></i>
+                                                        {% elif folder.name in ['Trash', 'Deleted Messages'] %}
+                                                            <i class="bi bi-trash me-2"></i>
+                                                        {% elif folder.name in ['Spam', 'Junk'] %}
+                                                            <i class="bi bi-shield-exclamation me-2"></i>
+                                                        {% elif folder.name == 'Archive' %}
+                                                            <i class="bi bi-archive me-2"></i>
+                                                        {% else %}
+                                                            <i class="bi bi-folder me-2"></i>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <i class="bi bi-folder me-2"></i>
+                                                    {% endif %}
+                                                    {{ folder.display_name }}
+                                                </button>
+                                            </form>
+                                        </li>
                                         {% endif %}
                                         {% endfor %}
-                                    </select>
-                                </form>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
-                                      onsubmit="return confirm('E-Mail wirklich löschen?')" class="d-inline">
-                                    <button type="submit" class="dropdown-item text-danger">
-                                        <i class="bi bi-trash me-2"></i>Löschen
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
+                                    </ul>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
+                                          onsubmit="return confirm('E-Mail wirklich löschen?')" class="d-inline">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash me-2"></i>Löschen
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                Keine E-Mails vorhanden
+            </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="p-4 text-center text-muted">
-            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-            Keine E-Mails vorhanden
-        </div>
-        {% endif %}
     </div>
 </div>
 </div>
-
-<!-- Ordner-Navigation ist jetzt vollständig implementiert -->
 <!-- Mobile Actions Modal -->
 <div class="modal fade" id="emailActionsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

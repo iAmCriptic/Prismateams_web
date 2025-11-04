@@ -12,6 +12,27 @@
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
     line-height: 1.4;
+    isolation: isolate;
+}
+
+.email-text-content pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+}
+
+[data-bs-theme="dark"] .email-text-content {
+    background: #1a202c !important;
+    border-color: #4a5568 !important;
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .email-text-content pre {
+    color: #e2e8f0 !important;
 }
 
 .email-content-header {
@@ -113,7 +134,57 @@
     }
 }
 
-/* Email Content Styling - minimal interference */
+/* Email Content Styling - Formatierungs-Isolation */
+
+/* Formatierungs-Isolation: HTML-Inhalte dürfen nicht außerhalb des E-Mail-Viewers wirken */
+.email-content-isolated {
+    isolation: isolate;
+    contain: layout style paint;
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+    /* Verhindere CSS-Bleeding */
+    position: relative;
+    z-index: 1;
+}
+
+/* Dark Mode Formatierungs-Isolation */
+[data-bs-theme="dark"] .email-content-isolated {
+    background: #1a202c !important;
+    border-color: #4a5568 !important;
+    color: #e2e8f0 !important;
+}
+
+/* Verhindere, dass HTML-Formatierung außerhalb des Containers wirkt */
+.email-content-wrapper {
+    position: relative;
+    isolation: isolate;
+    contain: layout style paint;
+    background: transparent !important;
+    /* Isoliere den Wrapper komplett */
+    all: initial;
+    display: block;
+    background: var(--bs-body-bg) !important;
+}
+
+.email-content-wrapper * {
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+/* Verhindere, dass E-Mail-Styles auf den Container wirken */
+.email-content-wrapper::before,
+.email-content-wrapper::after {
+    content: '';
+    display: none;
+}
 
 /* Preserve HTML email structure - minimal interference */
 
@@ -126,16 +197,55 @@
 /* Dark mode email content - ONLY in email content box */
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content,
 [data-bs-theme="dark"] .email-content-wrapper .email-text-content {
-    background-color: #2d3748;
-    border-color: #4a5568;
-    color: #e2e8f0;
+    background-color: #1a202c !important;
+    border-color: #4a5568 !important;
+    color: #e2e8f0 !important;
 }
 
 /* Dark mode HTML email styling - ONLY in email content box */
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content {
-    background: #2d3748 !important;
+    background: #1a202c !important;
     color: #e2e8f0 !important;
     border-color: #4a5568 !important;
+}
+
+/* Zusätzliche Isolation: Verhindere, dass E-Mail-Styles den Body beeinflussen */
+body {
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+}
+
+/* Verhindere, dass E-Mail-Inhalte den Hintergrund ändern */
+.email-content-wrapper {
+    background: var(--bs-body-bg) !important;
+    /* Verhindere, dass E-Mail-Styles den Container beeinflussen */
+    background-image: none !important;
+    background-color: var(--bs-body-bg) !important;
+}
+
+.email-content-wrapper::before,
+.email-content-wrapper::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* Zusätzliche Sicherheit: Überschreibe alle Hintergrund-Styles */
+.card .email-content-wrapper,
+.card-body .email-content-wrapper {
+    background: var(--bs-body-bg) !important;
+    background-image: none !important;
+}
+
+/* Verhindere, dass inline styles aus E-Mails den Hintergrund beeinflussen */
+.email-content-wrapper .email-html-content[style*="background"],
+.email-content-wrapper .email-html-content[style*="background-color"] {
+    /* Überschreibe inline styles für Hintergrund */
+    background: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .email-content-wrapper .email-html-content[style*="background"],
+[data-bs-theme="dark"] .email-content-wrapper .email-html-content[style*="background-color"] {
+    background: #1a202c !important;
 }
 
 /* Dark mode email list styling */
@@ -183,21 +293,130 @@
 
 /* Ensure proper email HTML rendering - ONLY for the email content box */
 .email-content-wrapper .email-html-content {
-    /* Reset any conflicting styles that might break email formatting */
-    all: unset;
     display: block;
-    font-family: inherit;
-    line-height: inherit;
-    color: inherit;
-    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: #333333 !important;
+    background: #ffffff !important;
     padding: 20px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #e0e0e0 !important;
     border-radius: 8px;
     max-width: 100%;
     overflow-x: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
     box-sizing: border-box;
+    isolation: isolate;
+    contain: layout style paint;
+    position: relative;
+    z-index: 1;
+    /* Verhindere CSS-Bleeding */
+    all: unset;
+    display: block;
+    background: #ffffff !important;
+    color: #333333 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+    isolation: isolate;
+    contain: layout style paint;
+}
+
+/* Dark Mode HTML Content */
+[data-bs-theme="dark"] .email-content-wrapper .email-html-content {
+    background: #1a202c !important;
+    color: #e2e8f0 !important;
+    border-color: #4a5568 !important;
+}
+
+/* Verhindere, dass E-Mail-Inhalte den Hintergrund beeinflussen */
+.email-content-wrapper .email-html-content * {
+    /* Isoliere alle Kindelemente */
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Verhindere, dass body/html-Tags aus E-Mails den Hintergrund beeinflussen */
+.email-content-wrapper .email-html-content body,
+.email-content-wrapper .email-html-content html {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Verhindere, dass Hintergrundfarben aus E-Mails nach außen wirken */
+.email-content-wrapper .email-html-content > * {
+    background-clip: padding-box !important;
+}
+
+/* Isoliere E-Mail-Body-Wrapper */
+.email-content-isolated-inner,
+.email-body-wrapper {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Überschreibe alle möglichen Hintergrund-Styles aus E-Mails */
+.email-content-wrapper .email-html-content,
+.email-content-wrapper .email-html-content *,
+.email-content-wrapper .email-html-content .email-body-wrapper,
+.email-content-wrapper .email-html-content .email-content-isolated-inner {
+    /* Verhindere, dass E-Mail-Styles den Body beeinflussen */
+    background-attachment: scroll !important;
+    background-position: 0 0 !important;
+}
+
+/* Isoliere E-Mail-Inhalte komplett */
+.email-content-wrapper {
+    /* Erstelle einen neuen Stacking Context - nur auf Desktop */
+    isolation: isolate;
+}
+
+/* Desktop: Zusätzliche Isolation */
+@media (min-width: 768px) {
+    .email-content-wrapper {
+        transform: translateZ(0);
+        will-change: contents;
+    }
+}
+
+/* Mobile: Keine transform, da es zu Skalierungsproblemen führen kann */
+@media (max-width: 767.98px) {
+    .email-content-wrapper {
+        transform: none;
+        will-change: auto;
+    }
+}
+
+/* Verhindere, dass E-Mail-Inhalte über den Container hinauswirken */
+.email-content-wrapper .email-html-content {
+    /* Erzwinge Isolation - aber nicht auf mobil */
+    isolation: isolate;
+}
+
+/* Desktop: Strikte Isolation */
+@media (min-width: 768px) {
+    .email-content-wrapper .email-html-content {
+        transform: translateZ(0);
+        contain: layout style paint;
+    }
+}
+
+/* Mobile: Keine contain: strict, da es zu Problemen führt */
+@media (max-width: 767.98px) {
+    .email-content-wrapper .email-html-content {
+        contain: none;
+        transform: none;
+    }
 }
 
 /* Preserve email table formatting - ONLY in email content box */
@@ -291,4 +510,552 @@
 [data-bs-theme="dark"] .attachments-section .list-group-item {
     border-bottom-color: #495057;
     background-color: transparent;
+}
+
+/* Email Layout with Sidebar (Desktop ab 1024px) */
+.email-layout-desktop {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.email-folder-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    padding: 1rem;
+    background: var(--bs-body-bg);
+    border-right: 1px solid var(--bs-border-color);
+    min-height: calc(100vh - 120px);
+}
+
+.email-main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.email-folder-list {
+    gap: 0.25rem;
+}
+
+.email-folder-link {
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.email-folder-link:hover {
+    background-color: var(--bs-secondary-bg);
+}
+
+.email-folder-link.active {
+    background-color: var(--accent-color, var(--bs-primary));
+    color: white !important;
+}
+
+[data-bs-theme="dark"] .email-folder-link.active {
+    background-color: var(--accent-color, var(--bs-primary));
+    color: white !important;
+}
+
+/* Avatar Circles for Email Senders - ERZWINGE RUNDE FORM */
+.email-avatar {
+    flex-shrink: 0;
+}
+
+/* ERZWINGE RUNDE FORM - Sehr hohe Spezifität */
+.email-avatar .avatar-circle,
+.email-item .avatar-circle,
+.list-group-item .avatar-circle,
+.email-list .avatar-circle,
+div.avatar-circle {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    border-radius: 50% !important;
+    -webkit-border-radius: 50% !important;
+    -moz-border-radius: 50% !important;
+    border-top-left-radius: 50% !important;
+    border-top-right-radius: 50% !important;
+    border-bottom-left-radius: 50% !important;
+    border-bottom-right-radius: 50% !important;
+    background: var(--accent-style, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    color: white !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 600 !important;
+    font-size: 0.875rem !important;
+    text-transform: uppercase !important;
+    flex-shrink: 0 !important;
+    /* Erzwinge runde Form mit mehreren Methoden */
+    aspect-ratio: 1 / 1 !important;
+    overflow: hidden !important;
+    /* CLIP-PATH ERZWINGT RUNDE FORM */
+    clip-path: circle(50% at 50% 50%) !important;
+    -webkit-clip-path: circle(50% at 50% 50%) !important;
+    /* Shape-Outline als Backup */
+    shape-outside: circle(50%) !important;
+    /* Verhindere alle möglichen Überschreibungen */
+    border-style: none !important;
+    box-shadow: none !important;
+}
+
+/* ZUSÄTZLICHE ERZWUNGENE RUNDE FORM - Höchste Priorität */
+.email-avatar .avatar-circle,
+.email-avatar .avatar-circle-mobile {
+    position: relative !important;
+}
+
+/* Stelle sicher, dass ALLE Avatare in E-Mails rund sind */
+.email-list .email-item .email-avatar .avatar-circle,
+.email-list .email-item .email-avatar .avatar-circle-mobile,
+.list-group .list-group-item .email-avatar .avatar-circle,
+.list-group .list-group-item .email-avatar .avatar-circle-mobile {
+    border-radius: 50% !important;
+    -webkit-border-radius: 50% !important;
+    -moz-border-radius: 50% !important;
+    clip-path: circle(50% at 50% 50%) !important;
+    -webkit-clip-path: circle(50% at 50% 50%) !important;
+    border-top-left-radius: 50% !important;
+    border-top-right-radius: 50% !important;
+    border-bottom-left-radius: 50% !important;
+    border-bottom-right-radius: 50% !important;
+}
+
+/* Fallback für nicht authentifizierte Benutzer */
+:not([data-bs-theme]) .avatar-circle {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+[data-bs-theme="dark"] .avatar-circle {
+    /* Akzentfarbe/Gradient wird von CSS-Variable übernommen */
+    background: var(--accent-style, linear-gradient(135deg, #4a5568 0%, #2d3748 100%));
+    color: white;
+}
+
+/* Improved Context Menu with Submenu */
+.dropdown-submenu {
+    position: relative;
+}
+
+.dropdown-submenu > .dropdown-menu {
+    top: 0;
+    left: 100%;
+    margin-top: -0.125rem;
+    margin-left: 0.125rem;
+}
+
+.dropdown-submenu:hover > .dropdown-menu {
+    display: block;
+}
+
+.dropdown-submenu > .dropdown-toggle::after {
+    transform: rotate(-90deg);
+    float: right;
+    margin-top: 0.5rem;
+}
+
+/* Dark Mode Context Menu */
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: #2d3748;
+    border-color: #4a5568;
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover,
+[data-bs-theme="dark"] .dropdown-item:focus {
+    background-color: #4a5568;
+    color: #ffffff;
+}
+
+[data-bs-theme="dark"] .dropdown-item.text-danger {
+    color: #f56565 !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item.text-danger:hover {
+    background-color: #742a2a;
+    color: #ffffff !important;
+}
+
+/* Mobile Specific Styles */
+
+/* Mobile Avatar Circles - ERZWINGE RUNDE FORM */
+.email-avatar .avatar-circle-mobile,
+.email-item .avatar-circle-mobile,
+.list-group-item .avatar-circle-mobile,
+.email-list .avatar-circle-mobile,
+div.avatar-circle-mobile,
+.avatar-circle.avatar-circle-mobile {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    max-width: 48px !important;
+    max-height: 48px !important;
+    font-size: 1rem !important;
+    border-radius: 50% !important;
+    -webkit-border-radius: 50% !important;
+    -moz-border-radius: 50% !important;
+    border-top-left-radius: 50% !important;
+    border-top-right-radius: 50% !important;
+    border-bottom-left-radius: 50% !important;
+    border-bottom-right-radius: 50% !important;
+    background: var(--accent-style, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    color: white !important;
+    /* Erzwinge runde Form mit mehreren Methoden */
+    aspect-ratio: 1 / 1 !important;
+    overflow: hidden !important;
+    /* CLIP-PATH ERZWINGT RUNDE FORM */
+    clip-path: circle(50% at 50% 50%) !important;
+    -webkit-clip-path: circle(50% at 50% 50%) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* Verhindere alle möglichen Überschreibungen */
+    border-style: none !important;
+    box-shadow: none !important;
+}
+
+[data-bs-theme="dark"] .avatar-circle-mobile {
+    background: var(--accent-style, linear-gradient(135deg, #4a5568 0%, #2d3748 100%));
+    color: white;
+}
+
+/* Mobile Touch Targets - Minimum 44x44px */
+@media (max-width: 767.98px) {
+    .email-content {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .email-item {
+        padding: 1rem !important;
+        min-height: 80px;
+        width: 100%;
+    }
+    
+    .email-item a {
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .btn-sm {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.5rem;
+    }
+    
+    .dropdown-toggle {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .email-avatar {
+        flex-shrink: 0;
+    }
+    
+    /* Mobile Folder Menu Overlay */
+    .offcanvas-start {
+        width: 280px;
+        max-width: 85vw;
+    }
+    
+    .offcanvas-start .list-group-item {
+        padding: 1rem 1.25rem;
+        min-height: 56px;
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+    }
+    
+    .offcanvas-start .list-group-item i {
+        font-size: 1.25rem;
+        width: 24px;
+    }
+    
+    /* Mobile Email List Improvements */
+    .email-sender {
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    
+    .email-subject {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    .email-preview {
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
+    
+    /* Mobile Email Viewer */
+    .email-content-wrapper {
+        margin: 0;
+        border-radius: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow: visible;
+    }
+    
+    .email-content-isolated {
+        border-radius: 0;
+        padding: 1rem;
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+        /* Verhindere contain: strict auf mobil, da es zu Problemen führt */
+        contain: none;
+        isolation: isolate;
+        box-sizing: border-box;
+    }
+    
+    .email-content-header {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .email-content-header .btn-group {
+        width: 100%;
+    }
+    
+    .email-content-header .btn {
+        flex: 1;
+        min-height: 44px;
+    }
+    
+    /* Mobile Zoom Controls */
+    .email-content-header .btn-group[aria-label="Zoom"] {
+        flex-shrink: 0;
+    }
+    
+    .email-content-header .btn-group[aria-label="Zoom"] .btn {
+        min-width: 44px;
+        padding: 0.5rem;
+    }
+    
+    /* Zoom-Funktion für E-Mail-Inhalte */
+    .email-content-wrapper {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch;
+        /* Erlaube Zoom-Overflow */
+        min-height: 0;
+    }
+    
+    .email-content-wrapper .email-html-content {
+        transition: zoom 0.2s ease, transform 0.2s ease;
+        /* Zoom-Container - erlaube Overflow für Zoom */
+        overflow: visible !important;
+        position: relative;
+        /* Zoom funktioniert besser mit display: block */
+        display: block !important;
+    }
+    
+    /* Zoom-Container sollte nicht die Breite einschränken */
+    .email-content-wrapper .email-html-content[style*="zoom"] {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Mobile Fluid Layout - Verbesserte Skalierung */
+    .email-html-content,
+    .email-text-content {
+        font-size: 16px; /* Prevent zoom on iOS */
+        line-height: 1.6;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        /* Verhindere contain: strict auf mobil */
+        contain: none;
+        /* Erlaube Skalierung */
+        transform: none;
+    }
+    
+    /* Mobile E-Mail HTML Content - Korrekte Skalierung */
+    .email-content-wrapper .email-html-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        contain: none !important;
+        transform: none !important;
+        padding: 1rem !important;
+    }
+    
+    /* Alle Kindelemente skalieren */
+    .email-content-wrapper .email-html-content * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    .email-content-wrapper .email-html-content img {
+        max-width: 100% !important;
+        width: auto !important;
+        height: auto !important;
+        display: block;
+    }
+    
+    .email-content-wrapper .email-html-content table {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+    
+    .email-content-wrapper .email-html-content table td,
+    .email-content-wrapper .email-html-content table th {
+        white-space: nowrap;
+    }
+    
+    /* Container für E-Mail-Inhalte */
+    .email-content-isolated-inner,
+    .email-body-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+    }
+    
+    /* Verhindere, dass Container die Breite einschränken */
+    .card {
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+    }
+    
+    .card-body {
+        overflow-x: visible;
+        width: 100%;
+        max-width: 100%;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    .card-body .email-content-wrapper {
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Viewport Meta Tag Kompatibilität - Full Width */
+    .email-viewer-body {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    .email-content-wrapper {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .email-content-wrapper .email-html-content {
+        /* Nutze die volle verfügbare Breite */
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Innerer Container */
+    .email-content-isolated-inner {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Alle Elemente innerhalb der E-Mail skalieren */
+    .email-content-wrapper .email-html-content div,
+    .email-content-wrapper .email-html-content p,
+    .email-content-wrapper .email-html-content span,
+    .email-content-wrapper .email-html-content section,
+    .email-content-wrapper .email-html-content article,
+    .email-content-wrapper .email-html-content .email-body-wrapper,
+    .email-content-wrapper .email-html-content .email-content-isolated-inner {
+        max-width: 100% !important;
+        width: 100% !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Verhindere feste Breiten aus E-Mails */
+    .email-content-wrapper .email-html-content [style*="width"] {
+        max-width: 100% !important;
+    }
+    
+    /* Überschreibe feste Breiten mit !important */
+    .email-content-wrapper .email-html-content [width] {
+        width: auto !important;
+        max-width: 100% !important;
+    }
+    
+    /* Container skalieren */
+    .email-content-wrapper .email-html-content > div,
+    .email-content-wrapper .email-html-content > section,
+    .email-content-wrapper .email-html-content > article {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+/* ============================================
+   KRITISCHE REGEL: ERZWINGE RUNDE AVATARE IN E-MAILS
+   Diese Regel muss am Ende stehen für höchste Priorität
+   ============================================ */
+div.avatar-circle,
+div.avatar-circle-mobile,
+.email-avatar div.avatar-circle,
+.email-avatar div.avatar-circle-mobile,
+.email-item .email-avatar div.avatar-circle,
+.email-item .email-avatar div.avatar-circle-mobile,
+.list-group-item .email-avatar div.avatar-circle,
+.list-group-item .email-avatar div.avatar-circle-mobile {
+    /* ERZWINGE PERFEKTE RUNDE FORM */
+    border-radius: 50% !important;
+    -webkit-border-radius: 50% !important;
+    -moz-border-radius: 50% !important;
+    border-top-left-radius: 50% !important;
+    border-top-right-radius: 50% !important;
+    border-bottom-left-radius: 50% !important;
+    border-bottom-right-radius: 50% !important;
+    /* CLIP-PATH ERZWINGT RUNDE FORM - FUNKTIONIERT IMMER */
+    clip-path: circle(50% at 50% 50%) !important;
+    -webkit-clip-path: circle(50% at 50% 50%) !important;
+    /* Verhindere alle Überschreibungen */
+    border: none !important;
+    border-style: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    /* Stelle sicher, dass es ein Quadrat ist */
+    aspect-ratio: 1 / 1 !important;
+    overflow: hidden !important;
 }

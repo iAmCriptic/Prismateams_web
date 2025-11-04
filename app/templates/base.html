@@ -59,6 +59,26 @@
             --accent-color: {{ current_user.accent_color }};
             --accent-style: {{ current_user.accent_style }};
         }
+        
+        /* Avatar-Kreise verwenden Akzentfarbe/Gradient und SIND RUND */
+        .email-avatar .avatar-circle,
+        .email-avatar .avatar-circle-mobile,
+        .email-item .avatar-circle,
+        .email-item .avatar-circle-mobile,
+        .list-group-item .avatar-circle,
+        .list-group-item .avatar-circle-mobile {
+            background: var(--accent-style) !important;
+            color: white !important;
+            border-radius: 50% !important;
+            -webkit-border-radius: 50% !important;
+            -moz-border-radius: 50% !important;
+            clip-path: circle(50% at 50% 50%) !important;
+            -webkit-clip-path: circle(50% at 50% 50%) !important;
+            border-top-left-radius: 50% !important;
+            border-top-right-radius: 50% !important;
+            border-bottom-left-radius: 50% !important;
+            border-bottom-right-radius: 50% !important;
+        }
         .btn-primary, .badge.bg-primary {
             background: var(--accent-style) !important;
             border-color: var(--accent-color) !important;

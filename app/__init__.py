@@ -155,6 +155,43 @@ def create_app(config_name='default'):
         except Exception:
             return str(header)
     
+    # Email sender initials filter
+    @app.template_filter('email_sender_initials')
+    def email_sender_initials_filter(sender):
+        """Extract initials from sender name or email."""
+        if not sender:
+            return '??'
+        
+        try:
+            # Decode first if needed
+            decoded = decode_email_header_filter(sender)
+            
+            # Remove email address if present (e.g., "Name <email@example.com>")
+            import re
+            name_match = re.match(r'^(.+?)\s*<.*?>$', decoded)
+            if name_match:
+                name = name_match.group(1).strip()
+            else:
+                # Try to extract name from email if no name found
+                email_match = re.match(r'^(.+?)\s*<(.+?)>$', decoded)
+                if email_match:
+                    name = email_match.group(1).strip() or email_match.group(2).split('@')[0]
+                else:
+                    name = decoded.split('<')[0].strip() if '<' in decoded else decoded
+            
+            # Extract initials
+            parts = name.split()
+            if len(parts) >= 2:
+                return (parts[0][0] + parts[1][0]).upper()
+            elif len(parts) == 1 and len(parts[0]) >= 2:
+                return parts[0][0:2].upper()
+            elif len(parts) == 1 and len(parts[0]) == 1:
+                return parts[0][0].upper() + parts[0][0].upper()
+            else:
+                return name[0:2].upper() if len(name) >= 2 else (name[0].upper() + name[0].upper() if name else '??')
+        except Exception:
+            return '??'
+    
     
     # Template filters
     from app.utils import format_time, format_datetime

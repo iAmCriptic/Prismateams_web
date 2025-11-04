@@ -10,8 +10,35 @@
     </ol>
 </nav>
 
+<!-- Desktop: Zurück-Button oben -->
+<div class="mb-3 d-none d-md-block">
+    <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<!-- Mobile: Top Action Bar -->
+<div class="d-md-none mb-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div class="btn-group" role="group">
+            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.reply', email_id=email.id) }}" title="Antworten">
+                <i class="bi bi-reply"></i>
+            </a>
+            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.reply_all', email_id=email.id) }}" title="Allen antworten">
+                <i class="bi bi-reply-all"></i>
+            </a>
+            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.forward', email_id=email.id) }}" title="Weiterleiten">
+                <i class="bi bi-forward"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-start gap-2">
+    <div class="card-header d-none d-md-flex justify-content-between align-items-start gap-2">
         <h4 class="mb-0">{{ email.subject|decode_email_header }}</h4>
         <div class="d-flex align-items-center gap-2">
             <div class="btn-group" role="group">
@@ -26,6 +53,10 @@
                 </a>
             </div>
         </div>
+    </div>
+    <!-- Mobile: Subject Header -->
+    <div class="card-header d-md-none">
+        <h5 class="mb-0">{{ email.subject|decode_email_header }}</h5>
     </div>
     <div class="px-3 pt-2 text-muted small">
             <strong>Von:</strong> {{ email.sender|decode_email_header }}<br>
@@ -98,37 +129,77 @@
         
         {% if html_content %}
         <div class="email-content-wrapper">
-            <div class="email-content-header mb-2">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary active" id="htmlViewBtn">HTML</button>
-                    <button class="btn btn-outline-secondary" id="textViewBtn">Plain Text</button>
+            <div class="email-content-header mb-3">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Ansicht umschalten">
+                        <button type="button" class="btn btn-outline-secondary active" id="htmlViewBtn" aria-pressed="true">
+                            <i class="bi bi-code-square me-1"></i>HTML
+                        </button>
+                        {% if email.body_text %}
+                        <button type="button" class="btn btn-outline-secondary" id="textViewBtn" aria-pressed="false">
+                            <i class="bi bi-file-text me-1"></i>Plain Text
+                        </button>
+                        {% endif %}
+                    </div>
+                    <!-- Mobile Zoom Controls -->
+                    <div class="d-md-none btn-group btn-group-sm" role="group" aria-label="Zoom">
+                        <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn" title="Verkleinern">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="zoomResetBtn" title="Zurücksetzen">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="zoomInBtn" title="Vergrößern">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content" style="font-family: inherit; line-height: inherit; color: inherit;">{{ html_content|safe }}</div>
-            <div id="textContent" class="email-text-content" style="display: none;">
-                <pre style="white-space: pre-wrap; font-family: inherit; background: transparent; border: none; padding: 0; margin: 0;">{{ email.body_text }}</pre>
+            <div id="htmlContent" class="email-html-content email-content-isolated" style="background: #ffffff !important; color: #333333 !important; border: 1px solid #e0e0e0 !important; width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
+            {% if email.body_text %}
+            <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
+                <pre>{{ email.body_text }}</pre>
             </div>
+            {% endif %}
         </div>
         {% elif email.body_html %}
         <div class="email-content-wrapper">
-            <div class="email-content-header mb-2">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-secondary active" id="htmlViewBtn">HTML</button>
-                    {% if email.body_text %}
-                    <button class="btn btn-outline-secondary" id="textViewBtn">Plain Text</button>
-                    {% endif %}
+            <div class="email-content-header mb-3">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Ansicht umschalten">
+                        <button type="button" class="btn btn-outline-secondary active" id="htmlViewBtn" aria-pressed="true">
+                            <i class="bi bi-code-square me-1"></i>HTML
+                        </button>
+                        {% if email.body_text %}
+                        <button type="button" class="btn btn-outline-secondary" id="textViewBtn" aria-pressed="false">
+                            <i class="bi bi-file-text me-1"></i>Plain Text
+                        </button>
+                        {% endif %}
+                    </div>
+                    <!-- Mobile Zoom Controls -->
+                    <div class="d-md-none btn-group btn-group-sm" role="group" aria-label="Zoom">
+                        <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn2" title="Verkleinern">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="zoomResetBtn2" title="Zurücksetzen">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="zoomInBtn2" title="Vergrößern">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content" style="font-family: inherit; line-height: inherit; color: inherit;">{{ email.body_html|safe }}</div>
+            <div id="htmlContent" class="email-html-content email-content-isolated" style="background: #ffffff !important; color: #333333 !important; border: 1px solid #e0e0e0 !important; width: 100%; max-width: 100%; box-sizing: border-box;">{{ email.body_html|safe }}</div>
             {% if email.body_text %}
-            <div id="textContent" class="email-text-content" style="display: none;">
-                <pre style="white-space: pre-wrap; font-family: inherit; background: transparent; border: none; padding: 0; margin: 0;">{{ email.body_text }}</pre>
+            <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
+                <pre>{{ email.body_text }}</pre>
             </div>
             {% endif %}
         </div>
         {% elif email.body_text %}
-        <div class="email-text-content">
-            <pre style="white-space: pre-wrap; font-family: inherit; background: transparent; border: none; padding: 0; margin: 0;">{{ email.body_text }}</pre>
+        <div class="email-text-content email-content-isolated">
+            <pre>{{ email.body_text }}</pre>
         </div>
         {% else %}
         <div class="alert alert-warning">
@@ -136,11 +207,6 @@
             Kein E-Mail-Content verfügbar. Möglicherweise ist der Inhalt in einem Attachment gespeichert.
         </div>
         {% endif %}
-    </div>
-    <div class="card-footer">
-        <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Zurück
-        </a>
     </div>
 </div>
 
@@ -193,19 +259,103 @@ document.addEventListener('DOMContentLoaded', function() {
     const htmlContent = document.getElementById('htmlContent');
     const textContent = document.getElementById('textContent');
     
-    if (htmlViewBtn && textViewBtn && htmlContent && textContent) {
+    if (htmlViewBtn && htmlContent) {
         htmlViewBtn.addEventListener('click', function() {
-            htmlContent.style.display = 'block';
-            textContent.style.display = 'none';
-            htmlViewBtn.classList.add('active');
-            textViewBtn.classList.remove('active');
+            if (htmlContent) {
+                htmlContent.style.display = 'block';
+                htmlViewBtn.classList.add('active');
+                htmlViewBtn.setAttribute('aria-pressed', 'true');
+            }
+            if (textContent) {
+                textContent.style.display = 'none';
+            }
+            if (textViewBtn) {
+                textViewBtn.classList.remove('active');
+                textViewBtn.setAttribute('aria-pressed', 'false');
+            }
         });
-        
+    }
+    
+    if (textViewBtn && textContent) {
         textViewBtn.addEventListener('click', function() {
-            htmlContent.style.display = 'none';
-            textContent.style.display = 'block';
-            textViewBtn.classList.add('active');
-            htmlViewBtn.classList.remove('active');
+            if (textContent) {
+                textContent.style.display = 'block';
+                textViewBtn.classList.add('active');
+                textViewBtn.setAttribute('aria-pressed', 'true');
+            }
+            if (htmlContent) {
+                htmlContent.style.display = 'none';
+            }
+            if (htmlViewBtn) {
+                htmlViewBtn.classList.remove('active');
+                htmlViewBtn.setAttribute('aria-pressed', 'false');
+            }
+        });
+    }
+    
+    // Mobile Zoom Controls
+    const zoomInBtn = document.getElementById('zoomInBtn') || document.getElementById('zoomInBtn2');
+    const zoomOutBtn = document.getElementById('zoomOutBtn') || document.getElementById('zoomOutBtn2');
+    const zoomResetBtn = document.getElementById('zoomResetBtn') || document.getElementById('zoomResetBtn2');
+    const emailContent = htmlContent || document.querySelector('.email-html-content');
+    
+    // Zoom-Level aus localStorage laden oder Standard setzen
+    let zoomLevel = parseFloat(localStorage.getItem('emailZoomLevel') || '1.0');
+    
+    function applyZoom(level) {
+        if (!emailContent) return;
+        
+        // Zoom-Level begrenzen (0.5x bis 2.0x)
+        level = Math.max(0.5, Math.min(2.0, level));
+        zoomLevel = level;
+        
+        // Zoom nur auf den E-Mail-Inhalt anwenden
+        // Verwende transform: scale() für bessere Browser-Kompatibilität
+        emailContent.style.transform = `scale(${level})`;
+        emailContent.style.transformOrigin = 'top left';
+        emailContent.style.width = `${100 / level}%`;
+        emailContent.style.height = 'auto';
+        
+        // Zoom-Level speichern
+        localStorage.setItem('emailZoomLevel', level.toString());
+        
+        // Buttons aktivieren/deaktivieren bei Limits
+        if (zoomInBtn) {
+            zoomInBtn.disabled = (level >= 2.0);
+            zoomInBtn.classList.toggle('disabled', level >= 2.0);
+        }
+        if (zoomOutBtn) {
+            zoomOutBtn.disabled = (level <= 0.5);
+            zoomOutBtn.classList.toggle('disabled', level <= 0.5);
+        }
+    }
+    
+    // Initial Zoom anwenden (nur auf mobilen Geräten)
+    if (emailContent && window.matchMedia('(max-width: 767.98px)').matches) {
+        // Warte kurz, damit DOM vollständig geladen ist
+        setTimeout(function() {
+            applyZoom(zoomLevel);
+        }, 100);
+    }
+    
+    // Zoom-In Button
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', function() {
+            applyZoom(zoomLevel + 0.1);
+        });
+    }
+    
+    // Zoom-Out Button
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', function() {
+            applyZoom(zoomLevel - 0.1);
+        });
+    }
+    
+    // Zoom Reset Button
+    if (zoomResetBtn) {
+        zoomResetBtn.addEventListener('click', function() {
+            applyZoom(1.0);
         });
     }
 });

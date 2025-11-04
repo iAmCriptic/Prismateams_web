@@ -16,9 +16,15 @@
         <div class="desktop-chat-title-section">
             <div class="chat-avatar-section">
                 {% if chat.is_main_chat %}
+                    {% if portal_logo_filename %}
+                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" 
+                         class="chat-avatar" 
+                         alt="Team Logo">
+                    {% else %}
                     <img src="{{ url_for('static', filename='img/logo.png') }}" 
                          class="chat-avatar" 
                          alt="Team Logo">
+                    {% endif %}
                 {% else %}
                     <div class="chat-avatar chat-avatar-group">
                         <i class="bi bi-people-fill"></i>
