@@ -986,23 +986,95 @@ def view_email(email_id):
             html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
             
             # Remove body/html tags that might affect the page background
-            html_content = re.sub(r'<body[^>]*>', '<div class="email-body-wrapper">', html_content, flags=re.IGNORECASE)
-            html_content = re.sub(r'</body>', '</div>', html_content, flags=re.IGNORECASE)
+            # Preserve body content but convert to div
+            body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, flags=re.IGNORECASE | re.DOTALL)
+            if body_match:
+                # Extract body content and replace body tag with div
+                body_content = body_match.group(1)
+                # Remove body tags and replace with div
+                html_content = re.sub(r'<body[^>]*>.*?</body>', '<div class="email-body-wrapper">' + body_content + '</div>', html_content, flags=re.IGNORECASE | re.DOTALL)
+            else:
+                # No body tag found, but check if we need to wrap content
+                if not html_content.strip().startswith('<div'):
+                    html_content = '<div class="email-body-wrapper">' + html_content + '</div>'
+            
+            # Remove html tags
             html_content = re.sub(r'<html[^>]*>', '', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'</html>', '', html_content, flags=re.IGNORECASE)
             
-            # Remove style tags that might affect the page
-            html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
+            # Scoped style tags - wrap CSS to only affect email content
+            # Instead of removing, we'll scope the styles to prevent bleeding
+            def scope_style_tags(match):
+                style_content = match.group(1) if match.group(1) else ''
+                if not style_content.strip():
+                    return ''
+                
+                # Add scoping to CSS rules to only affect email content
+                # This preserves email styling while preventing it from affecting the page
+                # Handle @media queries and other at-rules
+                lines = style_content.split('\n')
+                scoped_lines = []
+                in_media = False
+                media_prefix = ''
+                
+                for line in lines:
+                    line_stripped = line.strip()
+                    # Check for @media, @keyframes, etc.
+                    if line_stripped.startswith('@'):
+                        if '@media' in line_stripped:
+                            in_media = True
+                            media_prefix = line_stripped
+                            scoped_lines.append(line)
+                            continue
+                        elif line_stripped == '}' and in_media:
+                            in_media = False
+                            media_prefix = ''
+                            scoped_lines.append(line)
+                            continue
+                    
+                    # If we're in a media query, don't scope the rules inside
+                    if in_media:
+                        # But still scope selector rules
+                        if '{' in line and not line_stripped.startswith('@'):
+                            scoped_line = re.sub(
+                                r'([^{}]+)\{',
+                                r'.email-content-isolated-inner \1{',
+                                line
+                            )
+                            scoped_lines.append(scoped_line)
+                        else:
+                            scoped_lines.append(line)
+                    else:
+                        # Regular CSS rule - scope it
+                        if '{' in line:
+                            scoped_line = re.sub(
+                                r'([^{}]+)\{',
+                                r'.email-content-isolated-inner \1{',
+                                line
+                            )
+                            scoped_lines.append(scoped_line)
+                        else:
+                            scoped_lines.append(line)
+                
+                scoped_css = '\n'.join(scoped_lines)
+                # Clean up any duplicate scoping
+                scoped_css = re.sub(r'\.email-content-isolated-inner\s+\.email-content-isolated-inner', '.email-content-isolated-inner', scoped_css)
+                # Remove body/html selectors that won't work
+                scoped_css = re.sub(r'\.email-content-isolated-inner\s+body\s*\{', '.email-content-isolated-inner {', scoped_css, flags=re.IGNORECASE)
+                scoped_css = re.sub(r'\.email-content-isolated-inner\s+html\s*\{', '.email-content-isolated-inner {', scoped_css, flags=re.IGNORECASE)
+                
+                return f'<style type="text/css">{scoped_css}</style>'
             
-            # Remove inline styles from body/html tags
-            html_content = re.sub(r'<body[^>]*style="[^"]*"[^>]*>', '<div class="email-body-wrapper">', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'<style[^>]*>(.*?)</style>', scope_style_tags, html_content, flags=re.IGNORECASE | re.DOTALL)
             
             # Ensure proper HTML structure if missing
             if not html_content.strip().startswith('<'):
                 html_content = f'<div class="email-body-wrapper">{html_content}</div>'
             
-            # Wrap in a container to isolate styles
-            html_content = f'<div class="email-content-isolated-inner">{html_content}</div>'
+            # Wrap in a container to isolate styles - but preserve existing structure
+            if not html_content.strip().startswith('<div class="email-content-isolated-inner">'):
+                # Only wrap if not already wrapped
+                html_content = f'<div class="email-content-isolated-inner">{html_content}</div>'
             
             # Handle inline images
             for attachment in email_msg.attachments:

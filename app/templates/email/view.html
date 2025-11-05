@@ -232,14 +232,23 @@
 </div>
 
 <script>
-// Toggle attachments collapse icon
-document.getElementById('attachmentsList').addEventListener('show.bs.collapse', function () {
-    document.getElementById('attachmentsToggleIcon').className = 'bi bi-chevron-down';
-});
+// Toggle attachments collapse icon - nur wenn Anhänge vorhanden sind
+const attachmentsList = document.getElementById('attachmentsList');
+if (attachmentsList) {
+    attachmentsList.addEventListener('show.bs.collapse', function () {
+        const icon = document.getElementById('attachmentsToggleIcon');
+        if (icon) {
+            icon.className = 'bi bi-chevron-down';
+        }
+    });
 
-document.getElementById('attachmentsList').addEventListener('hide.bs.collapse', function () {
-    document.getElementById('attachmentsToggleIcon').className = 'bi bi-chevron-right';
-});
+    attachmentsList.addEventListener('hide.bs.collapse', function () {
+        const icon = document.getElementById('attachmentsToggleIcon');
+        if (icon) {
+            icon.className = 'bi bi-chevron-right';
+        }
+    });
+}
 
 // Preview attachment function
 function previewAttachment(attachmentId, filename) {
