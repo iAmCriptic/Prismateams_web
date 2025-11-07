@@ -203,7 +203,12 @@
     {% for file in files %}
     <div class="col-12 col-md-6 col-lg-4">
         <div class="card file-item h-100" 
-             {% if file.name.endswith(('.txt', '.md', '.markdown')) %}
+             {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+             {% if file.name.endswith(('.md', '.markdown')) %}
+             onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
+             {% elif onlyoffice_available and file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf'] %}
+             onclick="window.open('{{ url_for('files.edit_onlyoffice', file_id=file.id) }}', '_blank')" style="cursor: pointer;"
+             {% elif file.name.endswith('.txt') %}
              onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
              {% else %}
              onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
@@ -351,10 +356,15 @@
 <!-- List View -->
 <div id="listView" class="list-group" style="display: none;">
     {% for file in files %}
-    <div class="list-group-item">
-        <div class="d-flex w-100 justify-content-between align-items-center">
-            <div class="d-flex align-items-center flex-grow-1" 
-                 {% if file.name.endswith(('.txt', '.md', '.markdown')) %}
+        <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-grow-1" 
+                 {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                 {% if file.name.endswith(('.md', '.markdown')) %}
+                 onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
+                 {% elif onlyoffice_available and file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf'] %}
+                 onclick="window.open('{{ url_for('files.edit_onlyoffice', file_id=file.id) }}', '_blank')" style="cursor: pointer;"
+                 {% elif file.name.endswith('.txt') %}
                  onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% else %}
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"

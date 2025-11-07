@@ -51,6 +51,10 @@ def browse_folder(folder_id):
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
+    
+    # Check ONLYOFFICE availability
+    from app.utils.onlyoffice import is_onlyoffice_enabled
+    onlyoffice_available = is_onlyoffice_enabled()
 
     return render_template(
         'files/index.html',
@@ -58,7 +62,8 @@ def browse_folder(folder_id):
         subfolders=subfolders,
         files=files,
         files_dropbox_enabled=files_dropbox_enabled,
-        files_sharing_enabled=files_sharing_enabled
+        files_sharing_enabled=files_sharing_enabled,
+        onlyoffice_available=onlyoffice_available
     )
 
 
