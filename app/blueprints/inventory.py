@@ -415,19 +415,15 @@ def borrow_multiple():
         
         flash(f'{len(transactions)} Produkt(e) erfolgreich ausgeliehen.', 'success')
         
-        # PDF generieren mit allen Transaktionen (nur erste für jetzt)
+        # PDF per E-Mail versenden mit allen Transaktionen
         if transactions:
-            pdf_buffer = BytesIO()
-            generate_borrow_receipt_pdf(transactions[0], pdf_buffer)
-            pdf_buffer.seek(0)
+            from app.utils.email_sender import send_borrow_receipt_email
+            email_sent = send_borrow_receipt_email(transactions)
             
-            filename = f"Ausleihscheine_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            return send_file(
-                pdf_buffer,
-                mimetype='application/pdf',
-                as_attachment=True,
-                download_name=filename
-            )
+            if email_sent:
+                flash('Der Ausleihschein wurde per E-Mail an Sie gesendet.', 'success')
+            else:
+                flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
         
         return redirect(url_for('inventory.dashboard'))
 
@@ -503,18 +499,16 @@ def product_borrow(product_id):
         
         flash(f'Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}', 'success')
         
-        # PDF generieren und zurückgeben
-        pdf_buffer = BytesIO()
-        generate_borrow_receipt_pdf(borrow_transaction, pdf_buffer)
-        pdf_buffer.seek(0)
+        # PDF per E-Mail versenden
+        from app.utils.email_sender import send_borrow_receipt_email
+        email_sent = send_borrow_receipt_email(borrow_transaction)
         
-        filename = f"Ausleihschein_{transaction_number}.pdf"
-        return send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=filename
-        )
+        if email_sent:
+            flash('Der Ausleihschein wurde per E-Mail an Sie gesendet.', 'success')
+        else:
+            flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
+        
+        return redirect(url_for('inventory.dashboard'))
     
     # Alle Benutzer für Auswahl
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
@@ -731,20 +725,15 @@ def borrow_scanner_checkout():
     
     flash(f'{len(transactions)} Produkt(e) erfolgreich ausgeliehen.', 'success')
     
-    # PDF generieren mit allen Transaktionen
-    # Hier könnten wir ein kombiniertes PDF erstellen, aber für jetzt nur die erste
+    # PDF per E-Mail versenden mit allen Transaktionen
     if transactions:
-        pdf_buffer = BytesIO()
-        generate_borrow_receipt_pdf(transactions[0], pdf_buffer)
-        pdf_buffer.seek(0)
+        from app.utils.email_sender import send_borrow_receipt_email
+        email_sent = send_borrow_receipt_email(transactions)
         
-        filename = f"Ausleihscheine_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        return send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=filename
-        )
+        if email_sent:
+            flash('Der Ausleihschein wurde per E-Mail an Sie gesendet.', 'success')
+        else:
+            flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
     
     return redirect(url_for('inventory.borrow_scanner'))
 

@@ -18,6 +18,36 @@
                 <h5 class="mb-0">Produkt eingeben</h5>
             </div>
             <div class="card-body">
+                <!-- QR-Code Scanner -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">QR-Code scannen</label>
+                        <div>
+                            <button class="btn btn-sm btn-primary" id="startScannerBtn">
+                                <i class="bi bi-camera"></i> Kamera starten
+                            </button>
+                            <button class="btn btn-sm btn-danger" id="stopScannerBtn" style="display: none;">
+                                <i class="bi bi-stop-circle"></i> Kamera stoppen
+                            </button>
+                        </div>
+                    </div>
+                    <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative;">
+                        <video id="scannerVideo" autoplay playsinline style="width: 100%; max-width: 100%; height: 400px; min-height: 300px; border-radius: 8px; background: #000; object-fit: cover; display: block;"></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <!-- Visueller Scan-Rahmen -->
+                        <div id="scannerFrame" class="scanner-frame"></div>
+                        <!-- Scan-Animation (Strich von oben nach unten) -->
+                        <div id="scannerLine" class="scanner-line"></div>
+                        <!-- Erfolgs-Popup -->
+                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                            <i class="bi bi-check-circle-fill"></i> Produkt hinzugefügt
+                        </div>
+                    </div>
+                    <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+                </div>
+                
+                <hr>
+                
                 <!-- Manuelle Eingabe -->
                 <div>
                     <label for="manualQrInput" class="form-label">QR-Code oder Produkt-ID eingeben</label>
@@ -102,9 +132,16 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize BorrowScannerManager
+    if (typeof BorrowScannerManager !== 'undefined') {
+        window.borrowScannerManager = new BorrowScannerManager();
+        window.borrowScannerManager.init();
+    }
+    
     // Manuelle Eingabe für Warenkorb
     const manualInput = document.getElementById('manualQrInput');
     const addBtn = document.getElementById('addToCartBtn');
@@ -180,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Checkout-Formular: PDF herunterladen und zum Dashboard weiterleiten
+    // Checkout-Formular: PDF wird per E-Mail versendet
     const checkoutForm = document.getElementById('checkoutForm');
     if (checkoutForm) {
         const dateInput = document.getElementById('expected_return_date');
@@ -202,30 +239,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: formData
                 });
                 
-                if (response.ok && response.headers.get('content-type')?.includes('application/pdf')) {
-                    // PDF herunterladen
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Ausleihscheine_${Date.now()}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    // Nach kurzer Verzögerung zum Dashboard weiterleiten
-                    setTimeout(() => {
-                        window.location.href = '/inventory/';
-                    }, 500);
+                if (response.ok) {
+                    // Weiterleitung erfolgt serverseitig - PDF wird per E-Mail versendet
+                    window.location.href = '/inventory/borrow-scanner';
                 } else {
-                    // Fehler oder andere Antwort
+                    // Fehler
                     const text = await response.text();
                     if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
                         alert('Bitte überprüfen Sie Ihre Eingaben.');
                     } else {
-                        // Trotzdem zum Dashboard leiten
-                        window.location.href = '/inventory/';
+                        window.location.href = '/inventory/borrow-scanner';
                     }
                 }
             } catch (error) {

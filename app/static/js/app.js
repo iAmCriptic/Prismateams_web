@@ -2,14 +2,7 @@
 
 // Status-Meldung beim Laden der Seite
 function showStatusInfo() {
-    const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
-    const pushActive = pushSupported && Notification.permission === 'granted';
-    const connectionStatus = navigator.onLine ? 'Vorhanden' : 'Getrennt';
-    
-    console.log('--- Infos ---');
-    console.log(`Push Benachrichtigungen: ${pushSupported ? (pushActive ? 'Aktiv' : 'Verfügbar') : 'Nicht Unterstützt'}`);
-    console.log(`Verbindung: ${connectionStatus}`);
-    console.log('--- Infos ---');
+    // Status-Info wird still geprüft, keine Console-Ausgabe
 }
 
 // PWA Service Worker Registration
@@ -143,7 +136,7 @@ class PermissionManager {
                 const micPermission = await navigator.permissions.query({ name: 'microphone' });
                 this.permissions.microphone = micPermission.state;
             } catch (e) {
-                console.log('Mikrofon-Berechtigung kann nicht geprüft werden:', e);
+                // Mikrofon-Berechtigung kann nicht geprüft werden - stillschweigend ignorieren
             }
         }
         
@@ -296,7 +289,6 @@ class ServerPushManager {
     
     async checkPushStatus() {
         if (!this.isPushSupported()) {
-            console.log('Push-Benachrichtigungen werden nicht unterstützt');
             this.updatePushStatusUI({ supported: false, subscribed: false, permission: 'denied' });
             return;
         }
@@ -304,14 +296,11 @@ class ServerPushManager {
         const permission = Notification.permission;
         let subscribed = false;
         
-        console.log('Prüfe Push-Status - Berechtigung:', permission);
-        
         if (permission === 'granted') {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 const subscription = await registration.pushManager.getSubscription();
                 subscribed = !!subscription;
-                console.log('Service Worker bereit, Subscription vorhanden:', subscribed);
             } catch (error) {
                 console.error('Fehler beim Prüfen des Push-Status:', error);
             }
@@ -323,7 +312,6 @@ class ServerPushManager {
             permission: permission
         };
         
-        console.log('Push-Status ermittelt:', status);
         this.pushStatus = status;
         this.updatePushStatusUI(status);
         return status;
@@ -343,31 +331,24 @@ class ServerPushManager {
     }
 
     async registerPushNotifications() {
-        console.log('=== PUSH-REGISTRIERUNG GESTARTET ===');
-        
         if (!this.isPushSupported()) {
-            console.log('Push-Benachrichtigungen werden nicht unterstützt');
             this.updatePushStatusUI({ supported: false, subscribed: false, permission: 'denied' });
             return false;
         }
         
         try {
             if (this.isRegistering) {
-                console.log('Registrierung bereits im Gange, überspringe...');
                 return false;
             }
             this.isRegistering = true;
-            console.log('Starte Push-Registrierung...');
             
             // Prüfe aktuelle Berechtigung und frage bei Bedarf an
             let permission = Notification.permission;
             if (permission === 'default') {
-                console.log('Frage Browser-Berechtigung für Push-Benachrichtigungen an...');
                 permission = await Notification.requestPermission();
             }
             
             if (permission !== 'granted') {
-                console.log('Push-Benachrichtigungen nicht erlaubt:', permission);
                 this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission });
                 this.showTestResult('warning', 'Push-Benachrichtigungen wurden verweigert. Bitte erlauben Sie Benachrichtigungen in den Browser-Einstellungen.');
                 return false;
@@ -390,7 +371,6 @@ class ServerPushManager {
             }
             
             // Hole VAPID Public Key vom Server
-            console.log('Lade VAPID Public Key...');
             const vapidResponse = await fetch('/api/push/vapid-key', {
                 credentials: 'include'
             });
@@ -402,24 +382,19 @@ class ServerPushManager {
             }
             
             const vapidData = await vapidResponse.json();
-            console.log('VAPID Key erhalten:', vapidData.public_key ? 'Ja' : 'Nein');
             const applicationServerKey = this.urlBase64ToUint8Array(vapidData.public_key);
             
             // Subscribe zu Push Manager
-            console.log('Erstelle Push-Subscription...');
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: applicationServerKey
             });
-            console.log('Push-Subscription erstellt:', subscription.endpoint ? 'Ja' : 'Nein');
             
             // Sende Subscription an Server
-            console.log('Sende Subscription an Server...');
             const response = await this.postSubscription(subscription);
             
             if (response.ok) {
                 const result = await response.json();
-                console.log('Push-Benachrichtigungen erfolgreich registriert:', result);
                 this.updatePushStatusUI({ supported: true, subscribed: true, permission: permission });
                 this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
                 return true;
@@ -462,7 +437,6 @@ class ServerPushManager {
 
     async postSubscription(subscription) {
         const payload = this.subscriptionToPayload(subscription);
-        console.log('Sende Subscription-Payload:', payload);
         
         return fetch('/api/push/subscribe', {
             method: 'POST',
@@ -479,8 +453,6 @@ class ServerPushManager {
         try {
             const response = await this.postSubscription(subscription);
             if (response.ok) {
-                const result = await response.json();
-                console.log('Bestehende Subscription bestätigt:', result);
                 return true;
             }
             return false;
@@ -491,7 +463,6 @@ class ServerPushManager {
     }
     
     urlBase64ToUint8Array(base64String) {
-        console.log('Konvertiere VAPID Key:', base64String.substring(0, 20) + '...');
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
         const base64 = (base64String + padding)
             .replace(/-/g, '+')
@@ -503,7 +474,6 @@ class ServerPushManager {
         for (let i = 0; i < rawData.length; ++i) {
             outputArray[i] = rawData.charCodeAt(i);
         }
-        console.log('VAPID Key konvertiert, Länge:', outputArray.length);
         return outputArray;
     }
     
@@ -599,11 +569,9 @@ class ServerPushManager {
                     this.showTestResult('warning', data.message);
                     this.startCooldownTimer(testBtn, originalText, data.remaining_seconds);
                 } else if (data && data.action_required === 'subscribe') {
-                    console.warn('Test-Push: Keine aktive Subscription. Versuche automatische Registrierung...');
                     this.showTestResult('warning', data.message || 'Keine aktive Subscription. Registrierung wird gestartet...');
                     const registered = await this.registerPushNotifications();
                     if (registered) {
-                        console.log('Automatische Registrierung erfolgreich. Sende Test erneut...');
                         // kurzer Retry nach Erfolg
                         setTimeout(() => {
                             this.testPushNotification();
@@ -626,7 +594,6 @@ class ServerPushManager {
     }
     
     resetTestButton(button, originalText) {
-        console.log('Button wird reaktiviert');
         button.disabled = false;
         button.classList.remove('disabled');
         button.innerHTML = originalText;
@@ -662,8 +629,6 @@ class ServerPushManager {
     }
     
     startCooldownTimer(button, originalText, remainingSeconds) {
-        console.log(`Starte Cooldown-Timer für ${remainingSeconds} Sekunden`);
-        
         // Setze Cooldown in LocalStorage
         this.setCooldown(remainingSeconds);
         
@@ -682,7 +647,6 @@ class ServerPushManager {
         
         const updateTimer = () => {
             const remaining = this.getCooldownRemaining();
-            console.log(`Cooldown verbleibend: ${remaining} Sekunden`);
             
             if (remaining > 0) {
                 // Update Timer Display
@@ -709,7 +673,6 @@ class ServerPushManager {
                 setTimeout(updateTimer, 1000);
             } else {
                 // Cooldown beendet
-                console.log('Cooldown beendet - Button wird reaktiviert');
                 this.clearCooldown();
                 this.resetTestButton(button, originalText);
                 
@@ -765,7 +728,7 @@ const serverPushManager = new ServerPushManager();
 // Service Worker ist bereit für Server-Push-Benachrichtigungen
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(function(registration) {
-        console.log('Service Worker bereit für Server-Push-Benachrichtigungen');
+        // Service Worker bereit - keine Console-Ausgabe
     });
 }
 

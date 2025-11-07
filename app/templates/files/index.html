@@ -31,54 +31,6 @@
                 </button>
                 <ul class="dropdown-menu" id="newDropdownMenu" style="display: none;">
                     <li>
-                        <a class="dropdown-item" href="#" id="createMenuItem">
-                            <i class="bi bi-file-earmark-plus"></i> Erstellen
-                            <i class="bi bi-chevron-right float-end"></i>
-                        </a>
-                        <ul class="dropdown-menu dropdown-submenu" id="createSubmenu" style="display: none;">
-                            {% if onlyoffice_available %}
-                            <li>
-                                <form method="POST" action="{{ url_for('files.create_office_file') }}" class="d-inline create-office-form" style="display: inline;">
-                                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                                    <input type="hidden" name="file_type" value="docx">
-                                    <button type="submit" class="dropdown-item">
-                                        <i class="bi bi-file-earmark-word"></i> Word-Dokument (.docx)
-                                    </button>
-                                </form>
-                            </li>
-                            <li>
-                                <form method="POST" action="{{ url_for('files.create_office_file') }}" class="d-inline create-office-form" style="display: inline;">
-                                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                                    <input type="hidden" name="file_type" value="xlsx">
-                                    <button type="submit" class="dropdown-item">
-                                        <i class="bi bi-file-earmark-spreadsheet"></i> Excel-Tabelle (.xlsx)
-                                    </button>
-                                </form>
-                            </li>
-                            <li>
-                                <form method="POST" action="{{ url_for('files.create_office_file') }}" class="d-inline create-office-form" style="display: inline;">
-                                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                                    <input type="hidden" name="file_type" value="pptx">
-                                    <button type="submit" class="dropdown-item">
-                                        <i class="bi bi-file-earmark-slides"></i> PowerPoint-Präsentation (.pptx)
-                                    </button>
-                                </form>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            {% endif %}
-                            <li>
-                                <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#createFileModal">
-                                    <i class="bi bi-file-earmark-text"></i> Markdown-Datei (.md)
-                                </button>
-                            </li>
-                            <li>
-                                <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#newFolderModal">
-                                    <i class="bi bi-folder-plus"></i> Neuer Ordner
-                                </button>
-                            </li>
-                        </ul>
-                    </li>
-                    <li>
                         <a class="dropdown-item" href="#" id="uploadFileMenuItem">
                             <i class="bi bi-upload"></i> Dateien hochladen
                         </a>
@@ -86,6 +38,34 @@
                     <li>
                         <a class="dropdown-item" href="#" id="uploadFolderMenuItem">
                             <i class="bi bi-folder-upload"></i> Ordner hochladen
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#" id="createFolderMenuItem">
+                            <i class="bi bi-folder-plus"></i> Ordner erstellen
+                        </a>
+                    </li>
+                    {% if onlyoffice_available %}
+                    <li>
+                        <a class="dropdown-item" href="#" data-create-type="docx">
+                            <i class="bi bi-file-earmark-word"></i> Word-Dokument erstellen (.docx)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#" data-create-type="xlsx">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Excel-Tabelle erstellen (.xlsx)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#" data-create-type="pptx">
+                            <i class="bi bi-file-earmark-slides"></i> PowerPoint-Präsentation erstellen (.pptx)
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a class="dropdown-item" href="#" id="createMdMenuItem">
+                            <i class="bi bi-file-earmark-text"></i> Markdown-Datei erstellen (.md)
                         </a>
                     </li>
                 </ul>
@@ -98,11 +78,61 @@
 </div>
 
 <!-- Folders -->
-{% if subfolders %}
 <h5 class="mb-3">Ordner</h5>
+
+<!-- Inline Folder Creation (Grid View) -->
+<div id="inlineFolderCreateGrid" class="row g-3 mb-4" style="display: none;">
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card folder-item">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="bi bi-folder-fill text-warning fs-1"></i>
+                </div>
+                <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form">
+                    <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <input type="text" class="form-control form-control-sm" name="folder_name" placeholder="Ordnername" required autofocus>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-sm btn-accent flex-fill">
+                            <i class="bi bi-check"></i> Erstellen
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary cancel-inline-create">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inline File Creation (Grid View) -->
+<div id="inlineFileCreateGrid" class="row g-3 mb-4" style="display: none;">
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card file-item">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="bi bi-file-earmark fs-1 text-primary" id="inlineFileIcon"></i>
+                </div>
+                <form method="POST" class="inline-create-form" id="inlineFileForm">
+                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                    <input type="text" class="form-control form-control-sm" name="filename" placeholder="Dateiname" required autofocus>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-sm btn-accent flex-fill">
+                            <i class="bi bi-check"></i> Erstellen
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary cancel-inline-create">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Folders Grid View -->
 <div id="foldersGridView" class="row g-3 mb-4">
+    {% if subfolders %}
     {% for folder in subfolders %}
     <div class="col-12 col-md-6 col-lg-3">
         <div class="card folder-item" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'">
@@ -179,10 +209,50 @@
         </div>
     </div>
     {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Inline Folder Creation (List View) -->
+<div id="inlineFolderCreateList" class="list-group mb-4" style="display: none;">
+    <div class="list-group-item">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
+            <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2">
+                <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                <input type="text" class="form-control form-control-sm" name="folder_name" placeholder="Ordnername" required autofocus>
+                <button type="submit" class="btn btn-sm btn-accent">
+                    <i class="bi bi-check"></i> Erstellen
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary cancel-inline-create">
+                    <i class="bi bi-x"></i> Abbrechen
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Inline File Creation (List View) -->
+<div id="inlineFileCreateList" class="list-group mb-4" style="display: none;">
+    <div class="list-group-item">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-file-earmark fs-4 text-primary me-3" id="inlineFileIconList"></i>
+            <form method="POST" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2" id="inlineFileFormList">
+                <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                <input type="text" class="form-control form-control-sm" name="filename" placeholder="Dateiname" required autofocus>
+                <button type="submit" class="btn btn-sm btn-accent">
+                    <i class="bi bi-check"></i> Erstellen
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary cancel-inline-create">
+                    <i class="bi bi-x"></i> Abbrechen
+                </button>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- Folders List View -->
 <div id="foldersListView" class="list-group mb-4" style="display: none;">
+    {% if subfolders %}
     {% for folder in subfolders %}
     <div class="list-group-item d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'" style="cursor: pointer;">
@@ -708,32 +778,15 @@
     border-radius: 0.375rem;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     padding: 0.5rem 0;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
 }
 
-/* Submenu Positioning */
-.dropdown-submenu {
-    position: absolute;
-    left: 100%;
-    top: 0;
-    margin-left: 0.125rem;
-    min-width: 250px;
-    z-index: 1001;
-    background: white;
-    border: 1px solid rgba(0,0,0,.15);
-    border-radius: 0.375rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    padding: 0.5rem 0;
-}
 
-/* Show submenu when parent is hovered */
-#createMenuItem:hover + #createSubmenu,
-#createSubmenu:hover {
-    display: block !important;
-}
-
-/* Position parent item relative for submenu */
-#createMenuItem {
-    position: relative;
+/* Hauptmenü nach rechts positionieren wenn kein Platz links */
+#newDropdownMenu.position-right {
+    left: auto;
+    right: 0;
 }
 </style>
 
@@ -742,8 +795,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // NEU Button Dropdown mit Hover-Funktionalität
     const newButton = document.getElementById('newButton');
     const newDropdownMenu = document.getElementById('newDropdownMenu');
-    const createMenuItem = document.getElementById('createMenuItem');
-    const createSubmenu = document.getElementById('createSubmenu');
     const uploadFileMenuItem = document.getElementById('uploadFileMenuItem');
     const uploadFolderMenuItem = document.getElementById('uploadFolderMenuItem');
     const directFileUpload = document.getElementById('directFileUpload');
@@ -751,6 +802,38 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let hoverTimeout = null;
     let isMenuOpen = false;
+    
+    // Funktion zur Anpassung der Menü-Positionierung
+    function adjustMenuPosition() {
+        if (!newDropdownMenu || !newButton) return;
+        
+        // Positioniere Hauptmenü horizontal
+        const buttonRect = newButton.getBoundingClientRect();
+        const menuWidth = newDropdownMenu.offsetWidth || 200;
+        const menuHeight = newDropdownMenu.offsetHeight || 300;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Horizontal: Wenn nicht genug Platz rechts ist, positioniere nach rechts
+        if (buttonRect.left + menuWidth > viewportWidth - 20) {
+            newDropdownMenu.classList.add('position-right');
+        } else {
+            newDropdownMenu.classList.remove('position-right');
+        }
+        
+        // Vertikal: Wenn nicht genug Platz unten ist, positioniere nach oben
+        if (buttonRect.bottom + menuHeight > viewportHeight - 20) {
+            newDropdownMenu.style.top = 'auto';
+            newDropdownMenu.style.bottom = '100%';
+            newDropdownMenu.style.marginTop = '0';
+            newDropdownMenu.style.marginBottom = '0.5rem';
+        } else {
+            newDropdownMenu.style.top = '100%';
+            newDropdownMenu.style.bottom = 'auto';
+            newDropdownMenu.style.marginTop = '0.5rem';
+            newDropdownMenu.style.marginBottom = '0';
+        }
+    }
     
     // Hover-Timeout für 2 Sekunden
     if (newButton && newDropdownMenu) {
@@ -760,6 +843,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!isMenuOpen) {
                     newDropdownMenu.style.display = 'block';
                     isMenuOpen = true;
+                    // Position anpassen nach dem Anzeigen
+                    setTimeout(adjustMenuPosition, 10);
                 }
             }, 2000); // 2 Sekunden
         });
@@ -776,7 +861,6 @@ document.addEventListener('DOMContentLoaded', function() {
         newDropdownMenu.addEventListener('mouseleave', function() {
             hoverTimeout = setTimeout(function() {
                 newDropdownMenu.style.display = 'none';
-                createSubmenu.style.display = 'none';
                 isMenuOpen = false;
             }, 300);
         });
@@ -786,11 +870,12 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
             if (isMenuOpen) {
                 newDropdownMenu.style.display = 'none';
-                createSubmenu.style.display = 'none';
                 isMenuOpen = false;
             } else {
                 newDropdownMenu.style.display = 'block';
                 isMenuOpen = true;
+                // Position anpassen nach dem Anzeigen
+                setTimeout(adjustMenuPosition, 10);
             }
         });
         
@@ -798,30 +883,31 @@ document.addEventListener('DOMContentLoaded', function() {
         document.addEventListener('click', function(e) {
             if (!newButtonDropdown.contains(e.target)) {
                 newDropdownMenu.style.display = 'none';
-                createSubmenu.style.display = 'none';
                 isMenuOpen = false;
             }
         });
     }
     
-    // Submenu für "Erstellen"
-    if (createMenuItem && createSubmenu) {
-        createMenuItem.addEventListener('mouseenter', function() {
-            createSubmenu.style.display = 'block';
-        });
-        
-        createSubmenu.addEventListener('mouseenter', function() {
-            createSubmenu.style.display = 'block';
-        });
-        
-        createSubmenu.addEventListener('mouseleave', function() {
-            setTimeout(function() {
-                if (!createSubmenu.matches(':hover') && !createMenuItem.matches(':hover')) {
-                    createSubmenu.style.display = 'none';
-                }
-            }, 200);
-        });
-    }
+    // Position beim Resize anpassen
+    window.addEventListener('resize', function() {
+        if (isMenuOpen) {
+            adjustMenuPosition();
+        }
+    });
+    
+    // Position beim Scroll anpassen
+    window.addEventListener('scroll', function() {
+        if (isMenuOpen) {
+            adjustMenuPosition();
+        }
+    }, true);
+    
+    // Regelmäßige Position-Überprüfung wenn Menü geöffnet ist
+    setInterval(function() {
+        if (isMenuOpen && newDropdownMenu.style.display === 'block') {
+            adjustMenuPosition();
+        }
+    }, 100);
     
     // Direkter Upload-Dialog beim Klick auf "Dateien hochladen"
     if (uploadFileMenuItem) {
@@ -931,21 +1017,165 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Office-Datei-Erstellung: Dateiname abfragen
-    const officeForms = document.querySelectorAll('.create-office-form');
-    officeForms.forEach(function(form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const filename = prompt('Bitte geben Sie einen Dateinamen ein:');
-            if (filename && filename.trim()) {
-                const filenameInput = document.createElement('input');
-                filenameInput.type = 'hidden';
-                filenameInput.name = 'filename';
-                filenameInput.value = filename.trim();
-                form.appendChild(filenameInput);
-                form.submit();
+    // Inline-Erstellung Funktionen
+    function showInlineCreate(type, fileType) {
+        // Schließe Dropdown-Menü
+        newDropdownMenu.style.display = 'none';
+        isMenuOpen = false;
+        
+        // Bestimme aktuelle Ansicht
+        const isGridView = gridViewBtn.classList.contains('active');
+        
+        if (type === 'folder') {
+            // Zeige Inline-Ordner-Erstellung
+            if (isGridView) {
+                document.getElementById('inlineFolderCreateGrid').style.display = 'block';
+            } else {
+                document.getElementById('inlineFolderCreateList').style.display = 'block';
             }
+            // Fokus auf Eingabefeld
+            setTimeout(function() {
+                const input = document.querySelector('#inlineFolderCreateGrid input[name="folder_name"], #inlineFolderCreateList input[name="folder_name"]');
+                if (input) input.focus();
+            }, 100);
+        } else if (type === 'file') {
+            // Zeige Inline-Datei-Erstellung
+            const formGrid = document.getElementById('inlineFileForm');
+            const formList = document.getElementById('inlineFileFormList');
+            const iconGrid = document.getElementById('inlineFileIcon');
+            const iconList = document.getElementById('inlineFileIconList');
+            
+            // Setze Formular-Action und Icon basierend auf Dateityp
+            let actionUrl = '';
+            let iconClass = '';
+            let placeholder = '';
+            
+            if (fileType === 'docx') {
+                actionUrl = '{{ url_for("files.create_office_file") }}';
+                iconClass = 'bi-file-earmark-word text-primary';
+                placeholder = 'Word-Dokument Name';
+            } else if (fileType === 'xlsx') {
+                actionUrl = '{{ url_for("files.create_office_file") }}';
+                iconClass = 'bi-file-earmark-spreadsheet text-success';
+                placeholder = 'Excel-Tabelle Name';
+            } else if (fileType === 'pptx') {
+                actionUrl = '{{ url_for("files.create_office_file") }}';
+                iconClass = 'bi-file-earmark-slides text-warning';
+                placeholder = 'PowerPoint-Präsentation Name';
+            } else if (fileType === 'md') {
+                actionUrl = '{{ url_for("files.create_file") }}';
+                iconClass = 'bi-file-earmark-text text-info';
+                placeholder = 'Markdown-Datei Name';
+            }
+            
+            if (formGrid && formList) {
+                formGrid.action = actionUrl;
+                formList.action = actionUrl;
+                
+                // Füge file_type hinzu wenn Office-Datei
+                if (fileType === 'docx' || fileType === 'xlsx' || fileType === 'pptx') {
+                    let typeInputGrid = formGrid.querySelector('input[name="file_type"]');
+                    let typeInputList = formList.querySelector('input[name="file_type"]');
+                    if (!typeInputGrid) {
+                        typeInputGrid = document.createElement('input');
+                        typeInputGrid.type = 'hidden';
+                        typeInputGrid.name = 'file_type';
+                        formGrid.appendChild(typeInputGrid);
+                    }
+                    if (!typeInputList) {
+                        typeInputList = document.createElement('input');
+                        typeInputList.type = 'hidden';
+                        typeInputList.name = 'file_type';
+                        formList.appendChild(typeInputList);
+                    }
+                    typeInputGrid.value = fileType;
+                    typeInputList.value = fileType;
+                } else if (fileType === 'md') {
+                    let typeInputGrid = formGrid.querySelector('input[name="file_type"]');
+                    let typeInputList = formList.querySelector('input[name="file_type"]');
+                    if (!typeInputGrid) {
+                        typeInputGrid = document.createElement('input');
+                        typeInputGrid.type = 'hidden';
+                        typeInputGrid.name = 'file_type';
+                        formGrid.appendChild(typeInputGrid);
+                    }
+                    if (!typeInputList) {
+                        typeInputList = document.createElement('input');
+                        typeInputList.type = 'hidden';
+                        typeInputList.name = 'file_type';
+                        formList.appendChild(typeInputList);
+                    }
+                    typeInputGrid.value = 'md';
+                    typeInputList.value = 'md';
+                }
+                
+                // Setze Placeholder
+                formGrid.querySelector('input[name="filename"]').placeholder = placeholder;
+                formList.querySelector('input[name="filename"]').placeholder = placeholder;
+                
+                // Setze Icon
+                if (iconGrid) iconGrid.className = 'bi ' + iconClass + ' fs-1';
+                if (iconList) iconList.className = 'bi ' + iconClass + ' fs-4';
+            }
+            
+            if (isGridView) {
+                document.getElementById('inlineFileCreateGrid').style.display = 'block';
+            } else {
+                document.getElementById('inlineFileCreateList').style.display = 'block';
+            }
+            
+            // Fokus auf Eingabefeld
+            setTimeout(function() {
+                const input = document.querySelector('#inlineFileCreateGrid input[name="filename"], #inlineFileCreateList input[name="filename"]');
+                if (input) input.focus();
+            }, 100);
+        }
+    }
+    
+    // Event Listener für Erstellungs-Optionen
+    document.getElementById('createFolderMenuItem')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        showInlineCreate('folder');
+    });
+    
+    document.getElementById('createMdMenuItem')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        showInlineCreate('file', 'md');
+    });
+    
+    // Office-Dateien
+    document.querySelectorAll('[data-create-type]').forEach(function(item) {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const fileType = this.getAttribute('data-create-type');
+            showInlineCreate('file', fileType);
         });
+    });
+    
+    // Abbrechen-Buttons
+    document.querySelectorAll('.cancel-inline-create').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('inlineFolderCreateGrid').style.display = 'none';
+            document.getElementById('inlineFolderCreateList').style.display = 'none';
+            document.getElementById('inlineFileCreateGrid').style.display = 'none';
+            document.getElementById('inlineFileCreateList').style.display = 'none';
+        });
+    });
+    
+    // ESC-Taste zum Abbrechen
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const isVisible = document.getElementById('inlineFolderCreateGrid').style.display === 'block' ||
+                             document.getElementById('inlineFolderCreateList').style.display === 'block' ||
+                             document.getElementById('inlineFileCreateGrid').style.display === 'block' ||
+                             document.getElementById('inlineFileCreateList').style.display === 'block';
+            if (isVisible) {
+                document.getElementById('inlineFolderCreateGrid').style.display = 'none';
+                document.getElementById('inlineFolderCreateList').style.display = 'none';
+                document.getElementById('inlineFileCreateGrid').style.display = 'none';
+                document.getElementById('inlineFileCreateList').style.display = 'none';
+            }
+        }
     });
     
     // View mode toggle
@@ -966,6 +1196,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (foldersListView) foldersListView.style.display = 'block';
             if (foldersGridView) foldersGridView.style.display = 'none';
             
+            // Switch inline creation views
+            const inlineFolderGrid = document.getElementById('inlineFolderCreateGrid');
+            const inlineFolderList = document.getElementById('inlineFolderCreateList');
+            const inlineFileGrid = document.getElementById('inlineFileCreateGrid');
+            const inlineFileList = document.getElementById('inlineFileCreateList');
+            
+            if (inlineFolderGrid && inlineFolderGrid.style.display === 'block') {
+                inlineFolderGrid.style.display = 'none';
+                if (inlineFolderList) inlineFolderList.style.display = 'block';
+            }
+            if (inlineFileGrid && inlineFileGrid.style.display === 'block') {
+                inlineFileGrid.style.display = 'none';
+                if (inlineFileList) inlineFileList.style.display = 'block';
+            }
+            
             listViewBtn.classList.add('active');
             gridViewBtn.classList.remove('active');
             localStorage.setItem('filesViewMode', 'list');
@@ -979,6 +1224,21 @@ document.addEventListener('DOMContentLoaded', function() {
             // Switch folders view
             if (foldersGridView) foldersGridView.style.display = 'block';
             if (foldersListView) foldersListView.style.display = 'none';
+            
+            // Switch inline creation views
+            const inlineFolderGrid = document.getElementById('inlineFolderCreateGrid');
+            const inlineFolderList = document.getElementById('inlineFolderCreateList');
+            const inlineFileGrid = document.getElementById('inlineFileCreateGrid');
+            const inlineFileList = document.getElementById('inlineFileCreateList');
+            
+            if (inlineFolderList && inlineFolderList.style.display === 'block') {
+                inlineFolderList.style.display = 'none';
+                if (inlineFolderGrid) inlineFolderGrid.style.display = 'block';
+            }
+            if (inlineFileList && inlineFileList.style.display === 'block') {
+                inlineFileList.style.display = 'none';
+                if (inlineFileGrid) inlineFileGrid.style.display = 'block';
+            }
             
             gridViewBtn.classList.add('active');
             listViewBtn.classList.remove('active');

@@ -34,17 +34,149 @@
     background-color: #000;
     border-radius: 0.375rem;
     overflow: hidden;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 #scannerVideo {
-    width: 100%;
-    max-width: 500px;
-    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 400px !important;
+    min-height: 300px !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     margin: 0 auto;
+    object-fit: cover;
+    background-color: #000;
 }
 
 #scannerCanvas {
     display: none;
+}
+
+/* Visueller Scan-Rahmen */
+.scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 250px;
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    transition: border-color 0.3s ease;
+}
+
+/* Scan-Linie Animation (Strich von oben nach unten) */
+.scanner-line {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 250px;
+    height: 3px;
+    background: linear-gradient(to bottom, transparent, #0d6efd, transparent);
+    pointer-events: none;
+    z-index: 15;
+    opacity: 0;
+    box-shadow: 0 0 10px rgba(13, 110, 253, 0.8);
+}
+
+.scanner-line.animate {
+    animation: scanLineMove 0.5s ease-out forwards;
+}
+
+@keyframes scanLineMove {
+    0% {
+        top: calc(50% - 125px);
+        opacity: 1;
+    }
+    100% {
+        top: calc(50% + 125px);
+        opacity: 0.8;
+    }
+}
+
+/* Grünes Leuchten bei erfolgreichem Scan */
+.scanner-frame.scanner-success {
+    border-color: #28a745;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(40, 167, 69, 0.6);
+    animation: scannerPulse 2s ease-out;
+}
+
+@keyframes scannerPulse {
+    0% {
+        border-color: #28a745;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(40, 167, 69, 0.6);
+    }
+    50% {
+        border-color: #28a745;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 40px rgba(40, 167, 69, 0.9);
+    }
+    100% {
+        border-color: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    }
+}
+
+/* Erfolgs-Popup */
+.scanner-success-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(40, 167, 69, 0.95);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    z-index: 20;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.scanner-success-popup.show {
+    display: flex;
+    animation: popupFadeIn 0.3s ease-out forwards;
+}
+
+.scanner-success-popup.hide {
+    animation: popupFadeOut 0.3s ease-out forwards;
+}
+
+.scanner-success-popup i {
+    font-size: 1.5rem;
+}
+
+@keyframes popupFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes popupFadeOut {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
 }
 
 .scanner-overlay {

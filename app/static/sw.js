@@ -12,15 +12,13 @@ const urlsToCache = [
 
 // Install Event - Cache wichtige Ressourcen
 self.addEventListener('install', function(event) {
-  console.log('Service Worker: Install Event');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(function(cache) {
-        console.log('Service Worker: Caching wichtige Dateien');
         return cache.addAll(urlsToCache);
       })
       .catch(function(error) {
-        console.log('Service Worker: Fehler beim Caching:', error);
+        console.error('Service Worker: Fehler beim Caching:', error);
       })
   );
   // Sofort aktivieren
@@ -29,13 +27,11 @@ self.addEventListener('install', function(event) {
 
 // Activate Event - Alte Caches löschen
 self.addEventListener('activate', function(event) {
-  console.log('Service Worker: Activate Event');
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
         cacheNames.map(function(cacheName) {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Lösche alten Cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -83,10 +79,8 @@ self.addEventListener('fetch', function(event) {
     caches.match(event.request)
       .then(function(response) {
         if (response) {
-          console.log('Service Worker: Cache hit für:', event.request.url);
           return response;
         }
-        console.log('Service Worker: Cache miss für:', event.request.url);
         return fetch(event.request).then(function(networkResponse) {
           if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
             return networkResponse;
@@ -103,8 +97,6 @@ self.addEventListener('fetch', function(event) {
 
 // Push Notifications - Serverbasiertes Push-System
 self.addEventListener('push', function(event) {
-  console.log('Service Worker: Push Event empfangen');
-  
   let notificationData = {
     title: 'Prismateams',
     body: 'Neue Benachrichtigung',
@@ -118,7 +110,6 @@ self.addEventListener('push', function(event) {
   if (event.data) {
     try {
       const pushData = event.data.json();
-      console.log('Server Push-Daten empfangen:', pushData);
       notificationData = {
         title: pushData.title || 'Prismateams',
         body: pushData.body || 'Neue Benachrichtigung',
@@ -128,7 +119,7 @@ self.addEventListener('push', function(event) {
         data: pushData.data || {}
       };
     } catch (e) {
-      console.log('Fehler beim Parsen der Push-Daten:', e);
+      console.error('Fehler beim Parsen der Push-Daten:', e);
       notificationData.body = event.data.text() || 'Neue Benachrichtigung';
     }
   }
@@ -160,8 +151,6 @@ self.addEventListener('push', function(event) {
     tag: `notification-${Date.now()}`
   };
 
-  console.log('Zeige Server-Push-Benachrichtigung:', notificationData.title, notificationData.body);
-
   event.waitUntil(
     self.registration.showNotification(notificationData.title, options)
   );
@@ -169,8 +158,6 @@ self.addEventListener('push', function(event) {
 
 // Notification Click Handler
 self.addEventListener('notificationclick', function(event) {
-  console.log('Service Worker: Notification Click', event.action);
-  
   event.notification.close();
 
   if (event.action === 'open' || !event.action) {
@@ -201,16 +188,10 @@ self.addEventListener('notificationclick', function(event) {
 
 // Background Sync für Offline-Funktionalität
 self.addEventListener('sync', function(event) {
-  console.log('Service Worker: Background Sync Event:', event.tag);
-  
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Hier könnten Offline-Aktionen synchronisiert werden
-      console.log('Background Sync: Synchronisiere Offline-Daten')
+      Promise.resolve()
     );
   }
 });
-
-// Service Worker ist bereit für Server-Push-Benachrichtigungen
-console.log('Service Worker: Bereit für Server-Push-Benachrichtigungen');
-console.log('Service Worker: Polling-System entfernt - nur noch Server-Push');

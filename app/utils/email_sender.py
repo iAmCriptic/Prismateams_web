@@ -228,6 +228,96 @@ def resend_confirmation_email(user):
     return send_confirmation_email(user)
 
 
+def send_borrow_receipt_email(borrow_transactions):
+    """Sendet eine E-Mail mit Ausleihschein-PDF nach erfolgreicher Ausleihe."""
+    try:
+        from app.models.inventory import BorrowTransaction, Product
+        from app.utils.pdf_generator import generate_borrow_receipt_pdf
+        from io import BytesIO
+        
+        # Normalisiere zu Liste
+        if not isinstance(borrow_transactions, list):
+            borrow_transactions = [borrow_transactions]
+        
+        if not borrow_transactions:
+            logging.error("Keine Transaktionen zum Versenden vorhanden.")
+            return False
+        
+        first_transaction = borrow_transactions[0]
+        borrower = first_transaction.borrower
+        
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Ausleihschein für {first_transaction.transaction_number} nicht gesendet.")
+            return False
+        
+        if not borrower.email:
+            logging.warning(f"Benutzer {borrower.id} hat keine E-Mail-Adresse. Ausleihschein nicht gesendet.")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # Erstelle E-Mail
+        msg = Message(
+            subject=f'Ausleihschein - {portal_name}',
+            recipients=[borrower.email],
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER', mail_username)
+        )
+        
+        # Logo als Base64 laden
+        logo_base64 = get_logo_base64()
+        
+        # HTML-Template für Ausleihschein
+        borrow_date = first_transaction.borrow_date.strftime('%d.%m.%Y %H:%M')
+        expected_return_date = first_transaction.expected_return_date.strftime('%d.%m.%Y')
+        
+        html_content = render_template(
+            'emails/borrow_receipt.html',
+            app_name=portal_name,
+            borrower=borrower,
+            transactions=borrow_transactions,
+            borrow_date=borrow_date,
+            expected_return_date=expected_return_date,
+            transaction_number=first_transaction.transaction_number,
+            current_year=datetime.utcnow().year,
+            logo_base64=logo_base64
+        )
+        
+        msg.html = html_content
+        
+        # PDF-Anhang generieren
+        pdf_buffer = BytesIO()
+        generate_borrow_receipt_pdf(borrow_transactions, pdf_buffer)
+        pdf_buffer.seek(0)
+        
+        # PDF als Anhang hinzufügen
+        filename = f"Ausleihschein_{first_transaction.transaction_number}.pdf"
+        msg.attach(filename, "application/pdf", pdf_buffer.read())
+        
+        # E-Mail senden
+        try:
+            mail.send(msg)
+            logging.info(f"Borrow receipt email sent to {borrower.email} for transaction {first_transaction.transaction_number}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send borrow receipt email to {borrower.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send borrow receipt email: {str(e)}")
+        return False
+
+
 def send_return_confirmation_email(borrow_transaction):
     """Sendet eine Bestätigungs-E-Mail nach erfolgreicher Rückgabe mit PDF-Anhang."""
     try:

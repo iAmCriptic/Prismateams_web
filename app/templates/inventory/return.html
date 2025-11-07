@@ -14,6 +14,36 @@
     <div class="col-12 col-lg-8 mx-auto">
         <div class="card">
             <div class="card-body">
+                <!-- QR-Code Scanner -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">QR-Code scannen</label>
+                        <div>
+                            <button class="btn btn-sm btn-primary" id="startScannerBtn">
+                                <i class="bi bi-camera"></i> Kamera starten
+                            </button>
+                            <button class="btn btn-sm btn-danger" id="stopScannerBtn" style="display: none;">
+                                <i class="bi bi-stop-circle"></i> Kamera stoppen
+                            </button>
+                        </div>
+                    </div>
+                    <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative;">
+                        <video id="scannerVideo" autoplay playsinline style="width: 100%; max-width: 100%; height: 400px; min-height: 300px; border-radius: 8px; background: #000; object-fit: cover; display: block;"></video>
+                        <canvas id="scannerCanvas" style="display: none;"></canvas>
+                        <!-- Visueller Scan-Rahmen -->
+                        <div id="scannerFrame" class="scanner-frame"></div>
+                        <!-- Scan-Animation (Strich von oben nach unten) -->
+                        <div id="scannerLine" class="scanner-line"></div>
+                        <!-- Erfolgs-Popup -->
+                        <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                            <i class="bi bi-check-circle-fill"></i> QR-Code erkannt
+                        </div>
+                    </div>
+                    <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+                </div>
+                
+                <hr>
+                
                 <!-- Manuelle Eingabe -->
                 <div>
                     <h5 class="mb-3">QR-Code oder Ausleihvorgangsnummer eingeben</h5>
@@ -47,10 +77,17 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Nur Formular-Handler, kein Scanner
+    // Initialize ReturnManager
+    if (typeof ReturnManager !== 'undefined') {
+        window.returnManager = new ReturnManager();
+        window.returnManager.init();
+    }
+    
+    // Formular-Handler
     const form = document.getElementById('returnForm');
     if (form) {
         form.addEventListener('submit', async function(e) {

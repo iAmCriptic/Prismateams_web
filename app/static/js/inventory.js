@@ -65,14 +65,7 @@ class StockManager {
             this.products = data;
             this.filteredProducts = [...this.products];
             
-            // Debug: Prüfe ob location und length vorhanden sind
-            if (this.products.length > 0) {
-                const firstProduct = this.products[0];
-                console.log('Erstes Produkt (vollständig):', firstProduct);
-                console.log('Location valid:', this.isValidValue(firstProduct.location), 'Value:', firstProduct.location);
-                console.log('Length valid:', this.isValidValue(firstProduct.length), 'Value:', firstProduct.length);
-                console.log('Serial valid:', this.isValidValue(firstProduct.serial_number), 'Value:', firstProduct.serial_number);
-            }
+            // Debug-Informationen werden still verarbeitet
             
             // Extrahiere auch Ordner aus Produkten (zusätzlich zu den bereits geladenen)
             this.extractCategories();
@@ -869,26 +862,66 @@ class ReturnManager {
             const startBtn = document.getElementById('startScannerBtn');
             const stopBtn = document.getElementById('stopScannerBtn');
             
+            // Zeige Scanner-Container SOFORT, bevor Video geladen wird
+            const scannerContainer = document.getElementById('scannerContainer');
+            if (scannerContainer) {
+                scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
+                // Force reflow
+                scannerContainer.offsetHeight;
+            }
+            
             if (video) {
+                // Stelle sicher, dass Video-Element sichtbar ist - mit !important
+                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                
                 video.srcObject = this.stream;
                 video.setAttribute('playsinline', 'true');
                 video.setAttribute('autoplay', 'true');
-                video.style.display = 'block';
+                video.setAttribute('muted', 'true'); // Muted für bessere Browser-Kompatibilität
+                
+                // Verstecke Fehlermeldung
+                this.hideError();
                 
                 // Warte bis Video bereit ist
                 await new Promise((resolve, reject) => {
-                    video.onloadedmetadata = () => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Video konnte nicht geladen werden'));
+                    }, 10000);
+                    
+                    const onLoadedMetadata = () => {
+                        clearTimeout(timeout);
                         video.play()
                             .then(() => {
                                 console.log('Video gestartet, Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
+                                // Stelle sicher, dass Video sichtbar ist
+                                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                                // Stelle sicher, dass Container auch sichtbar ist
+                                if (scannerContainer) {
+                                    scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
+                                }
+                                // Force reflow um sicherzustellen, dass Browser rendert
+                                video.offsetHeight;
+                                scannerContainer.offsetHeight;
+                                video.removeEventListener('loadedmetadata', onLoadedMetadata);
                                 resolve();
                             })
-                            .catch(reject);
+                            .catch((err) => {
+                                video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                                reject(err);
+                            });
                     };
-                    video.onerror = reject;
                     
-                    // Timeout nach 5 Sekunden
-                    setTimeout(() => reject(new Error('Video konnte nicht geladen werden')), 5000);
+                    video.addEventListener('loadedmetadata', onLoadedMetadata);
+                    video.onerror = () => {
+                        clearTimeout(timeout);
+                        video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                        reject(new Error('Video-Fehler'));
+                    };
+                    
+                    // Falls Video bereits geladen ist
+                    if (video.readyState >= 2) {
+                        onLoadedMetadata();
+                    }
                 });
             }
             
@@ -914,10 +947,34 @@ class ReturnManager {
         const video = document.getElementById('scannerVideo');
         const startBtn = document.getElementById('startScannerBtn');
         const stopBtn = document.getElementById('stopScannerBtn');
+        const scannerContainer = document.getElementById('scannerContainer');
+        const scannerFrame = document.getElementById('scannerFrame');
+        const successPopup = document.getElementById('scannerSuccessPopup');
         
         if (video) {
             video.srcObject = null;
             video.style.display = 'none';
+        }
+        
+        // Verstecke Container komplett
+        if (scannerContainer) {
+            scannerContainer.style.display = 'none';
+        }
+        
+        // Entferne Erfolgs-Klasse vom Rahmen
+        if (scannerFrame) {
+            scannerFrame.classList.remove('scanner-success');
+        }
+        
+        // Verstecke Popup
+        if (successPopup) {
+            successPopup.style.display = 'none';
+        }
+        
+        // Reset Scan-Linie
+        const scannerLine = document.getElementById('scannerLine');
+        if (scannerLine) {
+            scannerLine.classList.remove('animate');
         }
         
         if (startBtn) startBtn.style.display = 'inline-block';
@@ -1026,20 +1083,29 @@ class ReturnManager {
             
             if (code) {
                 // QR-Code gefunden!
-                console.log('QR-Code erkannt:', code.data);
                 qrInput.value = code.data;
-                this.stopScanner();
                 
-                // Automatisch Formular absenden
-                const form = document.getElementById('returnForm');
-                if (form) {
-                    // Verwende dispatchEvent mit korrekten Optionen
-                    const submitEvent = new Event('submit', { 
-                        cancelable: true, 
-                        bubbles: true 
-                    });
-                    form.dispatchEvent(submitEvent);
-                }
+                // Friere Video kurz ein und zeige Scan-Animation
+                this.freezeAndAnimate().then(() => {
+                    // Zeige visuelles Feedback
+                    this.showScanSuccess();
+                    
+                    // Warte kurz bevor Scanner gestoppt wird (für visuelles Feedback)
+                    setTimeout(() => {
+                        this.stopScanner();
+                        
+                        // Automatisch Formular absenden
+                        const form = document.getElementById('returnForm');
+                        if (form) {
+                            // Verwende dispatchEvent mit korrekten Optionen
+                            const submitEvent = new Event('submit', { 
+                                cancelable: true, 
+                                bubbles: true 
+                            });
+                            form.dispatchEvent(submitEvent);
+                        }
+                    }, 500);
+                });
             } else {
                 // Weiter scannen - kontinuierlich
                 requestAnimationFrame(() => this.scanForQR());
@@ -1087,14 +1153,17 @@ class ReturnManager {
                 // HTTP Fehler
                 const result = await response.text();
                 if (result.includes('Keine aktive Ausleihe')) {
-                    alert('Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.');
+                    this.showError('QR Code Nicht erkannt');
+                    setTimeout(() => this.hideError(), 5000);
                 } else {
-                    alert('Fehler bei der Rückgabe. Bitte versuchen Sie es erneut.');
+                    this.showError('QR Code Nicht erkannt');
+                    setTimeout(() => this.hideError(), 5000);
                 }
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler bei der Rückgabe. Bitte versuchen Sie es erneut.');
+            this.showError('QR Code Nicht erkannt');
+            setTimeout(() => this.hideError(), 5000);
         }
     }
     
@@ -1103,6 +1172,95 @@ class ReturnManager {
         if (errorDiv) {
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
+        }
+    }
+    
+    hideError() {
+        const errorDiv = document.getElementById('scannerError');
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
+        }
+    }
+    
+    freezeAndAnimate() {
+        return new Promise((resolve) => {
+            const video = document.getElementById('scannerVideo');
+            const scannerLine = document.getElementById('scannerLine');
+            
+            if (!video || !scannerLine) {
+                resolve();
+                return;
+            }
+            
+            // Speichere aktuelles Frame als Canvas-Bild
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Erstelle temporäres Bild-Element
+            const frozenImage = new Image();
+            frozenImage.src = canvas.toDataURL();
+            frozenImage.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 5;';
+            
+            // Füge eingefrorenes Bild zum Container hinzu
+            const container = document.getElementById('scannerContainer');
+            if (container) {
+                container.appendChild(frozenImage);
+            }
+            
+            // Pausiere Video (falls unterstützt)
+            if (video.pause) {
+                video.pause();
+            }
+            
+            // Starte Scan-Linien-Animation
+            scannerLine.classList.add('animate');
+            
+            // Nach Animation: Entferne eingefrorenes Bild und setze Video fort
+            setTimeout(() => {
+                if (frozenImage.parentNode) {
+                    frozenImage.parentNode.removeChild(frozenImage);
+                }
+                scannerLine.classList.remove('animate');
+                
+                // Setze Video fort
+                if (video.play) {
+                    video.play().catch(err => console.error('Video konnte nicht fortgesetzt werden:', err));
+                }
+                
+                resolve();
+            }, 500); // Animation dauert 0.5 Sekunden
+        });
+    }
+    
+    showScanSuccess() {
+        const scannerFrame = document.getElementById('scannerFrame');
+        const successPopup = document.getElementById('scannerSuccessPopup');
+        
+        // Zeige Popup
+        if (successPopup) {
+            successPopup.classList.remove('hide');
+            successPopup.classList.add('show');
+            // Popup wird nach 2 Sekunden automatisch ausgeblendet
+            setTimeout(() => {
+                successPopup.classList.remove('show');
+                successPopup.classList.add('hide');
+                setTimeout(() => {
+                    successPopup.style.display = 'none';
+                    successPopup.classList.remove('hide');
+                }, 300);
+            }, 2000);
+        }
+        
+        // Grünes Leuchten des Rahmens
+        if (scannerFrame) {
+            scannerFrame.classList.add('scanner-success');
+            // Entferne Klasse nach Animation (2 Sekunden)
+            setTimeout(() => {
+                scannerFrame.classList.remove('scanner-success');
+            }, 2000);
         }
     }
 }
@@ -1178,26 +1336,66 @@ class BorrowScannerManager {
             const startBtn = document.getElementById('startScannerBtn');
             const stopBtn = document.getElementById('stopScannerBtn');
             
+            // Zeige Scanner-Container SOFORT, bevor Video geladen wird
+            const scannerContainer = document.getElementById('scannerContainer');
+            if (scannerContainer) {
+                scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
+                // Force reflow
+                scannerContainer.offsetHeight;
+            }
+            
             if (video) {
+                // Stelle sicher, dass Video-Element sichtbar ist - mit !important
+                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                
                 video.srcObject = this.stream;
                 video.setAttribute('playsinline', 'true');
                 video.setAttribute('autoplay', 'true');
-                video.style.display = 'block';
+                video.setAttribute('muted', 'true'); // Muted für bessere Browser-Kompatibilität
+                
+                // Verstecke Fehlermeldung
+                this.hideError();
                 
                 // Warte bis Video bereit ist
                 await new Promise((resolve, reject) => {
-                    video.onloadedmetadata = () => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Video konnte nicht geladen werden'));
+                    }, 10000);
+                    
+                    const onLoadedMetadata = () => {
+                        clearTimeout(timeout);
                         video.play()
                             .then(() => {
                                 console.log('Video gestartet (BorrowScanner), Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
+                                // Stelle sicher, dass Video sichtbar ist
+                                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                                // Stelle sicher, dass Container auch sichtbar ist
+                                if (scannerContainer) {
+                                    scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
+                                }
+                                // Force reflow um sicherzustellen, dass Browser rendert
+                                video.offsetHeight;
+                                scannerContainer.offsetHeight;
+                                video.removeEventListener('loadedmetadata', onLoadedMetadata);
                                 resolve();
                             })
-                            .catch(reject);
+                            .catch((err) => {
+                                video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                                reject(err);
+                            });
                     };
-                    video.onerror = reject;
                     
-                    // Timeout nach 5 Sekunden
-                    setTimeout(() => reject(new Error('Video konnte nicht geladen werden')), 5000);
+                    video.addEventListener('loadedmetadata', onLoadedMetadata);
+                    video.onerror = () => {
+                        clearTimeout(timeout);
+                        video.removeEventListener('loadedmetadata', onLoadedMetadata);
+                        reject(new Error('Video-Fehler'));
+                    };
+                    
+                    // Falls Video bereits geladen ist
+                    if (video.readyState >= 2) {
+                        onLoadedMetadata();
+                    }
                 });
             }
             
@@ -1223,10 +1421,33 @@ class BorrowScannerManager {
         const video = document.getElementById('scannerVideo');
         const startBtn = document.getElementById('startScannerBtn');
         const stopBtn = document.getElementById('stopScannerBtn');
+        const scannerContainer = document.getElementById('scannerContainer');
+        const scannerFrame = document.getElementById('scannerFrame');
+        const successPopup = document.getElementById('scannerSuccessPopup');
         
         if (video) {
             video.srcObject = null;
             video.style.display = 'none';
+        }
+        
+        if (scannerContainer) {
+            scannerContainer.style.display = 'none';
+        }
+        
+        // Entferne Erfolgs-Klasse vom Rahmen
+        if (scannerFrame) {
+            scannerFrame.classList.remove('scanner-success');
+        }
+        
+        // Verstecke Popup
+        if (successPopup) {
+            successPopup.style.display = 'none';
+        }
+        
+        // Reset Scan-Linie
+        const scannerLine = document.getElementById('scannerLine');
+        if (scannerLine) {
+            scannerLine.classList.remove('animate');
         }
         
         if (startBtn) startBtn.style.display = 'inline-block';
@@ -1334,8 +1555,45 @@ class BorrowScannerManager {
             if (code) {
                 // QR-Code gefunden!
                 console.log('QR-Code erkannt (BorrowScanner):', code.data);
-                this.stopScanner();
-                this.addToCart(code.data);
+                // Kamera NICHT stoppen - für mehrere Scans offen lassen
+                // Pausiere kurz das Scannen, um doppelte Scans zu vermeiden
+                this.scanning = false;
+                
+                // Speichere QR-Code für später
+                const qrCodeData = code.data;
+                
+                // Friere Video kurz ein und zeige Scan-Animation
+                this.freezeAndAnimate().then(() => {
+                    // Zeige visuelles Feedback
+                    this.showScanSuccess();
+                    
+                    // Direktes Hinzufügen zum Warenkorb
+                    console.log('Starte addToCart für:', qrCodeData);
+                    this.addToCart(qrCodeData).then(() => {
+                        console.log('addToCart erfolgreich abgeschlossen');
+                        // Nach erfolgreichem Hinzufügen, Scannen nach kurzer Pause fortsetzen
+                        setTimeout(() => {
+                            if (this.stream && !this.scanning) {
+                                this.scanning = true;
+                                this.scanForQR();
+                            }
+                        }, 2500); // Warte bis Animation fertig ist
+                    }).catch((error) => {
+                        console.error('addToCart Fehler:', error);
+                        // Bei Fehler auch Scannen fortsetzen
+                        setTimeout(() => {
+                            if (this.stream && !this.scanning) {
+                                this.scanning = true;
+                                this.scanForQR();
+                            }
+                        }, 2500);
+                    });
+                }).catch((error) => {
+                    console.error('freezeAndAnimate Fehler:', error);
+                    // Auch bei Fehler versuchen hinzuzufügen
+                    this.addToCart(qrCodeData);
+                });
+                return; // Verhindere weiteres Scannen bis addToCart fertig ist
             } else {
                 // Weiter scannen - kontinuierlich
                 requestAnimationFrame(() => this.scanForQR());
@@ -1355,27 +1613,404 @@ class BorrowScannerManager {
     }
     
     async addToCart(qrCode) {
+        console.log('=== addToCart START ===', qrCode);
         try {
             const formData = new FormData();
             formData.append('action', 'add_to_cart');
             formData.append('qr_code', qrCode);
             
+            console.log('Sende Request an Server...');
             const response = await fetch('/inventory/borrow-scanner', {
                 method: 'POST',
                 body: formData
             });
             
+            console.log('Response erhalten, Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const result = await response.json();
+            console.log('JSON Response:', result);
             
             if (result.success) {
-                // Seite neu laden um Warenkorb zu aktualisieren
-                window.location.reload();
+                console.log('=== SERVER ERFOLGREICH ===');
+                console.log('Produkt:', result.product);
+                console.log('Cart Count:', result.cart_count);
+                
+                // SOFORTIGE Aktualisierung - keine Verzögerung
+                this.updateCartFromJSON(result);
+                
+                // Zusätzlich: Vollständiges Update nach kurzer Verzögerung
+                setTimeout(() => {
+                    const checkoutForm = document.getElementById('checkoutForm');
+                    if (!checkoutForm && result.cart_count > 0) {
+                        console.log('Lade vollständiges Update für Checkout-Formular...');
+                        this.updateCartDisplay().catch(err => {
+                            console.error('Update fehlgeschlagen, lade Seite neu:', err);
+                            window.location.reload();
+                        });
+                    }
+                }, 300);
+                
+                return Promise.resolve();
             } else {
-                alert(result.error || 'Fehler beim Hinzufügen zum Warenkorb');
+                // Zeige Fehlermeldung im UI
+                const errorMessage = result.error || 'QR Code Nicht erkannt';
+                console.error('=== SERVER FEHLER ===', errorMessage);
+                this.showError(errorMessage);
+                setTimeout(() => this.hideError(), 5000);
+                return Promise.reject(new Error(errorMessage));
             }
         } catch (error) {
-            console.error('Fehler:', error);
-            alert('Fehler beim Hinzufügen zum Warenkorb');
+            console.error('=== EXCEPTION ===', error);
+            this.showError('QR Code Nicht erkannt');
+            setTimeout(() => this.hideError(), 5000);
+            return Promise.reject(error);
+        }
+    }
+    
+    updateCartFromJSON(result) {
+        // Schnelles Update mit JSON-Daten aus der addToCart-Response
+        console.log('=== updateCartFromJSON START ===', result);
+        
+        // Aktualisiere Cart-Count SOFORT
+        const cartCount = document.getElementById('cartCount');
+        if (cartCount) {
+            if (result.cart_count !== undefined) {
+                cartCount.textContent = result.cart_count;
+                console.log('✓ Cart-Count aktualisiert:', result.cart_count);
+            } else {
+                console.warn('⚠ cart_count nicht vorhanden');
+            }
+        } else {
+            console.error('✗ cartCount Element nicht gefunden!');
+        }
+        
+        // Füge neues Produkt zum Warenkorb hinzu
+        if (!result.product) {
+            console.warn('⚠ Kein Produkt in result');
+            return;
+        }
+        
+        console.log('Füge Produkt hinzu:', result.product);
+        const cartItems = document.getElementById('cartItems');
+        if (!cartItems) {
+            console.error('✗ cartItems Element nicht gefunden!');
+            // Fallback: Seite neu laden
+            window.location.reload();
+            return;
+        }
+        
+        // Prüfe ob Produkt bereits vorhanden ist
+        const existingItem = cartItems.querySelector(`[data-product-id="${result.product.id}"]`);
+        if (existingItem) {
+            console.log('⚠ Produkt bereits vorhanden');
+            return;
+        }
+        
+        // Entferne "Keine Produkte hinzugefügt" Nachricht
+        const emptyMessage = cartItems.querySelector('p.text-muted');
+        if (emptyMessage) {
+            emptyMessage.remove();
+            console.log('✓ Leere Nachricht entfernt');
+        }
+        
+        // Erstelle neues Cart-Item
+        const newItem = document.createElement('div');
+        newItem.className = 'card mb-2 cart-item';
+        newItem.setAttribute('data-product-id', result.product.id);
+        
+        const categoryHtml = result.product.category 
+            ? `<br><small class="text-muted">${this.escapeHtml(result.product.category)}</small>` 
+            : '';
+        
+        newItem.innerHTML = `
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${this.escapeHtml(result.product.name)}</strong>
+                        ${categoryHtml}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="${result.product.id}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        cartItems.appendChild(newItem);
+        console.log('✓ Produkt zum DOM hinzugefügt');
+        
+        // Event-Listener für Remove-Button
+        const removeBtn = newItem.querySelector('.remove-from-cart');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const productId = removeBtn.dataset.productId;
+                if (productId) {
+                    this.removeFromCart(productId);
+                }
+            });
+        }
+        
+        console.log('=== updateCartFromJSON FERTIG ===');
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    async updateCartDisplay() {
+        // Lade Warenkorb-Daten und aktualisiere die Anzeige
+        console.log('updateCartDisplay() aufgerufen');
+        try {
+            console.log('Lade Warenkorb-Daten...');
+            const response = await fetch('/inventory/borrow-scanner');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const html = await response.text();
+            console.log('HTML geladen, Länge:', html.length);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Aktualisiere Warenkorb-Bereich
+            const newCartItems = doc.querySelector('#cartItems');
+            const newCartCount = doc.querySelector('#cartCount');
+            const newCheckoutForm = doc.querySelector('#checkoutForm');
+            
+            console.log('Gefundene Elemente:', {
+                newCartItems: !!newCartItems,
+                newCartCount: !!newCartCount,
+                newCheckoutForm: !!newCheckoutForm
+            });
+            
+            // Aktualisiere cartItems
+            const currentCartItems = document.getElementById('cartItems');
+            if (newCartItems && currentCartItems) {
+                console.log('Aktualisiere cartItems...');
+                const oldContent = currentCartItems.innerHTML;
+                currentCartItems.innerHTML = newCartItems.innerHTML;
+                console.log('cartItems aktualisiert. Alt:', oldContent.substring(0, 50), 'Neu:', currentCartItems.innerHTML.substring(0, 50));
+            } else {
+                console.warn('cartItems nicht gefunden:', { newCartItems: !!newCartItems, currentCartItems: !!currentCartItems });
+            }
+            
+            // Aktualisiere cartCount
+            const currentCartCount = document.getElementById('cartCount');
+            if (newCartCount && currentCartCount) {
+                console.log('Aktualisiere cartCount von', currentCartCount.textContent, 'zu', newCartCount.textContent);
+                currentCartCount.textContent = newCartCount.textContent;
+            } else {
+                console.warn('cartCount nicht gefunden:', { newCartCount: !!newCartCount, currentCartCount: !!currentCartCount });
+            }
+            
+            // Aktualisiere Checkout-Formular
+            const currentCheckoutForm = document.getElementById('checkoutForm');
+            const cartItemsContainer = document.getElementById('cartItems');
+            
+            if (newCheckoutForm) {
+                // Formular existiert in der neuen Version
+                if (currentCheckoutForm) {
+                    // Ersetze vorhandenes Formular
+                    currentCheckoutForm.outerHTML = newCheckoutForm.outerHTML;
+                } else {
+                    // Füge Formular hinzu falls es noch nicht existiert
+                    if (cartItemsContainer) {
+                        // Entferne eventuelles <hr> vor dem Formular
+                        const hrAfterCart = cartItemsContainer.nextElementSibling;
+                        if (hrAfterCart && hrAfterCart.tagName === 'HR') {
+                            hrAfterCart.remove();
+                        }
+                        // Füge <hr> und Formular hinzu
+                        cartItemsContainer.insertAdjacentHTML('afterend', '<hr>' + newCheckoutForm.outerHTML);
+                    }
+                }
+                // Event-Listener neu setzen
+                this.setupCheckoutForm();
+            } else {
+                // Formular existiert nicht mehr (Warenkorb leer)
+                if (currentCheckoutForm) {
+                    // Entferne Formular und vorhergehendes <hr>
+                    const hrBeforeForm = currentCheckoutForm.previousElementSibling;
+                    if (hrBeforeForm && hrBeforeForm.tagName === 'HR') {
+                        hrBeforeForm.remove();
+                    }
+                    currentCheckoutForm.remove();
+                }
+            }
+            
+            // Remove-from-cart Buttons neu setzen (alte Event-Listener entfernen und neue hinzufügen)
+            // Entferne alle alten Event-Listener durch Klonen der Elemente
+            const removeButtons = document.querySelectorAll('.remove-from-cart');
+            console.log('Gefundene remove-from-cart Buttons:', removeButtons.length);
+            removeButtons.forEach(btn => {
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                
+                // Füge neuen Event-Listener hinzu
+                newBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const productId = newBtn.dataset.productId;
+                    if (productId) {
+                        this.removeFromCart(productId);
+                    }
+                });
+            });
+            
+            console.log('Warenkorb erfolgreich aktualisiert');
+        } catch (error) {
+            console.error('Fehler beim Aktualisieren des Warenkorbs:', error);
+            console.error('Error Details:', error.message, error.stack);
+            // Fallback: Seite neu laden
+            window.location.reload();
+        }
+    }
+    
+    setupCheckoutForm() {
+        const checkoutForm = document.getElementById('checkoutForm');
+        if (checkoutForm) {
+            const dateInput = document.getElementById('expected_return_date');
+            if (dateInput) {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                dateInput.min = tomorrow.toISOString().split('T')[0];
+            }
+            
+            checkoutForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(checkoutForm);
+                
+                try {
+                    const response = await fetch(checkoutForm.action, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok && response.headers.get('content-type')?.includes('application/pdf')) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Ausleihscheine_${Date.now()}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        setTimeout(() => {
+                            window.location.href = '/inventory/';
+                        }, 500);
+                    } else {
+                        const text = await response.text();
+                        if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
+                            alert('Bitte überprüfen Sie Ihre Eingaben.');
+                        } else {
+                            window.location.href = '/inventory/';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Fehler:', error);
+                    alert('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.');
+                }
+            });
+        }
+    }
+    
+    showSuccess(message) {
+        const errorDiv = document.getElementById('scannerError');
+        if (errorDiv) {
+            errorDiv.className = 'alert alert-success mt-2';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    }
+    
+    freezeAndAnimate() {
+        return new Promise((resolve) => {
+            const video = document.getElementById('scannerVideo');
+            const scannerLine = document.getElementById('scannerLine');
+            
+            if (!video || !scannerLine) {
+                resolve();
+                return;
+            }
+            
+            // Speichere aktuelles Frame als Canvas-Bild
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Erstelle temporäres Bild-Element
+            const frozenImage = new Image();
+            frozenImage.src = canvas.toDataURL();
+            frozenImage.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 5;';
+            
+            // Füge eingefrorenes Bild zum Container hinzu
+            const container = document.getElementById('scannerContainer');
+            if (container) {
+                container.appendChild(frozenImage);
+            }
+            
+            // Pausiere Video (falls unterstützt)
+            if (video.pause) {
+                video.pause();
+            }
+            
+            // Starte Scan-Linien-Animation
+            scannerLine.classList.add('animate');
+            
+            // Nach Animation: Entferne eingefrorenes Bild und setze Video fort
+            setTimeout(() => {
+                if (frozenImage.parentNode) {
+                    frozenImage.parentNode.removeChild(frozenImage);
+                }
+                scannerLine.classList.remove('animate');
+                
+                // Setze Video fort
+                if (video.play) {
+                    video.play().catch(err => console.error('Video konnte nicht fortgesetzt werden:', err));
+                }
+                
+                resolve();
+            }, 500); // Animation dauert 0.5 Sekunden
+        });
+    }
+    
+    showScanSuccess() {
+        const scannerFrame = document.getElementById('scannerFrame');
+        const successPopup = document.getElementById('scannerSuccessPopup');
+        
+        // Zeige Popup
+        if (successPopup) {
+            successPopup.classList.remove('hide');
+            successPopup.classList.add('show');
+            // Popup wird nach 2 Sekunden automatisch ausgeblendet
+            setTimeout(() => {
+                successPopup.classList.remove('show');
+                successPopup.classList.add('hide');
+                setTimeout(() => {
+                    successPopup.style.display = 'none';
+                    successPopup.classList.remove('hide');
+                }, 300);
+            }, 2000);
+        }
+        
+        // Grünes Leuchten des Rahmens
+        if (scannerFrame) {
+            scannerFrame.classList.add('scanner-success');
+            // Entferne Klasse nach Animation (2 Sekunden)
+            setTimeout(() => {
+                scannerFrame.classList.remove('scanner-success');
+            }, 2000);
         }
     }
     
@@ -1393,7 +2028,8 @@ class BorrowScannerManager {
             const result = await response.json();
             
             if (result.success) {
-                window.location.reload();
+                // Aktualisiere Warenkorb ohne Seite neu zu laden (Kamera bleibt offen)
+                await this.updateCartDisplay();
             }
         } catch (error) {
             console.error('Fehler:', error);
@@ -1406,6 +2042,13 @@ class BorrowScannerManager {
         if (errorDiv) {
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
+        }
+    }
+    
+    hideError() {
+        const errorDiv = document.getElementById('scannerError');
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
         }
     }
 }

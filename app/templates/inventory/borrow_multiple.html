@@ -70,7 +70,7 @@
 
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i> 
-                        Nach dem Bestätigen wird automatisch der Ausleihschein als PDF heruntergeladen.
+                        Nach dem Bestätigen wird der Ausleihschein automatisch per E-Mail an Sie gesendet.
                     </div>
 
                     <div class="d-flex justify-content-between">
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         
-        // Formular via AJAX absenden, PDF herunterladen, dann zum Dashboard
+        // Formular absenden - PDF wird per E-Mail versendet
         e.preventDefault();
         
         const formData = new FormData(form);
@@ -119,29 +119,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             });
             
-            if (response.ok && response.headers.get('content-type')?.includes('application/pdf')) {
-                // PDF herunterladen
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Ausleihscheine_${Date.now()}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                // Nach kurzer Verzögerung zum Dashboard weiterleiten
-                setTimeout(() => {
+            if (response.ok) {
+                // Weiterleitung erfolgt serverseitig
+                const text = await response.text();
+                // Prüfe ob Redirect im HTML enthalten ist
+                if (text.includes('location') || response.redirected) {
                     window.location.href = '/inventory/';
-                }, 500);
+                } else {
+                    // Normale Weiterleitung
+                    window.location.href = '/inventory/';
+                }
             } else {
-                // Fehler oder andere Antwort
+                // Fehler
                 const text = await response.text();
                 if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
                     alert('Bitte überprüfen Sie Ihre Eingaben.');
                 } else {
-                    // Trotzdem zum Dashboard leiten
                     window.location.href = '/inventory/';
                 }
             }
