@@ -34,6 +34,12 @@
     color: #e2e8f0 !important;
 }
 
+/* OLED Mode Email Text Content */
+[data-oled-mode="true"] .email-text-content {
+    background: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
 [data-bs-theme="dark"] .email-text-content pre {
     color: #e2e8f0 !important;
 }
@@ -201,6 +207,12 @@
 [data-bs-theme="dark"] .email-content-isolated {
     background: #1a202c !important;
     border-color: #4a5568 !important;
+}
+
+/* OLED Mode Email Content Isolated */
+[data-oled-mode="true"] .email-content-isolated {
+    background: #000000 !important;
+    border-color: #1a1a1a !important;
     color: #e2e8f0 !important;
 }
 
@@ -240,6 +252,12 @@
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content,
 [data-bs-theme="dark"] .email-content-wrapper .email-text-content {
     background-color: #1a202c !important;
+}
+
+/* OLED Mode Email Content Wrapper */
+[data-oled-mode="true"] .email-content-wrapper .email-html-content,
+[data-oled-mode="true"] .email-content-wrapper .email-text-content {
+    background-color: #000000 !important;
     border-color: #4a5568 !important;
     color: #e2e8f0 !important;
 }
@@ -288,6 +306,12 @@ body {
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content[style*="background"],
 [data-bs-theme="dark"] .email-content-wrapper .email-html-content[style*="background-color"] {
     background: #1a202c !important;
+}
+
+/* OLED Mode Email HTML Content Background Override */
+[data-oled-mode="true"] .email-content-wrapper .email-html-content[style*="background"],
+[data-oled-mode="true"] .email-content-wrapper .email-html-content[style*="background-color"] {
+    background: #000000 !important;
 }
 
 /* Dark mode email list styling */
@@ -539,6 +563,57 @@ body {
     background-color: #212529;
 }
 
+/* OLED Mode Attachments Section */
+[data-oled-mode="true"] .attachments-section {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Email Items mit Rahmen statt grauem Hintergrund */
+[data-oled-mode="true"] .email-item {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+[data-oled-mode="true"] .email-item:hover {
+    border-color: #2a2a2a !important;
+    background-color: #000000 !important;
+}
+
+/* OLED Mode - Email Sidebar */
+[data-oled-mode="true"] .email-sidebar {
+    background-color: #000000 !important;
+    border-right: 1px solid #1a1a1a !important;
+}
+
+/* OLED Mode - Email Folder Links */
+[data-oled-mode="true"] .email-folder-link {
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+}
+
+[data-oled-mode="true"] .email-folder-link:hover {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .email-folder-link.active {
+    background-color: transparent !important;
+    border: 1px solid var(--accent-color) !important;
+}
+
+/* OLED Mode - Email List Background */
+[data-oled-mode="true"] .email-list {
+    background-color: #000000 !important;
+}
+
+/* OLED Mode - Email Main Content */
+[data-oled-mode="true"] .email-main-content {
+    background-color: #000000 !important;
+}
+
 .attachments-section .list-group-item {
     border: none;
     border-bottom: 1px solid #dee2e6;
@@ -552,6 +627,20 @@ body {
 [data-bs-theme="dark"] .attachments-section .list-group-item {
     border-bottom-color: #495057;
     background-color: transparent;
+}
+
+/* OLED Mode - Attachments List Group Items */
+[data-oled-mode="true"] .attachments-section .list-group-item {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.25rem !important;
+    border-bottom: 1px solid #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .attachments-section .list-group-item:hover {
+    border-color: #2a2a2a !important;
+    background-color: #000000 !important;
 }
 
 /* Email Layout with Sidebar (Desktop ab 1024px) */
@@ -568,6 +657,12 @@ body {
     background: var(--bs-body-bg);
     border-right: 1px solid var(--bs-border-color);
     min-height: calc(100vh - 120px);
+}
+
+/* OLED Mode - Email Folder Sidebar */
+[data-oled-mode="true"] .email-folder-sidebar {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
 }
 
 .email-main-content {
@@ -704,6 +799,25 @@ div.avatar-circle {
 [data-bs-theme="dark"] .dropdown-menu {
     background-color: #2d3748;
     border-color: #4a5568;
+}
+
+/* OLED Mode - Dropdown Menu (Neu-Menü) */
+[data-oled-mode="true"] .dropdown-menu {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .dropdown-item {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+[data-oled-mode="true"] .dropdown-item:hover,
+[data-oled-mode="true"] .dropdown-item:focus {
+    background-color: #0a0a0a !important;
+    color: #ffffff !important;
+    border: 1px solid #1a1a1a !important;
 }
 
 [data-bs-theme="dark"] .dropdown-item {

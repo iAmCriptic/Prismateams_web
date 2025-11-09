@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Dokumente - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">
+            <i class="bi bi-file-earmark"></i> Dokumente für "{{ product.name }}"
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <!-- Dokumente-Liste -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-files"></i> Dokumente</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="bi bi-upload"></i> Dokument hochladen
+                </button>
+            </div>
+            <div class="card-body">
+                {% if documents %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Dateiname</th>
+                                <th>Typ</th>
+                                <th>Größe</th>
+                                <th>Hochgeladen</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documents %}
+                            <tr>
+                                <td>
+                                    <i class="bi bi-file-earmark-{{ 'pdf' if doc.file_name.endswith('.pdf') else 'text' }}"></i>
+                                    {{ doc.file_name }}
+                                </td>
+                                <td>
+                                    {% if doc.file_type == 'handbook' %}
+                                    <span class="badge bg-primary">Handbuch</span>
+                                    {% elif doc.file_type == 'datasheet' %}
+                                    <span class="badge bg-info">Datenblatt</span>
+                                    {% elif doc.file_type == 'invoice' %}
+                                    <span class="badge bg-warning">Rechnung</span>
+                                    {% elif doc.file_type == 'warranty' %}
+                                    <span class="badge bg-success">Garantieschein</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Sonstiges</span>
+                                    {% endif %}
+                                    {% if doc.manual_id %}
+                                    <br><small class="text-muted">Verknüpft mit Manual</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if doc.file_size %}
+                                    {{ (doc.file_size / 1024) | round(2) }} KB
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ doc.created_at.strftime('%d.%m.%Y') }}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('inventory.product_document_download', product_id=product.id, document_id=doc.id) }}" 
+                                           class="btn btn-sm btn-outline-primary" title="Herunterladen">
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                        <form method="POST" 
+                                              action="{{ url_for('inventory.product_document_delete', product_id=product.id, document_id=doc.id) }}" 
+                                              class="d-inline"
+                                              onsubmit="return confirm('Möchten Sie dieses Dokument wirklich löschen?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Noch keine Dokumente vorhanden.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('inventory.product_document_upload', product_id=product.id) }}" 
+                  enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Dokument hochladen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Datei <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="file_type" class="form-label">Dokumenttyp <span class="text-danger">*</span></label>
+                        <select class="form-select" id="file_type" name="file_type" required>
+                            <option value="handbook">Handbuch</option>
+                            <option value="datasheet">Datenblatt</option>
+                            <option value="invoice">Rechnung</option>
+                            <option value="warranty">Garantieschein</option>
+                            <option value="other">Sonstiges</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="manual_id" class="form-label">Mit Manual verknüpfen (optional)</label>
+                        <select class="form-select" id="manual_id" name="manual_id">
+                            <option value="">Keine Verknüpfung</option>
+                            {% for manual in manuals %}
+                            <option value="{{ manual.id }}">{{ manual.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Hochladen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

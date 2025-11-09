@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Inventur-Historie - Team Portal{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-clipboard2-check"></i> Inventur-Historie</h1>
+        <p class="text-muted">Übersicht aller abgeschlossenen Inventuren</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.inventory_tool') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Zurück zum Inventurtool
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if inventories %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Gestartet</th>
+                        <th>Abgeschlossen</th>
+                        <th>Gestartet von</th>
+                        <th>Fortschritt</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inventory in inventories %}
+                    <tr>
+                        <td>
+                            <strong>{{ inventory.name }}</strong>
+                            {% if inventory.description %}
+                            <br><small class="text-muted">{{ inventory.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ inventory.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            {% if inventory.completed_at %}
+                            {{ inventory.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inventory.starter.full_name }}</td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                {% set progress = (inventory.checked_count / inventory.total_count * 100) if inventory.total_count > 0 else 0 %}
+                                <div class="progress-bar" role="progressbar" style="width: {{ progress }}%">
+                                    {{ inventory.checked_count }} / {{ inventory.total_count }}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-file-pdf"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <p class="text-muted">Noch keine abgeschlossenen Inventuren vorhanden.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

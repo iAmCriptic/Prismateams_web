@@ -31,6 +31,7 @@ class User(UserMixin, db.Model):
     accent_color = db.Column(db.String(7), default='#0d6efd')  # Bootstrap primary blue
     accent_gradient = db.Column(db.String(255), nullable=True)  # CSS gradient string
     dark_mode = db.Column(db.Boolean, default=False)
+    oled_mode = db.Column(db.Boolean, default=False)  # OLED Dark Mode mit echtem Schwarz
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -48,6 +49,9 @@ class User(UserMixin, db.Model):
     
     # Dashboard Configuration
     dashboard_config = db.Column(db.Text, nullable=True)  # JSON string für Dashboard-Konfiguration
+    
+    # Update Notifications
+    show_update_notifications = db.Column(db.Boolean, default=True, nullable=False)  # Update-Benachrichtigungen anzeigen
     
     # Relationships
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')

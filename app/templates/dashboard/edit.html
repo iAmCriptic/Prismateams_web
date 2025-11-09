@@ -69,6 +69,37 @@
                             <small class="text-muted d-block ms-4">Zeigt die zuletzt bearbeiteten Canvas</small>
                         </label>
                     </div>
+                    
+                    {% if is_module_enabled('module_wiki') %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="widget_neue_wikieintraege" id="widget_neue_wikieintraege" {% if 'neue_wikieintraege' in enabled_widgets %}checked{% endif %}>
+                        <label class="form-check-label" for="widget_neue_wikieintraege">
+                            <i class="bi bi-journal-text text-info me-2"></i>
+                            <strong>Neue Wikieinträge</strong>
+                            <small class="text-muted d-block ms-4">Zeigt die letzten 3 bearbeiteten oder erstellten Wiki-Einträge</small>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="widget_meine_wikis" id="widget_meine_wikis" {% if 'meine_wikis' in enabled_widgets %}checked{% endif %}>
+                        <label class="form-check-label" for="widget_meine_wikis">
+                            <i class="bi bi-star-fill text-warning me-2"></i>
+                            <strong>Meine Wikis</strong>
+                            <small class="text-muted d-block ms-4">Zeigt bis zu 5 Ihrer favorisierten Wiki-Einträge</small>
+                        </label>
+                    </div>
+                    {% endif %}
+                    
+                    {% if is_module_enabled('module_inventory') %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="widget_meine_ausleihen" id="widget_meine_ausleihen" {% if 'meine_ausleihen' in enabled_widgets %}checked{% endif %}>
+                        <label class="form-check-label" for="widget_meine_ausleihen">
+                            <i class="bi bi-box-arrow-right text-success me-2"></i>
+                            <strong>Meine Ausleihen</strong>
+                            <small class="text-muted d-block ms-4">Zeigt Ihre aktiven Ausleihen aus der Lagerverwaltung mit Fälligkeitsstatus</small>
+                        </label>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

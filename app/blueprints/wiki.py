@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag
+from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from app.models.user import User
 from app.utils.markdown import process_markdown
 from app.utils.common import is_module_enabled
@@ -33,10 +33,20 @@ def index():
     search_query = request.args.get('q', '').strip()
     category_id = request.args.get('category', type=int)
     tag_id = request.args.get('tag', type=int)
+    favorites_only = request.args.get('favorites', type=int) == 1
     sort_by = request.args.get('sort', 'updated')  # updated, created, title
     
     # Basis-Query
     query = WikiPage.query
+    
+    # Filter nach Favoriten
+    if favorites_only:
+        favorite_ids = [fav.wiki_page_id for fav in WikiFavorite.query.filter_by(user_id=current_user.id).all()]
+        if favorite_ids:
+            query = query.filter(WikiPage.id.in_(favorite_ids))
+        else:
+            # Wenn keine Favoriten vorhanden, leere Liste zurückgeben
+            query = query.filter(WikiPage.id == -1)  # Immer leer
     
     # Suche
     if search_query:
@@ -71,6 +81,12 @@ def index():
     categories = WikiCategory.query.order_by(WikiCategory.name).all()
     tags = WikiTag.query.order_by(WikiTag.name).all()
     
+    # Favoriten-Anzahl für Button-Badge
+    favorites = WikiFavorite.query.filter_by(
+        user_id=current_user.id
+    ).all()
+    my_wiki_favorites = [fav.wiki_page for fav in favorites]
+    
     return render_template('wiki/index.html',
                          pages=pages,
                          categories=categories,
@@ -78,7 +94,9 @@ def index():
                          search_query=search_query,
                          selected_category=category_id,
                          selected_tag=tag_id,
-                         sort_by=sort_by)
+                         sort_by=sort_by,
+                         favorites_only=favorites_only,
+                         my_wiki_favorites=my_wiki_favorites)
 
 
 @wiki_bp.route('/view/<slug>')
@@ -107,12 +125,28 @@ def create():
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
         category_id = request.form.get('category_id', type=int) or None
+        new_category_name = request.form.get('new_category_name', '').strip()
         tags_input = request.form.get('tags', '').strip()
         
         if not title:
             flash('Bitte geben Sie einen Titel ein.', 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             return render_template('wiki/create.html', categories=categories, content=content)
+        
+        # Wenn eine neue Kategorie erstellt werden soll
+        if new_category_name:
+            # Prüfe ob Kategorie bereits existiert
+            existing_category = WikiCategory.query.filter_by(name=new_category_name).first()
+            if existing_category:
+                category_id = existing_category.id
+                flash(f'Die Kategorie "{new_category_name}" existiert bereits und wurde zugewiesen.', 'info')
+            else:
+                # Erstelle neue Kategorie
+                new_category = WikiCategory(name=new_category_name)
+                db.session.add(new_category)
+                db.session.flush()  # Flush um die ID zu erhalten
+                category_id = new_category.id
+                flash(f'Neue Kategorie "{new_category_name}" wurde erstellt.', 'success')
         
         # Erstelle Slug
         slug = WikiPage.slugify(title)
@@ -180,6 +214,7 @@ def edit(slug):
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
         category_id = request.form.get('category_id', type=int) or None
+        new_category_name = request.form.get('new_category_name', '').strip()
         tags_input = request.form.get('tags', '').strip()
         
         if not title:
@@ -187,6 +222,21 @@ def edit(slug):
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             tags = [tag.name for tag in page.tags]
             return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
+        
+        # Wenn eine neue Kategorie erstellt werden soll
+        if new_category_name:
+            # Prüfe ob Kategorie bereits existiert
+            existing_category = WikiCategory.query.filter_by(name=new_category_name).first()
+            if existing_category:
+                category_id = existing_category.id
+                flash(f'Die Kategorie "{new_category_name}" existiert bereits und wurde zugewiesen.', 'info')
+            else:
+                # Erstelle neue Kategorie
+                new_category = WikiCategory(name=new_category_name)
+                db.session.add(new_category)
+                db.session.flush()  # Flush um die ID zu erhalten
+                category_id = new_category.id
+                flash(f'Neue Kategorie "{new_category_name}" wurde erstellt.', 'success')
         
         # Speichere aktuelle Version
         version = WikiPageVersion(
@@ -342,5 +392,69 @@ def search():
     } for page in pages]
     
     return jsonify({'results': results})
+
+
+@wiki_bp.route('/api/favorite/<int:page_id>', methods=['POST', 'DELETE'])
+@login_required
+def toggle_favorite(page_id):
+    """Wiki-Seite zu Favoriten hinzufügen oder entfernen."""
+    if not check_wiki_module():
+        return jsonify({'error': 'Wiki-Modul nicht aktiviert'}), 403
+    
+    page = WikiPage.query.get_or_404(page_id)
+    
+    if request.method == 'POST':
+        # Prüfe ob bereits favorisiert
+        existing_favorite = WikiFavorite.query.filter_by(
+            user_id=current_user.id,
+            wiki_page_id=page_id
+        ).first()
+        
+        if existing_favorite:
+            return jsonify({'error': 'Bereits favorisiert', 'is_favorite': True}), 400
+        
+        # Prüfe ob bereits 5 Favoriten vorhanden
+        favorite_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
+        if favorite_count >= 5:
+            return jsonify({'error': 'Maximal 5 Favoriten erlaubt', 'is_favorite': False}), 400
+        
+        # Füge zu Favoriten hinzu
+        favorite = WikiFavorite(
+            user_id=current_user.id,
+            wiki_page_id=page_id
+        )
+        db.session.add(favorite)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'is_favorite': True, 'message': 'Zu Favoriten hinzugefügt'})
+    
+    elif request.method == 'DELETE':
+        # Entferne aus Favoriten
+        favorite = WikiFavorite.query.filter_by(
+            user_id=current_user.id,
+            wiki_page_id=page_id
+        ).first()
+        
+        if favorite:
+            db.session.delete(favorite)
+            db.session.commit()
+            return jsonify({'success': True, 'is_favorite': False, 'message': 'Aus Favoriten entfernt'})
+        else:
+            return jsonify({'error': 'Nicht in Favoriten', 'is_favorite': False}), 404
+
+
+@wiki_bp.route('/api/favorite/check/<int:page_id>', methods=['GET'])
+@login_required
+def check_favorite(page_id):
+    """Prüfe ob Wiki-Seite favorisiert ist."""
+    if not check_wiki_module():
+        return jsonify({'error': 'Wiki-Modul nicht aktiviert'}), 403
+    
+    favorite = WikiFavorite.query.filter_by(
+        user_id=current_user.id,
+        wiki_page_id=page_id
+    ).first()
+    
+    return jsonify({'is_favorite': favorite is not None})
 
 

@@ -22,6 +22,20 @@
         overflow: hidden !important;
     }
     
+    .wiki-metadata-section {
+        background: var(--bs-body-bg);
+        border-bottom: 1px solid var(--bs-border-color);
+        padding: 1rem 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .wiki-metadata-card {
+        background: var(--bs-secondary-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        padding: 1rem;
+    }
+    
     .wiki-editor-toolbar {
         background: var(--bs-body-bg);
         border-bottom: 1px solid var(--bs-border-color);
@@ -41,7 +55,6 @@
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
-        height: calc(100vh - 60px) !important;
     }
     
     .wiki-editor-textarea {
@@ -57,11 +70,50 @@
         width: 100% !important;
         height: 100% !important;
     }
+    
+    #new_category_input {
+        display: none;
+    }
+    
+    #new_category_input.show {
+        display: block;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+<form method="POST" id="editForm" action="{{ url_for('wiki.edit', slug=page.slug) }}">
 <div class="wiki-editor-fullscreen">
+    <div class="wiki-metadata-section">
+        <div class="wiki-metadata-card">
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label for="title" class="form-label">Titel</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ page.title }}" required>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="category_id" class="form-label">Kategorie</label>
+                    <select class="form-select" id="category_id" name="category_id" onchange="handleCategoryChange()">
+                        <option value="">Keine Kategorie</option>
+                        <option value="__new__">➕ Neue Kategorie</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if page.category_id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div id="new_category_input" class="mt-2">
+                        <input type="text" class="form-control" id="new_category_name" name="new_category_name" placeholder="Kategoriename eingeben">
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="tags" class="form-label">Tags (kommagetrennt)</label>
+                    <input type="text" class="form-control" id="tags" name="tags" value="{{ tags }}" placeholder="tag1, tag2, tag3">
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="wiki-editor-toolbar">
         <button type="button" class="btn btn-outline-secondary" onclick="goBack()">
             <i class="bi bi-arrow-left"></i> Zurück
@@ -122,29 +174,10 @@
         </div>
     </div>
     
-    <form method="POST" id="editForm" class="wiki-editor-content">
+    <div class="wiki-editor-content">
         <div class="container-fluid h-100">
             <div class="row g-3 h-100">
                 <div class="col-12 col-md-8">
-                    <div class="mb-3">
-                        <label for="title" class="form-label">Titel</label>
-                        <input type="text" class="form-control" id="title" name="title" value="{{ page.title }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="category_id" class="form-label">Kategorie</label>
-                        <select class="form-select" id="category_id" name="category_id">
-                            <option value="">Keine Kategorie</option>
-                            {% for category in categories %}
-                            <option value="{{ category.id }}" {% if page.category_id == category.id %}selected{% endif %}>
-                                {{ category.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="tags" class="form-label">Tags (kommagetrennt)</label>
-                        <input type="text" class="form-control" id="tags" name="tags" value="{{ tags }}" placeholder="tag1, tag2, tag3">
-                    </div>
                     <textarea 
                         class="wiki-editor-textarea" 
                         name="content" 
@@ -153,8 +186,9 @@
                 </div>
             </div>
         </div>
-    </form>
+    </div>
 </div>
+</form>
 
 <script>
 let hasUnsavedChanges = false;
@@ -195,6 +229,20 @@ document.addEventListener('DOMContentLoaded', function() {
     editor.focus();
 });
 
+function handleCategoryChange() {
+    const categorySelect = document.getElementById('category_id');
+    const newCategoryInput = document.getElementById('new_category_input');
+    const newCategoryName = document.getElementById('new_category_name');
+    
+    if (categorySelect.value === '__new__') {
+        newCategoryInput.classList.add('show');
+        newCategoryName.focus();
+    } else {
+        newCategoryInput.classList.remove('show');
+        newCategoryName.value = '';
+    }
+}
+
 function goBack() {
     if (hasUnsavedChanges) {
         if (confirm('Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?')) {
@@ -207,6 +255,20 @@ function goBack() {
 
 function savePage(silent = false) {
     const form = document.getElementById('editForm');
+    const categorySelect = document.getElementById('category_id');
+    const newCategoryName = document.getElementById('new_category_name').value.trim();
+    
+    // Wenn "Neue Kategorie" ausgewählt ist, prüfe ob Name eingegeben wurde
+    if (categorySelect.value === '__new__') {
+        if (!newCategoryName) {
+            if (!silent) {
+                alert('Bitte geben Sie einen Namen für die neue Kategorie ein.');
+            }
+            return;
+        }
+        // Setze den Wert auf leer, damit das Backend die neue Kategorie erkennt
+        categorySelect.value = '';
+    }
     
     if (!silent) {
         const saveBtn = document.querySelector('.btn-accent');

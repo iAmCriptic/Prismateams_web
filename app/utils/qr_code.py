@@ -1,6 +1,7 @@
 import qrcode
 from io import BytesIO
-from flask import current_app
+from flask import current_app, url_for
+from PIL import Image
 import os
 
 
@@ -81,17 +82,32 @@ def generate_borrow_qr_code(transaction_number):
     return qr_data
 
 
+def generate_set_qr_code(set_id):
+    """
+    Generiert einen QR-Code für ein Produktset.
+    Format: SET-{set_id}
+    
+    Args:
+        set_id: Die Set-ID
+    
+    Returns:
+        String mit dem QR-Code-Daten
+    """
+    qr_data = f"SET-{set_id}"
+    return qr_data
+
+
 def parse_qr_code(qr_data):
     """
     Parst QR-Code-Daten und gibt den Typ und die ID zurück.
     
     Args:
-        qr_data: Die QR-Code-Daten (z.B. "PROD-123" oder "BORROW-ABC123")
+        qr_data: Die QR-Code-Daten (z.B. "PROD-123", "SET-456" oder "BORROW-ABC123")
     
     Returns:
         Tuple (type, identifier) oder None falls ungültig
-        type: 'product' oder 'borrow'
-        identifier: Produkt-ID oder Transaktionsnummer
+        type: 'product', 'set' oder 'borrow'
+        identifier: Produkt-ID, Set-ID oder Transaktionsnummer
     """
     if not qr_data:
         return None
@@ -104,7 +120,12 @@ def parse_qr_code(qr_data):
             return ('product', int(product_id))
         except ValueError:
             return None
-    
+    elif qr_data.startswith('SET-'):
+        set_id = qr_data.replace('SET-', '')
+        try:
+            return ('set', int(set_id))
+        except ValueError:
+            return None
     elif qr_data.startswith('BORROW-'):
         transaction_number = qr_data.replace('BORROW-', '')
         return ('borrow', transaction_number)
@@ -136,9 +157,5 @@ def save_qr_code_image(qr_data, save_path):
     except Exception as e:
         current_app.logger.error(f"Fehler beim Speichern des QR-Codes: {e}")
         return False
-
-
-
-
 
 

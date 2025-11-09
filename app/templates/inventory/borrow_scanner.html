@@ -53,13 +53,13 @@
                     <label for="manualQrInput" class="form-label">QR-Code oder Produkt-ID eingeben</label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="manualQrInput" 
-                               placeholder="QR-Code oder Produkt-ID eingeben (z.B. PROD-123)" 
+                               placeholder="QR-Code oder Produkt-ID eingeben (z.B. PROD-123 oder SET-456)" 
                                autocomplete="off">
                         <button class="btn btn-accent" id="addToCartBtn">
                             <i class="bi bi-plus-circle"></i> Hinzufügen
                         </button>
                     </div>
-                    <small class="form-text text-muted">Geben Sie den QR-Code oder die Produkt-ID ein, um ein Produkt zum Warenkorb hinzuzufügen.</small>
+                    <small class="form-text text-muted">Geben Sie den QR-Code oder die Produkt-ID ein, um ein Produkt zum Warenkorb hinzuzufügen. Sie können auch SET-QR-Codes scannen, um alle Produkte eines Sets hinzuzufügen.</small>
                 </div>
             </div>
         </div>
@@ -129,6 +129,47 @@
         </div>
     </div>
 </div>
+
+<!-- Versteckte Benutzer-Liste für dynamisches Checkout-Formular -->
+<select id="hidden_borrower_list" style="display: none;">
+    <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} (Ich)</option>
+    {% for user in users %}
+    {% if user.id != current_user.id %}
+    <option value="{{ user.id }}">{{ user.full_name }}</option>
+    {% endif %}
+    {% endfor %}
+</select>
+
+<!-- Modal für Set-Scanning -->
+<div class="modal fade" id="setScannedModal" tabindex="-1" aria-labelledby="setScannedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="setScannedModalLabel">
+                    <i class="bi bi-collection"></i> Set gescannt
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    <strong>Zu dem Set "<span id="setScannedName"></span>" gehören:</strong>
+                </p>
+                <ul id="setScannedProducts" class="list-group list-group-flush mb-3">
+                    <!-- Wird dynamisch gefüllt -->
+                </ul>
+                <div id="setScannedUnavailable" class="alert alert-warning" style="display: none;">
+                    <strong>Hinweis:</strong> Folgende Produkte konnten nicht hinzugefügt werden (nicht verfügbar):
+                    <ul id="setScannedUnavailableList" class="mb-0 mt-2">
+                        <!-- Wird dynamisch gefüllt -->
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Verstanden</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -166,17 +207,42 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.success) {
                 manualInput.value = '';
+                
+                // Zeige Modal für Sets
+                if (result.is_set && window.borrowScannerManager) {
+                    window.borrowScannerManager.showSetScannedModal(result);
+                } else if (result.is_set) {
+                    // Fallback falls Manager nicht verfügbar
+                    let message = `Set "${result.set.name}" wurde gescannt.\n\n`;
+                    message += `${result.added_products.length} Produkt(e) wurden zum Warenkorb hinzugefügt:\n`;
+                    result.added_products.forEach(p => {
+                        message += `- ${p.name}${p.category ? ' (' + p.category + ')' : ''}\n`;
+                    });
+                    alert(message);
+                } else {
+                    // Einzelnes Produkt wurde hinzugefügt
+                    const productName = result.product.name + (result.product.category ? ' (' + result.product.category + ')' : '');
+                    // Zeige kurze Erfolgsmeldung (optional)
+                    // alert(`Produkt "${productName}" wurde zum Warenkorb hinzugefügt.`);
+                }
+                
                 // Verwende BorrowScannerManager statt Reload
                 if (window.borrowScannerManager) {
                     window.borrowScannerManager.updateCartFromJSON(result);
                     // Prüfe ob Checkout-Formular benötigt wird
                     const checkoutForm = document.getElementById('checkoutForm');
                     if (!checkoutForm && result.cart_count > 0) {
-                        setTimeout(() => {
-                            window.borrowScannerManager.loadCheckoutForm().catch(err => {
-                                console.error('Checkout-Formular konnte nicht geladen werden:', err);
+                        // Warte bis updateCartFromJSON vollständig fertig ist
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                const checkoutFormNow = document.getElementById('checkoutForm');
+                                if (!checkoutFormNow) {
+                                    window.borrowScannerManager.loadCheckoutForm().catch(err => {
+                                        console.error('Checkout-Formular konnte nicht geladen werden:', err);
+                                    });
+                                }
                             });
-                        }, 500);
+                        });
                     }
                 } else {
                     // Fallback: Seite neu laden nur wenn Manager nicht verfügbar
@@ -254,27 +320,35 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const formData = new FormData(checkoutForm);
             
+            // Deaktiviere Button während des Requests
+            const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
+            }
+            
             try {
                 const response = await fetch(checkoutForm.action, {
                     method: 'POST',
                     body: formData
                 });
                 
-                if (response.ok) {
-                    // Weiterleitung erfolgt serverseitig - PDF wird per E-Mail versendet
-                    window.location.href = '/inventory/borrow-scanner';
-                } else {
-                    // Fehler
-                    const text = await response.text();
-                    if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
-                        alert('Bitte überprüfen Sie Ihre Eingaben.');
-                    } else {
-                        window.location.href = '/inventory/borrow-scanner';
-                    }
-                }
+                // Die Checkout-Route gibt immer einen Redirect zurück (302)
+                // Daher ist response.ok möglicherweise false, aber die Ausleihe war erfolgreich
+                // Wir leiten zum Dashboard weiter - die Flash-Messages werden serverseitig gesetzt
+                window.location.href = '/inventory/';
+                
             } catch (error) {
                 console.error('Fehler:', error);
-                alert('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.');
+                // Bei Netzwerkfehlern Button wieder aktivieren
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+                // Trotzdem weiterleiten - könnte erfolgreich gewesen sein
+                // Die Flash-Message wird serverseitig gesetzt
+                window.location.href = '/inventory/';
             }
         });
     }

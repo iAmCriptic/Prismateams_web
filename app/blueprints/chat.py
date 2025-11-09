@@ -64,10 +64,10 @@ def view_chat(chat_id):
     membership.last_read_at = datetime.utcnow()
     db.session.commit()
     
-    # Get chat members
-    members = User.query.join(ChatMember).filter(
-        ChatMember.chat_id == chat_id
-    ).all()
+    # Get chat members - use ChatMember as base to ensure all members are included
+    chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
+    member_ids = [cm.user_id for cm in chat_memberships]
+    members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
     
     return render_template(
         'chat/view.html',
@@ -162,45 +162,98 @@ def send_message(chat_id):
 @chat_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create_chat():
-    """Create a new group chat."""
+    """Create a new group chat or private chat."""
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        member_ids = request.form.getlist('members')
+        chat_type = request.form.get('chat_type', 'group')
+        is_private = (chat_type == 'private')
         
-        if not name:
-            flash('Bitte geben Sie einen Namen ein.', 'danger')
-            return redirect(url_for('chat.create_chat'))
+        if is_private:
+            # Private Chat: nur ein Mitglied
+            member_id = request.form.get('member')
+            if not member_id:
+                flash('Bitte wählen Sie eine Person für den privaten Chat aus.', 'danger')
+                return redirect(url_for('chat.create_chat'))
+            
+            member_id = int(member_id)
+            if member_id == current_user.id:
+                flash('Sie können keinen privaten Chat mit sich selbst erstellen.', 'warning')
+                return redirect(url_for('chat.create_chat'))
+            
+            # Prüfe ob bereits ein privater Chat mit dieser Person existiert
+            other_user = User.query.get_or_404(member_id)
+            existing_dm = Chat.query.filter_by(is_direct_message=True).join(ChatMember).filter(
+                ChatMember.user_id.in_([current_user.id, member_id])
+            ).group_by(Chat.id).having(db.func.count(ChatMember.id) == 2).first()
+            
+            if existing_dm:
+                flash(f'Ein privater Chat mit {other_user.full_name} existiert bereits.', 'info')
+                return redirect(url_for('chat.view_chat', chat_id=existing_dm.id))
+            
+            # Erstelle privaten Chat - Name wird nur der andere Benutzer sein
+            # (wird im Template dynamisch angepasst, damit jeder den Namen der anderen Person sieht)
+            chat_name = f"{current_user.full_name}, {other_user.full_name}"
+            new_chat = Chat(
+                name=chat_name,
+                is_main_chat=False,
+                is_direct_message=True,
+                created_by=current_user.id
+            )
+            db.session.add(new_chat)
+            db.session.flush()
+            
+            # Füge beide Benutzer als Mitglieder hinzu
+            member1 = ChatMember(chat_id=new_chat.id, user_id=current_user.id)
+            member2 = ChatMember(chat_id=new_chat.id, user_id=member_id)
+            db.session.add_all([member1, member2])
+            
+            db.session.commit()
+            
+            flash(f'Privater Chat mit {other_user.full_name} wurde erstellt.', 'success')
+            return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
         
-        # Create new chat
-        new_chat = Chat(
-            name=name,
-            is_main_chat=False,
-            is_direct_message=False,
-            created_by=current_user.id
-        )
-        db.session.add(new_chat)
-        db.session.flush()
-        
-        # Add creator as member
-        creator_member = ChatMember(
-            chat_id=new_chat.id,
-            user_id=current_user.id
-        )
-        db.session.add(creator_member)
-        
-        # Add selected members
-        for member_id in member_ids:
-            if int(member_id) != current_user.id:
-                member = ChatMember(
-                    chat_id=new_chat.id,
-                    user_id=int(member_id)
-                )
-                db.session.add(member)
-        
-        db.session.commit()
-        
-        flash(f'Chat "{name}" wurde erstellt.', 'success')
-        return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
+        else:
+            # Gruppen-Chat
+            name = request.form.get('name', '').strip()
+            member_ids = request.form.getlist('members')
+            
+            if not name:
+                flash('Bitte geben Sie einen Namen ein.', 'danger')
+                return redirect(url_for('chat.create_chat'))
+            
+            if not member_ids:
+                flash('Bitte wählen Sie mindestens ein Mitglied aus.', 'danger')
+                return redirect(url_for('chat.create_chat'))
+            
+            # Create new group chat
+            new_chat = Chat(
+                name=name,
+                is_main_chat=False,
+                is_direct_message=False,
+                created_by=current_user.id
+            )
+            db.session.add(new_chat)
+            db.session.flush()
+            
+            # Add creator as member
+            creator_member = ChatMember(
+                chat_id=new_chat.id,
+                user_id=current_user.id
+            )
+            db.session.add(creator_member)
+            
+            # Add selected members
+            for member_id in member_ids:
+                if int(member_id) != current_user.id:
+                    member = ChatMember(
+                        chat_id=new_chat.id,
+                        user_id=int(member_id)
+                    )
+                    db.session.add(member)
+            
+            db.session.commit()
+            
+            flash(f'Gruppen-Chat "{name}" wurde erstellt.', 'success')
+            return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
     
     # Get all active users
     users = User.query.filter_by(is_active=True).all()

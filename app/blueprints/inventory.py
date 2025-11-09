@@ -1,12 +1,13 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app, session, send_from_directory
 from flask_login import login_required, current_user
 from app import db
-from app.models.inventory import Product, BorrowTransaction, ProductFolder
+from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+from app.models.api_token import ApiToken
 from app.models.user import User
 from app.models.settings import SystemSettings
 import json
 from app.utils.qr_code import (
-    generate_product_qr_code, generate_borrow_qr_code, 
+    generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code,
     parse_qr_code, generate_qr_code_bytes
 )
 from app.utils.pdf_generator import generate_borrow_receipt_pdf, generate_qr_code_sheet_pdf
@@ -86,10 +87,29 @@ def dashboard():
 
 
 @inventory_bp.route('/stock')
+@inventory_bp.route('/stock/<int:folder_id>')
 @login_required
-def stock():
-    """Bestandsübersicht."""
-    return render_template('inventory/stock.html')
+def stock(folder_id=None):
+    """Bestandsübersicht mit optionaler Ordner-Filterung."""
+    current_folder = None
+    subfolders = []
+    
+    if folder_id:
+        current_folder = ProductFolder.query.get(folder_id)
+        if not current_folder:
+            flash('Ordner nicht gefunden.', 'warning')
+            return redirect(url_for('inventory.stock'))
+        
+        # Lade Unterordner (falls parent_id später implementiert wird)
+        # subfolders = ProductFolder.query.filter_by(parent_id=folder_id).order_by(ProductFolder.name).all()
+    else:
+        # Lade alle Root-Ordner (Ordner ohne parent_id)
+        # Für jetzt: alle Ordner, da parent_id noch nicht implementiert ist
+        subfolders = ProductFolder.query.order_by(ProductFolder.name).all()
+    
+    return render_template('inventory/stock.html', 
+                          current_folder=current_folder, 
+                          subfolders=subfolders)
 
 
 @inventory_bp.route('/products/new', methods=['GET', 'POST'])
@@ -142,7 +162,8 @@ def product_new():
                 os.makedirs(upload_dir, exist_ok=True)
                 filepath = os.path.join(upload_dir, stored_filename)
                 file.save(filepath)
-                image_path = os.path.abspath(filepath)
+                # Speichere nur den Dateinamen für einfachere URL-Generierung
+                image_path = stored_filename
         
         # Produkt erstellen
         product = Product(
@@ -229,16 +250,31 @@ def product_edit(product_id):
         else:
             product.purchase_date = None
         
+        # Bild entfernen (wenn remove_image gesetzt ist)
+        if request.form.get('remove_image') == '1':
+            if product.image_path:
+                upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
+                filepath = os.path.join(upload_dir, product.image_path)
+                if os.path.exists(filepath):
+                    try:
+                        os.remove(filepath)
+                    except Exception as e:
+                        current_app.logger.error(f"Fehler beim Löschen des Bildes: {e}")
+            product.image_path = None
+        
         # Neues Bild hochladen (optional)
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename != '' and allowed_file(file.filename):
                 # Altes Bild löschen (optional)
-                if product.image_path and os.path.exists(product.image_path):
-                    try:
-                        os.remove(product.image_path)
-                    except:
-                        pass
+                if product.image_path:
+                    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
+                    old_filepath = os.path.join(upload_dir, product.image_path)
+                    if os.path.exists(old_filepath):
+                        try:
+                            os.remove(old_filepath)
+                        except:
+                            pass
                 
                 filename = secure_filename(file.filename)
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -247,7 +283,8 @@ def product_edit(product_id):
                 os.makedirs(upload_dir, exist_ok=True)
                 filepath = os.path.join(upload_dir, stored_filename)
                 file.save(filepath)
-                product.image_path = os.path.abspath(filepath)
+                # Speichere nur den Dateinamen für einfachere URL-Generierung
+                product.image_path = stored_filename
         
         # QR-Code aktualisieren falls nötig
         if not product.qr_code_data:
@@ -266,6 +303,52 @@ def product_edit(product_id):
     folders = get_product_folders()
     
     return render_template('inventory/product_form.html', product=product, purchase_date_formatted=purchase_date_formatted, categories=categories, folders=folders)
+
+
+@inventory_bp.route('/product-images/<path:filename>')
+@login_required
+def serve_product_image(filename):
+    """Serviere Produktbilder."""
+    try:
+        from flask import abort
+        from urllib.parse import unquote
+        
+        # URL-decode den Dateinamen
+        filename = unquote(filename)
+        
+        # Falls filename ein absoluter Pfad ist, extrahiere nur den Dateinamen
+        if os.path.isabs(filename) or '/' in filename or '\\' in filename:
+            # Extrahiere nur den Dateinamen
+            filename = os.path.basename(filename)
+        
+        # Konstruiere absoluten Pfad
+        project_root = os.path.dirname(current_app.root_path)
+        directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
+        full_path = os.path.join(directory, filename)
+        
+        # Debug-Logging
+        if current_app.debug:
+            current_app.logger.debug(f"[PRODUCT IMAGE] Requested filename: {filename}")
+            current_app.logger.debug(f"[PRODUCT IMAGE] Full path: {full_path}")
+            current_app.logger.debug(f"[PRODUCT IMAGE] File exists: {os.path.isfile(full_path)}")
+            if not os.path.isfile(full_path):
+                # Liste alle Dateien im Verzeichnis für Debugging
+                if os.path.exists(directory):
+                    current_app.logger.debug(f"[PRODUCT IMAGE] Directory contents: {os.listdir(directory)}")
+        
+        if not os.path.isfile(full_path):
+            current_app.logger.warning(f"Produktbild nicht gefunden: {filename} (Pfad: {full_path})")
+            abort(404)
+        
+        return send_from_directory(directory, filename)
+    except FileNotFoundError:
+        from flask import abort
+        current_app.logger.warning(f"Produktbild nicht gefunden: {filename}")
+        abort(404)
+    except Exception as e:
+        from flask import abort
+        current_app.logger.error(f"Fehler beim Servieren des Produktbildes {filename}: {e}", exc_info=True)
+        abort(404)
 
 
 @inventory_bp.route('/products/<int:product_id>/status', methods=['POST'])
@@ -612,15 +695,86 @@ def borrow_scanner():
             product_id = request.form.get('product_id')
             
             product = None
+            product_set = None
+            
             if qr_code:
                 parsed = parse_qr_code(qr_code)
-                if parsed and parsed[0] == 'product':
-                    product = Product.query.get(parsed[1])
+                if parsed:
+                    qr_type, qr_id = parsed
+                    if qr_type == 'product':
+                        product = Product.query.get(qr_id)
+                    elif qr_type == 'set':
+                        product_set = ProductSet.query.get(qr_id)
             elif product_id:
                 product = Product.query.get(int(product_id))
             
+            # Wenn ein Set gescannt wurde
+            if product_set:
+                # Alle Produkte des Sets zum Warenkorb hinzufügen
+                cart = session.get('borrow_cart', [])
+                added_products = []
+                unavailable_products = []
+                # Verwende ein Dictionary, um die Menge jedes Produkts zu tracken
+                product_quantities = {}
+                
+                for item in product_set.items:
+                    product = Product.query.get(item.product_id)
+                    if product:
+                        # Tracke die Menge für die Anzeige
+                        if product.id not in product_quantities:
+                            product_quantities[product.id] = {
+                                'product': product,
+                                'quantity': 0,
+                                'added': 0,
+                                'was_in_cart': product.id in cart
+                            }
+                        
+                        # Für jedes Set-Item die entsprechende Menge an Produkten hinzufügen
+                        for _ in range(item.quantity):
+                            if product.status == 'available':
+                                if product.id not in cart:
+                                    cart.append(product.id)
+                                    product_quantities[product.id]['added'] += 1
+                            else:
+                                # Nur einmal zur unavailable_products Liste hinzufügen
+                                if product.id not in [p['id'] for p in unavailable_products]:
+                                    unavailable_products.append({
+                                        'id': product.id,
+                                        'name': product.name,
+                                        'status': product.status
+                                    })
+                            product_quantities[product.id]['quantity'] += 1
+                
+                # Erstelle added_products Liste mit Mengen-Informationen
+                # Zeige ALLE Produkte des Sets, auch wenn sie nicht hinzugefügt wurden (z.B. bereits im Warenkorb)
+                for product_id, info in product_quantities.items():
+                    added_products.append({
+                        'id': info['product'].id,
+                        'name': info['product'].name,
+                        'category': info['product'].category,
+                        'quantity': info['quantity'],  # Gesamtmenge im Set
+                        'added': info['added'],  # Anzahl die neu hinzugefügt wurden
+                        'was_in_cart': info['was_in_cart']  # Ob bereits im Warenkorb
+                    })
+                
+                session['borrow_cart'] = cart
+                
+                return jsonify({
+                    'success': True,
+                    'is_set': True,
+                    'set': {
+                        'id': product_set.id,
+                        'name': product_set.name,
+                        'description': product_set.description
+                    },
+                    'added_products': added_products,
+                    'unavailable_products': unavailable_products,
+                    'cart_count': len(cart)
+                })
+            
+            # Einzelnes Produkt hinzufügen
             if not product:
-                return jsonify({'error': 'Produkt nicht gefunden.'}), 404
+                return jsonify({'error': 'Produkt oder Set nicht gefunden.'}), 404
             
             if product.status != 'available':
                 return jsonify({'error': 'Produkt ist nicht verfügbar.'}), 400
@@ -633,6 +787,7 @@ def borrow_scanner():
             
             return jsonify({
                 'success': True,
+                'is_set': False,
                 'product': {
                     'id': product.id,
                     'name': product.name,
@@ -751,13 +906,13 @@ def borrow_scanner_checkout():
         else:
             flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
     
-    return redirect(url_for('inventory.borrow_scanner'))
+    return redirect(url_for('inventory.dashboard'))
 
 
 @inventory_bp.route('/inventory-list')
 @login_required
 def inventory_list():
-    """Inventurliste - Übersicht aller Produkte für Inventur."""
+    """Inventurliste - Übersicht aller Produkte für Inventur (Legacy)."""
     products = Product.query.order_by(Product.name).all()
     return render_template('inventory/inventory_list.html', products=products)
 
@@ -765,7 +920,7 @@ def inventory_list():
 @inventory_bp.route('/inventory-list/pdf')
 @login_required
 def inventory_list_pdf():
-    """PDF-Generierung für Inventurliste."""
+    """PDF-Generierung für Inventurliste (Legacy)."""
     from app.utils.pdf_generator import generate_inventory_list_pdf
     
     products = Product.query.order_by(Product.name).all()
@@ -781,6 +936,344 @@ def inventory_list_pdf():
         as_attachment=True,
         download_name=filename
     )
+
+
+# ========== Inventurtool Routes ==========
+
+@inventory_bp.route('/inventory-tool', methods=['GET', 'POST'])
+@login_required
+def inventory_tool():
+    """Hauptseite für das Inventurtool."""
+    # Prüfe ob aktive Inventur existiert
+    active_inventory = Inventory.query.filter_by(status='active').first()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'start':
+            # Prüfe ob bereits aktive Inventur existiert
+            if active_inventory:
+                flash('Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.', 'warning')
+                return redirect(url_for('inventory.inventory_tool'))
+            
+            # Neue Inventur starten
+            name = request.form.get('name', '').strip()
+            if not name:
+                name = f"Inventur {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            
+            description = request.form.get('description', '').strip() or None
+            
+            new_inventory = Inventory(
+                name=name,
+                description=description,
+                status='active',
+                started_by=current_user.id
+            )
+            db.session.add(new_inventory)
+            db.session.flush()
+            
+            # Erstelle InventoryItems für alle Produkte
+            products = Product.query.all()
+            for product in products:
+                inventory_item = InventoryItem(
+                    inventory_id=new_inventory.id,
+                    product_id=product.id
+                )
+                db.session.add(inventory_item)
+            
+            db.session.commit()
+            flash(f'Inventur "{name}" wurde gestartet.', 'success')
+            return redirect(url_for('inventory.inventory_tool'))
+    
+    # Lade Inventur-Items wenn aktive Inventur existiert
+    inventory_items = []
+    if active_inventory:
+        inventory_items = InventoryItem.query.filter_by(inventory_id=active_inventory.id).options(
+            joinedload(InventoryItem.product),
+            joinedload(InventoryItem.checker)
+        ).all()
+    
+    return render_template('inventory/inventory_tool.html', 
+                         active_inventory=active_inventory,
+                         inventory_items=inventory_items)
+
+
+@inventory_bp.route('/inventory-tool/<int:inventory_id>/complete', methods=['POST'])
+@login_required
+def inventory_complete(inventory_id):
+    """Inventur abschließen und Änderungen auf Produkte anwenden."""
+    inventory = Inventory.query.get_or_404(inventory_id)
+    
+    if inventory.status != 'active':
+        flash('Diese Inventur ist bereits abgeschlossen.', 'warning')
+        return redirect(url_for('inventory.inventory_tool'))
+    
+    # Wende Änderungen auf Produkte an
+    items = InventoryItem.query.filter_by(inventory_id=inventory_id).all()
+    updated_count = 0
+    
+    for item in items:
+        if item.location_changed and item.new_location:
+            item.product.location = item.new_location
+            updated_count += 1
+        
+        if item.condition_changed and item.new_condition:
+            item.product.condition = item.new_condition
+            updated_count += 1
+    
+    # Markiere Inventur als abgeschlossen
+    inventory.status = 'completed'
+    inventory.completed_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    flash(f'Inventur wurde abgeschlossen. {updated_count} Produkt(e) wurden aktualisiert.', 'success')
+    return redirect(url_for('inventory.inventory_tool'))
+
+
+@inventory_bp.route('/inventory-tool/history')
+@login_required
+def inventory_history():
+    """Liste aller abgeschlossenen Inventuren."""
+    completed_inventories = Inventory.query.filter_by(status='completed').order_by(
+        Inventory.completed_at.desc()
+    ).all()
+    
+    return render_template('inventory/inventory_history.html', inventories=completed_inventories)
+
+
+@inventory_bp.route('/inventory-tool/<int:inventory_id>/pdf')
+@login_required
+def inventory_tool_pdf(inventory_id):
+    """PDF-Generierung für eine Inventur."""
+    from app.utils.pdf_generator import generate_inventory_tool_pdf
+    
+    inventory = Inventory.query.get_or_404(inventory_id)
+    items = InventoryItem.query.filter_by(inventory_id=inventory_id).options(
+        joinedload(InventoryItem.product)
+    ).all()
+    
+    # Sortiere nach Produktname
+    items.sort(key=lambda x: x.product.name if x.product else '')
+    
+    pdf_buffer = BytesIO()
+    generate_inventory_tool_pdf(inventory, items, pdf_buffer)
+    pdf_buffer.seek(0)
+    
+    filename = f"Inventur_{inventory.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+# ========== Inventurtool API Routes ==========
+
+@inventory_bp.route('/api/inventory/<int:inventory_id>/items', methods=['GET'])
+@login_required
+def api_inventory_items(inventory_id):
+    """API: Alle Items einer Inventur abrufen."""
+    inventory = Inventory.query.get_or_404(inventory_id)
+    
+    items = InventoryItem.query.filter_by(inventory_id=inventory_id).options(
+        joinedload(InventoryItem.product),
+        joinedload(InventoryItem.checker)
+    ).all()
+    
+    result = []
+    for item in items:
+        result.append({
+            'id': item.id,
+            'product_id': item.product_id,
+            'product_name': item.product.name,
+            'product_category': item.product.category,
+            'product_location': item.product.location,
+            'product_condition': item.product.condition,
+            'checked': item.checked,
+            'notes': item.notes,
+            'location_changed': item.location_changed,
+            'new_location': item.new_location,
+            'condition_changed': item.condition_changed,
+            'new_condition': item.new_condition,
+            'checked_by': item.checked_by,
+            'checked_by_name': item.checker.full_name if item.checker else None,
+            'checked_at': item.checked_at.isoformat() if item.checked_at else None,
+            'updated_at': item.updated_at.isoformat()
+        })
+    
+    return jsonify({
+        'inventory': {
+            'id': inventory.id,
+            'name': inventory.name,
+            'status': inventory.status,
+            'checked_count': inventory.checked_count,
+            'total_count': inventory.total_count
+        },
+        'items': result
+    })
+
+
+@inventory_bp.route('/api/inventory/<int:inventory_id>/item/<int:product_id>/update', methods=['POST'])
+@login_required
+def api_inventory_item_update(inventory_id, product_id):
+    """API: Produkt in Inventur aktualisieren."""
+    inventory = Inventory.query.get_or_404(inventory_id)
+    
+    if inventory.status != 'active':
+        return jsonify({'error': 'Inventur ist nicht aktiv.'}), 400
+    
+    item = InventoryItem.query.filter_by(
+        inventory_id=inventory_id,
+        product_id=product_id
+    ).first()
+    
+    if not item:
+        return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
+    
+    data = request.get_json()
+    
+    # Update Felder
+    if 'checked' in data:
+        item.checked = bool(data['checked'])
+        if item.checked:
+            item.checked_by = current_user.id
+            item.checked_at = datetime.utcnow()
+        else:
+            item.checked_by = None
+            item.checked_at = None
+    
+    if 'notes' in data:
+        item.notes = data['notes'].strip() if data['notes'] else None
+    
+    if 'new_location' in data:
+        new_location = data['new_location'].strip() if data['new_location'] else None
+        item.new_location = new_location
+        item.location_changed = new_location is not None and new_location != item.product.location
+    
+    if 'new_condition' in data:
+        new_condition = data['new_condition'].strip() if data['new_condition'] else None
+        item.new_condition = new_condition
+        item.condition_changed = new_condition is not None and new_condition != item.product.condition
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'item': {
+            'id': item.id,
+            'checked': item.checked,
+            'notes': item.notes,
+            'location_changed': item.location_changed,
+            'new_location': item.new_location,
+            'condition_changed': item.condition_changed,
+            'new_condition': item.new_condition
+        }
+    })
+
+
+@inventory_bp.route('/api/inventory/<int:inventory_id>/item/<int:product_id>/check', methods=['POST'])
+@login_required
+def api_inventory_item_check(inventory_id, product_id):
+    """API: Produkt in Inventur abhaken."""
+    inventory = Inventory.query.get_or_404(inventory_id)
+    
+    if inventory.status != 'active':
+        return jsonify({'error': 'Inventur ist nicht aktiv.'}), 400
+    
+    item = InventoryItem.query.filter_by(
+        inventory_id=inventory_id,
+        product_id=product_id
+    ).first()
+    
+    if not item:
+        return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
+    
+    data = request.get_json()
+    checked = data.get('checked', True)
+    
+    item.checked = checked
+    if checked:
+        item.checked_by = current_user.id
+        item.checked_at = datetime.utcnow()
+    else:
+        item.checked_by = None
+        item.checked_at = None
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'checked': item.checked,
+        'checked_by': item.checked_by,
+        'checked_at': item.checked_at.isoformat() if item.checked_at else None
+    })
+
+
+@inventory_bp.route('/api/inventory/<int:inventory_id>/scan', methods=['POST'])
+@login_required
+def api_inventory_scan(inventory_id):
+    """API: QR-Code scannen und zu Produkt navigieren."""
+    inventory = Inventory.query.get_or_404(inventory_id)
+    
+    if inventory.status != 'active':
+        return jsonify({'error': 'Inventur ist nicht aktiv.'}), 400
+    
+    data = request.get_json()
+    qr_data = data.get('qr_data', '').strip()
+    
+    if not qr_data:
+        return jsonify({'error': 'QR-Code-Daten erforderlich.'}), 400
+    
+    # QR-Code parsen
+    parsed = parse_qr_code(qr_data)
+    if not parsed:
+        return jsonify({'error': 'Ungültiger QR-Code.'}), 400
+    
+    qr_type, qr_id = parsed
+    
+    if qr_type == 'product':
+        product = Product.query.get(qr_id)
+        if not product:
+            return jsonify({'error': 'Produkt nicht gefunden.'}), 404
+        
+        # Finde oder erstelle InventoryItem
+        item = InventoryItem.query.filter_by(
+            inventory_id=inventory_id,
+            product_id=product.id
+        ).first()
+        
+        if not item:
+            return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
+        
+        # Automatisch abhaken
+        item.checked = True
+        item.checked_by = current_user.id
+        item.checked_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'product': {
+                'id': product.id,
+                'name': product.name,
+                'category': product.category,
+                'location': product.location,
+                'condition': product.condition
+            },
+            'item': {
+                'id': item.id,
+                'checked': item.checked,
+                'notes': item.notes,
+                'location_changed': item.location_changed,
+                'new_location': item.new_location,
+                'condition_changed': item.condition_changed,
+                'new_condition': item.new_condition
+            }
+        })
+    else:
+        return jsonify({'error': 'Nur Produkt-QR-Codes werden unterstützt.'}), 400
 
 
 @inventory_bp.route('/folders', methods=['GET', 'POST'])
@@ -940,6 +1433,16 @@ def api_products():
                 location_value = location if (location and str(location).strip()) else None
                 length_value = length if (length and str(length).strip()) else None
                 
+                # Normalisiere image_path: Wenn absoluter Pfad, extrahiere nur Dateinamen
+                image_path_value = None
+                if p.image_path:
+                    if os.path.isabs(p.image_path):
+                        # Extrahiere nur den Dateinamen aus dem absoluten Pfad
+                        image_path_value = os.path.basename(p.image_path)
+                    else:
+                        # Bereits nur Dateiname
+                        image_path_value = p.image_path
+                
                 result.append({
                     'id': p.id,
                     'name': p.name,
@@ -953,13 +1456,21 @@ def api_products():
                     'folder_name': folder_name,
                     'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
                     'status': p.status,
-                    'image_path': p.image_path,
+                    'image_path': image_path_value,
                     'qr_code_data': p.qr_code_data,
                     'created_at': p.created_at.isoformat(),
                     'created_by': p.created_by
                 })
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Serialisieren von Produkt {p.id}: {e}", exc_info=True)
+                # Normalisiere image_path auch im Fallback
+                image_path_value = None
+                image_path_raw = getattr(p, 'image_path', None)
+                if image_path_raw:
+                    if os.path.isabs(image_path_raw):
+                        image_path_value = os.path.basename(image_path_raw)
+                    else:
+                        image_path_value = image_path_raw
                 # Fallback ohne Ordner-Informationen
                 result.append({
                     'id': p.id,
@@ -974,7 +1485,7 @@ def api_products():
                     'folder_name': None,
                     'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
                     'status': p.status,
-                    'image_path': getattr(p, 'image_path', None),
+                    'image_path': image_path_value,
                     'qr_code_data': getattr(p, 'qr_code_data', None),
                     'created_at': p.created_at.isoformat(),
                     'created_by': p.created_by
@@ -992,6 +1503,16 @@ def api_product_get(product_id):
     """API: Einzelnes Produkt abrufen."""
     product = Product.query.options(joinedload(Product.folder)).get_or_404(product_id)
     
+    # Normalisiere image_path: Wenn absoluter Pfad, extrahiere nur Dateinamen
+    image_path_value = None
+    if product.image_path:
+        if os.path.isabs(product.image_path):
+            # Extrahiere nur den Dateinamen aus dem absoluten Pfad
+            image_path_value = os.path.basename(product.image_path)
+        else:
+            # Bereits nur Dateiname
+            image_path_value = product.image_path
+    
     return jsonify({
         'id': product.id,
         'name': product.name,
@@ -1005,7 +1526,7 @@ def api_product_get(product_id):
         'folder_name': product.folder.name if product.folder else None,
         'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None,
         'status': product.status,
-        'image_path': product.image_path,
+        'image_path': image_path_value,
         'qr_code_data': product.qr_code_data,
         'created_at': product.created_at.isoformat(),
         'created_by': product.created_by
@@ -1151,6 +1672,14 @@ def api_stock():
     result = []
     for p in products:
         try:
+            # Normalisiere image_path: Wenn absoluter Pfad, extrahiere nur Dateinamen
+            image_path_value = None
+            if p.image_path:
+                if os.path.isabs(p.image_path):
+                    image_path_value = os.path.basename(p.image_path)
+                else:
+                    image_path_value = p.image_path
+            
             result.append({
                 'id': p.id,
                 'name': p.name,
@@ -1161,11 +1690,18 @@ def api_stock():
                 'length': p.length,
                 'folder_id': getattr(p, 'folder_id', None),
                 'folder_name': p.folder.name if p.folder else None,
-                'image_path': p.image_path,
+                'image_path': image_path_value,
                 'qr_code_data': p.qr_code_data
             })
         except Exception as e:
             current_app.logger.error(f"Fehler beim Serialisieren von Produkt {p.id} in api_stock: {e}")
+            # Normalisiere image_path auch im Fallback
+            image_path_value = None
+            if p.image_path:
+                if os.path.isabs(p.image_path):
+                    image_path_value = os.path.basename(p.image_path)
+                else:
+                    image_path_value = p.image_path
             # Fallback ohne Ordner-Informationen
             result.append({
                 'id': p.id,
@@ -1177,7 +1713,7 @@ def api_stock():
                 'length': getattr(p, 'length', None),
                 'folder_id': None,
                 'folder_name': None,
-                'image_path': p.image_path,
+                'image_path': image_path_value,
                 'qr_code_data': p.qr_code_data
             })
     
@@ -1458,4 +1994,1033 @@ def api_print_qr_codes():
     except Exception as e:
         current_app.logger.error(f"Fehler beim Generieren des QR-Code-Druckbogens: {e}")
         return jsonify({'error': 'Fehler beim Generieren des Druckbogens.'}), 500
+
+
+# ========== Produktsets ==========
+
+@inventory_bp.route('/sets')
+@login_required
+def sets():
+    """Produktsets Übersicht."""
+    sets = ProductSet.query.order_by(ProductSet.name).all()
+    return render_template('inventory/sets.html', sets=sets)
+
+
+@inventory_bp.route('/sets/new', methods=['GET', 'POST'])
+@login_required
+def set_new():
+    """Neues Produktset erstellen."""
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        
+        if not name:
+            flash('Bitte geben Sie einen Namen für das Set ein.', 'danger')
+            products = Product.query.order_by(Product.name).all()
+            products_data = [{'id': p.id, 'name': p.name} for p in products]
+            return render_template('inventory/set_form.html', products=products, products_data=products_data)
+        
+        # Produkt-IDs aus Formular holen
+        product_ids = request.form.getlist('product_ids')
+        quantities = request.form.getlist('quantities')
+        
+        if not product_ids:
+            flash('Bitte wählen Sie mindestens ein Produkt aus.', 'danger')
+            products = Product.query.order_by(Product.name).all()
+            products_data = [{'id': p.id, 'name': p.name} for p in products]
+            return render_template('inventory/set_form.html', products=products, products_data=products_data)
+        
+        # Set erstellen
+        product_set = ProductSet(
+            name=name,
+            description=description,
+            created_by=current_user.id
+        )
+        db.session.add(product_set)
+        db.session.flush()
+        
+        # Produkte zum Set hinzufügen
+        for i, product_id in enumerate(product_ids):
+            try:
+                product_id_int = int(product_id)
+                quantity = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
+                
+                # Prüfe ob Produkt existiert
+                product = Product.query.get(product_id_int)
+                if not product:
+                    continue
+                
+                set_item = ProductSetItem(
+                    set_id=product_set.id,
+                    product_id=product_id_int,
+                    quantity=quantity
+                )
+                db.session.add(set_item)
+            except (ValueError, IndexError):
+                continue
+        
+        db.session.commit()
+        flash(f'Produktset "{name}" wurde erfolgreich erstellt.', 'success')
+        return redirect(url_for('inventory.sets'))
+    
+    # GET: Formular anzeigen
+    products = Product.query.order_by(Product.name).all()
+    # Konvertiere Produkte zu Dictionaries für JSON-Serialisierung
+    products_data = [{'id': p.id, 'name': p.name} for p in products]
+    return render_template('inventory/set_form.html', products=products, products_data=products_data)
+
+
+@inventory_bp.route('/sets/<int:set_id>')
+@login_required
+def set_view(set_id):
+    """Produktset Details anzeigen."""
+    product_set = ProductSet.query.get_or_404(set_id)
+    # QR-Code-Daten generieren falls noch nicht vorhanden
+    if not hasattr(product_set, 'qr_code_data') or not product_set.qr_code_data:
+        qr_data = generate_set_qr_code(product_set.id)
+        # QR-Code-Daten temporär für Template verfügbar machen
+        product_set.qr_code_data = qr_data
+    return render_template('inventory/set_view.html', product_set=product_set)
+
+
+@inventory_bp.route('/sets/<int:set_id>/qr-code')
+@login_required
+def set_qr_code(set_id):
+    """QR-Code für ein Produktset anzeigen."""
+    product_set = ProductSet.query.get_or_404(set_id)
+    qr_data = generate_set_qr_code(set_id)
+    
+    # QR-Code generieren
+    qr_image_bytes = generate_qr_code_bytes(qr_data)
+    
+    from flask import Response
+    return Response(qr_image_bytes, mimetype='image/png')
+
+
+@inventory_bp.route('/sets/<int:set_id>/edit', methods=['GET', 'POST'])
+@login_required
+def set_edit(set_id):
+    """Produktset bearbeiten."""
+    product_set = ProductSet.query.get_or_404(set_id)
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        
+        if not name:
+            flash('Bitte geben Sie einen Namen für das Set ein.', 'danger')
+            products = Product.query.order_by(Product.name).all()
+            products_data = [{'id': p.id, 'name': p.name} for p in products]
+            return render_template('inventory/set_form.html', product_set=product_set, products=products, products_data=products_data)
+        
+        product_set.name = name
+        product_set.description = description
+        
+        # Produkt-IDs aus Formular holen
+        product_ids = request.form.getlist('product_ids')
+        quantities = request.form.getlist('quantities')
+        
+        # Alte Items löschen
+        ProductSetItem.query.filter_by(set_id=product_set.id).delete()
+        
+        # Neue Items hinzufügen
+        for i, product_id in enumerate(product_ids):
+            try:
+                product_id_int = int(product_id)
+                quantity = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
+                
+                product = Product.query.get(product_id_int)
+                if not product:
+                    continue
+                
+                set_item = ProductSetItem(
+                    set_id=product_set.id,
+                    product_id=product_id_int,
+                    quantity=quantity
+                )
+                db.session.add(set_item)
+            except (ValueError, IndexError):
+                continue
+        
+        db.session.commit()
+        flash(f'Produktset "{name}" wurde erfolgreich aktualisiert.', 'success')
+        return redirect(url_for('inventory.set_view', set_id=product_set.id))
+    
+    # GET: Formular anzeigen
+    products = Product.query.order_by(Product.name).all()
+    products_data = [{'id': p.id, 'name': p.name} for p in products]
+    return render_template('inventory/set_form.html', product_set=product_set, products=products, products_data=products_data)
+
+
+@inventory_bp.route('/sets/<int:set_id>/delete', methods=['POST'])
+@login_required
+def set_delete(set_id):
+    """Produktset löschen."""
+    product_set = ProductSet.query.get_or_404(set_id)
+    
+    # Nur Admin oder Ersteller kann löschen
+    if not current_user.is_admin and product_set.created_by != current_user.id:
+        flash('Sie haben keine Berechtigung, dieses Set zu löschen.', 'danger')
+        return redirect(url_for('inventory.sets'))
+    
+    name = product_set.name
+    db.session.delete(product_set)
+    db.session.commit()
+    
+    flash(f'Produktset "{name}" wurde erfolgreich gelöscht.', 'success')
+    return redirect(url_for('inventory.sets'))
+
+
+@inventory_bp.route('/sets/<int:set_id>/borrow', methods=['GET', 'POST'])
+@login_required
+def set_borrow(set_id):
+    """Alle Produkte eines Sets ausleihen."""
+    if not check_borrow_permission():
+        flash('Sie haben keine Berechtigung, Produkte auszuleihen.', 'danger')
+        return redirect(url_for('inventory.sets'))
+    
+    product_set = ProductSet.query.get_or_404(set_id)
+    
+    if request.method == 'POST':
+        borrower_id = request.form.get('borrower_id', type=int)
+        expected_return_date = request.form.get('expected_return_date')
+        
+        if not borrower_id or not expected_return_date:
+            flash('Bitte füllen Sie alle Felder aus.', 'danger')
+            users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
+            return render_template('inventory/set_borrow.html', product_set=product_set, users=users)
+        
+        try:
+            expected_return_date = datetime.strptime(expected_return_date, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Ungültiges Datum.', 'danger')
+            users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
+            return render_template('inventory/set_borrow.html', product_set=product_set, users=users)
+        
+        borrower = User.query.get_or_404(borrower_id)
+        borrow_group_id = generate_borrow_group_id()
+        
+        # Alle Produkte des Sets ausleihen
+        borrowed_products = []
+        failed_products = []
+        
+        for item in product_set.items:
+            product = item.product
+            if product.status != 'available':
+                failed_products.append(product.name)
+                continue
+            
+            transaction_number = generate_transaction_number()
+            borrow_transaction = BorrowTransaction(
+                transaction_number=transaction_number,
+                borrow_group_id=borrow_group_id,
+                product_id=product.id,
+                borrower_id=borrower.id,
+                borrowed_by_id=current_user.id,
+                expected_return_date=expected_return_date,
+                qr_code_data=generate_borrow_qr_code(transaction_number)
+            )
+            
+            product.status = 'borrowed'
+            db.session.add(borrow_transaction)
+            borrowed_products.append(product.name)
+        
+        db.session.commit()
+        
+        if borrowed_products:
+            flash(f'Set "{product_set.name}" erfolgreich ausgeliehen. {len(borrowed_products)} Produkte ausgeliehen.', 'success')
+        if failed_products:
+            flash(f'Folgende Produkte konnten nicht ausgeliehen werden: {", ".join(failed_products)}', 'warning')
+        
+        return redirect(url_for('inventory.dashboard'))
+    
+    # GET: Formular anzeigen
+    users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
+    min_date = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+    return render_template('inventory/set_borrow.html', product_set=product_set, users=users, min_date=min_date)
+
+
+@inventory_bp.route('/api/sets', methods=['GET'])
+@login_required
+def api_sets():
+    """API: Liste aller Produktsets."""
+    sets = ProductSet.query.order_by(ProductSet.name).all()
+    result = []
+    for s in sets:
+        result.append({
+            'id': s.id,
+            'name': s.name,
+            'description': s.description,
+            'product_count': s.product_count,
+            'created_at': s.created_at.isoformat(),
+            'created_by': s.created_by
+        })
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/sets/<int:set_id>', methods=['GET'])
+@login_required
+def api_set_detail(set_id):
+    """API: Details eines Produktsets."""
+    product_set = ProductSet.query.get_or_404(set_id)
+    items = []
+    for item in product_set.items:
+        items.append({
+            'product_id': item.product_id,
+            'product_name': item.product.name,
+            'quantity': item.quantity
+        })
+    
+    return jsonify({
+        'id': product_set.id,
+        'name': product_set.name,
+        'description': product_set.description,
+        'items': items,
+        'created_at': product_set.created_at.isoformat(),
+        'created_by': product_set.created_by
+    })
+
+
+# ========== Dokumentenverwaltung ==========
+
+@inventory_bp.route('/products/<int:product_id>/documents')
+@login_required
+def product_documents(product_id):
+    """Dokumente eines Produkts anzeigen."""
+    product = Product.query.get_or_404(product_id)
+    documents = ProductDocument.query.filter_by(product_id=product_id).order_by(ProductDocument.created_at.desc()).all()
+    from app.models.manual import Manual
+    manuals = Manual.query.order_by(Manual.title).all()
+    return render_template('inventory/product_documents.html', product=product, documents=documents, manuals=manuals)
+
+
+@inventory_bp.route('/products/<int:product_id>/documents/upload', methods=['POST'])
+@login_required
+def product_document_upload(product_id):
+    """Dokument für ein Produkt hochladen."""
+    product = Product.query.get_or_404(product_id)
+    
+    if 'file' not in request.files:
+        flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+    
+    file = request.files['file']
+    file_type = request.form.get('file_type', 'other')
+    manual_id = request.form.get('manual_id', type=int) or None
+    
+    if file.filename == '':
+        flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+    
+    # Datei speichern
+    filename = secure_filename(file.filename)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    stored_filename = f"{timestamp}_{filename}"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_documents')
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, stored_filename)
+    file.save(filepath)
+    absolute_filepath = os.path.abspath(filepath)
+    
+    # Dokument-Eintrag erstellen
+    document = ProductDocument(
+        product_id=product_id,
+        manual_id=manual_id,
+        file_path=absolute_filepath,
+        file_name=filename,
+        file_type=file_type,
+        file_size=os.path.getsize(absolute_filepath),
+        uploaded_by=current_user.id
+    )
+    
+    db.session.add(document)
+    db.session.commit()
+    
+    flash(f'Dokument "{filename}" wurde erfolgreich hochgeladen.', 'success')
+    return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+
+@inventory_bp.route('/products/<int:product_id>/documents/<int:document_id>/delete', methods=['POST'])
+@login_required
+def product_document_delete(product_id, document_id):
+    """Dokument löschen."""
+    document = ProductDocument.query.get_or_404(document_id)
+    
+    if document.product_id != product_id:
+        flash('Ungültige Anfrage.', 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+    
+    # Datei löschen
+    if os.path.exists(document.file_path):
+        try:
+            os.remove(document.file_path)
+        except Exception as e:
+            current_app.logger.error(f"Fehler beim Löschen der Datei: {e}")
+    
+    filename = document.file_name
+    db.session.delete(document)
+    db.session.commit()
+    
+    flash(f'Dokument "{filename}" wurde erfolgreich gelöscht.', 'success')
+    return redirect(url_for('inventory.product_documents', product_id=product_id))
+
+
+@inventory_bp.route('/products/<int:product_id>/documents/<int:document_id>/download')
+@login_required
+def product_document_download(product_id, document_id):
+    """Dokument herunterladen."""
+    document = ProductDocument.query.get_or_404(document_id)
+    
+    if document.product_id != product_id:
+        flash('Ungültige Anfrage.', 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+    
+    if not os.path.exists(document.file_path):
+        flash('Die Datei konnte nicht gefunden werden.', 'danger')
+        return redirect(url_for('inventory.product_documents', product_id=product_id))
+    
+    return send_file(document.file_path, as_attachment=True, download_name=document.file_name)
+
+
+@inventory_bp.route('/api/products/<int:product_id>/documents', methods=['GET'])
+@login_required
+def api_product_documents(product_id):
+    """API: Liste aller Dokumente eines Produkts."""
+    product = Product.query.get_or_404(product_id)
+    documents = ProductDocument.query.filter_by(product_id=product_id).order_by(ProductDocument.created_at.desc()).all()
+    
+    result = []
+    for doc in documents:
+        result.append({
+            'id': doc.id,
+            'file_name': doc.file_name,
+            'file_type': doc.file_type,
+            'file_size': doc.file_size,
+            'manual_id': doc.manual_id,
+            'created_at': doc.created_at.isoformat(),
+            'uploaded_by': doc.uploaded_by
+        })
+    
+    return jsonify(result)
+
+
+# ========== Erweiterte Suche & Filter ==========
+
+@inventory_bp.route('/api/search', methods=['GET'])
+@login_required
+def api_search():
+    """Erweiterte Volltextsuche über alle Produktfelder."""
+    search_query = request.args.get('q', '').strip()
+    
+    if not search_query:
+        return jsonify({'error': 'Suchbegriff erforderlich.'}), 400
+    
+    # Volltextsuche über alle relevanten Felder
+    search_pattern = f'%{search_query}%'
+    products = Product.query.filter(
+        or_(
+            Product.name.ilike(search_pattern),
+            Product.description.ilike(search_pattern),
+            Product.serial_number.ilike(search_pattern),
+            Product.category.ilike(search_pattern),
+            Product.location.ilike(search_pattern),
+            Product.condition.ilike(search_pattern)
+        )
+    ).order_by(Product.name).all()
+    
+    result = []
+    for p in products:
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'description': p.description,
+            'category': p.category,
+            'serial_number': p.serial_number,
+            'status': p.status,
+            'location': p.location
+        })
+    
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/filters', methods=['GET'])
+@login_required
+def api_filters():
+    """Gespeicherte Filter des aktuellen Benutzers laden."""
+    filters = SavedFilter.query.filter_by(user_id=current_user.id).order_by(SavedFilter.created_at.desc()).all()
+    
+    result = []
+    for f in filters:
+        try:
+            filter_data = json.loads(f.filter_data)
+        except:
+            filter_data = {}
+        
+        result.append({
+            'id': f.id,
+            'name': f.name,
+            'filter_data': filter_data,
+            'created_at': f.created_at.isoformat()
+        })
+    
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/filters/save', methods=['POST'])
+@login_required
+def api_filter_save():
+    """Filter speichern."""
+    data = request.get_json()
+    
+    name = data.get('name', '').strip()
+    filter_data = data.get('filter_data', {})
+    
+    if not name:
+        return jsonify({'error': 'Filtername erforderlich.'}), 400
+    
+    # Prüfe ob Name bereits existiert
+    existing = SavedFilter.query.filter_by(user_id=current_user.id, name=name).first()
+    if existing:
+        return jsonify({'error': 'Ein Filter mit diesem Namen existiert bereits.'}), 400
+    
+    saved_filter = SavedFilter(
+        user_id=current_user.id,
+        name=name,
+        filter_data=json.dumps(filter_data)
+    )
+    
+    db.session.add(saved_filter)
+    db.session.commit()
+    
+    return jsonify({
+        'id': saved_filter.id,
+        'name': saved_filter.name,
+        'message': 'Filter erfolgreich gespeichert.'
+    })
+
+
+@inventory_bp.route('/api/filters/<int:filter_id>', methods=['DELETE'])
+@login_required
+def api_filter_delete(filter_id):
+    """Gespeicherten Filter löschen."""
+    saved_filter = SavedFilter.query.get_or_404(filter_id)
+    
+    if saved_filter.user_id != current_user.id:
+        return jsonify({'error': 'Keine Berechtigung.'}), 403
+    
+    db.session.delete(saved_filter)
+    db.session.commit()
+    
+    return jsonify({'message': 'Filter erfolgreich gelöscht.'})
+
+
+@inventory_bp.route('/api/favorites', methods=['GET'])
+@login_required
+def api_favorites():
+    """Favoriten des aktuellen Benutzers laden."""
+    favorites = ProductFavorite.query.filter_by(user_id=current_user.id).all()
+    product_ids = [f.product_id for f in favorites]
+    
+    products = Product.query.filter(Product.id.in_(product_ids)).all()
+    
+    result = []
+    for p in products:
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'description': p.description,
+            'category': p.category,
+            'status': p.status
+        })
+    
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/favorites/<int:product_id>', methods=['POST', 'DELETE'])
+@login_required
+def api_favorite_toggle(product_id):
+    """Favorit hinzufügen oder entfernen."""
+    product = Product.query.get_or_404(product_id)
+    
+    if request.method == 'POST':
+        # Prüfe ob bereits Favorit
+        existing = ProductFavorite.query.filter_by(
+            user_id=current_user.id,
+            product_id=product_id
+        ).first()
+        
+        if existing:
+            return jsonify({'message': 'Produkt ist bereits ein Favorit.'}), 400
+        
+        favorite = ProductFavorite(
+            user_id=current_user.id,
+            product_id=product_id
+        )
+        db.session.add(favorite)
+        db.session.commit()
+        
+        return jsonify({'message': 'Produkt zu Favoriten hinzugefügt.'})
+    
+    elif request.method == 'DELETE':
+        favorite = ProductFavorite.query.filter_by(
+            user_id=current_user.id,
+            product_id=product_id
+        ).first()
+        
+        if not favorite:
+            return jsonify({'error': 'Produkt ist kein Favorit.'}), 404
+        
+        db.session.delete(favorite)
+        db.session.commit()
+        
+        return jsonify({'message': 'Produkt aus Favoriten entfernt.'})
+
+
+# ========== Statistiken & Analytics Dashboard ==========
+
+@inventory_bp.route('/statistics')
+@login_required
+def statistics():
+    """Statistiken-Dashboard."""
+    return render_template('inventory/statistics.html')
+
+
+
+
+@inventory_bp.route('/api/statistics', methods=['GET'])
+@login_required
+def api_statistics():
+    """API: Aggregierte Statistiken für Dashboard."""
+    try:
+        from sqlalchemy import func, extract
+        
+        # Gesamtbestand
+        total_products = Product.query.count()
+        
+        # Ausgeliehene Artikel
+        borrowed_count = Product.query.filter_by(status='borrowed').count()
+        
+        # Überfällige Ausleihen
+        overdue_count = BorrowTransaction.query.filter(
+            BorrowTransaction.status == 'active',
+            BorrowTransaction.expected_return_date < date.today()
+        ).count()
+        
+        # Verfügbare Artikel
+        available_count = Product.query.filter_by(status='available').count()
+        
+        # Verfügbarkeitsquote
+        availability_rate = (available_count / total_products * 100) if total_products > 0 else 0
+        
+        # Meist ausgeliehene Produkte (Top 10)
+        try:
+            # Prüfe ob es überhaupt zurückgegebene Ausleihen gibt
+            returned_count = BorrowTransaction.query.filter_by(status='returned').count()
+            if returned_count > 0:
+                top_borrowed = db.session.query(
+                    Product.id,
+                    Product.name,
+                    func.count(BorrowTransaction.id).label('borrow_count')
+                ).join(
+                    BorrowTransaction, Product.id == BorrowTransaction.product_id
+                ).filter(
+                    BorrowTransaction.status == 'returned'
+                ).group_by(
+                    Product.id, Product.name
+                ).order_by(
+                    func.count(BorrowTransaction.id).desc()
+                ).limit(10).all()
+                
+                top_borrowed_list = [{
+                    'id': p.id,
+                    'name': p.name,
+                    'borrow_count': p.borrow_count
+                } for p in top_borrowed]
+            else:
+                top_borrowed_list = []
+        except Exception as e:
+            current_app.logger.error(f"Fehler bei Top-Borrowed-Query: {e}", exc_info=True)
+            top_borrowed_list = []
+        
+        # Kategorienverteilung
+        try:
+            category_distribution = db.session.query(
+                Product.category,
+                func.count(Product.id).label('count')
+            ).filter(
+                Product.category.isnot(None)
+            ).group_by(
+                Product.category
+            ).all()
+            
+            category_data = [{
+                'category': c.category or 'Keine Kategorie',
+                'count': c.count
+            } for c in category_distribution]
+        except Exception as e:
+            current_app.logger.error(f"Fehler bei Kategorienverteilung: {e}")
+            category_data = []
+        
+        # Zeitreihen-Daten für Ausleihtrends (letzte 12 Monate)
+        try:
+            twelve_months_ago = datetime.utcnow() - timedelta(days=365)
+            monthly_borrows = db.session.query(
+                extract('year', BorrowTransaction.borrow_date).label('year'),
+                extract('month', BorrowTransaction.borrow_date).label('month'),
+                func.count(BorrowTransaction.id).label('count')
+            ).filter(
+                BorrowTransaction.borrow_date >= twelve_months_ago
+            ).group_by(
+                extract('year', BorrowTransaction.borrow_date),
+                extract('month', BorrowTransaction.borrow_date)
+            ).order_by(
+                extract('year', BorrowTransaction.borrow_date),
+                extract('month', BorrowTransaction.borrow_date)
+            ).all()
+            
+            monthly_data = []
+            for m in monthly_borrows:
+                monthly_data.append({
+                    'month': f"{int(m.month):02d}/{int(m.year)}",
+                    'count': m.count
+                })
+        except Exception as e:
+            current_app.logger.error(f"Fehler bei Monatstrends: {e}")
+            monthly_data = []
+        
+        # Status-Verteilung
+        try:
+            status_distribution = db.session.query(
+                Product.status,
+                func.count(Product.id).label('count')
+            ).group_by(
+                Product.status
+            ).all()
+            
+            status_data = [{
+                'status': s.status,
+                'count': s.count
+            } for s in status_distribution]
+        except Exception as e:
+            current_app.logger.error(f"Fehler bei Status-Verteilung: {e}")
+            status_data = []
+        
+        return jsonify({
+            'overview': {
+                'total_products': total_products,
+                'borrowed_count': borrowed_count,
+                'overdue_count': overdue_count,
+                'available_count': available_count,
+                'availability_rate': round(availability_rate, 2)
+            },
+            'top_borrowed': top_borrowed_list,
+            'category_distribution': category_data,
+            'monthly_trends': monthly_data,
+            'status_distribution': status_data
+        })
+    except Exception as e:
+        current_app.logger.error(f"Fehler in api_statistics: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Fehler beim Laden der Statistiken',
+            'message': str(e)
+        }), 500
+
+
+# ========== Mobile API ==========
+
+def verify_api_token():
+    """Hilfsfunktion zur Token-Validierung für Mobile API."""
+    auth_header = request.headers.get('Authorization', '')
+    
+    if not auth_header.startswith('Bearer '):
+        return None
+    
+    token = auth_header.replace('Bearer ', '').strip()
+    api_token = ApiToken.query.filter_by(token=token).first()
+    
+    if not api_token or api_token.is_expired():
+        return None
+    
+    # Token als verwendet markieren
+    api_token.mark_as_used()
+    
+    return api_token.user
+
+
+@inventory_bp.route('/api/mobile/token', methods=['POST'])
+@login_required
+def api_mobile_create_token():
+    """API-Token für Mobile API erstellen."""
+    data = request.get_json() or {}
+    name = data.get('name', 'Mobile App').strip()
+    expires_in_days = data.get('expires_in_days', type=int) or None
+    
+    token = ApiToken.create_token(
+        user_id=current_user.id,
+        name=name,
+        expires_in_days=expires_in_days
+    )
+    
+    return jsonify({
+        'token': token.token,
+        'name': token.name,
+        'expires_at': token.expires_at.isoformat() if token.expires_at else None,
+        'created_at': token.created_at.isoformat()
+    })
+
+
+@inventory_bp.route('/api/mobile/tokens', methods=['GET'])
+@login_required
+def api_mobile_list_tokens():
+    """Liste aller API-Tokens des aktuellen Benutzers."""
+    tokens = ApiToken.query.filter_by(user_id=current_user.id).order_by(ApiToken.created_at.desc()).all()
+    
+    result = []
+    for token in tokens:
+        result.append({
+            'id': token.id,
+            'name': token.name,
+            'expires_at': token.expires_at.isoformat() if token.expires_at else None,
+            'created_at': token.created_at.isoformat(),
+            'last_used_at': token.last_used_at.isoformat() if token.last_used_at else None,
+            'is_expired': token.is_expired()
+        })
+    
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/mobile/tokens/<int:token_id>', methods=['DELETE'])
+@login_required
+def api_mobile_delete_token(token_id):
+    """API-Token löschen."""
+    token = ApiToken.query.get_or_404(token_id)
+    
+    if token.user_id != current_user.id:
+        return jsonify({'error': 'Keine Berechtigung.'}), 403
+    
+    db.session.delete(token)
+    db.session.commit()
+    
+    return jsonify({'message': 'Token erfolgreich gelöscht.'})
+
+
+@inventory_bp.route('/api/mobile/products', methods=['GET'])
+def api_mobile_products():
+    """Mobile API: Liste aller Produkte."""
+    user = verify_api_token()
+    if not user:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+    
+    products = Product.query.order_by(Product.name).all()
+    result = []
+    for p in products:
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'description': p.description,
+            'category': p.category,
+            'serial_number': p.serial_number,
+            'status': p.status,
+            'location': p.location,
+            'qr_code_data': p.qr_code_data
+        })
+    
+    return jsonify(result)
+
+
+@inventory_bp.route('/api/mobile/products/<int:product_id>', methods=['GET'])
+def api_mobile_product_detail(product_id):
+    """Mobile API: Produktdetails."""
+    user = verify_api_token()
+    if not user:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+    
+    product = Product.query.get_or_404(product_id)
+    
+    return jsonify({
+        'id': product.id,
+        'name': product.name,
+        'description': product.description,
+        'category': product.category,
+        'serial_number': product.serial_number,
+        'condition': product.condition,
+        'location': product.location,
+        'length': product.length,
+        'status': product.status,
+        'qr_code_data': product.qr_code_data,
+        'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None
+    })
+
+
+@inventory_bp.route('/api/mobile/borrow', methods=['POST'])
+def api_mobile_borrow():
+    """Mobile API: Ausleihe erstellen."""
+    user = verify_api_token()
+    if not user:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+    
+    data = request.get_json()
+    product_id = data.get('product_id', type=int)
+    borrower_id = data.get('borrower_id', type=int) or user.id
+    expected_return_date_str = data.get('expected_return_date')
+    
+    if not product_id or not expected_return_date_str:
+        return jsonify({'error': 'Produkt-ID und Rückgabedatum erforderlich.'}), 400
+    
+    try:
+        expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.'}), 400
+    
+    product = Product.query.get_or_404(product_id)
+    
+    if product.status != 'available':
+        return jsonify({'error': 'Produkt ist nicht verfügbar.'}), 400
+    
+    borrower = User.query.get_or_404(borrower_id)
+    transaction_number = generate_transaction_number()
+    
+    borrow_transaction = BorrowTransaction(
+        transaction_number=transaction_number,
+        product_id=product_id,
+        borrower_id=borrower_id,
+        borrowed_by_id=user.id,
+        expected_return_date=expected_return_date,
+        qr_code_data=generate_borrow_qr_code(transaction_number)
+    )
+    
+    product.status = 'borrowed'
+    db.session.add(borrow_transaction)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Ausleihe erfolgreich erstellt.',
+        'transaction_id': borrow_transaction.id,
+        'transaction_number': transaction_number
+    })
+
+
+@inventory_bp.route('/api/mobile/return', methods=['POST'])
+def api_mobile_return():
+    """Mobile API: Rückgabe."""
+    user = verify_api_token()
+    if not user:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+    
+    data = request.get_json()
+    transaction_id = data.get('transaction_id', type=int)
+    
+    if not transaction_id:
+        return jsonify({'error': 'Transaktions-ID erforderlich.'}), 400
+    
+    borrow_transaction = BorrowTransaction.query.get_or_404(transaction_id)
+    
+    if borrow_transaction.status == 'returned':
+        return jsonify({'error': 'Ausleihe wurde bereits zurückgegeben.'}), 400
+    
+    borrow_transaction.mark_as_returned()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Rückgabe erfolgreich registriert.',
+        'transaction_id': borrow_transaction.id
+    })
+
+
+@inventory_bp.route('/api/mobile/scan', methods=['POST'])
+def api_mobile_scan():
+    """Mobile API: QR-Code-Scanning."""
+    user = verify_api_token()
+    if not user:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+    
+    data = request.get_json()
+    qr_data = data.get('qr_data', '').strip()
+    
+    if not qr_data:
+        return jsonify({'error': 'QR-Code-Daten erforderlich.'}), 400
+    
+    # QR-Code parsen
+    parsed = parse_qr_code(qr_data)
+    if not parsed:
+        return jsonify({'error': 'Ungültiger QR-Code.'}), 400
+    
+    qr_type, qr_id = parsed
+    
+    if qr_type == 'product':
+        # Produkt gefunden
+        product = Product.query.get(qr_id)
+        if product:
+            return jsonify({
+                'type': 'product',
+                'product': {
+                    'id': product.id,
+                    'name': product.name,
+                    'status': product.status,
+                    'location': product.location
+                }
+            })
+        else:
+            return jsonify({'error': 'Produkt nicht gefunden.'}), 404
+    
+    elif qr_type == 'borrow':
+        # Ausleihtransaktion gefunden
+        transaction = BorrowTransaction.query.filter_by(transaction_number=qr_id).first()
+        if transaction:
+            return jsonify({
+                'type': 'borrow',
+                'transaction': {
+                    'id': transaction.id,
+                    'transaction_number': transaction.transaction_number,
+                    'product_name': transaction.product.name,
+                    'borrower_name': transaction.borrower.full_name,
+                    'status': transaction.status,
+                    'expected_return_date': transaction.expected_return_date.isoformat()
+                }
+            })
+        else:
+            return jsonify({'error': 'Ausleihtransaktion nicht gefunden.'}), 404
+    
+    elif qr_type == 'set':
+        # Produktset gefunden
+        product_set = ProductSet.query.get(qr_id)
+        if product_set:
+            items_data = [{
+                'product_id': item.product_id,
+                'product_name': item.product.name,
+                'quantity': item.quantity
+            } for item in product_set.items]
+            return jsonify({
+                'type': 'set',
+                'set': {
+                    'id': product_set.id,
+                    'name': product_set.name,
+                    'description': product_set.description,
+                    'product_count': product_set.product_count,
+                    'items': items_data
+                }
+            })
+        else:
+            return jsonify({'error': 'Produktset nicht gefunden.'}), 404
+    
+    else:
+        return jsonify({'error': 'Ungültiger QR-Code.'}), 400
+
+
+@inventory_bp.route('/api/mobile/statistics', methods=['GET'])
+def api_mobile_statistics():
+    """Mobile API: Basis-Statistiken."""
+    user = verify_api_token()
+    if not user:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+    
+    total_products = Product.query.count()
+    borrowed_count = Product.query.filter_by(status='borrowed').count()
+    available_count = Product.query.filter_by(status='available').count()
+    
+    return jsonify({
+        'total_products': total_products,
+        'borrowed_count': borrowed_count,
+        'available_count': available_count
+    })
 

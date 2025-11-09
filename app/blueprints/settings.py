@@ -250,9 +250,11 @@ def appearance():
         accent_color = request.form.get('accent_color', '#0d6efd')
         accent_gradient = request.form.get('accent_gradient', '').strip()
         dark_mode = request.form.get('dark_mode') == 'on'
+        oled_mode = request.form.get('oled_mode') == 'on'
         
         current_user.accent_color = accent_color
         current_user.dark_mode = dark_mode
+        current_user.oled_mode = oled_mode if dark_mode else False  # OLED nur wenn Dark Mode aktiv
         
         # Handle gradient vs solid color
         if color_type == 'gradient' and accent_gradient:
@@ -302,6 +304,25 @@ def activate_user(user_id):
     
     user = User.query.get_or_404(user_id)
     user.is_active = True
+    
+    # Ensure user is added to main chat when activated
+    from app.models.chat import Chat, ChatMember
+    main_chat = Chat.query.filter_by(is_main_chat=True).first()
+    if main_chat:
+        # Check if user is already a member
+        existing_membership = ChatMember.query.filter_by(
+            chat_id=main_chat.id,
+            user_id=user.id
+        ).first()
+        
+        if not existing_membership:
+            # Add user to main chat
+            member = ChatMember(
+                chat_id=main_chat.id,
+                user_id=user.id
+            )
+            db.session.add(member)
+    
     db.session.commit()
     
     flash(f'Benutzer {user.full_name} wurde aktiviert.', 'success')
@@ -678,7 +699,7 @@ def admin_backup():
             try:
                 # Temporäre Datei erstellen
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.teamportal', mode='w', encoding='utf-8')
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='w', encoding='utf-8')
                 temp_path = temp_file.name
                 temp_file.close()
                 
@@ -689,7 +710,7 @@ def admin_backup():
                     return send_file(
                         temp_path,
                         as_attachment=True,
-                        attachment_filename=f'backup_{timestamp}.teamportal',
+                        attachment_filename=f'backup_{timestamp}.prismateams',
                         mimetype='application/json'
                     )
                 else:
@@ -709,13 +730,13 @@ def admin_backup():
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
             
-            if not file.filename.endswith('.teamportal'):
-                flash('Ungültige Dateiendung. Bitte wählen Sie eine .teamportal-Datei aus.', 'danger')
+            if not file.filename.endswith('.prismateams'):
+                flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
             
             try:
                 # Temporäre Datei speichern
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.teamportal', mode='wb')
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='wb')
                 file.save(temp_file.name)
                 temp_path = temp_file.name
                 temp_file.close()

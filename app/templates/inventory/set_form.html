@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{% if product_set %}Set bearbeiten{% else %}Neues Set erstellen{% endif %} - Lagerverwaltung{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">
+            <i class="bi bi-{% if product_set %}pencil{% else %}plus-circle{% endif %}"></i> 
+            {% if product_set %}Set bearbeiten{% else %}Neues Set erstellen{% endif %}
+        </h1>
+    </div>
+</div>
+
+<form method="POST" id="setForm">
+    <div class="row">
+        <div class="col-12 col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Set-Informationen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{% if product_set %}{{ product_set.name }}{% endif %}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{% if product_set %}{{ product_set.description or '' }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Produkte im Set</h5>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addProductRow()">
+                        <i class="bi bi-plus"></i> Produkt hinzufügen
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="productsContainer">
+                        {% if product_set and product_set.items %}
+                            {% for item in product_set.items %}
+                            <div class="row g-2 mb-2 product-row">
+                                <div class="col-8">
+                                    <select class="form-select product-select" name="product_ids" required>
+                                        <option value="">Produkt auswählen...</option>
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}" {% if product.id == item.product_id %}selected{% endif %}>
+                                            {{ product.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" class="form-control" name="quantities" 
+                                           value="{{ item.quantity }}" min="1" required>
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-sm btn-danger w-100" onclick="removeProductRow(this)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="row g-2 mb-2 product-row">
+                                <div class="col-8">
+                                    <select class="form-select product-select" name="product_ids" required>
+                                        <option value="">Produkt auswählen...</option>
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}">{{ product.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" class="form-control" name="quantities" value="1" min="1" required>
+                                </div>
+                                <div class="col-1">
+                                    <button type="button" class="btn btn-sm btn-danger w-100" onclick="removeProductRow(this)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <button type="submit" class="btn btn-accent">
+                <i class="bi bi-check-circle"></i> {% if product_set %}Aktualisieren{% else %}Erstellen{% endif %}
+            </button>
+            <a href="{{ url_for('inventory.sets') }}" class="btn btn-outline-secondary">Abbrechen</a>
+        </div>
+    </div>
+</form>
+
+<script>
+function addProductRow() {
+    const container = document.getElementById('productsContainer');
+    const row = document.createElement('div');
+    row.className = 'row g-2 mb-2 product-row';
+    
+    const productsData = {{ products_data | tojson }};
+    let optionsHtml = '<option value="">Produkt auswählen...</option>';
+    if (productsData && productsData.length > 0) {
+        productsData.forEach(product => {
+            optionsHtml += `<option value="${product.id}">${product.name}</option>`;
+        });
+    }
+    
+    row.innerHTML = `
+        <div class="col-8">
+            <select class="form-select product-select" name="product_ids" required>
+                ${optionsHtml}
+            </select>
+        </div>
+        <div class="col-3">
+            <input type="number" class="form-control" name="quantities" value="1" min="1" required>
+        </div>
+        <div class="col-1">
+            <button type="button" class="btn btn-sm btn-danger w-100" onclick="removeProductRow(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    container.appendChild(row);
+}
+
+function removeProductRow(button) {
+    const rows = document.querySelectorAll('.product-row');
+    if (rows.length > 1) {
+        button.closest('.product-row').remove();
+    } else {
+        alert('Mindestens ein Produkt muss im Set sein.');
+    }
+}
+
+// Verhindere doppelte Produktauswahl
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('product-select')) {
+        const selectedValue = e.target.value;
+        const allSelects = document.querySelectorAll('.product-select');
+        
+        allSelects.forEach(select => {
+            if (select !== e.target && select.value === selectedValue && selectedValue !== '') {
+                select.value = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

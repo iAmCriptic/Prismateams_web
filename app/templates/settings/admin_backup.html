@@ -48,6 +48,10 @@
                                             <i class="bi bi-key me-2"></i>
                                         {% elif key == 'files' %}
                                             <i class="bi bi-folder me-2"></i>
+                                        {% elif key == 'wiki' %}
+                                            <i class="bi bi-book me-2"></i>
+                                        {% elif key == 'comments' %}
+                                            <i class="bi bi-chat-left-text me-2"></i>
                                         {% endif %}
                                         {{ label }}
                                     </label>
@@ -89,6 +93,17 @@
                                        • Dateien (Name, Inhalt, Größe, MIME-Typ)<br>
                                        • Ordnerstruktur<br>
                                        • Datei-Versionen
+                                       {% elif key == 'wiki' %}
+                                       <strong>Enthält:</strong><br>
+                                       • Wiki-Seiten (Titel, Inhalt, Markdown-Dateien)<br>
+                                       • Wiki-Kategorien<br>
+                                       • Wiki-Tags<br>
+                                       • Wiki-Versionen
+                                       {% elif key == 'comments' %}
+                                       <strong>Enthält:</strong><br>
+                                       • Kommentare (zu Dateien, Wiki-Seiten, Canvas)<br>
+                                       • Kommentar-Mentions (@-Erwähnungen)<br>
+                                       • Kommentar-Threads (Antworten)
                                        {% endif %}
                                        "
                                        title="{{ label }}"></i>
@@ -104,7 +119,7 @@
                     
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        <strong>Hinweis:</strong> Die Backup-Datei wird im Format <code>.teamportal</code> erstellt. 
+                        <strong>Hinweis:</strong> Die Backup-Datei wird im Format <code>.prismateams</code> erstellt. 
                         Benutzer-Passwörter werden als verschlüsselte Hashes exportiert, damit sich Benutzer nach dem Import weiterhin anmelden können.
                     </div>
                     
@@ -132,8 +147,8 @@
                     
                     <div class="mb-3">
                         <label for="backup_file" class="form-label fw-bold">Backup-Datei auswählen:</label>
-                        <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".teamportal" required>
-                        <div class="form-text">Nur .teamportal-Dateien werden akzeptiert.</div>
+                        <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".prismateams" required>
+                        <div class="form-text">Nur .prismateams-Dateien werden akzeptiert.</div>
                     </div>
                     
                     <div class="mb-3">
@@ -158,6 +173,10 @@
                                             <i class="bi bi-key me-2"></i>
                                         {% elif key == 'files' %}
                                             <i class="bi bi-folder me-2"></i>
+                                        {% elif key == 'wiki' %}
+                                            <i class="bi bi-book me-2"></i>
+                                        {% elif key == 'comments' %}
+                                            <i class="bi bi-chat-left-text me-2"></i>
                                         {% endif %}
                                         {{ label }}
                                     </label>
@@ -199,6 +218,17 @@
                                        • Dateien (Name, Inhalt, Größe, MIME-Typ)<br>
                                        • Ordnerstruktur<br>
                                        • Datei-Versionen
+                                       {% elif key == 'wiki' %}
+                                       <strong>Enthält:</strong><br>
+                                       • Wiki-Seiten (Titel, Inhalt, Markdown-Dateien)<br>
+                                       • Wiki-Kategorien<br>
+                                       • Wiki-Tags<br>
+                                       • Wiki-Versionen
+                                       {% elif key == 'comments' %}
+                                       <strong>Enthält:</strong><br>
+                                       • Kommentare (zu Dateien, Wiki-Seiten, Canvas)<br>
+                                       • Kommentar-Mentions (@-Erwähnungen)<br>
+                                       • Kommentar-Threads (Antworten)
                                        {% endif %}
                                        "
                                        title="{{ label }}"></i>

@@ -72,13 +72,13 @@ def setup_import_backup():
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
                 return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
             
-            if not file.filename.endswith('.teamportal'):
-                flash('Ungültige Dateiendung. Bitte wählen Sie eine .teamportal-Datei aus.', 'danger')
+            if not file.filename.endswith('.prismateams'):
+                flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
                 return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
             
             try:
                 # Temporäre Datei speichern
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.teamportal', mode='wb')
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='wb')
                 file.save(temp_file.name)
                 temp_path = temp_file.name
                 temp_file.close()

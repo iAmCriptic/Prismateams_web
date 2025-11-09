@@ -101,3 +101,22 @@ class WikiPageVersion(db.Model):
         return f'<WikiPageVersion {self.wiki_page_id} v{self.version_number}>'
 
 
+class WikiFavorite(db.Model):
+    __tablename__ = 'wiki_favorites'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    wiki_page_id = db.Column(db.Integer, db.ForeignKey('wiki_pages.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', backref='wiki_favorites')
+    wiki_page = db.relationship('WikiPage', backref='favorited_by')
+    
+    # Unique constraint: Ein Benutzer kann eine Wiki-Seite nur einmal favorisieren
+    __table_args__ = (db.UniqueConstraint('user_id', 'wiki_page_id', name='unique_user_wiki_favorite'),)
+    
+    def __repr__(self):
+        return f'<WikiFavorite user={self.user_id} wiki_page={self.wiki_page_id}>'
+
+

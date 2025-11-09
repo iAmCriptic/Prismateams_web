@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiken - Lagerverwaltung{% endblock %}
+
+{% block content %}
+<style>
+    .stat-card {
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    [data-oled-mode="true"] .chart-container {
+        background: #000000 !important;
+        border: 1px solid #1a1a1a !important;
+        box-shadow: none !important;
+        color: #ffffff !important;
+    }
+
+    [data-oled-mode="true"] .chart-container h5 {
+        color: #ffffff !important;
+    }
+</style>
+
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-graph-up"></i> Statistiken & Analytics</h1>
+        <p class="text-muted">Übersicht über Bestand, Ausleihen und Nutzung</p>
+    </div>
+</div>
+
+<!-- KPI-Karten -->
+<div class="row g-3 mb-4" id="kpiCards">
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card stat-card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Gesamtbestand</h6>
+                        <h3 class="mb-0" id="totalProducts">-</h3>
+                    </div>
+                    <i class="bi bi-box-seam text-primary" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card stat-card border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Verfügbar</h6>
+                        <h3 class="mb-0" id="availableCount">-</h3>
+                    </div>
+                    <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card stat-card border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Ausgeliehen</h6>
+                        <h3 class="mb-0" id="borrowedCount">-</h3>
+                    </div>
+                    <i class="bi bi-clock-history text-warning" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card stat-card border-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Überfällig</h6>
+                        <h3 class="mb-0" id="overdueCount">-</h3>
+                    </div>
+                    <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Verfügbarkeitsquote -->
+<div class="row mb-4">
+    <div class="col-12 col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-percent"></i> Verfügbarkeitsquote</h5>
+            </div>
+            <div class="card-body text-center">
+                <h1 class="display-4 mb-0" id="availabilityRate">-</h1>
+                <p class="text-muted">% verfügbar</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-4 mb-4">
+    <!-- Kategorienverteilung -->
+    <div class="col-12 col-lg-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="bi bi-pie-chart"></i> Kategorienverteilung</h5>
+            <div id="categoryChart"></div>
+        </div>
+    </div>
+    
+    <!-- Status-Verteilung -->
+    <div class="col-12 col-lg-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="bi bi-bar-chart"></i> Status-Verteilung</h5>
+            <div id="statusChart"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Meist ausgeliehene Produkte -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="bi bi-trophy"></i> Meist ausgeliehene Produkte (Top 10)</h5>
+            <div id="topBorrowedChart"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Ausleihtrends -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="bi bi-graph-up-arrow"></i> Ausleihtrends (letzte 12 Monate)</h5>
+            <div id="trendsChart"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadStatistics() {
+    try {
+        const response = await fetch('/inventory/api/statistics');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Prüfe auf Fehler in der Antwort
+        if (data.error) {
+            throw new Error(data.message || data.error);
+        }
+        
+        // KPI-Karten aktualisieren
+        if (data.overview) {
+            document.getElementById('totalProducts').textContent = data.overview.total_products || 0;
+            document.getElementById('availableCount').textContent = data.overview.available_count || 0;
+            document.getElementById('borrowedCount').textContent = data.overview.borrowed_count || 0;
+            document.getElementById('overdueCount').textContent = data.overview.overdue_count || 0;
+            document.getElementById('availabilityRate').textContent = (data.overview.availability_rate || 0) + '%';
+        }
+        
+        // Kategorienverteilung Chart
+        const oled = document.documentElement.getAttribute('data-oled-mode') === 'true';
+        const chartTheme = oled ? {
+            theme: { mode: 'dark' },
+            chart: { foreColor: '#ffffff', background: '#000000' },
+            grid: { borderColor: '#1a1a1a' },
+            tooltip: { theme: 'dark' },
+            legend: { labels: { colors: '#ffffff' } },
+            dataLabels: { style: { colors: ['#ffffff'] } },
+            stroke: { colors: ['#ffffff'] }
+        } : {};
+
+        if (data.category_distribution && data.category_distribution.length > 0) {
+            const categoryOptions = Object.assign({
+                series: data.category_distribution.map(c => c.count),
+                chart: {
+                    type: 'pie',
+                    height: 350
+                },
+                labels: data.category_distribution.map(c => c.category),
+                colors: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997', '#0dcaf0'],
+                legend: {
+                    position: 'bottom'
+                },
+                responsive: [{
+                    breakpoint: 480,
+                    options: {
+                        chart: {
+                            width: 200
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }]
+            }, chartTheme);
+            new ApexCharts(document.querySelector("#categoryChart"), categoryOptions).render();
+        } else {
+            document.querySelector("#categoryChart").innerHTML = '<p class="text-muted text-center">Keine Daten verfügbar</p>';
+        }
+        
+        // Status-Verteilung Chart
+        if (data.status_distribution && data.status_distribution.length > 0) {
+            const statusOptions = Object.assign({
+                series: [{
+                    name: 'Anzahl',
+                    data: data.status_distribution.map(s => s.count)
+                }],
+                chart: {
+                    type: 'bar',
+                    height: 350
+                },
+                xaxis: {
+                    categories: data.status_distribution.map(s => {
+                        const labels = {
+                            'available': 'Verfügbar',
+                            'borrowed': 'Ausgeliehen',
+                            'missing': 'Fehlend'
+                        };
+                        return labels[s.status] || s.status;
+                    })
+                },
+                colors: ['#0d6efd'],
+                plotOptions: {
+                    bar: {
+                        horizontal: false,
+                        columnWidth: '55%',
+                    }
+                },
+                dataLabels: {
+                    enabled: true
+                }
+            }, chartTheme);
+            new ApexCharts(document.querySelector("#statusChart"), statusOptions).render();
+        } else {
+            document.querySelector("#statusChart").innerHTML = '<p class="text-muted text-center">Keine Daten verfügbar</p>';
+        }
+        
+        // Top ausgeliehene Produkte
+        if (data.top_borrowed && data.top_borrowed.length > 0) {
+            const topBorrowedOptions = Object.assign({
+                series: [{
+                    name: 'Ausleihen',
+                    data: data.top_borrowed.map(p => p.borrow_count)
+                }],
+                chart: {
+                    type: 'bar',
+                    height: 400
+                },
+                xaxis: {
+                    categories: data.top_borrowed.map(p => p.name)
+                },
+                colors: ['#198754'],
+                plotOptions: {
+                    bar: {
+                        horizontal: true
+                    }
+                },
+                dataLabels: {
+                    enabled: true
+                }
+            }, chartTheme);
+            new ApexCharts(document.querySelector("#topBorrowedChart"), topBorrowedOptions).render();
+        } else {
+            document.querySelector("#topBorrowedChart").innerHTML = '<p class="text-muted text-center">Noch keine Ausleihen vorhanden</p>';
+        }
+        
+        // Ausleihtrends
+        if (data.monthly_trends && data.monthly_trends.length > 0) {
+            const trendsOptions = Object.assign({
+                series: [{
+                    name: 'Ausleihen',
+                    data: data.monthly_trends.map(t => t.count)
+                }],
+                chart: {
+                    type: 'line',
+                    height: 350
+                },
+                xaxis: {
+                    categories: data.monthly_trends.map(t => t.month)
+                },
+                colors: ['#0d6efd'],
+                stroke: {
+                    curve: 'smooth',
+                    width: 3
+                },
+                markers: {
+                    size: 5
+                },
+                dataLabels: {
+                    enabled: true
+                }
+            }, chartTheme);
+            new ApexCharts(document.querySelector("#trendsChart"), trendsOptions).render();
+        } else {
+            document.querySelector("#trendsChart").innerHTML = '<p class="text-muted text-center">Noch keine Trend-Daten verfügbar</p>';
+        }
+        
+    } catch (error) {
+        console.error('Fehler beim Laden der Statistiken:', error);
+        const errorMsg = error.message || 'Unbekannter Fehler';
+        alert('Fehler beim Laden der Statistiken: ' + errorMsg);
+        
+        // Zeige Fehlermeldung auf der Seite
+        document.querySelectorAll('.chart-container').forEach(container => {
+            if (container.querySelector('div[id$="Chart"]') && !container.querySelector('p')) {
+                container.querySelector('div[id$="Chart"]').innerHTML = '<p class="text-danger text-center">Fehler beim Laden der Daten</p>';
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0"></script>
+<script>
+// Warte bis ApexCharts geladen ist
+function waitForApexCharts(callback, maxAttempts = 50) {
+    if (typeof ApexCharts !== 'undefined') {
+        callback();
+    } else if (maxAttempts > 0) {
+        setTimeout(() => waitForApexCharts(callback, maxAttempts - 1), 100);
+    } else {
+        console.error('ApexCharts konnte nicht geladen werden');
+        alert('Fehler: ApexCharts-Bibliothek konnte nicht geladen werden. Bitte Seite neu laden.');
+    }
+}
+
+// Starte das Laden der Statistiken, sobald ApexCharts verfügbar ist
+waitForApexCharts(function() {
+    loadStatistics();
+});
+</script>
+{% endblock %}
+

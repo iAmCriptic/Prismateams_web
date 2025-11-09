@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" data-bs-theme="{{ 'dark' if current_user.is_authenticated and current_user.dark_mode else 'light' }}">
+<html lang="de" data-bs-theme="{{ 'dark' if current_user.is_authenticated and current_user.dark_mode else 'light' }}" {% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}data-oled-mode="true"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -457,6 +457,18 @@
     <!-- Main Content -->
     <main class="{% if current_user.is_authenticated %}main-content{% endif %}">
         <div class="container-fluid py-3">
+            <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
+            {% if current_user.is_authenticated %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'credentials.index', 'manuals.index', 'canvas.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
+                {% if request.endpoint not in index_endpoints %}
+                <div class="back-button-container mb-3">
+                    <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="Zurück">
+                        <i class="bi bi-arrow-left"></i> Zurück
+                    </a>
+                </div>
+                {% endif %}
+            {% endif %}
+            
             <!-- Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
