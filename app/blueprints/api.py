@@ -73,9 +73,19 @@ def get_chats():
             is_deleted=False
         ).order_by(ChatMessage.created_at.desc()).first()
         
+        # Get display name (for private chats, show only other person's name)
+        display_name = chat.name
+        if chat.is_direct_message and not chat.is_main_chat:
+            # Get the other member (not the current user)
+            members = ChatMember.query.filter_by(chat_id=chat.id).all()
+            for member in members:
+                if member.user_id != current_user.id:
+                    display_name = member.user.full_name
+                    break
+        
         chats.append({
             'id': chat.id,
-            'name': chat.name,
+            'name': display_name,
             'is_main_chat': chat.is_main_chat,
             'is_direct_message': chat.is_direct_message,
             'unread_count': unread_count,

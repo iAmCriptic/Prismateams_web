@@ -459,7 +459,7 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'files.index', 'calendar.index', 'email.index', 'credentials.index', 'manuals.index', 'canvas.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'credentials.index', 'manuals.index', 'canvas.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="Zurück">

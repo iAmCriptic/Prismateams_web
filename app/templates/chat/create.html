@@ -14,32 +14,48 @@
         
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0">Neuen Gruppen-Chat erstellen</h4>
+                <h4 class="mb-0">Neuen Chat erstellen</h4>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" id="chat-create-form">
                     <div class="mb-3">
+                        <label class="form-label">Chat-Typ</label>
+                        <div class="btn-group w-100" role="group" aria-label="Chat-Typ">
+                            <input type="radio" class="btn-check" name="chat_type" id="chat_type_group" value="group" checked>
+                            <label class="btn btn-outline-primary" for="chat_type_group">
+                                <i class="bi bi-people-fill me-2"></i>Gruppen-Chat
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="chat_type" id="chat_type_private" value="private">
+                            <label class="btn btn-outline-primary" for="chat_type_private">
+                                <i class="bi bi-person-fill me-2"></i>Privater Chat
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="chat-name-group">
                         <label for="name" class="form-label">Chat-Name</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="z.B. Projekt Team">
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Mitglieder hinzufügen</label>
-                        <div class="list-group" style="max-height: 300px; overflow-y: auto;">
+                        <label class="form-label" id="members-label">Mitglieder hinzufügen</label>
+                        <div class="list-group" style="max-height: 300px; overflow-y: auto;" id="members-list">
                             {% for user in users %}
                             {% if user.id != current_user.id %}
                             <label class="list-group-item">
-                                <input class="form-check-input me-2" type="checkbox" name="members" value="{{ user.id }}">
+                                <input class="form-check-input me-2 member-checkbox" type="checkbox" name="members" value="{{ user.id }}">
                                 {{ user.full_name }}
                                 <small class="text-muted">({{ user.email }})</small>
                             </label>
                             {% endif %}
                             {% endfor %}
                         </div>
+                        <small class="text-muted" id="members-help">Wählen Sie mindestens ein Mitglied aus</small>
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">Chat erstellen</button>
+                        <button type="submit" class="btn btn-accent" id="submit-btn">Chat erstellen</button>
                         <a href="{{ url_for('chat.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
                     </div>
                 </form>
@@ -47,6 +63,89 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatTypeGroup = document.getElementById('chat_type_group');
+    const chatTypePrivate = document.getElementById('chat_type_private');
+    const chatNameGroup = document.getElementById('chat-name-group');
+    const nameInput = document.getElementById('name');
+    const membersList = document.getElementById('members-list');
+    const membersLabel = document.getElementById('members-label');
+    const membersHelp = document.getElementById('members-help');
+    const memberCheckboxes = document.querySelectorAll('.member-checkbox');
+    const form = document.getElementById('chat-create-form');
+    
+    function updateFormForChatType() {
+        const isPrivate = chatTypePrivate.checked;
+        
+        if (isPrivate) {
+            // Privater Chat: Name-Feld ausblenden, Radio-Buttons verwenden
+            chatNameGroup.style.display = 'none';
+            nameInput.removeAttribute('required');
+            membersLabel.textContent = 'Person auswählen';
+            membersHelp.textContent = 'Wählen Sie eine Person für den privaten Chat aus';
+            
+            // Checkboxen zu Radio-Buttons ändern
+            memberCheckboxes.forEach(checkbox => {
+                checkbox.type = 'radio';
+                checkbox.name = 'member'; // Singular für Radio-Buttons
+            });
+        } else {
+            // Gruppen-Chat: Name-Feld anzeigen, Checkboxen verwenden
+            chatNameGroup.style.display = 'block';
+            nameInput.setAttribute('required', 'required');
+            membersLabel.textContent = 'Mitglieder hinzufügen';
+            membersHelp.textContent = 'Wählen Sie mindestens ein Mitglied aus';
+            
+            // Radio-Buttons zu Checkboxen ändern
+            memberCheckboxes.forEach(checkbox => {
+                checkbox.type = 'checkbox';
+                checkbox.name = 'members'; // Plural für Checkboxen
+                checkbox.checked = false; // Alle zurücksetzen
+            });
+        }
+    }
+    
+    // Event-Listener für Chat-Typ-Änderungen
+    chatTypeGroup.addEventListener('change', updateFormForChatType);
+    chatTypePrivate.addEventListener('change', updateFormForChatType);
+    
+    // Formular-Validierung
+    form.addEventListener('submit', function(e) {
+        const isPrivate = chatTypePrivate.checked;
+        
+        if (isPrivate) {
+            // Bei privatem Chat: genau ein Mitglied muss ausgewählt sein
+            const selectedMember = document.querySelector('input[name="member"]:checked');
+            if (!selectedMember) {
+                e.preventDefault();
+                alert('Bitte wählen Sie eine Person für den privaten Chat aus.');
+                return false;
+            }
+        } else {
+            // Bei Gruppen-Chat: Name und mindestens ein Mitglied erforderlich
+            if (!nameInput.value.trim()) {
+                e.preventDefault();
+                alert('Bitte geben Sie einen Chat-Namen ein.');
+                return false;
+            }
+            
+            const selectedMembers = document.querySelectorAll('input[name="members"]:checked');
+            if (selectedMembers.length === 0) {
+                e.preventDefault();
+                alert('Bitte wählen Sie mindestens ein Mitglied aus.');
+                return false;
+            }
+        }
+    });
+    
+    // Initiale Formular-Status setzen
+    updateFormForChatType();
+});
+</script>
 {% endblock %}
 
 

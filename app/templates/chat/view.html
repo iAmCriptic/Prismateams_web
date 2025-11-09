@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ chat.name }} - Chats{% endblock %}
+{% block title %}{{ get_chat_display_name(chat) }} - Chats{% endblock %}
 
 {% block content %}
 <!-- Desktop Header -->
@@ -9,7 +9,7 @@
         <nav aria-label="breadcrumb" class="mb-2">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}"><i class="bi bi-arrow-left me-1"></i>Chats</a></li>
-                <li class="breadcrumb-item active">{{ chat.name }}</li>
+                <li class="breadcrumb-item active">{{ get_chat_display_name(chat) }}</li>
             </ol>
         </nav>
         
@@ -33,7 +33,7 @@
             </div>
             
             <div class="chat-title-info">
-                <h2 class="chat-title">{{ chat.name }}</h2>
+                <h2 class="chat-title">{{ get_chat_display_name(chat) }}</h2>
                 <div class="chat-members-info">
                     <span class="member-count">{{ members|length }} Mitglieder</span>
                     <div class="member-avatars">
@@ -113,7 +113,7 @@
         {% endif %}
         
         <div>
-            <h6 class="mb-0 fw-bold text-white">{{ chat.name }}</h6>
+            <h6 class="mb-0 fw-bold text-white">{{ get_chat_display_name(chat) }}</h6>
             <small class="text-white-50">{{ members|length }} Mitglieder</small>
         </div>
     </div>
@@ -180,7 +180,7 @@
             <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
                 {% if message.message_type == 'text' %}
                     <div class="message-header">
-                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name if message.sender else 'Unbekannter Benutzer' }}{% endif %}</strong>
                     </div>
                     <div class="message-content">
                         {{ message.content }}
@@ -192,7 +192,7 @@
                     </div>
                 {% elif message.message_type == 'image' %}
                     <div class="message-header">
-                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name if message.sender else 'Unbekannter Benutzer' }}{% endif %}</strong>
                     </div>
                     <img src="{{ url_for('static', filename='../' + message.media_url) }}" class="img-fluid rounded" style="max-width: 300px;">
                     {% if message.content %}
@@ -205,7 +205,7 @@
                     </div>
                 {% elif message.message_type == 'video' %}
                     <div class="message-header">
-                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name if message.sender else 'Unbekannter Benutzer' }}{% endif %}</strong>
                     </div>
                     <video controls class="rounded" style="max-width: 300px;">
                         <source src="{{ url_for('static', filename='../' + message.media_url) }}">
@@ -220,7 +220,7 @@
                     </div>
                 {% elif message.message_type == 'voice' %}
                     <div class="message-header">
-                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name if message.sender else 'Unbekannter Benutzer' }}{% endif %}</strong>
                     </div>
                     <audio controls>
                         <source src="{{ url_for('static', filename='../' + message.media_url) }}">

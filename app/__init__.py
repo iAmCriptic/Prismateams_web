@@ -147,6 +147,21 @@ def create_app(config_name='default'):
         # Add module check function
         from app.utils.common import is_module_enabled
         
+        # Function to get chat display name (for private chats, show only other person's name)
+        def get_chat_display_name(chat):
+            """Returns the display name for a chat. For private chats, shows only the other person's name."""
+            from flask_login import current_user
+            if chat.is_direct_message and not chat.is_main_chat:
+                # Get the other member (not the current user)
+                from app.models.chat import ChatMember
+                members = ChatMember.query.filter_by(chat_id=chat.id).all()
+                for member in members:
+                    if member.user_id != current_user.id:
+                        return member.user.full_name
+                # Fallback: return original name if something goes wrong
+                return chat.name
+            return chat.name
+        
         # Function to get back URL based on current endpoint
         def get_back_url():
             """Bestimmt die logische Zurück-URL basierend auf dem aktuellen Endpoint."""
@@ -244,7 +259,8 @@ def create_app(config_name='default'):
             'portal_logo_filename': portal_logo_filename,
             'onlyoffice_available': onlyoffice_available,
             'is_module_enabled': is_module_enabled,
-            'get_back_url': get_back_url
+            'get_back_url': get_back_url,
+            'get_chat_display_name': get_chat_display_name
         }
     
     # Email header decoder filter
