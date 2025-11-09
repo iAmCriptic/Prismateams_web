@@ -246,9 +246,20 @@
     border-color: #495057 !important;
 }
 
+/* OLED Mode Wiki Table */
+[data-oled-mode="true"] .markdown-content table {
+    background: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
 [data-bs-theme="dark"] .markdown-content th {
     background: #343a40 !important;
     color: #fff !important;
+}
+
+/* OLED Mode Wiki Table Header */
+[data-oled-mode="true"] .markdown-content th {
+    background: #0a0a0a !important;
 }
 
 [data-bs-theme="dark"] .markdown-content th, 
@@ -261,8 +272,18 @@
     background: #343a40 !important;
 }
 
+/* OLED Mode Wiki Table Even Rows */
+[data-oled-mode="true"] .markdown-content tr:nth-child(even) {
+    background: #0a0a0a !important;
+}
+
 [data-bs-theme="dark"] .markdown-content tr:hover {
     background: #495057 !important;
+}
+
+/* OLED Mode Wiki Table Row Hover */
+[data-oled-mode="true"] .markdown-content tr:hover {
+    background: #1a1a1a !important;
 }
 
 /* Mobile responsive */

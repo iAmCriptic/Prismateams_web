@@ -31,6 +31,11 @@ body:has(.canvas-fullscreen) .main-content {
     background: #1a1a1a;
 }
 
+/* OLED Mode Canvas Fullscreen */
+[data-oled-mode="true"] .canvas-fullscreen {
+    background: #000000 !important;
+}
+
 /* Top Bar */
 .canvas-top-bar {
     display: grid;

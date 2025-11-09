@@ -5,10 +5,29 @@
     border-left: 4px solid var(--accent-color);
 }
 
+/* OLED Mode - Event Card */
+[data-oled-mode="true"] .event-card {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    border-left: 4px solid var(--accent-color) !important;
+}
+
 /* Event List Styles */
 .event-list-item {
     border-left: 4px solid var(--accent-color);
     transition: all 0.2s ease;
+}
+
+/* OLED Mode - Event List Item */
+[data-oled-mode="true"] .event-list-item {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    border-left: 4px solid var(--accent-color) !important;
+}
+
+[data-oled-mode="true"] .event-list-item:hover {
+    background-color: #000000 !important;
+    border-color: #2a2a2a !important;
 }
 
 .event-list-item:hover {
@@ -440,9 +459,21 @@
     border: 1px solid #495057;
 }
 
+/* OLED Mode Calendar Grid */
+[data-oled-mode="true"] .calendar-grid {
+    background: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
 [data-bs-theme="dark"] .calendar-header {
     background-color: #343a40;
     border-bottom-color: #495057;
+}
+
+/* OLED Mode Calendar Header */
+[data-oled-mode="true"] .calendar-header {
+    background-color: #0a0a0a !important;
+    border-bottom-color: #1a1a1a !important;
 }
 
 [data-bs-theme="dark"] .day-header {
@@ -460,8 +491,83 @@
     background-color: #343a40;
 }
 
+/* OLED Mode Calendar Day Hover */
+[data-oled-mode="true"] .calendar-day:hover {
+    background-color: #0a0a0a !important;
+}
+
 [data-bs-theme="dark"] .calendar-day.empty {
     background-color: #343a40;
+}
+
+/* OLED Mode Calendar Day Empty */
+[data-oled-mode="true"] .calendar-day.empty {
+    background-color: #000000 !important;
+}
+
+/* OLED Mode - Week and Day Grid */
+[data-oled-mode="true"] .week-grid,
+[data-oled-mode="true"] .day-grid {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Week Header */
+[data-oled-mode="true"] .week-header {
+    background-color: #000000 !important;
+    border-bottom-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Time Column */
+[data-oled-mode="true"] .time-column {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Day Header */
+[data-oled-mode="true"] .day-header {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Calendar Day */
+[data-oled-mode="true"] .calendar-day {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
+    border-bottom-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Time Slot */
+[data-oled-mode="true"] .time-slot {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .time-slot:hover {
+    background-color: #000000 !important;
+    border: 1px solid #2a2a2a !important;
+}
+
+/* OLED Mode - Day Time Row */
+[data-oled-mode="true"] .day-time-row {
+    background-color: #000000 !important;
+    border-bottom-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Day Time Label */
+[data-oled-mode="true"] .day-time-label {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
+}
+
+/* OLED Mode - Day Time Slot */
+[data-oled-mode="true"] .day-time-slot {
+    background-color: #000000 !important;
+}
+
+[data-oled-mode="true"] .day-time-slot:hover {
+    background-color: #000000 !important;
+    border: 1px solid #2a2a2a !important;
 }
 
 [data-bs-theme="dark"] .calendar-event {

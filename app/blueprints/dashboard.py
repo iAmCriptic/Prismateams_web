@@ -8,7 +8,7 @@ from app.models.canvas import Canvas
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app import db
-from app.utils.common import is_module_enabled
+from app.utils.common import is_module_enabled, check_for_updates
 from datetime import datetime, date
 from sqlalchemy import and_
 
@@ -127,6 +127,11 @@ def index():
     # Prüfe ob Setup gerade abgeschlossen wurde
     setup_completed = session.pop('setup_completed', False)
     
+    # Prüfe auf Updates (nur für Administratoren)
+    update_info = None
+    if current_user.is_admin and current_user.show_update_notifications:
+        update_info = check_for_updates()
+    
     return render_template(
         'dashboard/index.html',
         upcoming_events=upcoming_events,
@@ -138,7 +143,8 @@ def index():
         my_wiki_favorites=my_wiki_favorites,
         my_borrow_groups=my_borrow_groups,
         dashboard_config=config,
-        setup_completed=setup_completed
+        setup_completed=setup_completed,
+        update_info=update_info
     )
 
 
@@ -206,5 +212,28 @@ def api_config():
         }
         current_user.set_dashboard_config(config)
         return jsonify({'success': True, 'config': config})
+
+
+@dashboard_bp.route('/api/dashboard/update-banner', methods=['POST'])
+@login_required
+def api_update_banner():
+    """API-Endpunkt für Update-Banner-Aktionen."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Nur Administratoren haben Zugriff.'}), 403
+    
+    data = request.get_json()
+    action = data.get('action')
+    
+    if action == 'dismiss':
+        # Banner schließen (nur für diese Session)
+        return jsonify({'success': True, 'message': 'Banner geschlossen.'})
+    
+    elif action == 'disable':
+        # Update-Benachrichtigungen deaktivieren
+        current_user.show_update_notifications = False
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Update-Benachrichtigungen deaktiviert.'})
+    
+    return jsonify({'error': 'Ungültige Aktion.'}), 400
 
 

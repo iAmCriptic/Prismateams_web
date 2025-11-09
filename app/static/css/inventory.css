@@ -163,6 +163,23 @@ html {
     touch-action: manipulation;
 }
 
+/* OLED Mode - Cards & Stat Widgets */
+[data-oled-mode="true"] .stat-card,
+[data-oled-mode="true"] .product-card,
+[data-oled-mode="true"] .inventory-card,
+[data-oled-mode="true"] .borrow-card {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    box-shadow: none !important;
+}
+
+[data-oled-mode="true"] .stat-card:hover,
+[data-oled-mode="true"] .product-card:hover,
+[data-oled-mode="true"] .borrow-card:hover {
+    border-color: #2a2a2a !important;
+    background-color: #000000 !important;
+}
+
 /* QR-Scanner Styles */
 #scannerContainer {
     touch-action: none;
@@ -219,6 +236,49 @@ html {
     vertical-align: middle;
 }
 
+/* OLED Mode - Tabellen */
+[data-oled-mode="true"] .table {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #1a1a1a !important;
+    --bs-table-bg: #000000;
+    --bs-table-striped-bg: #050505;
+    --bs-table-hover-bg: #0a0a0a;
+    --bs-table-border-color: #1a1a1a;
+    --bs-table-striped-color: #ffffff;
+    --bs-table-hover-color: #ffffff;
+}
+
+[data-oled-mode="true"] .table thead th {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .table tbody tr {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .table> :not(caption)>*>* {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    border-color: #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .table tbody tr:hover {
+    background-color: #000000 !important;
+    border-color: #2a2a2a !important;
+}
+
+[data-oled-mode="true"] .table-hover tbody tr:hover {
+    background-color: #0a0a0a !important;
+}
+
+[data-oled-mode="true"] .table thead th {
+    border-bottom: 1px solid #1a1a1a !important;
+}
+
 /* Responsive Charts */
 .chart-container {
     overflow-x: auto;
@@ -234,6 +294,29 @@ html {
 .accordion-button {
     min-height: 50px;
     font-size: 1rem;
+}
+
+/* OLED Mode - Accordions / Filter */
+[data-oled-mode="true"] .accordion-item {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .accordion-button {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border: 1px solid #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .accordion-button:not(.collapsed) {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+[data-oled-mode="true"] .accordion-body {
+    background-color: #000000 !important;
+    color: #ffffff !important;
 }
 
 /* Verbesserte Produktkarten-Grid */
@@ -302,6 +385,21 @@ html {
     border-radius: 8px;
 }
 
+[data-oled-mode="true"] .chart-container,
+[data-oled-mode="true"] .apexcharts-tooltip,
+[data-oled-mode="true"] .apexcharts-menu {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+/* OLED Mode - Alerts */
+[data-oled-mode="true"] .alert {
+    background-color: #000000 !important;
+    color: var(--bs-alert-color) !important;
+    border: 1px solid var(--bs-alert-border-color) !important;
+}
+
 /* Verbesserte Navigation für Touch */
 .navbar-brand {
     font-size: 1.25rem;
@@ -323,6 +421,13 @@ html {
     object-fit: cover;
     background-color: #f8f9fa;
     display: block;
+}
+
+/* OLED Mode - Platzhalter und Bilder */
+[data-oled-mode="true"] .product-image,
+[data-oled-mode="true"] .product-image-placeholder {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
 }
 
 /* Platzhalter für Produktbilder */

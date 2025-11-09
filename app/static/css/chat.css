@@ -249,6 +249,11 @@
         background: #1a1a1a !important;
     }
     
+    /* OLED Mode Chat */
+    [data-oled-mode="true"] .messages-area {
+        background: #000000 !important;
+    }
+    
     /* FORCE MESSAGE TEXT TO BE READABLE */
     body .messages-area .message-content {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
@@ -355,7 +360,7 @@
     }
 
     [data-bs-theme="dark"] .mobile-chat-header {
-        background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+        background: var(--accent-style);
     }
 }
 
@@ -369,6 +374,12 @@
     background-color: #2a2f32;
     color: white;
     border: 1px solid #404040;
+}
+
+/* OLED Mode - Message Bubbles etwas heller für Sichtbarkeit */
+[data-oled-mode="true"] .chat-message.other .message-content {
+    background-color: #0a0a0a !important;
+    border-color: #1a1a1a !important;
 }
 
 [data-bs-theme="dark"] .message-header {
@@ -396,6 +407,12 @@
     border-color: #444;
 }
 
+/* OLED Mode Mobile Input */
+[data-oled-mode="true"] .mobile-input-group {
+    background-color: #0a0a0a !important;
+    border-color: #1a1a1a !important;
+}
+
 .mobile-input-group .form-control {
     border: none;
     background: transparent;
@@ -416,8 +433,8 @@
 }
 
 [data-bs-theme="dark"] .mobile-chat-header {
-    background-color: #212529;
-    border-bottom-color: #495057;
+    background: var(--accent-style);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Mobile Chat Container - Full Screen Experience */
@@ -439,6 +456,11 @@
     
     [data-bs-theme="dark"] .chat-container {
         background: #1a1a1a;
+    }
+    
+    /* OLED Mode Chat Container */
+    [data-oled-mode="true"] .chat-container {
+        background: #000000 !important;
     }
     
     .messages-area {
@@ -492,6 +514,11 @@
     
     [data-bs-theme="dark"] .messages-area {
         background-color: #1a1a1a;
+    }
+    
+    /* OLED Mode Messages Area Desktop */
+    [data-oled-mode="true"] .messages-area {
+        background-color: #000000 !important;
     }
     
     /* Verbesserte Scroll-Performance */
@@ -551,6 +578,12 @@
         border: 1px solid #495057;
     }
     
+    /* OLED Mode Chat Container Desktop */
+    [data-oled-mode="true"] .chat-container {
+        background-color: #000000 !important;
+        border-color: #1a1a1a !important;
+    }
+    
     .messages-area {
         background-color: #f8f9fa;
         padding: 1.5rem;
@@ -565,6 +598,11 @@
     
     [data-bs-theme="dark"] .messages-area {
         background-color: #1a1a1a;
+    }
+    
+    /* OLED Mode Messages Area Desktop */
+    [data-oled-mode="true"] .messages-area {
+        background-color: #000000 !important;
     }
 }
 
@@ -602,7 +640,7 @@
 }
 
 [data-bs-theme="dark"] .desktop-chat-header {
-    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    background: var(--accent-style);
 }
 
 .desktop-chat-title-section {
@@ -722,8 +760,14 @@
 }
 
 [data-bs-theme="dark"] .desktop-chat-sidebar {
-    background-color: #2d3748;
-    border-right-color: #4a5568;
+    background-color: #212529;
+    border-right-color: #495057;
+}
+
+/* OLED Mode Desktop Sidebar */
+[data-oled-mode="true"] .desktop-chat-sidebar {
+    background-color: #000000 !important;
+    border-right-color: #1a1a1a !important;
 }
 
 .sidebar-header {
@@ -735,6 +779,12 @@
 [data-bs-theme="dark"] .sidebar-header {
     background-color: #212529;
     border-bottom-color: #495057;
+}
+
+/* OLED Mode Sidebar Header */
+[data-oled-mode="true"] .sidebar-header {
+    background-color: #000000 !important;
+    border-bottom-color: #1a1a1a !important;
 }
 
 .sidebar-title {
@@ -773,6 +823,17 @@
     background-color: rgba(255, 255, 255, 0.05);
     transform: translateX(4px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* OLED Mode Sidebar Member */
+[data-oled-mode="true"] .sidebar-member {
+    background-color: #000000 !important;
+    border: 1px solid transparent !important;
+}
+
+[data-oled-mode="true"] .sidebar-member:hover {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
 }
 
 .member-info {
@@ -912,6 +973,12 @@
     border-color: #495057;
 }
 
+/* OLED Mode Chat Card */
+[data-oled-mode="true"] .chat-card {
+    background-color: #0a0a0a !important;
+    border-color: #1a1a1a !important;
+}
+
 .main-chat-card {
     background: var(--accent-style);
     color: white;
@@ -1010,6 +1077,12 @@
     border-color: #495057;
 }
 
+/* OLED Mode Direct Messages List */
+[data-oled-mode="true"] .direct-messages-list {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+}
+
 .direct-message-item {
     display: flex;
     align-items: center;
@@ -1032,6 +1105,11 @@
 
 [data-bs-theme="dark"] .direct-message-item:hover {
     background-color: #2d3748;
+}
+
+/* OLED Mode Direct Message Item Hover */
+[data-oled-mode="true"] .direct-message-item:hover {
+    background-color: #0a0a0a !important;
 }
 
 .direct-message-avatar {
@@ -1096,6 +1174,12 @@
         border-top-color: #495057 !important;
     }
     
+    /* OLED Mode Chat Input Container */
+    [data-oled-mode="true"] .chat-input-container {
+        background: #000000 !important;
+        border-top-color: #1a1a1a !important;
+    }
+    
     .mobile-input-group {
         background: #f8f9fa !important;
         border-radius: 25px !important;
@@ -1109,6 +1193,12 @@
     [data-bs-theme="dark"] .mobile-input-group {
         background: #2d3748 !important;
         border-color: #4a5568 !important;
+    }
+    
+    /* OLED Mode Mobile Input Group */
+    [data-oled-mode="true"] .mobile-input-group {
+        background: #0a0a0a !important;
+        border-color: #1a1a1a !important;
     }
     
     .mobile-input-group .form-control {
@@ -1175,6 +1265,12 @@
     [data-bs-theme="dark"] .chat-input-container {
         background-color: #212529;
         border-top-color: #495057;
+    }
+    
+    /* OLED Mode Desktop Chat Input Container */
+    [data-oled-mode="true"] .chat-input-container {
+        background-color: #000000 !important;
+        border-top-color: #1a1a1a !important;
     }
 }
 
@@ -1300,6 +1396,17 @@
 [data-bs-theme="dark"] .member-card:hover {
     background: #2d3748;
     border-color: var(--accent-color);
+}
+
+/* OLED Mode Member Card */
+[data-oled-mode="true"] .member-card {
+    background: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .member-card:hover {
+    background: #000000 !important;
+    border-color: #2a2a2a !important;
 }
 
 .member-card-avatar {

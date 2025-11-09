@@ -250,9 +250,11 @@ def appearance():
         accent_color = request.form.get('accent_color', '#0d6efd')
         accent_gradient = request.form.get('accent_gradient', '').strip()
         dark_mode = request.form.get('dark_mode') == 'on'
+        oled_mode = request.form.get('oled_mode') == 'on'
         
         current_user.accent_color = accent_color
         current_user.dark_mode = dark_mode
+        current_user.oled_mode = oled_mode if dark_mode else False  # OLED nur wenn Dark Mode aktiv
         
         # Handle gradient vs solid color
         if color_type == 'gradient' and accent_gradient:

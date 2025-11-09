@@ -121,11 +121,20 @@
                     
                     <div class="mb-4">
                         <label class="form-label">Design-Modus</label>
-                        <div class="form-check form-switch">
+                        <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode" {% if user.dark_mode %}checked{% endif %}>
                             <label class="form-check-label" for="dark_mode">
                                 <i class="bi bi-moon-stars"></i> Dark Mode
                             </label>
+                        </div>
+                        <div class="form-check form-switch ms-4">
+                            <input class="form-check-input" type="checkbox" id="oled_mode" name="oled_mode" {% if user.oled_mode %}checked{% endif %} {% if not user.dark_mode %}disabled{% endif %}>
+                            <label class="form-check-label" for="oled_mode">
+                                <i class="bi bi-display"></i> OLED-Modus (echtes Schwarz)
+                            </label>
+                            <small class="form-text text-muted d-block ms-4 mt-1">
+                                Nutzt echtes Schwarz (#000000) für OLED-Displays. Erfordert aktivierten Dark Mode.
+                            </small>
                         </div>
                     </div>
                     
@@ -202,6 +211,17 @@ document.getElementById('color_gradient').checked = true;
 document.getElementById('solid-color-section').style.display = 'none';
 document.getElementById('gradient-section').style.display = 'block';
 {% endif %}
+
+// OLED Mode Toggle - nur aktivieren wenn Dark Mode aktiv ist
+document.getElementById('dark_mode').addEventListener('change', function() {
+    const oledModeCheckbox = document.getElementById('oled_mode');
+    if (!this.checked) {
+        oledModeCheckbox.checked = false;
+        oledModeCheckbox.disabled = true;
+    } else {
+        oledModeCheckbox.disabled = false;
+    }
+});
 </script>
 {% endblock %}
 

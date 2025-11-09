@@ -16,6 +16,17 @@
         padding: 20px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+
+    [data-oled-mode="true"] .chart-container {
+        background: #000000 !important;
+        border: 1px solid #1a1a1a !important;
+        box-shadow: none !important;
+        color: #ffffff !important;
+    }
+
+    [data-oled-mode="true"] .chart-container h5 {
+        color: #ffffff !important;
+    }
 </style>
 
 <div class="row mb-4">
@@ -164,8 +175,19 @@ async function loadStatistics() {
         }
         
         // Kategorienverteilung Chart
+        const oled = document.documentElement.getAttribute('data-oled-mode') === 'true';
+        const chartTheme = oled ? {
+            theme: { mode: 'dark' },
+            chart: { foreColor: '#ffffff', background: '#000000' },
+            grid: { borderColor: '#1a1a1a' },
+            tooltip: { theme: 'dark' },
+            legend: { labels: { colors: '#ffffff' } },
+            dataLabels: { style: { colors: ['#ffffff'] } },
+            stroke: { colors: ['#ffffff'] }
+        } : {};
+
         if (data.category_distribution && data.category_distribution.length > 0) {
-            const categoryOptions = {
+            const categoryOptions = Object.assign({
                 series: data.category_distribution.map(c => c.count),
                 chart: {
                     type: 'pie',
@@ -187,7 +209,7 @@ async function loadStatistics() {
                         }
                     }
                 }]
-            };
+            }, chartTheme);
             new ApexCharts(document.querySelector("#categoryChart"), categoryOptions).render();
         } else {
             document.querySelector("#categoryChart").innerHTML = '<p class="text-muted text-center">Keine Daten verfügbar</p>';
@@ -195,7 +217,7 @@ async function loadStatistics() {
         
         // Status-Verteilung Chart
         if (data.status_distribution && data.status_distribution.length > 0) {
-            const statusOptions = {
+            const statusOptions = Object.assign({
                 series: [{
                     name: 'Anzahl',
                     data: data.status_distribution.map(s => s.count)
@@ -224,7 +246,7 @@ async function loadStatistics() {
                 dataLabels: {
                     enabled: true
                 }
-            };
+            }, chartTheme);
             new ApexCharts(document.querySelector("#statusChart"), statusOptions).render();
         } else {
             document.querySelector("#statusChart").innerHTML = '<p class="text-muted text-center">Keine Daten verfügbar</p>';
@@ -232,7 +254,7 @@ async function loadStatistics() {
         
         // Top ausgeliehene Produkte
         if (data.top_borrowed && data.top_borrowed.length > 0) {
-            const topBorrowedOptions = {
+            const topBorrowedOptions = Object.assign({
                 series: [{
                     name: 'Ausleihen',
                     data: data.top_borrowed.map(p => p.borrow_count)
@@ -253,7 +275,7 @@ async function loadStatistics() {
                 dataLabels: {
                     enabled: true
                 }
-            };
+            }, chartTheme);
             new ApexCharts(document.querySelector("#topBorrowedChart"), topBorrowedOptions).render();
         } else {
             document.querySelector("#topBorrowedChart").innerHTML = '<p class="text-muted text-center">Noch keine Ausleihen vorhanden</p>';
@@ -261,7 +283,7 @@ async function loadStatistics() {
         
         // Ausleihtrends
         if (data.monthly_trends && data.monthly_trends.length > 0) {
-            const trendsOptions = {
+            const trendsOptions = Object.assign({
                 series: [{
                     name: 'Ausleihen',
                     data: data.monthly_trends.map(t => t.count)
@@ -284,7 +306,7 @@ async function loadStatistics() {
                 dataLabels: {
                     enabled: true
                 }
-            };
+            }, chartTheme);
             new ApexCharts(document.querySelector("#trendsChart"), trendsOptions).render();
         } else {
             document.querySelector("#trendsChart").innerHTML = '<p class="text-muted text-center">Noch keine Trend-Daten verfügbar</p>';

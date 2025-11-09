@@ -16,6 +16,11 @@ body {
     background-color: #1a1a1a;
 }
 
+/* OLED Mode - echtes Schwarz für OLED-Displays */
+[data-oled-mode="true"] body {
+    background-color: #000000 !important;
+}
+
 /* Mobile Navigation */
 .mobile-nav {
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
@@ -129,6 +134,12 @@ body {
     border-top: 1px solid #495057;
 }
 
+/* OLED Mode Mobile Navigation */
+[data-oled-mode="true"] .mobile-nav {
+    background-color: #000000 !important;
+    border-top: 1px solid #1a1a1a;
+}
+
 [data-bs-theme="dark"] .mobile-nav .nav-link,
 .mobile-nav.dark-mode .nav-link {
     color: #adb5bd !important;
@@ -169,6 +180,12 @@ body {
     border-right: 1px solid #495057;
 }
 
+/* OLED Mode Sidebar */
+[data-oled-mode="true"] .sidebar {
+    background-color: #000000 !important;
+    border-right: 1px solid #1a1a1a;
+}
+
 /* Dark Mode Sidebar Logo und App Name */
 [data-bs-theme="dark"] .sidebar a.d-flex,
 .sidebar.dark-mode a.d-flex {
@@ -188,6 +205,13 @@ body {
 [data-bs-theme="dark"] .sidebar .nav-link:hover,
 .sidebar.dark-mode .nav-link:hover {
     background-color: #495057 !important;
+    color: white !important;
+}
+
+/* OLED Mode Sidebar Nav Link Hover */
+[data-oled-mode="true"] .sidebar .nav-link:hover {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
     color: white !important;
 }
 
@@ -400,6 +424,35 @@ body {
 .card-header {
     background-color: transparent;
     border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+/* OLED Mode - Cards mit Rahmen statt grauem Hintergrund */
+[data-oled-mode="true"] .card {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    box-shadow: none !important;
+}
+
+[data-oled-mode="true"] .card-header {
+    background-color: transparent !important;
+    border-bottom: 1px solid #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .card-body {
+    background-color: transparent !important;
+}
+
+/* OLED Mode - List Group Items */
+[data-oled-mode="true"] .list-group-item {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+[data-oled-mode="true"] .list-group-item:hover {
+    border-color: #2a2a2a !important;
+    background-color: #000000 !important;
 }
 
 /* Responsive Tables */
@@ -656,6 +709,21 @@ button, .btn {
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
 }
 
+/* OLED Mode - Form Controls */
+[data-oled-mode="true"] .form-control,
+[data-oled-mode="true"] .form-select {
+    background-color: #000000 !important;
+    border-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .form-control:focus,
+[data-oled-mode="true"] .form-select:focus {
+    background-color: #000000 !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
 /* Progress Bars */
 .progress-bar {
     background: var(--accent-style) !important;
@@ -706,6 +774,46 @@ button, .btn {
     white-space: normal;
 }
 .modal .dropdown-divider { margin: 0.25rem 0; }
+
+/* OLED Mode - Modals */
+[data-oled-mode="true"] .modal-content {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .modal-header {
+    background-color: transparent !important;
+    border-bottom: 1px solid #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .modal-body {
+    background-color: transparent !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .modal-footer {
+    background-color: transparent !important;
+    border-top: 1px solid #1a1a1a !important;
+}
+
+/* OLED Mode - Offcanvas */
+[data-oled-mode="true"] .offcanvas {
+    background-color: #000000 !important;
+    border: 1px solid #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .offcanvas-header {
+    background-color: transparent !important;
+    border-bottom: 1px solid #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+[data-oled-mode="true"] .offcanvas-body {
+    background-color: transparent !important;
+    color: #ffffff !important;
+}
 
 /* Avatars */
 .avatar {
@@ -776,4 +884,36 @@ button, .btn {
 
 .back-button:active {
     transform: translateX(0);
+}
+
+/* About Page - Dark Mode Styles */
+[data-bs-theme="dark"] .card-header {
+    background-color: transparent;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+/* About Page Card Header - Use Accent Color */
+.about-page-header {
+    background: var(--accent-style);
+    color: white;
+    border-bottom: none;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.about-page-header h4,
+.about-page-header i {
+    color: white;
+}
+
+/* GitHub Button - Better visibility in Dark Mode */
+[data-bs-theme="dark"] .btn-outline-dark {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background-color: transparent;
+}
+
+[data-bs-theme="dark"] .btn-outline-dark:hover {
+    background: var(--accent-style);
+    border-color: var(--accent-color);
+    color: white;
 }

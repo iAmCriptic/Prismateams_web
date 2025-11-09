@@ -16,6 +16,36 @@
 </div>
 {% endif %}
 
+{% if update_info and update_info.update_available %}
+<div class="alert alert-info alert-dismissible fade show" role="alert" id="update-banner">
+    <div class="d-flex align-items-start">
+        <i class="bi bi-arrow-down-circle-fill me-3 fs-4"></i>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading mb-2">
+                <i class="bi bi-download me-2"></i>Update verfügbar!
+            </h5>
+            <p class="mb-2">
+                Ein neues Update ist im Main-Branch auf GitHub verfügbar. 
+                {% if update_info.latest_commit %}
+                <br><small class="text-muted">Neuester Commit: <code>{{ update_info.latest_commit }}</code></small>
+                {% endif %}
+            </p>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-github me-1"></i>GitHub öffnen
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="dismissUpdateBanner()">
+                    <i class="bi bi-x-circle me-1"></i>Schließen
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="disableUpdateNotifications()">
+                    <i class="bi bi-bell-slash me-1"></i>Nicht mehr anzeigen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row mb-4">
     <div class="col">
         <h1>Willkommen, {{ current_user.first_name }}!</h1>
@@ -551,6 +581,62 @@ class DashboardUpdater {
 
 // Initialisiere Dashboard-Updater
 const dashboardUpdater = new DashboardUpdater();
+
+// Update-Banner Funktionen
+function dismissUpdateBanner() {
+    const banner = document.getElementById('update-banner');
+    if (banner) {
+        fetch('/api/dashboard/update-banner', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action: 'dismiss' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                banner.classList.remove('show');
+                setTimeout(() => {
+                    banner.remove();
+                }, 300);
+            }
+        })
+        .catch(error => {
+            console.error('Fehler beim Schließen des Banners:', error);
+            // Banner trotzdem schließen
+            banner.classList.remove('show');
+            setTimeout(() => {
+                banner.remove();
+            }, 300);
+        });
+    }
+}
+
+function disableUpdateNotifications() {
+    const banner = document.getElementById('update-banner');
+    if (banner) {
+        fetch('/api/dashboard/update-banner', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action: 'disable' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                banner.classList.remove('show');
+                setTimeout(() => {
+                    banner.remove();
+                }, 300);
+            }
+        })
+        .catch(error => {
+            console.error('Fehler beim Deaktivieren der Benachrichtigungen:', error);
+        });
+    }
+}
 </script>
 {% endblock %}
 
