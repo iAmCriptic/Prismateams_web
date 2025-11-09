@@ -5,9 +5,11 @@ from app.models.chat import ChatMessage, ChatMember
 from app.models.email import EmailMessage, EmailPermission
 from app.models.file import File
 from app.models.canvas import Canvas
+from app.models.wiki import WikiPage, WikiFavorite
+from app.models.inventory import BorrowTransaction
 from app import db
 from app.utils.common import is_module_enabled
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy import and_
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -70,6 +72,58 @@ def index():
             created_by=current_user.id
         ).order_by(Canvas.updated_at.desc()).limit(3).all()
     
+    # Neue Wikieinträge Widget
+    recent_wiki_pages = []
+    if 'neue_wikieintraege' in enabled_widgets and is_module_enabled('module_wiki'):
+        recent_wiki_pages = WikiPage.query.order_by(
+            WikiPage.updated_at.desc()
+        ).limit(3).all()
+    
+    # Meine Wikis Widget (Favoriten)
+    my_wiki_favorites = []
+    if 'meine_wikis' in enabled_widgets and is_module_enabled('module_wiki'):
+        favorites = WikiFavorite.query.filter_by(
+            user_id=current_user.id
+        ).order_by(WikiFavorite.created_at.desc()).limit(5).all()
+        my_wiki_favorites = [fav.wiki_page for fav in favorites]
+    
+    # Meine Ausleihen Widget
+    my_borrow_groups = []
+    if 'meine_ausleihen' in enabled_widgets and is_module_enabled('module_inventory'):
+        borrows = BorrowTransaction.query.filter_by(
+            borrower_id=current_user.id,
+            status='active'
+        ).order_by(BorrowTransaction.borrow_date.desc()).all()
+        
+        # Gruppiere nach borrow_group_id (oder transaction_number für Einzelausleihen)
+        grouped = {}
+        for b in borrows:
+            group_key = b.borrow_group_id if b.borrow_group_id else b.transaction_number
+            
+            if group_key not in grouped:
+                grouped[group_key] = {
+                    'borrow_group_id': b.borrow_group_id,
+                    'borrow_date': b.borrow_date,
+                    'expected_return_date': b.expected_return_date,
+                    'transactions': [],
+                    'product_count': 0,
+                    'is_overdue': False
+                }
+            
+            grouped[group_key]['transactions'].append(b)
+            grouped[group_key]['product_count'] += 1
+            
+            # Aktualisiere erwartetes Rückgabedatum (spätestes Datum)
+            if b.expected_return_date > grouped[group_key]['expected_return_date']:
+                grouped[group_key]['expected_return_date'] = b.expected_return_date
+            
+            # Prüfe ob überfällig
+            if b.is_overdue:
+                grouped[group_key]['is_overdue'] = True
+        
+        # Konvertiere zu Liste und sortiere nach Ausleihdatum (neueste zuerst)
+        my_borrow_groups = sorted(grouped.values(), key=lambda x: x['borrow_date'], reverse=True)
+    
     # Prüfe ob Setup gerade abgeschlossen wurde
     setup_completed = session.pop('setup_completed', False)
     
@@ -80,6 +134,9 @@ def index():
         recent_emails=recent_emails,
         recent_files=recent_files,
         recent_canvases=recent_canvases,
+        recent_wiki_pages=recent_wiki_pages,
+        my_wiki_favorites=my_wiki_favorites,
+        my_borrow_groups=my_borrow_groups,
         dashboard_config=config,
         setup_completed=setup_completed
     )
@@ -95,7 +152,7 @@ def edit():
         
         # Widgets aus Formular
         enabled_widgets = []
-        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'canvas']
+        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'canvas', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen']
         for widget in available_widgets:
             if request.form.get(f'widget_{widget}') == 'on':
                 enabled_widgets.append(widget)

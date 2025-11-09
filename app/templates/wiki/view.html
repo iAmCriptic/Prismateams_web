@@ -163,6 +163,18 @@
                 <a href="{{ url_for('wiki.history', slug=page.slug) }}" class="btn btn-outline-primary">
                     <i class="bi bi-clock-history"></i> Historie
                 </a>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="#" id="toggle-favorite-btn" data-page-id="{{ page.id }}">
+                                <i class="bi bi-star" id="favorite-icon"></i> <span id="favorite-text">Zu Favoriten hinzufügen</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 <button class="btn btn-outline-secondary" onclick="closeViewer()">
                     <i class="bi bi-x-lg"></i> Schließen
                 </button>
@@ -197,5 +209,68 @@ document.addEventListener('keydown', function(e) {
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script>
+// Favoriten-Funktionalität
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleFavoriteBtn = document.getElementById('toggle-favorite-btn');
+    const favoriteIcon = document.getElementById('favorite-icon');
+    const favoriteText = document.getElementById('favorite-text');
+    const pageId = toggleFavoriteBtn ? toggleFavoriteBtn.getAttribute('data-page-id') : null;
+    
+    if (pageId) {
+        // Prüfe initialen Status
+        fetch(`/wiki/api/favorite/check/${pageId}`)
+            .then(response => response.json())
+            .then(data => {
+                updateFavoriteUI(data.is_favorite);
+            });
+        
+        // Event Listener für Toggle
+        toggleFavoriteBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const isFavorite = favoriteIcon.classList.contains('bi-star-fill');
+            const method = isFavorite ? 'DELETE' : 'POST';
+            
+            fetch(`/wiki/api/favorite/${pageId}`, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateFavoriteUI(data.is_favorite);
+                    // Zeige Toast/Notification
+                    const toast = document.createElement('div');
+                    toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+                    toast.style.zIndex = '9999';
+                    toast.textContent = data.message;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                } else if (data.error) {
+                    alert(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Fehler:', error);
+                alert('Fehler beim Aktualisieren der Favoriten');
+            });
+        });
+    }
+    
+    function updateFavoriteUI(isFavorite) {
+        if (isFavorite) {
+            favoriteIcon.classList.remove('bi-star');
+            favoriteIcon.classList.add('bi-star-fill');
+            favoriteText.textContent = 'Aus Favoriten entfernen';
+        } else {
+            favoriteIcon.classList.remove('bi-star-fill');
+            favoriteIcon.classList.add('bi-star');
+            favoriteText.textContent = 'Zu Favoriten hinzufügen';
+        }
+    }
+});
+</script>
 {% endblock %}
 

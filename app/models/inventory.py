@@ -115,3 +115,170 @@ class BorrowTransaction(db.Model):
         if self.product:
             self.product.status = 'available'
 
+
+class ProductSet(db.Model):
+    """Produktset - mehrere Produkte zu einem Set zusammengefasst."""
+    __tablename__ = 'product_sets'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    creator = db.relationship('User', foreign_keys=[created_by])
+    items = db.relationship('ProductSetItem', back_populates='set', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<ProductSet {self.name}>'
+    
+    @property
+    def product_count(self):
+        """Anzahl der Produkte im Set."""
+        return len(self.items)
+
+
+class ProductSetItem(db.Model):
+    """Einzelnes Produkt in einem Set."""
+    __tablename__ = 'product_set_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    set_id = db.Column(db.Integer, db.ForeignKey('product_sets.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    quantity = db.Column(db.Integer, default=1, nullable=False)
+    
+    # Relationships
+    set = db.relationship('ProductSet', back_populates='items')
+    product = db.relationship('Product')
+    
+    def __repr__(self):
+        return f'<ProductSetItem {self.product_id} in Set {self.set_id}>'
+    
+    __table_args__ = (
+        db.UniqueConstraint('set_id', 'product_id', name='uq_set_product'),
+    )
+
+
+class ProductDocument(db.Model):
+    """Dokumente für Produkte (Handbücher, Datenblätter, etc.)."""
+    __tablename__ = 'product_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    manual_id = db.Column(db.Integer, db.ForeignKey('manuals.id'), nullable=True, index=True)  # Optional: Verknüpfung mit Manual-Modul
+    file_path = db.Column(db.String(500), nullable=False)
+    file_name = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=False)  # 'handbook', 'datasheet', 'invoice', 'warranty', 'other'
+    file_size = db.Column(db.Integer, nullable=True)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    product = db.relationship('Product', backref='documents')
+    manual = db.relationship('Manual', foreign_keys=[manual_id])
+    uploader = db.relationship('User', foreign_keys=[uploaded_by])
+    
+    def __repr__(self):
+        return f'<ProductDocument {self.file_name} for Product {self.product_id}>'
+
+
+class SavedFilter(db.Model):
+    """Gespeicherte Filter für Produktsuche."""
+    __tablename__ = 'saved_filters'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)
+    filter_data = db.Column(db.Text, nullable=False)  # JSON als String
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id])
+    
+    def __repr__(self):
+        return f'<SavedFilter {self.name} by User {self.user_id}>'
+
+
+class ProductFavorite(db.Model):
+    """Favoriten - Benutzer können Produkte als Favoriten markieren."""
+    __tablename__ = 'product_favorites'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id])
+    product = db.relationship('Product')
+    
+    def __repr__(self):
+        return f'<ProductFavorite User {self.user_id} -> Product {self.product_id}>'
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'product_id', name='uq_user_product_favorite'),
+    )
+
+
+class Inventory(db.Model):
+    """Inventur-Session - Verwaltet eine Inventur-Session."""
+    __tablename__ = 'inventories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='active', nullable=False, index=True)  # 'active', 'completed'
+    started_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    starter = db.relationship('User', foreign_keys=[started_by])
+    items = db.relationship('InventoryItem', back_populates='inventory', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Inventory {self.name} ({self.status})>'
+    
+    @property
+    def checked_count(self):
+        """Anzahl der inventierten Produkte."""
+        return InventoryItem.query.filter_by(inventory_id=self.id, checked=True).count()
+    
+    @property
+    def total_count(self):
+        """Gesamtanzahl der Produkte in dieser Inventur."""
+        return len(self.items)
+
+
+class InventoryItem(db.Model):
+    """Einzelne Produkt-Einträge in einer Inventur."""
+    __tablename__ = 'inventory_items'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    inventory_id = db.Column(db.Integer, db.ForeignKey('inventories.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    checked = db.Column(db.Boolean, default=False, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    location_changed = db.Column(db.Boolean, default=False, nullable=False)
+    new_location = db.Column(db.String(255), nullable=True)
+    condition_changed = db.Column(db.Boolean, default=False, nullable=False)
+    new_condition = db.Column(db.String(50), nullable=True)
+    checked_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    checked_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    inventory = db.relationship('Inventory', back_populates='items')
+    product = db.relationship('Product')
+    checker = db.relationship('User', foreign_keys=[checked_by])
+    
+    # Unique constraint: Ein Produkt kann nur einmal pro Inventur vorkommen
+    __table_args__ = (db.UniqueConstraint('inventory_id', 'product_id', name='uq_inventory_product'),)
+    
+    def __repr__(self):
+        return f'<InventoryItem Inventory {self.inventory_id} -> Product {self.product_id} (checked: {self.checked})>'

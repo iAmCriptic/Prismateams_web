@@ -9,8 +9,9 @@ from .canvas import Canvas, CanvasTextField
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
 from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
-from .inventory import Product, BorrowTransaction, ProductFolder
-from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag
+from .inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+from .api_token import ApiToken
+from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
 
 __all__ = [
@@ -25,8 +26,9 @@ __all__ = [
     'SystemSettings',
     'WhitelistEntry',
     'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog',
-    'Product', 'BorrowTransaction', 'ProductFolder',
-    'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag',
+    'Product', 'BorrowTransaction', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem',
+    'ApiToken',
+    'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
     'Comment', 'CommentMention'
 ]
 

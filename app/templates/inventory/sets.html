@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Produktsets - Lagerverwaltung{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-collection"></i> Produktsets</h1>
+        <p class="text-muted">Mehrere Produkte zu einem Set zusammenfassen</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.set_new') }}" class="btn btn-accent">
+            <i class="bi bi-plus-circle"></i> Neues Set erstellen
+        </a>
+    </div>
+</div>
+
+{% if sets %}
+<div class="row g-3">
+    {% for set in sets %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-collection"></i> {{ set.name }}
+                </h5>
+                {% if set.description %}
+                <p class="card-text text-muted">{{ set.description }}</p>
+                {% endif %}
+                <p class="card-text">
+                    <small class="text-muted">
+                        <i class="bi bi-box"></i> {{ set.product_count }} Produkt{% if set.product_count != 1 %}e{% endif %}
+                    </small>
+                </p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="btn-group w-100" role="group">
+                    <a href="{{ url_for('inventory.set_view', set_id=set.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Anzeigen
+                    </a>
+                    <a href="{{ url_for('inventory.set_borrow', set_id=set.id) }}" class="btn btn-sm btn-success">
+                        <i class="bi bi-cart-check"></i> Ausleihen
+                    </a>
+                    {% if current_user.is_admin or set.created_by == current_user.id %}
+                    <a href="{{ url_for('inventory.set_edit', set_id=set.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Noch keine Produktsets vorhanden. 
+    <a href="{{ url_for('inventory.set_new') }}">Erstellen Sie das erste Set</a>.
+</div>
+{% endif %}
+{% endblock %}
+

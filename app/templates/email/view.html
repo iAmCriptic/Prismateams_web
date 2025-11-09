@@ -10,19 +10,10 @@
     </ol>
 </nav>
 
-<!-- Desktop: Zurück-Button oben -->
-<div class="mb-3 d-none d-md-block">
-    <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Zurück
-    </a>
-</div>
-
 <!-- Mobile: Top Action Bar -->
 <div class="d-md-none mb-3">
-    <div class="d-flex justify-content-between align-items-center">
-        <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary btn-lg">
-            <i class="bi bi-arrow-left"></i>
-        </a>
+    <div class="d-flex justify-content-end align-items-center">
+        <!-- Zurück-Button wird jetzt global von base.html bereitgestellt -->
         <div class="btn-group" role="group">
             <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.reply', email_id=email.id) }}" title="Antworten">
                 <i class="bi bi-reply"></i>

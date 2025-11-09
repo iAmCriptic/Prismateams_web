@@ -16,7 +16,9 @@ from app.models import (
     EmailMessage, EmailPermission, EmailAttachment,
     Credential, SystemSettings, WhitelistEntry,
     NotificationSettings, WikiPage, WikiPageVersion, WikiCategory, WikiTag,
-    Comment, CommentMention
+    Comment, CommentMention,
+    Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem,
+    ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 )
 from app.blueprints.credentials import get_encryption_key
 
@@ -31,7 +33,8 @@ SUPPORTED_CATEGORIES = {
     'credentials': 'Zugangsdaten',
     'files': 'Dateien',
     'wiki': 'Wiki',
-    'comments': 'Kommentare'
+    'comments': 'Kommentare',
+    'inventory': 'Inventar'
 }
 
 
@@ -101,6 +104,19 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
     if 'comments' in categories or 'all' in categories:
         backup_data['data']['comments'] = export_comments()
         backup_data['data']['comment_mentions'] = export_comment_mentions()
+    
+    # Inventar exportieren
+    if 'inventory' in categories or 'all' in categories:
+        backup_data['data']['product_folders'] = export_product_folders()
+        backup_data['data']['products'] = export_products()
+        backup_data['data']['borrow_transactions'] = export_borrow_transactions()
+        backup_data['data']['product_sets'] = export_product_sets()
+        backup_data['data']['product_set_items'] = export_product_set_items()
+        backup_data['data']['product_documents'] = export_product_documents()
+        backup_data['data']['saved_filters'] = export_saved_filters()
+        backup_data['data']['product_favorites'] = export_product_favorites()
+        backup_data['data']['inventories'] = export_inventories()
+        backup_data['data']['inventory_items'] = export_inventory_items()
     
     # Backup-Datei schreiben
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -556,6 +572,163 @@ def export_comment_mentions() -> List[Dict]:
     return result
 
 
+def export_product_folders() -> List[Dict]:
+    """Exportiert Produkt-Ordner."""
+    folders = ProductFolder.query.all()
+    return [{
+        'name': f.name,
+        'description': f.description,
+        'color': f.color,
+        'created_by_email': User.query.get(f.created_by).email if User.query.get(f.created_by) else None,
+        'created_at': f.created_at.isoformat() if f.created_at else None,
+        'updated_at': f.updated_at.isoformat() if f.updated_at else None
+    } for f in folders]
+
+
+def export_products() -> List[Dict]:
+    """Exportiert Produkte."""
+    products = Product.query.all()
+    return [{
+        'name': p.name,
+        'description': p.description,
+        'category': p.category,
+        'serial_number': p.serial_number,
+        'condition': p.condition,
+        'location': p.location,
+        'length': p.length,
+        'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
+        'status': p.status,
+        'image_path': p.image_path,
+        'qr_code_data': p.qr_code_data,
+        'folder_name': ProductFolder.query.get(p.folder_id).name if p.folder_id and ProductFolder.query.get(p.folder_id) else None,
+        'created_by_email': User.query.get(p.created_by).email if User.query.get(p.created_by) else None,
+        'created_at': p.created_at.isoformat() if p.created_at else None,
+        'updated_at': p.updated_at.isoformat() if p.updated_at else None
+    } for p in products]
+
+
+def export_borrow_transactions() -> List[Dict]:
+    """Exportiert Ausleihtransaktionen."""
+    transactions = BorrowTransaction.query.all()
+    return [{
+        'transaction_number': t.transaction_number,
+        'borrow_group_id': t.borrow_group_id,
+        'product_name': Product.query.get(t.product_id).name if Product.query.get(t.product_id) else None,
+        'borrower_email': User.query.get(t.borrower_id).email if User.query.get(t.borrower_id) else None,
+        'borrowed_by_email': User.query.get(t.borrowed_by_id).email if User.query.get(t.borrowed_by_id) else None,
+        'borrow_date': t.borrow_date.isoformat() if t.borrow_date else None,
+        'expected_return_date': t.expected_return_date.isoformat() if t.expected_return_date else None,
+        'actual_return_date': t.actual_return_date.isoformat() if t.actual_return_date else None,
+        'status': t.status,
+        'qr_code_data': t.qr_code_data,
+        'created_at': t.created_at.isoformat() if t.created_at else None,
+        'updated_at': t.updated_at.isoformat() if t.updated_at else None
+    } for t in transactions]
+
+
+def export_product_sets() -> List[Dict]:
+    """Exportiert Produktsets."""
+    sets = ProductSet.query.all()
+    return [{
+        'name': s.name,
+        'description': s.description,
+        'created_by_email': User.query.get(s.created_by).email if User.query.get(s.created_by) else None,
+        'created_at': s.created_at.isoformat() if s.created_at else None,
+        'updated_at': s.updated_at.isoformat() if s.updated_at else None
+    } for s in sets]
+
+
+def export_product_set_items() -> List[Dict]:
+    """Exportiert Produktset-Items."""
+    items = ProductSetItem.query.all()
+    return [{
+        'set_name': ProductSet.query.get(i.set_id).name if ProductSet.query.get(i.set_id) else None,
+        'product_name': Product.query.get(i.product_id).name if Product.query.get(i.product_id) else None,
+        'quantity': i.quantity
+    } for i in items]
+
+
+def export_product_documents() -> List[Dict]:
+    """Exportiert Produktdokumente."""
+    documents = ProductDocument.query.all()
+    result = []
+    for d in documents:
+        doc_data = {
+            'product_name': Product.query.get(d.product_id).name if Product.query.get(d.product_id) else None,
+            'file_name': d.file_name,
+            'file_type': d.file_type,
+            'file_size': d.file_size,
+            'uploaded_by_email': User.query.get(d.uploaded_by).email if User.query.get(d.uploaded_by) else None,
+            'created_at': d.created_at.isoformat() if d.created_at else None
+        }
+        # Dateiinhalt hinzufügen wenn vorhanden
+        if d.file_path and os.path.exists(d.file_path):
+            try:
+                with open(d.file_path, 'rb') as f:
+                    import base64
+                    doc_data['content_base64'] = base64.b64encode(f.read()).decode('utf-8')
+                    doc_data['file_path'] = d.file_path
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Lesen von Produktdokument {d.file_path}: {str(e)}")
+        result.append(doc_data)
+    return result
+
+
+def export_saved_filters() -> List[Dict]:
+    """Exportiert gespeicherte Filter."""
+    filters = SavedFilter.query.all()
+    return [{
+        'user_email': User.query.get(f.user_id).email if User.query.get(f.user_id) else None,
+        'name': f.name,
+        'filter_data': f.filter_data,
+        'created_at': f.created_at.isoformat() if f.created_at else None
+    } for f in filters]
+
+
+def export_product_favorites() -> List[Dict]:
+    """Exportiert Produktfavoriten."""
+    favorites = ProductFavorite.query.all()
+    return [{
+        'user_email': User.query.get(f.user_id).email if User.query.get(f.user_id) else None,
+        'product_name': Product.query.get(f.product_id).name if Product.query.get(f.product_id) else None,
+        'created_at': f.created_at.isoformat() if f.created_at else None
+    } for f in favorites]
+
+
+def export_inventories() -> List[Dict]:
+    """Exportiert Inventuren."""
+    inventories = Inventory.query.all()
+    return [{
+        'name': i.name,
+        'description': i.description,
+        'status': i.status,
+        'started_by_email': User.query.get(i.started_by).email if User.query.get(i.started_by) else None,
+        'started_at': i.started_at.isoformat() if i.started_at else None,
+        'completed_at': i.completed_at.isoformat() if i.completed_at else None,
+        'created_at': i.created_at.isoformat() if i.created_at else None,
+        'updated_at': i.updated_at.isoformat() if i.updated_at else None
+    } for i in inventories]
+
+
+def export_inventory_items() -> List[Dict]:
+    """Exportiert Inventur-Items."""
+    items = InventoryItem.query.all()
+    return [{
+        'inventory_name': Inventory.query.get(i.inventory_id).name if Inventory.query.get(i.inventory_id) else None,
+        'product_name': Product.query.get(i.product_id).name if Product.query.get(i.product_id) else None,
+        'checked': i.checked,
+        'notes': i.notes,
+        'location_changed': i.location_changed,
+        'new_location': i.new_location,
+        'condition_changed': i.condition_changed,
+        'new_condition': i.new_condition,
+        'checked_by_email': User.query.get(i.checked_by).email if i.checked_by and User.query.get(i.checked_by) else None,
+        'checked_at': i.checked_at.isoformat() if i.checked_at else None,
+        'created_at': i.created_at.isoformat() if i.created_at else None,
+        'updated_at': i.updated_at.isoformat() if i.updated_at else None
+    } for i in items]
+
+
 def import_backup(file_path: str, categories: List[str]) -> Dict:
     """
     Importiert ein Backup der ausgewählten Kategorien.
@@ -710,6 +883,56 @@ def import_backup(file_path: str, categories: List[str]) -> Dict:
             if 'comment_mentions' in backup_data.get('data', {}):
                 import_comment_mentions(backup_data['data']['comment_mentions'], comment_map, user_map)
                 results['imported'].append('comment_mentions')
+        
+        # Inventar importieren
+        if 'inventory' in categories or 'all' in categories:
+            if 'product_folders' in backup_data.get('data', {}):
+                folder_map = import_product_folders(backup_data['data']['product_folders'], user_map)
+                results['imported'].append('product_folders')
+            else:
+                folder_map = {}
+            
+            if 'products' in backup_data.get('data', {}):
+                product_map = import_products(backup_data['data']['products'], folder_map, user_map)
+                results['imported'].append('products')
+            else:
+                product_map = {}
+            
+            if 'borrow_transactions' in backup_data.get('data', {}):
+                import_borrow_transactions(backup_data['data']['borrow_transactions'], product_map, user_map)
+                results['imported'].append('borrow_transactions')
+            
+            if 'product_sets' in backup_data.get('data', {}):
+                set_map = import_product_sets(backup_data['data']['product_sets'], user_map)
+                results['imported'].append('product_sets')
+            else:
+                set_map = {}
+            
+            if 'product_set_items' in backup_data.get('data', {}):
+                import_product_set_items(backup_data['data']['product_set_items'], set_map, product_map)
+                results['imported'].append('product_set_items')
+            
+            if 'product_documents' in backup_data.get('data', {}):
+                import_product_documents(backup_data['data']['product_documents'], product_map, user_map)
+                results['imported'].append('product_documents')
+            
+            if 'saved_filters' in backup_data.get('data', {}):
+                import_saved_filters(backup_data['data']['saved_filters'], user_map)
+                results['imported'].append('saved_filters')
+            
+            if 'product_favorites' in backup_data.get('data', {}):
+                import_product_favorites(backup_data['data']['product_favorites'], product_map, user_map)
+                results['imported'].append('product_favorites')
+            
+            if 'inventories' in backup_data.get('data', {}):
+                inventory_map = import_inventories(backup_data['data']['inventories'], user_map)
+                results['imported'].append('inventories')
+            else:
+                inventory_map = {}
+            
+            if 'inventory_items' in backup_data.get('data', {}):
+                import_inventory_items(backup_data['data']['inventory_items'], inventory_map, product_map, user_map)
+                results['imported'].append('inventory_items')
         
         db.session.commit()
         return results
@@ -1622,4 +1845,326 @@ def import_comment_mentions(mentions_data: List[Dict], comment_map: Dict[str, in
             mention.notification_sent_at = datetime.fromisoformat(m_data['notification_sent_at'])
         
         db.session.add(mention)
+
+
+def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int]) -> Dict[str, int]:
+    """Importiert Produkt-Ordner und gibt ein Mapping von Name zu neuer ID zurück."""
+    folder_map = {}  # name -> neue_id
+    
+    for f_data in folders_data:
+        created_by_email = f_data.get('created_by_email')
+        if not created_by_email or created_by_email not in user_map:
+            continue
+        
+        created_by_id = user_map[created_by_email]
+        
+        existing = ProductFolder.query.filter_by(name=f_data['name']).first()
+        if existing:
+            folder_map[f_data['name']] = existing.id
+        else:
+            folder = ProductFolder(
+                name=f_data['name'],
+                description=f_data.get('description'),
+                color=f_data.get('color'),
+                created_by=created_by_id
+            )
+            db.session.add(folder)
+            db.session.flush()
+            folder_map[f_data['name']] = folder.id
+    
+    return folder_map
+
+
+def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_map: Dict[str, int]) -> Dict[str, int]:
+    """Importiert Produkte und gibt ein Mapping von Name zu neuer ID zurück."""
+    product_map = {}  # name -> neue_id
+    
+    for p_data in products_data:
+        created_by_email = p_data.get('created_by_email')
+        if not created_by_email or created_by_email not in user_map:
+            continue
+        
+        created_by_id = user_map[created_by_email]
+        folder_id = None
+        if p_data.get('folder_name') and p_data['folder_name'] in folder_map:
+            folder_id = folder_map[p_data['folder_name']]
+        
+        existing = Product.query.filter_by(name=p_data['name']).first()
+        if existing:
+            product_map[p_data['name']] = existing.id
+        else:
+            product = Product(
+                name=p_data['name'],
+                description=p_data.get('description'),
+                category=p_data.get('category'),
+                serial_number=p_data.get('serial_number'),
+                condition=p_data.get('condition'),
+                location=p_data.get('location'),
+                length=p_data.get('length'),
+                purchase_date=datetime.fromisoformat(p_data['purchase_date']).date() if p_data.get('purchase_date') else None,
+                status=p_data.get('status', 'available'),
+                image_path=p_data.get('image_path'),
+                qr_code_data=p_data.get('qr_code_data'),
+                folder_id=folder_id,
+                created_by=created_by_id
+            )
+            db.session.add(product)
+            db.session.flush()
+            product_map[p_data['name']] = product.id
+    
+    return product_map
+
+
+def import_borrow_transactions(transactions_data: List[Dict], product_map: Dict[str, int], user_map: Dict[str, int]):
+    """Importiert Ausleihtransaktionen."""
+    for t_data in transactions_data:
+        product_name = t_data.get('product_name')
+        borrower_email = t_data.get('borrower_email')
+        borrowed_by_email = t_data.get('borrowed_by_email')
+        
+        if not product_name or product_name not in product_map:
+            continue
+        if not borrower_email or borrower_email not in user_map:
+            continue
+        if not borrowed_by_email or borrowed_by_email not in user_map:
+            continue
+        
+        product_id = product_map[product_name]
+        borrower_id = user_map[borrower_email]
+        borrowed_by_id = user_map[borrowed_by_email]
+        
+        existing = BorrowTransaction.query.filter_by(transaction_number=t_data['transaction_number']).first()
+        if existing:
+            continue
+        
+        transaction = BorrowTransaction(
+            transaction_number=t_data['transaction_number'],
+            borrow_group_id=t_data.get('borrow_group_id'),
+            product_id=product_id,
+            borrower_id=borrower_id,
+            borrowed_by_id=borrowed_by_id,
+            expected_return_date=datetime.fromisoformat(t_data['expected_return_date']).date() if t_data.get('expected_return_date') else None,
+            actual_return_date=datetime.fromisoformat(t_data['actual_return_date']).date() if t_data.get('actual_return_date') else None,
+            status=t_data.get('status', 'active'),
+            qr_code_data=t_data.get('qr_code_data')
+        )
+        if t_data.get('borrow_date'):
+            transaction.borrow_date = datetime.fromisoformat(t_data['borrow_date'])
+        db.session.add(transaction)
+
+
+def import_product_sets(sets_data: List[Dict], user_map: Dict[str, int]) -> Dict[str, int]:
+    """Importiert Produktsets und gibt ein Mapping von Name zu neuer ID zurück."""
+    set_map = {}  # name -> neue_id
+    
+    for s_data in sets_data:
+        created_by_email = s_data.get('created_by_email')
+        if not created_by_email or created_by_email not in user_map:
+            continue
+        
+        created_by_id = user_map[created_by_email]
+        
+        existing = ProductSet.query.filter_by(name=s_data['name']).first()
+        if existing:
+            set_map[s_data['name']] = existing.id
+        else:
+            product_set = ProductSet(
+                name=s_data['name'],
+                description=s_data.get('description'),
+                created_by=created_by_id
+            )
+            db.session.add(product_set)
+            db.session.flush()
+            set_map[s_data['name']] = product_set.id
+    
+    return set_map
+
+
+def import_product_set_items(items_data: List[Dict], set_map: Dict[str, int], product_map: Dict[str, int]):
+    """Importiert Produktset-Items."""
+    for i_data in items_data:
+        set_name = i_data.get('set_name')
+        product_name = i_data.get('product_name')
+        
+        if not set_name or set_name not in set_map:
+            continue
+        if not product_name or product_name not in product_map:
+            continue
+        
+        set_id = set_map[set_name]
+        product_id = product_map[product_name]
+        
+        existing = ProductSetItem.query.filter_by(set_id=set_id, product_id=product_id).first()
+        if existing:
+            continue
+        
+        item = ProductSetItem(
+            set_id=set_id,
+            product_id=product_id,
+            quantity=i_data.get('quantity', 1)
+        )
+        db.session.add(item)
+
+
+def import_product_documents(documents_data: List[Dict], product_map: Dict[str, int], user_map: Dict[str, int]):
+    """Importiert Produktdokumente."""
+    for d_data in documents_data:
+        product_name = d_data.get('product_name')
+        uploaded_by_email = d_data.get('uploaded_by_email')
+        
+        if not product_name or product_name not in product_map:
+            continue
+        if not uploaded_by_email or uploaded_by_email not in user_map:
+            continue
+        
+        product_id = product_map[product_name]
+        uploaded_by_id = user_map[uploaded_by_email]
+        
+        document = ProductDocument(
+            product_id=product_id,
+            file_name=d_data['file_name'],
+            file_type=d_data['file_type'],
+            file_size=d_data.get('file_size'),
+            uploaded_by=uploaded_by_id
+        )
+        
+        # Dateiinhalt speichern wenn vorhanden
+        if d_data.get('content_base64'):
+            try:
+                import base64
+                content = base64.b64decode(d_data['content_base64'])
+                
+                from werkzeug.utils import secure_filename
+                filename = secure_filename(d_data['file_name'])
+                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{filename}"
+                
+                upload_dir = os.path.join(current_app.root_path, '..', current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'product_documents')
+                os.makedirs(upload_dir, exist_ok=True)
+                file_path = os.path.join(upload_dir, filename)
+                
+                with open(file_path, 'wb') as f:
+                    f.write(content)
+                
+                document.file_path = file_path
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Speichern von Produktdokument {d_data['file_name']}: {str(e)}")
+        
+        db.session.add(document)
+
+
+def import_saved_filters(filters_data: List[Dict], user_map: Dict[str, int]):
+    """Importiert gespeicherte Filter."""
+    for f_data in filters_data:
+        user_email = f_data.get('user_email')
+        if not user_email or user_email not in user_map:
+            continue
+        
+        user_id = user_map[user_email]
+        
+        existing = SavedFilter.query.filter_by(user_id=user_id, name=f_data['name']).first()
+        if existing:
+            continue
+        
+        filter_obj = SavedFilter(
+            user_id=user_id,
+            name=f_data['name'],
+            filter_data=f_data['filter_data']
+        )
+        db.session.add(filter_obj)
+
+
+def import_product_favorites(favorites_data: List[Dict], product_map: Dict[str, int], user_map: Dict[str, int]):
+    """Importiert Produktfavoriten."""
+    for f_data in favorites_data:
+        user_email = f_data.get('user_email')
+        product_name = f_data.get('product_name')
+        
+        if not user_email or user_email not in user_map:
+            continue
+        if not product_name or product_name not in product_map:
+            continue
+        
+        user_id = user_map[user_email]
+        product_id = product_map[product_name]
+        
+        existing = ProductFavorite.query.filter_by(user_id=user_id, product_id=product_id).first()
+        if existing:
+            continue
+        
+        favorite = ProductFavorite(
+            user_id=user_id,
+            product_id=product_id
+        )
+        db.session.add(favorite)
+
+
+def import_inventories(inventories_data: List[Dict], user_map: Dict[str, int]) -> Dict[str, int]:
+    """Importiert Inventuren und gibt ein Mapping von Name zu neuer ID zurück."""
+    inventory_map = {}  # name -> neue_id
+    
+    for i_data in inventories_data:
+        started_by_email = i_data.get('started_by_email')
+        if not started_by_email or started_by_email not in user_map:
+            continue
+        
+        started_by_id = user_map[started_by_email]
+        
+        existing = Inventory.query.filter_by(name=i_data['name']).first()
+        if existing:
+            inventory_map[i_data['name']] = existing.id
+        else:
+            inventory = Inventory(
+                name=i_data['name'],
+                description=i_data.get('description'),
+                status=i_data.get('status', 'active'),
+                started_by=started_by_id
+            )
+            if i_data.get('started_at'):
+                inventory.started_at = datetime.fromisoformat(i_data['started_at'])
+            if i_data.get('completed_at'):
+                inventory.completed_at = datetime.fromisoformat(i_data['completed_at'])
+            db.session.add(inventory)
+            db.session.flush()
+            inventory_map[i_data['name']] = inventory.id
+    
+    return inventory_map
+
+
+def import_inventory_items(items_data: List[Dict], inventory_map: Dict[str, int], product_map: Dict[str, int], user_map: Dict[str, int]):
+    """Importiert Inventur-Items."""
+    for i_data in items_data:
+        inventory_name = i_data.get('inventory_name')
+        product_name = i_data.get('product_name')
+        
+        if not inventory_name or inventory_name not in inventory_map:
+            continue
+        if not product_name or product_name not in product_map:
+            continue
+        
+        inventory_id = inventory_map[inventory_name]
+        product_id = product_map[product_name]
+        
+        existing = InventoryItem.query.filter_by(inventory_id=inventory_id, product_id=product_id).first()
+        if existing:
+            continue
+        
+        checked_by_id = None
+        if i_data.get('checked_by_email') and i_data['checked_by_email'] in user_map:
+            checked_by_id = user_map[i_data['checked_by_email']]
+        
+        item = InventoryItem(
+            inventory_id=inventory_id,
+            product_id=product_id,
+            checked=i_data.get('checked', False),
+            notes=i_data.get('notes'),
+            location_changed=i_data.get('location_changed', False),
+            new_location=i_data.get('new_location'),
+            condition_changed=i_data.get('condition_changed', False),
+            new_condition=i_data.get('new_condition'),
+            checked_by=checked_by_id
+        )
+        if i_data.get('checked_at'):
+            item.checked_at = datetime.fromisoformat(i_data['checked_at'])
+        db.session.add(item)
 

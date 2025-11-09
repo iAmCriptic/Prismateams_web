@@ -724,3 +724,56 @@ button, .btn {
     width: 64px;
     height: 64px;
 }
+
+/* Zurück-Button Styling */
+.back-button-container {
+    position: relative;
+}
+
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.back-button i {
+    font-size: 1rem;
+}
+
+/* Mobile-optimiert: Größere Touch-Targets */
+@media (max-width: 767.98px) {
+    .back-button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+    }
+    
+    .back-button i {
+        font-size: 1.1rem;
+    }
+    
+    /* Zusätzlicher Abstand für bessere Sichtbarkeit auf Mobile */
+    .back-button-container {
+        margin-bottom: 1rem !important;
+    }
+}
+
+/* Desktop: Standard-Button-Größe */
+@media (min-width: 768px) {
+    .back-button {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Hover-Effekt für bessere Interaktivität */
+.back-button:hover {
+    transform: translateX(-2px);
+}
+
+.back-button:active {
+    transform: translateX(0);
+}

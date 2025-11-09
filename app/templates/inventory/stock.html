@@ -5,7 +5,20 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1 class="mb-3"><i class="bi bi-box-seam"></i> Bestandsübersicht</h1>
+        <h1 class="mb-3">
+            <i class="bi bi-box-seam"></i> Bestandsübersicht
+            {% if current_folder %}
+                <small class="text-muted">- {{ current_folder.name }}</small>
+            {% endif %}
+        </h1>
+        {% if current_folder %}
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock') }}">Root</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ current_folder.name }}</li>
+            </ol>
+        </nav>
+        {% endif %}
     </div>
     <div class="col-auto d-flex gap-2">
         <button id="borrowSelectedBtn" class="btn btn-primary" style="display: none;">
@@ -25,11 +38,46 @@
     <div class="card-body">
         <!-- Erweiterte Suche (immer sichtbar) -->
         <div class="row g-3 mb-3">
-            <div class="col-12">
+            <div class="col-12 col-md-8">
                 <label for="searchInput" class="form-label">Suchen</label>
                 <input type="text" class="form-control" id="searchInput" 
                        placeholder="Name, Seriennummer, Länge (z.B. 5m), Beschreibung, Lagerort, Kategorie...">
                 <small class="form-text text-muted">Durchsucht alle Produktattribute</small>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary flex-fill" id="saveFilterBtn" style="display: none;">
+                        <i class="bi bi-bookmark"></i> Filter speichern
+                    </button>
+                    <div class="dropdown flex-fill">
+                        <button class="btn btn-outline-secondary w-100 dropdown-toggle" type="button" id="savedFiltersDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-bookmarks"></i> Gespeicherte Filter
+                        </button>
+                        <ul class="dropdown-menu" id="savedFiltersList" aria-labelledby="savedFiltersDropdown">
+                            <li><a class="dropdown-item" href="#" onclick="loadSavedFilters(); return false;">Lade...</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Schnellfilter -->
+        <div class="mb-3">
+            <label class="form-label">Schnellfilter</label>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="all">
+                    <i class="bi bi-list-ul"></i> Alle anzeigen
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="favorites">
+                    <i class="bi bi-star-fill"></i> Meine Favoriten
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="available">
+                    <i class="bi bi-check-circle"></i> Verfügbar
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="borrowed">
+                    <i class="bi bi-clock-history"></i> Ausgeliehen
+                </button>
             </div>
         </div>
         
@@ -114,22 +162,65 @@
 <!-- Produktliste -->
 <div class="card">
     <div class="card-body">
-        <div class="mb-3 d-flex justify-content-between align-items-center">
-            <div>
+        <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex gap-2">
+                {% if current_folder %}
+                <a href="{{ url_for('inventory.stock') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+                {% endif %}
                 <button id="selectAllBtn" class="btn btn-sm btn-outline-primary">Alle auswählen</button>
                 <button id="deselectAllBtn" class="btn btn-sm btn-outline-secondary">Alle abwählen</button>
             </div>
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="selectionModeToggle">
-                <label class="form-check-label" for="selectionModeToggle">
-                    Mehrfachauswahl aktivieren
-                </label>
+            <div class="d-flex gap-2 align-items-center">
+                <!-- View Toggle -->
+                <div class="btn-group" role="group">
+                    <button class="btn btn-sm btn-outline-secondary" id="listViewBtn" title="Listenansicht">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary active" id="gridViewBtn" title="Rasteransicht">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </button>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="selectionModeToggle">
+                    <label class="form-check-label" for="selectionModeToggle">
+                        Mehrfachauswahl aktivieren
+                    </label>
+                </div>
             </div>
         </div>
-        <div id="productsContainer">
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Lädt...</span>
+        
+        <!-- Grid View Container -->
+        <div id="gridViewContainer">
+            <!-- Ordner Grid View -->
+            <div id="foldersGridView" class="row g-3 mb-4" style="display: none;">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+            
+            <!-- Produkte Grid View -->
+            <div id="productsGridContainer">
+                <div id="productsContainer" class="row g-3">
+                    <div class="text-center py-5 col-12">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Lädt...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- List View Container -->
+        <div id="listViewContainer" style="display: none;">
+            <!-- Ordner List View -->
+            <div id="foldersListView" class="list-group mb-4" style="display: none;">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+            
+            <!-- Produkte List View -->
+            <div id="productsListContainer">
+                <div id="productsList" class="list-group">
+                    <!-- Wird dynamisch gefüllt -->
                 </div>
             </div>
         </div>
@@ -207,6 +298,219 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
+});
+
+// Favoriten-Funktionen
+let favorites = new Set();
+
+async function loadFavorites() {
+    try {
+        const response = await fetch('/inventory/api/favorites');
+        if (response.ok) {
+            const data = await response.json();
+            favorites = new Set(data.map(p => p.id));
+            updateFavoriteButtons();
+        }
+    } catch (error) {
+        console.error('Fehler beim Laden der Favoriten:', error);
+    }
+}
+
+async function toggleFavorite(productId) {
+    try {
+        const isFavorite = favorites.has(productId);
+        const method = isFavorite ? 'DELETE' : 'POST';
+        
+        const response = await fetch(`/inventory/api/favorites/${productId}`, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            if (isFavorite) {
+                favorites.delete(productId);
+            } else {
+                favorites.add(productId);
+            }
+            updateFavoriteButtons();
+        }
+    } catch (error) {
+        console.error('Fehler beim Toggle der Favoriten:', error);
+    }
+}
+
+function updateFavoriteButtons() {
+    document.querySelectorAll('.favorite-btn').forEach(btn => {
+        const productId = parseInt(btn.dataset.productId);
+        if (favorites.has(productId)) {
+            btn.classList.add('active');
+            btn.innerHTML = '<i class="bi bi-star-fill"></i>';
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = '<i class="bi bi-star"></i>';
+        }
+    });
+}
+
+// Gespeicherte Filter
+let savedFilters = [];
+
+async function loadSavedFilters() {
+    try {
+        const response = await fetch('/inventory/api/filters');
+        if (response.ok) {
+            savedFilters = await response.json();
+            updateSavedFiltersDropdown();
+        }
+    } catch (error) {
+        console.error('Fehler beim Laden der gespeicherten Filter:', error);
+    }
+}
+
+function updateSavedFiltersDropdown() {
+    const dropdown = document.getElementById('savedFiltersList');
+    if (!dropdown) return;
+    
+    if (savedFilters.length === 0) {
+        dropdown.innerHTML = '<li><a class="dropdown-item" href="#">Keine gespeicherten Filter</a></li>';
+        return;
+    }
+    
+    dropdown.innerHTML = savedFilters.map(filter => `
+        <li>
+            <a class="dropdown-item" href="#" onclick="applySavedFilter(${filter.id}); return false;">
+                ${filter.name}
+            </a>
+        </li>
+    `).join('') + `
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-danger" href="#" onclick="deleteSavedFilter(); return false;">
+            <i class="bi bi-trash"></i> Filter löschen
+        </a></li>
+    `;
+}
+
+async function applySavedFilter(filterId) {
+    const filter = savedFilters.find(f => f.id === filterId);
+    if (!filter) return;
+    
+    // Filter anwenden
+    if (filter.filter_data) {
+        // Implementierung: Filter-Daten auf Formular anwenden
+        if (window.stockManager) {
+            // Filter-Daten an StockManager übergeben
+            console.log('Filter anwenden:', filter.filter_data);
+        }
+    }
+}
+
+async function saveCurrentFilter() {
+    const name = prompt('Bitte geben Sie einen Namen für den Filter ein:');
+    if (!name) return;
+    
+    // Aktuelle Filter-Daten sammeln
+    const filterData = {
+        search: document.getElementById('searchInput')?.value || '',
+        folder: document.getElementById('folderFilter')?.value || '',
+        category: document.getElementById('categoryFilter')?.value || '',
+        status: document.getElementById('statusFilter')?.value || '',
+        // ... weitere Filter
+    };
+    
+    try {
+        const response = await fetch('/inventory/api/filters/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                filter_data: filterData
+            })
+        });
+        
+        if (response.ok) {
+            alert('Filter erfolgreich gespeichert!');
+            loadSavedFilters();
+        } else {
+            const error = await response.json();
+            alert('Fehler: ' + (error.error || 'Unbekannter Fehler'));
+        }
+    } catch (error) {
+        console.error('Fehler beim Speichern des Filters:', error);
+        alert('Fehler beim Speichern des Filters.');
+    }
+}
+
+// Schnellfilter
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.quick-filter')) {
+        const btn = e.target.closest('.quick-filter');
+        const filter = btn.dataset.filter;
+        
+        // Entferne active-Klasse von allen Schnellfilter-Buttons
+        document.querySelectorAll('.quick-filter').forEach(b => {
+            b.classList.remove('active');
+        });
+        
+        // Füge active-Klasse zum geklickten Button hinzu
+        btn.classList.add('active');
+        
+        if (filter === 'all') {
+            // Alle anzeigen - Filter zurücksetzen
+            if (window.stockManager) {
+                window.stockManager.activeQuickFilter = null;
+                document.getElementById('statusFilter').value = '';
+                document.getElementById('searchInput').value = '';
+                window.stockManager.applyFilters();
+                window.stockManager.renderFolders(); // Zeige Ordner wieder an
+            }
+        } else if (filter === 'favorites') {
+            // Nur Favoriten anzeigen
+            if (window.stockManager) {
+                window.stockManager.activeQuickFilter = 'favorites';
+                window.stockManager.filteredProducts = window.stockManager.products.filter(p => favorites.has(p.id));
+                window.stockManager.renderProducts();
+            }
+        } else if (filter === 'available') {
+            if (window.stockManager) {
+                window.stockManager.activeQuickFilter = 'available';
+                document.getElementById('statusFilter').value = 'available';
+                window.stockManager.applyFilters();
+            }
+        } else if (filter === 'borrowed') {
+            if (window.stockManager) {
+                window.stockManager.activeQuickFilter = 'borrowed';
+                document.getElementById('statusFilter').value = 'borrowed';
+                window.stockManager.applyFilters();
+            }
+        }
+    }
+    
+    if (e.target.closest('.favorite-btn')) {
+        const productId = parseInt(e.target.closest('.favorite-btn').dataset.productId);
+        toggleFavorite(productId);
+    }
+});
+
+// Filter speichern Button
+document.getElementById('saveFilterBtn')?.addEventListener('click', saveCurrentFilter);
+
+// Initialisierung
+document.addEventListener('DOMContentLoaded', function() {
+    loadFavorites();
+    loadSavedFilters();
+    
+    // Zeige "Filter speichern" Button wenn Filter aktiv sind
+    const filterInputs = document.querySelectorAll('#filterCollapse select, #filterCollapse input');
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const hasActiveFilters = Array.from(filterInputs).some(i => i.value !== '');
+            document.getElementById('saveFilterBtn').style.display = hasActiveFilters ? 'block' : 'none';
+        });
+    });
 });
 </script>
 {% endblock %}

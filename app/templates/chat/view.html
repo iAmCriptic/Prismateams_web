@@ -174,67 +174,77 @@
         </div>
     </div>
     
-    <div class="messages-area" id="messages-container">
-        {% for message in messages %}
-        <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
-            {% if message.message_type == 'text' %}
-                <div class="message-header">
-                    <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
-                </div>
-                <div class="message-content">
-                    {{ message.content }}
-                </div>
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        {{ message.created_at | localtime('%H:%M') }}
-                    </small>
-                </div>
-            {% elif message.message_type == 'image' %}
-                <div class="message-header">
-                    <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
-                </div>
-                <img src="{{ url_for('static', filename='../' + message.media_url) }}" class="img-fluid rounded" style="max-width: 300px;">
-                {% if message.content %}
-                <p class="mt-2 mb-0">{{ message.content }}</p>
+    <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column; min-height: 200px;">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
+                {% if message.message_type == 'text' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                    </div>
+                    <div class="message-content">
+                        {{ message.content }}
+                    </div>
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | localtime('%H:%M') }}
+                        </small>
+                    </div>
+                {% elif message.message_type == 'image' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                    </div>
+                    <img src="{{ url_for('static', filename='../' + message.media_url) }}" class="img-fluid rounded" style="max-width: 300px;">
+                    {% if message.content %}
+                    <p class="mt-2 mb-0">{{ message.content }}</p>
+                    {% endif %}
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | localtime('%H:%M') }}
+                        </small>
+                    </div>
+                {% elif message.message_type == 'video' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                    </div>
+                    <video controls class="rounded" style="max-width: 300px;">
+                        <source src="{{ url_for('static', filename='../' + message.media_url) }}">
+                    </video>
+                    {% if message.content %}
+                    <p class="mt-2 mb-0">{{ message.content }}</p>
+                    {% endif %}
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | localtime('%H:%M') }}
+                        </small>
+                    </div>
+                {% elif message.message_type == 'voice' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
+                    </div>
+                    <audio controls>
+                        <source src="{{ url_for('static', filename='../' + message.media_url) }}">
+                    </audio>
+                    {% if message.content %}
+                    <p class="mt-2 mb-0">{{ message.content }}</p>
+                    {% endif %}
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | localtime('%H:%M') }}
+                        </small>
+                    </div>
                 {% endif %}
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        {{ message.created_at | localtime('%H:%M') }}
-                    </small>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #6c757d; padding: 2rem;">
+                <div style="text-align: center;">
+                    <i class="bi bi-chat-dots" style="font-size: 3rem; opacity: 0.5; margin-bottom: 1rem;"></i>
+                    <p style="margin: 0;">Noch keine Nachrichten in diesem Chat.</p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Schreiben Sie die erste Nachricht!</p>
                 </div>
-            {% elif message.message_type == 'video' %}
-                <div class="message-header">
-                    <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
-                </div>
-                <video controls class="rounded" style="max-width: 300px;">
-                    <source src="{{ url_for('static', filename='../' + message.media_url) }}">
-                </video>
-                {% if message.content %}
-                <p class="mt-2 mb-0">{{ message.content }}</p>
-                {% endif %}
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        {{ message.created_at | localtime('%H:%M') }}
-                    </small>
-                </div>
-            {% elif message.message_type == 'voice' %}
-                <div class="message-header">
-                    <strong>{% if message.sender_id == current_user.id %}Du{% else %}{{ message.sender.full_name }}{% endif %}</strong>
-                </div>
-                <audio controls>
-                    <source src="{{ url_for('static', filename='../' + message.media_url) }}">
-                </audio>
-                {% if message.content %}
-                <p class="mt-2 mb-0">{{ message.content }}</p>
-                {% endif %}
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        {{ message.created_at | localtime('%H:%M') }}
-                    </small>
-                </div>
-            {% endif %}
-        </div>
-        {% endfor %}
+            </div>
+        {% endif %}
     </div>
 </div>
 
@@ -288,15 +298,18 @@
     const currentUserId = {{ current_user.id }};
     let lastMessageId = {{ messages[-1].id if messages else 0 }};
     let isPolling = true;
+    let currentMemberCount = {{ members|length }};
     
     // Auto-scroll to bottom
     function scrollToBottom() {
         const container = document.getElementById('messages-container');
-        container.scrollTop = container.scrollHeight;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }
     
     // Initial scroll
-    scrollToBottom();
+    setTimeout(scrollToBottom, 100);
     
     // Show selected file name
     document.getElementById('file-upload').addEventListener('change', function(e) {
@@ -431,6 +444,143 @@
         return div.innerHTML;
     }
     
+    // Update members list
+    async function updateMembersList() {
+        try {
+            const response = await fetch(`/api/chats/${chatId}/members`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const members = await response.json();
+                
+                // Update member count if it changed
+                if (members.length !== currentMemberCount) {
+                    currentMemberCount = members.length;
+                    
+                    // Update member count in header
+                    const memberCountElements = document.querySelectorAll('.member-count');
+                    memberCountElements.forEach(el => {
+                        el.textContent = `${members.length} Mitglieder`;
+                    });
+                    
+                    // Update desktop sidebar
+                    updateDesktopSidebar(members);
+                    
+                    // Update mobile member avatars
+                    updateMobileMemberAvatars(members);
+                    
+                    // Update all members modal
+                    updateAllMembersModal(members);
+                }
+            }
+        } catch (error) {
+            console.error('Error updating members:', error);
+        }
+    }
+    
+    // Update desktop sidebar members
+    function updateDesktopSidebar(members) {
+        const sidebar = document.querySelector('.sidebar-members');
+        if (!sidebar) return;
+        
+        sidebar.innerHTML = members.map(member => {
+            const avatarHtml = member.profile_picture 
+                ? `<img src="${escapeHtml(member.profile_picture)}" alt="${escapeHtml(member.full_name)}" class="member-avatar-small">`
+                : `<div class="member-avatar-small member-avatar-initial">${escapeHtml(member.full_name[0].toUpperCase())}</div>`;
+            
+            const role = member.is_creator ? 'Admin' : 'Mitglied';
+            
+            return `
+                <div class="sidebar-member clickable-member" 
+                     data-member-id="${member.id}"
+                     data-member-name="${escapeHtml(member.full_name)}"
+                     data-member-email="${escapeHtml(member.email)}"
+                     data-member-phone="${escapeHtml(member.phone || '')}"
+                     data-member-picture="${escapeHtml(member.profile_picture || '')}"
+                     onclick="showMemberModal(this)">
+                    <div class="member-info">
+                        ${avatarHtml}
+                        <div class="member-details">
+                            <span class="member-name">${escapeHtml(member.full_name)}</span>
+                            <small class="member-role text-muted">${role}</small>
+                        </div>
+                    </div>
+                    <div class="member-status">
+                        <span class="status-indicator online"></span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Update mobile member avatars in header
+    function updateMobileMemberAvatars(members) {
+        const memberAvatars = document.querySelector('.member-avatars');
+        if (!memberAvatars) return;
+        
+        memberAvatars.innerHTML = members.slice(0, 4).map(member => {
+            const avatarHtml = member.profile_picture
+                ? `<img src="${escapeHtml(member.profile_picture)}" alt="${escapeHtml(member.full_name)}" class="rounded-circle">`
+                : `<div class="member-avatar-initial">${escapeHtml(member.full_name[0].toUpperCase())}</div>`;
+            
+            return `
+                <div class="member-avatar clickable-member" 
+                     title="${escapeHtml(member.full_name)}"
+                     data-member-id="${member.id}"
+                     data-member-name="${escapeHtml(member.full_name)}"
+                     data-member-email="${escapeHtml(member.email)}"
+                     data-member-phone="${escapeHtml(member.phone || '')}"
+                     data-member-picture="${escapeHtml(member.profile_picture || '')}"
+                     onclick="showMemberModal(this)">
+                    ${avatarHtml}
+                </div>
+            `;
+        }).join('') + (members.length > 4 ? `
+            <div class="member-avatar member-avatar-more clickable-member" 
+                 title="Alle Mitglieder anzeigen"
+                 onclick="showAllMembersModal()">
+                +${members.length - 4}
+            </div>
+        ` : '');
+    }
+    
+    // Update all members modal
+    function updateAllMembersModal(members) {
+        const membersGrid = document.querySelector('.members-grid');
+        if (!membersGrid) return;
+        
+        membersGrid.innerHTML = members.map(member => {
+            const avatarHtml = member.profile_picture
+                ? `<img src="${escapeHtml(member.profile_picture)}" alt="${escapeHtml(member.full_name)}" class="rounded-circle">`
+                : `<div class="member-avatar-initial">${escapeHtml(member.full_name[0].toUpperCase())}</div>`;
+            
+            return `
+                <div class="member-card clickable-member" 
+                     data-member-id="${member.id}"
+                     data-member-name="${escapeHtml(member.full_name)}"
+                     data-member-email="${escapeHtml(member.email)}"
+                     data-member-phone="${escapeHtml(member.phone || '')}"
+                     data-member-picture="${escapeHtml(member.profile_picture || '')}"
+                     onclick="showMemberModal(this)">
+                    <div class="member-card-avatar">
+                        ${avatarHtml}
+                    </div>
+                    <div class="member-card-info">
+                        <h6 class="member-card-name">${escapeHtml(member.full_name)}</h6>
+                        <small class="member-card-email">${escapeHtml(member.email)}</small>
+                        ${member.phone ? `<small class="member-card-phone text-muted d-block">${escapeHtml(member.phone)}</small>` : ''}
+                    </div>
+                    <div class="member-card-arrow">
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
     // Poll for new messages
     async function pollForNewMessages() {
         if (!isPolling) return;
@@ -462,14 +612,26 @@
         setTimeout(pollForNewMessages, 2000);
     }
     
+    // Poll for member updates
+    async function pollForMembers() {
+        if (!isPolling) return;
+        
+        await updateMembersList();
+        
+        // Poll again after 5 seconds
+        setTimeout(pollForMembers, 5000);
+    }
+    
     // Start polling when page loads
     pollForNewMessages();
+    pollForMembers();
     
     // Stop polling when page is hidden
     document.addEventListener('visibilitychange', function() {
         isPolling = !document.hidden;
         if (isPolling) {
             pollForNewMessages();
+            pollForMembers();
         }
     });
     

@@ -1,332 +1,360 @@
-/* Inventory Management Styles */
+/* Touch-optimierte Styles für Mobile/PWA */
 
-/* Product Cards */
+/* Größere Touch-Targets für Mobile */
+@media (max-width: 768px) {
+    .btn {
+        min-height: 44px; /* Apple HIG empfiehlt mindestens 44x44px */
+        padding: 0.5rem 1rem;
+    }
+    
+    .btn-sm {
+        min-height: 38px;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    /* Größere Produktkarten für bessere Touch-Interaktion */
+    .product-card {
+        margin-bottom: 1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .product-card:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Größere Icons für Touch */
+    .bi {
+        font-size: 1.2em;
+    }
+    
+    /* Größere Formular-Elemente */
+    .form-control, .form-select {
+        min-height: 44px;
+        font-size: 16px; /* Verhindert Zoom auf iOS */
+    }
+    
+    /* Größere Checkboxen */
+    .form-check-input {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+    
+    /* Größere Dropdown-Menüs */
+    .dropdown-menu {
+        font-size: 1rem;
+    }
+    
+    .dropdown-item {
+        padding: 0.75rem 1rem;
+        min-height: 44px;
+    }
+    
+    /* Touch-freundliche Tabellen */
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Größere Modals für Mobile */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    /* Touch-optimierte Karten */
+    .card {
+        border-radius: 8px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    /* Größere Badges */
+    .badge {
+        font-size: 0.875rem;
+        padding: 0.5em 0.75em;
+    }
+    
+    /* Touch-optimierte Navigation */
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+    }
+    
+    /* Größere QR-Scanner Buttons */
+    #startScanBtn, #stopScanBtn {
+        min-width: 150px;
+        min-height: 50px;
+        font-size: 1.1rem;
+    }
+}
+
+/* Favoriten-Button Styles */
+.favorite-btn {
+    transition: all 0.2s;
+}
+
+.favorite-btn.active {
+    color: #ffc107;
+    border-color: #ffc107;
+}
+
+.favorite-btn:hover {
+    transform: scale(1.1);
+}
+
+.favorite-btn.active:hover {
+    transform: scale(1.15);
+}
+
+/* Touch-Feedback für Buttons */
+.btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s;
+}
+
+/* Smooth Scrolling für Mobile */
+html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Verbesserte Lesbarkeit auf kleinen Bildschirmen */
+@media (max-width: 576px) {
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3 {
+        font-size: 1.25rem;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
+}
+
+/* PWA-spezifische Styles */
+@media (display-mode: standalone) {
+    /* Zusätzliche Styles für installierte PWA */
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* Verbesserte Produktkarten für Touch */
 .product-card {
-    transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.product-card.selection-mode {
+    border: 2px solid #0d6efd;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Touch-optimierte Statistiken-Karten */
+.stat-card {
+    touch-action: manipulation;
+}
+
+/* QR-Scanner Styles */
+#scannerContainer {
+    touch-action: none;
+}
+
+#video {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Verbesserte Formulare für Touch */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+/* Größere Input-Gruppen für Mobile */
+.input-group .form-control {
+    min-height: 44px;
+}
+
+/* Touch-optimierte Dropdowns */
+.dropdown-toggle::after {
+    margin-left: 0.5em;
+}
+
+/* Verbesserte Modals für Touch */
+.modal-content {
+    border-radius: 12px;
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding: 1rem 1.5rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(0,0,0,0.1);
+    padding: 1rem 1.5rem;
+}
+
+/* Touch-optimierte Tabellen */
+.table {
+    font-size: 0.95rem;
+}
+
+.table th, .table td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+
+/* Responsive Charts */
+.chart-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Verbesserte Buttons für Touch */
+.btn-group .btn {
+    min-width: 44px;
+}
+
+/* Touch-optimierte Accordions */
+.accordion-button {
+    min-height: 50px;
+    font-size: 1rem;
+}
+
+/* Verbesserte Produktkarten-Grid */
+@media (max-width: 768px) {
+    .product-card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Grid View Styles */
+.inventory-grid {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.product-card {
+    height: 100%;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .product-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-[data-bs-theme="dark"] .product-card:hover {
-    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+/* Ordner-Karten */
+.folder-item {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.folder-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* List View Styles */
+.list-group-item.selection-mode {
+    border: 2px solid #0d6efd;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Schnellfilter active state */
+.quick-filter.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* View Toggle Buttons */
+.btn-group .btn.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* Loading States für Touch */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Touch-optimierte Alerts */
+.alert {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+}
+
+/* Verbesserte Navigation für Touch */
+.navbar-brand {
+    font-size: 1.25rem;
+}
+
+/* Touch-freundliche Pagination */
+.pagination .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Produktbilder - Feste Größe für konsistentes Layout */
 .product-image {
     width: 100%;
     height: 200px;
     object-fit: cover;
-    border-radius: 0.375rem 0.375rem 0 0;
+    background-color: #f8f9fa;
+    display: block;
 }
 
-.product-status-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-}
-
-/* QR Scanner */
-#scannerContainer {
-    position: relative;
-    background-color: #000;
-    border-radius: 0.375rem;
-    overflow: hidden;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-#scannerVideo {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 400px !important;
-    min-height: 300px !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    margin: 0 auto;
-    object-fit: cover;
-    background-color: #000;
-}
-
-#scannerCanvas {
-    display: none;
-}
-
-/* Visueller Scan-Rahmen */
-.scanner-frame {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 250px;
-    height: 250px;
-    border: 3px solid rgba(255, 255, 255, 0.8);
-    border-radius: 12px;
-    pointer-events: none;
-    z-index: 10;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    transition: border-color 0.3s ease;
-}
-
-/* Scan-Linie Animation (Strich von oben nach unten) */
-.scanner-line {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 250px;
-    height: 3px;
-    background: linear-gradient(to bottom, transparent, #0d6efd, transparent);
-    pointer-events: none;
-    z-index: 15;
-    opacity: 0;
-    box-shadow: 0 0 10px rgba(13, 110, 253, 0.8);
-}
-
-.scanner-line.animate {
-    animation: scanLineMove 0.5s ease-out forwards;
-}
-
-@keyframes scanLineMove {
-    0% {
-        top: calc(50% - 125px);
-        opacity: 1;
-    }
-    100% {
-        top: calc(50% + 125px);
-        opacity: 0.8;
-    }
-}
-
-/* Grünes Leuchten bei erfolgreichem Scan */
-.scanner-frame.scanner-success {
-    border-color: #28a745;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(40, 167, 69, 0.6);
-    animation: scannerPulse 2s ease-out;
-}
-
-@keyframes scannerPulse {
-    0% {
-        border-color: #28a745;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(40, 167, 69, 0.6);
-    }
-    50% {
-        border-color: #28a745;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 40px rgba(40, 167, 69, 0.9);
-    }
-    100% {
-        border-color: rgba(255, 255, 255, 0.8);
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    }
-}
-
-/* Erfolgs-Popup */
-.scanner-success-popup {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(40, 167, 69, 0.95);
-    color: white;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    z-index: 20;
-    align-items: center;
-    gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    opacity: 0;
-    pointer-events: none;
-}
-
-.scanner-success-popup.show {
-    display: flex;
-    animation: popupFadeIn 0.3s ease-out forwards;
-}
-
-.scanner-success-popup.hide {
-    animation: popupFadeOut 0.3s ease-out forwards;
-}
-
-.scanner-success-popup i {
-    font-size: 1.5rem;
-}
-
-@keyframes popupFadeIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-@keyframes popupFadeOut {
-    from {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    to {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8);
-    }
-}
-
-.scanner-overlay {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 200px;
+/* Platzhalter für Produktbilder */
+.product-image-placeholder {
+    width: 100%;
     height: 200px;
-    border: 2px solid #0d6efd;
-    border-radius: 0.375rem;
-    pointer-events: none;
-}
-
-/* Inventory Grid */
-.inventory-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
-}
-
-@media (max-width: 768px) {
-    .inventory-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* Status Badges */
-.status-available {
-    background-color: #198754;
-    color: white;
-}
-
-.status-borrowed {
-    background-color: #ffc107;
-    color: #000;
-}
-
-.status-overdue {
-    background-color: #dc3545;
-    color: white;
-}
-
-/* Product Detail Modal */
-.product-detail-image {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.375rem;
-}
-
-/* Quick Action Cards */
-.quick-action-card {
-    transition: all 0.2s;
-}
-
-.quick-action-card:hover {
-    transform: scale(1.02);
-}
-
-.quick-action-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-/* Table Responsive Styles */
-@media (max-width: 768px) {
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-    
-    .table-responsive th,
-    .table-responsive td {
-        padding: 0.5rem;
-    }
-}
-
-/* Loading Spinner */
-.inventory-loading {
     display: flex;
-    justify-content: center;
     align-items: center;
-    min-height: 200px;
-}
-
-/* Empty State */
-.inventory-empty {
-    text-align: center;
-    padding: 3rem 1rem;
+    justify-content: center;
+    background-color: #f8f9fa;
     color: #6c757d;
 }
 
-/* Filter Section */
-.filter-section {
-    background-color: #f8f9fa;
-    padding: 1.5rem;
-    border-radius: 0.375rem;
-    margin-bottom: 2rem;
+/* Produktkarten-Bildcontainer */
+.product-card .position-relative {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
 }
 
-[data-bs-theme="dark"] .filter-section {
-    background-color: #212529;
+.product-card img.product-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
 }
 
-/* QR Code Display */
-.qr-code-display {
-    text-align: center;
-    padding: 1rem;
-    background-color: white;
-    border-radius: 0.375rem;
-    margin: 1rem 0;
+/* Produkt-Detail-Bild */
+.product-detail-image {
+    max-width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: 8px;
 }
-
-[data-bs-theme="dark"] .qr-code-display {
-    background-color: #343a40;
-}
-
-/* Return Interface */
-.return-interface {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-/* Print QR Selection */
-.print-qr-selection {
-    max-height: 600px;
-    overflow-y: auto;
-}
-
-/* Selection Mode */
-.product-card.selection-mode {
-    border: 2px solid #0d6efd;
-    cursor: pointer;
-}
-
-.product-card.selection-mode:hover {
-    border-color: #0a58ca;
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
-}
-
-.product-checkbox {
-    cursor: pointer;
-    z-index: 10;
-}
-
-/* Ordner-Badge */
-.cursor-pointer {
-    cursor: pointer;
-}
-
-.cursor-pointer:hover {
-    opacity: 0.8;
-}
-

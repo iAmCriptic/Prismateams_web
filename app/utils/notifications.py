@@ -305,18 +305,6 @@ def send_chat_notification(
         if chat_settings and not chat_settings.notifications_enabled:
             continue
         
-        # Prüfe ob bereits eine Benachrichtigung für diesen Chat in den letzten 5 Minuten gesendet wurde
-        existing_notification = NotificationLog.query.filter_by(
-            user_id=user.id,
-            url=f"/chat/{chat_id}",
-            success=True
-        ).filter(
-            NotificationLog.sent_at >= datetime.utcnow() - timedelta(minutes=5)
-        ).first()
-        
-        if existing_notification:
-            continue  # Benachrichtigung bereits gesendet
-        
         # Zähle ungelesene Nachrichten in diesem Chat
         unread_count = ChatMessage.query.filter(
             ChatMessage.chat_id == chat_id,
@@ -327,6 +315,29 @@ def send_chat_notification(
         
         if unread_count == 0:
             continue  # Keine ungelesenen Nachrichten
+        
+        # Prüfe ob bereits eine Benachrichtigung für diesen Chat in den letzten 30 Sekunden gesendet wurde
+        # Wenn ja, prüfe ob sich die Anzahl der ungelesenen Nachrichten erhöht hat
+        existing_notification = NotificationLog.query.filter_by(
+            user_id=user.id,
+            url=f"/chat/{chat_id}",
+            success=True
+        ).filter(
+            NotificationLog.sent_at >= datetime.utcnow() - timedelta(seconds=30)
+        ).order_by(NotificationLog.sent_at.desc()).first()
+        
+        if existing_notification:
+            # Extrahiere die alte Anzahl aus dem Body der letzten Benachrichtigung
+            old_body = existing_notification.body or ""
+            # Suche nach "X neue Nachricht(en)" - unterstützt sowohl Singular als auch Plural
+            old_count_match = re.search(r'(\d+)\s+neue\s+Nachricht(?:en)?', old_body)
+            old_count = int(old_count_match.group(1)) if old_count_match else 0
+            
+            # Wenn die Anzahl gleich geblieben ist, überspringe (verhindert Duplikate bei gleichzeitigen Nachrichten)
+            if old_count >= unread_count:
+                logging.info(f"Chat-Benachrichtigung übersprungen: Anzahl unverändert ({old_count} -> {unread_count})")
+                continue
+            # Wenn die Anzahl erhöht wurde, sende eine neue Benachrichtigung mit aktualisierter Anzahl
         
         # Erstelle zusammengefasste Benachrichtigung
         if unread_count == 1:
@@ -453,19 +464,6 @@ def send_email_notification(
     for user in users:
         print(f"UTILS: Verarbeite Benutzer {user.id} ({user.username})")
         
-        # Prüfe ob bereits eine E-Mail-Benachrichtigung in den letzten 5 Minuten gesendet wurde
-        existing_notification = NotificationLog.query.filter_by(
-            user_id=user.id,
-            url="/email/",
-            success=True
-        ).filter(
-            NotificationLog.sent_at >= datetime.utcnow() - timedelta(minutes=5)
-        ).first()
-        
-        if existing_notification:
-            print(f"UTILS: E-Mail-Benachrichtigung bereits in den letzten 5 Minuten gesendet für Benutzer {user.id}")
-            continue  # Benachrichtigung bereits gesendet
-        
         # Zähle ungelesene E-Mails
         unread_count = EmailMessage.query.filter(
             EmailMessage.is_read == False,
@@ -477,6 +475,29 @@ def send_email_notification(
         if unread_count == 0:
             print(f"UTILS: Keine ungelesenen E-Mails für Benutzer {user.id}")
             continue  # Keine ungelesenen E-Mails
+        
+        # Prüfe ob bereits eine E-Mail-Benachrichtigung in den letzten 30 Sekunden gesendet wurde
+        # Wenn ja, prüfe ob sich die Anzahl der ungelesenen E-Mails erhöht hat
+        existing_notification = NotificationLog.query.filter_by(
+            user_id=user.id,
+            url="/email/",
+            success=True
+        ).filter(
+            NotificationLog.sent_at >= datetime.utcnow() - timedelta(seconds=30)
+        ).order_by(NotificationLog.sent_at.desc()).first()
+        
+        if existing_notification:
+            # Extrahiere die alte Anzahl aus dem Body der letzten Benachrichtigung
+            old_body = existing_notification.body or ""
+            # Suche nach "X neue E-Mail(s)" - unterstützt sowohl Singular als auch Plural
+            old_count_match = re.search(r'(\d+)\s+neue\s+E-Mail(?:s)?', old_body)
+            old_count = int(old_count_match.group(1)) if old_count_match else 0
+            
+            # Wenn die Anzahl gleich geblieben ist, überspringe (verhindert Duplikate bei gleichzeitigen E-Mails)
+            if old_count >= unread_count:
+                print(f"UTILS: E-Mail-Benachrichtigung übersprungen: Anzahl unverändert ({old_count} -> {unread_count})")
+                continue
+            # Wenn die Anzahl erhöht wurde, sende eine neue Benachrichtigung mit aktualisierter Anzahl
         
         # Erstelle zusammengefasste Benachrichtigung
         if unread_count == 1:

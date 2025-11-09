@@ -120,13 +120,44 @@ def get_messages(chat_id):
     return jsonify([{
         'id': msg.id,
         'sender_id': msg.sender_id,
-        'sender_name': msg.sender.full_name,
-        'sender': msg.sender.full_name,  # Alias for compatibility
+        'sender_name': msg.sender.full_name if msg.sender else 'Unbekannter Benutzer',
+        'sender': msg.sender.full_name if msg.sender else 'Unbekannter Benutzer',  # Alias for compatibility
         'content': msg.content,
         'message_type': msg.message_type,
         'media_url': msg.media_url,
         'created_at': get_local_time(msg.created_at).isoformat()
     } for msg in messages])
+
+
+@api_bp.route('/chats/<int:chat_id>/members', methods=['GET'])
+@login_required
+def get_chat_members(chat_id):
+    """Get members of a chat."""
+    # Check membership
+    membership = ChatMember.query.filter_by(
+        chat_id=chat_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not membership:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    # Get all chat members - use ChatMember as base to ensure all members are included
+    chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
+    member_ids = [cm.user_id for cm in chat_memberships]
+    members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
+    
+    chat = Chat.query.get_or_404(chat_id)
+    
+    return jsonify([{
+        'id': member.id,
+        'full_name': member.full_name,
+        'email': member.email,
+        'phone': member.phone,
+        'profile_picture': url_for('settings.profile_picture', filename=member.profile_picture) if member.profile_picture else None,
+        'is_admin': member.is_admin,
+        'is_creator': member.id == chat.created_by
+    } for member in members])
 
 
 # Calendar API

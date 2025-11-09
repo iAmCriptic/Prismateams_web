@@ -15,9 +15,23 @@
             <p class="text-muted">Wissensdatenbank</p>
         </div>
         <div class="col-auto">
-            <a href="{{ url_for('wiki.create') }}" class="btn btn-accent">
-                <i class="bi bi-plus-circle"></i> Erstellen
-            </a>
+            <div class="btn-group">
+                {% if favorites_only %}
+                <a href="{{ url_for('wiki.index') }}" class="btn btn-warning" id="favorites-btn">
+                    <i class="bi bi-star-fill" id="favorites-icon"></i> Alle anzeigen
+                </a>
+                {% else %}
+                <a href="{{ url_for('wiki.index') }}?favorites=1" class="btn btn-outline-warning" id="favorites-btn">
+                    <i class="bi bi-star-fill" id="favorites-icon"></i> Favoriten
+                    {% if my_wiki_favorites|length > 0 %}
+                    <span class="badge bg-warning text-dark ms-1">{{ my_wiki_favorites|length }}</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+                <a href="{{ url_for('wiki.create') }}" class="btn btn-accent">
+                    <i class="bi bi-plus-circle"></i> Erstellen
+                </a>
+            </div>
         </div>
     </div>
     
@@ -25,6 +39,9 @@
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ url_for('wiki.index') }}" id="searchForm">
+                {% if favorites_only %}
+                <input type="hidden" name="favorites" value="1">
+                {% endif %}
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <div class="input-group">
@@ -94,7 +111,7 @@
                             </a>
                         </h5>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" data-page-id="{{ page.id }}">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu">
@@ -107,6 +124,12 @@
                                 <li><a class="dropdown-item" href="{{ url_for('wiki.history', slug=page.slug) }}">
                                     <i class="bi bi-clock-history"></i> Versionshistorie
                                 </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item toggle-favorite-item" href="#" data-page-id="{{ page.id }}">
+                                        <i class="bi bi-star favorite-icon-{{ page.id }}"></i> <span class="favorite-text-{{ page.id }}">Zu Favoriten hinzufügen</span>
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form method="POST" action="{{ url_for('wiki.delete', slug=page.slug) }}" class="d-inline">
@@ -156,6 +179,77 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Favoriten-Funktionalität für alle Wiki-Karten
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialisiere Favoriten-Status für alle Seiten
+    const favoriteItems = document.querySelectorAll('.toggle-favorite-item');
+    favoriteItems.forEach(item => {
+        const pageId = item.getAttribute('data-page-id');
+        if (pageId) {
+            // Prüfe initialen Status
+            fetch(`/wiki/api/favorite/check/${pageId}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateFavoriteUI(pageId, data.is_favorite);
+                });
+            
+            // Event Listener für Toggle
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const icon = document.querySelector(`.favorite-icon-${pageId}`);
+                const isFavorite = icon.classList.contains('bi-star-fill');
+                const method = isFavorite ? 'DELETE' : 'POST';
+                
+                fetch(`/wiki/api/favorite/${pageId}`, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateFavoriteUI(pageId, data.is_favorite);
+                        // Zeige Toast/Notification
+                        const toast = document.createElement('div');
+                        toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+                        toast.style.zIndex = '9999';
+                        toast.textContent = data.message;
+                        document.body.appendChild(toast);
+                        setTimeout(() => toast.remove(), 3000);
+                    } else if (data.error) {
+                        alert(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Fehler:', error);
+                    alert('Fehler beim Aktualisieren der Favoriten');
+                });
+            });
+        }
+    });
+    
+    function updateFavoriteUI(pageId, isFavorite) {
+        const icon = document.querySelector(`.favorite-icon-${pageId}`);
+        const text = document.querySelector(`.favorite-text-${pageId}`);
+        if (icon && text) {
+            if (isFavorite) {
+                icon.classList.remove('bi-star');
+                icon.classList.add('bi-star-fill');
+                text.textContent = 'Aus Favoriten entfernen';
+            } else {
+                icon.classList.remove('bi-star-fill');
+                icon.classList.add('bi-star');
+                text.textContent = 'Zu Favoriten hinzufügen';
+            }
+        }
+    }
+});
+</script>
 {% endblock %}
 
 

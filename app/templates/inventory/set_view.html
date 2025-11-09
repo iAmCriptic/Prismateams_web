@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product_set.name }} - Produktset{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">
+            <i class="bi bi-collection"></i> {{ product_set.name }}
+        </h1>
+        {% if product_set.description %}
+        <p class="text-muted">{{ product_set.description }}</p>
+        {% endif %}
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" class="btn btn-outline-info me-2" target="_blank">
+            <i class="bi bi-qr-code"></i> QR-Code
+        </a>
+        <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn btn-success me-2">
+            <i class="bi bi-cart-check"></i> Set ausleihen
+        </a>
+        {% if current_user.is_admin or product_set.created_by == current_user.id %}
+        <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-pencil"></i> Bearbeiten
+        </a>
+        <form method="POST" action="{{ url_for('inventory.set_delete', set_id=product_set.id) }}" 
+              class="d-inline" onsubmit="return confirm('Möchten Sie dieses Set wirklich löschen?');">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-trash"></i> Löschen
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-qr-code"></i> QR-Code</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" 
+                     alt="QR-Code für {{ product_set.name }}" 
+                     class="img-fluid mb-2"
+                     style="max-width: 300px;">
+                <p class="text-muted small mb-0">SET-{{ product_set.id }}</p>
+                <a href="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" 
+                   class="btn btn-sm btn-outline-primary mt-2" 
+                   download="set-{{ product_set.id }}-qr.png">
+                    <i class="bi bi-download"></i> QR-Code herunterladen
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-box"></i> Produkte im Set ({{ product_set.product_count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Produkt</th>
+                                <th>Kategorie</th>
+                                <th>Status</th>
+                                <th>Menge</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in product_set.items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                    {% if item.product.serial_number %}
+                                    <br><small class="text-muted">SN: {{ item.product.serial_number }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.product.category or '-' }}</td>
+                                <td>
+                                    {% if item.product.status == 'available' %}
+                                    <span class="badge bg-success">Verfügbar</span>
+                                    {% elif item.product.status == 'borrowed' %}
+                                    <span class="badge bg-warning">Ausgeliehen</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Fehlend</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.quantity }}</td>
+                                <td>
+                                    <a href="{{ url_for('inventory.stock') }}?product_id={{ item.product.id }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> Anzeigen
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

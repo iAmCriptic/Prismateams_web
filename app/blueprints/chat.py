@@ -64,10 +64,10 @@ def view_chat(chat_id):
     membership.last_read_at = datetime.utcnow()
     db.session.commit()
     
-    # Get chat members
-    members = User.query.join(ChatMember).filter(
-        ChatMember.chat_id == chat_id
-    ).all()
+    # Get chat members - use ChatMember as base to ensure all members are included
+    chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
+    member_ids = [cm.user_id for cm in chat_memberships]
+    members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
     
     return render_template(
         'chat/view.html',

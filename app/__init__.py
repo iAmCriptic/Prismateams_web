@@ -90,6 +90,7 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'manuals'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'profile_pics'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'inventory', 'product_images'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'inventory', 'product_documents'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'system'),  # For portal logo
         os.path.join(app.config['UPLOAD_FOLDER'], 'wiki'),  # For wiki pages
     ]
@@ -146,13 +147,104 @@ def create_app(config_name='default'):
         # Add module check function
         from app.utils.common import is_module_enabled
         
+        # Function to get back URL based on current endpoint
+        def get_back_url():
+            """Bestimmt die logische Zurück-URL basierend auf dem aktuellen Endpoint."""
+            from flask import request, url_for
+            
+            if not request.endpoint:
+                return url_for('dashboard.index')
+            
+            endpoint = request.endpoint
+            
+            # Spezifische Routen-Mappings (höchste Priorität)
+            specific_mappings = {
+                # Inventory: Bearbeitungs- und Detailseiten -> Bestandsübersicht
+                'inventory.product_edit': 'inventory.stock',
+                'inventory.product_new': 'inventory.stock',
+                'inventory.product_documents': 'inventory.stock',
+                'inventory.product_borrow': 'inventory.stock',
+                'inventory.product_document_upload': 'inventory.stock',
+                'inventory.product_document_delete': 'inventory.stock',
+                'inventory.product_document_download': 'inventory.stock',
+                # Inventory: Sets -> Sets-Übersicht
+                'inventory.set_view': 'inventory.sets',
+                'inventory.set_edit': 'inventory.sets',
+                'inventory.set_borrow': 'inventory.sets',
+                'inventory.set_form': 'inventory.sets',
+                # Inventory: Ordner -> Bestandsübersicht
+                'inventory.folders': 'inventory.stock',
+                # Calendar: Detailseiten -> Kalender-Übersicht
+                'calendar.view': 'calendar.index',
+                'calendar.edit_event': 'calendar.index',
+                'calendar.create': 'calendar.index',
+                # Email: Detailseiten -> Email-Übersicht
+                'email.view_email': 'email.index',
+                'email.compose': 'email.index',
+                'email.reply': 'email.index',
+                'email.reply_all': 'email.index',
+                'email.forward': 'email.index',
+                # Chat: Detailseiten -> Chat-Übersicht
+                'chat.view_chat': 'chat.index',
+                'chat.create': 'chat.index',
+                # Files: Detailseiten -> Files-Übersicht
+                'files.browse_folder': 'files.index',
+                # Wiki: Detailseiten -> Wiki-Übersicht
+                'wiki.view': 'wiki.index',
+                'wiki.edit': 'wiki.index',
+                'wiki.create': 'wiki.index',
+                # Canvas: Detailseiten -> Canvas-Übersicht
+                'canvas.view': 'canvas.index',
+                'canvas.edit': 'canvas.index',
+                'canvas.create': 'canvas.index',
+                # Credentials: Detailseiten -> Credentials-Übersicht
+                'credentials.view': 'credentials.index',
+                'credentials.edit': 'credentials.index',
+                'credentials.create': 'credentials.index',
+                # Manuals: Detailseiten -> Manuals-Übersicht
+                'manuals.view': 'manuals.index',
+                'manuals.edit': 'manuals.index',
+                'manuals.create': 'manuals.index',
+            }
+            
+            # Prüfe zuerst spezifische Mappings
+            if endpoint in specific_mappings:
+                return url_for(specific_mappings[endpoint])
+            
+            # Allgemeine Modul-Mappings
+            module_mapping = {
+                'inventory': 'inventory.dashboard',
+                'email': 'email.index',
+                'chat': 'chat.index',
+                'files': 'files.index',
+                'calendar': 'calendar.index',
+                'credentials': 'credentials.index',
+                'manuals': 'manuals.index',
+                'canvas': 'canvas.index',
+                'wiki': 'wiki.index',
+                'settings': 'settings.index'
+            }
+            
+            # Prüfe ob Endpoint zu einem Modul gehört
+            for module_prefix, index_endpoint in module_mapping.items():
+                if endpoint.startswith(module_prefix + '.'):
+                    # Wenn es bereits die Index-Seite ist, zum Dashboard
+                    if endpoint == index_endpoint:
+                        return url_for('dashboard.index')
+                    # Sonst zur Index-Seite des Moduls
+                    return url_for(index_endpoint)
+            
+            # Fallback: Zum Dashboard
+            return url_for('dashboard.index')
+        
         return {
             'app_name': app_name,
             'app_logo': app_logo,
             'color_gradient': color_gradient,
             'portal_logo_filename': portal_logo_filename,
             'onlyoffice_available': onlyoffice_available,
-            'is_module_enabled': is_module_enabled
+            'is_module_enabled': is_module_enabled,
+            'get_back_url': get_back_url
         }
     
     # Email header decoder filter

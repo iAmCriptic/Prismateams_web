@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product_set.name }} ausleihen{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3">
+            <i class="bi bi-cart-check"></i> Set "{{ product_set.name }}" ausleihen
+        </h1>
+        <p class="text-muted">Alle Produkte des Sets werden auf einmal ausgeliehen</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Produkte im Set</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Produkt</th>
+                                <th>Menge</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in product_set.items %}
+                            <tr {% if item.product.status != 'available' %}class="table-warning"{% endif %}>
+                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>
+                                    {% if item.product.status == 'available' %}
+                                    <span class="badge bg-success">Verfügbar</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Nicht verfügbar</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <form method="POST">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Ausleihdetails</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="borrower_id" class="form-label">Ausleiher <span class="text-danger">*</span></label>
+                        <select class="form-select" id="borrower_id" name="borrower_id" required>
+                            <option value="">Bitte auswählen...</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if user.id == current_user.id %}selected{% endif %}>
+                                {{ user.full_name }} ({{ user.email }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="expected_return_date" class="form-label">Erwartetes Rückgabedatum <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="expected_return_date" 
+                               name="expected_return_date" required 
+                               min="{{ min_date }}">
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        Alle verfügbaren Produkte des Sets werden mit derselben Gruppierungs-ID ausgeliehen.
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Set ausleihen
+                    </button>
+                    <a href="{{ url_for('inventory.set_view', set_id=product_set.id) }}" class="btn btn-outline-secondary">
+                        Abbrechen
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

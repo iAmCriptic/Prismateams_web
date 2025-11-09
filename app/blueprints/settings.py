@@ -302,6 +302,25 @@ def activate_user(user_id):
     
     user = User.query.get_or_404(user_id)
     user.is_active = True
+    
+    # Ensure user is added to main chat when activated
+    from app.models.chat import Chat, ChatMember
+    main_chat = Chat.query.filter_by(is_main_chat=True).first()
+    if main_chat:
+        # Check if user is already a member
+        existing_membership = ChatMember.query.filter_by(
+            chat_id=main_chat.id,
+            user_id=user.id
+        ).first()
+        
+        if not existing_membership:
+            # Add user to main chat
+            member = ChatMember(
+                chat_id=main_chat.id,
+                user_id=user.id
+            )
+            db.session.add(member)
+    
     db.session.commit()
     
     flash(f'Benutzer {user.full_name} wurde aktiviert.', 'success')

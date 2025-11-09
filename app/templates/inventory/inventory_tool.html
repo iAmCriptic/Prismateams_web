@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Inventurtool - Team Portal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
+<style>
+    .scanner-frame {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 250px;
+        height: 250px;
+        border: 3px solid #0d6efd;
+        border-radius: 8px;
+        pointer-events: none;
+        z-index: 12;
+    }
+    
+    .scanner-line {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 250px;
+        height: 3px;
+        background: linear-gradient(to right, transparent, #0d6efd, transparent);
+        animation: scanLine 2s linear infinite;
+        pointer-events: none;
+    }
+    
+    @keyframes scanLine {
+        0% { top: 25%; }
+        100% { top: 75%; }
+    }
+    
+    .scanner-success-popup {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #28a745;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        z-index: 1000;
+        animation: fadeInOut 2s;
+    }
+    
+    @keyframes fadeInOut {
+        0%, 100% { opacity: 0; }
+        10%, 90% { opacity: 1; }
+    }
+    
+    .inventory-item-row {
+        transition: background-color 0.3s;
+    }
+    
+    .inventory-item-row.updated {
+        background-color: #d4edda !important;
+        animation: highlightUpdate 2s;
+    }
+    
+    @keyframes highlightUpdate {
+        0% { background-color: #90ee90; }
+        100% { background-color: #d4edda; }
+    }
+    
+    .inventory-item-row.checked {
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-clipboard2-check"></i> Inventurtool</h1>
+        {% if active_inventory %}
+        <div class="alert alert-info">
+            <strong>Inventur aktiv:</strong> {{ active_inventory.name }}
+            <br>
+            <small>Fortschritt: {{ active_inventory.checked_count }} von {{ active_inventory.total_count }} Produkten inventiert</small>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>Keine aktive Inventur</strong> - Bitte starten Sie eine neue Inventur.
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-auto">
+        {% if active_inventory %}
+        <form method="POST" action="{{ url_for('inventory.inventory_complete', inventory_id=active_inventory.id) }}" style="display: inline;" onsubmit="return confirm('Möchten Sie die Inventur wirklich abschließen? Alle Änderungen werden auf die Produkte angewendet.');">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> Inventur abschließen
+            </button>
+        </form>
+        <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=active_inventory.id) }}" class="btn btn-primary ms-2">
+            <i class="bi bi-file-pdf"></i> PDF herunterladen
+        </a>
+        {% else %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#startInventoryModal">
+            <i class="bi bi-play-circle"></i> Inventur starten
+        </button>
+        <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-outline-primary ms-2">
+            <i class="bi bi-printer"></i> Inventarliste drucken
+        </a>
+        {% endif %}
+        <a href="{{ url_for('inventory.inventory_history') }}" class="btn btn-outline-secondary ms-2">
+            <i class="bi bi-clock-history"></i> Historie
+        </a>
+    </div>
+</div>
+
+{% if active_inventory %}
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="inventoryTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="list-tab" data-bs-toggle="tab" data-bs-target="#list" type="button" role="tab">
+            <i class="bi bi-list-ul"></i> Liste
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="scanner-tab" data-bs-toggle="tab" data-bs-target="#scanner" type="button" role="tab">
+            <i class="bi bi-camera"></i> Kamera-Scanner
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual" type="button" role="tab">
+            <i class="bi bi-keyboard"></i> Manuelle Eingabe
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="inventoryTabContent">
+    <!-- Tab 1: Liste -->
+    <div class="tab-pane fade show active" id="list" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Produkte suchen...">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="inventoryTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">Inventiert</th>
+                                <th>Produktname</th>
+                                <th>Kategorie</th>
+                                <th>Lagerort</th>
+                                <th>Zustand</th>
+                                <th>Anmerkungen</th>
+                                <th style="width: 100px;">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <!-- Wird dynamisch gefüllt -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab 2: Kamera-Scanner -->
+    <div class="tab-pane fade" id="scanner" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">QR-Code Scanner</h5>
+                    <div>
+                        <button class="btn btn-sm btn-primary" id="startScannerBtn">
+                            <i class="bi bi-camera"></i> Kamera starten
+                        </button>
+                        <button class="btn btn-sm btn-danger" id="stopScannerBtn" style="display: none;">
+                            <i class="bi bi-stop-circle"></i> Kamera stoppen
+                        </button>
+                    </div>
+                </div>
+                <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative; overflow: hidden; border-radius: 8px;">
+                    <video id="scannerVideo" autoplay playsinline style="width: 100%; max-width: 100%; height: 400px; min-height: 300px; border-radius: 8px; background: #000; object-fit: cover; display: block;"></video>
+                    <canvas id="scannerCanvas" style="display: none;"></canvas>
+                    <div id="scannerFrame" class="scanner-frame"></div>
+                    <div id="scannerLine" class="scanner-line"></div>
+                    <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                        <i class="bi bi-check-circle-fill"></i> Produkt gefunden
+                    </div>
+                </div>
+                <div id="scannerError" class="alert alert-danger" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab 3: Manuelle Eingabe -->
+    <div class="tab-pane fade" id="manual" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-3">Manuelle Eingabe</h5>
+                <div class="mb-3">
+                    <label for="manualProductInput" class="form-label">Produkt-ID oder QR-Code eingeben</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="manualProductInput" 
+                               placeholder="Produkt-ID (z.B. 123) oder QR-Code (z.B. PROD-123)" 
+                               autocomplete="off">
+                        <button class="btn btn-accent" id="manualSearchBtn">
+                            <i class="bi bi-search"></i> Suchen
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">Geben Sie die Produkt-ID oder den QR-Code ein. Das Produkt wird automatisch abgehakt und zum Bearbeiten geöffnet.</small>
+                </div>
+                <div id="manualSearchResult"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Inventur starten -->
+<div class="modal fade" id="startInventoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neue Inventur starten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('inventory.inventory_tool') }}">
+                <input type="hidden" name="action" value="start">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="inventoryName" class="form-label">Name der Inventur</label>
+                        <input type="text" class="form-control" id="inventoryName" name="name" 
+                               placeholder="z.B. Jahresinventur 2024" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inventoryDescription" class="form-label">Beschreibung (optional)</label>
+                        <textarea class="form-control" id="inventoryDescription" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Inventur starten</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Produkt bearbeiten -->
+<div class="modal fade" id="productEditModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Produkt bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="productEditModalBody">
+                <!-- Wird dynamisch gefüllt -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="closeProductModalBtn">Schließen</button>
+                <button type="button" class="btn btn-primary" id="saveProductBtn">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_tool.js') }}"></script>
+<script>
+// Inventurtool-Manager initialisieren
+document.addEventListener('DOMContentLoaded', function() {
+    {% if active_inventory %}
+    if (window.InventoryToolManager) {
+        window.inventoryToolManager = new InventoryToolManager({{ active_inventory.id }});
+        window.inventoryToolManager.init();
+        
+        // Scanner-Manager initialisieren
+        if (window.InventoryScannerManager) {
+            window.inventoryScannerManager = new InventoryScannerManager({{ active_inventory.id }}, window.inventoryToolManager);
+            window.inventoryScannerManager.init();
+        }
+        
+        // Manuelle Eingabe Handler
+        const manualInput = document.getElementById('manualProductInput');
+        const manualSearchBtn = document.getElementById('manualSearchBtn');
+        
+        if (manualInput && manualSearchBtn) {
+            let isProcessing = false;
+            
+            const handleManualSearch = async () => {
+                if (isProcessing) {
+                    console.log('Bereits verarbeitend, ignoriere Eingabe');
+                    return;
+                }
+                
+                const input = manualInput.value.trim();
+                if (!input) {
+                    return;
+                }
+                
+                isProcessing = true;
+                manualInput.disabled = true;
+                
+                try {
+                    await window.inventoryToolManager.handleManualInput(input);
+                    // Leere Feld nach erfolgreicher Verarbeitung
+                    manualInput.value = '';
+                } catch (error) {
+                    console.error('Fehler bei manueller Eingabe:', error);
+                } finally {
+                    isProcessing = false;
+                    manualInput.disabled = false;
+                    // Fokussiere Feld wieder für nächste Eingabe
+                    setTimeout(() => {
+                        manualInput.focus();
+                    }, 200);
+                }
+            };
+            
+            manualSearchBtn.addEventListener('click', handleManualSearch);
+            
+            // Mehrere Event-Typen für bessere Kompatibilität
+            manualInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleManualSearch();
+                }
+            });
+            
+            manualInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+            
+            // Input-Event für automatische Verarbeitung (falls Scanner sehr schnell ist)
+            let inputTimeout;
+            manualInput.addEventListener('input', (e) => {
+                // Wenn Scanner sehr schnell ist, könnte Enter vor dem Input-Event kommen
+                // Warte kurz und prüfe ob Enter gedrückt wurde
+                clearTimeout(inputTimeout);
+                inputTimeout = setTimeout(() => {
+                    // Wenn Enter gedrückt wurde, wird handleManualSearch bereits aufgerufen
+                    // Hier nur als Fallback
+                }, 50);
+            });
+            
+            // Fokussiere Feld beim Laden des Tabs
+            const manualTab = document.getElementById('manual-tab');
+            if (manualTab) {
+                manualTab.addEventListener('shown.bs.tab', () => {
+                    setTimeout(() => {
+                        manualInput.focus();
+                    }, 100);
+                });
+            }
+        }
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}
+

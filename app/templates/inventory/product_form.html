@@ -129,7 +129,15 @@
                         {% if product and product.image_path %}
                         <div class="mt-2">
                             <small class="text-muted">Aktuelles Bild:</small><br>
-                            <img src="file://{{ product.image_path }}" alt="Produktbild" class="img-thumbnail mt-2" style="max-width: 200px;">
+                            {% set image_filename = product.image_path.split('/')[-1] if '/' in product.image_path else product.image_path %}
+                            {% set image_filename = image_filename.split('\\')[-1] if '\\' in image_filename else image_filename %}
+                            <img src="{{ url_for('inventory.serve_product_image', filename=image_filename) }}" alt="Produktbild" class="img-thumbnail mt-2" style="max-width: 200px;">
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProductImage({{ product.id }})">
+                                    <i class="bi bi-trash"></i> Bild entfernen
+                                </button>
+                            </div>
+                            <input type="hidden" id="remove_image" name="remove_image" value="0">
                         </div>
                         {% endif %}
                     </div>
@@ -146,5 +154,22 @@
         </div>
     </div>
 </div>
+
+<script>
+function removeProductImage(productId) {
+    if (confirm('Möchten Sie das Produktbild wirklich entfernen?')) {
+        // Setze hidden input für Bild-Entfernung
+        const removeInput = document.getElementById('remove_image');
+        if (removeInput) {
+            removeInput.value = '1';
+        }
+        // Verstecke Bild-Vorschau
+        const imageContainer = document.querySelector('.img-thumbnail');
+        if (imageContainer) {
+            imageContainer.closest('div.mt-2').style.display = 'none';
+        }
+    }
+}
+</script>
 {% endblock %}
 
