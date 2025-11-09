@@ -17,6 +17,7 @@ import logging
 import io
 import sqlalchemy
 from markupsafe import Markup
+from sqlalchemy.exc import IntegrityError
 
 email_bp = Blueprint('email', __name__)
 
@@ -127,23 +128,91 @@ def sync_imap_folders():
                     
                     is_system = folder_name in ['INBOX', 'Sent', 'Sent Messages', 'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk', 'Archive']
                     display_name = EmailFolder.get_folder_display_name(folder_name)
-                    
-                    existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
-                    if not existing_folder:
-                        folder = EmailFolder(
-                            name=folder_name,
-                            display_name=display_name,
-                            folder_type='standard' if is_system else 'custom',
-                            is_system=is_system,
-                            last_synced=datetime.utcnow()
-                        )
-                        db.session.add(folder)
-                        synced_folders.append(folder_name)
-                        logging.info(f"Added new folder: '{folder_name}' ({display_name})")
-                    else:
-                        existing_folder.last_synced = datetime.utcnow()
-                        synced_folders.append(folder_name)
-                        logging.debug(f"Updated existing folder: '{folder_name}'")
+
+                    separator = parts[1] if len(parts) >= 3 and parts[1] else '/'
+                    separator = separator.strip() or '/'
+
+                    parent_folder = None
+                    if separator in folder_name:
+                        parent_candidate = folder_name.rsplit(separator, 1)[0]
+                        parent_folder = parent_candidate if parent_candidate and parent_candidate != folder_name else None
+
+                    now = datetime.utcnow()
+                    folder_type = 'standard' if is_system else 'custom'
+                    folder_payload = {
+                        'name': folder_name,
+                        'display_name': display_name,
+                        'folder_type': folder_type,
+                        'is_system': is_system,
+                        'parent_folder': parent_folder,
+                        'separator': separator,
+                        'last_synced': now,
+                        'created_at': now,
+                    }
+
+                    dialect_name = db.session.bind.dialect.name if db.session.bind else ''
+
+                    try:
+                        if dialect_name in ('mysql', 'mariadb'):
+                            from sqlalchemy.dialects.mysql import insert as mysql_insert  # type: ignore
+
+                            insert_stmt = mysql_insert(EmailFolder.__table__).values(**folder_payload)
+                            update_stmt = {
+                                'display_name': insert_stmt.inserted.display_name,
+                                'folder_type': insert_stmt.inserted.folder_type,
+                                'is_system': insert_stmt.inserted.is_system,
+                                'parent_folder': insert_stmt.inserted.parent_folder,
+                                'separator': insert_stmt.inserted.separator,
+                                'last_synced': insert_stmt.inserted.last_synced,
+                            }
+                            db.session.execute(insert_stmt.on_duplicate_key_update(**update_stmt))
+                            synced_folders.append(folder_name)
+                            if folder_type == 'standard':
+                                logging.debug(f"Upserted system folder: '{folder_name}' ({display_name})")
+                            else:
+                                logging.info(f"Upserted folder: '{folder_name}' ({display_name})")
+                        else:
+                            existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
+                            if existing_folder:
+                                existing_folder.display_name = display_name
+                                existing_folder.folder_type = folder_type
+                                existing_folder.is_system = is_system
+                                existing_folder.parent_folder = parent_folder
+                                existing_folder.separator = separator
+                                existing_folder.last_synced = now
+                                logging.debug(f"Updated existing folder: '{folder_name}'")
+                            else:
+                                folder_payload_for_insert = folder_payload.copy()
+                                db.session.add(EmailFolder(**folder_payload_for_insert))
+                                logging.info(f"Added new folder: '{folder_name}' ({display_name})")
+                            synced_folders.append(folder_name)
+                    except IntegrityError:
+                        db.session.rollback()
+                        # Another worker inserted the folder concurrently; refresh local representation
+                        existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
+                        if existing_folder:
+                            existing_folder.last_synced = datetime.utcnow()
+                            synced_folders.append(folder_name)
+                            logging.debug(f"Recovered folder after IntegrityError: '{folder_name}'")
+                        else:
+                            logging.warning(f"IntegrityError without existing folder for '{folder_name}' – retrying insert")
+                            try:
+                                db.session.add(EmailFolder(
+                                    name=folder_name,
+                                    display_name=display_name,
+                                    folder_type=folder_type,
+                                    is_system=is_system,
+                                    parent_folder=parent_folder,
+                                    separator=separator,
+                                    last_synced=datetime.utcnow()
+                                ))
+                                db.session.flush()
+                                synced_folders.append(folder_name)
+                                logging.info(f"Inserted folder after retry: '{folder_name}'")
+                            except IntegrityError as retry_error:
+                                db.session.rollback()
+                                logging.error(f"Failed to insert folder '{folder_name}' after retry: {retry_error}")
+                                continue
                 else:
                     skipped_folders.append(folder_str)
                         

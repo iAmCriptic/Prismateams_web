@@ -150,7 +150,7 @@ sudo mkdir -p /var/www
 cd /var/www
 
 # Repository klonen (ersetze mit deinem Repository-URL)
-sudo git clone https://github.com/yourusername/Primsateams_web_V0.git teamportal
+sudo git clone https://github.com/iAmCriptic/Primsateams_web_V0.git teamportal
 cd teamportal
 
 # Virtual Environment erstellen
