@@ -14,19 +14,20 @@
                 <h1 class="text-center mb-4">
                     <i class="bi bi-archive text-primary"></i>
                 </h1>
-                <h5 class="text-center mb-4">Backup importieren (Optional)</h5>
+                <h5 class="text-center mb-4">Backup importieren</h5>
                 
                 <div class="alert alert-info mb-4">
                     <i class="bi bi-info-circle me-2"></i>
                     <strong>Hinweis:</strong> Falls Sie bereits ein Backup haben, können Sie es jetzt importieren. 
                     Alle Daten, die nicht im Backup enthalten sind, werden im Setup-Prozess neu angelegt.
+                    Sie können diesen Schritt auch überspringen und direkt mit dem Setup beginnen.
                 </div>
                 
                 <form method="POST" enctype="multipart/form-data" id="backupForm">
                     <div class="mb-3">
                         <label for="backup_file" class="form-label fw-bold">Backup-Datei auswählen:</label>
-                        <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".teamportal">
-                        <div class="form-text">Nur .teamportal-Dateien werden akzeptiert.</div>
+                        <input type="file" class="form-control" id="backup_file" name="backup_file" accept=".prismateams">
+                        <div class="form-text">Nur .prismateams-Dateien werden akzeptiert.</div>
                     </div>
                     
                     <div class="mb-3">
@@ -51,6 +52,10 @@
                                             <i class="bi bi-key me-2"></i>
                                         {% elif key == 'files' %}
                                             <i class="bi bi-folder me-2"></i>
+                                        {% elif key == 'wiki' %}
+                                            <i class="bi bi-book me-2"></i>
+                                        {% elif key == 'comments' %}
+                                            <i class="bi bi-chat-left-text me-2"></i>
                                         {% endif %}
                                         {{ label }}
                                     </label>
@@ -92,6 +97,17 @@
                                        • Dateien (Name, Inhalt, Größe, MIME-Typ)<br>
                                        • Ordnerstruktur<br>
                                        • Datei-Versionen
+                                       {% elif key == 'wiki' %}
+                                       <strong>Enthält:</strong><br>
+                                       • Wiki-Seiten (Titel, Inhalt, Markdown-Dateien)<br>
+                                       • Wiki-Kategorien<br>
+                                       • Wiki-Tags<br>
+                                       • Wiki-Versionen
+                                       {% elif key == 'comments' %}
+                                       <strong>Enthält:</strong><br>
+                                       • Kommentare (zu Dateien, Wiki-Seiten, Canvas)<br>
+                                       • Kommentar-Mentions (@-Erwähnungen)<br>
+                                       • Kommentar-Threads (Antworten)
                                        {% endif %}
                                        "
                                        title="{{ label }}"></i>
@@ -112,7 +128,7 @@
                             <i class="bi bi-upload me-2"></i>Backup importieren
                         </button>
                         <a href="{{ url_for('setup.setup_step1') }}" class="btn btn-outline-secondary btn-lg">
-                            <i class="bi bi-skip-forward me-2"></i>Überspringen und Setup starten
+                            <i class="bi bi-arrow-left me-2"></i>Zurück zum Setup
                         </a>
                     </div>
                 </form>

@@ -678,7 +678,7 @@ def admin_backup():
             try:
                 # Temporäre Datei erstellen
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.teamportal', mode='w', encoding='utf-8')
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='w', encoding='utf-8')
                 temp_path = temp_file.name
                 temp_file.close()
                 
@@ -689,7 +689,7 @@ def admin_backup():
                     return send_file(
                         temp_path,
                         as_attachment=True,
-                        attachment_filename=f'backup_{timestamp}.teamportal',
+                        attachment_filename=f'backup_{timestamp}.prismateams',
                         mimetype='application/json'
                     )
                 else:
@@ -709,13 +709,13 @@ def admin_backup():
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
             
-            if not file.filename.endswith('.teamportal'):
-                flash('Ungültige Dateiendung. Bitte wählen Sie eine .teamportal-Datei aus.', 'danger')
+            if not file.filename.endswith('.prismateams'):
+                flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
             
             try:
                 # Temporäre Datei speichern
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.teamportal', mode='wb')
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.prismateams', mode='wb')
                 file.save(temp_file.name)
                 temp_path = temp_file.name
                 temp_file.close()

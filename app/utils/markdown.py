@@ -23,7 +23,7 @@ def process_markdown(content, wiki_mode=False):
         def mermaid_formatter(source):
             return f'<div class="mermaid">{source}</div>'
         
-        # Basis-Extensions
+        # Basis-Extensions (immer verfügbar)
         extensions = [
             'fenced_code',      # Code-Blöcke mit ```
             'codehilite',       # Syntax-Highlighting
@@ -33,29 +33,66 @@ def process_markdown(content, wiki_mode=False):
             'def_list',         # Definitionslisten
             'attr_list',        # Attribute-Listen
             'abbr',             # Abkürzungen
-            # pymdown-extensions
-            'pymdownx.caret',   # Superscript: ^text^
-            'pymdownx.tilde',   # Subscript: ~text~
-            'pymdownx.superfences',  # Erweiterte Code-Blöcke (ersetzt fenced_code)
-            'pymdownx.tables',  # Verbesserte Tabellen-Unterstützung (ersetzt tables)
-            'pymdownx.arithmatex'  # LaTeX-Formeln: $inline$ und $$block$$
+            'tables',           # Standard Tabellen-Unterstützung
         ]
         
         # Extension-Konfiguration
-        extension_configs = {
-            'pymdownx.arithmatex': {
-                'generic': True  # Nutzt MathJax/KaTeX im Frontend
-            },
-            'pymdownx.superfences': {
-                'custom_fences': [
-                    {
-                        'name': 'mermaid',
-                        'class': 'mermaid',
-                        'format': mermaid_formatter
-                    }
-                ]
-            }
-        }
+        extension_configs = {}
+        
+        # Prüfe und füge pymdownx-Extensions hinzu, falls verfügbar
+        try:
+            import pymdownx
+            # pymdownx ist verfügbar, füge erweiterte Extensions hinzu
+            pymdownx_extensions = [
+                'pymdownx.caret',   # Superscript: ^text^
+                'pymdownx.tilde',   # Subscript: ~text~
+                'pymdownx.superfences',  # Erweiterte Code-Blöcke
+                'pymdownx.tables',  # Verbesserte Tabellen-Unterstützung
+                'pymdownx.arithmatex'  # LaTeX-Formeln: $inline$ und $$block$$
+            ]
+            
+            # Prüfe welche Extensions verfügbar sind
+            available_pymdownx = []
+            for ext in pymdownx_extensions:
+                try:
+                    # Versuche Extension zu importieren
+                    ext_name = ext.replace('pymdownx.', '')
+                    __import__(f'pymdownx.{ext_name}')
+                    available_pymdownx.append(ext)
+                except ImportError:
+                    current_app.logger.debug(f"pymdownx extension {ext} nicht verfügbar")
+            
+            # Füge verfügbare Extensions hinzu
+            extensions.extend(available_pymdownx)
+            
+            # Konfiguriere verfügbare Extensions
+            if 'pymdownx.arithmatex' in available_pymdownx:
+                extension_configs['pymdownx.arithmatex'] = {
+                    'generic': True  # Nutzt MathJax/KaTeX im Frontend
+                }
+            
+            if 'pymdownx.superfences' in available_pymdownx:
+                extension_configs['pymdownx.superfences'] = {
+                    'custom_fences': [
+                        {
+                            'name': 'mermaid',
+                            'class': 'mermaid',
+                            'format': mermaid_formatter
+                        }
+                    ]
+                }
+            
+            # Entferne fenced_code wenn superfences verfügbar ist (ersetzt es)
+            if 'pymdownx.superfences' in available_pymdownx and 'fenced_code' in extensions:
+                extensions.remove('fenced_code')
+            
+            # Entferne tables wenn pymdownx.tables verfügbar ist (ersetzt es)
+            if 'pymdownx.tables' in available_pymdownx and 'tables' in extensions:
+                extensions.remove('tables')
+                
+        except ImportError:
+            # pymdownx ist nicht verfügbar, nutze Standard-Extensions
+            current_app.logger.debug("pymdownx nicht verfügbar, nutze Standard-Markdown-Extensions")
         
         # Erstelle Markdown-Instanz
         md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)

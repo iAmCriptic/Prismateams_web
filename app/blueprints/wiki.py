@@ -107,12 +107,28 @@ def create():
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
         category_id = request.form.get('category_id', type=int) or None
+        new_category_name = request.form.get('new_category_name', '').strip()
         tags_input = request.form.get('tags', '').strip()
         
         if not title:
             flash('Bitte geben Sie einen Titel ein.', 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             return render_template('wiki/create.html', categories=categories, content=content)
+        
+        # Wenn eine neue Kategorie erstellt werden soll
+        if new_category_name:
+            # Prüfe ob Kategorie bereits existiert
+            existing_category = WikiCategory.query.filter_by(name=new_category_name).first()
+            if existing_category:
+                category_id = existing_category.id
+                flash(f'Die Kategorie "{new_category_name}" existiert bereits und wurde zugewiesen.', 'info')
+            else:
+                # Erstelle neue Kategorie
+                new_category = WikiCategory(name=new_category_name)
+                db.session.add(new_category)
+                db.session.flush()  # Flush um die ID zu erhalten
+                category_id = new_category.id
+                flash(f'Neue Kategorie "{new_category_name}" wurde erstellt.', 'success')
         
         # Erstelle Slug
         slug = WikiPage.slugify(title)
@@ -180,6 +196,7 @@ def edit(slug):
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
         category_id = request.form.get('category_id', type=int) or None
+        new_category_name = request.form.get('new_category_name', '').strip()
         tags_input = request.form.get('tags', '').strip()
         
         if not title:
@@ -187,6 +204,21 @@ def edit(slug):
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             tags = [tag.name for tag in page.tags]
             return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
+        
+        # Wenn eine neue Kategorie erstellt werden soll
+        if new_category_name:
+            # Prüfe ob Kategorie bereits existiert
+            existing_category = WikiCategory.query.filter_by(name=new_category_name).first()
+            if existing_category:
+                category_id = existing_category.id
+                flash(f'Die Kategorie "{new_category_name}" existiert bereits und wurde zugewiesen.', 'info')
+            else:
+                # Erstelle neue Kategorie
+                new_category = WikiCategory(name=new_category_name)
+                db.session.add(new_category)
+                db.session.flush()  # Flush um die ID zu erhalten
+                category_id = new_category.id
+                flash(f'Neue Kategorie "{new_category_name}" wurde erstellt.', 'success')
         
         # Speichere aktuelle Version
         version = WikiPageVersion(
