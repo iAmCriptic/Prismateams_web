@@ -751,9 +751,11 @@ def import_backup(file_path: str, categories: List[str]) -> Dict:
     if backup_data.get('version') != BACKUP_VERSION:
         return {'success': False, 'error': f'Unsupported backup version: {backup_data.get("version")}'}
     
-    # Import in Transaktion
     try:
-        db.session.begin()
+        # Stelle sicher, dass keine vorherige Transaktion offen ist
+        if hasattr(db.session, "in_transaction") and db.session.in_transaction():
+            current_app.logger.debug("Offene Transaktion vor Backup-Import gefunden – führe Rollback durch.")
+            db.session.rollback()
         
         results = {
             'success': True,

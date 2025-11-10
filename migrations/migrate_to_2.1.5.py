@@ -15,6 +15,7 @@ in der korrekten Reihenfolge aus. Sie deckt folgende Änderungen ab:
 7. Lagersystem-Erweiterungen (Sets, Dokumente, Favoriten, Saved Filters, API Tokens)
 8. Inventur-Tool Tabellen (`inventories`, `inventory_items`)
 9. Wiki-Favoriten Tabelle (`wiki_favorites`)
+10. Mehrsprachigkeit (Benutzersprache & Sprach-Systemeinstellungen)
 
 WICHTIG: Die Felder und Tabellen sind in den SQLAlchemy-Modellen bereits
 definiert. Bei Neuinstallationen genügt weiterhin `db.create_all()`.
@@ -23,6 +24,7 @@ Dieses Skript richtet sich ausschließlich an bestehende Installationen.
 
 import os
 import sys
+import json
 
 # Projektverzeichnis zum Python-Pfad hinzufügen
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -683,6 +685,104 @@ def create_wiki_favorites_table():
     return True
 
 
+def ensure_user_language_column():
+    """Stellt sicher, dass die Spalte `language` in `users` existiert."""
+    inspector = inspect(db.engine)
+
+    if 'users' not in inspector.get_table_names():
+        print("\n⚠ Tabelle 'users' existiert nicht – Sprachspalte wird übersprungen.")
+        return True
+
+    columns = {col['name'] for col in inspector.get_columns('users')}
+    if 'language' in columns:
+        print("\n3.1. Spalte 'language' existiert bereits in 'users'.")
+        return True
+
+    print("\n3.1. Füge Spalte 'language' zu 'users' hinzu...")
+
+    dialect = db.engine.dialect.name
+    column_type = 'TEXT' if dialect == 'sqlite' else 'VARCHAR(10)'
+
+    add_column_sql = f"ALTER TABLE users ADD COLUMN language {column_type} DEFAULT 'de' NOT NULL"
+
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text(add_column_sql))
+            conn.commit()
+        print("  ✓ Spalte 'language' hinzugefügt.")
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"  ❌ Fehler beim Hinzufügen der Sprachspalte: {exc}")
+        return False
+
+    return ensure_user_language_defaults()
+
+
+def ensure_user_language_defaults():
+    """Setzt Standardwerte für `language` bei bestehenden Benutzern."""
+    inspector = inspect(db.engine)
+    if 'users' not in inspector.get_table_names():
+        return True
+
+    columns = {col['name'] for col in inspector.get_columns('users')}
+    if 'language' not in columns:
+        print("⚠ Sprachspalte fehlt weiterhin – Abbruch.")
+        return False
+
+    try:
+        db.session.execute(
+            text("""
+                UPDATE users
+                SET language = 'de'
+                WHERE language IS NULL OR TRIM(language) = ''
+            """)
+        )
+        db.session.commit()
+        print("  ✓ Standardsprache für bestehende Benutzer gesetzt.")
+        return True
+    except Exception as exc:  # pylint: disable=broad-except
+        db.session.rollback()
+        print(f"  ⚠ Konnte Standardsprache nicht setzen: {exc}")
+        return False
+
+
+def ensure_system_language_settings():
+    """Legt Sprach-bezogene SystemSettings an."""
+    from app.models.settings import SystemSettings  # pylint: disable=import-outside-toplevel
+
+    defaults = [
+        ('default_language', 'de', 'Standardsprache für die Benutzeroberfläche'),
+        ('email_language', 'de', 'Standardsprache für System-E-Mails'),
+        ('available_languages', json.dumps(["de", "en", "pt", "es", "ru"]), 'Liste der aktivierten Sprachen'),
+    ]
+
+    created_any = False
+
+    for key, value, description in defaults:
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if not setting:
+            db.session.add(SystemSettings(key=key, value=value, description=description))
+            created_any = True
+            print(f"  ✓ SystemSetting '{key}' hinzugefügt.")
+        else:
+            updated = False
+            if not setting.value:
+                setting.value = value
+                updated = True
+            if description and not setting.description:
+                setting.description = description
+                updated = True
+            if updated:
+                created_any = True
+                print(f"  ✓ SystemSetting '{key}' aktualisiert.")
+
+    if created_any:
+        db.session.commit()
+    else:
+        print("  ✓ Sprach-Systemeinstellungen bereits vorhanden.")
+
+    return True
+
+
 def verify_migration():
     """Prüft, ob die wichtigsten Tabellen und Felder vorhanden sind."""
     print("\n" + "=" * 60)
@@ -702,7 +802,7 @@ def verify_migration():
         ('calendar_events', ['recurrence_type', 'recurrence_end_date', 'recurrence_interval',
                              'recurrence_days', 'parent_event_id', 'is_recurring_instance',
                              'recurrence_sequence', 'public_ical_token', 'is_public']),
-        ('users', ['dashboard_config', 'oled_mode', 'show_update_notifications']),
+        ('users', ['dashboard_config', 'oled_mode', 'show_update_notifications', 'language']),
         ('inventories', ['status', 'started_by']),
         ('inventory_items', ['inventory_id', 'product_id', 'checked']),
         ('product_sets', ['name', 'created_by']),
@@ -754,6 +854,7 @@ def verify_migration():
     print("  - Kalender-Features: Wiederkehrende Termine & iCal-Feeds")
     print("  - Version 2.1.4: Dashboard-Konfiguration (users)")
     print("  - OLED-Modus & Update-Notifications (users)")
+    print("  - Mehrsprachigkeit: Benutzersprache & Sprach-Systemeinstellungen")
     print("  - Lagersystem-Erweiterungen: Sets, Dokumente, Favoriten, Saved Filters, API Tokens")
     print("  - Inventur-Tool Tabellen: inventories & inventory_items")
     print("  - Wiki-Favoriten Tabelle: wiki_favorites")
@@ -840,6 +941,14 @@ def migrate():
             # 9. Wiki-Favoriten
             if not create_wiki_favorites_table():
                 print("❌ Wiki-Favoriten konnten nicht erstellt werden!")
+                return False
+
+            # 10. Mehrsprachigkeit
+            if not ensure_user_language_column():
+                print("❌ Sprachspalte konnte nicht angelegt werden!")
+                return False
+            if not ensure_system_language_settings():
+                print("❌ Sprach-Systemeinstellungen konnten nicht angelegt werden!")
                 return False
 
             return verify_migration()

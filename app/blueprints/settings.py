@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User
@@ -723,16 +723,30 @@ def admin_backup():
                 result = export_backup(categories, temp_path)
                 
                 if result['success']:
+                    @after_this_request
+                    def _cleanup_temp_file(response):
+                        try:
+                            os.unlink(temp_path)
+                        except OSError as cleanup_error:
+                            current_app.logger.warning(f'Temporäre Backup-Datei konnte nicht gelöscht werden: {cleanup_error}')
+                        return response
+                    
                     return send_file(
                         temp_path,
                         as_attachment=True,
-                        attachment_filename=f'backup_{timestamp}.prismateams',
+                        download_name=f'backup_{timestamp}.prismateams',
                         mimetype='application/json'
                     )
                 else:
+                    os.unlink(temp_path)
                     flash('Fehler beim Erstellen des Backups.', 'danger')
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Export: {str(e)}")
+                try:
+                    if 'temp_path' in locals() and os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                except OSError as cleanup_error:
+                    current_app.logger.warning(f'Temporäre Backup-Datei konnte nach Fehler nicht gelöscht werden: {cleanup_error}')
                 flash(f'Fehler beim Erstellen des Backups: {str(e)}', 'danger')
         
         elif action == 'import':
