@@ -166,7 +166,9 @@ def create_event():
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
+        start_date = request.form.get('start_date')
         start_time = request.form.get('start_time')
+        end_date = request.form.get('end_date')
         end_time = request.form.get('end_time')
         location = request.form.get('location', '').strip()
         
@@ -177,13 +179,14 @@ def create_event():
         recurrence_interval = int(request.form.get('recurrence_interval', 1))
         recurrence_days = request.form.get('recurrence_days', '')  # Komma-getrennte Liste von Wochentagen
         
-        if not all([title, start_time, end_time]):
+        if not all([title, start_date, start_time, end_date, end_time]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
             return render_template('calendar/create.html')
         
         try:
-            start_dt = datetime.fromisoformat(start_time)
-            end_dt = datetime.fromisoformat(end_time)
+            # Kombiniere Datum und Zeit zu datetime-Objekten
+            start_dt = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
+            end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
             
             if end_dt <= start_dt:
                 flash('Das Enddatum muss nach dem Startdatum liegen.', 'danger')
@@ -200,7 +203,7 @@ def create_event():
                 except ValueError:
                     flash('Ungültiges Wiederholungs-Enddatum.', 'danger')
                     return render_template('calendar/create.html')
-        except ValueError:
+        except ValueError as e:
             flash('Ungültiges Datums-/Zeitformat.', 'danger')
             return render_template('calendar/create.html')
         
@@ -255,7 +258,9 @@ def edit_event(event_id):
         event.description = request.form.get('description', '').strip()
         event.location = request.form.get('location', '').strip()
         
+        start_date = request.form.get('start_date')
         start_time = request.form.get('start_time')
+        end_date = request.form.get('end_date')
         end_time = request.form.get('end_time')
         
         # Wiederholungsoptionen
@@ -265,9 +270,14 @@ def edit_event(event_id):
         recurrence_interval = int(request.form.get('recurrence_interval', 1))
         recurrence_days = request.form.get('recurrence_days', '')
         
+        if not all([start_date, start_time, end_date, end_time]):
+            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            return render_template('calendar/edit.html', event=event)
+        
         try:
-            event.start_time = datetime.fromisoformat(start_time)
-            event.end_time = datetime.fromisoformat(end_time)
+            # Kombiniere Datum und Zeit zu datetime-Objekten
+            event.start_time = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
+            event.end_time = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
             
             if event.end_time <= event.start_time:
                 flash('Das Enddatum muss nach dem Startdatum liegen.', 'danger')

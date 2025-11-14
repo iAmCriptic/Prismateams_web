@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, current_app
 from flask_login import login_required, current_user
+from flask_babel import gettext as _
 from flask_socketio import emit, join_room, leave_room
 from app import db, socketio
 from app.models.canvas import Canvas, CanvasTextField, CanvasElement
@@ -33,7 +34,7 @@ def create():
         description = request.form.get('description', '').strip()
         
         if not name:
-            flash('Bitte geben Sie einen Namen ein.', 'danger')
+            flash(_('canvas.create.alerts.name_required'), 'danger')
             return render_template('canvas/create.html')
         
         canvas = Canvas(
@@ -45,7 +46,7 @@ def create():
         db.session.add(canvas)
         db.session.commit()
         
-        flash(f'Canvas "{name}" wurde erstellt.', 'success')
+        flash(_('canvas.flash.created', name=name), 'success')
         return redirect(url_for('canvas.edit', canvas_id=canvas.id))
     
     return render_template('canvas/create.html')
@@ -81,7 +82,7 @@ def delete(canvas_id):
     db.session.delete(canvas_obj)
     db.session.commit()
     
-    flash(f'Canvas "{canvas_obj.name}" wurde gelöscht.', 'success')
+    flash(_('canvas.flash.deleted', name=canvas_obj.name), 'success')
     return redirect(url_for('canvas.index'))
 
 

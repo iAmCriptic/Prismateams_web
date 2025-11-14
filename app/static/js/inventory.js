@@ -17,6 +17,8 @@ class StockManager {
         this.currentFolderId = null; // Aktueller Ordner (aus URL)
         this.viewMode = localStorage.getItem('inventoryViewMode') || 'grid'; // 'grid' oder 'list'
         this.activeQuickFilter = null; // Aktiver Schnellfilter
+        this.sortField = localStorage.getItem('inventorySortField') || 'name';
+        this.sortDirection = localStorage.getItem('inventorySortDirection') || 'asc';
     }
     
     async init() {
@@ -32,7 +34,9 @@ class StockManager {
         
         this.setupEventListeners();
         this.setupViewToggle();
+        this.setupSortControls();
         await this.loadFolders(); // Lade alle Ordner zuerst
+        await this.loadCategories(); // Lade alle Kategorien
         await this.loadProducts();
         this.renderFolders(); // Rendere Ordner-Struktur
         // Initiale UI-Aktualisierung
@@ -62,10 +66,32 @@ class StockManager {
         }
     }
     
+    async loadCategories() {
+        try {
+            const response = await fetch('/inventory/api/categories');
+            if (response.ok) {
+                const categoriesData = await response.json();
+                // Füge alle Kategorien zum Set hinzu
+                categoriesData.forEach(cat => {
+                    this.categories.add(cat);
+                });
+            } else {
+                console.warn('Fehler beim Laden der Kategorien, verwende nur Kategorien aus Produkten');
+            }
+        } catch (error) {
+            console.warn('Fehler beim Laden der Kategorien:', error);
+            // Nicht kritisch, verwende Kategorien aus Produkten
+        }
+    }
+    
     async loadProducts() {
         try {
             // Verwende die vollständige API, um alle Attribute zu erhalten
-            const response = await fetch('/inventory/api/products');
+            const params = new URLSearchParams({
+                sort_by: this.sortField || 'name',
+                sort_dir: this.sortDirection === 'desc' ? 'desc' : 'asc'
+            });
+            const response = await fetch(`/inventory/api/products?${params.toString()}`);
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -84,13 +110,12 @@ class StockManager {
             
             this.products = data;
             
-            // Debug-Informationen werden still verarbeitet
-            
-            // Extrahiere auch Ordner aus Produkten (zusätzlich zu den bereits geladenen)
+            // Extrahiere alle verfügbaren Filter-Werte aus den Produkten
+            // Dies muss NACH dem Laden der Produkte erfolgen
             this.extractCategories();
-            // Aktualisiere Ordner-Filter, falls neue Ordner aus Produkten gefunden wurden
-            this.updateFolders();
+            
             // Wende Filter an (nicht direkt renderProducts, damit Filterlogik angewendet wird)
+            // extractCategories() ruft bereits alle update-Funktionen auf
             this.applyFilters();
         } catch (error) {
             console.error('Fehler beim Laden der Produkte:', error);
@@ -99,6 +124,7 @@ class StockManager {
     }
     
     extractCategories() {
+        // Leere alle Sets
         this.categories.clear();
         this.folders.clear();
         this.conditions.clear();
@@ -106,162 +132,258 @@ class StockManager {
         this.lengths.clear();
         this.purchaseYears.clear();
         
+        // Extrahiere alle verfügbaren Werte aus den Produkten
         this.products.forEach(p => {
-            if (p.category) {
-                this.categories.add(p.category);
+            // Kategorien
+            if (this.isValidValue(p.category)) {
+                this.categories.add(p.category.trim());
             }
-            if (p.folder_id && p.folder_name) {
-                this.folders.add({ id: p.folder_id, name: p.folder_name });
+            
+            // Ordner
+            if (p.folder_id && this.isValidValue(p.folder_name)) {
+                this.folders.add({ id: p.folder_id, name: p.folder_name.trim() });
             }
-            if (p.condition) {
-                this.conditions.add(p.condition);
+            
+            // Zustände
+            if (this.isValidValue(p.condition)) {
+                this.conditions.add(p.condition.trim());
             }
-            if (p.location) {
-                this.locations.add(p.location);
+            
+            // Lagerorte
+            if (this.isValidValue(p.location)) {
+                this.locations.add(p.location.trim());
             }
-            if (p.length) {
-                this.lengths.add(p.length);
+            
+            // Längen
+            if (this.isValidValue(p.length)) {
+                // Füge sowohl das Original-Format als auch normalisierte Version hinzu
+                const lengthStr = p.length.trim();
+                this.lengths.add(lengthStr);
             }
+            
+            // Anschaffungsjahre
             if (p.purchase_date) {
-                // Extrahiere Jahr aus Datum (Format: YYYY-MM-DD)
-                const year = p.purchase_date.substring(0, 4);
-                if (year && year !== 'null') {
-                    this.purchaseYears.add(year);
+                try {
+                    // Extrahiere Jahr aus Datum (Format: YYYY-MM-DD oder YYYY-MM-DDTHH:mm:ss)
+                    const dateStr = String(p.purchase_date);
+                    const year = dateStr.substring(0, 4);
+                    if (year && year !== 'null' && year !== 'undefined' && /^\d{4}$/.test(year)) {
+                        this.purchaseYears.add(year);
+                    }
+                } catch (e) {
+                    // Ignoriere Fehler beim Parsen des Datums
+                    console.warn('Fehler beim Parsen des Anschaffungsdatums:', p.purchase_date, e);
                 }
             }
         });
         
+        // Aktualisiere alle Filter-Dropdowns
+        // Wichtig: Diese Funktionen müssen nach dem DOM-Laden aufgerufen werden
+        // Falls die Elemente noch nicht vorhanden sind, werden sie ignoriert
         this.updateCategories();
-        this.updateFolders();
         this.updateConditions();
         this.updateLocations();
         this.updateLengths();
         this.updatePurchaseYears();
+        
+        // Debug: Prüfe ob Filter-Werte extrahiert wurden (nur in Entwicklung)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('Filter-Werte extrahiert:', {
+                categories: this.categories.size,
+                conditions: this.conditions.size,
+                locations: this.locations.size,
+                lengths: this.lengths.size,
+                purchaseYears: this.purchaseYears.size,
+                products: this.products.length
+            });
+        }
+    }
+    
+    // Öffentliche Methode zum Aktualisieren der Filter (kann von außen aufgerufen werden)
+    refreshFilters() {
+        // Lade Produkte neu und aktualisiere Filter
+        this.loadProducts().then(() => {
+            console.log('Filter aktualisiert');
+        }).catch(error => {
+            console.error('Fehler beim Aktualisieren der Filter:', error);
+        });
     }
     
     updateCategories() {
         const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter) return;
+        if (!categoryFilter) {
+            console.warn('categoryFilter Element nicht gefunden');
+            return;
+        }
         
-        const currentValue = categoryFilter.value;
+        const currentValue = categoryFilter.value || '';
         categoryFilter.innerHTML = '<option value="">Alle Kategorien</option>';
         
-        Array.from(this.categories).sort().forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat;
-            option.textContent = cat;
-            categoryFilter.appendChild(option);
+        // Füge alle Kategorien hinzu (auch wenn Set leer ist)
+        const categoriesArray = Array.from(this.categories).filter(cat => cat && cat.trim() !== '');
+        categoriesArray.sort().forEach(cat => {
+            if (cat && cat.trim() !== '') {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categoryFilter.appendChild(option);
+            }
         });
         
-        categoryFilter.value = currentValue;
+        // Stelle vorherigen Wert wieder her, falls er noch existiert
+        if (currentValue && categoriesArray.includes(currentValue)) {
+            categoryFilter.value = currentValue;
+        } else {
+            categoryFilter.value = '';
+        }
     }
     
     updateFolders() {
-        const folderFilter = document.getElementById('folderFilter');
-        if (!folderFilter) return;
-        
-        const currentValue = folderFilter.value;
-        folderFilter.innerHTML = '<option value="">Alle Ordner</option>';
-        
-        // Konvertiere Set zu Array und sortiere nach Name
-        const foldersArray = Array.from(this.folders);
-        // Entferne Duplikate basierend auf ID
-        const uniqueFolders = Array.from(new Map(foldersArray.map(f => [f.id, f])).values());
-        uniqueFolders.sort((a, b) => a.name.localeCompare(b.name));
-        
-        uniqueFolders.forEach(folder => {
-            const option = document.createElement('option');
-            option.value = folder.id;
-            option.textContent = folder.name;
-            folderFilter.appendChild(option);
-        });
-        
-        folderFilter.value = currentValue;
+        // Ordner-Filter wurde entfernt, daher diese Funktion ist nicht mehr nötig
+        // Wird nur noch für interne Zwecke verwendet (falls benötigt)
+        // Keine UI-Aktualisierung mehr
     }
     
     updateConditions() {
         const conditionFilter = document.getElementById('conditionFilter');
-        if (!conditionFilter) return;
+        if (!conditionFilter) {
+            console.warn('conditionFilter Element nicht gefunden');
+            return;
+        }
         
-        const currentValue = conditionFilter.value;
+        const currentValue = conditionFilter.value || '';
         conditionFilter.innerHTML = '<option value="">Alle Zustände</option>';
         
-        Array.from(this.conditions).sort().forEach(cond => {
-            const option = document.createElement('option');
-            option.value = cond;
-            option.textContent = cond;
-            conditionFilter.appendChild(option);
+        // Füge alle Zustände hinzu (auch wenn Set leer ist)
+        const conditionsArray = Array.from(this.conditions).filter(cond => cond && cond.trim() !== '');
+        conditionsArray.sort().forEach(cond => {
+            if (cond && cond.trim() !== '') {
+                const option = document.createElement('option');
+                option.value = cond;
+                option.textContent = cond;
+                conditionFilter.appendChild(option);
+            }
         });
         
-        conditionFilter.value = currentValue;
+        // Stelle vorherigen Wert wieder her, falls er noch existiert
+        if (currentValue && conditionsArray.includes(currentValue)) {
+            conditionFilter.value = currentValue;
+        } else {
+            conditionFilter.value = '';
+        }
     }
     
     updateLocations() {
         const locationFilter = document.getElementById('locationFilter');
-        if (!locationFilter) return;
+        if (!locationFilter) {
+            console.warn('locationFilter Element nicht gefunden');
+            return;
+        }
         
-        const currentValue = locationFilter.value;
+        const currentValue = locationFilter.value || '';
         locationFilter.innerHTML = '<option value="">Alle Lagerorte</option>';
         
-        Array.from(this.locations).sort().forEach(loc => {
-            const option = document.createElement('option');
-            option.value = loc;
-            option.textContent = loc;
-            locationFilter.appendChild(option);
+        // Füge alle Lagerorte hinzu (auch wenn Set leer ist)
+        const locationsArray = Array.from(this.locations).filter(loc => loc && loc.trim() !== '');
+        locationsArray.sort().forEach(loc => {
+            if (loc && loc.trim() !== '') {
+                const option = document.createElement('option');
+                option.value = loc;
+                option.textContent = loc;
+                locationFilter.appendChild(option);
+            }
         });
         
-        locationFilter.value = currentValue;
+        // Stelle vorherigen Wert wieder her, falls er noch existiert
+        if (currentValue && locationsArray.includes(currentValue)) {
+            locationFilter.value = currentValue;
+        } else {
+            locationFilter.value = '';
+        }
     }
     
     updateLengths() {
         const lengthFilter = document.getElementById('lengthFilter');
-        if (!lengthFilter) return;
+        if (!lengthFilter) {
+            console.warn('lengthFilter Element nicht gefunden');
+            return;
+        }
         
-        const currentValue = lengthFilter.value;
+        const currentValue = lengthFilter.value || '';
         lengthFilter.innerHTML = '<option value="">Alle Längen</option>';
         
+        // Füge alle Längen hinzu (auch wenn Set leer ist)
+        const lengthsArray = Array.from(this.lengths).filter(len => len && len.trim() !== '');
+        
         // Sortiere Längen intelligent (zuerst nach Zahl, dann alphabetisch)
-        const sortedLengths = Array.from(this.lengths).sort((a, b) => {
+        const sortedLengths = lengthsArray.sort((a, b) => {
+            // Versuche zuerst numerischen Vergleich mit length_meters (falls verfügbar)
             // Extrahiere Zahlen aus Strings (z.B. "5m" -> 5)
-            const numA = parseFloat(a.replace(/[^0-9.]/g, '')) || 0;
-            const numB = parseFloat(b.replace(/[^0-9.]/g, '')) || 0;
+            const numA = parseFloat(String(a).replace(/[^0-9.]/g, '')) || 0;
+            const numB = parseFloat(String(b).replace(/[^0-9.]/g, '')) || 0;
             if (numA !== numB) {
                 return numA - numB;
             }
-            return a.localeCompare(b);
+            // Fallback: alphabetisch
+            return String(a).localeCompare(String(b));
         });
         
         sortedLengths.forEach(len => {
-            const option = document.createElement('option');
-            option.value = len;
-            option.textContent = len;
-            lengthFilter.appendChild(option);
+            if (len && String(len).trim() !== '') {
+                const option = document.createElement('option');
+                option.value = String(len);
+                option.textContent = String(len);
+                lengthFilter.appendChild(option);
+            }
         });
         
-        lengthFilter.value = currentValue;
+        // Stelle vorherigen Wert wieder her, falls er noch existiert
+        if (currentValue && sortedLengths.includes(currentValue)) {
+            lengthFilter.value = currentValue;
+        } else {
+            lengthFilter.value = '';
+        }
     }
     
     updatePurchaseYears() {
         const purchaseYearFilter = document.getElementById('purchaseYearFilter');
-        if (!purchaseYearFilter) return;
+        if (!purchaseYearFilter) {
+            console.warn('purchaseYearFilter Element nicht gefunden');
+            return;
+        }
         
-        const currentValue = purchaseYearFilter.value;
+        const currentValue = purchaseYearFilter.value || '';
         purchaseYearFilter.innerHTML = '<option value="">Alle Jahre</option>';
         
+        // Füge alle Jahre hinzu (auch wenn Set leer ist)
+        const yearsArray = Array.from(this.purchaseYears).filter(year => year && String(year).trim() !== '');
+        
         // Sortiere Jahre absteigend (neueste zuerst)
-        Array.from(this.purchaseYears).sort((a, b) => b - a).forEach(year => {
-            const option = document.createElement('option');
-            option.value = year;
-            option.textContent = year;
-            purchaseYearFilter.appendChild(option);
+        const sortedYears = yearsArray.sort((a, b) => {
+            const yearA = parseInt(String(a)) || 0;
+            const yearB = parseInt(String(b)) || 0;
+            return yearB - yearA; // Absteigend
         });
         
-        purchaseYearFilter.value = currentValue;
+        sortedYears.forEach(year => {
+            if (year && String(year).trim() !== '') {
+                const option = document.createElement('option');
+                option.value = String(year);
+                option.textContent = String(year);
+                purchaseYearFilter.appendChild(option);
+            }
+        });
+        
+        // Stelle vorherigen Wert wieder her, falls er noch existiert
+        if (currentValue && sortedYears.includes(currentValue)) {
+            purchaseYearFilter.value = currentValue;
+        } else {
+            purchaseYearFilter.value = '';
+        }
     }
     
     setupEventListeners() {
         const searchInput = document.getElementById('searchInput');
-        const folderFilter = document.getElementById('folderFilter');
         const categoryFilter = document.getElementById('categoryFilter');
         const statusFilter = document.getElementById('statusFilter');
         const conditionFilter = document.getElementById('conditionFilter');
@@ -269,10 +391,11 @@ class StockManager {
         const lengthFilter = document.getElementById('lengthFilter');
         const purchaseYearFilter = document.getElementById('purchaseYearFilter');
         const resetFiltersBtn = document.getElementById('resetFiltersBtn');
-        const selectionModeToggle = document.getElementById('selectionModeToggle');
-        const selectAllBtn = document.getElementById('selectAllBtn');
-        const deselectAllBtn = document.getElementById('deselectAllBtn');
         const borrowSelectedBtn = document.getElementById('borrowSelectedBtn');
+        const bulkSelectAllBtn = document.getElementById('bulkSelectAllBtn');
+        const bulkDeselectAllBtn = document.getElementById('bulkDeselectAllBtn');
+        const bulkEditBtn = document.getElementById('bulkEditBtn');
+        const bulkBorrowBtn = document.getElementById('bulkBorrowBtn');
         
         if (searchInput) {
             searchInput.addEventListener('input', () => {
@@ -289,7 +412,7 @@ class StockManager {
         }
         
         // Alle Filter mit Event-Listenern versehen
-        [folderFilter, categoryFilter, statusFilter, conditionFilter, locationFilter, lengthFilter, purchaseYearFilter].forEach(filter => {
+        [categoryFilter, statusFilter, conditionFilter, locationFilter, lengthFilter, purchaseYearFilter].forEach(filter => {
             if (filter) {
                 filter.addEventListener('change', () => this.applyFilters());
             }
@@ -299,23 +422,20 @@ class StockManager {
             resetFiltersBtn.addEventListener('click', () => this.resetFilters());
         }
         
-        if (selectionModeToggle) {
-            selectionModeToggle.addEventListener('change', () => {
-                // Wenn Selection Mode deaktiviert wird, alle auswählen zurücksetzen
-                if (!selectionModeToggle.checked) {
-                    this.selectedProducts.clear();
-                }
-                this.renderProducts();
-                this.updateSelectionUI();
-            });
+        if (bulkSelectAllBtn) {
+            bulkSelectAllBtn.addEventListener('click', () => this.selectAllAvailable());
         }
         
-        if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', () => this.selectAllAvailable());
+        if (bulkDeselectAllBtn) {
+            bulkDeselectAllBtn.addEventListener('click', () => this.deselectAll());
         }
         
-        if (deselectAllBtn) {
-            deselectAllBtn.addEventListener('click', () => this.deselectAll());
+        if (bulkEditBtn) {
+            bulkEditBtn.addEventListener('click', () => this.openBulkEditModal());
+        }
+        
+        if (bulkBorrowBtn) {
+            bulkBorrowBtn.addEventListener('click', () => this.borrowSelected());
         }
         
         if (borrowSelectedBtn) {
@@ -325,9 +445,55 @@ class StockManager {
         // Checkbox-Events werden direkt in attachCheckboxHandlers() behandelt
     }
     
+    setupSortControls() {
+        const validFields = ['name', 'category', 'condition', 'length'];
+        if (!validFields.includes(this.sortField)) {
+            this.sortField = 'name';
+        }
+        if (!['asc', 'desc'].includes(this.sortDirection)) {
+            this.sortDirection = 'asc';
+        }
+        
+        const sortFieldSelect = document.getElementById('sortField');
+        const sortDirectionSelect = document.getElementById('sortDirection');
+        const resetSortBtn = document.getElementById('resetSortBtn');
+        
+        if (sortFieldSelect) {
+            sortFieldSelect.value = this.sortField;
+            sortFieldSelect.addEventListener('change', () => {
+                const selectedValue = sortFieldSelect.value;
+                this.sortField = validFields.includes(selectedValue) ? selectedValue : 'name';
+                localStorage.setItem('inventorySortField', this.sortField);
+                this.applyFilters();
+            });
+        }
+        
+        if (sortDirectionSelect) {
+            sortDirectionSelect.value = this.sortDirection;
+            sortDirectionSelect.addEventListener('change', () => {
+                const selectedValue = sortDirectionSelect.value === 'desc' ? 'desc' : 'asc';
+                this.sortDirection = selectedValue;
+                localStorage.setItem('inventorySortDirection', this.sortDirection);
+                this.applyFilters();
+            });
+        }
+        
+        if (resetSortBtn) {
+            resetSortBtn.addEventListener('click', () => {
+                this.sortField = 'name';
+                this.sortDirection = 'asc';
+                localStorage.removeItem('inventorySortField');
+                localStorage.removeItem('inventorySortDirection');
+                if (sortFieldSelect) sortFieldSelect.value = 'name';
+                if (sortDirectionSelect) sortDirectionSelect.value = 'asc';
+                this.applyFilters();
+            });
+        }
+    }
+    
     applyFilters() {
-        const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-        const folder = document.getElementById('folderFilter')?.value || '';
+        const search = document.getElementById('searchInput')?.value.trim() || '';
+        const searchLower = search.toLowerCase();
         const category = document.getElementById('categoryFilter')?.value || '';
         const status = document.getElementById('statusFilter')?.value || '';
         const condition = document.getElementById('conditionFilter')?.value || '';
@@ -337,35 +503,39 @@ class StockManager {
         
         this.filteredProducts = this.products.filter(p => {
             // Erweiterte Suche - durchsucht alle Attribute
-            const matchesSearch = !search || this.matchesSearch(p, search);
+            const matchesSearch = !search || this.matchesSearch(p, searchLower);
             
             // Ordner-Filter: 
-            // - Wenn currentFolderId gesetzt ist: zeige nur Produkte aus diesem Ordner
-            // - Wenn kein currentFolderId (Root): zeige nur Produkte ohne Ordner (folder_id === null oder undefined)
-            // - Wenn folder-Filter im Dropdown gesetzt ist: überschreibe mit diesem Filter
+            // - Wenn eine Suche aktiv ist: IGNORIERE Ordner-Filterung (durchsuche alle Ordner)
+            // - Wenn keine Suche aktiv ist:
+            //   - Wenn currentFolderId gesetzt ist: zeige nur Produkte aus diesem Ordner
+            //   - Wenn kein currentFolderId (Root): zeige nur Produkte ohne Ordner (folder_id === null oder undefined)
             let matchesFolder = true;
-            if (folder) {
-                // Expliziter Filter aus Dropdown hat Priorität
-                matchesFolder = p.folder_id && p.folder_id.toString() === folder;
-            } else if (this.currentFolderId !== null && this.currentFolderId !== undefined) {
-                // Wir sind in einem Ordner: zeige nur Produkte aus diesem Ordner
-                matchesFolder = p.folder_id === this.currentFolderId;
-            } else {
-                // Wir sind im Root: zeige NUR Produkte ohne Ordner (folder_id ist null, undefined oder nicht gesetzt)
-                matchesFolder = !p.folder_id || p.folder_id === null || p.folder_id === undefined;
+            if (!search) {
+                // Nur Ordner-Filterung anwenden, wenn keine Suche aktiv ist
+                if (this.currentFolderId !== null && this.currentFolderId !== undefined) {
+                    // Wir sind in einem Ordner: zeige nur Produkte aus diesem Ordner
+                    matchesFolder = p.folder_id === this.currentFolderId;
+                } else {
+                    // Wir sind im Root: zeige NUR Produkte ohne Ordner (folder_id ist null, undefined oder nicht gesetzt)
+                    matchesFolder = !p.folder_id || p.folder_id === null || p.folder_id === undefined;
+                }
             }
+            // Wenn search aktiv ist, bleibt matchesFolder = true (alle Ordner durchsuchen)
             
-            // Andere Filter
-            const matchesCategory = !category || p.category === category;
-            const matchesStatus = !status || p.status === status;
-            const matchesCondition = !condition || p.condition === condition;
-            const matchesLocation = !location || p.location === location;
-            const matchesLength = !length || p.length === length;
+            // Andere Filter - behandeln null/undefined korrekt
+            const matchesCategory = !category || (p.category !== null && p.category !== undefined && p.category === category);
+            const matchesStatus = !status || (p.status !== null && p.status !== undefined && p.status === status);
+            const matchesCondition = !condition || (p.condition !== null && p.condition !== undefined && p.condition === condition);
+            const matchesLocation = !location || (p.location !== null && p.location !== undefined && p.location === location);
+            const matchesLength = !length || this.matchesLength(p, length);
             const matchesPurchaseYear = !purchaseYear || this.matchesPurchaseYear(p, purchaseYear);
             
             return matchesSearch && matchesFolder && matchesCategory && matchesStatus && 
                    matchesCondition && matchesLocation && matchesLength && matchesPurchaseYear;
         });
+        
+        this.sortFilteredProducts();
         
         // Rendere Ordner neu (werden bei Suche ausgeblendet)
         this.renderFolders();
@@ -410,9 +580,66 @@ class StockManager {
         return productYear === year;
     }
     
+    matchesLength(product, filterLength) {
+        // Wenn kein Filter gesetzt, immer true
+        if (!filterLength) return true;
+        
+        // Wenn Produkt keine Länge hat, nicht matchen
+        if (!product.length && !product.length_meters) return false;
+        
+        // Versuche zuerst exakte Übereinstimmung mit length (String)
+        if (product.length && product.length === filterLength) {
+            return true;
+        }
+        
+        // Falls length_meters verfügbar ist, vergleiche numerisch
+        // Konvertiere filterLength zu Meter-Wert für Vergleich
+        if (product.length_meters !== null && product.length_meters !== undefined) {
+            // Versuche filterLength zu parsen (könnte "5m", "5.5", etc. sein)
+            const filterMeters = this.parseLengthToMeters(filterLength);
+            if (filterMeters !== null) {
+                // Vergleiche mit Toleranz für Fließkommazahlen
+                return Math.abs(product.length_meters - filterMeters) < 0.001;
+            }
+        }
+        
+        // Fallback: String-Vergleich (case-insensitive)
+        if (product.length) {
+            return product.length.toLowerCase() === filterLength.toLowerCase();
+        }
+        
+        return false;
+    }
+    
+    parseLengthToMeters(lengthStr) {
+        // Einfacher Parser für Längenangaben (z.B. "5m", "5.5m", "120cm", "5")
+        if (!lengthStr || typeof lengthStr !== 'string') return null;
+        
+        const trimmed = lengthStr.trim().toLowerCase();
+        if (!trimmed) return null;
+        
+        // Entferne Leerzeichen zwischen Zahl und Einheit
+        const normalized = trimmed.replace(/\s+/g, '');
+        
+        // Extrahiere Zahl und Einheit
+        const match = normalized.match(/^([\d.]+)\s*(m|cm|mm)?$/);
+        if (!match) return null;
+        
+        const value = parseFloat(match[1]);
+        const unit = match[2] || 'm';
+        
+        if (isNaN(value)) return null;
+        
+        // Konvertiere zu Metern
+        if (unit === 'm') return value;
+        if (unit === 'cm') return value / 100;
+        if (unit === 'mm') return value / 1000;
+        
+        return value; // Default: Meter
+    }
+    
     resetFilters() {
         document.getElementById('searchInput').value = '';
-        document.getElementById('folderFilter').value = '';
         document.getElementById('categoryFilter').value = '';
         document.getElementById('statusFilter').value = '';
         document.getElementById('conditionFilter').value = '';
@@ -439,18 +666,10 @@ class StockManager {
     }
     
     filterByFolder(folderId) {
-        // Setze Ordner-Filter und klappe Filter aus
-        const folderFilter = document.getElementById('folderFilter');
-        const filterCollapse = document.getElementById('filterCollapse');
-        
-        if (folderFilter) {
-            folderFilter.value = folderId.toString();
-            // Klappe Filter-Accordion aus, damit Filter sichtbar ist
-            if (filterCollapse) {
-                const bsCollapse = new bootstrap.Collapse(filterCollapse, { show: true });
-            }
-            this.applyFilters();
-        }
+        // Navigiere zum Ordner (Ordner-Filter wurde entfernt, daher Navigation verwenden)
+        // Diese Funktion wird möglicherweise noch für Navigation verwendet
+        // Falls nicht mehr benötigt, kann sie entfernt werden
+        window.location.href = `/inventory/stock/${folderId}`;
     }
     
     renderProducts() {
@@ -527,20 +746,19 @@ class StockManager {
             statusBadge = '<span class="badge bg-danger">Fehlend</span>';
         }
         
-        const isSelectionMode = document.getElementById('selectionModeToggle')?.checked || false;
         const isSelected = this.selectedProducts.has(product.id);
-        const showCheckbox = isSelectionMode && product.status === 'available';
-        const checkbox = showCheckbox
-            ? `<input type="checkbox" class="form-check-input me-2 product-checkbox" 
-                       value="${product.id}" data-product-id="${product.id}" 
-                       ${isSelected ? 'checked' : ''}>`
-            : '';
+        const isSelectable = product.status === 'available';
+        const checkboxTitle = isSelectable ? '' : ' title="Nur verfügbare Produkte lassen sich auswählen"';
+        const checkbox = `
+            <input type="checkbox" class="form-check-input me-2 product-checkbox"
+                   value="${product.id}" data-product-id="${product.id}"
+                   ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
+                   style="width: 1.1rem; height: 1.1rem;">
+        `;
         
-        const cardClickHandler = isSelectionMode && product.status === 'available'
-            ? `onclick="if(window.stockManager){window.stockManager.toggleProductSelection(${product.id});}"`
-            : `onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}"`;
+        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
         
-        const selectionModeClass = (isSelectionMode && product.status === 'available' && isSelected) ? 'selection-mode' : '';
+        const selectionModeClass = isSelected ? 'selection-mode' : '';
         
         const folderBadge = product.folder_name 
             ? `<span class="badge bg-info me-2" 
@@ -565,10 +783,12 @@ class StockManager {
         }
         
         return `
-            <div class="list-group-item list-group-item-action ${selectionModeClass}" ${cardClickHandler}>
+            <div class="list-group-item list-group-item-action ${selectionModeClass}" style="cursor: pointer;">
                 <div class="d-flex align-items-center">
-                    ${checkbox}
-                    <div class="flex-grow-1">
+                    <div class="form-check me-2" style="z-index: 10; position: relative;">
+                        ${checkbox}
+                    </div>
+                    <div class="flex-grow-1" ${cardClickHandler}>
                         <div class="d-flex align-items-center mb-1">
                             <h6 class="mb-0 me-2">${this.escapeHtml(product.name)}</h6>
                             ${statusBadge}
@@ -579,7 +799,7 @@ class StockManager {
                         </div>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        ${!isSelectionMode && product.status === 'available' 
+                        ${isSelectable 
                             ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
                             : ''}
                         <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
@@ -605,6 +825,9 @@ class StockManager {
     attachCheckboxHandlers() {
         // Event-Handler für alle Checkboxen setzen
         document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+            if (checkbox.disabled) {
+                return;
+            }
             // Stelle sicher, dass der checked-Status mit selectedProducts synchronisiert ist
             const productId = parseInt(checkbox.dataset.productId);
             checkbox.checked = this.selectedProducts.has(productId);
@@ -626,6 +849,17 @@ class StockManager {
             checkbox.addEventListener('click', (e) => {
                 e.stopPropagation();
             });
+            
+            // Verhindere auch Klicks auf den form-check Container (für List View)
+            const formCheck = checkbox.closest('.form-check');
+            if (formCheck) {
+                formCheck.addEventListener('click', (e) => {
+                    // Nur stoppen wenn direkt auf Checkbox oder Label geklickt wird
+                    if (e.target === checkbox || e.target === formCheck.querySelector('label')) {
+                        e.stopPropagation();
+                    }
+                });
+            }
         });
     }
     
@@ -640,10 +874,20 @@ class StockManager {
         const isSelected = this.selectedProducts.has(productId);
         checkbox.checked = isSelected;
         
-        if (isSelected) {
-            card.classList.add('selection-mode');
-        } else {
-            card.classList.remove('selection-mode');
+        if (card) {
+            if (isSelected) {
+                card.classList.add('selection-mode');
+            } else {
+                card.classList.remove('selection-mode');
+            }
+        }
+        const listItem = checkbox.closest('.list-group-item');
+        if (listItem) {
+            if (isSelected) {
+                listItem.classList.add('selection-mode');
+            } else {
+                listItem.classList.remove('selection-mode');
+            }
         }
     }
     
@@ -664,32 +908,32 @@ class StockManager {
             ? `<div class="position-relative" style="width: 100%; height: 200px; overflow: hidden;">${imageHtml}<div class="product-image-placeholder" style="display: none;"><i class="bi bi-box-seam fs-1 text-muted"></i></div></div>`
             : '<div class="product-image-placeholder"><i class="bi bi-box-seam fs-1 text-muted"></i></div>';
         
-        const isSelectionMode = document.getElementById('selectionModeToggle')?.checked || false;
         const isSelected = this.selectedProducts.has(product.id);
-        const showCheckbox = isSelectionMode && product.status === 'available';
-        const checkbox = showCheckbox
-            ? `<div class="position-absolute top-0 start-0 m-2">
-                <input type="checkbox" class="form-check-input product-checkbox" 
-                       value="${product.id}" data-product-id="${product.id}" 
-                       ${isSelected ? 'checked' : ''}
-                       style="width: 1.2rem; height: 1.2rem; background-color: white;">
-               </div>`
-            : '';
+        const isSelectable = product.status === 'available';
+        const checkboxTitle = isSelectable ? '' : ' title="Nur verfügbare Produkte lassen sich auswählen"';
+        const checkbox = `
+            <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input product-checkbox"
+                           value="${product.id}" data-product-id="${product.id}"
+                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
+                           style="width: 1.2rem; height: 1.2rem; background-color: white; cursor: pointer;">
+                </div>
+            </div>
+        `;
         
-        // Sicherstellen, dass stockManager existiert bevor es verwendet wird
-        const cardClickHandler = isSelectionMode && product.status === 'available'
-            ? `onclick="if(window.stockManager){window.stockManager.toggleProductSelection(${product.id});}"`
-            : `onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}"`;
+        // Click-Handler: Wenn Auswahl aktiv, toggle Auswahl; sonst Details anzeigen
+        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
         
         // selection-mode Klasse nur hinzufügen, wenn das Produkt tatsächlich ausgewählt ist
-        const selectionModeClass = (isSelectionMode && product.status === 'available' && isSelected) ? 'selection-mode' : '';
+        const selectionModeClass = isSelected ? 'selection-mode' : '';
         
         return `
-            <div class="card product-card ${selectionModeClass}" ${cardClickHandler}>
+            <div class="card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;">
                 <div class="position-relative">
                     ${imageContainer}
                     ${checkbox}
-                    <span class="badge product-status-badge">${statusBadge}</span>
+                    ${statusBadge ? `<div class="position-absolute top-0 end-0 m-2" style="z-index: 5;">${statusBadge}</div>` : ''}
                 </div>
                 <div class="card-body">
                     <h5 class="card-title">${product.name}</h5>
@@ -716,7 +960,7 @@ class StockManager {
                     </div>
                     <div class="mt-2 d-flex justify-content-between align-items-center">
                         <div>
-                            ${!isSelectionMode && product.status === 'available' 
+                            ${isSelectable 
                                 ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
                                 : ''}
                             <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
@@ -803,15 +1047,38 @@ class StockManager {
         }
     }
     
+    handleCardClick(productId, isSelectable) {
+        // Wenn bereits Auswahl aktiv ist und Produkt auswählbar, toggle Auswahl
+        if (this.selectedProducts.size > 0 && isSelectable) {
+            this.toggleProductSelection(productId);
+        } else {
+            // Sonst Details anzeigen
+            this.showProductDetail(productId);
+        }
+    }
+    
     toggleProductSelection(productId) {
         const checkbox = document.querySelector(`.product-checkbox[data-product-id="${productId}"]`);
-        if (checkbox) {
+        if (checkbox && !checkbox.disabled) {
             checkbox.checked = !checkbox.checked;
             // Aktualisiere selectedProducts Set
             if (checkbox.checked) {
                 this.selectedProducts.add(productId);
             } else {
                 this.selectedProducts.delete(productId);
+            }
+            this.updateCardSelection(productId);
+            this.updateSelectionUI();
+        } else if (!checkbox) {
+            // Fallback: Wenn keine Checkbox gefunden, direkt im Set togglen
+            if (this.selectedProducts.has(productId)) {
+                this.selectedProducts.delete(productId);
+            } else {
+                // Prüfe ob Produkt auswählbar ist
+                const product = this.products.find(p => p.id === productId);
+                if (product && product.status === 'available') {
+                    this.selectedProducts.add(productId);
+                }
             }
             this.updateCardSelection(productId);
             this.updateSelectionUI();
@@ -855,6 +1122,8 @@ class StockManager {
         const selected = this.getSelectedProducts();
         const selectedCountEl = document.getElementById('selectedCount');
         const borrowSelectedBtn = document.getElementById('borrowSelectedBtn');
+        const bulkToolbar = document.getElementById('bulkSelectionToolbar');
+        const bulkSelectionCount = document.getElementById('bulkSelectionCount');
         
         if (selectedCountEl) {
             selectedCountEl.textContent = selected.length;
@@ -862,6 +1131,19 @@ class StockManager {
         
         if (borrowSelectedBtn) {
             borrowSelectedBtn.style.display = selected.length > 0 ? 'inline-block' : 'none';
+        }
+        
+        // Toolbar anzeigen/verstecken
+        if (bulkToolbar) {
+            if (selected.length > 0) {
+                bulkToolbar.style.display = 'block';
+            } else {
+                bulkToolbar.style.display = 'none';
+            }
+        }
+        
+        if (bulkSelectionCount) {
+            bulkSelectionCount.textContent = selected.length;
         }
         
         // Stelle sicher, dass alle Karten visuell korrekt aktualisiert sind
@@ -892,6 +1174,251 @@ class StockManager {
         // Weiterleitung zur Mehrfachausleihe-Seite mit Produkt-IDs als Parameter
         const productIdsParam = selectedIds.join(',');
         window.location.href = `/inventory/borrow-multiple?product_ids=${productIdsParam}`;
+    }
+    
+    openBulkEditModal() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            return;
+        }
+        
+        const modalEl = document.getElementById('bulkEditModal');
+        if (!modalEl) {
+            console.error('Bulk-Edit-Modal nicht gefunden');
+            return;
+        }
+        
+        const modal = new bootstrap.Modal(modalEl);
+        const productCountEl = document.getElementById('bulkEditProductCount');
+        const attributeSelect = document.getElementById('bulkEditAttribute');
+        const fieldsContainer = document.getElementById('bulkEditFields');
+        const form = document.getElementById('bulkEditForm');
+        const submitBtn = document.getElementById('bulkEditSubmitBtn');
+        
+        if (productCountEl) {
+            productCountEl.textContent = selectedIds.length;
+        }
+        
+        // Reset Formular
+        if (form) {
+            form.reset();
+        }
+        if (fieldsContainer) {
+            fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
+        }
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+        
+        // Event-Handler für Attribut-Auswahl
+        if (attributeSelect) {
+            const handleAttributeChange = () => {
+                const attribute = attributeSelect.value;
+                if (!fieldsContainer) return;
+                
+                fieldsContainer.innerHTML = '';
+                submitBtn.disabled = !attribute;
+                
+                if (!attribute) {
+                    fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
+                    return;
+                }
+                
+                let fieldHtml = '';
+                
+                switch (attribute) {
+                    case 'location':
+                        fieldHtml = `
+                            <div class="mb-3">
+                                <label for="bulkEditLocation" class="form-label">Neuer Lagerort</label>
+                                <input type="text" class="form-control" id="bulkEditLocation" 
+                                       placeholder="z.B. Regal A, Kiste 3">
+                                <small class="form-text text-muted">Leer lassen um Lagerort zu entfernen.</small>
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'length':
+                        fieldHtml = `
+                            <div class="mb-3">
+                                <label for="bulkEditLength" class="form-label">Neue Länge (in Metern)</label>
+                                <input type="number" class="form-control" id="bulkEditLength" 
+                                       step="0.01" min="0" placeholder="z.B. 5.5">
+                                <small class="form-text text-muted">Leer lassen um Länge zu entfernen.</small>
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'condition':
+                        fieldHtml = `
+                            <div class="mb-3">
+                                <label for="bulkEditCondition" class="form-label">Neuer Zustand</label>
+                                <select class="form-select" id="bulkEditCondition">
+                                    <option value="">Kein Zustand (entfernen)</option>
+                                    <option value="Neu">Neu</option>
+                                    <option value="Gut">Gut</option>
+                                    <option value="Gebraucht">Gebraucht</option>
+                                    <option value="Beschädigt">Beschädigt</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'category':
+                        fieldHtml = `
+                            <div class="mb-3">
+                                <label for="bulkEditCategory" class="form-label">Neue Kategorie</label>
+                                <select class="form-select" id="bulkEditCategory">
+                                    <option value="">Keine Kategorie (entfernen)</option>
+                                    ${this.categories ? Array.from(this.categories).sort().map(cat => 
+                                        `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`
+                                    ).join('') : ''}
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'folder_id':
+                        fieldHtml = `
+                            <div class="mb-3">
+                                <label for="bulkEditFolder" class="form-label">Neuer Ordner</label>
+                                <select class="form-select" id="bulkEditFolder">
+                                    <option value="">Kein Ordner (entfernen)</option>
+                                    ${this.folders ? Array.from(this.folders).sort((a, b) => a.name.localeCompare(b.name)).map(folder => 
+                                        `<option value="${folder.id}">${this.escapeHtml(folder.name)}</option>`
+                                    ).join('') : ''}
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'remove_image':
+                        fieldHtml = `
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i> 
+                                Die Produktbilder aller ausgewählten Produkte werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.
+                            </div>
+                        `;
+                        break;
+                }
+                
+                fieldsContainer.innerHTML = fieldHtml;
+            };
+            
+            // Entferne alte Listener und füge neuen hinzu
+            attributeSelect.removeEventListener('change', handleAttributeChange);
+            attributeSelect.addEventListener('change', handleAttributeChange);
+        }
+        
+        // Submit-Handler
+        if (submitBtn) {
+            const handleSubmit = async () => {
+                const attribute = attributeSelect ? attributeSelect.value : '';
+                if (!attribute) {
+                    alert('Bitte wählen Sie ein Attribut aus.');
+                    return;
+                }
+                
+                const updateData = {
+                    product_ids: selectedIds,
+                };
+                
+                let value = null;
+                
+                switch (attribute) {
+                    case 'location':
+                        const locationInput = document.getElementById('bulkEditLocation');
+                        value = locationInput ? locationInput.value.trim() || null : null;
+                        updateData.location = value;
+                        break;
+                    
+                    case 'length':
+                        const lengthInput = document.getElementById('bulkEditLength');
+                        if (lengthInput && lengthInput.value) {
+                            value = parseFloat(lengthInput.value);
+                            if (isNaN(value) || value < 0) {
+                                alert('Bitte geben Sie eine gültige Länge ein (Zahl >= 0).');
+                                return;
+                            }
+                            updateData.length = value;
+                        } else {
+                            updateData.length = null;
+                        }
+                        break;
+                    
+                    case 'condition':
+                        const conditionSelect = document.getElementById('bulkEditCondition');
+                        value = conditionSelect ? conditionSelect.value || null : null;
+                        updateData.condition = value;
+                        break;
+                    
+                    case 'category':
+                        const categorySelect = document.getElementById('bulkEditCategory');
+                        value = categorySelect ? categorySelect.value || null : null;
+                        updateData.category = value;
+                        break;
+                    
+                    case 'folder_id':
+                        const folderSelect = document.getElementById('bulkEditFolder');
+                        value = folderSelect ? folderSelect.value || null : null;
+                        updateData.folder_id = value;
+                        break;
+                    
+                    case 'remove_image':
+                        if (!confirm(`Möchten Sie wirklich die Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`)) {
+                            return;
+                        }
+                        updateData.remove_image = true;
+                        break;
+                }
+                
+                // Loading-State
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Aktualisiere...';
+                
+                try {
+                    const response = await fetch('/inventory/api/products/bulk-update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(updateData),
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Fehler beim Aktualisieren');
+                    }
+                    
+                    // Erfolg
+                    modal.hide();
+                    alert(result.message || `${result.updated_count || selectedIds.length} Produkt(e) erfolgreich aktualisiert.`);
+                    
+                    // Produktliste neu laden
+                    await this.loadProducts();
+                    this.applyFilters();
+                    
+                    // Auswahl zurücksetzen
+                    this.selectedProducts.clear();
+                    this.updateSelectionUI();
+                    
+                } catch (error) {
+                    console.error('Bulk-Update Fehler:', error);
+                    alert('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'));
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            };
+            
+            submitBtn.removeEventListener('click', handleSubmit);
+            submitBtn.addEventListener('click', handleSubmit);
+        }
+        
+        modal.show();
     }
     
     // View Toggle Funktionen
@@ -1019,6 +1546,96 @@ class StockManager {
     navigateToFolder(folderId) {
         // Navigiere zu Ordner-Ansicht
         window.location.href = `/inventory/stock/${folderId}`;
+    }
+    
+    getLengthInMeters(product) {
+        if (!product) {
+            return null;
+        }
+        if (typeof product.length_meters === 'number' && !Number.isNaN(product.length_meters)) {
+            return product.length_meters;
+        }
+        const rawLength = product.length;
+        if (!rawLength) {
+            return null;
+        }
+        let text = rawLength.toString().trim().toLowerCase().replace(',', '.');
+        let multiplier = 1;
+        if (text.endsWith('mm')) {
+            multiplier = 0.001;
+            text = text.slice(0, -2);
+        } else if (text.endsWith('cm')) {
+            multiplier = 0.01;
+            text = text.slice(0, -2);
+        } else if (text.endsWith('km')) {
+            multiplier = 1000;
+            text = text.slice(0, -2);
+        } else if (text.endsWith('m')) {
+            text = text.slice(0, -1);
+        }
+        const numericPart = text.replace(/[^0-9.+-]/g, '');
+        const numeric = parseFloat(numericPart);
+        if (Number.isNaN(numeric)) {
+            return null;
+        }
+        return parseFloat((numeric * multiplier).toFixed(6));
+    }
+    
+    sortFilteredProducts() {
+        if (!Array.isArray(this.filteredProducts) || this.filteredProducts.length === 0) {
+            return;
+        }
+        const field = this.sortField || 'name';
+        const direction = this.sortDirection === 'desc' ? -1 : 1;
+        const collator = new Intl.Collator('de', { sensitivity: 'base' });
+        const getString = (value) => (value ?? '').toString();
+        
+        this.filteredProducts.sort((a, b) => {
+            if (field === 'length') {
+                const valueA = this.getLengthInMeters(a);
+                const valueB = this.getLengthInMeters(b);
+                const aNull = valueA === null || valueA === undefined;
+                const bNull = valueB === null || valueB === undefined;
+                if (aNull && bNull) {
+                    return collator.compare(getString(a.name), getString(b.name)) * direction;
+                }
+                if (aNull) return 1;
+                if (bNull) return -1;
+                if (valueA === valueB) {
+                    return collator.compare(getString(a.name), getString(b.name)) * direction;
+                }
+                return valueA < valueB ? -1 * direction : 1 * direction;
+            }
+            
+            let valueA;
+            let valueB;
+            switch (field) {
+                case 'category':
+                case 'condition':
+                    valueA = getString(a[field]);
+                    valueB = getString(b[field]);
+                    break;
+                case 'name':
+                default:
+                    valueA = getString(a.name);
+                    valueB = getString(b.name);
+                    break;
+            }
+            
+            const aEmpty = valueA.trim() === '';
+            const bEmpty = valueB.trim() === '';
+            if (aEmpty && bEmpty) {
+                return collator.compare(getString(a.name), getString(b.name)) * direction;
+            }
+            if (aEmpty) return 1;
+            if (bEmpty) return -1;
+            
+            const comparison = collator.compare(valueA, valueB);
+            if (comparison !== 0) {
+                return comparison * direction;
+            }
+            return collator.compare(getString(a.name), getString(b.name)) * direction;
+        });
     }
 }
 

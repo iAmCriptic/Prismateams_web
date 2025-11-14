@@ -10,6 +10,16 @@ from datetime import datetime
 import os
 from PIL import Image as PILImage
 from app.utils.qr_code import generate_qr_code_bytes, generate_product_qr_code, generate_borrow_qr_code
+from app.utils.lengths import format_length_from_meters, parse_length_to_meters
+
+
+def _format_length(value):
+    """Gibt eine konsistente Meter-Darstellung zurück."""
+    meters = parse_length_to_meters(value)
+    if meters is None:
+        return value or '-'
+    formatted = format_length_from_meters(meters)
+    return formatted or (value or '-')
 
 
 def get_logo_path():
@@ -199,7 +209,7 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
             str(idx),
             product.name or '-',
             str(product.id),
-            product.length or '-',
+            _format_length(product.length),
             product.serial_number or '-'
         ]
         table_data.append(row)
@@ -528,7 +538,7 @@ def generate_qr_code_sheet_pdf(products, output=None):
                     alignment=TA_CENTER,
                     leading=9
                 )
-                text_elements.append(Paragraph(product.length, length_style))
+                text_elements.append(Paragraph(_format_length(product.length), length_style))
             
             # Erstelle Label-Tabelle mit zwei Zeilen - jede exakt 1.9cm hoch
             # Zeile 1: Text-Bereich (exakt 1.9cm)
@@ -628,139 +638,6 @@ def generate_qr_code_sheet_pdf(products, output=None):
     return output
 
 
-def generate_inventory_tool_pdf(inventory, items, output=None):
-    """
-    Generiert eine Inventurliste als PDF mit Checkboxen und Anmerkungsfeldern.
-    
-    Args:
-        inventory: Inventory Objekt
-        items: Liste von InventoryItem Objekten
-        output: BytesIO Objekt oder Dateipfad (optional)
-    
-    Returns:
-        BytesIO Objekt mit PDF-Daten (falls output=None)
-    """
-    if output is None:
-        output = BytesIO()
-    
-    doc = SimpleDocTemplate(output, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
-    story = []
-    
-    styles = getSampleStyleSheet()
-    
-    # Logo hinzufügen
-    logo_path = get_logo_path()
-    if logo_path:
-        try:
-            logo = Image(logo_path, width=3*cm, height=3*cm, kind='proportional')
-            story.append(logo)
-            story.append(Spacer(1, 0.3*cm))
-        except Exception as e:
-            current_app.logger.warning(f"Konnte Logo nicht laden: {e}")
-    
-    # Titel
-    title_style = ParagraphStyle(
-        'InventoryTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#0d6efd'),
-        alignment=TA_CENTER,
-        spaceAfter=10
-    )
-    story.append(Paragraph(f"Inventur: {inventory.name}", title_style))
-    
-    # Datum und Status
-    date_style = ParagraphStyle(
-        'Date',
-        parent=styles['Normal'],
-        fontSize=10,
-        alignment=TA_CENTER,
-        spaceAfter=5
-    )
-    story.append(Paragraph(f"Gestartet: {inventory.started_at.strftime('%d.%m.%Y %H:%M')}", date_style))
-    if inventory.completed_at:
-        story.append(Paragraph(f"Abgeschlossen: {inventory.completed_at.strftime('%d.%m.%Y %H:%M')}", date_style))
-    story.append(Paragraph(f"Status: {'Abgeschlossen' if inventory.status == 'completed' else 'Aktiv'}", date_style))
-    story.append(Spacer(1, 0.5*cm))
-    
-    # Tabellendaten vorbereiten
-    # Spalten: #, Produktname, Kategorie, Lagerort, Zustand, Inventiert (Checkbox), Anmerkungen
-    table_data = [['#', 'Produktname', 'Kategorie', 'Lagerort', 'Zustand', 'Inventiert', 'Anmerkungen']]
-    
-    for item in items:
-        product = item.product
-        # Checkbox als leeres Kästchen darstellen (□)
-        checkbox = '☐' if not item.checked else '☑'
-        
-        table_data.append([
-            str(product.id),
-            product.name or '-',
-            product.category or '-',
-            product.location or '-',
-            product.condition or '-',
-            checkbox,
-            item.notes or ''  # Anmerkungen können leer sein
-        ])
-    
-    # Tabelle erstellen
-    # Spaltenbreiten anpassen (A4 Breite: 21cm, abzüglich Ränder)
-    available_width = 17*cm
-    col_widths = [
-        0.8*cm,  # #
-        4*cm,    # Produktname
-        2*cm,    # Kategorie
-        2*cm,    # Lagerort
-        1.5*cm,  # Zustand
-        1.2*cm,  # Inventiert (Checkbox)
-        5.5*cm   # Anmerkungen
-    ]
-    
-    table = Table(table_data, colWidths=col_widths, repeatRows=1)
-    table.setStyle(TableStyle([
-        # Header
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Checkbox zentrieren
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        
-        # Body
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('FONTSIZE', (5, 1), (5, -1), 12),  # Größere Checkbox-Zeichen
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
-        
-        # Grid
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        
-        # Anmerkungsfeld - mehr Platz für Text
-        ('TOPPADDING', (6, 1), (6, -1), 4),
-        ('BOTTOMPADDING', (6, 1), (6, -1), 4),
-    ]))
-    
-    story.append(table)
-    
-    # Footer mit Seitenzahl
-    story.append(Spacer(1, 0.5*cm))
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        alignment=TA_CENTER,
-        textColor=colors.grey
-    )
-    story.append(Paragraph(f"Seite 1", footer_style))
-    
-    doc.build(story)
-    return output
-
-
 def generate_inventory_list_pdf(products, output=None):
     """
     Generiert eine Inventurliste als PDF.
@@ -823,7 +700,7 @@ def generate_inventory_list_pdf(products, output=None):
             product.category or '-',
             product.serial_number or '-',
             product.location or '-',
-            product.length or '-',
+            _format_length(product.length),
             status_text,
             product.condition or '-'
         ])

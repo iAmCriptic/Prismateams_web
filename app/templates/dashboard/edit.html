@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard Bearbeiten - Team Portal{% endblock %}
+{% block title %}{{ _('dashboard.edit.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1>Dashboard Bearbeiten</h1>
-        <p class="text-muted">Passen Sie Ihr Dashboard nach Ihren Wünschen an</p>
+        <h1>{{ _('dashboard.edit.heading') }}</h1>
+        <p class="text-muted">{{ _('dashboard.edit.subtitle') }}</p>
     </div>
 </div>
 
@@ -17,11 +17,11 @@
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-grid-3x3-gap me-2"></i>
-                        Widgets
+                        {{ _('dashboard.edit.widgets.title') }}
                     </h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Wählen Sie aus, welche Widgets auf Ihrem Dashboard angezeigt werden sollen.</p>
+                    <p class="text-muted">{{ _('dashboard.edit.widgets.description') }}</p>
                     
                     {% set enabled_widgets = dashboard_config.get('enabled_widgets', []) %}
                     
@@ -29,8 +29,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_termine" id="widget_termine" {% if 'termine' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_termine">
                             <i class="bi bi-calendar-event text-primary me-2"></i>
-                            <strong>Termine</strong>
-                            <small class="text-muted d-block ms-4">Zeigt die nächsten anstehenden Termine</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.termine.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.termine.description') }}</small>
                         </label>
                     </div>
                     
@@ -38,8 +38,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_nachrichten" id="widget_nachrichten" {% if 'nachrichten' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_nachrichten">
                             <i class="bi bi-chat-dots text-success me-2"></i>
-                            <strong>Nachrichten</strong>
-                            <small class="text-muted d-block ms-4">Zeigt ungelesene Chat-Nachrichten</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.nachrichten.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.nachrichten.description') }}</small>
                         </label>
                     </div>
                     
@@ -47,8 +47,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_emails" id="widget_emails" {% if 'emails' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_emails">
                             <i class="bi bi-envelope text-info me-2"></i>
-                            <strong>E-Mails</strong>
-                            <small class="text-muted d-block ms-4">Zeigt die letzten E-Mails</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.emails.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.emails.description') }}</small>
                         </label>
                     </div>
                     
@@ -56,8 +56,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_dateien" id="widget_dateien" {% if 'dateien' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_dateien">
                             <i class="bi bi-folder text-warning me-2"></i>
-                            <strong>Letzte Dateien</strong>
-                            <small class="text-muted d-block ms-4">Zeigt die zuletzt bearbeiteten Dateien</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.dateien.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.dateien.description') }}</small>
                         </label>
                     </div>
                     
@@ -65,8 +65,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_canvas" id="widget_canvas" {% if 'canvas' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_canvas">
                             <i class="bi bi-palette text-danger me-2"></i>
-                            <strong>Canvas</strong>
-                            <small class="text-muted d-block ms-4">Zeigt die zuletzt bearbeiteten Canvas</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.canvas.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.canvas.description') }}</small>
                         </label>
                     </div>
                     
@@ -75,8 +75,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_neue_wikieintraege" id="widget_neue_wikieintraege" {% if 'neue_wikieintraege' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_neue_wikieintraege">
                             <i class="bi bi-journal-text text-info me-2"></i>
-                            <strong>Neue Wikieinträge</strong>
-                            <small class="text-muted d-block ms-4">Zeigt die letzten 3 bearbeiteten oder erstellten Wiki-Einträge</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.neue_wikieintraege.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.neue_wikieintraege.description') }}</small>
                         </label>
                     </div>
                     
@@ -84,8 +84,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_meine_wikis" id="widget_meine_wikis" {% if 'meine_wikis' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_meine_wikis">
                             <i class="bi bi-star-fill text-warning me-2"></i>
-                            <strong>Meine Wikis</strong>
-                            <small class="text-muted d-block ms-4">Zeigt bis zu 5 Ihrer favorisierten Wiki-Einträge</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.meine_wikis.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.meine_wikis.description') }}</small>
                         </label>
                     </div>
                     {% endif %}
@@ -95,8 +95,8 @@
                         <input class="form-check-input" type="checkbox" name="widget_meine_ausleihen" id="widget_meine_ausleihen" {% if 'meine_ausleihen' in enabled_widgets %}checked{% endif %}>
                         <label class="form-check-label" for="widget_meine_ausleihen">
                             <i class="bi bi-box-arrow-right text-success me-2"></i>
-                            <strong>Meine Ausleihen</strong>
-                            <small class="text-muted d-block ms-4">Zeigt Ihre aktiven Ausleihen aus der Lagerverwaltung mit Fälligkeitsstatus</small>
+                            <strong>{{ _('dashboard.edit.widgets.items.meine_ausleihen.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.meine_ausleihen.description') }}</small>
                         </label>
                     </div>
                     {% endif %}
@@ -109,11 +109,11 @@
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-speedometer2 me-2"></i>
-                        Schnellzugriff
+                        {{ _('dashboard.edit.quick_access.title') }}
                     </h5>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Wählen Sie aus, welche Links im Schnellzugriff angezeigt werden sollen.</p>
+                    <p class="text-muted">{{ _('dashboard.edit.quick_access.description') }}</p>
                     
                     {% set quick_access_links = dashboard_config.get('quick_access_links', []) %}
                     
@@ -122,7 +122,7 @@
                         <input class="form-check-input" type="checkbox" name="link_files" id="link_files" {% if 'files' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_files">
                             <i class="bi bi-folder me-2"></i>
-                            <strong>Dateien</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.files') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -132,7 +132,7 @@
                         <input class="form-check-input" type="checkbox" name="link_chat" id="link_chat" {% if 'chat' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_chat">
                             <i class="bi bi-chat-dots me-2"></i>
-                            <strong>Chats</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.chat') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -142,7 +142,7 @@
                         <input class="form-check-input" type="checkbox" name="link_calendar" id="link_calendar" {% if 'calendar' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_calendar">
                             <i class="bi bi-calendar-event me-2"></i>
-                            <strong>Termine</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.calendar') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -152,7 +152,7 @@
                         <input class="form-check-input" type="checkbox" name="link_email" id="link_email" {% if 'email' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_email">
                             <i class="bi bi-envelope me-2"></i>
-                            <strong>E-Mail</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.email') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -162,7 +162,7 @@
                         <input class="form-check-input" type="checkbox" name="link_credentials" id="link_credentials" {% if 'credentials' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_credentials">
                             <i class="bi bi-key me-2"></i>
-                            <strong>Zugangsdaten</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.credentials') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -172,7 +172,7 @@
                         <input class="form-check-input" type="checkbox" name="link_manuals" id="link_manuals" {% if 'manuals' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_manuals">
                             <i class="bi bi-book me-2"></i>
-                            <strong>Anleitungen</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.manuals') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -182,7 +182,7 @@
                         <input class="form-check-input" type="checkbox" name="link_canvas" id="link_canvas" {% if 'canvas' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_canvas">
                             <i class="bi bi-palette me-2"></i>
-                            <strong>Canvas</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.canvas') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -192,7 +192,7 @@
                         <input class="form-check-input" type="checkbox" name="link_inventory" id="link_inventory" {% if 'inventory' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_inventory">
                             <i class="bi bi-box-seam me-2"></i>
-                            <strong>Lagerverwaltung</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.inventory') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -202,7 +202,7 @@
                         <input class="form-check-input" type="checkbox" name="link_wiki" id="link_wiki" {% if 'wiki' in quick_access_links %}checked{% endif %}>
                         <label class="form-check-label" for="link_wiki">
                             <i class="bi bi-journal-text me-2"></i>
-                            <strong>Wiki</strong>
+                            <strong>{{ _('dashboard.edit.quick_access.items.wiki') }}</strong>
                         </label>
                     </div>
                     {% endif %}
@@ -213,14 +213,10 @@
     
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between">
-                <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>
-                    Zurück zum Dashboard
-                </a>
+            <div class="d-flex justify-content-end">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-check-circle me-2"></i>
-                    Speichern
+                    {{ _('common.save') }}
                 </button>
             </div>
         </div>

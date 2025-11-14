@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Versionshistorie - {{ page.title }}{% endblock %}
+{% block title %}{{ _('wiki.history.page_title', title=page.title) }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1><i class="bi bi-clock-history"></i> Versionshistorie</h1>
+        <h1><i class="bi bi-clock-history"></i> {{ _('wiki.history.heading') }}</h1>
         <p class="text-muted">
             <a href="{{ url_for('wiki.view', slug=page.slug) }}">{{ page.title }}</a>
         </p>
     </div>
     <div class="col-auto">
         <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Zurück
+            <i class="bi bi-arrow-left"></i> {{ _('wiki.history.buttons.back') }}
         </a>
     </div>
 </div>
@@ -23,9 +23,9 @@
     <div class="list-group-item">
         <div class="d-flex w-100 justify-content-between">
             <h5 class="mb-1">
-                Version {{ version.version_number }}
+                {{ _('wiki.index.card.version', number=version.version_number) }}
                 {% if version.version_number == page.version_number %}
-                <span class="badge bg-primary">Aktuell</span>
+                <span class="badge bg-primary">{{ _('wiki.history.badge_current') }}</span>
                 {% endif %}
             </h5>
             <small>{{ version.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
@@ -35,7 +35,7 @@
         </p>
         <div class="mt-2">
             <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-eye"></i> Aktuelle Version ansehen
+                <i class="bi bi-eye"></i> {{ _('wiki.history.buttons.view_current') }}
             </a>
         </div>
     </div>
@@ -44,7 +44,7 @@
 {% else %}
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    Keine Versionshistorie vorhanden.
+    {{ _('wiki.history.empty') }}
 </div>
 {% endif %}
 {% endblock %}

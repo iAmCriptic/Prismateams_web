@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from app import db
+from app.utils.lengths import parse_length_to_meters
 
 
 class ProductFolder(db.Model):
@@ -65,6 +66,11 @@ class Product(db.Model):
     def is_missing(self):
         """Prüft ob das Produkt als fehlend markiert ist."""
         return self.status == 'missing'
+    
+    @property
+    def length_meters(self):
+        """Gibt die Länge als Meter-Wert zurück (float)."""
+        return parse_length_to_meters(self.length)
     
     @property
     def current_borrow(self):
@@ -282,3 +288,16 @@ class InventoryItem(db.Model):
     
     def __repr__(self):
         return f'<InventoryItem Inventory {self.inventory_id} -> Product {self.product_id} (checked: {self.checked})>'
+
+
+class LengthColorMapping(db.Model):
+    """Zuordnung von Längen zu Farben für QR-Code-Labels."""
+    __tablename__ = 'length_color_mappings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    length_meters = db.Column(db.Float, nullable=False, unique=True, index=True)  # Länge in Metern
+    color_hex = db.Column(db.String(7), nullable=False)  # Hex-Farbe (z.B. "#FF0000")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    def __repr__(self):
+        return f'<LengthColorMapping {self.length_meters}m -> {self.color_hex}>'

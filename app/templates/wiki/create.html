@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Neue Wiki-Seite erstellen - Wiki{% endblock %}
+{% block title %}{{ _('wiki.create.page_title') }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
@@ -88,25 +88,25 @@
         <div class="wiki-metadata-card">
             <div class="row g-3">
                 <div class="col-12 col-md-4">
-                    <label for="title" class="form-label">Titel *</label>
+                    <label for="title" class="form-label">{{ _('wiki.create.form.title.label') }}</label>
                     <input type="text" class="form-control" id="title" name="title" value="{{ title or '' }}" required>
                 </div>
                 <div class="col-12 col-md-4">
-                    <label for="category_id" class="form-label">Kategorie</label>
+                    <label for="category_id" class="form-label">{{ _('wiki.create.form.category.label') }}</label>
                     <select class="form-select" id="category_id" name="category_id" onchange="handleCategoryChange()">
-                        <option value="">Keine Kategorie</option>
-                        <option value="__new__">➕ Neue Kategorie</option>
+                        <option value="">{{ _('wiki.create.form.category.none') }}</option>
+                        <option value="__new__">{{ _('wiki.create.form.category.new_option') }}</option>
                         {% for category in categories %}
                         <option value="{{ category.id }}">{{ category.name }}</option>
                         {% endfor %}
                     </select>
                     <div id="new_category_input" class="mt-2">
-                        <input type="text" class="form-control" id="new_category_name" name="new_category_name" placeholder="Kategoriename eingeben">
+                        <input type="text" class="form-control" id="new_category_name" name="new_category_name" placeholder="{{ _('wiki.create.form.category.new_placeholder') }}">
                     </div>
                 </div>
                 <div class="col-12 col-md-4">
-                    <label for="tags" class="form-label">Tags (kommagetrennt)</label>
-                    <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1, tag2, tag3">
+                    <label for="tags" class="form-label">{{ _('wiki.create.form.tags.label') }}</label>
+                    <input type="text" class="form-control" id="tags" name="tags" placeholder="{{ _('wiki.create.form.tags.placeholder') }}">
                 </div>
             </div>
         </div>
@@ -114,22 +114,22 @@
     
     <div class="wiki-editor-toolbar">
         <button type="button" class="btn btn-outline-secondary" onclick="goBack()">
-            <i class="bi bi-arrow-left"></i> Zurück
+            <i class="bi bi-arrow-left"></i> {{ _('wiki.create.toolbar.back') }}
         </button>
         <button type="button" class="btn btn-accent" onclick="savePage()">
-            <i class="bi bi-check-lg"></i> Erstellen
+            <i class="bi bi-check-lg"></i> {{ _('wiki.create.toolbar.submit') }}
         </button>
         
         <div class="vr"></div>
         
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('bold')" title="Fett">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('bold')" title="{{ _('wiki.create.toolbar.bold') }}">
                 <i class="bi bi-type-bold"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('italic')" title="Kursiv">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('italic')" title="{{ _('wiki.create.toolbar.italic') }}">
                 <i class="bi bi-type-italic"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('strikethrough')" title="Durchgestrichen">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('strikethrough')" title="{{ _('wiki.create.toolbar.strikethrough') }}">
                 <i class="bi bi-type-strikethrough"></i>
             </button>
         </div>
@@ -137,13 +137,13 @@
         <div class="vr"></div>
         
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading1')" title="Überschrift 1">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading1')" title="{{ _('wiki.create.toolbar.heading1') }}">
                 <i class="bi bi-type-h1"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading2')" title="Überschrift 2">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading2')" title="{{ _('wiki.create.toolbar.heading2') }}">
                 <i class="bi bi-type-h2"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading3')" title="Überschrift 3">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('heading3')" title="{{ _('wiki.create.toolbar.heading3') }}">
                 <i class="bi bi-type-h3"></i>
             </button>
         </div>
@@ -151,23 +151,23 @@
         <div class="vr"></div>
         
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('link')" title="Link">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('link')" title="{{ _('wiki.create.toolbar.link') }}">
                 <i class="bi bi-link-45deg"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('code')" title="Code">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('code')" title="{{ _('wiki.create.toolbar.code') }}">
                 <i class="bi bi-code"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('list')" title="Liste">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('list')" title="{{ _('wiki.create.toolbar.list') }}">
                 <i class="bi bi-list-ul"></i>
             </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="formatText('wikilink')" title="Wiki-Link">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('wikilink')" title="{{ _('wiki.create.toolbar.wikilink') }}">
                 <i class="bi bi-link"></i> [[
             </button>
         </div>
         
         <div class="ms-auto">
             <button type="button" class="btn btn-outline-primary" onclick="openPreview()">
-                <i class="bi bi-eye"></i> Vorschau
+                <i class="bi bi-eye"></i> {{ _('wiki.create.toolbar.preview') }}
             </button>
         </div>
     </div>
@@ -180,7 +180,7 @@
                         class="wiki-editor-textarea" 
                         name="content" 
                         id="wikiEditor"
-                        placeholder="Beginnen Sie mit dem Schreiben...">{{ content or '' }}</textarea>
+                        placeholder="{{ _('wiki.create.editor.placeholder') }}">{{ content or '' }}</textarea>
                 </div>
             </div>
         </div>
@@ -189,9 +189,26 @@
 </form>
 
 <script>
+const WIKI_CREATE_I18N = {{ current_translations.get('wiki', {}).get('create', {})|tojson }};
+const WIKI_CREATE_TOOLBAR = WIKI_CREATE_I18N.toolbar || {};
+const WIKI_CREATE_ALERTS = WIKI_CREATE_I18N.alerts || {};
+const WIKI_CREATE_EDITOR = WIKI_CREATE_I18N.editor || {};
+const WIKI_CREATE_FORMAT = WIKI_CREATE_I18N.format_defaults || {};
+
+function wikiCreateTranslate(path, fallback = '') {
+    return path.split('.').reduce((obj, key) => (obj && obj[key] !== undefined ? obj[key] : undefined), WIKI_CREATE_I18N) ?? fallback;
+}
+
+function formatDefault(key, fallback) {
+    return WIKI_CREATE_FORMAT[key] || fallback;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const editor = document.getElementById('wikiEditor');
-    editor.focus();
+    if (editor) {
+        editor.placeholder = WIKI_CREATE_EDITOR.placeholder || editor.placeholder;
+        editor.focus();
+    }
 });
 
 function handleCategoryChange() {
@@ -219,23 +236,23 @@ function savePage() {
     const newCategoryName = document.getElementById('new_category_name').value.trim();
     
     if (!title) {
-        alert('Bitte geben Sie einen Titel ein.');
+        alert(WIKI_CREATE_ALERTS.title_required || 'Please enter a title.');
         return;
     }
     
-    // Wenn "Neue Kategorie" ausgewählt ist, prüfe ob Name eingegeben wurde
     if (categorySelect.value === '__new__') {
         if (!newCategoryName) {
-            alert('Bitte geben Sie einen Namen für die neue Kategorie ein.');
+            alert(WIKI_CREATE_ALERTS.new_category_required || 'Please enter a name for the new category.');
             return;
         }
-        // Setze den Wert auf leer, damit das Backend die neue Kategorie erkennt
         categorySelect.value = '';
     }
     
     const saveBtn = document.querySelector('.btn-accent');
-    saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Erstelle...';
-    saveBtn.disabled = true;
+    if (saveBtn) {
+        saveBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> ${WIKI_CREATE_EDITOR.saving || 'Creating...'}`;
+        saveBtn.disabled = true;
+    }
     
     form.submit();
 }
@@ -247,37 +264,36 @@ function formatText(type) {
     const selectedText = editor.value.substring(start, end);
     
     let replacement = '';
-    
     switch(type) {
         case 'bold':
-            replacement = `**${selectedText || 'Text'}**`;
+            replacement = `**${selectedText || formatDefault('text', 'Text')}**`;
             break;
         case 'italic':
-            replacement = `*${selectedText || 'Text'}*`;
+            replacement = `*${selectedText || formatDefault('text', 'Text')}*`;
             break;
         case 'strikethrough':
-            replacement = `~~${selectedText || 'Text'}~~`;
+            replacement = `~~${selectedText || formatDefault('text', 'Text')}~~`;
             break;
         case 'heading1':
-            replacement = `# ${selectedText || 'Überschrift'}`;
+            replacement = `# ${selectedText || formatDefault('heading', 'Heading')}`;
             break;
         case 'heading2':
-            replacement = `## ${selectedText || 'Überschrift'}`;
+            replacement = `## ${selectedText || formatDefault('heading', 'Heading')}`;
             break;
         case 'heading3':
-            replacement = `### ${selectedText || 'Überschrift'}`;
+            replacement = `### ${selectedText || formatDefault('heading', 'Heading')}`;
             break;
         case 'link':
-            replacement = `[${selectedText || 'Link-Text'}](URL)`;
+            replacement = `[${selectedText || formatDefault('link_text', 'Link text')}](URL)`;
             break;
         case 'code':
-            replacement = `\`${selectedText || 'Code'}\``;
+            replacement = `\`${selectedText || formatDefault('code', 'Code')}\``;
             break;
         case 'list':
-            replacement = `- ${selectedText || 'Listenpunkt'}`;
+            replacement = `- ${selectedText || formatDefault('list_item', 'List item')}`;
             break;
         case 'wikilink':
-            replacement = `[[${selectedText || 'Seitenname'}]]`;
+            replacement = `[[${selectedText || formatDefault('page_name', 'Page name')}]]`;
             break;
     }
     
@@ -291,7 +307,6 @@ function openPreview() {
     const form = document.getElementById('createForm');
     const formData = new FormData(form);
     
-    // Nutze Preview-Endpoint
     fetch('{{ url_for("wiki.preview") }}', {
         method: 'POST',
         body: formData
@@ -299,10 +314,11 @@ function openPreview() {
     .then(response => response.json())
     .then(data => {
         const previewWindow = window.open('', '_blank');
+        const previewTitle = WIKI_CREATE_EDITOR.preview_title || 'Preview';
         previewWindow.document.write(`
             <html>
                 <head>
-                    <title>Vorschau</title>
+                    <title>${previewTitle}</title>
                     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                     <style>
                         body { padding: 2rem; max-width: 1200px; margin: 0 auto; }
@@ -317,11 +333,10 @@ function openPreview() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Fehler beim Laden der Vorschau.');
+        alert(WIKI_CREATE_ALERTS.preview_error || 'Failed to load preview.');
     });
 }
 
-// Escape key zum Schließen
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         goBack();
@@ -329,5 +344,3 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 {% endblock %}
-
-

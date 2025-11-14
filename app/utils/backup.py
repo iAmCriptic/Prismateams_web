@@ -21,6 +21,7 @@ from app.models import (
     ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 )
 from app.blueprints.credentials import get_encryption_key
+from app.utils.lengths import normalize_length_input, parse_length_to_meters, format_length_from_meters
 
 
 BACKUP_VERSION = "1.0"
@@ -596,6 +597,7 @@ def export_products() -> List[Dict]:
         'condition': p.condition,
         'location': p.location,
         'length': p.length,
+        'length_meters': parse_length_to_meters(p.length),
         'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
         'status': p.status,
         'image_path': p.image_path,
@@ -1895,6 +1897,18 @@ def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_
         if existing:
             product_map[p_data['name']] = existing.id
         else:
+            normalized_length = None
+            if 'length_meters' in p_data and p_data['length_meters'] not in (None, ''):
+                try:
+                    normalized_length = format_length_from_meters(float(p_data['length_meters']))
+                except (TypeError, ValueError):
+                    normalized_length = None
+            if normalized_length is None:
+                raw_length = p_data.get('length')
+                if raw_length not in (None, ''):
+                    normalized_length, _ = normalize_length_input(raw_length)
+                    if normalized_length is None:
+                        normalized_length = raw_length
             product = Product(
                 name=p_data['name'],
                 description=p_data.get('description'),
@@ -1902,7 +1916,7 @@ def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_
                 serial_number=p_data.get('serial_number'),
                 condition=p_data.get('condition'),
                 location=p_data.get('location'),
-                length=p_data.get('length'),
+                length=normalized_length,
                 purchase_date=datetime.fromisoformat(p_data['purchase_date']).date() if p_data.get('purchase_date') else None,
                 status=p_data.get('status', 'available'),
                 image_path=p_data.get('image_path'),

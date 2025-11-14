@@ -34,36 +34,39 @@
                         <!-- Ordner -->
                         <div class="col-md-6 mb-3">
                             <label for="folder_id" class="form-label">Ordner</label>
-                            {% if folders %}
-                            <select class="form-select" id="folder_id" name="folder_id">
-                                <option value="">Kein Ordner</option>
-                                {% for folder in folders %}
-                                <option value="{{ folder.id }}" {% if product and product.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
-                                {% endfor %}
-                            </select>
-                            {% else %}
-                            <input type="text" class="form-control" id="folder_id" name="folder_id" 
-                                   value="" placeholder="Keine Ordner vorhanden" disabled>
-                            <small class="form-text text-muted">Bitte erstellen Sie zuerst einen Ordner.</small>
-                            {% endif %}
+                            <div class="input-group">
+                                <select class="form-select" id="folder_id" name="folder_id">
+                                    <option value="">Kein Ordner</option>
+                                    {% for folder in folders %}
+                                    <option value="{{ folder.id }}" {% if product and product.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="addFolderBtn" title="Neuen Ordner anlegen">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" type="button" id="manageFoldersBtn" title="Ordner verwalten">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- Kategorie -->
                         <div class="col-md-6 mb-3">
                             <label for="category" class="form-label">Kategorie</label>
-                            {% if categories %}
-                            <select class="form-select" id="category" name="category">
-                                <option value="">Keine Kategorie</option>
-                                {% for cat in categories %}
-                                <option value="{{ cat }}" {% if product and product.category == cat %}selected{% endif %}>{{ cat }}</option>
-                                {% endfor %}
-                            </select>
-                            {% else %}
-                            <input type="text" class="form-control" id="category" name="category" 
-                                   value="{{ product.category if product else '' }}" 
-                                   placeholder="Keine Kategorien definiert" disabled>
-                            <small class="form-text text-muted">Bitte legen Sie in den Einstellungen Kategorien fest.</small>
-                            {% endif %}
+                            <div class="input-group">
+                                <select class="form-select" id="category" name="category">
+                                    <option value="">Keine Kategorie</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat }}" {% if product and product.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="addCategoryBtn" title="Neue Kategorie anlegen">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" type="button" id="manageCategoriesBtn" title="Kategorien verwalten">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Zustand -->
@@ -96,10 +99,19 @@
 
                         <!-- Länge -->
                         <div class="col-md-4 mb-3">
-                            <label for="length" class="form-label">Länge</label>
-                            <input type="text" class="form-control" id="length" name="length" 
-                                   value="{{ product.length if product else '' }}" 
-                                   placeholder="z.B. 5m, 120cm">
+                            {% set length_form_value = request.form.get('length') %}
+                            {% if length_form_value %}
+                                {% set length_value = length_form_value | replace(',', '.') %}
+                            {% elif product and product.length_meters is not none %}
+                                {% set length_value = product.length_meters %}
+                            {% else %}
+                                {% set length_value = '' %}
+                            {% endif %}
+                            <label for="length" class="form-label">Länge (in Metern)</label>
+                            <input type="number" class="form-control" id="length" name="length"
+                                   value="{{ length_value }}" step="0.01" min="0"
+                                   placeholder="z.B. 5.5">
+                            <small class="form-text text-muted">Bitte Meterwerte mit Punkt oder Komma als Dezimaltrennzeichen eingeben.</small>
                         </div>
                     </div>
 
@@ -142,6 +154,16 @@
                         {% endif %}
                     </div>
 
+                    <!-- Anzahl (nur beim Erstellen) -->
+                    {% if not product %}
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Anzahl</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" 
+                               value="1" min="1" max="100" required>
+                        <small class="form-text text-muted">Geben Sie an, wie viele Produkte mit denselben Attributen erstellt werden sollen.</small>
+                    </div>
+                    {% endif %}
+
                     <!-- Buttons -->
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">Abbrechen</a>
@@ -155,6 +177,81 @@
     </div>
 </div>
 
+<!-- Ordner verwalten Modal -->
+<div class="modal fade" id="manageFoldersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder"></i> Ordner verwalten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-sm btn-primary mb-3" id="modalCreateFolderBtn">
+                    <i class="bi bi-plus"></i> Neuer Ordner
+                </button>
+                <ul class="list-group" id="folderList"></ul>
+                <div class="alert alert-info mt-3" id="foldersEmptyHint" style="display: none;">
+                    <i class="bi bi-info-circle"></i> Noch keine Ordner vorhanden.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Kategorien verwalten Modal -->
+<div class="modal fade" id="manageCategoriesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-tags"></i> Kategorien verwalten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-sm btn-primary mb-3" id="modalCreateCategoryBtn">
+                    <i class="bi bi-plus"></i> Neue Kategorie
+                </button>
+                <ul class="list-group" id="categoryList"></ul>
+                <div class="alert alert-info mt-3" id="categoriesEmptyHint" style="display: none;">
+                    <i class="bi bi-info-circle"></i> Noch keine Kategorien vorhanden.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Eintrag bearbeiten Modal (wird für Ordner und Kategorien genutzt) -->
+<div class="modal fade" id="entryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="entryModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="entryForm">
+                    <input type="hidden" id="entryType">
+                    <input type="hidden" id="entryId">
+                    <div class="mb-3">
+                        <label for="entryName" class="form-label" id="entryNameLabel"></label>
+                        <input type="text" class="form-control" id="entryName" required>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-outline-danger" id="entryDeleteBtn" style="display: none;">
+                            <i class="bi bi-trash"></i> Löschen
+                        </button>
+                        <div class="ms-auto">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary" id="entrySubmitBtn"></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
 <script>
 function removeProductImage(productId) {
     if (confirm('Möchten Sie das Produktbild wirklich entfernen?')) {
@@ -170,6 +267,19 @@ function removeProductImage(productId) {
         }
     }
 }
+
+window.inventoryFormData = {
+    folders: [
+        {% for folder in folders %}
+        { id: {{ folder.id }}, name: {{ folder.name|tojson }} }{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    ],
+    categories: {{ categories|tojson }},
+    selectedFolderId: {% if product and product.folder_id %}{{ product.folder_id }}{% else %}null{% endif %},
+    selectedCategory: {% if product and product.category %}{{ product.category|tojson }}{% else %}null{% endif %}
+};
 </script>
+<script src="{{ url_for('static', filename='js/product_form.js') }}"></script>
+{% endblock %}
 {% endblock %}
 

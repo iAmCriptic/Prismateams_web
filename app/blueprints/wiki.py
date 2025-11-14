@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from flask_babel import gettext as _
 from app import db
 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from app.models.user import User
@@ -17,7 +18,7 @@ MAX_WIKI_VERSIONS = 10
 def check_wiki_module():
     """Prüft ob das Wiki-Modul aktiviert ist."""
     if not is_module_enabled('module_wiki'):
-        flash('Das Wiki-Modul ist nicht aktiviert.', 'warning')
+        flash(_('wiki.api.module_disabled'), 'warning')
         return False
     return True
 
@@ -129,7 +130,7 @@ def create():
         tags_input = request.form.get('tags', '').strip()
         
         if not title:
-            flash('Bitte geben Sie einen Titel ein.', 'danger')
+            flash(_('wiki.create.alerts.title_required'), 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             return render_template('wiki/create.html', categories=categories, content=content)
         
@@ -139,14 +140,14 @@ def create():
             existing_category = WikiCategory.query.filter_by(name=new_category_name).first()
             if existing_category:
                 category_id = existing_category.id
-                flash(f'Die Kategorie "{new_category_name}" existiert bereits und wurde zugewiesen.', 'info')
+                flash(_('wiki.flash.category_exists', name=new_category_name), 'info')
             else:
                 # Erstelle neue Kategorie
                 new_category = WikiCategory(name=new_category_name)
                 db.session.add(new_category)
                 db.session.flush()  # Flush um die ID zu erhalten
                 category_id = new_category.id
-                flash(f'Neue Kategorie "{new_category_name}" wurde erstellt.', 'success')
+                flash(_('wiki.flash.category_created', name=new_category_name), 'success')
         
         # Erstelle Slug
         slug = WikiPage.slugify(title)
@@ -154,7 +155,7 @@ def create():
         # Prüfe ob Slug bereits existiert
         existing_page = WikiPage.query.filter_by(slug=slug).first()
         if existing_page:
-            flash('Eine Seite mit diesem Titel existiert bereits.', 'danger')
+            flash(_('wiki.flash.duplicate_title'), 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             return render_template('wiki/create.html', categories=categories, title=title, content=content)
         
@@ -194,7 +195,7 @@ def create():
         
         db.session.commit()
         
-        flash(f'Wiki-Seite "{title}" wurde erstellt.', 'success')
+        flash(_('wiki.flash.created', title=title), 'success')
         return redirect(url_for('wiki.view', slug=slug))
     
     categories = WikiCategory.query.order_by(WikiCategory.name).all()
@@ -218,7 +219,7 @@ def edit(slug):
         tags_input = request.form.get('tags', '').strip()
         
         if not title:
-            flash('Bitte geben Sie einen Titel ein.', 'danger')
+            flash(_('wiki.edit.alerts.title_required'), 'danger')
             categories = WikiCategory.query.order_by(WikiCategory.name).all()
             tags = [tag.name for tag in page.tags]
             return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
@@ -229,14 +230,14 @@ def edit(slug):
             existing_category = WikiCategory.query.filter_by(name=new_category_name).first()
             if existing_category:
                 category_id = existing_category.id
-                flash(f'Die Kategorie "{new_category_name}" existiert bereits und wurde zugewiesen.', 'info')
+                flash(_('wiki.flash.category_exists', name=new_category_name), 'info')
             else:
                 # Erstelle neue Kategorie
                 new_category = WikiCategory(name=new_category_name)
                 db.session.add(new_category)
                 db.session.flush()  # Flush um die ID zu erhalten
                 category_id = new_category.id
-                flash(f'Neue Kategorie "{new_category_name}" wurde erstellt.', 'success')
+                flash(_('wiki.flash.category_created', name=new_category_name), 'success')
         
         # Speichere aktuelle Version
         version = WikiPageVersion(
@@ -266,7 +267,7 @@ def edit(slug):
         if new_slug != page.slug:
             existing_page = WikiPage.query.filter_by(slug=new_slug).first()
             if existing_page and existing_page.id != page.id:
-                flash('Eine Seite mit diesem Titel existiert bereits.', 'danger')
+                flash(_('wiki.flash.duplicate_title'), 'danger')
                 categories = WikiCategory.query.order_by(WikiCategory.name).all()
                 tags = [tag.name for tag in page.tags]
                 return render_template('wiki/edit.html', page=page, categories=categories, tags=', '.join(tags))
@@ -303,7 +304,7 @@ def edit(slug):
         
         db.session.commit()
         
-        flash(f'Wiki-Seite "{title}" wurde aktualisiert.', 'success')
+        flash(_('wiki.flash.updated', title=title), 'success')
         return redirect(url_for('wiki.view', slug=page.slug))
     
     categories = WikiCategory.query.order_by(WikiCategory.name).all()
@@ -332,7 +333,7 @@ def delete(slug):
     db.session.delete(page)
     db.session.commit()
     
-    flash(f'Wiki-Seite "{page.title}" wurde gelöscht.', 'success')
+    flash(_('wiki.flash.deleted', title=page.title), 'success')
     return redirect(url_for('wiki.index'))
 
 
@@ -356,7 +357,7 @@ def history(slug):
 def preview():
     """Vorschau-Endpoint für Editor (nutzt gleiche Logik wie /view/)."""
     if not check_wiki_module():
-        return jsonify({'error': 'Wiki-Modul nicht aktiviert'}), 403
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
     
     content = request.form.get('content', '')
     processed_content = process_markdown(content, wiki_mode=True)
@@ -369,7 +370,7 @@ def preview():
 def search():
     """Volltextsuche API."""
     if not check_wiki_module():
-        return jsonify({'error': 'Wiki-Modul nicht aktiviert'}), 403
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
     
     query = request.args.get('q', '').strip()
     if not query:
@@ -399,7 +400,7 @@ def search():
 def toggle_favorite(page_id):
     """Wiki-Seite zu Favoriten hinzufügen oder entfernen."""
     if not check_wiki_module():
-        return jsonify({'error': 'Wiki-Modul nicht aktiviert'}), 403
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
     
     page = WikiPage.query.get_or_404(page_id)
     
@@ -411,12 +412,12 @@ def toggle_favorite(page_id):
         ).first()
         
         if existing_favorite:
-            return jsonify({'error': 'Bereits favorisiert', 'is_favorite': True}), 400
+            return jsonify({'error': _('wiki.api.favorite.already'), 'is_favorite': True}), 400
         
         # Prüfe ob bereits 5 Favoriten vorhanden
         favorite_count = WikiFavorite.query.filter_by(user_id=current_user.id).count()
         if favorite_count >= 5:
-            return jsonify({'error': 'Maximal 5 Favoriten erlaubt', 'is_favorite': False}), 400
+            return jsonify({'error': _('wiki.api.favorite.limit'), 'is_favorite': False}), 400
         
         # Füge zu Favoriten hinzu
         favorite = WikiFavorite(
@@ -426,7 +427,7 @@ def toggle_favorite(page_id):
         db.session.add(favorite)
         db.session.commit()
         
-        return jsonify({'success': True, 'is_favorite': True, 'message': 'Zu Favoriten hinzugefügt'})
+        return jsonify({'success': True, 'is_favorite': True, 'message': _('wiki.api.favorite.added')})
     
     elif request.method == 'DELETE':
         # Entferne aus Favoriten
@@ -438,9 +439,9 @@ def toggle_favorite(page_id):
         if favorite:
             db.session.delete(favorite)
             db.session.commit()
-            return jsonify({'success': True, 'is_favorite': False, 'message': 'Aus Favoriten entfernt'})
+            return jsonify({'success': True, 'is_favorite': False, 'message': _('wiki.api.favorite.removed')})
         else:
-            return jsonify({'error': 'Nicht in Favoriten', 'is_favorite': False}), 404
+            return jsonify({'error': _('wiki.api.favorite.missing'), 'is_favorite': False}), 404
 
 
 @wiki_bp.route('/api/favorite/check/<int:page_id>', methods=['GET'])
@@ -448,7 +449,7 @@ def toggle_favorite(page_id):
 def check_favorite(page_id):
     """Prüfe ob Wiki-Seite favorisiert ist."""
     if not check_wiki_module():
-        return jsonify({'error': 'Wiki-Modul nicht aktiviert'}), 403
+        return jsonify({'error': _('wiki.api.module_disabled')}), 403
     
     favorite = WikiFavorite.query.filter_by(
         user_id=current_user.id,

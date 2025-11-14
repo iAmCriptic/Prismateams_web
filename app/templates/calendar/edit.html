@@ -31,12 +31,30 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="start_time" class="form-label">{{ _('calendar.create.form.start_time') }}</label>
-                            <input type="datetime-local" class="form-control" id="start_time" name="start_time" value="{{ event.start_time.strftime('%Y-%m-%dT%H:%M') }}" required>
+                            <label class="form-label">{{ _('calendar.create.form.start_time') }}</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ event.start_time.strftime('%Y-%m-%d') }}" required>
+                                    <small class="form-text text-muted">Datum</small>
+                                </div>
+                                <div class="col-6">
+                                    <input type="time" class="form-control" id="start_time" name="start_time" value="{{ event.start_time.strftime('%H:%M') }}" required>
+                                    <small class="form-text text-muted">Uhrzeit</small>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="end_time" class="form-label">{{ _('calendar.create.form.end_time') }}</label>
-                            <input type="datetime-local" class="form-control" id="end_time" name="end_time" value="{{ event.end_time.strftime('%Y-%m-%dT%H:%M') }}" required>
+                            <label class="form-label">{{ _('calendar.create.form.end_time') }}</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ event.end_time.strftime('%Y-%m-%d') }}" required>
+                                    <small class="form-text text-muted">Datum</small>
+                                </div>
+                                <div class="col-6">
+                                    <input type="time" class="form-control" id="end_time" name="end_time" value="{{ event.end_time.strftime('%H:%M') }}" required>
+                                    <small class="form-text text-muted">Uhrzeit</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -147,6 +165,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 .join(',');
             recurrenceDaysInput.value = selectedDays;
         });
+    });
+    
+    // Datum- und Zeit-Synchronisation
+    const startDate = document.getElementById('start_date');
+    const startTime = document.getElementById('start_time');
+    const endDate = document.getElementById('end_date');
+    const endTime = document.getElementById('end_time');
+    
+    // Funktion zum Hinzufügen einer Stunde zur Zeit
+    function addHourToTime(timeString) {
+        if (!timeString) return '';
+        const [hours, minutes] = timeString.split(':').map(Number);
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        date.setHours(date.getHours() + 1);
+        return date.toTimeString().slice(0, 5); // HH:MM Format
+    }
+    
+    // Beim Ändern des Startdatums: Enddatum auf gleichen Tag setzen
+    startDate.addEventListener('change', function() {
+        if (this.value) {
+            endDate.value = this.value;
+        }
+    });
+    
+    // Beim Ändern der Startzeit: Endzeit auf eine Stunde später setzen
+    startTime.addEventListener('change', function() {
+        if (this.value) {
+            endTime.value = addHourToTime(this.value);
+            // Wenn Startdatum gesetzt ist, Enddatum auch setzen
+            if (startDate.value && !endDate.value) {
+                endDate.value = startDate.value;
+            }
+        }
     });
     
     // Initialisiere beim Laden

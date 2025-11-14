@@ -3,6 +3,24 @@
  * Verwaltet Kommentare für Dateien, Wiki-Seiten und Canvas
  */
 
+const COMMENTS_I18N = window.COMMENTS_I18N || {};
+const COMMENTS_LOCALE = COMMENTS_I18N.locale || navigator.language || 'en-US';
+const COMMENTS_RTF = typeof Intl !== 'undefined' && Intl.RelativeTimeFormat
+    ? new Intl.RelativeTimeFormat(COMMENTS_LOCALE, { numeric: 'auto' })
+    : null;
+const COMMENTS_DATE_FORMAT = typeof Intl !== 'undefined' && Intl.DateTimeFormat
+    ? new Intl.DateTimeFormat(COMMENTS_LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
+
+function commentsGet(path, fallback = '') {
+    return path.split('.').reduce((obj, key) => (obj && obj[key] !== undefined ? obj[key] : undefined), COMMENTS_I18N) ?? fallback;
+}
+
+function commentsString(path, fallback, replacements = {}) {
+    const template = commentsGet(path, fallback);
+    return template.replace(/\{(\w+)\}/g, (_, key) => (replacements[key] !== undefined ? replacements[key] : `{${key}}`));
+}
+
 class CommentSystem {
     constructor(contentType, contentId, containerId) {
         this.contentType = contentType;
@@ -10,6 +28,7 @@ class CommentSystem {
         this.containerId = containerId;
         this.currentUserId = null;
         this.mentionCache = {};
+        this.translate = (path, fallback, vars = {}) => commentsString(path, fallback, vars);
         this.init();
     }
     
@@ -56,7 +75,7 @@ class CommentSystem {
         const commentsList = container.querySelector('.comments-list');
         if (!commentsList) return;
         
-        commentsList.innerHTML = '<div class="comment-loading">Lade Kommentare...</div>';
+        commentsList.innerHTML = `<div class="comment-loading">${this.translate('list.loading', 'Loading comments...')}</div>`;
         
         try {
             const response = await fetch(`/api/comments/${this.contentType}/${this.contentId}`);
@@ -66,17 +85,17 @@ class CommentSystem {
                 this.renderComments(data.comments, commentsList);
                 this.updateCommentCount(data.comments.length);
             } else {
-                commentsList.innerHTML = '<div class="comment-empty">Noch keine Kommentare</div>';
+                commentsList.innerHTML = `<div class="comment-empty">${this.translate('list.empty', 'No comments yet')}</div>`;
             }
         } catch (error) {
-            console.error('Fehler beim Laden der Kommentare:', error);
-            commentsList.innerHTML = '<div class="comment-empty">Fehler beim Laden der Kommentare</div>';
+            console.error('Error loading comments:', error);
+            commentsList.innerHTML = `<div class="comment-empty">${this.translate('list.error', 'Failed to load comments')}</div>`;
         }
     }
     
     renderComments(comments, container) {
         if (comments.length === 0) {
-            container.innerHTML = '<div class="comment-empty">Noch keine Kommentare</div>';
+            container.innerHTML = `<div class="comment-empty">${this.translate('list.empty', 'No comments yet')}</div>`;
             return;
         }
         
@@ -107,14 +126,14 @@ class CommentSystem {
             <div class="comment-content">${formattedContent}</div>
             <div class="comment-actions">
                 <button class="comment-action-btn reply-btn" data-comment-id="${comment.id}">
-                    <i class="bi bi-reply"></i> Antworten
+                    <i class="bi bi-reply"></i> ${this.translate('actions.reply', 'Reply')}
                 </button>
                 ${comment.author.id === this.currentUserId ? `
                     <button class="comment-action-btn edit-btn" data-comment-id="${comment.id}">
-                        <i class="bi bi-pencil"></i> Bearbeiten
+                        <i class="bi bi-pencil"></i> ${this.translate('actions.edit', 'Edit')}
                     </button>
                     <button class="comment-action-btn danger delete-btn" data-comment-id="${comment.id}">
-                        <i class="bi bi-trash"></i> Löschen
+                        <i class="bi bi-trash"></i> ${this.translate('actions.delete', 'Delete')}
                     </button>
                 ` : ''}
             </div>
@@ -160,13 +179,35 @@ class CommentSystem {
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
         
-        if (diffMins < 1) return 'gerade eben';
-        if (diffMins < 60) return `vor ${diffMins} Min`;
-        if (diffHours < 24) return `vor ${diffHours} Std`;
-        if (diffDays < 7) return `vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`;
+        if (diffMins < 1) {
+            return this.translate('time.just_now', 'just now');
+        }
+        if (diffMins < 60) {
+            if (COMMENTS_RTF) {
+                return COMMENTS_RTF.format(-diffMins, 'minute');
+            }
+            const key = diffMins === 1 ? 'time.minutes_one' : 'time.minutes_other';
+            return this.translate(key, '{count} minutes ago', { count: diffMins });
+        }
+        if (diffHours < 24) {
+            if (COMMENTS_RTF) {
+                return COMMENTS_RTF.format(-diffHours, 'hour');
+            }
+            const key = diffHours === 1 ? 'time.hours_one' : 'time.hours_other';
+            return this.translate(key, '{count} hours ago', { count: diffHours });
+        }
+        if (diffDays < 7) {
+            if (COMMENTS_RTF) {
+                return COMMENTS_RTF.format(-diffDays, 'day');
+            }
+            const key = diffDays === 1 ? 'time.days_one' : 'time.days_other';
+            return this.translate(key, '{count} days ago', { count: diffDays });
+        }
         
-        return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) + 
-               ' ' + date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        if (COMMENTS_DATE_FORMAT) {
+            return COMMENTS_DATE_FORMAT.format(date);
+        }
+        return date.toLocaleString(COMMENTS_LOCALE);
     }
     
     formatContent(content) {
@@ -185,7 +226,7 @@ class CommentSystem {
         
         const content = textarea.value.trim();
         if (!content) {
-            alert('Bitte geben Sie einen Kommentar ein.');
+            alert(this.translate('alerts.content_required', 'Please enter a comment.'));
             return;
         }
         
@@ -195,7 +236,7 @@ class CommentSystem {
         
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Wird gesendet...';
+            submitBtn.textContent = this.translate('form.sending', 'Sending...');
         }
         
         try {
@@ -225,15 +266,16 @@ class CommentSystem {
                     }
                 }
             } else {
-                alert('Fehler beim Erstellen des Kommentars: ' + (data.error || 'Unbekannter Fehler'));
+                const errorDetail = data.error || this.translate('alerts.unknown_error', 'Unknown error');
+                alert(`${this.translate('alerts.create_error', 'Failed to create comment.')} ${errorDetail}`);
             }
         } catch (error) {
-            console.error('Fehler beim Erstellen des Kommentars:', error);
-            alert('Fehler beim Erstellen des Kommentars.');
+            console.error('Error creating comment:', error);
+            alert(this.translate('alerts.create_error', 'Failed to create comment.'));
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Kommentar senden';
+                submitBtn.textContent = this.translate('form.submit', 'Send comment');
             }
         }
     }
@@ -247,20 +289,24 @@ class CommentSystem {
         const parentComment = container.querySelector(`.comment-item[data-comment-id="${parentId}"]`);
         if (!parentComment) return;
         
+        const replyPlaceholder = this.translate('reply.placeholder', 'Write a reply...');
+        const replyCancel = this.translate('reply.cancel', 'Cancel');
+        const replySubmit = this.translate('reply.submit', 'Reply');
+        
         const replyForm = document.createElement('div');
         replyForm.className = 'comment-reply-form';
         replyForm.dataset.parentId = parentId;
         replyForm.innerHTML = `
             <div class="comment-input-wrapper">
-                <textarea class="comment-textarea" placeholder="Antwort schreiben..."></textarea>
+                <textarea class="comment-textarea" placeholder="${replyPlaceholder}"></textarea>
                 <div class="comment-mention-suggestions"></div>
             </div>
             <div class="comment-form-actions">
                 <button class="btn btn-secondary btn-sm" onclick="this.closest('.comment-reply-form').remove()">
-                    Abbrechen
+                    ${replyCancel}
                 </button>
                 <button class="btn btn-primary btn-sm comment-submit-btn" onclick="window.commentSystem.createComment(${parentId})">
-                    Antworten
+                    ${replySubmit}
                 </button>
             </div>
         `;
@@ -290,6 +336,9 @@ class CommentSystem {
         const contentDiv = commentItem.querySelector('.comment-content');
         const currentContent = contentDiv.textContent;
         
+        const editCancel = this.translate('edit.cancel', 'Cancel');
+        const editSubmit = this.translate('edit.submit', 'Save');
+        
         const editForm = document.createElement('div');
         editForm.className = 'comment-edit-form';
         editForm.innerHTML = `
@@ -298,10 +347,10 @@ class CommentSystem {
             </div>
             <div class="comment-form-actions">
                 <button class="btn btn-secondary btn-sm" onclick="this.closest('.comment-edit-form').remove(); this.closest('.comment-item').querySelector('.comment-content').style.display = 'block'">
-                    Abbrechen
+                    ${editCancel}
                 </button>
                 <button class="btn btn-primary btn-sm" onclick="window.commentSystem.updateComment(${commentId})">
-                    Speichern
+                    ${editSubmit}
                 </button>
             </div>
         `;
@@ -326,7 +375,7 @@ class CommentSystem {
         const content = textarea.value.trim();
         
         if (!content) {
-            alert('Kommentar-Inhalt darf nicht leer sein.');
+            alert(this.translate('alerts.content_required', 'Please enter a comment.'));
             return;
         }
         
@@ -346,16 +395,17 @@ class CommentSystem {
             if (data.success) {
                 this.loadComments();
             } else {
-                alert('Fehler beim Aktualisieren des Kommentars: ' + (data.error || 'Unbekannter Fehler'));
+                const errorDetail = data.error || this.translate('alerts.unknown_error', 'Unknown error');
+                alert(`${this.translate('alerts.update_error', 'Failed to update comment.')} ${errorDetail}`);
             }
         } catch (error) {
-            console.error('Fehler beim Aktualisieren des Kommentars:', error);
-            alert('Fehler beim Aktualisieren des Kommentars.');
+            console.error('Error updating comment:', error);
+            alert(this.translate('alerts.update_error', 'Failed to update comment.'));
         }
     }
     
     async deleteComment(commentId) {
-        if (!confirm('Möchten Sie diesen Kommentar wirklich löschen?')) {
+        if (!confirm(this.translate('actions.confirm_delete', 'Delete this comment?'))) {
             return;
         }
         
@@ -369,11 +419,12 @@ class CommentSystem {
             if (data.success) {
                 this.loadComments();
             } else {
-                alert('Fehler beim Löschen des Kommentars: ' + (data.error || 'Unbekannter Fehler'));
+                const errorDetail = data.error || this.translate('alerts.unknown_error', 'Unknown error');
+                alert(`${this.translate('alerts.delete_error', 'Failed to delete comment.')} ${errorDetail}`);
             }
         } catch (error) {
-            console.error('Fehler beim Löschen des Kommentars:', error);
-            alert('Fehler beim Löschen des Kommentars.');
+            console.error('Error deleting comment:', error);
+            alert(this.translate('alerts.delete_error', 'Failed to delete comment.'));
         }
     }
     
@@ -419,7 +470,7 @@ class CommentSystem {
                 const data = await response.json();
                 this.mentionCache[query] = data.users || [];
             } catch (error) {
-                console.error('Fehler beim Laden der Benutzer:', error);
+                console.error('Error loading users:', error);
                 this.mentionCache[query] = [];
             }
         }
@@ -427,7 +478,7 @@ class CommentSystem {
         const users = this.mentionCache[query];
         
         if (users.length === 0) {
-            suggestionsDiv.innerHTML = '<div class="comment-mention-item">Keine Benutzer gefunden</div>';
+            suggestionsDiv.innerHTML = `<div class="comment-mention-item">${this.translate('mentions.no_results', 'No users found')}</div>`;
         } else {
             suggestionsDiv.innerHTML = users.map((user, index) => `
                 <div class="comment-mention-item ${index === 0 ? 'selected' : ''}" 
@@ -509,7 +560,15 @@ class CommentSystem {
         const container = document.getElementById(this.containerId);
         const countElement = container.querySelector('.comment-count');
         if (countElement) {
-            countElement.textContent = `${count} Kommentar${count !== 1 ? 'e' : ''}`;
+            let label;
+            if (count === 0) {
+                label = this.translate('header.count_zero', 'No comments');
+            } else if (count === 1) {
+                label = this.translate('header.count_one', '1 comment');
+            } else {
+                label = this.translate('header.count_other', '{count} comments', { count });
+            }
+            countElement.textContent = label;
         }
     }
     

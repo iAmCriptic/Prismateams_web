@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Datei zu groß - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-container">
+        <!-- Error Icon -->
+        <i class="bi bi-file-earmark-x-fill text-danger error-icon"></i>
+        
+        <!-- Error Code -->
+        <h1 class="error-code text-danger">413</h1>
+        
+        <!-- Error Message -->
+        <h2 class="error-title">Datei zu groß</h2>
+        <p class="error-description">
+            Die hochgeladene Datei überschreitet das maximale Größenlimit von 
+            <strong>{{ "%.0f"|format(max_size_mb) }} MB</strong>.
+            {% if request.path.startswith('/settings/admin/backup') %}
+            <br><br>
+            Für Backup-Imports können Sie das Limit in der Konfiguration erhöhen oder 
+            das Backup in kleinere Teile aufteilen.
+            {% endif %}
+        </p>
+        
+        <!-- Action Buttons -->
+        <div class="error-actions">
+            {% if current_user.is_authenticated %}
+                {% if request.path.startswith('/settings/admin/backup') %}
+                    <a href="{{ url_for('settings.admin_backup') }}" class="btn btn-primary error-btn">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Zurück zu Backup-Einstellungen
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary error-btn">
+                        <i class="bi bi-house-door me-2"></i>
+                        Zurück zum Dashboard
+                    </a>
+                {% endif %}
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn btn-primary error-btn">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>
+                    Anmelden
+                </a>
+            {% endif %}
+            
+            <button onclick="history.back()" class="btn btn-outline-secondary error-btn">
+                <i class="bi bi-arrow-left me-2"></i>
+                Zurück
+            </button>
+        </div>
+        
+        <!-- Help Text -->
+        <div class="error-help">
+            <small>
+                <i class="bi bi-info-circle me-1"></i>
+                Bitte wählen Sie eine kleinere Datei oder kontaktieren Sie den Administrator, 
+                um das Upload-Limit zu erhöhen.
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+

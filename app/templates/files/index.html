@@ -3,14 +3,24 @@
 {% block title %}{{ _('files.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-4 align-items-center g-3">
     <div class="col">
         <h1 class="mb-3"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
-        {% if current_folder %}
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('files.index') }}">{{ _('files.index.breadcrumb_root') }}</a></li>
-                <li class="breadcrumb-item active">{{ current_folder.name }}</li>
+        {% if breadcrumb_folders %}
+        <nav aria-label="breadcrumb" class="mb-3 mb-md-0">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('files.index') }}">{{ _('files.index.breadcrumb_root') }}</a>
+                </li>
+                {% for breadcrumb in breadcrumb_folders %}
+                    {% if loop.last %}
+                    <li class="breadcrumb-item active" aria-current="page">{{ breadcrumb.name }}</li>
+                    {% else %}
+                    <li class="breadcrumb-item">
+                        <a href="{{ breadcrumb.url }}">{{ breadcrumb.name }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
             </ol>
         </nav>
         {% endif %}

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session
 from flask_login import login_required, current_user
+from flask_babel import get_locale
 from app import db
 from app.models.file import File, FileVersion, Folder
 from app.models.user import User
@@ -63,6 +64,24 @@ def browse_folder(folder_id):
     if files is None:
         files = []
     
+    # Build breadcrumbs starting from root to current folder
+    breadcrumb_folders = []
+    if current_folder:
+        ancestors = []
+        node = current_folder
+        while node:
+            ancestors.append(node)
+            node = node.parent
+        ancestors.reverse()
+        breadcrumb_folders = [
+            {
+                'id': folder.id,
+                'name': folder.name,
+                'url': url_for('files.browse_folder', folder_id=folder.id)
+            }
+            for folder in ancestors
+        ]
+
     # Feature flags
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
@@ -80,7 +99,8 @@ def browse_folder(folder_id):
         files=files,
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
-        onlyoffice_available=onlyoffice_available
+        onlyoffice_available=onlyoffice_available,
+        breadcrumb_folders=breadcrumb_folders
     )
 
 
@@ -1589,6 +1609,8 @@ def edit_onlyoffice(file_id):
     accent_color = current_user.accent_color if current_user.is_authenticated else '#0d6efd'
     accent_style = current_user.accent_style if current_user.is_authenticated else 'linear-gradient(45deg, #0d6efd, #0d6efd)'
     
+    current_language = str(get_locale())
+    
     return render_template(
         'files/edit_onlyoffice.html',
         file=file,
@@ -1603,7 +1625,8 @@ def edit_onlyoffice(file_id):
         guest_mode=False,
         return_url=return_url,
         accent_color=accent_color,
-        accent_style=accent_style
+        accent_style=accent_style,
+        current_language=current_language
     )
 
 
@@ -1730,6 +1753,8 @@ def share_edit_onlyoffice(token):
     accent_color = '#0d6efd'
     accent_style = 'linear-gradient(45deg, #0d6efd, #0d6efd)'
     
+    current_language = str(get_locale())
+    
     return render_template(
         'files/edit_onlyoffice.html',
         file=file,
@@ -1746,7 +1771,8 @@ def share_edit_onlyoffice(token):
         share_token=token,
         return_url=return_url,
         accent_color=accent_color,
-        accent_style=accent_style
+        accent_style=accent_style,
+        current_language=current_language
     )
 
 

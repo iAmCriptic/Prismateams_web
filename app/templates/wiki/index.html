@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Wiki - Team Portal{% endblock %}
+{% block title %}{{ _('wiki.index.page_title') }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
@@ -8,34 +8,32 @@
 
 {% block content %}
 <div class="wiki-index">
-    <!-- Header mit Suche und Erstellen-Button -->
     <div class="row mb-4">
         <div class="col">
-            <h1 class="mb-0"><i class="bi bi-journal-text"></i> Wiki</h1>
-            <p class="text-muted">Wissensdatenbank</p>
+            <h1 class="mb-0"><i class="bi bi-journal-text"></i> {{ _('wiki.index.heading') }}</h1>
+            <p class="text-muted">{{ _('wiki.index.subtitle') }}</p>
         </div>
         <div class="col-auto">
             <div class="btn-group">
                 {% if favorites_only %}
                 <a href="{{ url_for('wiki.index') }}" class="btn btn-warning" id="favorites-btn">
-                    <i class="bi bi-star-fill" id="favorites-icon"></i> Alle anzeigen
+                    <i class="bi bi-star-fill" id="favorites-icon"></i> {{ _('wiki.index.buttons.favorites_all') }}
                 </a>
                 {% else %}
                 <a href="{{ url_for('wiki.index') }}?favorites=1" class="btn btn-outline-warning" id="favorites-btn">
-                    <i class="bi bi-star-fill" id="favorites-icon"></i> Favoriten
+                    <i class="bi bi-star-fill" id="favorites-icon"></i> {{ _('wiki.index.buttons.favorites') }}
                     {% if my_wiki_favorites|length > 0 %}
                     <span class="badge bg-warning text-dark ms-1">{{ my_wiki_favorites|length }}</span>
                     {% endif %}
                 </a>
                 {% endif %}
                 <a href="{{ url_for('wiki.create') }}" class="btn btn-accent">
-                    <i class="bi bi-plus-circle"></i> Erstellen
+                    <i class="bi bi-plus-circle"></i> {{ _('wiki.index.buttons.create') }}
                 </a>
             </div>
         </div>
     </div>
     
-    <!-- Suche und Filter -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ url_for('wiki.index') }}" id="searchForm">
@@ -49,13 +47,13 @@
                             <input type="text" 
                                    class="form-control" 
                                    name="q" 
-                                   placeholder="Suche in Titel, Inhalt..." 
+                                   placeholder="{{ _('wiki.index.search.placeholder') }}" 
                                    value="{{ search_query }}">
                         </div>
                     </div>
                     <div class="col-12 col-md-3">
                         <select class="form-select" name="category" id="categoryFilter">
-                            <option value="">Alle Kategorien</option>
+                            <option value="">{{ _('wiki.index.search.category_all') }}</option>
                             {% for category in categories %}
                             <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
                                 {{ category.name }}
@@ -65,7 +63,7 @@
                     </div>
                     <div class="col-12 col-md-3">
                         <select class="form-select" name="tag" id="tagFilter">
-                            <option value="">Alle Tags</option>
+                            <option value="">{{ _('wiki.index.search.tag_all') }}</option>
                             {% for tag in tags %}
                             <option value="{{ tag.id }}" {% if selected_tag == tag.id %}selected{% endif %}>
                                 {{ tag.name }}
@@ -77,18 +75,18 @@
                 <div class="row mt-3">
                     <div class="col-12 col-md-6">
                         <select class="form-select form-select-sm" name="sort" id="sortFilter">
-                            <option value="updated" {% if sort_by == 'updated' %}selected{% endif %}>Zuletzt aktualisiert</option>
-                            <option value="created" {% if sort_by == 'created' %}selected{% endif %}>Neueste zuerst</option>
-                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Titel (A-Z)</option>
+                            <option value="updated" {% if sort_by == 'updated' %}selected{% endif %}>{{ _('wiki.index.search.sort.updated') }}</option>
+                            <option value="created" {% if sort_by == 'created' %}selected{% endif %}>{{ _('wiki.index.search.sort.created') }}</option>
+                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>{{ _('wiki.index.search.sort.title') }}</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-6 text-end">
                         <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="bi bi-search"></i> Suchen
+                            <i class="bi bi-search"></i> {{ _('wiki.index.search.submit') }}
                         </button>
                         {% if search_query or selected_category or selected_tag %}
                         <a href="{{ url_for('wiki.index') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-x"></i> Zurücksetzen
+                            <i class="bi bi-x"></i> {{ _('wiki.index.search.reset') }}
                         </a>
                         {% endif %}
                     </div>
@@ -97,7 +95,6 @@
         </div>
     </div>
     
-    <!-- Wiki-Seiten Liste -->
     {% if pages %}
     <div class="row g-3">
         {% for page in pages %}
@@ -116,25 +113,25 @@
                             </button>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{{ url_for('wiki.view', slug=page.slug) }}">
-                                    <i class="bi bi-eye"></i> Ansehen
+                                    <i class="bi bi-eye"></i> {{ _('wiki.index.card.view') }}
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('wiki.edit', slug=page.slug) }}">
-                                    <i class="bi bi-pencil"></i> Bearbeiten
+                                    <i class="bi bi-pencil"></i> {{ _('wiki.index.card.edit') }}
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('wiki.history', slug=page.slug) }}">
-                                    <i class="bi bi-clock-history"></i> Versionshistorie
+                                    <i class="bi bi-clock-history"></i> {{ _('wiki.index.card.history') }}
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item toggle-favorite-item" href="#" data-page-id="{{ page.id }}">
-                                        <i class="bi bi-star favorite-icon-{{ page.id }}"></i> <span class="favorite-text-{{ page.id }}">Zu Favoriten hinzufügen</span>
+                                        <i class="bi bi-star favorite-icon-{{ page.id }}"></i> <span class="favorite-text-{{ page.id }}">{{ _('wiki.index.card.favorite_add') }}</span>
                                     </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form method="POST" action="{{ url_for('wiki.delete', slug=page.slug) }}" class="d-inline">
-                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Seite wirklich löschen?')">
-                                            <i class="bi bi-trash"></i> Löschen
+                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('{{ _('wiki.index.card.delete_confirm') }}')">
+                                            <i class="bi bi-trash"></i> {{ _('wiki.index.card.delete') }}
                                         </button>
                                     </form>
                                 </li>
@@ -157,10 +154,10 @@
                     {% endif %}
                     
                     <p class="card-text text-muted small mt-2 mb-0">
-                        <i class="bi bi-person"></i> {{ page.creator.full_name }}<br>
-                        <i class="bi bi-calendar"></i> {{ page.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                        <i class="bi bi-person"></i> {{ _('wiki.index.card.created_by', name=page.creator.full_name) }}<br>
+                        <i class="bi bi-calendar"></i> {{ _('wiki.index.card.updated_at', date=page.updated_at | localtime('%d.%m.%Y %H:%M')) }}
                         {% if page.version_number > 1 %}
-                        <br><i class="bi bi-arrow-repeat"></i> Version {{ page.version_number }}
+                        <br><i class="bi bi-arrow-repeat"></i> {{ _('wiki.index.card.version', number=page.version_number) }}
                         {% endif %}
                     </p>
                 </div>
@@ -172,9 +169,9 @@
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i>
         {% if search_query or selected_category or selected_tag %}
-        Keine Seiten gefunden. Versuchen Sie andere Suchkriterien.
+        {{ _('wiki.index.empty.filtered') }}
         {% else %}
-        Noch keine Wiki-Seiten vorhanden. Erstellen Sie die erste Seite!
+        {{ _('wiki.index.empty.default') }}
         {% endif %}
     </div>
     {% endif %}
@@ -183,73 +180,72 @@
 
 {% block extra_js %}
 <script>
-// Favoriten-Funktionalität für alle Wiki-Karten
+const WIKI_INDEX_I18N = {{ current_translations.get('wiki', {}).get('index', {})|tojson }};
+const WIKI_INDEX_CARD = WIKI_INDEX_I18N.card || {};
+const WIKI_INDEX_JS = WIKI_INDEX_I18N.js || {};
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisiere Favoriten-Status für alle Seiten
     const favoriteItems = document.querySelectorAll('.toggle-favorite-item');
     favoriteItems.forEach(item => {
         const pageId = item.getAttribute('data-page-id');
-        if (pageId) {
-            // Prüfe initialen Status
-            fetch(`/wiki/api/favorite/check/${pageId}`)
-                .then(response => response.json())
-                .then(data => {
-                    updateFavoriteUI(pageId, data.is_favorite);
-                });
-            
-            // Event Listener für Toggle
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                const icon = document.querySelector(`.favorite-icon-${pageId}`);
-                const isFavorite = icon.classList.contains('bi-star-fill');
-                const method = isFavorite ? 'DELETE' : 'POST';
-                
-                fetch(`/wiki/api/favorite/${pageId}`, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateFavoriteUI(pageId, data.is_favorite);
-                        // Zeige Toast/Notification
-                        const toast = document.createElement('div');
-                        toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
-                        toast.style.zIndex = '9999';
-                        toast.textContent = data.message;
-                        document.body.appendChild(toast);
-                        setTimeout(() => toast.remove(), 3000);
-                    } else if (data.error) {
-                        alert(data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Fehler:', error);
-                    alert('Fehler beim Aktualisieren der Favoriten');
-                });
+        if (!pageId) return;
+        
+        fetch(`/wiki/api/favorite/check/${pageId}`)
+            .then(response => response.json())
+            .then(data => {
+                updateFavoriteUI(pageId, data.is_favorite);
             });
-        }
+        
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const icon = document.querySelector(`.favorite-icon-${pageId}`);
+            const isFavorite = icon.classList.contains('bi-star-fill');
+            const method = isFavorite ? 'DELETE' : 'POST';
+            
+            fetch(`/wiki/api/favorite/${pageId}`, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateFavoriteUI(pageId, data.is_favorite);
+                    const toast = document.createElement('div');
+                    toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+                    toast.style.zIndex = '9999';
+                    toast.textContent = data.message || '';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                } else if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert(WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.');
+            });
+        });
     });
     
     function updateFavoriteUI(pageId, isFavorite) {
         const icon = document.querySelector(`.favorite-icon-${pageId}`);
         const text = document.querySelector(`.favorite-text-${pageId}`);
-        if (icon && text) {
-            if (isFavorite) {
-                icon.classList.remove('bi-star');
-                icon.classList.add('bi-star-fill');
-                text.textContent = 'Aus Favoriten entfernen';
-            } else {
-                icon.classList.remove('bi-star-fill');
-                icon.classList.add('bi-star');
-                text.textContent = 'Zu Favoriten hinzufügen';
-            }
+        if (!icon || !text) return;
+        
+        if (isFavorite) {
+            icon.classList.remove('bi-star');
+            icon.classList.add('bi-star-fill');
+            text.textContent = WIKI_INDEX_CARD.favorite_remove || 'Remove from favorites';
+        } else {
+            icon.classList.remove('bi-star-fill');
+            icon.classList.add('bi-star');
+            text.textContent = WIKI_INDEX_CARD.favorite_add || 'Add to favorites';
         }
     }
 });
 </script>
 {% endblock %}
-
-

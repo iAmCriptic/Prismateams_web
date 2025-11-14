@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ page.title }} - Wiki{% endblock %}
+{% block title %}{{ _('wiki.view.page_title', title=page.title) }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
@@ -130,7 +130,6 @@
         margin-bottom: 0.5rem;
     }
     
-    /* Wiki-Link Styling für fehlende Seiten */
     .markdown-content a[href^="/wiki/view/"] {
         color: var(--accent-color);
         text-decoration: none;
@@ -149,19 +148,19 @@
             <div>
                 <h4 class="mb-0">{{ page.title }}</h4>
                 <small class="text-muted">
-                    Von {{ page.creator.full_name }} • 
-                    {{ page.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                    {{ _('wiki.view.meta.by_author', name=page.creator.full_name) }} • 
+                    {{ _('wiki.view.meta.updated_at', date=page.updated_at.strftime('%d.%m.%Y %H:%M')) }}
                     {% if page.version_number > 1 %}
-                    • Version {{ page.version_number }}
+                    • {{ _('wiki.view.meta.version', number=page.version_number) }}
                     {% endif %}
                 </small>
             </div>
             <div class="btn-group">
                 <a href="{{ url_for('wiki.edit', slug=page.slug) }}" class="btn btn-primary">
-                    <i class="bi bi-pencil"></i> Bearbeiten
+                    <i class="bi bi-pencil"></i> {{ _('wiki.view.buttons.edit') }}
                 </a>
                 <a href="{{ url_for('wiki.history', slug=page.slug) }}" class="btn btn-outline-primary">
-                    <i class="bi bi-clock-history"></i> Historie
+                    <i class="bi bi-clock-history"></i> {{ _('wiki.view.buttons.history') }}
                 </a>
                 <div class="btn-group">
                     <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -170,13 +169,13 @@
                     <ul class="dropdown-menu">
                         <li>
                             <a class="dropdown-item" href="#" id="toggle-favorite-btn" data-page-id="{{ page.id }}">
-                                <i class="bi bi-star" id="favorite-icon"></i> <span id="favorite-text">Zu Favoriten hinzufügen</span>
+                                <i class="bi bi-star" id="favorite-icon"></i> <span id="favorite-text">{{ _('wiki.view.buttons.favorite_add') }}</span>
                             </a>
                         </li>
                     </ul>
                 </div>
                 <button class="btn btn-outline-secondary" onclick="closeViewer()">
-                    <i class="bi bi-x-lg"></i> Schließen
+                    <i class="bi bi-x-lg"></i> {{ _('wiki.view.buttons.close') }}
                 </button>
             </div>
         </div>
@@ -198,7 +197,6 @@ function closeViewer() {
     window.location.href = '{{ url_for("wiki.index") }}';
 }
 
-// Close with Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeViewer();
@@ -210,7 +208,9 @@ document.addEventListener('keydown', function(e) {
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 <script>
-// Favoriten-Funktionalität
+const WIKI_VIEW_I18N = {{ current_translations.get('wiki', {}).get('view', {})|tojson }};
+const WIKI_INDEX_JS = {{ current_translations.get('wiki', {}).get('index', {}).get('js', {})|tojson }};
+
 document.addEventListener('DOMContentLoaded', function() {
     const toggleFavoriteBtn = document.getElementById('toggle-favorite-btn');
     const favoriteIcon = document.getElementById('favorite-icon');
@@ -218,14 +218,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const pageId = toggleFavoriteBtn ? toggleFavoriteBtn.getAttribute('data-page-id') : null;
     
     if (pageId) {
-        // Prüfe initialen Status
         fetch(`/wiki/api/favorite/check/${pageId}`)
             .then(response => response.json())
             .then(data => {
                 updateFavoriteUI(data.is_favorite);
             });
         
-        // Event Listener für Toggle
         toggleFavoriteBtn.addEventListener('click', function(e) {
             e.preventDefault();
             const isFavorite = favoriteIcon.classList.contains('bi-star-fill');
@@ -241,11 +239,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     updateFavoriteUI(data.is_favorite);
-                    // Zeige Toast/Notification
                     const toast = document.createElement('div');
                     toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
                     toast.style.zIndex = '9999';
-                    toast.textContent = data.message;
+                    toast.textContent = data.message || '';
                     document.body.appendChild(toast);
                     setTimeout(() => toast.remove(), 3000);
                 } else if (data.error) {
@@ -253,21 +250,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Fehler:', error);
-                alert('Fehler beim Aktualisieren der Favoriten');
+                console.error('Error:', error);
+                alert(WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.');
             });
         });
     }
     
     function updateFavoriteUI(isFavorite) {
+        const buttons = WIKI_VIEW_I18N.buttons || {};
         if (isFavorite) {
             favoriteIcon.classList.remove('bi-star');
             favoriteIcon.classList.add('bi-star-fill');
-            favoriteText.textContent = 'Aus Favoriten entfernen';
+            favoriteText.textContent = buttons.favorite_remove || 'Remove from favorites';
         } else {
             favoriteIcon.classList.remove('bi-star-fill');
             favoriteIcon.classList.add('bi-star');
-            favoriteText.textContent = 'Zu Favoriten hinzufügen';
+            favoriteText.textContent = buttons.favorite_add || 'Add to favorites';
         }
     }
 });

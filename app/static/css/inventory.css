@@ -158,6 +158,49 @@ html {
     background-color: rgba(13, 110, 253, 0.05);
 }
 
+.product-card .form-check-input {
+    cursor: pointer;
+}
+
+.product-card .form-check-input[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.list-group-item .form-check {
+    margin-bottom: 0;
+}
+
+.list-group-item .form-check-input[disabled] {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Produktformular: Input-Gruppen mit Aktionsbuttons */
+.input-group > .btn-outline-primary,
+.input-group > .btn-outline-secondary {
+    display: flex;
+    align-items: center;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+#manageFoldersModal .list-group-item,
+#manageCategoriesModal .list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#manageFoldersModal .btn-group .btn,
+#manageCategoriesModal .btn-group .btn {
+    min-width: 2.25rem;
+}
+
+#entryDeleteBtn {
+    align-items: center;
+}
+
 /* Touch-optimierte Statistiken-Karten */
 .stat-card {
     touch-action: manipulation;
@@ -412,6 +455,62 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* Product Checkbox Styles */
+.product-card .form-check {
+    margin: 0;
+}
+
+.product-card .product-checkbox {
+    cursor: pointer;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    margin: 0;
+}
+
+.product-card .product-checkbox:checked {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.product-card .product-checkbox:checked[type="checkbox"] {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e") !important;
+    background-size: 100% 100% !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+}
+
+/* Bulk-Auswahl Toolbar */
+#bulkSelectionToolbar {
+    border-left: 4px solid #0d6efd;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#bulkSelectionToolbar .card-body {
+    padding: 0.75rem 1rem;
+}
+
+#bulkSelectionToolbar .vr {
+    width: 1px;
+    background-color: rgba(0, 0, 0, 0.1);
+    margin: 0 0.5rem;
+}
+
+[data-oled-mode="true"] #bulkSelectionToolbar .vr {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Produktbilder - Feste Größe für konsistentes Layout */

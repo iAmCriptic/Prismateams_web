@@ -149,6 +149,64 @@
     "quick_access": {
       "title": "Quick access",
       "edit_dashboard": "Edit dashboard"
+    },
+    "edit": {
+      "page_title": "Edit Dashboard - Team Portal",
+      "heading": "Edit Dashboard",
+      "subtitle": "Customize your dashboard to match your preferences.",
+      "widgets": {
+        "title": "Widgets",
+        "description": "Choose which widgets should appear on your dashboard.",
+        "items": {
+          "termine": {
+            "label": "Events",
+            "description": "Shows your upcoming events."
+          },
+          "nachrichten": {
+            "label": "Messages",
+            "description": "Shows unread chat messages."
+          },
+          "emails": {
+            "label": "Emails",
+            "description": "Shows the latest emails."
+          },
+          "dateien": {
+            "label": "Recent Files",
+            "description": "Shows the files you edited most recently."
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "Shows the canvases you edited most recently."
+          },
+          "neue_wikieintraege": {
+            "label": "New Wiki Entries",
+            "description": "Shows the latest edited or created wiki entries."
+          },
+          "meine_wikis": {
+            "label": "My Wikis",
+            "description": "Shows up to five of your favorite wiki entries."
+          },
+          "meine_ausleihen": {
+            "label": "My Loans",
+            "description": "Shows your active loans from inventory with due status."
+          }
+        }
+      },
+      "quick_access": {
+        "title": "Quick access",
+        "description": "Choose which links should appear in the quick access panel.",
+        "items": {
+          "files": "Files",
+          "chat": "Chats",
+          "calendar": "Calendar",
+          "email": "Email",
+          "credentials": "Credentials",
+          "manuals": "Manuals",
+          "canvas": "Canvas",
+          "inventory": "Inventory",
+          "wiki": "Wiki"
+        }
+      }
     }
   },
   "languages": {
@@ -467,6 +525,9 @@
     }
   },
   "chat": {
+    "common": {
+      "main_chat_name": "Main Chat"
+    },
     "index": {
       "page_title": "Chats - Team Portal",
       "heading": "Chats",
@@ -485,6 +546,7 @@
     "view": {
       "page_title_suffix": "Chats",
       "breadcrumb_chats": "Chats",
+      "team_logo_alt": "Team logo",
       "members_title": "Members",
       "member_role_admin": "Admin",
       "member_role_member": "Member",
@@ -530,6 +592,40 @@
         "permission_title": "Microphone",
         "permission_message": "Microphone access is required for voice messages.",
         "microphone_denied": "Microphone access was denied. Please allow it in your browser settings."
+      }
+    },
+    "create": {
+      "page_title": "New Chat - Team Portal",
+      "breadcrumb": {
+        "index": "Chats",
+        "current": "New Chat"
+      },
+      "heading": "Create New Chat",
+      "form": {
+        "chat_type": {
+          "label": "Chat Type",
+          "group": "Group Chat",
+          "private": "Private Chat"
+        },
+        "chat_name": {
+          "label": "Chat Name",
+          "placeholder": "e.g. Project Team"
+        },
+        "members": {
+          "label": "Add Members",
+          "single_label": "Select person",
+          "help": "Select at least one member",
+          "help_private": "Select a person for the private chat"
+        },
+        "buttons": {
+          "submit": "Create chat",
+          "cancel": "Cancel"
+        },
+        "alerts": {
+          "select_private": "Please select a person for the private chat.",
+          "enter_name": "Please enter a chat name.",
+          "select_members": "Please select at least one member."
+        }
       }
     }
   },
@@ -696,6 +792,298 @@
         "settings_error": "Error loading settings",
         "file_too_large": "The file is too large. Maximum size: 100MB per file."
       }
+    }
+  },
+  "canvas": {
+    "index": {
+      "page_title": "Canvas - Team Portal",
+      "heading": "Canvas",
+      "new_button": "New canvas",
+      "stats": {
+        "text_fields_one": "1 text field",
+        "text_fields_other": "{count} text fields",
+        "updated_at": "Updated on {date}"
+      },
+      "buttons": {
+        "edit": "Edit",
+        "delete_confirm": "Delete canvas?"
+      },
+      "empty": {
+        "message": "No canvases yet.",
+        "hint": "Create your first canvas!"
+      }
+    },
+    "create": {
+      "page_title": "New Canvas - Team Portal",
+      "breadcrumb": {
+        "index": "Canvas",
+        "current": "New canvas"
+      },
+      "heading": "Create new canvas",
+      "form": {
+        "name": "Name",
+        "description": "Description (optional)"
+      },
+      "buttons": {
+        "submit": "Create canvas",
+        "cancel": "Cancel"
+      },
+      "alerts": {
+        "name_required": "Please enter a name."
+      }
+    },
+    "edit": {
+      "page_title_suffix": "Canvas",
+      "back_label": "Team portal",
+      "toolbar": {
+        "lock": "Enable/disable editing",
+        "hand": "Pan canvas",
+        "select": "Select and move objects",
+        "rectangle": "Draw rectangle",
+        "diamond": "Draw diamond",
+        "circle": "Draw circle",
+        "arrow": "Draw arrow",
+        "line": "Draw line",
+        "text": "Add text",
+        "image": "Insert image",
+        "eraser": "Delete objects"
+      },
+      "zoom": {
+        "out": "Zoom out",
+        "in": "Zoom in"
+      },
+      "history": {
+        "undo": "Undo",
+        "redo": "Redo"
+      },
+      "comments": {
+        "toggle": "Show/hide comments",
+        "title": "Comments"
+      }
+    },
+    "flash": {
+      "created": "Canvas \"{name}\" has been created.",
+      "deleted": "Canvas \"{name}\" has been deleted."
+    }
+  },
+  "wiki": {
+    "index": {
+      "page_title": "Wiki - Team Portal",
+      "heading": "Wiki",
+      "subtitle": "Knowledge base",
+      "buttons": {
+        "favorites": "Favorites",
+        "favorites_all": "Show all",
+        "create": "Create"
+      },
+      "search": {
+        "placeholder": "Search titles, content...",
+        "category_all": "All categories",
+        "tag_all": "All tags",
+        "sort": {
+          "updated": "Recently updated",
+          "created": "Newest first",
+          "title": "Title (A-Z)"
+        },
+        "submit": "Search",
+        "reset": "Reset"
+      },
+      "card": {
+        "view": "View",
+        "edit": "Edit",
+        "history": "Version history",
+        "favorite_add": "Add to favorites",
+        "favorite_remove": "Remove from favorites",
+        "delete": "Delete",
+        "delete_confirm": "Delete page?",
+        "created_by": "By {name}",
+        "updated_at": "Updated on {date}",
+        "version": "Version {number}"
+      },
+      "empty": {
+        "default": "No wiki pages yet. Create the first page!",
+        "filtered": "No pages found. Try different search criteria."
+      },
+      "js": {
+        "favorite_error": "Failed to update favorites."
+      }
+    },
+    "create": {
+      "page_title": "New Wiki Page - Wiki",
+      "heading": "Create new wiki page",
+      "form": {
+        "title": {
+          "label": "Title *"
+        },
+        "category": {
+          "label": "Category",
+          "none": "No category",
+          "new_option": "➕ New category",
+          "new_placeholder": "Enter category name"
+        },
+        "tags": {
+          "label": "Tags (comma separated)",
+          "placeholder": "tag1, tag2, tag3"
+        }
+      },
+      "toolbar": {
+        "back": "Back",
+        "submit": "Create",
+        "preview": "Preview",
+        "bold": "Bold",
+        "italic": "Italic",
+        "strikethrough": "Strikethrough",
+        "heading1": "Heading 1",
+        "heading2": "Heading 2",
+        "heading3": "Heading 3",
+        "link": "Link",
+        "code": "Code",
+        "list": "List",
+        "wikilink": "Wiki link"
+      },
+      "editor": {
+        "placeholder": "Start writing...",
+        "saving": "Creating...",
+        "preview_title": "Preview",
+        "preview_loading": "Loading preview..."
+      },
+      "alerts": {
+        "title_required": "Please enter a title.",
+        "new_category_required": "Please enter a name for the new category.",
+        "preview_error": "Failed to load preview."
+      },
+      "format_defaults": {
+        "text": "Text",
+        "heading": "Heading",
+        "link_text": "Link text",
+        "code": "Code",
+        "list_item": "List item",
+        "page_name": "Page name"
+      }
+    },
+    "edit": {
+      "page_title": "{title} - Edit wiki",
+      "heading": "Edit wiki page",
+      "toolbar": {
+        "back": "Back",
+        "submit": "Save",
+        "preview": "Preview",
+        "saving": "Saving..."
+      },
+      "alerts": {
+        "title_required": "Please enter a title.",
+        "new_category_required": "Please enter a name for the new category.",
+        "unsaved_changes": "You have unsaved changes. Leave page anyway?",
+        "save_error": "Failed to save page. Please try again.",
+        "preview_loading": "Loading preview...",
+        "preview_error": "Failed to load preview."
+      },
+      "format_defaults": {
+        "text": "Text",
+        "heading": "Heading",
+        "link_text": "Link text",
+        "code": "Code",
+        "list_item": "List item",
+        "page_name": "Page name"
+      }
+    },
+    "view": {
+      "page_title": "{title} - Wiki",
+      "meta": {
+        "by_author": "By {name}",
+        "updated_at": "{date}",
+        "version": "Version {number}"
+      },
+      "buttons": {
+        "edit": "Edit",
+        "history": "History",
+        "favorite_add": "Add to favorites",
+        "favorite_remove": "Remove from favorites",
+        "close": "Close"
+      }
+    },
+    "history": {
+      "page_title": "Version history - {title}",
+      "heading": "Version history",
+      "badge_current": "Current",
+      "buttons": {
+        "back": "Back",
+        "view_current": "View current version"
+      },
+      "empty": "No version history yet."
+    },
+    "api": {
+      "module_disabled": "Wiki module not enabled",
+      "favorite": {
+        "already": "Already favorited",
+        "limit": "Maximum of 5 favorites allowed",
+        "added": "Added to favorites",
+        "removed": "Removed from favorites",
+        "missing": "Not in favorites"
+      }
+    },
+    "flash": {
+      "category_exists": "Category \"{name}\" already exists and was assigned.",
+      "category_created": "New category \"{name}\" has been created.",
+      "duplicate_title": "A page with this title already exists.",
+      "created": "Wiki page \"{title}\" has been created.",
+      "updated": "Wiki page \"{title}\" has been updated.",
+      "deleted": "Wiki page \"{title}\" has been deleted."
+    }
+  },
+  "comments": {
+    "locale": "en-US",
+    "header": {
+      "title": "Comments",
+      "count_zero": "No comments",
+      "count_one": "1 comment",
+      "count_other": "{count} comments"
+    },
+    "form": {
+      "placeholder": "Write a comment...",
+      "hint": "Tip: use @name for mentions, Ctrl+Enter to send",
+      "submit": "Send comment",
+      "sending": "Sending..."
+    },
+    "list": {
+      "loading": "Loading comments...",
+      "empty": "No comments yet",
+      "error": "Failed to load comments"
+    },
+    "reply": {
+      "placeholder": "Write a reply...",
+      "submit": "Reply",
+      "cancel": "Cancel"
+    },
+    "edit": {
+      "submit": "Save",
+      "cancel": "Cancel"
+    },
+    "actions": {
+      "reply": "Reply",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirm_delete": "Delete this comment?"
+    },
+    "alerts": {
+      "content_required": "Please enter a comment.",
+      "create_error": "Failed to create comment.",
+      "update_error": "Failed to update comment.",
+      "delete_error": "Failed to delete comment.",
+      "unknown_error": "Unknown error",
+      "mention_error": "Failed to load user list."
+    },
+    "mentions": {
+      "no_results": "No users found"
+    },
+    "time": {
+      "just_now": "just now",
+      "minutes_one": "{count} minute ago",
+      "minutes_other": "{count} minutes ago",
+      "hours_one": "{count} hour ago",
+      "hours_other": "{count} hours ago",
+      "days_one": "{count} day ago",
+      "days_other": "{count} days ago"
     }
   },
   "calendar": {
@@ -982,6 +1370,11 @@
         "close": "Close",
         "download": "Download"
       }
+    },
+    "onlyoffice": {
+      "page_title_suffix": "ONLYOFFICE Editor",
+      "back_button_label": "Team Portal",
+      "back_button_title": "Back to the team portal"
     }
   },
   "credentials": {

@@ -4,29 +4,31 @@ Verwendung: {% set content_type='file' %}{% set content_id=file.id %}{% include 
 
 <div id="comments-section-{{ content_type }}-{{ content_id }}" class="comments-section">
     <div class="comments-header">
-        <h5>Kommentare <span class="comment-count">0 Kommentare</span></h5>
+        <h5>{{ _('comments.header.title') }} <span class="comment-count">{{ _('comments.header.count_zero') }}</span></h5>
     </div>
     
     {% if current_user.is_authenticated %}
     <div class="comment-form">
         <div class="comment-input-wrapper">
-            <textarea class="comment-textarea" placeholder="Kommentar schreiben... (Tipp: @Benutzer für Mentions, Ctrl+Enter zum Senden)"></textarea>
+            <textarea class="comment-textarea" placeholder="{{ _('comments.form.placeholder') }}"></textarea>
             <div class="comment-mention-suggestions"></div>
         </div>
+        <div class="form-text text-muted comment-hint">{{ _('comments.form.hint') }}</div>
         <div class="comment-form-actions">
             <button class="btn btn-primary comment-submit-btn">
-                <i class="bi bi-send"></i> Kommentar senden
+                <i class="bi bi-send"></i> {{ _('comments.form.submit') }}
             </button>
         </div>
     </div>
     {% endif %}
     
     <ul class="comments-list">
-        <div class="comment-loading">Lade Kommentare...</div>
+        <div class="comment-loading">{{ _('comments.list.loading') }}</div>
     </ul>
 </div>
 
 <script>
+window.COMMENTS_I18N = {{ current_translations.get('comments', {})|tojson }};
 // Initialisiere Kommentar-System
 document.addEventListener('DOMContentLoaded', function() {
     const commentSystem = new CommentSystem('{{ content_type }}', {{ content_id }}, 'comments-section-{{ content_type }}-{{ content_id }}');

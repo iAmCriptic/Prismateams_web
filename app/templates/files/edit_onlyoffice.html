@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="de">
+{% set _lang_code = (current_language or 'en') %}
+{% set _lang_prefix = _lang_code[:2] %}
+{% set onlyoffice_lang_map = {'de': 'de', 'en': 'en', 'es': 'es', 'pt': 'pt', 'ru': 'ru'} %}
+{% set onlyoffice_lang = onlyoffice_lang_map.get(_lang_prefix, 'en') %}
+<html lang="{{ current_language or 'de' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ file.name }} - ONLYOFFICE Editor</title>
+    <title>{{ file.name }} - {{ _('files.onlyoffice.page_title_suffix') }}</title>
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -158,9 +162,9 @@
 </head>
 <body>
 <div class="onlyoffice-editor-container">
-    <button class="onlyoffice-back-button" onclick="goBack()" title="Zurück zum Teamportal">
+    <button class="onlyoffice-back-button" onclick="goBack()" title="{{ _('files.onlyoffice.back_button_title') }}">
         <i class="bi bi-arrow-left"></i>
-        <span class="button-text">Teamportal</span>
+        <span class="button-text">{{ _('files.onlyoffice.back_button_label') }}</span>
     </button>
     <div id="onlyoffice-editor"></div>
 </div>
@@ -202,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
         editorConfig: {
             callbackUrl: "{{ callback_url }}",
             mode: "edit",
-            lang: "de-DE",  // Set language to German
+            lang: "{{ onlyoffice_lang }}",
             coEditing: {
                 mode: "fast",
                 change: true

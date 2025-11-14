@@ -149,6 +149,64 @@
     "quick_access": {
       "title": "Schnellzugriff",
       "edit_dashboard": "Dashboard bearbeiten"
+    },
+    "edit": {
+      "page_title": "Dashboard bearbeiten - Team Portal",
+      "heading": "Dashboard bearbeiten",
+      "subtitle": "Passen Sie Ihr Dashboard nach Ihren Wünschen an.",
+      "widgets": {
+        "title": "Widgets",
+        "description": "Wählen Sie aus, welche Widgets auf Ihrem Dashboard angezeigt werden sollen.",
+        "items": {
+          "termine": {
+            "label": "Termine",
+            "description": "Zeigt die nächsten anstehenden Termine."
+          },
+          "nachrichten": {
+            "label": "Nachrichten",
+            "description": "Zeigt ungelesene Chat-Nachrichten."
+          },
+          "emails": {
+            "label": "E-Mails",
+            "description": "Zeigt die letzten E-Mails."
+          },
+          "dateien": {
+            "label": "Letzte Dateien",
+            "description": "Zeigt die zuletzt bearbeiteten Dateien."
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "Zeigt die zuletzt bearbeiteten Canvas."
+          },
+          "neue_wikieintraege": {
+            "label": "Neue Wikieinträge",
+            "description": "Zeigt die letzten bearbeiteten oder erstellten Wiki-Einträge."
+          },
+          "meine_wikis": {
+            "label": "Meine Wikis",
+            "description": "Zeigt bis zu fünf Ihrer favorisierten Wiki-Einträge."
+          },
+          "meine_ausleihen": {
+            "label": "Meine Ausleihen",
+            "description": "Zeigt Ihre aktiven Ausleihen aus der Lagerverwaltung mit Fälligkeitsstatus."
+          }
+        }
+      },
+      "quick_access": {
+        "title": "Schnellzugriff",
+        "description": "Wählen Sie aus, welche Links im Schnellzugriff angezeigt werden sollen.",
+        "items": {
+          "files": "Dateien",
+          "chat": "Chats",
+          "calendar": "Termine",
+          "email": "E-Mail",
+          "credentials": "Zugangsdaten",
+          "manuals": "Anleitungen",
+          "canvas": "Canvas",
+          "inventory": "Lagerverwaltung",
+          "wiki": "Wiki"
+        }
+      }
     }
   },
   "languages": {
@@ -467,6 +525,9 @@
     }
   },
   "chat": {
+    "common": {
+      "main_chat_name": "Haupt-Chat"
+    },
     "index": {
       "page_title": "Chats - Team Portal",
       "heading": "Chats",
@@ -485,6 +546,7 @@
     "view": {
       "page_title_suffix": "Chats",
       "breadcrumb_chats": "Chats",
+      "team_logo_alt": "Teamlogo",
       "members_title": "Mitglieder",
       "member_role_admin": "Admin",
       "member_role_member": "Mitglied",
@@ -530,6 +592,40 @@
         "permission_title": "Mikrofon",
         "permission_message": "Mikrofon-Zugriff ist für Sprachnachrichten erforderlich.",
         "microphone_denied": "Mikrofonzugriff wurde verweigert. Bitte erlauben Sie den Zugriff in Ihren Browser-Einstellungen."
+      }
+    },
+    "create": {
+      "page_title": "Neuer Chat - Team Portal",
+      "breadcrumb": {
+        "index": "Chats",
+        "current": "Neuer Chat"
+      },
+      "heading": "Neuen Chat erstellen",
+      "form": {
+        "chat_type": {
+          "label": "Chat-Typ",
+          "group": "Gruppen-Chat",
+          "private": "Privater Chat"
+        },
+        "chat_name": {
+          "label": "Chat-Name",
+          "placeholder": "z.B. Projekt Team"
+        },
+        "members": {
+          "label": "Mitglieder hinzufügen",
+          "single_label": "Person auswählen",
+          "help": "Wählen Sie mindestens ein Mitglied aus",
+          "help_private": "Wählen Sie eine Person für den privaten Chat aus"
+        },
+        "buttons": {
+          "submit": "Chat erstellen",
+          "cancel": "Abbrechen"
+        },
+        "alerts": {
+          "select_private": "Bitte wählen Sie eine Person für den privaten Chat aus.",
+          "enter_name": "Bitte geben Sie einen Chat-Namen ein.",
+          "select_members": "Bitte wählen Sie mindestens ein Mitglied aus."
+        }
       }
     }
   },
@@ -823,6 +919,11 @@
         "close": "Schließen",
         "download": "Herunterladen"
       }
+    },
+    "onlyoffice": {
+      "page_title_suffix": "ONLYOFFICE Editor",
+      "back_button_label": "Teamportal",
+      "back_button_title": "Zurück zum Team-Portal"
     }
   },
   "credentials": {
@@ -881,6 +982,298 @@
         "card_title": "Zugangsdaten bearbeiten",
         "password_help": "Leer lassen, um Passwort nicht zu ändern"
       }
+    }
+  },
+  "canvas": {
+    "index": {
+      "page_title": "Canvas - Team Portal",
+      "heading": "Canvas",
+      "new_button": "Neues Canvas",
+      "stats": {
+        "text_fields_one": "1 Textfeld",
+        "text_fields_other": "{count} Textfelder",
+        "updated_at": "Aktualisiert am {date}"
+      },
+      "buttons": {
+        "edit": "Bearbeiten",
+        "delete_confirm": "Canvas wirklich löschen?"
+      },
+      "empty": {
+        "message": "Keine Canvas vorhanden.",
+        "hint": "Erstellen Sie Ihr erstes Canvas!"
+      }
+    },
+    "create": {
+      "page_title": "Neues Canvas - Team Portal",
+      "breadcrumb": {
+        "index": "Canvas",
+        "current": "Neues Canvas"
+      },
+      "heading": "Neues Canvas erstellen",
+      "form": {
+        "name": "Name",
+        "description": "Beschreibung (optional)"
+      },
+      "buttons": {
+        "submit": "Canvas erstellen",
+        "cancel": "Abbrechen"
+      },
+      "alerts": {
+        "name_required": "Bitte geben Sie einen Namen ein."
+      }
+    },
+    "edit": {
+      "page_title_suffix": "Canvas",
+      "back_label": "Teamportal",
+      "toolbar": {
+        "lock": "Bearbeitung aktivieren/deaktivieren",
+        "hand": "Canvas bewegen",
+        "select": "Objekte auswählen und bewegen",
+        "rectangle": "Rechteck zeichnen",
+        "diamond": "Diamant zeichnen",
+        "circle": "Kreis zeichnen",
+        "arrow": "Pfeil zeichnen",
+        "line": "Linie zeichnen",
+        "text": "Text hinzufügen",
+        "image": "Bild einfügen",
+        "eraser": "Objekte löschen"
+      },
+      "zoom": {
+        "out": "Rauszoomen",
+        "in": "Reinzoomen"
+      },
+      "history": {
+        "undo": "Rückgängig",
+        "redo": "Wiederholen"
+      },
+      "comments": {
+        "toggle": "Kommentare anzeigen/verstecken",
+        "title": "Kommentare"
+      }
+    },
+    "flash": {
+      "created": "Canvas \"{name}\" wurde erstellt.",
+      "deleted": "Canvas \"{name}\" wurde gelöscht."
+    }
+  },
+  "wiki": {
+    "index": {
+      "page_title": "Wiki - Team Portal",
+      "heading": "Wiki",
+      "subtitle": "Wissensdatenbank",
+      "buttons": {
+        "favorites": "Favoriten",
+        "favorites_all": "Alle anzeigen",
+        "create": "Erstellen"
+      },
+      "search": {
+        "placeholder": "Suche in Titel, Inhalt...",
+        "category_all": "Alle Kategorien",
+        "tag_all": "Alle Tags",
+        "sort": {
+          "updated": "Zuletzt aktualisiert",
+          "created": "Neueste zuerst",
+          "title": "Titel (A-Z)"
+        },
+        "submit": "Suchen",
+        "reset": "Zurücksetzen"
+      },
+      "card": {
+        "view": "Ansehen",
+        "edit": "Bearbeiten",
+        "history": "Versionshistorie",
+        "favorite_add": "Zu Favoriten hinzufügen",
+        "favorite_remove": "Aus Favoriten entfernen",
+        "delete": "Löschen",
+        "delete_confirm": "Seite wirklich löschen?",
+        "created_by": "Von {name}",
+        "updated_at": "Aktualisiert am {date}",
+        "version": "Version {number}"
+      },
+      "empty": {
+        "default": "Noch keine Wiki-Seiten vorhanden. Erstellen Sie die erste Seite!",
+        "filtered": "Keine Seiten gefunden. Versuchen Sie andere Suchkriterien."
+      },
+      "js": {
+        "favorite_error": "Fehler beim Aktualisieren der Favoriten."
+      }
+    },
+    "create": {
+      "page_title": "Neue Wiki-Seite erstellen - Wiki",
+      "heading": "Neue Wiki-Seite erstellen",
+      "form": {
+        "title": {
+          "label": "Titel *"
+        },
+        "category": {
+          "label": "Kategorie",
+          "none": "Keine Kategorie",
+          "new_option": "➕ Neue Kategorie",
+          "new_placeholder": "Kategoriename eingeben"
+        },
+        "tags": {
+          "label": "Tags (kommagetrennt)",
+          "placeholder": "tag1, tag2, tag3"
+        }
+      },
+      "toolbar": {
+        "back": "Zurück",
+        "submit": "Erstellen",
+        "preview": "Vorschau",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "strikethrough": "Durchgestrichen",
+        "heading1": "Überschrift 1",
+        "heading2": "Überschrift 2",
+        "heading3": "Überschrift 3",
+        "link": "Link",
+        "code": "Code",
+        "list": "Liste",
+        "wikilink": "Wiki-Link"
+      },
+      "editor": {
+        "placeholder": "Beginnen Sie mit dem Schreiben...",
+        "saving": "Erstelle...",
+        "preview_title": "Vorschau",
+        "preview_loading": "Lade Vorschau..."
+      },
+      "alerts": {
+        "title_required": "Bitte geben Sie einen Titel ein.",
+        "new_category_required": "Bitte geben Sie einen Namen für die neue Kategorie ein.",
+        "preview_error": "Fehler beim Laden der Vorschau."
+      },
+      "format_defaults": {
+        "text": "Text",
+        "heading": "Überschrift",
+        "link_text": "Link-Text",
+        "code": "Code",
+        "list_item": "Listenpunkt",
+        "page_name": "Seitenname"
+      }
+    },
+    "edit": {
+      "page_title": "{title} bearbeiten - Wiki",
+      "heading": "Wiki-Seite bearbeiten",
+      "toolbar": {
+        "back": "Zurück",
+        "submit": "Speichern",
+        "preview": "Vorschau",
+        "saving": "Speichere..."
+      },
+      "alerts": {
+        "title_required": "Bitte geben Sie einen Titel ein.",
+        "new_category_required": "Bitte geben Sie einen Namen für die neue Kategorie ein.",
+        "unsaved_changes": "Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?",
+        "save_error": "Fehler beim Speichern der Seite. Bitte versuchen Sie es erneut.",
+        "preview_loading": "Lade Vorschau...",
+        "preview_error": "Fehler beim Laden der Vorschau."
+      },
+      "format_defaults": {
+        "text": "Text",
+        "heading": "Überschrift",
+        "link_text": "Link-Text",
+        "code": "Code",
+        "list_item": "Listenpunkt",
+        "page_name": "Seitenname"
+      }
+    },
+    "view": {
+      "page_title": "{title} - Wiki",
+      "meta": {
+        "by_author": "Von {name}",
+        "updated_at": "{date}",
+        "version": "Version {number}"
+      },
+      "buttons": {
+        "edit": "Bearbeiten",
+        "history": "Historie",
+        "favorite_add": "Zu Favoriten hinzufügen",
+        "favorite_remove": "Aus Favoriten entfernen",
+        "close": "Schließen"
+      }
+    },
+    "history": {
+      "page_title": "Versionshistorie - {title}",
+      "heading": "Versionshistorie",
+      "badge_current": "Aktuell",
+      "buttons": {
+        "back": "Zurück",
+        "view_current": "Aktuelle Version ansehen"
+      },
+      "empty": "Keine Versionshistorie vorhanden."
+    },
+    "api": {
+      "module_disabled": "Wiki-Modul nicht aktiviert",
+      "favorite": {
+        "already": "Bereits favorisiert",
+        "limit": "Maximal 5 Favoriten erlaubt",
+        "added": "Zu Favoriten hinzugefügt",
+        "removed": "Aus Favoriten entfernt",
+        "missing": "Nicht in Favoriten"
+      }
+    },
+    "flash": {
+      "category_exists": "Die Kategorie \"{name}\" existiert bereits und wurde zugewiesen.",
+      "category_created": "Neue Kategorie \"{name}\" wurde erstellt.",
+      "duplicate_title": "Eine Seite mit diesem Titel existiert bereits.",
+      "created": "Wiki-Seite \"{title}\" wurde erstellt.",
+      "updated": "Wiki-Seite \"{title}\" wurde aktualisiert.",
+      "deleted": "Wiki-Seite \"{title}\" wurde gelöscht."
+    }
+  },
+  "comments": {
+    "locale": "de-DE",
+    "header": {
+      "title": "Kommentare",
+      "count_zero": "Keine Kommentare",
+      "count_one": "1 Kommentar",
+      "count_other": "{count} Kommentare"
+    },
+    "form": {
+      "placeholder": "Kommentar schreiben...",
+      "hint": "Tipp: @Benutzer für Mentions, Ctrl+Enter zum Senden",
+      "submit": "Kommentar senden",
+      "sending": "Wird gesendet..."
+    },
+    "list": {
+      "loading": "Lade Kommentare...",
+      "empty": "Noch keine Kommentare",
+      "error": "Fehler beim Laden der Kommentare"
+    },
+    "reply": {
+      "placeholder": "Antwort schreiben...",
+      "submit": "Antworten",
+      "cancel": "Abbrechen"
+    },
+    "edit": {
+      "submit": "Speichern",
+      "cancel": "Abbrechen"
+    },
+    "actions": {
+      "reply": "Antworten",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "confirm_delete": "Möchten Sie diesen Kommentar wirklich löschen?"
+    },
+    "alerts": {
+      "content_required": "Bitte geben Sie einen Kommentar ein.",
+      "create_error": "Fehler beim Erstellen des Kommentars.",
+      "update_error": "Fehler beim Aktualisieren des Kommentars.",
+      "delete_error": "Fehler beim Löschen des Kommentars.",
+      "unknown_error": "Unbekannter Fehler",
+      "mention_error": "Fehler beim Laden der Benutzerliste."
+    },
+    "mentions": {
+      "no_results": "Keine Benutzer gefunden"
+    },
+    "time": {
+      "just_now": "gerade eben",
+      "minutes_one": "vor {count} Minute",
+      "minutes_other": "vor {count} Minuten",
+      "hours_one": "vor {count} Stunde",
+      "hours_other": "vor {count} Stunden",
+      "days_one": "vor {count} Tag",
+      "days_other": "vor {count} Tagen"
     }
   },
   "calendar": {

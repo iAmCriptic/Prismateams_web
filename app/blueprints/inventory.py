@@ -6,11 +6,13 @@ from app.models.api_token import ApiToken
 from app.models.user import User
 from app.models.settings import SystemSettings
 import json
+from urllib.parse import unquote
 from app.utils.qr_code import (
     generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code,
     parse_qr_code, generate_qr_code_bytes
 )
 from app.utils.pdf_generator import generate_borrow_receipt_pdf, generate_qr_code_sheet_pdf
+from app.utils.lengths import normalize_length_input, parse_length_to_meters
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
 from sqlalchemy import or_, and_
@@ -39,6 +41,23 @@ def get_inventory_categories():
         except:
             return []
     return []
+
+
+def save_inventory_categories(categories, *, commit=True):
+    """Speichert die Kategorienliste in SystemSettings."""
+    categories = sorted(set(categories))
+    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
+    if categories_setting:
+        categories_setting.value = json.dumps(categories)
+    else:
+        categories_setting = SystemSettings(
+            key='inventory_categories',
+            value=json.dumps(categories),
+            description='Verfügbare Kategorien für Produkte'
+        )
+        db.session.add(categories_setting)
+    if commit:
+        db.session.commit()
 
 
 def get_product_folders():
@@ -129,7 +148,13 @@ def product_new():
         serial_number = request.form.get('serial_number', '').strip()
         condition = request.form.get('condition', '').strip()
         location = request.form.get('location', '').strip()
-        length = request.form.get('length', '').strip()
+        length_input = request.form.get('length', '').strip()
+        normalized_length, _ = normalize_length_input(length_input) if length_input else (None, None)
+        if length_input and normalized_length is None:
+            flash('Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).', 'danger')
+            categories = get_inventory_categories()
+            folders = get_product_folders()
+            return render_template('inventory/product_form.html', categories=categories, folders=folders)
         folder_id = request.form.get('folder_id', '').strip()
         purchase_date_str = request.form.get('purchase_date', '').strip()
         
@@ -150,6 +175,22 @@ def product_new():
             except ValueError:
                 folder_id_int = None
         
+        # Anzahl auslesen und validieren
+        quantity = 1
+        quantity_str = request.form.get('quantity', '1').strip()
+        try:
+            quantity = int(quantity_str)
+            if quantity < 1 or quantity > 100:
+                flash('Die Anzahl muss zwischen 1 und 100 liegen.', 'danger')
+                categories = get_inventory_categories()
+                folders = get_product_folders()
+                return render_template('inventory/product_form.html', categories=categories, folders=folders)
+        except ValueError:
+            flash('Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.', 'danger')
+            categories = get_inventory_categories()
+            folders = get_product_folders()
+            return render_template('inventory/product_form.html', categories=categories, folders=folders)
+        
         # Bild-Upload verarbeiten
         image_path = None
         if 'image' in request.files:
@@ -165,36 +206,50 @@ def product_new():
                 # Speichere nur den Dateinamen für einfachere URL-Generierung
                 image_path = stored_filename
         
-        # Produkt erstellen
-        product = Product(
-            name=name,
-            description=description or None,
-            category=category or None,
-            serial_number=serial_number or None,
-            condition=condition or None,
-            location=location or None,
-            length=length or None,
-            purchase_date=purchase_date,
-            folder_id=folder_id_int,
-            status='available',
-            image_path=image_path,
-            created_by=current_user.id
-        )
-        
-        # QR-Code generieren
-        qr_data = generate_product_qr_code(product.id)
-        product.qr_code_data = qr_data
-        
-        db.session.add(product)
-        db.session.flush()  # Um die ID zu erhalten
-        
-        # QR-Code nochmal mit der tatsächlichen ID generieren
-        qr_data = generate_product_qr_code(product.id)
-        product.qr_code_data = qr_data
-        db.session.commit()
-        
-        flash(f'Produkt "{name}" wurde erfolgreich erstellt.', 'success')
-        return redirect(url_for('inventory.stock'))
+        # Produkte erstellen (Mehrfach-Erstellung)
+        created_products = []
+        try:
+            for i in range(quantity):
+                product = Product(
+                    name=name,
+                    description=description or None,
+                    category=category or None,
+                    serial_number=serial_number or None,  # Gleiche Seriennummer für alle
+                    condition=condition or None,
+                    location=location or None,
+                    length=normalized_length,
+                    purchase_date=purchase_date,
+                    folder_id=folder_id_int,
+                    status='available',
+                    image_path=image_path,  # Gleiches Bild für alle
+                    created_by=current_user.id
+                )
+                
+                db.session.add(product)
+                db.session.flush()  # Um die ID zu erhalten
+                
+                # QR-Code für jedes Produkt individuell generieren
+                qr_data = generate_product_qr_code(product.id)
+                product.qr_code_data = qr_data
+                
+                created_products.append(product)
+            
+            db.session.commit()
+            
+            # Flash-Nachricht anpassen je nach Anzahl
+            if quantity == 1:
+                flash(f'Produkt "{name}" wurde erfolgreich erstellt.', 'success')
+            else:
+                flash(f'{quantity} Produkte "{name}" wurden erfolgreich erstellt.', 'success')
+            
+            return redirect(url_for('inventory.stock'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Fehler beim Erstellen der Produkte: {e}", exc_info=True)
+            flash('Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.', 'danger')
+            categories = get_inventory_categories()
+            folders = get_product_folders()
+            return render_template('inventory/product_form.html', categories=categories, folders=folders)
     
     # Kategorien und Ordner laden
     categories = get_inventory_categories()
@@ -223,7 +278,19 @@ def product_edit(product_id):
         product.serial_number = request.form.get('serial_number', '').strip() or None
         product.condition = request.form.get('condition', '').strip() or None
         product.location = request.form.get('location', '').strip() or None
-        product.length = request.form.get('length', '').strip() or None
+        
+        length_input = request.form.get('length', '').strip()
+        if length_input:
+            normalized_length, _ = normalize_length_input(length_input)
+            if normalized_length is None:
+                flash('Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).', 'danger')
+                categories = get_inventory_categories()
+                folders = get_product_folders()
+                purchase_date_formatted = product.purchase_date.strftime('%Y-%m-%d') if product.purchase_date else ''
+                return render_template('inventory/product_form.html', product=product, purchase_date_formatted=purchase_date_formatted, categories=categories, folders=folders)
+            product.length = normalized_length
+        else:
+            product.length = None
         
         # Ordner aktualisieren
         folder_id = request.form.get('folder_id', '').strip()
@@ -1385,6 +1452,16 @@ def api_products():
         search = request.args.get('search', '').strip()
         category = request.args.get('category', '').strip()
         status = request.args.get('status', '').strip()
+        sort_by_param = request.args.get('sort_by', 'name')
+        sort_dir_param = request.args.get('sort_dir', 'asc')
+        
+        sort_by = (sort_by_param or 'name').strip().lower()
+        sort_dir = (sort_dir_param or 'asc').strip().lower()
+        if sort_by not in {'name', 'category', 'status', 'condition', 'folder', 'created_at', 'length'}:
+            sort_by = 'name'
+        if sort_dir not in {'asc', 'desc'}:
+            sort_dir = 'asc'
+        descending = sort_dir == 'desc'
         
         query = Product.query
         
@@ -1408,7 +1485,35 @@ def api_products():
         
         # Versuche Ordner-Relationship zu laden, falls vorhanden
         try:
-            products = query.options(joinedload(Product.folder)).order_by(Product.name).all()
+            sort_field_map = {
+                'name': Product.name,
+                'category': Product.category,
+                'status': Product.status,
+                'condition': Product.condition,
+                'folder': Product.folder_id,
+                'created_at': Product.created_at,
+            }
+            
+            products_query = query.options(joinedload(Product.folder))
+            
+            if sort_by != 'length':
+                sort_column = sort_field_map.get(sort_by, Product.name)
+                order_clause = sort_column.desc() if descending else sort_column.asc()
+                products_query = products_query.order_by(order_clause)
+            else:
+                # Fallback-Sortierung, bevor wir in Python sortieren
+                products_query = products_query.order_by(Product.name.asc())
+            
+            products = products_query.all()
+            
+            if sort_by == 'length':
+                def length_sort_key(prod):
+                    meters = parse_length_to_meters(getattr(prod, 'length', None))
+                    if meters is None:
+                        return (1, 0.0)
+                    return (0, -meters if descending else meters)
+                
+                products.sort(key=length_sort_key)
         except Exception as e:
             # Falls joinedload fehlschlägt (z.B. wenn Relationship nicht existiert), ohne eager loading
             current_app.logger.warning(f"joinedload fehlgeschlagen, verwende Standard-Query: {e}")
@@ -1452,6 +1557,7 @@ def api_products():
                     'condition': p.condition,
                     'location': location_value,
                     'length': length_value,
+                    'length_meters': parse_length_to_meters(length_value),
                     'folder_id': folder_id,
                     'folder_name': folder_name,
                     'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
@@ -1481,6 +1587,7 @@ def api_products():
                     'condition': getattr(p, 'condition', None),
                     'location': getattr(p, 'location', None),
                     'length': getattr(p, 'length', None),
+                    'length_meters': parse_length_to_meters(getattr(p, 'length', None)),
                     'folder_id': None,
                     'folder_name': None,
                     'purchase_date': p.purchase_date.isoformat() if p.purchase_date else None,
@@ -1522,6 +1629,7 @@ def api_product_get(product_id):
         'condition': product.condition,
         'location': product.location,
         'length': product.length,
+        'length_meters': parse_length_to_meters(product.length),
         'folder_id': product.folder_id,
         'folder_name': product.folder.name if product.folder else None,
         'purchase_date': product.purchase_date.isoformat() if product.purchase_date else None,
@@ -1541,6 +1649,13 @@ def api_product_create():
     
     if not data or not data.get('name'):
         return jsonify({'error': 'Der Produktname ist verpflichtend.'}), 400
+
+    length_raw = data.get('length')
+    normalized_length = None
+    if length_raw not in (None, ''):
+        normalized_length, _ = normalize_length_input(str(length_raw))
+        if normalized_length is None:
+            return jsonify({'error': 'Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).'}), 400
     
     product = Product(
         name=data['name'],
@@ -1549,6 +1664,7 @@ def api_product_create():
         serial_number=data.get('serial_number'),
         condition=data.get('condition'),
         location=data.get('location'),
+        length=normalized_length,
         purchase_date=datetime.strptime(data['purchase_date'], '%Y-%m-%d').date() if data.get('purchase_date') else None,
         status='available',
         created_by=current_user.id
@@ -1593,6 +1709,15 @@ def api_product_update(product_id):
         product.condition = data.get('condition')
     if 'location' in data:
         product.location = data.get('location')
+    if 'length' in data:
+        length_raw = data.get('length')
+        if length_raw in (None, ''):
+            product.length = None
+        else:
+            normalized_length, _ = normalize_length_input(str(length_raw))
+            if normalized_length is None:
+                return jsonify({'error': 'Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).'}), 400
+            product.length = normalized_length
     if 'purchase_date' in data:
         if data['purchase_date']:
             product.purchase_date = datetime.strptime(data['purchase_date'], '%Y-%m-%d').date()
@@ -1624,10 +1749,164 @@ def api_product_delete(product_id):
     return jsonify({'message': 'Produkt gelöscht.'})
 
 
-@inventory_bp.route('/api/folders', methods=['GET'])
+@inventory_bp.route('/api/products/bulk-update', methods=['POST'])
+@login_required
+def api_products_bulk_update():
+    """API: Mehrere Produkte gleichzeitig aktualisieren."""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'Keine Daten übermittelt.'}), 400
+    
+    product_ids = data.get('product_ids', [])
+    if not product_ids or not isinstance(product_ids, list):
+        return jsonify({'error': 'Ungültige Produkt-IDs. Erwartet Array von IDs.'}), 400
+    
+    if len(product_ids) == 0:
+        return jsonify({'error': 'Keine Produkt-IDs übermittelt.'}), 400
+    
+    # Lade alle Produkte
+    try:
+        product_ids_int = [int(pid) for pid in product_ids]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Ungültige Produkt-IDs. Alle IDs müssen Zahlen sein.'}), 400
+    
+    products = Product.query.filter(Product.id.in_(product_ids_int)).all()
+    
+    if len(products) != len(product_ids_int):
+        return jsonify({'error': 'Einige Produkt-IDs wurden nicht gefunden.'}), 404
+    
+    # Update-Daten verarbeiten
+    updates = {}
+    errors = []
+    
+    # Location
+    if 'location' in data:
+        location_value = data.get('location', '').strip() or None
+        updates['location'] = location_value
+    
+    # Length
+    if 'length' in data:
+        length_raw = data.get('length')
+        if length_raw in (None, ''):
+            updates['length'] = None
+        else:
+            normalized_length, _ = normalize_length_input(str(length_raw))
+            if normalized_length is None:
+                errors.append('Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).')
+            else:
+                updates['length'] = normalized_length
+    
+    # Condition
+    if 'condition' in data:
+        condition_value = data.get('condition', '').strip() or None
+        if condition_value not in (None, '', 'Neu', 'Gut', 'Gebraucht', 'Beschädigt'):
+            errors.append('Ungültiger Zustand. Erlaubt: Neu, Gut, Gebraucht, Beschädigt.')
+        else:
+            updates['condition'] = condition_value
+    
+    # Category
+    if 'category' in data:
+        category_value = data.get('category', '').strip() or None
+        updates['category'] = category_value
+    
+    # Folder ID
+    if 'folder_id' in data:
+        folder_id_raw = data.get('folder_id')
+        if folder_id_raw in (None, ''):
+            updates['folder_id'] = None
+        else:
+            try:
+                folder_id_int = int(folder_id_raw)
+                # Prüfe ob Ordner existiert
+                folder = ProductFolder.query.get(folder_id_int)
+                if not folder:
+                    errors.append(f'Ordner mit ID {folder_id_int} nicht gefunden.')
+                else:
+                    updates['folder_id'] = folder_id_int
+            except (ValueError, TypeError):
+                errors.append('Ungültige Ordner-ID.')
+    
+    # Image (Bild entfernen)
+    if 'remove_image' in data and data.get('remove_image'):
+        updates['remove_image'] = True
+    
+    if errors:
+        return jsonify({'error': 'Validierungsfehler', 'details': errors}), 400
+    
+    if not updates:
+        return jsonify({'error': 'Keine Update-Daten übermittelt.'}), 400
+    
+    # Batch-Update durchführen
+    updated_count = 0
+    for product in products:
+        try:
+            if 'location' in updates:
+                product.location = updates['location']
+            if 'length' in updates:
+                product.length = updates['length']
+            if 'condition' in updates:
+                product.condition = updates['condition']
+            if 'category' in updates:
+                product.category = updates['category']
+            if 'folder_id' in updates:
+                product.folder_id = updates['folder_id']
+            if updates.get('remove_image'):
+                if product.image_path:
+                    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
+                    filepath = os.path.join(upload_dir, product.image_path)
+                    if os.path.exists(filepath):
+                        try:
+                            os.remove(filepath)
+                        except Exception as e:
+                            current_app.logger.error(f"Fehler beim Löschen des Bildes: {e}")
+                product.image_path = None
+            updated_count += 1
+        except Exception as e:
+            current_app.logger.error(f"Fehler beim Aktualisieren von Produkt {product.id}: {e}")
+            errors.append(f"Fehler bei Produkt {product.id}: {str(e)}")
+    
+    if errors:
+        db.session.rollback()
+        return jsonify({'error': 'Fehler beim Aktualisieren', 'details': errors}), 500
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'{updated_count} Produkt(e) erfolgreich aktualisiert.',
+        'updated_count': updated_count
+    })
+
+
+@inventory_bp.route('/api/folders', methods=['GET', 'POST'])
 @login_required
 def api_folders():
-    """API: Liste aller Ordner."""
+    """API: Liste aller Ordner oder neuen Ordner erstellen."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        name = (data.get('name') or '').strip()
+        description = (data.get('description') or '').strip() or None
+        color = (data.get('color') or '').strip() or None
+        if not name:
+            return jsonify({'error': 'Der Ordnername ist verpflichtend.'}), 400
+        existing = ProductFolder.query.filter_by(name=name).first()
+        if existing:
+            return jsonify({'error': 'Ein Ordner mit diesem Namen existiert bereits.'}), 400
+        folder = ProductFolder(
+            name=name,
+            description=description,
+            color=color,
+            created_by=current_user.id
+        )
+        db.session.add(folder)
+        db.session.commit()
+        return jsonify({
+            'id': folder.id,
+            'name': folder.name,
+            'description': folder.description,
+            'color': folder.color,
+            'product_count': folder.product_count
+        }), 201
     try:
         folders = ProductFolder.query.order_by(ProductFolder.name).all()
         return jsonify([{
@@ -1688,6 +1967,7 @@ def api_stock():
                 'status': p.status,
                 'location': p.location,
                 'length': p.length,
+                'length_meters': parse_length_to_meters(p.length),
                 'folder_id': getattr(p, 'folder_id', None),
                 'folder_name': p.folder.name if p.folder else None,
                 'image_path': image_path_value,
@@ -1711,6 +1991,7 @@ def api_stock():
                 'status': p.status,
                 'location': p.location,
                 'length': getattr(p, 'length', None),
+                'length_meters': parse_length_to_meters(getattr(p, 'length', None)),
                 'folder_id': None,
                 'folder_name': None,
                 'image_path': image_path_value,
@@ -3023,4 +3304,88 @@ def api_mobile_statistics():
         'borrowed_count': borrowed_count,
         'available_count': available_count
     })
+
+
+@inventory_bp.route('/api/folders/<int:folder_id>', methods=['PUT', 'DELETE'])
+@login_required
+def api_folder_update_delete(folder_id):
+    folder = ProductFolder.query.get_or_404(folder_id)
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        new_name = (data.get('name') or '').strip()
+        description = (data.get('description') or '').strip() or None
+        color = (data.get('color') or '').strip() or None
+        if not new_name:
+            return jsonify({'error': 'Der Ordnername ist verpflichtend.'}), 400
+        existing = ProductFolder.query.filter(ProductFolder.id != folder_id, ProductFolder.name == new_name).first()
+        if existing:
+            return jsonify({'error': 'Ein Ordner mit diesem Namen existiert bereits.'}), 400
+        folder.name = new_name
+        folder.description = description
+        folder.color = color
+        db.session.commit()
+        return jsonify({
+            'id': folder.id,
+            'name': folder.name,
+            'description': folder.description,
+            'color': folder.color,
+            'product_count': folder.product_count
+        })
+    # DELETE
+    # Entferne Ordnerbezug aus Produkten
+    for product in folder.products:
+        product.folder_id = None
+    db.session.delete(folder)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@inventory_bp.route('/api/categories', methods=['GET', 'POST'])
+@login_required
+def api_categories():
+    """API: Kategorien abrufen oder erstellen."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        name = (data.get('name') or '').strip()
+        if not name:
+            return jsonify({'error': 'Der Kategoriename ist verpflichtend.'}), 400
+        categories = get_inventory_categories()
+        if name in categories:
+            return jsonify({'error': 'Eine Kategorie mit diesem Namen existiert bereits.'}), 400
+        categories.append(name)
+        save_inventory_categories(categories)
+        return jsonify({'name': name}), 201
+    categories = get_inventory_categories()
+    return jsonify(sorted(categories))
+
+
+@inventory_bp.route('/api/categories/<path:category_name>', methods=['PUT', 'DELETE'])
+@login_required
+def api_category_update_delete(category_name):
+    original_name = unquote(category_name).strip()
+    if not original_name:
+        return jsonify({'error': 'Ungültiger Kategoriename.'}), 400
+    categories = get_inventory_categories()
+    if original_name not in categories:
+        return jsonify({'error': 'Kategorie nicht gefunden.'}), 404
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        new_name = (data.get('name') or '').strip()
+        if not new_name:
+            return jsonify({'error': 'Der neue Kategoriename ist verpflichtend.'}), 400
+        if new_name != original_name and new_name in categories:
+            return jsonify({'error': 'Eine Kategorie mit diesem Namen existiert bereits.'}), 400
+        updated_categories = [new_name if c == original_name else c for c in categories]
+        save_inventory_categories(updated_categories)
+        # Produkte aktualisieren
+        Product.query.filter_by(category=original_name).update({'category': new_name}, synchronize_session=False)
+        db.session.commit()
+        return jsonify({'name': new_name})
+    # DELETE
+    updated_categories = [c for c in categories if c != original_name]
+    save_inventory_categories(updated_categories)
+    # Entferne Kategorie aus Produkten
+    Product.query.filter_by(category=original_name).update({'category': None}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'success': True})
 

@@ -1,45 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Neuer Chat - Team Portal{% endblock %}
+{% block title %}{{ _('chat.create.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-lg-8 mx-auto">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}">Chats</a></li>
-                <li class="breadcrumb-item active">Neuer Chat</li>
+                <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}">{{ _('chat.create.breadcrumb.index') }}</a></li>
+                <li class="breadcrumb-item active">{{ _('chat.create.breadcrumb.current') }}</li>
             </ol>
         </nav>
         
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0">Neuen Chat erstellen</h4>
+                <h4 class="mb-0">{{ _('chat.create.heading') }}</h4>
             </div>
             <div class="card-body">
                 <form method="POST" id="chat-create-form">
                     <div class="mb-3">
-                        <label class="form-label">Chat-Typ</label>
-                        <div class="btn-group w-100" role="group" aria-label="Chat-Typ">
+                        <label class="form-label">{{ _('chat.create.form.chat_type.label') }}</label>
+                        <div class="btn-group w-100" role="group" aria-label="{{ _('chat.create.form.chat_type.label') }}">
                             <input type="radio" class="btn-check" name="chat_type" id="chat_type_group" value="group" checked>
                             <label class="btn btn-outline-primary" for="chat_type_group">
-                                <i class="bi bi-people-fill me-2"></i>Gruppen-Chat
+                                <i class="bi bi-people-fill me-2"></i>{{ _('chat.create.form.chat_type.group') }}
                             </label>
                             
                             <input type="radio" class="btn-check" name="chat_type" id="chat_type_private" value="private">
                             <label class="btn btn-outline-primary" for="chat_type_private">
-                                <i class="bi bi-person-fill me-2"></i>Privater Chat
+                                <i class="bi bi-person-fill me-2"></i>{{ _('chat.create.form.chat_type.private') }}
                             </label>
                         </div>
                     </div>
                     
                     <div class="mb-3" id="chat-name-group">
-                        <label for="name" class="form-label">Chat-Name</label>
-                        <input type="text" class="form-control" id="name" name="name" placeholder="z.B. Projekt Team">
+                        <label for="name" class="form-label">{{ _('chat.create.form.chat_name.label') }}</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="{{ _('chat.create.form.chat_name.placeholder') }}">
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label" id="members-label">Mitglieder hinzufügen</label>
+                        <label class="form-label" id="members-label">{{ _('chat.create.form.members.label') }}</label>
                         <div class="list-group" style="max-height: 300px; overflow-y: auto;" id="members-list">
                             {% for user in users %}
                             {% if user.id != current_user.id %}
@@ -51,12 +51,12 @@
                             {% endif %}
                             {% endfor %}
                         </div>
-                        <small class="text-muted" id="members-help">Wählen Sie mindestens ein Mitglied aus</small>
+                        <small class="text-muted" id="members-help">{{ _('chat.create.form.members.help') }}</small>
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent" id="submit-btn">Chat erstellen</button>
-                        <a href="{{ url_for('chat.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                        <button type="submit" class="btn btn-accent" id="submit-btn">{{ _('chat.create.form.buttons.submit') }}</button>
+                        <a href="{{ url_for('chat.index') }}" class="btn btn-outline-secondary">{{ _('chat.create.form.buttons.cancel') }}</a>
                     </div>
                 </form>
             </div>
@@ -68,11 +68,26 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const CHAT_CREATE_I18N = {{ current_translations.get('chat', {}).get('create', {})|tojson }};
+    const FORM_I18N = CHAT_CREATE_I18N.form || {};
+    const MEMBERS_I18N = FORM_I18N.members || {};
+    const ALERT_I18N = FORM_I18N.alerts || {};
+    const MEMBERS_FALLBACK = {{ {
+        "label": _('chat.create.form.members.label'),
+        "single_label": _('chat.create.form.members.single_label'),
+        "help": _('chat.create.form.members.help'),
+        "help_private": _('chat.create.form.members.help_private')
+    }|tojson }};
+    const ALERT_FALLBACKS = {{ {
+        "select_private": _('chat.create.form.alerts.select_private'),
+        "enter_name": _('chat.create.form.alerts.enter_name'),
+        "select_members": _('chat.create.form.alerts.select_members')
+    }|tojson }};
+
     const chatTypeGroup = document.getElementById('chat_type_group');
     const chatTypePrivate = document.getElementById('chat_type_private');
     const chatNameGroup = document.getElementById('chat-name-group');
     const nameInput = document.getElementById('name');
-    const membersList = document.getElementById('members-list');
     const membersLabel = document.getElementById('members-label');
     const membersHelp = document.getElementById('members-help');
     const memberCheckboxes = document.querySelectorAll('.member-checkbox');
@@ -82,67 +97,58 @@ document.addEventListener('DOMContentLoaded', function() {
         const isPrivate = chatTypePrivate.checked;
         
         if (isPrivate) {
-            // Privater Chat: Name-Feld ausblenden, Radio-Buttons verwenden
             chatNameGroup.style.display = 'none';
             nameInput.removeAttribute('required');
-            membersLabel.textContent = 'Person auswählen';
-            membersHelp.textContent = 'Wählen Sie eine Person für den privaten Chat aus';
+            membersLabel.textContent = MEMBERS_I18N.single_label || MEMBERS_FALLBACK.single_label;
+            membersHelp.textContent = MEMBERS_I18N.help_private || MEMBERS_FALLBACK.help_private;
             
-            // Checkboxen zu Radio-Buttons ändern
             memberCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
                 checkbox.type = 'radio';
-                checkbox.name = 'member'; // Singular für Radio-Buttons
+                checkbox.name = 'member';
             });
         } else {
-            // Gruppen-Chat: Name-Feld anzeigen, Checkboxen verwenden
             chatNameGroup.style.display = 'block';
             nameInput.setAttribute('required', 'required');
-            membersLabel.textContent = 'Mitglieder hinzufügen';
-            membersHelp.textContent = 'Wählen Sie mindestens ein Mitglied aus';
+            membersLabel.textContent = MEMBERS_I18N.label || MEMBERS_FALLBACK.label;
+            membersHelp.textContent = MEMBERS_I18N.help || MEMBERS_FALLBACK.help;
             
-            // Radio-Buttons zu Checkboxen ändern
             memberCheckboxes.forEach(checkbox => {
                 checkbox.type = 'checkbox';
-                checkbox.name = 'members'; // Plural für Checkboxen
-                checkbox.checked = false; // Alle zurücksetzen
+                checkbox.name = 'members';
             });
         }
     }
     
-    // Event-Listener für Chat-Typ-Änderungen
     chatTypeGroup.addEventListener('change', updateFormForChatType);
     chatTypePrivate.addEventListener('change', updateFormForChatType);
     
-    // Formular-Validierung
     form.addEventListener('submit', function(e) {
         const isPrivate = chatTypePrivate.checked;
         
         if (isPrivate) {
-            // Bei privatem Chat: genau ein Mitglied muss ausgewählt sein
             const selectedMember = document.querySelector('input[name="member"]:checked');
             if (!selectedMember) {
                 e.preventDefault();
-                alert('Bitte wählen Sie eine Person für den privaten Chat aus.');
+                alert(ALERT_I18N.select_private || ALERT_FALLBACKS.select_private);
                 return false;
             }
         } else {
-            // Bei Gruppen-Chat: Name und mindestens ein Mitglied erforderlich
             if (!nameInput.value.trim()) {
                 e.preventDefault();
-                alert('Bitte geben Sie einen Chat-Namen ein.');
+                alert(ALERT_I18N.enter_name || ALERT_FALLBACKS.enter_name);
                 return false;
             }
             
             const selectedMembers = document.querySelectorAll('input[name="members"]:checked');
             if (selectedMembers.length === 0) {
                 e.preventDefault();
-                alert('Bitte wählen Sie mindestens ein Mitglied aus.');
+                alert(ALERT_I18N.select_members || ALERT_FALLBACKS.select_members);
                 return false;
             }
         }
     });
     
-    // Initiale Formular-Status setzen
     updateFormForChatType();
 });
 </script>

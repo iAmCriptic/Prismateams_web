@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ canvas.name }} - Canvas{% endblock %}
+{% block title %}{{ canvas.name }} - {{ _('canvas.edit.page_title_suffix') }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/canvas.css') }}">
@@ -15,64 +15,64 @@
         <div class="canvas-top-left">
             <a href="{{ url_for('canvas.index') }}" class="canvas-back-btn">
                 <i class="bi bi-arrow-left"></i>
-                <span>teampoortal</span>
+                <span>{{ _('canvas.edit.back_label') }}</span>
             </a>
         </div>
         
         <!-- Center: Toolbar -->
         <div class="canvas-toolbar">
             <!-- Tool 0: Schloss -->
-            <button class="canvas-tool-btn" data-tool="lock" title="Bearbeitung aktivieren/deaktivieren">
+            <button class="canvas-tool-btn" data-tool="lock" title="{{ _('canvas.edit.toolbar.lock') }}">
                 <i class="bi bi-lock"></i>
             </button>
             
             <!-- Tool 1: Hand -->
-            <button class="canvas-tool-btn" data-tool="hand" title="Canvas bewegen">
+            <button class="canvas-tool-btn" data-tool="hand" title="{{ _('canvas.edit.toolbar.hand') }}">
                 <i class="bi bi-hand-index"></i>
             </button>
             
             <!-- Tool 2: Auswahl -->
-            <button class="canvas-tool-btn active" data-tool="select" title="Objekte auswählen und bewegen">
+            <button class="canvas-tool-btn active" data-tool="select" title="{{ _('canvas.edit.toolbar.select') }}">
                 <i class="bi bi-cursor"></i>
             </button>
             
             <!-- Tool 3: Rechteck -->
-            <button class="canvas-tool-btn" data-tool="rectangle" title="Rechteck zeichnen">
+            <button class="canvas-tool-btn" data-tool="rectangle" title="{{ _('canvas.edit.toolbar.rectangle') }}">
                 <i class="bi bi-square"></i>
             </button>
             
             <!-- Tool 4: Diamant -->
-            <button class="canvas-tool-btn" data-tool="diamond" title="Diamant zeichnen">
+            <button class="canvas-tool-btn" data-tool="diamond" title="{{ _('canvas.edit.toolbar.diamond') }}">
                 <i class="bi bi-diamond"></i>
             </button>
             
             <!-- Tool 5: Kreis -->
-            <button class="canvas-tool-btn" data-tool="circle" title="Kreis zeichnen">
+            <button class="canvas-tool-btn" data-tool="circle" title="{{ _('canvas.edit.toolbar.circle') }}">
                 <i class="bi bi-circle"></i>
             </button>
             
             <!-- Tool 6: Pfeil -->
-            <button class="canvas-tool-btn" data-tool="arrow" title="Pfeil zeichnen">
+            <button class="canvas-tool-btn" data-tool="arrow" title="{{ _('canvas.edit.toolbar.arrow') }}">
                 <i class="bi bi-arrow-right"></i>
             </button>
             
             <!-- Tool 7: Linie -->
-            <button class="canvas-tool-btn" data-tool="line" title="Linie zeichnen">
+            <button class="canvas-tool-btn" data-tool="line" title="{{ _('canvas.edit.toolbar.line') }}">
                 <i class="bi bi-dash-lg"></i>
             </button>
             
             <!-- Tool 8: Text -->
-            <button class="canvas-tool-btn" data-tool="text" title="Text hinzufügen">
+            <button class="canvas-tool-btn" data-tool="text" title="{{ _('canvas.edit.toolbar.text') }}">
                 <i class="bi bi-type"></i>
             </button>
             
             <!-- Tool 9: Bild -->
-            <button class="canvas-tool-btn" data-tool="image" title="Bild einfügen">
+            <button class="canvas-tool-btn" data-tool="image" title="{{ _('canvas.edit.toolbar.image') }}">
                 <i class="bi bi-image"></i>
             </button>
             
             <!-- Tool 10: Radierer -->
-            <button class="canvas-tool-btn" data-tool="eraser" title="Objekte löschen">
+            <button class="canvas-tool-btn" data-tool="eraser" title="{{ _('canvas.edit.toolbar.eraser') }}">
                 <i class="bi bi-eraser"></i>
             </button>
         </div>
@@ -88,21 +88,21 @@
     <div class="canvas-bottom-controls">
         <!-- Left: Zoom Controls -->
         <div class="canvas-zoom-controls">
-            <button class="canvas-control-btn" id="zoom-out" title="Rauszoomen">
+            <button class="canvas-control-btn" id="zoom-out" title="{{ _('canvas.edit.zoom.out') }}">
                 <i class="bi bi-dash"></i>
             </button>
             <span class="canvas-zoom-level" id="zoom-level">100%</span>
-            <button class="canvas-control-btn" id="zoom-in" title="Reinzoomen">
+            <button class="canvas-control-btn" id="zoom-in" title="{{ _('canvas.edit.zoom.in') }}">
                 <i class="bi bi-plus"></i>
             </button>
         </div>
         
         <!-- Center: Undo/Redo Controls -->
         <div class="canvas-history-controls">
-            <button class="canvas-control-btn" id="undo-btn" title="Rückgängig" disabled>
+            <button class="canvas-control-btn" id="undo-btn" title="{{ _('canvas.edit.history.undo') }}" disabled>
                 <i class="bi bi-arrow-counterclockwise"></i>
             </button>
-            <button class="canvas-control-btn" id="redo-btn" title="Wiederholen" disabled>
+            <button class="canvas-control-btn" id="redo-btn" title="{{ _('canvas.edit.history.redo') }}" disabled>
                 <i class="bi bi-arrow-clockwise"></i>
             </button>
         </div>
@@ -112,7 +112,7 @@
             <div class="canvas-active-users" id="canvas-active-users">
                 <!-- Wird dynamisch mit SocketIO gefüllt -->
             </div>
-            <button class="canvas-control-btn" id="comments-toggle-btn" title="Kommentare anzeigen/verstecken">
+            <button class="canvas-control-btn" id="comments-toggle-btn" title="{{ _('canvas.edit.comments.toggle') }}">
                 <i class="bi bi-chat-dots"></i>
             </button>
         </div>
@@ -121,7 +121,7 @@
     <!-- Kommentar-Sidebar -->
     <div id="canvas-comments-sidebar" class="canvas-comments-sidebar" style="display: none;">
         <div class="canvas-comments-header">
-            <h5>Kommentare</h5>
+            <h5>{{ _('canvas.edit.comments.title') }}</h5>
             <button class="btn-close" id="comments-close-btn"></button>
         </div>
         <div class="canvas-comments-content">
