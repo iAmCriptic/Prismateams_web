@@ -1,7 +1,7 @@
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm, mm
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, Flowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from flask import current_app
@@ -12,6 +12,33 @@ from PIL import Image as PILImage
 from app.utils.qr_code import generate_qr_code_bytes, generate_qr_code_inverted_bytes, generate_product_qr_code, generate_borrow_qr_code
 from app.utils.lengths import format_length_from_meters, parse_length_to_meters
 from app.utils.color_mapping import get_color_for_length, initialize_color_mappings
+
+
+class DashedLine(Flowable):
+    """Custom Flowable für gestrichelte Linien."""
+    def __init__(self, width, height, color, dash_array=[3, 2], horizontal=True):
+        Flowable.__init__(self)
+        self.width = width
+        self.height = height
+        self.color = color
+        self.dash_array = dash_array
+        self.horizontal = horizontal
+    
+    def draw(self):
+        """Zeichnet eine gestrichelte Linie."""
+        self.canv.saveState()
+        self.canv.setStrokeColor(self.color)
+        self.canv.setDash(self.dash_array)
+        self.canv.setLineWidth(0.5)
+        
+        if self.horizontal:
+            # Horizontale Linie
+            self.canv.line(0, self.height / 2, self.width, self.height / 2)
+        else:
+            # Vertikale Linie
+            self.canv.line(self.width / 2, 0, self.width / 2, self.height)
+        
+        self.canv.restoreState()
 
 
 def _format_length(value):
@@ -443,13 +470,27 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
         output = BytesIO()
     
     # Initialisiere Farbzuordnungen falls nötig
+    # Wichtig: Auch bei Fehler fortfahren, damit Geräte-PDFs ohne Länge funktionieren
     try:
         initialize_color_mappings()
     except Exception as e:
         current_app.logger.warning(f"Fehler beim Initialisieren der Farbzuordnungen: {e}")
+        # Session zurücksetzen, damit weitere Operationen funktionieren
+        from app import db
+        db.session.rollback()
     
     # A4-Seite: 21cm × 29.7cm
     # Ränder: 1.5cm links/rechts, 2cm oben/unten
+    # Speichere Label-Parameter für Custom Template
+    label_params = {
+        'label_width': None,
+        'label_height': None,
+        'cols_per_row': None,
+        'num_rows': None,
+        'line_color': None,
+        'label_type': label_type
+    }
+    
     doc = SimpleDocTemplate(output, pagesize=A4, 
                            leftMargin=1.5*cm, rightMargin=1.5*cm,
                            topMargin=2*cm, bottomMargin=2*cm)
@@ -495,7 +536,8 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
     
     # Label-Dimensionen
     label_width = 1.9*cm  # Breite des Labels
-    label_height = 3.8*cm  # Gesamthöhe
+    # Höhe abhängig vom Label-Typ: Kabel = 3.8cm, Geräte = 3.0cm (kompakter)
+    label_height = 3.8*cm if label_type == 'cable' else 3.0*cm
     qr_size = 1.9*cm  # QR-Code Größe
     
     # Berechne Anzahl Spalten pro Zeile
@@ -526,13 +568,15 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
                 color_obj = colors.HexColor(color_hex) if color_hex else colors.black
                 
                 # Obere Hälfte: Farbstreifen (wenn Länge vorhanden) + Text
-                color_stripe_height = 0.4*cm  # Höhe des Farbstreifens
+                # Wenn keine Länge: Komplett schwarz, kein Farbstreifen
+                has_length = color_hex and product.length
+                color_stripe_height = 0.4*cm if has_length else 0  # Höhe des Farbstreifens
                 text_area_height = label_height - color_stripe_height - qr_size
                 
                 # Erstelle oberen Bereich mit Farbstreifen und Text
                 top_elements = []
-                if color_hex and product.length:
-                    # Farbstreifen oben
+                if has_length:
+                    # Farbstreifen oben (nur wenn Länge vorhanden)
                     color_stripe = Table([[Paragraph("", ParagraphStyle('Empty', parent=styles['Normal']))]], 
                                         colWidths=[label_width], rowHeights=[color_stripe_height])
                     color_stripe.setStyle(TableStyle([
@@ -599,7 +643,7 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
                 label_content.append([qr_table])
                 
                 row_heights = []
-                if color_hex and product.length:
+                if has_length:
                     row_heights.append(color_stripe_height)
                 row_heights.append(text_area_height)
                 row_heights.append(qr_size)
@@ -614,8 +658,8 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
                 if len(product_name) > 20:
                     product_name = product_name[:17] + "..."
                 
-                # Obere Hälfte: QR-Code
-                qr_area_height = 2.0*cm
+                # Obere Hälfte: QR-Code (angepasst für kompaktere Geräte-Labels)
+                qr_area_height = 1.8*cm if label_type == 'device' else 2.0*cm
                 qr_table = Table([[qr_image]], colWidths=[label_width], rowHeights=[qr_area_height])
                 qr_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, -1), colors.white),
@@ -657,14 +701,18 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
             
             # Label-Tabelle erstellen
             label_table = Table(label_content, colWidths=[label_width], rowHeights=row_heights)
-            label_table.setStyle(TableStyle([
+            label_style = [
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
                 ('TOPPADDING', (0, 0), (-1, -1), 0),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
+            ]
+            # Für Kabel-Labels: Komplett schwarzer Hintergrund (kein weißer Rand)
+            if label_type == 'cable':
+                label_style.append(('BACKGROUND', (0, 0), (-1, -1), colors.black))
+            label_table.setStyle(TableStyle(label_style))
             
             # Label zur aktuellen Zeile hinzufügen
             current_row.append(label_table)
@@ -701,17 +749,78 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
     
     # Raster-Tabelle mit allen Labels erstellen
     if label_rows:
+        # Bestimme Linienfarbe basierend auf Label-Typ
+        line_color = colors.white if label_type == 'cable' else colors.black
+        
+        # Speichere Parameter für Custom Template
+        label_params['label_width'] = label_width
+        label_params['label_height'] = label_height
+        label_params['cols_per_row'] = cols_per_row
+        label_params['num_rows'] = len(label_rows)
+        label_params['line_color'] = line_color
+        
+        # Erstelle einfache Tabelle ohne GRID
         grid_table = Table(label_rows, colWidths=[label_width] * cols_per_row)
-        grid_table.setStyle(TableStyle([
-            # Rahmen um alle Labels
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        grid_style = [
             # Ausrichtung
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             # Höhe der Zeilen
             ('HEIGHT', (0, 0), (-1, -1), label_height),
-        ]))
-        story.append(grid_table)
+            # Kein Padding
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]
+        grid_table.setStyle(TableStyle(grid_style))
+        
+        # Erstelle Custom Flowable, das die Tabelle und gestrichelte Linien rendert
+        class TableWithDashedLines(Flowable):
+            def __init__(self, table, label_width, label_height, cols_per_row, num_rows, line_color):
+                Flowable.__init__(self)
+                self.table = table
+                self.label_width = label_width
+                self.label_height = label_height
+                self.cols_per_row = cols_per_row
+                self.num_rows = num_rows
+                self.line_color = line_color
+                self.width = label_width * cols_per_row
+                self.height = label_height * num_rows
+            
+            def wrap(self, availWidth, availHeight):
+                """Wrappt die Tabelle und gibt die Größe zurück."""
+                # Wrappe die Tabelle zuerst, damit sie später gezeichnet werden kann
+                self.table.wrap(availWidth, availHeight)
+                return (self.width, self.height)
+            
+            def draw(self):
+                """Rendert die Tabelle und zeichnet dann die gestrichelten Linien."""
+                # Rendere die Tabelle (sie wurde bereits in wrap() gewrappt)
+                self.table.drawOn(self.canv, 0, 0)
+                
+                # Zeichne gestrichelte vertikale Linien
+                self.canv.saveState()
+                self.canv.setStrokeColor(self.line_color)
+                self.canv.setDash([3, 2])  # 3pt Strich, 2pt Lücke
+                self.canv.setLineWidth(0.5)
+                
+                for col in range(1, self.cols_per_row):
+                    x = col * self.label_width
+                    self.canv.line(x, 0, x, self.height)
+                
+                # Zeichne gestrichelte horizontale Linien
+                for row in range(1, self.num_rows):
+                    y = row * self.label_height
+                    self.canv.line(0, y, self.width, y)
+                
+                self.canv.restoreState()
+        
+        # Verwende Custom Flowable für Tabelle mit gestrichelten Linien
+        table_with_lines = TableWithDashedLines(
+            grid_table, label_width, label_height, cols_per_row, len(label_rows), line_color
+        )
+        story.append(table_with_lines)
     
     # Footer
     footer_style = ParagraphStyle(
@@ -763,6 +872,9 @@ def generate_color_code_table_pdf(output=None):
         initialize_color_mappings()
     except Exception as e:
         current_app.logger.warning(f"Fehler beim Initialisieren der Farbzuordnungen: {e}")
+        # Session zurücksetzen, damit weitere Operationen funktionieren
+        from app import db
+        db.session.rollback()
     
     doc = SimpleDocTemplate(output, pagesize=A4, 
                            leftMargin=2*cm, rightMargin=2*cm,

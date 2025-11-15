@@ -86,13 +86,53 @@ def get_or_create_color_mapping(length_meters: float) -> str:
     # Generiere Farbe basierend auf Index
     color = generate_color_for_index(index, len(all_lengths_meters))
     
-    # Speichere Zuordnung
-    mapping = LengthColorMapping(
-        length_meters=length_meters,
-        color_hex=color
-    )
-    db.session.add(mapping)
-    db.session.commit()
+    # Speichere Zuordnung mit Fehlerbehandlung für Race Conditions
+    from sqlalchemy.exc import IntegrityError
+    
+    try:
+        # Verwende no_autoflush, um vorzeitige Flushes zu vermeiden
+        with db.session.no_autoflush:
+            mapping = LengthColorMapping(
+                length_meters=length_meters,
+                color_hex=color
+            )
+            db.session.add(mapping)
+        db.session.commit()
+    except IntegrityError as e:
+        # Bei Duplicate Entry: Rollback und erneut prüfen
+        db.session.rollback()
+        
+        # Prüfe erneut, ob Mapping inzwischen von anderem Thread erstellt wurde
+        mapping = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+        if mapping:
+            return mapping.color_hex
+        
+        # Falls immer noch nicht vorhanden, erneut versuchen (max. 1x)
+        # Dies sollte nur in seltenen Fällen passieren
+        try:
+            with db.session.no_autoflush:
+                mapping = LengthColorMapping(
+                    length_meters=length_meters,
+                    color_hex=color
+                )
+                db.session.add(mapping)
+            db.session.commit()
+        except IntegrityError:
+            # Bei erneutem Fehler: Rollback und prüfe nochmal
+            db.session.rollback()
+            mapping = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+            if mapping:
+                return mapping.color_hex
+            # Falls immer noch nicht vorhanden, verwende Standardfarbe
+            from flask import current_app
+            current_app.logger.warning(f"Konnte Farbzuordnung für {length_meters}m nicht erstellen: {e}")
+            return "#000000"
+    except Exception as e:
+        # Bei anderen Fehlern: Rollback und verwende Standardfarbe
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.warning(f"Konnte Farbzuordnung für {length_meters}m nicht erstellen: {e}")
+        return "#000000"
     
     return color
 
@@ -133,30 +173,66 @@ def initialize_color_mappings():
     Initialisiert Farbzuordnungen für alle vorhandenen Längen in der Datenbank.
     Wird beim ersten Aufruf der QR-Code-Generierung ausgeführt.
     """
-    # Hole alle eindeutigen Längen aus der Datenbank
-    all_lengths = db.session.query(Product.length).distinct().all()
-    all_lengths_meters = []
+    from flask import current_app
+    from sqlalchemy.exc import IntegrityError
     
-    for length_tuple in all_lengths:
-        if length_tuple[0]:
-            meters = parse_length_to_meters(length_tuple[0])
-            if meters is not None:
-                all_lengths_meters.append(round(meters, 2))
-    
-    # Entferne Duplikate und sortiere
-    all_lengths_meters = sorted(set(all_lengths_meters))
-    
-    # Erstelle Zuordnungen für alle Längen
-    for index, length_meters in enumerate(all_lengths_meters):
-        # Prüfe ob bereits existiert
-        existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
-        if not existing:
-            color = generate_color_for_index(index, len(all_lengths_meters))
-            mapping = LengthColorMapping(
-                length_meters=length_meters,
-                color_hex=color
-            )
-            db.session.add(mapping)
-    
-    db.session.commit()
+    try:
+        # Hole alle eindeutigen Längen aus der Datenbank
+        all_lengths = db.session.query(Product.length).distinct().all()
+        all_lengths_meters = []
+        
+        for length_tuple in all_lengths:
+            if length_tuple[0]:
+                meters = parse_length_to_meters(length_tuple[0])
+                if meters is not None:
+                    all_lengths_meters.append(round(meters, 2))
+        
+        # Entferne Duplikate und sortiere
+        all_lengths_meters = sorted(set(all_lengths_meters))
+        
+        # Verwende no_autoflush, um vorzeitige Flushes zu vermeiden
+        with db.session.no_autoflush:
+            # Erstelle Zuordnungen für alle Längen
+            for index, length_meters in enumerate(all_lengths_meters):
+                # Prüfe ob bereits existiert
+                existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+                if not existing:
+                    color = generate_color_for_index(index, len(all_lengths_meters))
+                    mapping = LengthColorMapping(
+                        length_meters=length_meters,
+                        color_hex=color
+                    )
+                    db.session.add(mapping)
+        
+        # Commit alle Änderungen auf einmal
+        db.session.commit()
+    except IntegrityError as e:
+        # Bei Duplikaten: Rollback und erneut prüfen
+        db.session.rollback()
+        
+        # Erneut versuchen, aber diesmal einzeln mit Fehlerbehandlung
+        for index, length_meters in enumerate(all_lengths_meters):
+            # Prüfe ob bereits existiert
+            existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+            if not existing:
+                try:
+                    color = generate_color_for_index(index, len(all_lengths_meters))
+                    mapping = LengthColorMapping(
+                        length_meters=length_meters,
+                        color_hex=color
+                    )
+                    db.session.add(mapping)
+                    db.session.commit()
+                except IntegrityError:
+                    # Mapping wurde inzwischen von anderem Thread erstellt
+                    db.session.rollback()
+                    # Überspringe diese Länge, da sie bereits existiert
+                    continue
+    except Exception as e:
+        # Bei anderen Fehlern: Rollback und loggen
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.warning(f"Fehler beim Initialisieren der Farbzuordnungen: {e}")
+        raise
+
 

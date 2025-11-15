@@ -2159,6 +2159,99 @@ def api_stock():
     return jsonify(result)
 
 
+@inventory_bp.route('/api/inventory/filter-options', methods=['GET'])
+@login_required
+def api_filter_options():
+    """API: Gibt alle verfügbaren Filter-Optionen zurück (optional gefiltert nach Ordner)."""
+    try:
+        from sqlalchemy import distinct, func, extract
+        
+        # Hole optionalen folder_id Parameter
+        folder_id_param = request.args.get('folder_id', type=int)
+        
+        # Basis-Query mit optionaler Ordner-Filterung
+        base_query = Product.query
+        if folder_id_param is not None:
+            # Filtere nach Ordner (auch None für Produkte ohne Ordner)
+            if folder_id_param == 0:
+                # 0 bedeutet: nur Produkte ohne Ordner (Root)
+                base_query = base_query.filter(Product.folder_id.is_(None))
+            else:
+                # Spezifischer Ordner
+                base_query = base_query.filter(Product.folder_id == folder_id_param)
+        
+        # Verwende DISTINCT-Abfragen für bessere Performance und Korrektheit
+        # Kategorien
+        categories_query = base_query.with_entities(distinct(Product.category)).filter(
+            Product.category.isnot(None),
+            Product.category != ''
+        )
+        categories_result = categories_query.all()
+        categories = sorted([cat[0].strip() for cat in categories_result if cat[0] and cat[0].strip()])
+        
+        # Zustände
+        conditions_query = base_query.with_entities(distinct(Product.condition)).filter(
+            Product.condition.isnot(None),
+            Product.condition != ''
+        )
+        conditions_result = conditions_query.all()
+        conditions = sorted([cond[0].strip() for cond in conditions_result if cond[0] and cond[0].strip()])
+        
+        # Lagerorte
+        locations_query = base_query.with_entities(distinct(Product.location)).filter(
+            Product.location.isnot(None),
+            Product.location != ''
+        )
+        locations_result = locations_query.all()
+        locations = sorted([loc[0].strip() for loc in locations_result if loc[0] and loc[0].strip()])
+        
+        # Längen
+        lengths_query = base_query.with_entities(distinct(Product.length)).filter(
+            Product.length.isnot(None),
+            Product.length != ''
+        )
+        lengths_result = lengths_query.all()
+        lengths_raw = [len[0].strip() for len in lengths_result if len[0] and len[0].strip()]
+        
+        # Sortiere Längen intelligent (numerisch wenn möglich)
+        try:
+            lengths = sorted(lengths_raw, key=lambda x: (
+                float(str(x).replace(',', '.').replace('m', '').replace('cm', '').replace('mm', '').strip()) 
+                if str(x).replace(',', '.').replace('m', '').replace('cm', '').replace('mm', '').strip().replace('.', '').replace('-', '').replace('+', '').isdigit() 
+                else float('inf'),
+                str(x)
+            ))
+        except (ValueError, AttributeError):
+            lengths = sorted(lengths_raw)
+        
+        # Anschaffungsjahre - verwende EXTRACT für Jahr
+        years_query = base_query.with_entities(
+            distinct(extract('year', Product.purchase_date))
+        ).filter(
+            Product.purchase_date.isnot(None)
+        )
+        years_result = years_query.all()
+        purchase_years = sorted(
+            [str(int(year[0])) for year in years_result if year[0] is not None and year[0] > 0],
+            key=lambda x: int(x) if x.isdigit() else 0,
+            reverse=True
+        )
+        
+        folder_info = f"Ordner {folder_id_param}" if folder_id_param is not None else "alle Ordner"
+        current_app.logger.debug(f"Filter-Optionen extrahiert für {folder_info}: {len(categories)} Kategorien, {len(conditions)} Zustände, {len(locations)} Lagerorte, {len(lengths)} Längen, {len(purchase_years)} Jahre")
+        
+        return jsonify({
+            'categories': categories,
+            'conditions': conditions,
+            'locations': locations,
+            'lengths': lengths,
+            'purchase_years': purchase_years
+        })
+    except Exception as e:
+        current_app.logger.error(f"Fehler beim Abrufen der Filter-Optionen: {e}", exc_info=True)
+        return jsonify({'error': f'Fehler beim Abrufen der Filter-Optionen: {str(e)}'}), 500
+
+
 @inventory_bp.route('/api/borrow', methods=['POST'])
 @login_required
 def api_borrow():

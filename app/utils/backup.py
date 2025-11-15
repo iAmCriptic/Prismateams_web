@@ -2083,35 +2083,55 @@ def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int], c
     """Importiert Produkt-Ordner und gibt ein Mapping von Name zu neuer ID zurück."""
     folder_map = {}  # name -> neue_id
     
+    if not folders_data:
+        current_app.logger.debug("Keine Produkt-Ordner zum Importieren vorhanden.")
+        return folder_map
+    
     for f_data in folders_data:
+        if not f_data.get('name'):
+            current_app.logger.warning("Ordner ohne Namen übersprungen beim Import.")
+            continue
+        
+        folder_name = f_data['name'].strip()
+        if not folder_name:
+            continue
+        
         created_by_email = f_data.get('created_by_email')
         if not created_by_email:
             if current_user_id:
                 created_by_id = current_user_id
             else:
+                current_app.logger.warning(f"Ordner '{folder_name}' ohne created_by_email und ohne current_user_id übersprungen.")
                 continue
         elif created_by_email not in user_map:
             # Fallback: Wenn Benutzer nicht gefunden wird, verwende current_user
             if current_user_id:
                 created_by_id = current_user_id
             else:
+                current_app.logger.warning(f"Ordner '{folder_name}' - Benutzer '{created_by_email}' nicht gefunden und kein current_user_id verfügbar.")
                 continue
         else:
             created_by_id = user_map[created_by_email]
         
-        existing = ProductFolder.query.filter_by(name=f_data['name']).first()
+        existing = ProductFolder.query.filter_by(name=folder_name).first()
         if existing:
-            folder_map[f_data['name']] = existing.id
+            folder_map[folder_name] = existing.id
+            current_app.logger.debug(f"Ordner '{folder_name}' bereits vorhanden (ID: {existing.id})")
         else:
             folder = ProductFolder(
-                name=f_data['name'],
+                name=folder_name,
                 description=f_data.get('description'),
                 color=f_data.get('color'),
                 created_by=created_by_id
             )
             db.session.add(folder)
             db.session.flush()
-            folder_map[f_data['name']] = folder.id
+            folder_map[folder_name] = folder.id
+            current_app.logger.debug(f"Ordner '{folder_name}' importiert (ID: {folder.id})")
+    
+    # Commit nach allen Ordnern
+    db.session.commit()
+    current_app.logger.info(f"{len(folder_map)} Produkt-Ordner importiert/gefunden.")
     
     return folder_map
 
@@ -2136,8 +2156,20 @@ def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_
         else:
             created_by_id = user_map[created_by_email]
         folder_id = None
-        if p_data.get('folder_name') and p_data['folder_name'] in folder_map:
-            folder_id = folder_map[p_data['folder_name']]
+        folder_name = p_data.get('folder_name')
+        if folder_name:
+            folder_name = folder_name.strip()
+            if folder_name in folder_map:
+                folder_id = folder_map[folder_name]
+                current_app.logger.debug(f"Produkt '{p_data['name']}' wird Ordner '{folder_name}' (ID: {folder_id}) zugeordnet.")
+            else:
+                current_app.logger.warning(f"Produkt '{p_data['name']}' - Ordner '{folder_name}' nicht im folder_map gefunden. Ordner wird nicht zugeordnet.")
+                # Versuche Ordner in der DB zu finden (falls er bereits existiert)
+                existing_folder = ProductFolder.query.filter_by(name=folder_name).first()
+                if existing_folder:
+                    folder_id = existing_folder.id
+                    folder_map[folder_name] = folder_id  # Aktualisiere folder_map für zukünftige Produkte
+                    current_app.logger.info(f"Ordner '{folder_name}' in DB gefunden (ID: {folder_id}) und folder_map aktualisiert.")
         
         existing = Product.query.filter_by(name=p_data['name']).first()
         if existing:

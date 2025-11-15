@@ -265,22 +265,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Farbverlauf-Vorschau
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% endif %}
-});
 </script>
 {% endblock %}
 

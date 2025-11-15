@@ -715,10 +715,6 @@ def admin_backup():
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    # Hole aktuellen Farbverlauf für Template
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    color_gradient = gradient_setting.value if gradient_setting else None
-    
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -727,7 +723,7 @@ def admin_backup():
             categories = request.form.getlist('export_categories')
             if not categories:
                 flash('Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             try:
                 # Temporäre Datei erstellen
@@ -770,16 +766,16 @@ def admin_backup():
             # Import-Backup hochladen
             if 'backup_file' not in request.files:
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             file = request.files['backup_file']
             if file.filename == '':
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             if not file.filename.endswith('.prismateams'):
                 flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             try:
                 # Temporäre Datei speichern
@@ -793,7 +789,7 @@ def admin_backup():
                 if not import_categories:
                     flash('Bitte wählen Sie mindestens eine Kategorie zum Importieren aus.', 'danger')
                     os.unlink(temp_path)
-                    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
                 
                 # Backup importieren
                 result = import_backup(temp_path, import_categories, current_user.id)
@@ -815,7 +811,7 @@ def admin_backup():
                     except:
                         pass
     
-    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
 
 
 @settings_bp.route('/admin/whitelist')

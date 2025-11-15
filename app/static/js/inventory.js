@@ -37,6 +37,7 @@ class StockManager {
         this.setupSortControls();
         await this.loadFolders(); // Lade alle Ordner zuerst
         await this.loadCategories(); // Lade alle Kategorien
+        await this.loadFilterOptions(); // Lade alle Filter-Optionen vom Server
         await this.loadProducts();
         this.renderFolders(); // Rendere Ordner-Struktur
         // Initiale UI-Aktualisierung
@@ -84,6 +85,93 @@ class StockManager {
         }
     }
     
+    async loadFilterOptions() {
+        try {
+            // Baue URL mit optionalem folder_id Parameter
+            // Wenn currentFolderId null ist (Root), verwende folder_id=0 für Produkte ohne Ordner
+            let url = '/inventory/api/inventory/filter-options';
+            if (this.currentFolderId !== null) {
+                url += `?folder_id=${this.currentFolderId}`;
+            } else {
+                // Root: nur Produkte ohne Ordner
+                url += '?folder_id=0';
+            }
+            
+            const response = await fetch(url);
+            if (response.ok) {
+                const filterData = await response.json();
+                
+                // Leere alle Filter-Sets, damit nur die Optionen für den aktuellen Ordner angezeigt werden
+                this.categories.clear();
+                this.conditions.clear();
+                this.locations.clear();
+                this.lengths.clear();
+                this.purchaseYears.clear();
+                
+                // Aktualisiere alle Filter-Sets mit Daten vom Server (nur für aktuellen Ordner)
+                if (filterData.categories && Array.isArray(filterData.categories)) {
+                    filterData.categories.forEach(cat => {
+                        if (cat && cat.trim()) {
+                            this.categories.add(cat.trim());
+                        }
+                    });
+                }
+                
+                if (filterData.conditions && Array.isArray(filterData.conditions)) {
+                    filterData.conditions.forEach(cond => {
+                        if (cond && cond.trim()) {
+                            this.conditions.add(cond.trim());
+                        }
+                    });
+                }
+                
+                if (filterData.locations && Array.isArray(filterData.locations)) {
+                    filterData.locations.forEach(loc => {
+                        if (loc && loc.trim()) {
+                            this.locations.add(loc.trim());
+                        }
+                    });
+                }
+                
+                if (filterData.lengths && Array.isArray(filterData.lengths)) {
+                    filterData.lengths.forEach(len => {
+                        if (len && String(len).trim()) {
+                            this.lengths.add(String(len).trim());
+                        }
+                    });
+                }
+                
+                if (filterData.purchase_years && Array.isArray(filterData.purchase_years)) {
+                    filterData.purchase_years.forEach(year => {
+                        if (year && String(year).trim()) {
+                            this.purchaseYears.add(String(year).trim());
+                        }
+                    });
+                }
+                
+                // Aktualisiere alle Filter-Dropdowns
+                this.updateCategories();
+                this.updateConditions();
+                this.updateLocations();
+                this.updateLengths();
+                this.updatePurchaseYears();
+                
+                console.log(`Filter-Optionen geladen für Ordner: ${this.currentFolderId || 'Root'}`, {
+                    categories: this.categories.size,
+                    conditions: this.conditions.size,
+                    locations: this.locations.size,
+                    lengths: this.lengths.size,
+                    purchaseYears: this.purchaseYears.size
+                });
+            } else {
+                console.warn('Fehler beim Laden der Filter-Optionen, verwende nur Optionen aus geladenen Produkten');
+            }
+        } catch (error) {
+            console.warn('Fehler beim Laden der Filter-Optionen:', error);
+            // Nicht kritisch, verwende Optionen aus geladenen Produkten
+        }
+    }
+    
     async loadProducts() {
         try {
             // Verwende die vollständige API, um alle Attribute zu erhalten
@@ -110,12 +198,18 @@ class StockManager {
             
             this.products = data;
             
-            // Extrahiere alle verfügbaren Filter-Werte aus den Produkten
+            // Ergänze Filter-Werte aus den geladenen Produkten (überschreibt nicht die Server-Daten)
             // Dies muss NACH dem Laden der Produkte erfolgen
             this.extractCategories();
             
+            // Aktualisiere Filter-Dropdowns (falls neue Werte hinzugefügt wurden)
+            this.updateCategories();
+            this.updateConditions();
+            this.updateLocations();
+            this.updateLengths();
+            this.updatePurchaseYears();
+            
             // Wende Filter an (nicht direkt renderProducts, damit Filterlogik angewendet wird)
-            // extractCategories() ruft bereits alle update-Funktionen auf
             this.applyFilters();
         } catch (error) {
             console.error('Fehler beim Laden der Produkte:', error);
@@ -124,13 +218,9 @@ class StockManager {
     }
     
     extractCategories() {
-        // Leere alle Sets
-        this.categories.clear();
-        this.folders.clear();
-        this.conditions.clear();
-        this.locations.clear();
-        this.lengths.clear();
-        this.purchaseYears.clear();
+        // NICHT die Sets leeren - die Filter-Optionen wurden bereits vom Server geladen
+        // Nur zusätzliche Werte aus den aktuell geladenen Produkten hinzufügen
+        // (falls neue Produkte hinzugefügt wurden, die noch nicht im Server-Index sind)
         
         // Extrahiere alle verfügbaren Werte aus den Produkten
         this.products.forEach(p => {
@@ -177,15 +267,6 @@ class StockManager {
             }
         });
         
-        // Aktualisiere alle Filter-Dropdowns
-        // Wichtig: Diese Funktionen müssen nach dem DOM-Laden aufgerufen werden
-        // Falls die Elemente noch nicht vorhanden sind, werden sie ignoriert
-        this.updateCategories();
-        this.updateConditions();
-        this.updateLocations();
-        this.updateLengths();
-        this.updatePurchaseYears();
-        
         // Debug: Prüfe ob Filter-Werte extrahiert wurden (nur in Entwicklung)
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             console.log('Filter-Werte extrahiert:', {
@@ -200,13 +281,12 @@ class StockManager {
     }
     
     // Öffentliche Methode zum Aktualisieren der Filter (kann von außen aufgerufen werden)
-    refreshFilters() {
+    async refreshFilters() {
+        // Lade Filter-Optionen neu (mit aktuellem Ordner)
+        await this.loadFilterOptions();
         // Lade Produkte neu und aktualisiere Filter
-        this.loadProducts().then(() => {
-            console.log('Filter aktualisiert');
-        }).catch(error => {
-            console.error('Fehler beim Aktualisieren der Filter:', error);
-        });
+        await this.loadProducts();
+        console.log('Filter aktualisiert');
     }
     
     updateCategories() {
@@ -1349,7 +1429,8 @@ class StockManager {
     }
     
     openBulkEditModal() {
-        const selectedIds = this.getSelectedProducts();
+        // Hole aktuelle Auswahl und speichere in lokaler Variable (Snapshot)
+        const selectedIds = [...this.getSelectedProducts()];
         if (selectedIds.length === 0) {
             alert('Bitte wählen Sie mindestens ein Produkt aus.');
             return;
@@ -1366,7 +1447,7 @@ class StockManager {
         const attributeSelect = document.getElementById('bulkEditAttribute');
         const fieldsContainer = document.getElementById('bulkEditFields');
         const form = document.getElementById('bulkEditForm');
-        const submitBtn = document.getElementById('bulkEditSubmitBtn');
+        let submitBtn = document.getElementById('bulkEditSubmitBtn');
         
         if (productCountEl) {
             productCountEl.textContent = selectedIds.length;
@@ -1383,17 +1464,34 @@ class StockManager {
             submitBtn.disabled = true;
         }
         
-        // Event-Handler für Attribut-Auswahl
+        // Entferne alle alten Event-Handler durch Klonen des Elements
+        // Dies stellt sicher, dass keine alten Handler mehr aktiv sind
         if (attributeSelect) {
+            const newAttributeSelect = attributeSelect.cloneNode(true);
+            attributeSelect.parentNode.replaceChild(newAttributeSelect, attributeSelect);
+            // Aktualisiere Referenz
+            const attributeSelectRef = newAttributeSelect;
+            
             const handleAttributeChange = () => {
-                const attribute = attributeSelect.value;
+                const attribute = attributeSelectRef.value;
                 if (!fieldsContainer) return;
                 
+                // Hole aktuelle submitBtn Referenz (kann nach Klonen geändert worden sein)
+                const currentSubmitBtn = document.getElementById('bulkEditSubmitBtn');
+                
                 fieldsContainer.innerHTML = '';
-                submitBtn.disabled = !attribute;
+                
+                // Aktiviere Button sofort, wenn ein Attribut ausgewählt ist
+                // (auch leere Werte sind gültig, um Werte zu entfernen)
+                if (currentSubmitBtn) {
+                    currentSubmitBtn.disabled = !attribute;
+                }
                 
                 if (!attribute) {
                     fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
+                    if (currentSubmitBtn) {
+                        currentSubmitBtn.disabled = true;
+                    }
                     return;
                 }
                 
@@ -1476,22 +1574,117 @@ class StockManager {
                 }
                 
                 fieldsContainer.innerHTML = fieldHtml;
+                
+                // Füge Event-Handler für Eingabefelder hinzu, um Button zu aktivieren
+                // Warte kurz, damit das DOM aktualisiert ist
+                setTimeout(() => {
+                    // Hole aktuelle submitBtn Referenz (kann nach Klonen geändert worden sein)
+                    const currentSubmitBtn = document.getElementById('bulkEditSubmitBtn');
+                    if (!currentSubmitBtn) return;
+                    
+                    const updateSubmitButton = () => {
+                        const attribute = attributeSelectRef.value;
+                        if (!attribute) {
+                            currentSubmitBtn.disabled = true;
+                            return;
+                        }
+                        
+                        // Für alle Attribute: Button ist aktiviert, sobald ein Attribut ausgewählt ist
+                        // (auch leere Werte sind gültig, um Werte zu entfernen)
+                        // Ausnahme: Dropdowns müssen eine Auswahl haben (auch wenn es "entfernen" ist)
+                        let isEnabled = true;
+                        
+                        switch (attribute) {
+                            case 'location':
+                                // Textfeld: Button ist immer aktiviert (leer = entfernen ist gültig)
+                                isEnabled = true;
+                                break;
+                            
+                            case 'length':
+                                // Textfeld: Button ist immer aktiviert (leer = entfernen ist gültig)
+                                isEnabled = true;
+                                break;
+                            
+                            case 'condition':
+                                const conditionSelect = document.getElementById('bulkEditCondition');
+                                // Dropdown: muss existieren (wird automatisch aktiviert wenn Feld erstellt wird)
+                                isEnabled = conditionSelect !== null;
+                                break;
+                            
+                            case 'category':
+                                const categorySelect = document.getElementById('bulkEditCategory');
+                                // Dropdown: muss existieren
+                                isEnabled = categorySelect !== null;
+                                break;
+                            
+                            case 'folder_id':
+                                const folderSelect = document.getElementById('bulkEditFolder');
+                                // Dropdown: muss existieren
+                                isEnabled = folderSelect !== null;
+                                break;
+                            
+                            case 'remove_image':
+                                // Für remove_image ist immer aktiviert (die Aktion selbst)
+                                isEnabled = true;
+                                break;
+                        }
+                        
+                        currentSubmitBtn.disabled = !isEnabled;
+                    };
+                    
+                    // Event-Handler für verschiedene Feldtypen hinzufügen
+                    const locationInput = document.getElementById('bulkEditLocation');
+                    if (locationInput) {
+                        locationInput.addEventListener('input', updateSubmitButton);
+                        locationInput.addEventListener('change', updateSubmitButton);
+                    }
+                    
+                    const lengthInput = document.getElementById('bulkEditLength');
+                    if (lengthInput) {
+                        lengthInput.addEventListener('input', updateSubmitButton);
+                        lengthInput.addEventListener('change', updateSubmitButton);
+                    }
+                    
+                    const conditionSelect = document.getElementById('bulkEditCondition');
+                    if (conditionSelect) {
+                        conditionSelect.addEventListener('change', updateSubmitButton);
+                    }
+                    
+                    const categorySelect = document.getElementById('bulkEditCategory');
+                    if (categorySelect) {
+                        categorySelect.addEventListener('change', updateSubmitButton);
+                    }
+                    
+                    const folderSelect = document.getElementById('bulkEditFolder');
+                    if (folderSelect) {
+                        folderSelect.addEventListener('change', updateSubmitButton);
+                    }
+                    
+                    // Initiale Prüfung
+                    updateSubmitButton();
+                }, 10);
             };
             
-            // Entferne alte Listener und füge neuen hinzu
-            attributeSelect.removeEventListener('change', handleAttributeChange);
-            attributeSelect.addEventListener('change', handleAttributeChange);
+            attributeSelectRef.addEventListener('change', handleAttributeChange);
         }
         
-        // Submit-Handler
+        // Submit-Handler - verwende lokale selectedIds (Snapshot)
+        // WICHTIG: submitBtn wird NICHT geklont, damit die Referenz konsistent bleibt
         if (submitBtn) {
+            // Entferne alte Event-Handler (falls vorhanden)
+            const newSubmitBtn = submitBtn.cloneNode(true);
+            submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+            // Aktualisiere Referenz für alle nachfolgenden Verwendungen
+            submitBtn = newSubmitBtn;
+            
             const handleSubmit = async () => {
-                const attribute = attributeSelect ? attributeSelect.value : '';
+                const attribute = attributeSelect ? (document.getElementById('bulkEditAttribute')?.value || '') : '';
                 if (!attribute) {
                     alert('Bitte wählen Sie ein Attribut aus.');
                     return;
                 }
                 
+                // Verwende die lokale selectedIds-Variable (Snapshot beim Öffnen)
                 const updateData = {
                     product_ids: selectedIds,
                 };
@@ -1573,7 +1766,7 @@ class StockManager {
                     await this.loadProducts();
                     this.applyFilters();
                     
-                    // Auswahl zurücksetzen
+                    // Auswahl zurücksetzen - WICHTIG: Leere die Auswahl nach erfolgreicher Bearbeitung
                     this.selectedProducts.clear();
                     this.updateSelectionUI();
                     
@@ -1586,7 +1779,6 @@ class StockManager {
                 }
             };
             
-            submitBtn.removeEventListener('click', handleSubmit);
             submitBtn.addEventListener('click', handleSubmit);
         }
         
