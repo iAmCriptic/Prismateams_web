@@ -658,6 +658,10 @@ def admin_modules():
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
+    # Prüfe Excalidraw-Verfügbarkeit
+    from app.utils.excalidraw import is_excalidraw_enabled
+    excalidraw_available = is_excalidraw_enabled()
+    
     if request.method == 'POST':
         # Module-Einstellungen speichern
         modules = {
@@ -667,10 +671,15 @@ def admin_modules():
             'module_email': request.form.get('module_email') == 'on',
             'module_credentials': request.form.get('module_credentials') == 'on',
             'module_manuals': request.form.get('module_manuals') == 'on',
-            'module_canvas': request.form.get('module_canvas') == 'on',
+            'module_canvas': request.form.get('module_canvas') == 'on' if excalidraw_available else False,
             'module_inventory': request.form.get('module_inventory') == 'on',
             'module_wiki': request.form.get('module_wiki') == 'on'
         }
+        
+        # Canvas kann nur aktiviert werden wenn Excalidraw verfügbar ist
+        if modules['module_canvas'] and not excalidraw_available:
+            flash('Canvas-Modul kann nur aktiviert werden, wenn Excalidraw verfügbar ist.', 'warning')
+            modules['module_canvas'] = False
         
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
@@ -691,7 +700,7 @@ def admin_modules():
     module_email_enabled = is_module_enabled('module_email')
     module_credentials_enabled = is_module_enabled('module_credentials')
     module_manuals_enabled = is_module_enabled('module_manuals')
-    module_canvas_enabled = is_module_enabled('module_canvas')
+    module_canvas_enabled = is_module_enabled('module_canvas') and excalidraw_available
     module_inventory_enabled = is_module_enabled('module_inventory')
     module_wiki_enabled = is_module_enabled('module_wiki')
     
@@ -704,7 +713,8 @@ def admin_modules():
                            module_manuals_enabled=module_manuals_enabled,
                            module_canvas_enabled=module_canvas_enabled,
                            module_inventory_enabled=module_inventory_enabled,
-                           module_wiki_enabled=module_wiki_enabled)
+                           module_wiki_enabled=module_wiki_enabled,
+                           excalidraw_available=excalidraw_available)
 
 
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])
@@ -715,10 +725,6 @@ def admin_backup():
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    # Hole aktuellen Farbverlauf für Template
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    color_gradient = gradient_setting.value if gradient_setting else None
-    
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -727,7 +733,7 @@ def admin_backup():
             categories = request.form.getlist('export_categories')
             if not categories:
                 flash('Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             try:
                 # Temporäre Datei erstellen
@@ -770,16 +776,16 @@ def admin_backup():
             # Import-Backup hochladen
             if 'backup_file' not in request.files:
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             file = request.files['backup_file']
             if file.filename == '':
                 flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             if not file.filename.endswith('.prismateams'):
                 flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
-                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             try:
                 # Temporäre Datei speichern
@@ -793,7 +799,7 @@ def admin_backup():
                 if not import_categories:
                     flash('Bitte wählen Sie mindestens eine Kategorie zum Importieren aus.', 'danger')
                     os.unlink(temp_path)
-                    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+                    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
                 
                 # Backup importieren
                 result = import_backup(temp_path, import_categories, current_user.id)
@@ -815,7 +821,7 @@ def admin_backup():
                     except:
                         pass
     
-    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=color_gradient)
+    return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
 
 
 @settings_bp.route('/admin/whitelist')
@@ -1024,7 +1030,11 @@ def about():
     from app.utils.onlyoffice import is_onlyoffice_enabled
     onlyoffice_enabled = is_onlyoffice_enabled()
     
-    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled)
+    # Excalidraw Status prüfen
+    from app.utils.excalidraw import is_excalidraw_enabled
+    excalidraw_enabled = is_excalidraw_enabled()
+    
+    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled, excalidraw_enabled=excalidraw_enabled)
 
 
 LANGUAGE_FALLBACK_NAMES = {

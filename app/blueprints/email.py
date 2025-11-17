@@ -60,6 +60,18 @@ def build_footer_html():
         }
         for placeholder, value in replacements.items():
             footer_html = footer_html.replace(placeholder, value)
+        
+        # Convert line breaks to HTML: multiple \n\n or more become <p> tags, single \n becomes <br>
+        # Split by double or more newlines to create paragraphs
+        paragraphs = re.split(r'\n\n+', footer_html)
+        formatted_paragraphs = []
+        for para in paragraphs:
+            if para.strip():
+                # Replace single newlines within paragraphs with <br>
+                para_with_br = para.strip().replace('\n', '<br>')
+                formatted_paragraphs.append(f'<p>{para_with_br}</p>')
+        
+        footer_html = ''.join(formatted_paragraphs) if formatted_paragraphs else footer_html
         return footer_html
 
     footer_text_setting = SystemSettings.query.filter_by(key='email_footer_text').first()
@@ -75,7 +87,12 @@ def build_footer_html():
 def render_custom_email(subject: str, body_html: str):
     body_html = body_html or ''
     footer_html = build_footer_html()
-    combined_html = body_html + (footer_html or '')
+    
+    # Add empty line before footer if footer exists
+    if footer_html:
+        combined_html = body_html + '<p style="margin-top: 1em;"></p>' + footer_html
+    else:
+        combined_html = body_html
 
     app_name = get_portal_display_name()
     logo_base64 = get_logo_base64()

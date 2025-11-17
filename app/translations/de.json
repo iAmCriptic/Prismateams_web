@@ -1049,6 +1049,16 @@
       "comments": {
         "toggle": "Kommentare anzeigen/verstecken",
         "title": "Kommentare"
+      },
+      "color": {
+        "title": "Farben",
+        "toggle": "Farben",
+        "stroke": "Strichfarbe",
+        "fill": "Füllfarbe",
+        "fill_none": "Keine Füllung",
+        "stroke_width": "Strichstärke",
+        "text_color": "Textfarbe",
+        "text_size": "Textgröße"
       }
     },
     "flash": {

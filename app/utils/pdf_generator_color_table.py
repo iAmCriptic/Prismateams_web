@@ -30,6 +30,9 @@ def generate_color_code_table_pdf(output=None):
         initialize_color_mappings()
     except Exception as e:
         current_app.logger.warning(f"Fehler beim Initialisieren der Farbzuordnungen: {e}")
+        # Session zurücksetzen, damit weitere Operationen funktionieren
+        from app import db
+        db.session.rollback()
     
     doc = SimpleDocTemplate(output, pagesize=A4, 
                            leftMargin=2*cm, rightMargin=2*cm,
@@ -163,4 +166,5 @@ def generate_color_code_table_pdf(output=None):
         return output
     
     return output
+
 

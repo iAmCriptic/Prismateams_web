@@ -75,11 +75,26 @@ def is_module_enabled(module_key):
     try:
         from app.models.settings import SystemSettings
         setting = SystemSettings.query.filter_by(key=module_key).first()
+        enabled = False
         if setting:
             # Prüfe ob der Wert 'true' ist (case-insensitive)
-            return str(setting.value).lower() == 'true'
-        # Standardmäßig aktiviert wenn nicht gesetzt (für Rückwärtskompatibilität)
-        return True
+            enabled = str(setting.value).lower() == 'true'
+        else:
+            # Standardmäßig aktiviert wenn nicht gesetzt (für Rückwärtskompatibilität)
+            enabled = True
+        
+        # Canvas-Modul erfordert Excalidraw
+        if module_key == 'module_canvas' and enabled:
+            try:
+                from flask import current_app
+                from app.utils.excalidraw import is_excalidraw_enabled
+                if not is_excalidraw_enabled():
+                    return False
+            except Exception:
+                # Bei Fehlern (z.B. während Setup) deaktiviert wenn Excalidraw nicht verfügbar
+                return False
+        
+        return enabled
     except Exception:
         # Bei Fehlern (z.B. während Setup) standardmäßig aktiviert
         return True

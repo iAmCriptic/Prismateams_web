@@ -548,7 +548,7 @@ sudo -u www-data git reset --hard origin/main
 sudo ./venv/bin/pip install -r requirements.txt
 
 # Migrations der datenbank (falls in Patchnotes vermerkt)
-sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_X.X.X.py"
+sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.2.py"
 # Anwendung neu starten
 sudo supervisorctl restart teamportal
 ```

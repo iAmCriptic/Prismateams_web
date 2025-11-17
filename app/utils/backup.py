@@ -18,7 +18,8 @@ from app.models import (
     NotificationSettings, WikiPage, WikiPageVersion, WikiCategory, WikiTag,
     Comment, CommentMention,
     Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem,
-    ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+    ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem,
+    Manual, Chat, ChatMessage, ChatMember, Canvas
 )
 from app.blueprints.credentials import get_encryption_key
 from app.utils.lengths import normalize_length_input, parse_length_to_meters, format_length_from_meters
@@ -34,7 +35,10 @@ SUPPORTED_CATEGORIES = {
     'files': 'Dateien',
     'wiki': 'Wiki',
     'comments': 'Kommentare',
-    'inventory': 'Inventar'
+    'inventory': 'Inventar',
+    'manuals': 'Handbücher',
+    'chats': 'Chats',
+    'canvas': 'Canvas'
 }
 
 
@@ -80,6 +84,22 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
     # Zugangsdaten exportieren (entschlüsselt)
     if 'credentials' in categories or 'all' in categories:
         backup_data['data']['credentials'] = export_credentials()
+    
+    # Handbücher exportieren
+    if 'manuals' in categories or 'all' in categories:
+        backup_data['data']['manuals'] = export_manuals()
+    
+    # Chats exportieren
+    if 'chats' in categories or 'all' in categories:
+        backup_data['data']['chats'] = export_chats()
+        backup_data['data']['chat_members'] = export_chat_members()
+        backup_data['data']['chat_messages'] = export_chat_messages()
+    
+    # Canvas exportieren
+    if 'canvas' in categories or 'all' in categories:
+        backup_data['data']['canvases'] = export_canvases()
+        backup_data['data']['canvas_text_fields'] = export_canvas_text_fields()
+        backup_data['data']['canvas_elements'] = export_canvas_elements()
     
     # Dateien exportieren
     if 'files' in categories or 'all' in categories:
@@ -345,6 +365,167 @@ def export_credentials() -> List[Dict]:
             current_app.logger.error(f"Fehler beim Entschlüsseln von Credential {cred.id}: {str(e)}")
             continue
     return result
+
+
+def export_manuals() -> List[Dict]:
+    """Exportiert Handbücher (inkl. PDF-Dateien als Base64)."""
+    manuals = Manual.query.all()
+    result = []
+    for m in manuals:
+        manual_data = {
+            'title': m.title,
+            'filename': m.filename,
+            'file_size': m.file_size,
+            'uploaded_by_email': User.query.get(m.uploaded_by).email if User.query.get(m.uploaded_by) else None,
+            'uploaded_at': m.uploaded_at.isoformat() if m.uploaded_at else None
+        }
+        
+        # Exportiere PDF-Datei als Base64 wenn vorhanden
+        if m.file_path and os.path.exists(m.file_path):
+            try:
+                with open(m.file_path, 'rb') as f:
+                    import base64
+                    file_data = f.read()
+                    manual_data['file_content_base64'] = base64.b64encode(file_data).decode('utf-8')
+                    manual_data['file_original_name'] = m.filename
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Exportieren des Handbuchs {m.title}: {str(e)}")
+        elif m.file_path:
+            # Versuche relativen Pfad
+            try:
+                project_root = os.path.dirname(current_app.root_path)
+                manual_path = os.path.join(project_root, m.file_path)
+                if os.path.exists(manual_path):
+                    with open(manual_path, 'rb') as f:
+                        import base64
+                        file_data = f.read()
+                        manual_data['file_content_base64'] = base64.b64encode(file_data).decode('utf-8')
+                        manual_data['file_original_name'] = m.filename
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Exportieren des Handbuchs {m.title} (relativer Pfad): {str(e)}")
+        
+        result.append(manual_data)
+    
+    return result
+
+
+def export_chats() -> List[Dict]:
+    """Exportiert Chats."""
+    chats = Chat.query.all()
+    result = []
+    for c in chats:
+        chat_data = {
+            'name': c.name,
+            'description': c.description,
+            'is_main_chat': c.is_main_chat,
+            'is_direct_message': c.is_direct_message,
+            'created_by_email': User.query.get(c.created_by).email if c.created_by and User.query.get(c.created_by) else None,
+            'created_at': c.created_at.isoformat() if c.created_at else None,
+            'updated_at': c.updated_at.isoformat() if c.updated_at else None
+        }
+        
+        # Exportiere Gruppenbild als Base64 wenn vorhanden
+        if c.group_avatar:
+            try:
+                project_root = os.path.dirname(current_app.root_path)
+                avatar_path = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_avatars', c.group_avatar)
+                if os.path.exists(avatar_path):
+                    with open(avatar_path, 'rb') as f:
+                        import base64
+                        avatar_data = f.read()
+                        chat_data['group_avatar_content_base64'] = base64.b64encode(avatar_data).decode('utf-8')
+                        chat_data['group_avatar_original_name'] = c.group_avatar
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Exportieren des Chat-Avatars für {c.name}: {str(e)}")
+        
+        result.append(chat_data)
+    
+    return result
+
+
+def export_chat_members() -> List[Dict]:
+    """Exportiert Chat-Mitglieder."""
+    members = ChatMember.query.all()
+    return [{
+        'chat_name': Chat.query.get(m.chat_id).name if Chat.query.get(m.chat_id) else None,
+        'user_email': User.query.get(m.user_id).email if User.query.get(m.user_id) else None,
+        'joined_at': m.joined_at.isoformat() if m.joined_at else None,
+        'last_read_at': m.last_read_at.isoformat() if m.last_read_at else None
+    } for m in members]
+
+
+def export_chat_messages() -> List[Dict]:
+    """Exportiert Chat-Nachrichten (inkl. Media-Dateien als Base64)."""
+    messages = ChatMessage.query.all()
+    result = []
+    for msg in messages:
+        message_data = {
+            'chat_name': Chat.query.get(msg.chat_id).name if Chat.query.get(msg.chat_id) else None,
+            'sender_email': User.query.get(msg.sender_id).email if User.query.get(msg.sender_id) else None,
+            'content': msg.content,
+            'message_type': msg.message_type,
+            'created_at': msg.created_at.isoformat() if msg.created_at else None,
+            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
+            'is_deleted': msg.is_deleted
+        }
+        
+        # Exportiere Media-Datei als Base64 wenn vorhanden
+        if msg.media_url:
+            try:
+                project_root = os.path.dirname(current_app.root_path)
+                # Versuche verschiedene mögliche Pfade
+                media_paths = [
+                    os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_media', msg.media_url),
+                    os.path.join(project_root, msg.media_url),
+                    msg.media_url
+                ]
+                
+                media_data = None
+                for media_path in media_paths:
+                    if os.path.exists(media_path):
+                        with open(media_path, 'rb') as f:
+                            import base64
+                            media_data = base64.b64encode(f.read()).decode('utf-8')
+                            message_data['media_content_base64'] = media_data
+                            message_data['media_original_name'] = os.path.basename(msg.media_url)
+                            break
+                
+                if not media_data:
+                    # Falls Datei nicht gefunden, speichere URL
+                    message_data['media_url'] = msg.media_url
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Exportieren der Media-Datei für Nachricht {msg.id}: {str(e)}")
+                message_data['media_url'] = msg.media_url
+        else:
+            message_data['media_url'] = None
+        
+        result.append(message_data)
+    
+    return result
+
+
+def export_canvases() -> List[Dict]:
+    """Exportiert Canvas."""
+    canvases = Canvas.query.all()
+    return [{
+        'name': c.name,
+        'description': c.description,
+        'created_by_email': User.query.get(c.created_by).email if User.query.get(c.created_by) else None,
+        'created_at': c.created_at.isoformat() if c.created_at else None,
+        'updated_at': c.updated_at.isoformat() if c.updated_at else None
+    } for c in canvases]
+
+
+def export_canvas_text_fields() -> List[Dict]:
+    """Exportiert Canvas-Textfelder. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr exportiert (Excalidraw-Integration)
+    return []
+
+
+def export_canvas_elements() -> List[Dict]:
+    """Exportiert Canvas-Elemente. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr exportiert (Excalidraw-Integration)
+    return []
 
 
 def export_folders() -> List[Dict]:
@@ -865,6 +1046,44 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'credentials' in backup_data.get('data', {}):
                 import_credentials(backup_data['data']['credentials'], user_map, current_user_id)
                 results['imported'].append('credentials')
+        
+        # Handbücher importieren
+        if 'manuals' in categories or 'all' in categories:
+            if 'manuals' in backup_data.get('data', {}):
+                import_manuals(backup_data['data']['manuals'], user_map, current_user_id)
+                results['imported'].append('manuals')
+        
+        # Chats importieren
+        if 'chats' in categories or 'all' in categories:
+            if 'chats' in backup_data.get('data', {}):
+                chat_map = import_chats(backup_data['data']['chats'], user_map, current_user_id)
+                results['imported'].append('chats')
+            else:
+                chat_map = {}
+            
+            if 'chat_members' in backup_data.get('data', {}):
+                import_chat_members(backup_data['data']['chat_members'], chat_map, user_map, current_user_id)
+                results['imported'].append('chat_members')
+            
+            if 'chat_messages' in backup_data.get('data', {}):
+                import_chat_messages(backup_data['data']['chat_messages'], chat_map, user_map, current_user_id)
+                results['imported'].append('chat_messages')
+        
+        # Canvas importieren
+        if 'canvas' in categories or 'all' in categories:
+            if 'canvases' in backup_data.get('data', {}):
+                canvas_map = import_canvases(backup_data['data']['canvases'], user_map, current_user_id)
+                results['imported'].append('canvases')
+            else:
+                canvas_map = {}
+            
+            if 'canvas_text_fields' in backup_data.get('data', {}):
+                import_canvas_text_fields(backup_data['data']['canvas_text_fields'], canvas_map, user_map, current_user_id)
+                results['imported'].append('canvas_text_fields')
+            
+            if 'canvas_elements' in backup_data.get('data', {}):
+                import_canvas_elements(backup_data['data']['canvas_elements'], canvas_map, user_map, current_user_id)
+                results['imported'].append('canvas_elements')
         
         # Dateien importieren
         if 'files' in categories or 'all' in categories:
@@ -1494,6 +1713,332 @@ def import_event_participants(participants_data: List[Dict], event_map: Dict[str
             db.session.add(participant)
 
 
+def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+    """Importiert Handbücher (inkl. PDF-Dateien)."""
+    for m_data in manuals_data:
+        uploaded_by_email = m_data.get('uploaded_by_email')
+        if not uploaded_by_email:
+            if current_user_id:
+                uploaded_by_id = current_user_id
+            else:
+                continue
+        elif uploaded_by_email not in user_map:
+            # Fallback: Wenn Benutzer nicht gefunden wird, verwende current_user
+            if current_user_id:
+                uploaded_by_id = current_user_id
+            else:
+                continue
+        else:
+            uploaded_by_id = user_map[uploaded_by_email]
+        
+        # Prüfe ob Manual bereits existiert (nach Titel und Uploader)
+        existing = Manual.query.filter_by(
+            title=m_data.get('title'),
+            uploaded_by=uploaded_by_id
+        ).first()
+        
+        if existing:
+            # Aktualisiere bestehendes Manual
+            existing.filename = m_data.get('filename', existing.filename)
+            existing.file_size = m_data.get('file_size', existing.file_size)
+        else:
+            # Neues Manual
+            manual = Manual(
+                title=m_data['title'],
+                filename=m_data.get('filename', m_data['title'] + '.pdf'),
+                file_size=m_data.get('file_size', 0),
+                uploaded_by=uploaded_by_id
+            )
+            
+            # Importiere PDF-Datei wenn vorhanden
+            if m_data.get('file_content_base64'):
+                try:
+                    import base64
+                    from werkzeug.utils import secure_filename
+                    
+                    file_content = base64.b64decode(m_data['file_content_base64'])
+                    original_name = m_data.get('file_original_name', m_data.get('filename', 'manual.pdf'))
+                    
+                    # Erstelle Dateiname mit Timestamp
+                    if '.' in original_name:
+                        ext = os.path.splitext(original_name)[1]
+                        base_name = os.path.splitext(original_name)[0]
+                    else:
+                        ext = '.pdf'
+                        base_name = 'manual'
+                    
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
+                    
+                    # Speichere Datei
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'manuals')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    file_path = os.path.join(upload_dir, filename)
+                    
+                    with open(file_path, 'wb') as f:
+                        f.write(file_content)
+                    
+                    manual.file_path = file_path
+                    manual.filename = filename
+                    manual.file_size = len(file_content)
+                except Exception as e:
+                    current_app.logger.error(f"Fehler beim Importieren des Handbuchs {m_data['title']}: {str(e)}")
+                    # Erstelle trotzdem Manual-Eintrag ohne Datei
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'manuals')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    manual.file_path = os.path.join(upload_dir, m_data.get('filename', 'manual.pdf'))
+            else:
+                # Keine Datei vorhanden, erstelle trotzdem Eintrag
+                project_root = os.path.dirname(current_app.root_path)
+                upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'manuals')
+                os.makedirs(upload_dir, exist_ok=True)
+                manual.file_path = os.path.join(upload_dir, m_data.get('filename', 'manual.pdf'))
+            
+            if m_data.get('uploaded_at'):
+                manual.uploaded_at = datetime.fromisoformat(m_data['uploaded_at'])
+            
+            db.session.add(manual)
+
+
+def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
+    """Importiert Chats und gibt ein Mapping von Chat-Name zu neuer ID zurück."""
+    chat_map = {}  # chat_name -> neue_id
+    
+    for c_data in chats_data:
+        created_by_email = c_data.get('created_by_email')
+        if not created_by_email:
+            created_by_id = current_user_id
+        elif created_by_email not in user_map:
+            if current_user_id:
+                created_by_id = current_user_id
+            else:
+                continue
+        else:
+            created_by_id = user_map[created_by_email]
+        
+        # Prüfe ob Chat bereits existiert (nach Name)
+        existing = Chat.query.filter_by(name=c_data.get('name')).first()
+        if existing:
+            chat_map[c_data['name']] = existing.id
+        else:
+            chat = Chat(
+                name=c_data['name'],
+                description=c_data.get('description'),
+                is_main_chat=c_data.get('is_main_chat', False),
+                is_direct_message=c_data.get('is_direct_message', False),
+                created_by=created_by_id
+            )
+            
+            # Importiere Gruppenbild wenn vorhanden
+            if c_data.get('group_avatar_content_base64'):
+                try:
+                    import base64
+                    from werkzeug.utils import secure_filename
+                    
+                    file_content = base64.b64decode(c_data['group_avatar_content_base64'])
+                    original_name = c_data.get('group_avatar_original_name', 'avatar.png')
+                    
+                    # Erstelle Dateiname mit Timestamp
+                    if '.' in original_name:
+                        ext = os.path.splitext(original_name)[1]
+                        base_name = os.path.splitext(original_name)[0]
+                    else:
+                        ext = '.png'
+                        base_name = 'avatar'
+                    
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
+                    
+                    # Speichere Datei
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_avatars')
+                    os.makedirs(upload_dir, exist_ok=True)
+                    file_path = os.path.join(upload_dir, filename)
+                    
+                    with open(file_path, 'wb') as f:
+                        f.write(file_content)
+                    
+                    chat.group_avatar = filename
+                except Exception as e:
+                    current_app.logger.error(f"Fehler beim Importieren des Chat-Avatars für {c_data['name']}: {str(e)}")
+            
+            if c_data.get('created_at'):
+                chat.created_at = datetime.fromisoformat(c_data['created_at'])
+            if c_data.get('updated_at'):
+                chat.updated_at = datetime.fromisoformat(c_data['updated_at'])
+            
+            db.session.add(chat)
+            db.session.flush()
+            chat_map[c_data['name']] = chat.id
+    
+    return chat_map
+
+
+def import_chat_members(members_data: List[Dict], chat_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+    """Importiert Chat-Mitglieder."""
+    for m_data in members_data:
+        chat_name = m_data.get('chat_name')
+        user_email = m_data.get('user_email')
+        
+        if not chat_name or chat_name not in chat_map:
+            continue
+        if not user_email:
+            continue
+        
+        chat_id = chat_map[chat_name]
+        
+        # Fallback: Wenn Benutzer nicht gefunden wird, verwende current_user
+        if user_email not in user_map:
+            if current_user_id:
+                user_id = current_user_id
+            else:
+                continue
+        else:
+            user_id = user_map[user_email]
+        
+        # Prüfe ob Mitgliedschaft bereits existiert
+        existing = ChatMember.query.filter_by(chat_id=chat_id, user_id=user_id).first()
+        if not existing:
+            member = ChatMember(
+                chat_id=chat_id,
+                user_id=user_id
+            )
+            if m_data.get('joined_at'):
+                member.joined_at = datetime.fromisoformat(m_data['joined_at'])
+            if m_data.get('last_read_at'):
+                member.last_read_at = datetime.fromisoformat(m_data['last_read_at'])
+            db.session.add(member)
+
+
+def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+    """Importiert Chat-Nachrichten (inkl. Media-Dateien)."""
+    for msg_data in messages_data:
+        chat_name = msg_data.get('chat_name')
+        sender_email = msg_data.get('sender_email')
+        
+        if not chat_name or chat_name not in chat_map:
+            continue
+        if not sender_email:
+            continue
+        
+        chat_id = chat_map[chat_name]
+        
+        # Fallback: Wenn Benutzer nicht gefunden wird, verwende current_user
+        if sender_email not in user_map:
+            if current_user_id:
+                sender_id = current_user_id
+            else:
+                continue
+        else:
+            sender_id = user_map[sender_email]
+        
+        message = ChatMessage(
+            chat_id=chat_id,
+            sender_id=sender_id,
+            content=msg_data.get('content'),
+            message_type=msg_data.get('message_type', 'text'),
+            is_deleted=msg_data.get('is_deleted', False)
+        )
+        
+        # Importiere Media-Datei wenn vorhanden
+        if msg_data.get('media_content_base64'):
+            try:
+                import base64
+                from werkzeug.utils import secure_filename
+                
+                file_content = base64.b64decode(msg_data['media_content_base64'])
+                original_name = msg_data.get('media_original_name', 'media')
+                
+                # Erstelle Dateiname mit Timestamp
+                if '.' in original_name:
+                    ext = os.path.splitext(original_name)[1]
+                    base_name = os.path.splitext(original_name)[0]
+                else:
+                    ext = ''
+                    base_name = 'media'
+                
+                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
+                
+                # Speichere Datei
+                project_root = os.path.dirname(current_app.root_path)
+                upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_media')
+                os.makedirs(upload_dir, exist_ok=True)
+                file_path = os.path.join(upload_dir, filename)
+                
+                with open(file_path, 'wb') as f:
+                    f.write(file_content)
+                
+                message.media_url = filename
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Importieren der Media-Datei für Nachricht: {str(e)}")
+                message.media_url = msg_data.get('media_url')
+        else:
+            message.media_url = msg_data.get('media_url')
+        
+        if msg_data.get('created_at'):
+            message.created_at = datetime.fromisoformat(msg_data['created_at'])
+        if msg_data.get('edited_at'):
+            message.edited_at = datetime.fromisoformat(msg_data['edited_at'])
+        
+        db.session.add(message)
+
+
+def import_canvases(canvases_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
+    """Importiert Canvas und gibt ein Mapping von Canvas-Name zu neuer ID zurück."""
+    canvas_map = {}  # canvas_name -> neue_id
+    
+    for c_data in canvases_data:
+        created_by_email = c_data.get('created_by_email')
+        if not created_by_email:
+            created_by_id = current_user_id
+        elif created_by_email not in user_map:
+            if current_user_id:
+                created_by_id = current_user_id
+            else:
+                continue
+        else:
+            created_by_id = user_map[created_by_email]
+        
+        # Prüfe ob Canvas bereits existiert (nach Name)
+        existing = Canvas.query.filter_by(name=c_data.get('name')).first()
+        if existing:
+            canvas_map[c_data['name']] = existing.id
+        else:
+            canvas = Canvas(
+                name=c_data['name'],
+                description=c_data.get('description'),
+                created_by=created_by_id
+            )
+            
+            if c_data.get('created_at'):
+                canvas.created_at = datetime.fromisoformat(c_data['created_at'])
+            if c_data.get('updated_at'):
+                canvas.updated_at = datetime.fromisoformat(c_data['updated_at'])
+            
+            db.session.add(canvas)
+            db.session.flush()
+            canvas_map[c_data['name']] = canvas.id
+    
+    return canvas_map
+
+
+def import_canvas_text_fields(text_fields_data: List[Dict], canvas_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+    """Importiert Canvas-Textfelder. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr importiert (Excalidraw-Integration)
+    # Keine Migration von alten Canvas-Textfeldern
+    pass
+
+
+def import_canvas_elements(elements_data: List[Dict], canvas_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+    """Importiert Canvas-Elemente. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr importiert (Excalidraw-Integration)
+    # Keine Migration von alten Canvas-Elementen
+    pass
+
+
 def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
     """Importiert Zugangsdaten (verschlüsselt neu)."""
     key = get_encryption_key()
@@ -2083,35 +2628,55 @@ def import_product_folders(folders_data: List[Dict], user_map: Dict[str, int], c
     """Importiert Produkt-Ordner und gibt ein Mapping von Name zu neuer ID zurück."""
     folder_map = {}  # name -> neue_id
     
+    if not folders_data:
+        current_app.logger.debug("Keine Produkt-Ordner zum Importieren vorhanden.")
+        return folder_map
+    
     for f_data in folders_data:
+        if not f_data.get('name'):
+            current_app.logger.warning("Ordner ohne Namen übersprungen beim Import.")
+            continue
+        
+        folder_name = f_data['name'].strip()
+        if not folder_name:
+            continue
+        
         created_by_email = f_data.get('created_by_email')
         if not created_by_email:
             if current_user_id:
                 created_by_id = current_user_id
             else:
+                current_app.logger.warning(f"Ordner '{folder_name}' ohne created_by_email und ohne current_user_id übersprungen.")
                 continue
         elif created_by_email not in user_map:
             # Fallback: Wenn Benutzer nicht gefunden wird, verwende current_user
             if current_user_id:
                 created_by_id = current_user_id
             else:
+                current_app.logger.warning(f"Ordner '{folder_name}' - Benutzer '{created_by_email}' nicht gefunden und kein current_user_id verfügbar.")
                 continue
         else:
             created_by_id = user_map[created_by_email]
         
-        existing = ProductFolder.query.filter_by(name=f_data['name']).first()
+        existing = ProductFolder.query.filter_by(name=folder_name).first()
         if existing:
-            folder_map[f_data['name']] = existing.id
+            folder_map[folder_name] = existing.id
+            current_app.logger.debug(f"Ordner '{folder_name}' bereits vorhanden (ID: {existing.id})")
         else:
             folder = ProductFolder(
-                name=f_data['name'],
+                name=folder_name,
                 description=f_data.get('description'),
                 color=f_data.get('color'),
                 created_by=created_by_id
             )
             db.session.add(folder)
             db.session.flush()
-            folder_map[f_data['name']] = folder.id
+            folder_map[folder_name] = folder.id
+            current_app.logger.debug(f"Ordner '{folder_name}' importiert (ID: {folder.id})")
+    
+    # Commit nach allen Ordnern
+    db.session.commit()
+    current_app.logger.info(f"{len(folder_map)} Produkt-Ordner importiert/gefunden.")
     
     return folder_map
 
@@ -2136,8 +2701,20 @@ def import_products(products_data: List[Dict], folder_map: Dict[str, int], user_
         else:
             created_by_id = user_map[created_by_email]
         folder_id = None
-        if p_data.get('folder_name') and p_data['folder_name'] in folder_map:
-            folder_id = folder_map[p_data['folder_name']]
+        folder_name = p_data.get('folder_name')
+        if folder_name:
+            folder_name = folder_name.strip()
+            if folder_name in folder_map:
+                folder_id = folder_map[folder_name]
+                current_app.logger.debug(f"Produkt '{p_data['name']}' wird Ordner '{folder_name}' (ID: {folder_id}) zugeordnet.")
+            else:
+                current_app.logger.warning(f"Produkt '{p_data['name']}' - Ordner '{folder_name}' nicht im folder_map gefunden. Ordner wird nicht zugeordnet.")
+                # Versuche Ordner in der DB zu finden (falls er bereits existiert)
+                existing_folder = ProductFolder.query.filter_by(name=folder_name).first()
+                if existing_folder:
+                    folder_id = existing_folder.id
+                    folder_map[folder_name] = folder_id  # Aktualisiere folder_map für zukünftige Produkte
+                    current_app.logger.info(f"Ordner '{folder_name}' in DB gefunden (ID: {folder_id}) und folder_map aktualisiert.")
         
         existing = Product.query.filter_by(name=p_data['name']).first()
         if existing:
