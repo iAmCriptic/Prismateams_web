@@ -27,16 +27,8 @@
                 <p class="card-text text-muted">{{ canvas.description }}</p>
                 {% endif %}
                 <p class="card-text small text-muted">
-                    <i class="bi bi-textarea-t"></i>
-                    {% set text_fields_count = canvas.text_fields|length %}
-                    {% if text_fields_count == 1 %}
-                        {{ stats_i18n.get('text_fields_one', '1 Textfeld') }}
-                    {% else %}
-                        {{ stats_i18n.get('text_fields_other', '{count} Textfelder').format(count=text_fields_count) }}
-                    {% endif %}
-                    <br>
                     <i class="bi bi-clock"></i>
-                    {{ _('canvas.index.stats.updated_at', date=canvas.updated_at | localtime('%d.%m.%Y %H:%M')) }}
+                    {{ _('canvas.index.stats.updated_at', date=canvas.updated_at | localtime('%d.%m.%Y %H:%M'), default='Aktualisiert: ' + (canvas.updated_at | localtime('%d.%m.%Y %H:%M'))) }}
                 </p>
                 
                 <div class="d-flex gap-2">

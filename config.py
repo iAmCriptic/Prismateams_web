@@ -79,6 +79,15 @@ class Config:
     # OnlyOffice needs to access document_url and callback_url from its server
     # Example: http://192.168.188.115:5000 or https://yourdomain.com
     ONLYOFFICE_PUBLIC_URL = os.environ.get('ONLYOFFICE_PUBLIC_URL', '')
+    
+    # Excalidraw Configuration
+    EXCALIDRAW_ENABLED = os.environ.get('EXCALIDRAW_ENABLED', 'False').lower() == 'true'
+    EXCALIDRAW_URL = os.environ.get('EXCALIDRAW_URL', '/excalidraw')
+    EXCALIDRAW_ROOM_URL = os.environ.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
+    # Public URL for Flask app (required when Excalidraw runs on different server)
+    # Excalidraw needs to access document_url and callback_url from its server
+    # Example: http://192.168.188.115:5000 or https://yourdomain.com
+    EXCALIDRAW_PUBLIC_URL = os.environ.get('EXCALIDRAW_PUBLIC_URL', '')
 
 
 class DevelopmentConfig(Config):

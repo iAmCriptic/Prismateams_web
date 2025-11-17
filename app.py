@@ -26,7 +26,6 @@ def make_shell_context():
         'Credential': Credential,
         'Manual': Manual,
         'Canvas': Canvas,
-        'CanvasTextField': CanvasTextField,
         'SystemSettings': SystemSettings,
         'WhitelistEntry': WhitelistEntry,
         'NotificationSettings': NotificationSettings,

@@ -154,6 +154,10 @@ def create_app(config_name='default'):
         from app.utils.onlyoffice import is_onlyoffice_enabled
         onlyoffice_available = is_onlyoffice_enabled()
         
+        # Add Excalidraw availability function
+        from app.utils.excalidraw import is_excalidraw_enabled
+        excalidraw_available = is_excalidraw_enabled()
+        
         # Add module check function
         from app.utils.common import is_module_enabled
         
@@ -306,6 +310,7 @@ def create_app(config_name='default'):
             'color_gradient': color_gradient,
             'portal_logo_filename': portal_logo_filename,
             'onlyoffice_available': onlyoffice_available,
+            'excalidraw_available': excalidraw_available,
             'is_module_enabled': is_module_enabled,
             'get_back_url': get_back_url,
             'get_chat_display_name': get_chat_display_name

@@ -19,7 +19,7 @@ from app.models import (
     Comment, CommentMention,
     Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem,
     ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem,
-    Manual, Chat, ChatMessage, ChatMember, Canvas, CanvasTextField, CanvasElement
+    Manual, Chat, ChatMessage, ChatMember, Canvas
 )
 from app.blueprints.credentials import get_encryption_key
 from app.utils.lengths import normalize_length_input, parse_length_to_meters, format_length_from_meters
@@ -517,40 +517,15 @@ def export_canvases() -> List[Dict]:
 
 
 def export_canvas_text_fields() -> List[Dict]:
-    """Exportiert Canvas-Textfelder."""
-    text_fields = CanvasTextField.query.all()
-    return [{
-        'canvas_name': Canvas.query.get(tf.canvas_id).name if Canvas.query.get(tf.canvas_id) else None,
-        'content': tf.content,
-        'pos_x': tf.pos_x,
-        'pos_y': tf.pos_y,
-        'width': tf.width,
-        'height': tf.height,
-        'font_size': tf.font_size,
-        'color': tf.color,
-        'background_color': tf.background_color,
-        'created_by_email': User.query.get(tf.created_by).email if User.query.get(tf.created_by) else None,
-        'created_at': tf.created_at.isoformat() if tf.created_at else None,
-        'updated_at': tf.updated_at.isoformat() if tf.updated_at else None
-    } for tf in text_fields]
+    """Exportiert Canvas-Textfelder. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr exportiert (Excalidraw-Integration)
+    return []
 
 
 def export_canvas_elements() -> List[Dict]:
-    """Exportiert Canvas-Elemente."""
-    elements = CanvasElement.query.all()
-    result = []
-    for e in elements:
-        element_data = {
-            'canvas_name': Canvas.query.get(e.canvas_id).name if Canvas.query.get(e.canvas_id) else None,
-            'element_type': e.element_type,
-            'properties': e.properties,  # JSON string
-            'z_index': e.z_index,
-            'created_by_email': User.query.get(e.created_by).email if User.query.get(e.created_by) else None,
-            'created_at': e.created_at.isoformat() if e.created_at else None,
-            'updated_at': e.updated_at.isoformat() if e.updated_at else None
-        }
-        result.append(element_data)
-    return result
+    """Exportiert Canvas-Elemente. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr exportiert (Excalidraw-Integration)
+    return []
 
 
 def export_folders() -> List[Dict]:
@@ -2051,80 +2026,17 @@ def import_canvases(canvases_data: List[Dict], user_map: Dict[str, int], current
 
 
 def import_canvas_text_fields(text_fields_data: List[Dict], canvas_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
-    """Importiert Canvas-Textfelder."""
-    for tf_data in text_fields_data:
-        canvas_name = tf_data.get('canvas_name')
-        created_by_email = tf_data.get('created_by_email')
-        
-        if not canvas_name or canvas_name not in canvas_map:
-            continue
-        if not created_by_email:
-            created_by_id = current_user_id
-        elif created_by_email not in user_map:
-            if current_user_id:
-                created_by_id = current_user_id
-            else:
-                continue
-        else:
-            created_by_id = user_map[created_by_email]
-        
-        canvas_id = canvas_map[canvas_name]
-        
-        text_field = CanvasTextField(
-            canvas_id=canvas_id,
-            content=tf_data.get('content'),
-            pos_x=tf_data.get('pos_x', 0),
-            pos_y=tf_data.get('pos_y', 0),
-            width=tf_data.get('width', 200),
-            height=tf_data.get('height', 100),
-            font_size=tf_data.get('font_size', 14),
-            color=tf_data.get('color', '#000000'),
-            background_color=tf_data.get('background_color', '#ffffff'),
-            created_by=created_by_id
-        )
-        
-        if tf_data.get('created_at'):
-            text_field.created_at = datetime.fromisoformat(tf_data['created_at'])
-        if tf_data.get('updated_at'):
-            text_field.updated_at = datetime.fromisoformat(tf_data['updated_at'])
-        
-        db.session.add(text_field)
+    """Importiert Canvas-Textfelder. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr importiert (Excalidraw-Integration)
+    # Keine Migration von alten Canvas-Textfeldern
+    pass
 
 
 def import_canvas_elements(elements_data: List[Dict], canvas_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
-    """Importiert Canvas-Elemente."""
-    for e_data in elements_data:
-        canvas_name = e_data.get('canvas_name')
-        created_by_email = e_data.get('created_by_email')
-        
-        if not canvas_name or canvas_name not in canvas_map:
-            continue
-        if not created_by_email:
-            created_by_id = current_user_id
-        elif created_by_email not in user_map:
-            if current_user_id:
-                created_by_id = current_user_id
-            else:
-                continue
-        else:
-            created_by_id = user_map[created_by_email]
-        
-        canvas_id = canvas_map[canvas_name]
-        
-        element = CanvasElement(
-            canvas_id=canvas_id,
-            element_type=e_data.get('element_type'),
-            properties=e_data.get('properties', '{}'),  # JSON string
-            z_index=e_data.get('z_index', 0),
-            created_by=created_by_id
-        )
-        
-        if e_data.get('created_at'):
-            element.created_at = datetime.fromisoformat(e_data['created_at'])
-        if e_data.get('updated_at'):
-            element.updated_at = datetime.fromisoformat(e_data['updated_at'])
-        
-        db.session.add(element)
+    """Importiert Canvas-Elemente. (Veraltet - wird nicht mehr unterstützt)"""
+    # Alte Canvas-Daten werden nicht mehr importiert (Excalidraw-Integration)
+    # Keine Migration von alten Canvas-Elementen
+    pass
 
 
 def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
