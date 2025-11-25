@@ -8,7 +8,6 @@ import os
 import sys
 from datetime import datetime
 
-# Füge das Projektverzeichnis zum Python-Pfad hinzu
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, db
@@ -18,12 +17,10 @@ def init_database():
     """Initialisiert die Datenbank mit allen erforderlichen Tabellen."""
     print("Starte Datenbank-Initialisierung...")
     
-    # Erstelle die Flask-App
     app = create_app(os.getenv('FLASK_ENV', 'development'))
     
     with app.app_context():
         try:
-            # Erstelle alle Tabellen
             print("Erstelle alle Datenbank-Tabellen...")
             db.create_all()
             print("Alle Tabellen erfolgreich erstellt/aktualisiert")
@@ -60,10 +57,8 @@ def init_database():
             else:
                 print(f"\nAlle {len(expected_tables)} erwarteten Tabellen sind vorhanden!")
             
-            # Initialisiere Standard-Einstellungen
             print("\nInitialisiere Standard-Einstellungen...")
             
-            # System-Einstellungen
             if not SystemSettings.query.filter_by(key='email_footer_text').first():
                 footer = SystemSettings(
                     key='email_footer_text',
@@ -82,7 +77,6 @@ def init_database():
                 db.session.add(footer_img)
                 print("E-Mail-Footer-Bild-Einstellung hinzugefuegt")
             
-            # E-Mail HTML-Speicherung konfigurieren
             if not SystemSettings.query.filter_by(key='email_html_storage_type').first():
                 html_storage = SystemSettings(
                     key='email_html_storage_type',
@@ -101,7 +95,6 @@ def init_database():
                 db.session.add(html_max_length)
                 print("E-Mail HTML-Maximallaenge konfiguriert")
             
-            # Haupt-Chat erstellen
             main_chat = Chat.query.filter_by(is_main_chat=True).first()
             if not main_chat:
                 main_chat = Chat(
@@ -110,10 +103,9 @@ def init_database():
                     is_direct_message=False
                 )
                 db.session.add(main_chat)
-                db.session.flush()  # Get the ID
+                db.session.flush()
                 print("Haupt-Chat erstellt")
                 
-                # Alle aktiven Benutzer zum Haupt-Chat hinzufuegen
                 active_users = User.query.filter_by(is_active=True).all()
                 for user in active_users:
                     member = ChatMember(
@@ -123,7 +115,6 @@ def init_database():
                     db.session.add(member)
                 print(f"{len(active_users)} Benutzer zum Haupt-Chat hinzugefuegt")
             
-            # Speichere alle Aenderungen
             db.session.commit()
             print("\nAlle Aenderungen gespeichert")
             
@@ -143,7 +134,6 @@ def check_database_health():
     
     with app.app_context():
         try:
-            # Teste grundlegende Abfragen
             user_count = User.query.count()
             chat_count = Chat.query.count()
             file_count = File.query.count()
@@ -152,7 +142,6 @@ def check_database_health():
             print(f"Chats: {chat_count}")
             print(f"Dateien: {file_count}")
             
-            # Teste Verbindung
             db.session.execute(db.text('SELECT 1'))
             print("Datenbankverbindung funktioniert")
             
@@ -167,11 +156,9 @@ if __name__ == '__main__':
     print("TEAM PORTAL - DATENBANK-INITIALISIERUNG")
     print("=" * 60)
     
-    # Initialisiere Datenbank
     success = init_database()
     
     if success:
-        # Fuehre Gesundheitscheck durch
         health_ok = check_database_health()
         
         if health_ok:

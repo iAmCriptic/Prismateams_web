@@ -14,7 +14,6 @@ canvas_bp = Blueprint('canvas', __name__)
 @login_required
 def index():
     """List all canvases."""
-    # Prüfe ob Excalidraw aktiviert ist
     from app.utils.excalidraw import is_excalidraw_enabled
     if not is_excalidraw_enabled():
         flash('Excalidraw ist nicht aktiviert. Bitte aktivieren Sie Excalidraw in den Einstellungen.', 'warning')
@@ -28,7 +27,6 @@ def index():
 @login_required
 def create():
     """Create a new canvas."""
-    # Prüfe ob Excalidraw aktiviert ist
     from app.utils.excalidraw import is_excalidraw_enabled
     if not is_excalidraw_enabled():
         flash('Excalidraw ist nicht aktiviert. Bitte aktivieren Sie Excalidraw in den Einstellungen.', 'warning')
@@ -42,8 +40,19 @@ def create():
             flash(_('canvas.create.alerts.name_required', default='Name ist erforderlich.'), 'danger')
             return render_template('canvas/create.html')
         
-        # Generiere Room-ID für Excalidraw-Room
         room_id = str(uuid.uuid4())
+        
+        initial_data = {
+            'type': 'excalidraw',
+            'version': 2,
+            'source': 'https://excalidraw.com',
+            'elements': [],
+            'appState': {
+                'gridSize': None,
+                'viewBackgroundColor': '#ffffff'
+            },
+            'files': {}
+        }
         
         canvas = Canvas(
             name=name,
@@ -51,6 +60,7 @@ def create():
             room_id=room_id,
             created_by=current_user.id
         )
+        canvas.set_excalidraw_data(initial_data)
         
         db.session.add(canvas)
         db.session.commit()
@@ -65,7 +75,6 @@ def create():
 @login_required
 def edit(canvas_id):
     """Edit a canvas with Excalidraw."""
-    # Prüfe ob Excalidraw aktiviert ist
     from app.utils.excalidraw import is_excalidraw_enabled
     if not is_excalidraw_enabled():
         flash('Excalidraw ist nicht aktiviert. Bitte aktivieren Sie Excalidraw in den Einstellungen.', 'warning')
@@ -73,21 +82,17 @@ def edit(canvas_id):
     
     canvas_obj = Canvas.query.get_or_404(canvas_id)
     
-    # Lade Excalidraw-Daten
     excalidraw_data = canvas_obj.get_excalidraw_data()
     
-    # Generiere Room-ID falls nicht vorhanden
     if not canvas_obj.room_id:
         canvas_obj.room_id = str(uuid.uuid4())
         db.session.commit()
     
-    # Excalidraw URLs
     from app.utils.excalidraw import get_excalidraw_url, get_excalidraw_room_url, get_excalidraw_public_url
     excalidraw_url = get_excalidraw_url()
     room_url = get_excalidraw_room_url()
     public_url = get_excalidraw_public_url()
     
-    # URLs für Excalidraw
     document_url = f"{public_url}{flask_url_for('canvas.load', canvas_id=canvas_id)}" if public_url else flask_url_for('canvas.load', canvas_id=canvas_id, _external=True)
     save_url = f"{public_url}{flask_url_for('canvas.save', canvas_id=canvas_id)}" if public_url else flask_url_for('canvas.save', canvas_id=canvas_id, _external=True)
     
@@ -110,7 +115,6 @@ def delete(canvas_id):
     """Delete a canvas."""
     canvas_obj = Canvas.query.get_or_404(canvas_id)
     
-    # Nur Ersteller oder Admin kann löschen
     if canvas_obj.created_by != current_user.id and not current_user.is_admin:
         flash('Sie haben keine Berechtigung, diesen Canvas zu löschen.', 'danger')
         return redirect(url_for('canvas.index'))
@@ -122,18 +126,31 @@ def delete(canvas_id):
     return redirect(url_for('canvas.index'))
 
 
-@canvas_bp.route('/<int:canvas_id>/load')
+@canvas_bp.route('/<int:canvas_id>/load', methods=['GET', 'OPTIONS'])
 @login_required
 def load(canvas_id):
     """Load Excalidraw data for a canvas."""
+    from flask import current_app
+    from urllib.parse import urlparse
+    
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
+        if room_url.startswith('http'):
+            parsed = urlparse(room_url)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
+    
     canvas_obj = Canvas.query.get_or_404(canvas_id)
     
-    # Lade Excalidraw-Daten
     excalidraw_data = canvas_obj.get_excalidraw_data()
     
-    # Wenn keine Daten vorhanden sind, gib leeres Excalidraw-Format zurück
     if not excalidraw_data:
-        return jsonify({
+        excalidraw_data = {
             'type': 'excalidraw',
             'version': 2,
             'source': 'https://excalidraw.com',
@@ -143,20 +160,42 @@ def load(canvas_id):
                 'viewBackgroundColor': '#ffffff'
             },
             'files': {}
-        })
+        }
     
-    return jsonify(excalidraw_data)
+    response = jsonify(excalidraw_data)
+    
+    room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
+    if room_url.startswith('http'):
+        parsed = urlparse(room_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    
+    return response
 
 
-@canvas_bp.route('/<int:canvas_id>/save', methods=['POST'])
+@canvas_bp.route('/<int:canvas_id>/save', methods=['POST', 'OPTIONS'])
 @login_required
 def save(canvas_id):
     """Save Excalidraw data for a canvas."""
-    canvas_obj = Canvas.query.get_or_404(canvas_id)
+    from flask import current_app
+    from urllib.parse import urlparse
     
-    # Nur Ersteller oder Admin kann speichern
-    if canvas_obj.created_by != current_user.id and not current_user.is_admin:
-        return jsonify({'error': 'Unauthorized'}), 403
+    if request.method == 'OPTIONS':
+        response = jsonify({})
+        room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
+        if room_url.startswith('http'):
+            parsed = urlparse(room_url)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
+    
+    canvas_obj = Canvas.query.get_or_404(canvas_id)
     
     try:
         data = request.get_json()
@@ -165,7 +204,19 @@ def save(canvas_id):
             canvas_obj.set_excalidraw_data(data)
             canvas_obj.updated_at = datetime.utcnow()
             db.session.commit()
-            return jsonify({'success': True})
+            
+            response = jsonify({'success': True})
+            
+            room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
+            if room_url.startswith('http'):
+                parsed = urlparse(room_url)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+            
+            return response
         else:
             return jsonify({'error': 'No data provided'}), 400
     except Exception as e:

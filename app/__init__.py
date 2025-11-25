@@ -10,7 +10,6 @@ import subprocess
 import sys
 from app.utils.i18n import register_i18n, translate
 
-# Initialize extensions
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
@@ -23,94 +22,77 @@ def create_app(config_name='default'):
     basedir = os.path.abspath(os.path.dirname(__file__))
     app = Flask(__name__, static_folder=os.path.join(basedir, 'static'))
     
-    # Load configuration
     app.config.from_object(config[config_name])
     
-    # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
     socketio.init_app(app)
     register_i18n(app)
     
-    # Configure login manager
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Bitte melden Sie sich an, um auf diese Seite zuzugreifen.'
     login_manager.login_message_category = 'info'
     
-    # Custom unauthorized handler for API endpoints (returns JSON instead of redirecting)
     @login_manager.unauthorized_handler
     def unauthorized():
-        # Check if this is an API request (OnlyOffice or other API endpoints)
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Authentication required'}), 401
-        # For regular requests, redirect to login
         from flask import redirect, url_for
         return redirect(url_for('auth.login'))
     
-    # Add email confirmation check to all routes
     @app.before_request
     def check_email_confirmation():
         """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
         from flask import request, redirect, url_for, flash
         from flask_login import current_user
         
-        # Skip check for auth routes, setup, static files, API, OnlyOffice endpoints, and portal logo
         if (request.endpoint and 
             (request.endpoint.startswith('auth.') or 
              request.endpoint.startswith('setup.') or
              request.endpoint.startswith('static') or
              request.endpoint.startswith('api.') or
-             request.endpoint.startswith('files.onlyoffice') or  # OnlyOffice endpoints
-             request.endpoint.startswith('files.share_onlyoffice') or  # OnlyOffice share endpoints
+             request.endpoint.startswith('files.onlyoffice') or
+             request.endpoint.startswith('files.share_onlyoffice') or
              request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo')):
             return
         
-        # Skip check if user is not logged in
         if not current_user.is_authenticated:
             return
         
-        # Check if email confirmation is required
         if not current_user.is_email_confirmed:
-            # Allow access to confirmation page
             if request.endpoint == 'auth.confirm_email':
                 return
-            # Redirect to confirmation page
             flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
             return redirect(url_for('auth.confirm_email'))
     
-    # User loader for Flask-Login
     from app.models.user import User
     
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
     
-    # Internationalisierung initialisieren
     from app.utils.i18n import init_i18n
     init_i18n(app)
 
-    # Create upload directories if they don't exist
     upload_dirs = [
         app.config['UPLOAD_FOLDER'],
         os.path.join(app.config['UPLOAD_FOLDER'], 'files'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'chat'),
-        os.path.join(app.config['UPLOAD_FOLDER'], 'chat', 'avatars'),  # For chat avatars
+        os.path.join(app.config['UPLOAD_FOLDER'], 'chat', 'avatars'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'manuals'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'profile_pics'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'inventory', 'product_images'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'inventory', 'product_documents'),
-        os.path.join(app.config['UPLOAD_FOLDER'], 'system'),  # For portal logo
-        os.path.join(app.config['UPLOAD_FOLDER'], 'wiki'),  # For wiki pages
+        os.path.join(app.config['UPLOAD_FOLDER'], 'system'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'wiki'),
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
     
-    # Make app config available in all templates
     @app.context_processor
     def inject_app_config():
-        # Load from SystemSettings first, fallback to config
         app_name = app.config.get('APP_NAME', 'Prismateams')
         app_logo = app.config.get('APP_LOGO')
         color_gradient = None
@@ -119,66 +101,52 @@ def create_app(config_name='default'):
         try:
             from app.models.settings import SystemSettings
             
-            # Load portal name from SystemSettings
-            # Try portal_name first, then fallback to organization_name (for migration), then config
             portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
             if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
                 app_name = portal_name_setting.value
             else:
-                # Check for old organization_name key (migration support)
                 org_name_setting = SystemSettings.query.filter_by(key='organization_name').first()
                 if org_name_setting and org_name_setting.value and org_name_setting.value.strip():
                     app_name = org_name_setting.value
                 else:
                     app_name = app.config.get('APP_NAME', 'Prismateams')
             
-            # Load portal logo from SystemSettings
             portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
             if portal_logo_setting and portal_logo_setting.value:
                 portal_logo_filename = portal_logo_setting.value
-                # Portal logo is stored as filename in uploads/system/, not in static
-                app_logo = None  # Will be handled via portal_logo route
+                app_logo = None
             
-            # Load color gradient from database
             gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
             if gradient_setting and gradient_setting.value:
                 color_gradient = gradient_setting.value
         except:
-            pass  # Ignore errors during setup
+            pass
         
-        # Fix logo path - remove 'static/' prefix if present since Flask adds it automatically
         if app_logo and app_logo.startswith('static/'):
-            app_logo = app_logo[7:]  # Remove 'static/' prefix
+            app_logo = app_logo[7:]
         
-        # Add ONLYOFFICE availability function
         from app.utils.onlyoffice import is_onlyoffice_enabled
         onlyoffice_available = is_onlyoffice_enabled()
         
-        # Add Excalidraw availability function
         from app.utils.excalidraw import is_excalidraw_enabled
         excalidraw_available = is_excalidraw_enabled()
         
-        # Add module check function
         from app.utils.common import is_module_enabled
         
-        # Function to get chat display name (for private chats, show only other person's name)
         def get_chat_display_name(chat):
             """Returns the display name for a chat. For private chats, shows only the other person's name."""
             from flask_login import current_user
             if chat.is_direct_message and not chat.is_main_chat:
-                # Get the other member (not the current user)
                 from app.models.chat import ChatMember
                 members = ChatMember.query.filter_by(chat_id=chat.id).all()
                 for member in members:
                     if member.user_id != current_user.id:
                         return member.user.full_name
-                # Fallback: return original name if something goes wrong
                 return chat.name
             if chat.is_main_chat:
                 return translate('chat.common.main_chat_name')
             return chat.name
         
-        # Function to get back URL based on current endpoint
         def get_back_url():
             """Bestimmt die logische Zurück-URL basierend auf dem aktuellen Endpoint."""
             from flask import request, url_for
@@ -188,9 +156,7 @@ def create_app(config_name='default'):
             
             endpoint = request.endpoint
             
-            # Spezifische Routen-Mappings (höchste Priorität)
             specific_mappings = {
-                # Inventory: Bearbeitungs- und Detailseiten -> Bestandsübersicht
                 'inventory.product_edit': 'inventory.stock',
                 'inventory.product_new': 'inventory.stock',
                 'inventory.product_documents': 'inventory.stock',
@@ -198,20 +164,16 @@ def create_app(config_name='default'):
                 'inventory.product_document_upload': 'inventory.stock',
                 'inventory.product_document_delete': 'inventory.stock',
                 'inventory.product_document_download': 'inventory.stock',
-                # Inventory: Sets -> Sets-Übersicht
                 'inventory.set_view': 'inventory.sets',
                 'inventory.set_edit': 'inventory.sets',
                 'inventory.set_borrow': 'inventory.sets',
                 'inventory.set_form': 'inventory.sets',
-                # Inventory: Ordner -> Bestandsübersicht
                 'inventory.folders': 'inventory.stock',
-                # Settings: Basis-Seiten -> Settings-Übersicht
                 'settings.profile': 'settings.index',
                 'settings.appearance': 'settings.index',
                 'settings.notifications': 'settings.index',
                 'settings.about': 'settings.index',
                 'settings.admin': 'settings.index',
-                # Settings Admin: Module & Aktionen -> Admin-Übersicht
                 'settings.admin_users': 'settings.admin',
                 'settings.admin_email_permissions': 'settings.admin',
                 'settings.admin_email_footer': 'settings.admin',
@@ -226,45 +188,35 @@ def create_app(config_name='default'):
                 'settings.admin_delete_inventory_category': 'settings.admin',
                 'settings.admin_inventory_permissions': 'settings.admin',
                 'settings.admin_toggle_borrow_permission': 'settings.admin',
-                # Auth: Admin-spezifische Seiten -> Admin-Übersicht
                 'auth.show_confirmation_codes': 'settings.admin',
                 'auth.test_email': 'settings.admin',
-                # Calendar: Detailseiten -> Kalender-Übersicht
                 'calendar.view': 'calendar.index',
                 'calendar.edit_event': 'calendar.index',
                 'calendar.create': 'calendar.index',
-                # Email: Detailseiten -> Email-Übersicht
                 'email.view_email': 'email.index',
                 'email.compose': 'email.index',
                 'email.reply': 'email.index',
                 'email.reply_all': 'email.index',
                 'email.forward': 'email.index',
-                # Chat: Detailseiten -> Chat-Übersicht
                 'chat.view_chat': 'chat.index',
                 'chat.create': 'chat.index',
-                # Wiki: Detailseiten -> Wiki-Übersicht
                 'wiki.view': 'wiki.index',
                 'wiki.edit': 'wiki.index',
                 'wiki.create': 'wiki.index',
-                # Canvas: Detailseiten -> Canvas-Übersicht
                 'canvas.view': 'canvas.index',
                 'canvas.edit': 'canvas.index',
                 'canvas.create': 'canvas.index',
-                # Credentials: Detailseiten -> Credentials-Übersicht
                 'credentials.view': 'credentials.index',
                 'credentials.edit': 'credentials.index',
                 'credentials.create': 'credentials.index',
-                # Manuals: Detailseiten -> Manuals-Übersicht
                 'manuals.view': 'manuals.index',
                 'manuals.edit': 'manuals.index',
                 'manuals.create': 'manuals.index',
             }
             
-            # Prüfe zuerst spezifische Mappings
             if endpoint in specific_mappings:
                 return url_for(specific_mappings[endpoint])
             
-            # Dateien: Ordnernavigation -> Elternordner oder Root
             if endpoint == 'files.browse_folder':
                 folder_id = request.view_args.get('folder_id') if request.view_args else None
                 if folder_id:
@@ -274,11 +226,9 @@ def create_app(config_name='default'):
                         return url_for('files.browse_folder', folder_id=folder.parent_id)
                 return url_for('files.index')
             
-            # Settings Admin: Fallback für alle weiteren Unterseiten
             if endpoint.startswith('settings.admin_'):
                 return url_for('settings.admin')
             
-            # Allgemeine Modul-Mappings
             module_mapping = {
                 'inventory': 'inventory.dashboard',
                 'email': 'email.index',
@@ -292,16 +242,12 @@ def create_app(config_name='default'):
                 'settings': 'settings.index'
             }
             
-            # Prüfe ob Endpoint zu einem Modul gehört
             for module_prefix, index_endpoint in module_mapping.items():
                 if endpoint.startswith(module_prefix + '.'):
-                    # Wenn es bereits die Index-Seite ist, zum Dashboard
                     if endpoint == index_endpoint:
                         return url_for('dashboard.index')
-                    # Sonst zur Index-Seite des Moduls
                     return url_for(index_endpoint)
             
-            # Fallback: Zum Dashboard
             return url_for('dashboard.index')
         
         return {
@@ -316,7 +262,6 @@ def create_app(config_name='default'):
             'get_chat_display_name': get_chat_display_name
         }
     
-    # Email header decoder filter
     @app.template_filter('decode_email_header')
     def decode_email_header_filter(header):
         """Decode email header fields properly."""
@@ -341,7 +286,6 @@ def create_app(config_name='default'):
         except Exception:
             return str(header)
     
-    # Email sender initials filter
     @app.template_filter('email_sender_initials')
     def email_sender_initials_filter(sender):
         """Extract initials from sender name or email."""
@@ -349,23 +293,19 @@ def create_app(config_name='default'):
             return '??'
         
         try:
-            # Decode first if needed
             decoded = decode_email_header_filter(sender)
             
-            # Remove email address if present (e.g., "Name <email@example.com>")
             import re
             name_match = re.match(r'^(.+?)\s*<.*?>$', decoded)
             if name_match:
                 name = name_match.group(1).strip()
             else:
-                # Try to extract name from email if no name found
                 email_match = re.match(r'^(.+?)\s*<(.+?)>$', decoded)
                 if email_match:
                     name = email_match.group(1).strip() or email_match.group(2).split('@')[0]
                 else:
                     name = decoded.split('<')[0].strip() if '<' in decoded else decoded
             
-            # Extract initials
             parts = name.split()
             if len(parts) >= 2:
                 return (parts[0][0] + parts[1][0]).upper()
@@ -379,7 +319,6 @@ def create_app(config_name='default'):
             return '??'
     
     
-    # Template filters
     from app.utils import format_time, format_datetime
     
     @app.template_filter('localtime')
@@ -412,17 +351,13 @@ def create_app(config_name='default'):
         today = date.today()
         message_date = local_dt.date()
         
-        # Calculate difference in days
         days_diff = (today - message_date).days
         
         if days_diff == 0:
-            # Today: show only time
             return local_dt.strftime('%H:%M')
         elif days_diff == 1:
-            # Yesterday: show "Gestern HH:MM"
             return f"Gestern {local_dt.strftime('%H:%M')}"
         else:
-            # Older: show date and time
             return local_dt.strftime('%d.%m.%Y %H:%M')
     
     @app.template_filter('markdown')
@@ -430,16 +365,13 @@ def create_app(config_name='default'):
         """Filter to render markdown text."""
         try:
             from app.utils.markdown import process_markdown
-            # Nutze die zentrale Markdown-Verarbeitung für Konsistenz
             return process_markdown(text, wiki_mode=False)
             
         except Exception as e:
-            # Fallback to plain text if markdown processing fails
             from flask import current_app
             current_app.logger.warning(f"Markdown processing failed: {e}, using plain text fallback")
             return text.replace('\n', '<br>')
 
-    # Error handlers
     @app.errorhandler(400)
     def bad_request(error):
         return render_template('errors/400.html'), 400
@@ -450,7 +382,6 @@ def create_app(config_name='default'):
     
     @app.errorhandler(404)
     def not_found(error):
-        # Log 404 errors for debugging
         app.logger.warning(f"404 Not Found: {request.url}")
         return render_template('errors/404.html'), 404
     
@@ -461,46 +392,34 @@ def create_app(config_name='default'):
     @app.errorhandler(413)
     def request_entity_too_large(error):
         """Handle 413 Request Entity Too Large errors."""
-        # Log the error
         app.logger.warning(f"413 Request Entity Too Large: {request.url}")
-        # Return JSON for API endpoints
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'File too large', 'message': 'Die hochgeladene Datei überschreitet das maximale Größenlimit.'}), 413
-        # Return user-friendly error page
         max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 524288000) / (1024 * 1024)
         return render_template('errors/413.html', max_size_mb=max_size_mb), 413
     
     @app.errorhandler(500)
     def internal_error(error):
-        # Log the error
         app.logger.error(f"500 Internal Server Error: {error}", exc_info=True)
-        # Rollback any database transactions
         db.session.rollback()
-        # Return JSON for API endpoints
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Internal server error', 'message': str(error)}), 500
         return render_template('errors/500.html'), 500
     
     @app.errorhandler(Exception)
     def handle_exception(e):
-        # Skip RequestEntityTooLarge - it has its own handler
         from werkzeug.exceptions import RequestEntityTooLarge
         if isinstance(e, RequestEntityTooLarge):
-            raise  # Re-raise to let the 413 handler catch it
+            raise
         
-        # Log the error
         app.logger.error(f"Unhandled exception: {e}", exc_info=True)
         
-        # Rollback any database transactions
         db.session.rollback()
         
-        # Return JSON for API endpoints
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
-        # Return 500 error page
         return render_template('errors/500.html'), 500
     
-    # Custom error handler for application-specific errors
     @app.errorhandler(ValueError)
     def handle_value_error(e):
         app.logger.warning(f"Value error: {e}")
@@ -514,7 +433,6 @@ def create_app(config_name='default'):
         app.logger.warning(f"Permission error: {e}")
         return render_template('errors/403.html'), 403
 
-    # Register blueprints
     from app.blueprints.setup import setup_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.dashboard import dashboard_bp
@@ -549,46 +467,35 @@ def create_app(config_name='default'):
     app.register_blueprint(wiki_bp)
     app.register_blueprint(comments_bp)
     
-    # PWA Manifest Route - Generate dynamically based on portal name
     @app.route('/manifest.json')
     def manifest():
         import json
         from app.models.settings import SystemSettings
         
-        # Load portal name from SystemSettings
         portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
         portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else app.config.get('APP_NAME', 'Prismateams')
         
-        # Load manifest.json and replace name dynamically
         manifest_path = os.path.join(app.static_folder, 'manifest.json')
         try:
             with open(manifest_path, 'r', encoding='utf-8') as f:
                 manifest_data = json.load(f)
             
-            # Update with current portal name
             manifest_data['name'] = portal_name
             manifest_data['short_name'] = portal_name
             
             return jsonify(manifest_data)
         except:
-            # Fallback to static file if something goes wrong
             return app.send_static_file('manifest.json')
     
-    # Service Worker unter Root-Scope ausliefern, damit er die gesamte App kontrolliert
     @app.route('/sw.js')
     def service_worker():
         return app.send_static_file('sw.js')
     
-    # Create database tables
     with app.app_context():
         try:
-            # Erstelle alle Tabellen (nur neue werden hinzugefügt)
-            # Die Felder is_dropbox, dropbox_token, dropbox_password_hash werden automatisch erstellt,
-            # da sie im Folder-Modell definiert sind (app/models/file.py)
             db.create_all()
             print("[OK] Datenbank-Tabellen erfolgreich erstellt/aktualisiert")
             
-            # Führe Migration für bestehende Installationen aus (falls Felder fehlen)
             try:
                 from sqlalchemy import inspect
                 inspector = inspect(db.engine)
@@ -652,10 +559,8 @@ def create_app(config_name='default'):
                 print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
                 print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
             
-            # CRITICAL: Ensure standard email folders always exist
             from app.models.email import EmailFolder
             
-            # Create standard folders if they don't exist
             standard_folders = [
                 {'name': 'INBOX', 'display_name': 'Posteingang', 'folder_type': 'standard', 'is_system': True},
                 {'name': 'Sent', 'display_name': 'Gesendet', 'folder_type': 'standard', 'is_system': True},
@@ -677,15 +582,12 @@ def create_app(config_name='default'):
             
         except Exception as e:
             print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
-            # Versuche trotzdem fortzufahren
         
-        # Initialize system settings
         from app.models.settings import SystemSettings
         from app.models.chat import Chat
         from app.models.user import User
         from sqlalchemy import inspect, text
         
-        # Create default system settings if they don't exist
         if not SystemSettings.query.filter_by(key='email_footer_text').first():
             footer = SystemSettings(
                 key='email_footer_text',
@@ -748,7 +650,6 @@ def create_app(config_name='default'):
                 if description and not setting.description:
                     setting.description = description
         
-        # Stelle sicher, dass bestehende Benutzer eine Sprache gesetzt haben
         try:
             inspector = inspect(db.engine)
             if 'users' in inspector.get_table_names():
@@ -766,7 +667,6 @@ def create_app(config_name='default'):
         except Exception as e:
             app.logger.warning("Konnte Benutzersprachen nicht aktualisieren: %s", e)
 
-        # Create main chat if it doesn't exist
         main_chat = Chat.query.filter_by(is_main_chat=True).first()
         if not main_chat:
             main_chat = Chat(
@@ -775,9 +675,8 @@ def create_app(config_name='default'):
                 is_direct_message=False
             )
             db.session.add(main_chat)
-            db.session.flush()  # Get the ID
+            db.session.flush()
             
-            # Add all active users to the main chat
             from app.models.chat import ChatMember
             active_users = User.query.filter_by(is_active=True).all()
             for user in active_users:
@@ -786,18 +685,13 @@ def create_app(config_name='default'):
                     user_id=user.id
                 )
                 db.session.add(member)
-        
-        # Also ensure all new users are added to the main chat
         else:
             from app.models.chat import ChatMember
             try:
-                # Get all active users
                 active_users = User.query.filter_by(is_active=True).all()
-                # Get existing members of main chat
                 existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                 existing_user_ids = [member.user_id for member in existing_members]
                 
-                # Add any users who aren't already members
                 for user in active_users:
                     if user.id not in existing_user_ids:
                         member = ChatMember(
@@ -807,19 +701,15 @@ def create_app(config_name='default'):
                         db.session.add(member)
             except Exception as e:
                 print(f"WARNING: Could not update main chat members: {e}")
-                # Continue without failing
         
         db.session.commit()
     
     if not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):
-        # Start email auto-sync
         start_email_sync(app)
         
-        # Start notification scheduler
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
     
-    # Import SocketIO handlers
     from app.blueprints import canvas
     
     return app

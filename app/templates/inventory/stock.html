@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Bestandsübersicht - Team Portal{% endblock %}
+{% block title %}{{ _('inventory.stock.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
         <h1 class="mb-3">
-            <i class="bi bi-box-seam"></i> Bestandsübersicht
+            <i class="bi bi-box-seam"></i> {{ _('inventory.stock.heading') }}
             {% if current_folder %}
                 <small class="text-muted">- {{ current_folder.name }}</small>
             {% endif %}
@@ -14,7 +14,7 @@
         {% if current_folder %}
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock') }}">Root</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock') }}">{{ _('inventory.stock.breadcrumb_root') }}</a></li>
                 <li class="breadcrumb-item active" aria-current="page">{{ current_folder.name }}</li>
             </ol>
         </nav>
@@ -22,10 +22,10 @@
     </div>
     <div class="col-auto d-flex gap-2">
         <button id="borrowSelectedBtn" class="btn btn-primary" style="display: none;">
-            <i class="bi bi-cart-check"></i> Ausgewählte ausleihen (<span id="selectedCount">0</span>)
+            <i class="bi bi-cart-check"></i> {{ _('inventory.stock.borrow_selected') }} (<span id="selectedCount">0</span>)
         </button>
         <a href="{{ url_for('inventory.product_new') }}" class="btn btn-accent">
-            <i class="bi bi-plus-circle"></i> Produkt hinzufügen
+            <i class="bi bi-plus-circle"></i> {{ _('inventory.stock.add_product') }}
         </a>
     </div>
 </div>
@@ -36,28 +36,28 @@
         <!-- Erweiterte Suche (immer sichtbar) -->
         <div class="row g-3 mb-3">
             <div class="col-12">
-                <label for="searchInput" class="form-label">Suchen</label>
+                <label for="searchInput" class="form-label">{{ _('inventory.stock.search.label') }}</label>
                 <input type="text" class="form-control" id="searchInput" 
-                       placeholder="Name, Seriennummer, Länge (z.B. 5 m), Beschreibung, Lagerort, Kategorie...">
-                <small class="form-text text-muted">Durchsucht alle Produktattribute</small>
+                       placeholder="{{ _('inventory.stock.search.placeholder') }}">
+                <small class="form-text text-muted">{{ _('inventory.stock.search.help') }}</small>
             </div>
         </div>
         
         <!-- Schnellfilter -->
         <div class="mb-3">
-            <label class="form-label">Schnellfilter</label>
+            <label class="form-label">{{ _('inventory.stock.quick_filters.label') }}</label>
             <div class="d-flex flex-wrap gap-2">
                 <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="all">
-                    <i class="bi bi-list-ul"></i> Alle anzeigen
+                    <i class="bi bi-list-ul"></i> {{ _('inventory.stock.quick_filters.all') }}
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="favorites">
-                    <i class="bi bi-star-fill"></i> Meine Favoriten
+                    <i class="bi bi-star-fill"></i> {{ _('inventory.stock.quick_filters.favorites') }}
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="available">
-                    <i class="bi bi-check-circle"></i> Verfügbar
+                    <i class="bi bi-check-circle"></i> {{ _('inventory.stock.quick_filters.available') }}
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="borrowed">
-                    <i class="bi bi-clock-history"></i> Ausgeliehen
+                    <i class="bi bi-clock-history"></i> {{ _('inventory.stock.quick_filters.borrowed') }}
                 </button>
             </div>
         </div>
@@ -70,7 +70,7 @@
                         <h2 class="accordion-header" id="filterHeading">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
                                     data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
-                                <i class="bi bi-funnel me-2"></i> Filter
+                                <i class="bi bi-funnel me-2"></i> {{ _('inventory.stock.filters.title') }}
                             </button>
                         </h2>
                         <div id="filterCollapse" class="accordion-collapse collapse" 
@@ -78,47 +78,47 @@
                             <div class="accordion-body">
                                 <div class="row g-3">
                                     <div class="col-12 col-md-6">
-                                        <label for="categoryFilter" class="form-label">Kategorie</label>
+                                        <label for="categoryFilter" class="form-label">{{ _('inventory.stock.filters.category') }}</label>
                                         <select class="form-select" id="categoryFilter">
-                                            <option value="">Alle Kategorien</option>
+                                            <option value="">{{ _('inventory.stock.filters.all_categories') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label for="statusFilter" class="form-label">Status</label>
+                                        <label for="statusFilter" class="form-label">{{ _('inventory.stock.filters.status') }}</label>
                                         <select class="form-select" id="statusFilter">
-                                            <option value="">Alle Status</option>
-                                            <option value="available">Verfügbar</option>
-                                            <option value="borrowed">Ausgeliehen</option>
-                                            <option value="missing">Fehlend</option>
+                                            <option value="">{{ _('inventory.stock.filters.all_status') }}</option>
+                                            <option value="available">{{ _('inventory.stock.filters.available') }}</option>
+                                            <option value="borrowed">{{ _('inventory.stock.filters.borrowed') }}</option>
+                                            <option value="missing">{{ _('inventory.stock.filters.missing') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label for="conditionFilter" class="form-label">Zustand</label>
+                                        <label for="conditionFilter" class="form-label">{{ _('inventory.stock.filters.condition') }}</label>
                                         <select class="form-select" id="conditionFilter">
-                                            <option value="">Alle Zustände</option>
+                                            <option value="">{{ _('inventory.stock.filters.all_conditions') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label for="locationFilter" class="form-label">Lagerort</label>
+                                        <label for="locationFilter" class="form-label">{{ _('inventory.stock.filters.location') }}</label>
                                         <select class="form-select" id="locationFilter">
-                                            <option value="">Alle Lagerorte</option>
+                                            <option value="">{{ _('inventory.stock.filters.all_locations') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 col-md-6">
-                                        <label for="lengthFilter" class="form-label">Länge</label>
+                                        <label for="lengthFilter" class="form-label">{{ _('inventory.stock.filters.length') }}</label>
                                         <select class="form-select" id="lengthFilter">
-                                            <option value="">Alle Längen</option>
+                                            <option value="">{{ _('inventory.stock.filters.all_lengths') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12">
-                                        <label for="purchaseYearFilter" class="form-label">Anschaffungsjahr</label>
+                                        <label for="purchaseYearFilter" class="form-label">{{ _('inventory.stock.filters.purchase_year') }}</label>
                                         <select class="form-select" id="purchaseYearFilter">
-                                            <option value="">Alle Jahre</option>
+                                            <option value="">{{ _('inventory.stock.filters.all_years') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12">
                                         <button type="button" class="btn btn-sm btn-outline-secondary" id="resetFiltersBtn">
-                                            <i class="bi bi-x-circle"></i> Filter zurücksetzen
+                                            <i class="bi bi-x-circle"></i> {{ _('inventory.stock.filters.reset') }}
                                         </button>
                                     </div>
                                 </div>
@@ -133,7 +133,7 @@
                         <h2 class="accordion-header" id="sortHeading">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                     data-bs-target="#sortCollapse" aria-expanded="false" aria-controls="sortCollapse">
-                                <i class="bi bi-arrow-down-up me-2"></i> Sortieren
+                                <i class="bi bi-arrow-down-up me-2"></i> {{ _('inventory.stock.sort.title') }}
                             </button>
                         </h2>
                         <div id="sortCollapse" class="accordion-collapse collapse"
@@ -141,24 +141,24 @@
                             <div class="accordion-body">
                                 <div class="row g-3">
                                     <div class="col-12">
-                                        <label for="sortField" class="form-label">Sortierkriterium</label>
+                                        <label for="sortField" class="form-label">{{ _('inventory.stock.sort.field') }}</label>
                                         <select class="form-select" id="sortField">
-                                            <option value="name">Name</option>
-                                            <option value="category">Kategorie</option>
-                                            <option value="condition">Zustand</option>
-                                            <option value="length">Länge</option>
+                                            <option value="name">{{ _('inventory.stock.sort.name') }}</option>
+                                            <option value="category">{{ _('inventory.stock.sort.category') }}</option>
+                                            <option value="condition">{{ _('inventory.stock.sort.condition') }}</option>
+                                            <option value="length">{{ _('inventory.stock.sort.length') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12">
-                                        <label for="sortDirection" class="form-label">Richtung</label>
+                                        <label for="sortDirection" class="form-label">{{ _('inventory.stock.sort.direction') }}</label>
                                         <select class="form-select" id="sortDirection">
-                                            <option value="asc">Aufsteigend (A–Z / kurz → lang)</option>
-                                            <option value="desc">Absteigend (Z–A / lang → kurz)</option>
+                                            <option value="asc">{{ _('inventory.stock.sort.asc') }}</option>
+                                            <option value="desc">{{ _('inventory.stock.sort.desc') }}</option>
                                         </select>
                                     </div>
                                     <div class="col-12 d-flex gap-2">
                                         <button type="button" class="btn btn-outline-secondary flex-fill" id="resetSortBtn">
-                                            <i class="bi bi-arrow-counterclockwise"></i> Sortierung zurücksetzen
+                                            <i class="bi bi-arrow-counterclockwise"></i> {{ _('inventory.stock.sort.reset') }}
                                         </button>
                                     </div>
                                 </div>
@@ -177,25 +177,25 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex gap-2 align-items-center">
                 <span class="text-muted me-2">
-                    <strong id="bulkSelectionCount">0</strong> Produkt(e) ausgewählt
+                    <strong id="bulkSelectionCount">0</strong> {{ _('inventory.stock.bulk_selection.selected') }}
                 </span>
             </div>
             <div class="d-flex gap-2 flex-wrap">
-                <button id="bulkSelectAllBtn" class="btn btn-sm btn-outline-primary" title="Alle verfügbaren Produkte auswählen">
-                    <i class="bi bi-check-square"></i> Alle auswählen
+                <button id="bulkSelectAllBtn" class="btn btn-sm btn-outline-primary" title="{{ _('inventory.stock.bulk_selection.select_all') }}">
+                    <i class="bi bi-check-square"></i> {{ _('inventory.stock.bulk_selection.select_all') }}
                 </button>
-                <button id="bulkDeselectAllBtn" class="btn btn-sm btn-outline-secondary" title="Alle Auswahl aufheben">
-                    <i class="bi bi-square"></i> Alle abwählen
+                <button id="bulkDeselectAllBtn" class="btn btn-sm btn-outline-secondary" title="{{ _('inventory.stock.bulk_selection.deselect_all') }}">
+                    <i class="bi bi-square"></i> {{ _('inventory.stock.bulk_selection.deselect_all') }}
                 </button>
                 <div class="vr"></div>
-                <button id="bulkEditBtn" class="btn btn-sm btn-primary" title="Ausgewählte Produkte bearbeiten">
-                    <i class="bi bi-pencil"></i> Bearbeiten
+                <button id="bulkEditBtn" class="btn btn-sm btn-primary" title="{{ _('inventory.stock.bulk_selection.edit') }}">
+                    <i class="bi bi-pencil"></i> {{ _('inventory.stock.bulk_selection.edit') }}
                 </button>
-                <button id="bulkBorrowBtn" class="btn btn-sm btn-success" title="Ausgewählte Produkte ausleihen">
-                    <i class="bi bi-cart-check"></i> Ausleihen
+                <button id="bulkBorrowBtn" class="btn btn-sm btn-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
+                    <i class="bi bi-cart-check"></i> {{ _('inventory.stock.bulk_selection.borrow') }}
                 </button>
-                <button id="bulkDeleteBtn" class="btn btn-sm btn-danger" title="Ausgewählte Produkte löschen">
-                    <i class="bi bi-trash"></i> Löschen
+                <button id="bulkDeleteBtn" class="btn btn-sm btn-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
+                    <i class="bi bi-trash"></i> {{ _('inventory.stock.bulk_selection.delete') }}
                 </button>
             </div>
         </div>
@@ -216,10 +216,10 @@
             <div class="d-flex gap-2 align-items-center">
                 <!-- View Toggle -->
                 <div class="btn-group" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" id="listViewBtn" title="Listenansicht">
+                    <button class="btn btn-sm btn-outline-secondary" id="listViewBtn" title="{{ _('inventory.stock.views.list') }}">
                         <i class="bi bi-list"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary active" id="gridViewBtn" title="Rasteransicht">
+                    <button class="btn btn-sm btn-outline-secondary active" id="gridViewBtn" title="{{ _('inventory.stock.views.grid') }}">
                         <i class="bi bi-grid-3x3-gap"></i>
                     </button>
                 </div>
@@ -267,14 +267,14 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Produktdetails</h5>
+                <h5 class="modal-title">{{ _('inventory.stock.modals.product_details.title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="productDetailContent">
                 <!-- Wird dynamisch gefüllt -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.product_details.close') }}</button>
             </div>
         </div>
     </div>
@@ -286,22 +286,22 @@
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle"></i> Produkte löschen
+                    <i class="bi bi-exclamation-triangle"></i> {{ _('inventory.stock.modals.bulk_delete.title') }}
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle"></i> 
-                    <strong>Warnung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
+                    <strong>{{ _('inventory.stock.modals.bulk_delete.warning') }}</strong>
                 </div>
-                <p>Möchten Sie wirklich <strong id="bulkDeleteProductCount">0</strong> Produkt(e) löschen?</p>
-                <p class="text-muted small mb-0">Ausgeliehene Produkte können nicht gelöscht werden und werden automatisch ausgeschlossen.</p>
+                <p>{{ _('inventory.stock.modals.bulk_delete.message', count='<strong id="bulkDeleteProductCount">0</strong>')|safe }}</p>
+                <p class="text-muted small mb-0">{{ _('inventory.stock.modals.bulk_delete.note') }}</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_delete.cancel') }}</button>
                 <button type="button" class="btn btn-danger" id="bulkDeleteConfirmBtn">
-                    <i class="bi bi-trash"></i> Ja, löschen
+                    <i class="bi bi-trash"></i> {{ _('inventory.stock.modals.bulk_delete.confirm') }}
                 </button>
             </div>
         </div>
@@ -314,27 +314,27 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="bi bi-pencil"></i> Mehrere Produkte bearbeiten
+                    <i class="bi bi-pencil"></i> {{ _('inventory.stock.modals.bulk_edit.title') }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i> 
-                    <strong id="bulkEditProductCount">0</strong> Produkt(e) werden bearbeitet.
+                    <strong id="bulkEditProductCount">0</strong> {{ _('inventory.stock.modals.bulk_edit.info', count='0') }}
                 </div>
                 
                 <form id="bulkEditForm">
                     <div class="mb-3">
-                        <label for="bulkEditAttribute" class="form-label">Zu bearbeitendes Attribut <span class="text-danger">*</span></label>
+                        <label for="bulkEditAttribute" class="form-label">{{ _('inventory.stock.modals.bulk_edit.attribute_label') }} <span class="text-danger">*</span></label>
                         <select class="form-select" id="bulkEditAttribute" required>
-                            <option value="">Bitte wählen...</option>
-                            <option value="location">Lagerort</option>
-                            <option value="length">Länge (in Metern)</option>
-                            <option value="condition">Zustand</option>
-                            <option value="category">Kategorie</option>
-                            <option value="folder_id">Ordner</option>
-                            <option value="remove_image">Produktbild entfernen</option>
+                            <option value="">{{ _('inventory.stock.modals.bulk_edit.select_attribute') }}</option>
+                            <option value="location">{{ _('inventory.stock.modals.bulk_edit.location') }}</option>
+                            <option value="length">{{ _('inventory.stock.modals.bulk_edit.length') }}</option>
+                            <option value="condition">{{ _('inventory.stock.modals.bulk_edit.condition') }}</option>
+                            <option value="category">{{ _('inventory.stock.modals.bulk_edit.category') }}</option>
+                            <option value="folder_id">{{ _('inventory.stock.modals.bulk_edit.folder') }}</option>
+                            <option value="remove_image">{{ _('inventory.stock.modals.bulk_edit.remove_image') }}</option>
                         </select>
                     </div>
                     
@@ -345,14 +345,14 @@
                     
                     <div class="alert alert-warning mt-3">
                         <i class="bi bi-exclamation-triangle"></i> 
-                        Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Produkte werden mit dem neuen Wert aktualisiert.
+                        {{ _('inventory.stock.modals.bulk_edit.warning') }}
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_edit.cancel') }}</button>
                 <button type="button" class="btn btn-primary" id="bulkEditSubmitBtn">
-                    <i class="bi bi-check-circle"></i> Aktualisieren
+                    <i class="bi bi-check-circle"></i> {{ _('inventory.stock.modals.bulk_edit.update') }}
                 </button>
             </div>
         </div>

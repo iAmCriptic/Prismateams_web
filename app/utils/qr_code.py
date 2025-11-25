@@ -102,15 +102,20 @@ def generate_qr_code_inverted_bytes(data, box_size=10, border=4, format='PNG'):
 def generate_product_qr_code(product_id):
     """
     Generiert einen QR-Code für ein Produkt.
-    Format: PROD-{product_id}
+    Format: Vollständige URL zu /inventory/public/product/{product_id}
     
     Args:
         product_id: Die Produkt-ID
     
     Returns:
-        String mit dem QR-Code-Daten
+        String mit der vollständigen URL für den QR-Code
     """
-    qr_data = f"PROD-{product_id}"
+    try:
+        from flask import url_for
+        qr_data = url_for('inventory.public_product', product_id=product_id, _external=True)
+    except RuntimeError:
+        qr_data = f"/inventory/public/product/{product_id}"
+    
     return qr_data
 
 
@@ -147,9 +152,11 @@ def generate_set_qr_code(set_id):
 def parse_qr_code(qr_data):
     """
     Parst QR-Code-Daten und gibt den Typ und die ID zurück.
+    Unterstützt sowohl alte Text-Formate als auch neue URL-Formate.
     
     Args:
-        qr_data: Die QR-Code-Daten (z.B. "PROD-123", "SET-456" oder "BORROW-ABC123")
+        qr_data: Die QR-Code-Daten (z.B. "PROD-123", "SET-456", "BORROW-ABC123" 
+                 oder URLs wie "/inventory/public/product/123")
     
     Returns:
         Tuple (type, identifier) oder None falls ungültig
@@ -159,22 +166,34 @@ def parse_qr_code(qr_data):
     if not qr_data:
         return None
     
-    qr_data = qr_data.strip().upper()
+    qr_data = qr_data.strip()
     
-    if qr_data.startswith('PROD-'):
-        product_id = qr_data.replace('PROD-', '')
+    if '/inventory/public/product/' in qr_data or '/inventory/public/product/' in qr_data.lower():
+        import re
+        match = re.search(r'/inventory/public/product/(\d+)', qr_data, re.IGNORECASE)
+        if match:
+            try:
+                product_id = int(match.group(1))
+                return ('product', product_id)
+            except ValueError:
+                return None
+    
+    qr_data_upper = qr_data.upper()
+    
+    if qr_data_upper.startswith('PROD-'):
+        product_id = qr_data_upper.replace('PROD-', '')
         try:
             return ('product', int(product_id))
         except ValueError:
             return None
-    elif qr_data.startswith('SET-'):
-        set_id = qr_data.replace('SET-', '')
+    elif qr_data_upper.startswith('SET-'):
+        set_id = qr_data_upper.replace('SET-', '')
         try:
             return ('set', int(set_id))
         except ValueError:
             return None
-    elif qr_data.startswith('BORROW-'):
-        transaction_number = qr_data.replace('BORROW-', '')
+    elif qr_data_upper.startswith('BORROW-'):
+        transaction_number = qr_data_upper.replace('BORROW-', '')
         return ('borrow', transaction_number)
     
     return None
@@ -194,7 +213,6 @@ def save_qr_code_image(qr_data, save_path):
     try:
         img = generate_qr_code(qr_data)
         
-        # Stelle sicher, dass das Verzeichnis existiert
         directory = os.path.dirname(save_path)
         if directory:
             os.makedirs(directory, exist_ok=True)

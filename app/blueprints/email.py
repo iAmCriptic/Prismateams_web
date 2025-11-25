@@ -61,13 +61,10 @@ def build_footer_html():
         for placeholder, value in replacements.items():
             footer_html = footer_html.replace(placeholder, value)
         
-        # Convert line breaks to HTML: multiple \n\n or more become <p> tags, single \n becomes <br>
-        # Split by double or more newlines to create paragraphs
         paragraphs = re.split(r'\n\n+', footer_html)
         formatted_paragraphs = []
         for para in paragraphs:
             if para.strip():
-                # Replace single newlines within paragraphs with <br>
                 para_with_br = para.strip().replace('\n', '<br>')
                 formatted_paragraphs.append(f'<p>{para_with_br}</p>')
         
@@ -88,7 +85,6 @@ def render_custom_email(subject: str, body_html: str):
     body_html = body_html or ''
     footer_html = build_footer_html()
     
-    # Add empty line before footer if footer exists
     if footer_html:
         combined_html = body_html + '<p style="margin-top: 1em;"></p>' + footer_html
     else:
@@ -211,12 +207,10 @@ def sync_imap_folders():
                     folder_name = parts[-2]
                     logging.debug(f"Found folder: '{folder_name}'")
                     
-                    # Filter out invalid folder names
                     if not folder_name or folder_name.strip() == '' or folder_name == '/' or folder_name.strip() == '/':
                         logging.debug(f"Skipping invalid folder name: '{folder_name}'")
                         continue
                     
-                    # Skip system/metadata folders
                     skip_folders = ['[Gmail]', '[Google Mail]', '&XfJT0ZAB-', '&XfJSI-']
                     if any(skip in folder_name for skip in skip_folders):
                         logging.debug(f"Skipping system folder: '{folder_name}'")
@@ -250,7 +244,7 @@ def sync_imap_folders():
 
                     try:
                         if dialect_name in ('mysql', 'mariadb'):
-                            from sqlalchemy.dialects.mysql import insert as mysql_insert  # type: ignore
+                            from sqlalchemy.dialects.mysql import insert as mysql_insert
 
                             insert_stmt = mysql_insert(EmailFolder.__table__).values(**folder_payload)
                             update_stmt = {
@@ -284,7 +278,6 @@ def sync_imap_folders():
                             synced_folders.append(folder_name)
                     except IntegrityError:
                         db.session.rollback()
-                        # Another worker inserted the folder concurrently; refresh local representation
                         existing_folder = EmailFolder.query.filter_by(name=folder_name).first()
                         if existing_folder:
                             existing_folder.last_synced = datetime.utcnow()
@@ -318,7 +311,6 @@ def sync_imap_folders():
         
         logging.info(f"Synced {len(synced_folders)} folders, skipped {len(skipped_folders)} invalid folders")
         
-        # Remove invalid folders from database (e.g., "/")
         invalid_folder_names = ['/', '']
         for invalid_name in invalid_folder_names:
             invalid_folders = EmailFolder.query.filter_by(name=invalid_name).all()
@@ -343,7 +335,6 @@ def sync_emails_from_folder(folder_name):
     if not mail_conn:
         return False, "IMAP-Verbindung fehlgeschlagen"
     
-    # Statistiken für strukturierte Ausgabe
     stats = {
         'new_emails': 0,
         'updated_emails': 0,
@@ -354,18 +345,15 @@ def sync_emails_from_folder(folder_name):
     }
     
     try:
-        # Select the folder - use quoted folder name for folders with special characters
         try:
             status, messages = mail_conn.select(folder_name)
             if status != 'OK':
-                # Try with quoted folder name
                 try:
                     status, messages = mail_conn.select(f'"{folder_name}"')
                 except:
                     pass
                 if status != 'OK':
                     logging.error(f"IMAP folder selection failed for '{folder_name}': {messages}")
-                    # Entferne lokal nicht vorhandenen Ordner, um künftige Fehlversuche zu vermeiden
                     try:
                         db_folder = EmailFolder.query.filter_by(name=folder_name).first()
                         if db_folder:
@@ -379,7 +367,6 @@ def sync_emails_from_folder(folder_name):
             logging.error(f"Exception while selecting folder '{folder_name}': {e}")
             return False, f"Fehler beim Öffnen des Ordners '{folder_name}': {str(e)}"
         
-        # Get message count
         try:
             message_count = int(messages[0].decode().split()[1])
             logging.info(f"Folder '{folder_name}' contains {message_count} messages")
@@ -467,11 +454,8 @@ def sync_emails_from_folder(folder_name):
                 bcc_raw = email_msg.get('Bcc', '')
                 bcc = decode_header_field(bcc_raw)
                 
-                # Decode imap_uid first (needed for both message_id generation and lookup)
                 imap_uid_str = email_id.decode()
                 
-                # Generate a fallback message_id if not present
-                # Use a combination of folder, imap_uid, and date for uniqueness
                 if not message_id:
                     try:
                         from email.utils import parsedate_to_datetime
@@ -490,14 +474,12 @@ def sync_emails_from_folder(folder_name):
                 except:
                     pass
                 
-                # Check if email already exists in THIS specific folder (using imap_uid and folder)
                 existing_in_folder = EmailMessage.query.filter_by(
                     imap_uid=imap_uid_str,
                     folder=folder_name
                 ).first()
                 
                 if existing_in_folder:
-                    # Email already exists in this folder, just update sync timestamp
                     try:
                         existing_in_folder.last_imap_sync = datetime.utcnow()
                         existing_in_folder.is_deleted_imap = False
@@ -505,13 +487,11 @@ def sync_emails_from_folder(folder_name):
                         db.session.commit()
                         continue
                     except Exception as update_error:
-                        # If update fails due to connection issues, try to reconnect
                         if "MySQL server has gone away" in str(update_error) or "ConnectionResetError" in str(update_error):
                             logging.warning("Database connection lost during update, attempting to reconnect...")
                             db.session.rollback()
                             db.session.close()
                             db.session = db.create_scoped_session()
-                            # Retry the update
                             existing_in_folder = EmailMessage.query.filter_by(
                                 imap_uid=imap_uid_str,
                                 folder=folder_name
@@ -526,7 +506,6 @@ def sync_emails_from_folder(folder_name):
                         else:
                             raise update_error
                 
-                # Prüfe global nach message_id und bewege ggf. in den aktuellen Ordner
                 existing_by_message_id = EmailMessage.query.filter_by(message_id=message_id).first()
                 if existing_by_message_id:
                     if existing_by_message_id.folder == folder_name:
@@ -555,7 +534,6 @@ def sync_emails_from_folder(folder_name):
                             else:
                                 raise update_error
                     else:
-                        # Mail wurde verschoben – ordne sie diesem Ordner zu
                         try:
                             existing_by_message_id.folder = folder_name
                             existing_by_message_id.imap_uid = imap_uid_str
@@ -583,8 +561,6 @@ def sync_emails_from_folder(folder_name):
                             else:
                                 raise move_error
                 
-                # If we reach here, the email doesn't exist in the database yet
-                
                 body_text = ""
                 body_html = ""
                 has_attachments = False
@@ -598,15 +574,12 @@ def sync_emails_from_folder(folder_name):
                         if ('attachment' in content_disposition or 'inline' in content_disposition) and not content_type.startswith('text/'):
                             has_attachments = True
                             
-                            # Process attachment - wrap in try-except to ensure email is still saved if attachment fails
                             try:
                                 filename = part.get_filename()
                                 if not filename:
-                                    # Generate filename from content type
                                     extension = content_type.split('/')[-1] if '/' in content_type else 'bin'
                                     filename = f"attachment_{len(attachments_data)}.{extension}"
                                 
-                                # Decode filename if needed
                                 if filename:
                                     try:
                                         from email.header import decode_header
@@ -614,49 +587,39 @@ def sync_emails_from_folder(folder_name):
                                         if decoded_filename and decoded_filename[0][0]:
                                             filename = decoded_filename[0][0]
                                     except:
-                                        pass  # Use original filename if decoding fails
+                                        pass
                                 
-                                # Try to get content - handle large files gracefully
                                 try:
-                                    # For very large files, check size first if possible
                                     payload = None
                                     try:
                                         payload = part.get_payload(decode=True)
                                     except Exception as decode_error:
-                                        # If decoding fails (e.g., memory error), log and continue
                                         logging.error(f"Failed to decode attachment '{filename}': {decode_error}")
-                                        has_attachments = True  # Mark as having attachments even if we can't process it
+                                        has_attachments = True
                                         continue
                                     
                                     if payload:
                                         attachment_size = len(payload)
                                         
-                                        # Log all attachments, especially large ones
-                                        if attachment_size > 1 * 1024 * 1024:  # > 1MB
+                                        if attachment_size > 1 * 1024 * 1024:
                                             logging.info(f"Processing large attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - saving to disk")
                                         else:
                                             logging.debug(f"Processing attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - saving to database")
                                         
-                                        # Check if file should be stored on disk (>1MB) or in database (≤1MB)
-                                        # Using 1MB to avoid MySQL max_allowed_packet errors
-                                        max_db_size = 1 * 1024 * 1024  # 1MB limit for database storage
+                                        max_db_size = 1 * 1024 * 1024
                                         
                                         logging.info(f"Attachment '{filename}': {attachment_size / (1024*1024):.2f} MB, max_db_size: {max_db_size / (1024*1024):.2f} MB, will store on: {'disk' if attachment_size > max_db_size else 'database'}")
                                         
                                         if attachment_size > max_db_size:
-                                            # Store large file on disk
                                             import os
                                             
-                                            # Create attachments directory if it doesn't exist
                                             attachments_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'attachments')
                                             os.makedirs(attachments_dir, exist_ok=True)
                                             
-                                            # Generate unique filename
                                             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                                             safe_filename = "".join(c for c in filename if c.isalnum() or c in '._- ')
                                             file_path = os.path.join(attachments_dir, f"{timestamp}_{safe_filename}")
                                             
-                                            # Write file to disk
                                             try:
                                                 with open(file_path, 'wb') as f:
                                                     f.write(payload)
@@ -665,7 +628,7 @@ def sync_emails_from_folder(folder_name):
                                                 attachments_data.append({
                                                     'filename': filename,
                                                     'content_type': content_type,
-                                                    'content': None,  # Not stored in database
+                                                    'content': None,
                                                     'file_path': file_path,
                                                     'size': attachment_size,
                                                     'is_inline': 'inline' in content_disposition,
@@ -674,7 +637,6 @@ def sync_emails_from_folder(folder_name):
                                                 })
                                             except Exception as file_error:
                                                 logging.error(f"Error saving large file to disk: {file_error}")
-                                                # Fallback: try to save in database anyway
                                                 attachments_data.append({
                                                     'filename': filename,
                                                     'content_type': content_type,
@@ -686,7 +648,6 @@ def sync_emails_from_folder(folder_name):
                                                     'is_large_file': False
                                                 })
                                         else:
-                                            # Store in database for smaller files
                                             attachments_data.append({
                                                 'filename': filename,
                                                 'content_type': content_type,
@@ -701,15 +662,15 @@ def sync_emails_from_folder(folder_name):
                                         logging.debug(f"Added attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - {'disk' if attachment_size > max_db_size else 'database'}")
                                 except MemoryError as mem_error:
                                     logging.error(f"Memory error processing attachment '{filename}': {mem_error}. Email will be saved without this attachment.")
-                                    has_attachments = True  # Mark as having attachments even if we skip it
+                                    has_attachments = True
                                     continue
                                 except Exception as payload_error:
                                     logging.error(f"Error getting payload for attachment '{filename}': {payload_error}. Email will be saved without this attachment.")
-                                    has_attachments = True  # Mark as having attachments even if we skip it
+                                    has_attachments = True
                                     continue
                             except Exception as e:
                                 logging.error(f"Error processing attachment '{filename if 'filename' in locals() else 'unknown'}': {e}. Email will be saved without this attachment.")
-                                has_attachments = True  # Mark as having attachments even if we skip it
+                                has_attachments = True
                                 continue
                         
                         if content_type == "text/plain":
@@ -733,7 +694,6 @@ def sync_emails_from_folder(folder_name):
                                     encoding = detected.get('encoding', 'utf-8')
                                     decoded_html = payload.decode(encoding, errors='ignore')
                                     if decoded_html.strip():
-                                        # Append to existing HTML content if multipart
                                         if body_html:
                                             body_html += "\n" + decoded_html
                                         else:
@@ -762,11 +722,9 @@ def sync_emails_from_folder(folder_name):
                         pass
                 
                 
-                # Apply configuration limits
                 html_max_length = current_app.config.get('EMAIL_HTML_MAX_LENGTH', 0)
                 text_max_length = current_app.config.get('EMAIL_TEXT_MAX_LENGTH', 10000)
                 
-                # Truncate if limits are set
                 if html_max_length > 0 and body_html and len(body_html) > html_max_length:
                     body_html = body_html[:html_max_length]
                 
@@ -794,35 +752,31 @@ def sync_emails_from_folder(folder_name):
                 
                 try:
                     db.session.add(email_entry)
-                    db.session.flush()  # Get the email ID
+                    db.session.flush()
                 except sqlalchemy.exc.IntegrityError as integrity_error:
-                    # Handle duplicate message_id (email exists in another folder)
                     if "Duplicate entry" in str(integrity_error) or "1062" in str(integrity_error):
                         logging.debug(f"Email with message_id '{message_id}' already exists in another folder, skipping")
                         stats['skipped_emails'] += 1
                         db.session.rollback()
                         continue
                     else:
-                        raise  # Re-raise if it's a different integrity error
+                        raise
                 
-                # Process attachments with improved error handling for large files
                 for attachment_data in attachments_data:
                     try:
                         attachment_size = attachment_data['size']
                         filename = attachment_data['filename']
                         
-                        # Log large attachments during save
                         if attachment_size > 1 * 1024 * 1024:
                             logging.info(f"Processing large attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - from disk")
                         
-                        # Create attachment object based on storage type
                         attachment = EmailAttachment(
                             email_id=email_entry.id,
                             filename=filename,
                             content_type=attachment_data['content_type'],
                             size=attachment_size,
-                            content=attachment_data.get('content'),  # May be None for large files
-                            file_path=attachment_data.get('file_path'),  # May be None for small files
+                            content=attachment_data.get('content'),
+                            file_path=attachment_data.get('file_path'),
                             is_inline=attachment_data['is_inline'],
                             content_id=attachment_data['content_id'] if attachment_data['content_id'] else None,
                             is_large_file=attachment_data.get('is_large_file', False)
@@ -830,40 +784,32 @@ def sync_emails_from_folder(folder_name):
                         
                         db.session.add(attachment)
                         
-                        # For large attachments, flush immediately to ensure they're saved
-                        if attachment_size > 1 * 1024 * 1024:  # > 1MB - flush for all large attachments
+                        if attachment_size > 1 * 1024 * 1024:
                             try:
                                 db.session.flush()
                                 logging.info(f"Successfully flushed attachment '{filename}' ({attachment_size / (1024*1024):.2f} MB) to database")
                             except Exception as flush_error:
                                 logging.warning(f"Flush failed for '{filename}', will commit with email: {flush_error}")
-                                # Don't fail, will commit together with email
                     except Exception as e:
                         logging.error(f"Error saving attachment '{attachment_data['filename']}' ({attachment_data['size'] / (1024*1024):.2f} MB): {e}")
                         import traceback
                         logging.error(f"Traceback: {traceback.format_exc()}")
-                        # Don't skip - try to save even if there's an error
-                        # The user wants all attachments saved
                         continue
                 
-                # Commit with retry logic for MySQL connection issues
                 try:
                     db.session.commit()
                     stats['new_emails'] += 1
                 except Exception as commit_error:
-                    # Handle duplicate entry errors gracefully
                     if "Duplicate entry" in str(commit_error) or "1062" in str(commit_error):
                         logging.debug(f"Email with message_id '{message_id}' already exists, skipping duplicate")
                         stats['skipped_emails'] += 1
                         db.session.rollback()
                         continue
-                    # If commit fails due to connection issues, try to reconnect
                     if "MySQL server has gone away" in str(commit_error) or "ConnectionResetError" in str(commit_error):
                         logging.warning("Database connection lost, attempting to reconnect...")
                         db.session.rollback()
                         db.session.close()
                         db.session = db.create_scoped_session()
-                        # Retry the commit
                         db.session.add(email_entry)
                         db.session.flush()
                         for attachment_data in attachments_data:
@@ -894,14 +840,12 @@ def sync_emails_from_folder(folder_name):
                 import traceback
                 logging.error(f"Traceback: {traceback.format_exc()}")
                 db.session.rollback()
-                # Continue to next email instead of breaking the entire sync
                 continue
                 
             except MemoryError as mem_error:
                 stats['errors'] += 1
                 logging.error(f"Memory error syncing email from folder '{folder_name}': {mem_error}")
                 db.session.rollback()
-                # Skip this email and continue with others
                 continue
             except Exception as e:
                 stats['errors'] += 1
@@ -909,14 +853,12 @@ def sync_emails_from_folder(folder_name):
                 import traceback
                 logging.error(f"Traceback: {traceback.format_exc()}")
                 db.session.rollback()
-                # Continue to next email instead of breaking the entire sync
                 continue
         
         db.session.commit()
         mail_conn.close()
         mail_conn.logout()
         
-        # Strukturierte Ausgabe der Synchronisationsstatistiken
         print(f"\n--- E-Mail Synchronisation ---")
         print(f"Ordner: {folder_name}")
         print(f"Neue E-Mails: {stats['new_emails']}")
@@ -979,7 +921,6 @@ def sync_emails_from_server():
     if total_synced > 0:
         return True, f"{total_synced} E-Mails aus {len(folder_rows)} Ordnern synchronisiert"
     else:
-        # Kein Fehlerzustand – nur keine Änderungen
         return True, "Keine E-Mails synchronisiert"
 
 
@@ -1004,7 +945,6 @@ def index():
     folder_obj = EmailFolder.query.filter_by(name=current_folder).first()
     folder_display_name = folder_obj.display_name if folder_obj else current_folder
     
-    # Custom folder ordering: Standard folders first, then custom folders
     all_folders = EmailFolder.query.all()
     
     # Define standard folder order
@@ -1066,23 +1006,18 @@ def folder_view(folder_name):
     # Check if folder exists, if not redirect to index
     folder_obj = EmailFolder.query.filter_by(name=folder_name).first()
     if not folder_obj:
-        # Remove invalid folder from database if it exists in email_messages
         existing_emails = EmailMessage.query.filter_by(folder=folder_name).count()
         if existing_emails > 0:
             logging.warning(f"Folder '{folder_name}' exists in emails but not in folders table")
         flash(f'Ordner "{folder_name}" nicht gefunden.', 'warning')
         return redirect(url_for('email.index'))
     
-    # Get emails from this folder
     emails = EmailMessage.query.filter_by(folder=folder_name).order_by(EmailMessage.received_at.desc()).all()
     
-    # Log for debugging
     logging.info(f"Viewing folder '{folder_name}' with {len(emails)} emails")
     
-    # Custom folder ordering: Standard folders first, then custom folders
     all_folders = EmailFolder.query.all()
     
-    # Define standard folder order
     standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Trash', 'Spam']
     standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Papierkorb', 'Spam']
     
@@ -1127,17 +1062,14 @@ def view_email(email_id):
     html_content = None
     if email_msg.body_html:
         try:
-            # Decode HTML content properly
             if isinstance(email_msg.body_html, bytes):
                 html_content = email_msg.body_html.decode('utf-8', errors='replace')
             else:
                 html_content = str(email_msg.body_html)
             
             
-            # Clean up problematic characters that break display
             import re
             
-            # Replace problematic Unicode characters
             html_content = html_content.replace('\u2011', '-')
             html_content = html_content.replace('\u2013', '-')
             html_content = html_content.replace('\u2014', '--')
@@ -1148,26 +1080,19 @@ def view_email(email_id):
             html_content = html_content.replace('\u2026', '...')
             html_content = html_content.replace('\ufffc', '')
             
-            # Remove Microsoft Word artifacts
             html_content = re.sub(r'<o:p\s*/>', '', html_content)
             html_content = re.sub(r'<o:p>.*?</o:p>', '', html_content, flags=re.DOTALL)
             html_content = re.sub(r'<w:.*?>.*?</w:.*?>', '', html_content, flags=re.DOTALL)
             html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
             html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
             
-            # Make links secure but preserve original styling
             html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
             
-            # Remove body/html tags that might affect the page background
-            # Preserve body content but convert to div
             body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, flags=re.IGNORECASE | re.DOTALL)
             if body_match:
-                # Extract body content and replace body tag with div
                 body_content = body_match.group(1)
-                # Remove body tags and replace with div
                 html_content = re.sub(r'<body[^>]*>.*?</body>', '<div class="email-body-wrapper">' + body_content + '</div>', html_content, flags=re.IGNORECASE | re.DOTALL)
             else:
-                # No body tag found, but check if we need to wrap content
                 if not html_content.strip().startswith('<div'):
                     html_content = '<div class="email-body-wrapper">' + html_content + '</div>'
             
@@ -1175,16 +1100,11 @@ def view_email(email_id):
             html_content = re.sub(r'<html[^>]*>', '', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'</html>', '', html_content, flags=re.IGNORECASE)
             
-            # Scoped style tags - wrap CSS to only affect email content
-            # Instead of removing, we'll scope the styles to prevent bleeding
             def scope_style_tags(match):
                 style_content = match.group(1) if match.group(1) else ''
                 if not style_content.strip():
                     return ''
                 
-                # Add scoping to CSS rules to only affect email content
-                # This preserves email styling while preventing it from affecting the page
-                # Handle @media queries and other at-rules
                 lines = style_content.split('\n')
                 scoped_lines = []
                 in_media = False
@@ -1192,7 +1112,6 @@ def view_email(email_id):
                 
                 for line in lines:
                     line_stripped = line.strip()
-                    # Check for @media, @keyframes, etc.
                     if line_stripped.startswith('@'):
                         if '@media' in line_stripped:
                             in_media = True
@@ -1205,9 +1124,7 @@ def view_email(email_id):
                             scoped_lines.append(line)
                             continue
                     
-                    # If we're in a media query, don't scope the rules inside
                     if in_media:
-                        # But still scope selector rules
                         if '{' in line and not line_stripped.startswith('@'):
                             scoped_line = re.sub(
                                 r'([^{}]+)\{',
@@ -1218,7 +1135,6 @@ def view_email(email_id):
                         else:
                             scoped_lines.append(line)
                     else:
-                        # Regular CSS rule - scope it
                         if '{' in line:
                             scoped_line = re.sub(
                                 r'([^{}]+)\{',
@@ -1230,9 +1146,7 @@ def view_email(email_id):
                             scoped_lines.append(line)
                 
                 scoped_css = '\n'.join(scoped_lines)
-                # Clean up any duplicate scoping
                 scoped_css = re.sub(r'\.email-content-isolated-inner\s+\.email-content-isolated-inner', '.email-content-isolated-inner', scoped_css)
-                # Remove body/html selectors that won't work
                 scoped_css = re.sub(r'\.email-content-isolated-inner\s+body\s*\{', '.email-content-isolated-inner {', scoped_css, flags=re.IGNORECASE)
                 scoped_css = re.sub(r'\.email-content-isolated-inner\s+html\s*\{', '.email-content-isolated-inner {', scoped_css, flags=re.IGNORECASE)
                 
@@ -1240,16 +1154,12 @@ def view_email(email_id):
             
             html_content = re.sub(r'<style[^>]*>(.*?)</style>', scope_style_tags, html_content, flags=re.IGNORECASE | re.DOTALL)
             
-            # Ensure proper HTML structure if missing
             if not html_content.strip().startswith('<'):
                 html_content = f'<div class="email-body-wrapper">{html_content}</div>'
             
-            # Wrap in a container to isolate styles - but preserve existing structure
             if not html_content.strip().startswith('<div class="email-content-isolated-inner">'):
-                # Only wrap if not already wrapped
                 html_content = f'<div class="email-content-isolated-inner">{html_content}</div>'
             
-            # Handle inline images
             for attachment in email_msg.attachments:
                 if attachment.is_inline and attachment.content_type.startswith('image/'):
                     data_url = attachment.get_data_url()
@@ -1257,13 +1167,11 @@ def view_email(email_id):
                         cid_pattern = f'cid:{attachment.filename}'
                         html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
                         html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
-                        # Also handle content-id references
                         content_id = attachment.content_id
                         if content_id:
                             html_content = html_content.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
                             html_content = html_content.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
             
-            # Fix remaining cid: references with placeholder
             html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"', html_content)
             
             
@@ -1274,7 +1182,6 @@ def view_email(email_id):
     return render_template('email/view.html', email=email_msg, html_content=html_content)
 
 
-# -------- Reply/Forward helpers --------
 def prefix_subject(subject: str, prefix: str) -> str:
     clean = subject or ''
     if not clean.lower().startswith(f"{prefix.lower()}: "):
@@ -1289,7 +1196,6 @@ def normalize_addresses(addresses):
         parts = [p.strip() for p in addresses.split(',') if p.strip()]
     else:
         parts = [str(p).strip() for p in addresses if str(p).strip()]
-    # de-duplicate case-insensitively
     seen = set()
     result = []
     for a in parts:
@@ -1313,17 +1219,14 @@ def build_plain_quote_header(email_msg: EmailMessage) -> str:
 
 
 def quote_plain(email_msg: EmailMessage) -> str:
-    # Use text content if available, otherwise convert HTML to plain text
     body = email_msg.body_text or ''
     if not body and email_msg.body_html:
-        # Simple HTML to text conversion
         import re
         body = re.sub(r'<[^>]+>', '', email_msg.body_html)
         body = body.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
     
     header = build_plain_quote_header(email_msg)
     
-    # Quote each line with >
     quoted_lines = []
     quoted_lines.append(header)
     for line in body.split('\n'):
@@ -1333,20 +1236,16 @@ def quote_plain(email_msg: EmailMessage) -> str:
 
 
 def build_reply_context(email_msg: EmailMessage, mode: str):
-    # recipients
     to_list = []
-    # Absender der Originalmail als primärer Empfänger
     if email_msg.sender:
         to_list += normalize_addresses(email_msg.sender)
     cc_list = []
     if mode == 'reply_all':
         to_list += normalize_addresses(email_msg.recipients)
         cc_list += normalize_addresses(email_msg.cc)
-        # Eigene Adresse entfernen
         own = (current_user.email or '').lower()
         to_list = [a for a in to_list if a.lower() != own]
         cc_list = [a for a in cc_list if a.lower() != own]
-    # unique again
     to_list = normalize_addresses(to_list)
     cc_list = normalize_addresses(cc_list)
 
@@ -1425,24 +1324,21 @@ def download_attachment(attachment_id):
         return redirect(url_for('email.index'))
     
     try:
-        # Log large file downloads
-        if attachment.size > 1 * 1024 * 1024:  # > 1MB
+        if attachment.size > 1 * 1024 * 1024:
             logging.info(f"Downloading large attachment: '{attachment.filename}' ({attachment.size / (1024*1024):.2f} MB)")
         
-        # Handle large files stored on disk
         if attachment.is_large_file and attachment.file_path:
             import os
             if os.path.exists(attachment.file_path):
                 def generate():
                     with open(attachment.file_path, 'rb') as f:
                         while True:
-                            data = f.read(8192)  # Read in chunks
+                            data = f.read(8192)
                             if not data:
                                 break
                             yield data
                 
                 response = Response(generate(), mimetype=attachment.content_type)
-                # Properly encode filename for HTTP headers to handle Unicode characters
                 import urllib.parse
                 encoded_filename = urllib.parse.quote(attachment.filename.encode('utf-8'))
                 response.headers['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{encoded_filename}'
@@ -1453,7 +1349,6 @@ def download_attachment(attachment_id):
                 flash('Anhang-Datei nicht gefunden.', 'danger')
                 return redirect(url_for('email.view_email', email_id=email_msg.id))
         else:
-            # Handle files stored in database
             content = attachment.get_content()
             if not content:
                 flash('Anhang nicht gefunden oder beschädigt.', 'danger')
@@ -1461,7 +1356,6 @@ def download_attachment(attachment_id):
             
             file_obj = io.BytesIO(content)
             
-            # For very large files, set appropriate headers for streaming
             response = send_file(
                 file_obj,
                 as_attachment=True,
@@ -1469,12 +1363,10 @@ def download_attachment(attachment_id):
                 mimetype=attachment.content_type
             )
             
-            # Properly encode filename for HTTP headers to handle Unicode characters
             import urllib.parse
             encoded_filename = urllib.parse.quote(attachment.filename.encode('utf-8'))
             response.headers['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{encoded_filename}'
             
-            # Set content length header for proper progress indication
             response.headers['Content-Length'] = str(attachment.size)
             response.headers['Accept-Ranges'] = 'bytes'
             
@@ -1500,7 +1392,6 @@ def compose():
         to = request.form.get('to', '').strip()
         cc = request.form.get('cc', '').strip()
         subject = request.form.get('subject', '').strip()
-        # Get HTML body from Rich Text Editor
         body_html = request.form.get('body', '').strip()
         in_reply_to = request.form.get('in_reply_to', '').strip()
         references = request.form.get('references', '').strip()
@@ -1513,7 +1404,6 @@ def compose():
         full_body_html, full_body_plain = render_custom_email(subject, body_html)
         
         try:
-            # Get formatted sender from config (with optional display name)
             from config import get_formatted_sender
             sender = get_formatted_sender()
             if not sender:
@@ -1529,14 +1419,12 @@ def compose():
                 sender=sender
             )
 
-            # Threading headers (Flask-Mail: use extra_headers)
             thread_headers = {}
             if in_reply_to:
                 thread_headers['In-Reply-To'] = in_reply_to
             if references:
                 thread_headers['References'] = references
             if thread_headers:
-                # merge with any existing extra headers
                 existing = getattr(msg, 'extra_headers', None)
                 if existing and isinstance(existing, dict):
                     existing.update(thread_headers)
@@ -1547,7 +1435,6 @@ def compose():
             if cc:
                 msg.cc = cc.split(',')
             
-            # Attach uploaded files
             if 'attachments' in request.files:
                 attachments = request.files.getlist('attachments')
                 for attachment in attachments:
@@ -1559,7 +1446,6 @@ def compose():
                         )
                         attachment.seek(0)
 
-            # Attach forwarded attachments
             if forward_attachment_ids:
                 id_list = [i for i in forward_attachment_ids.split(',') if i]
                 for aid in id_list:
@@ -1650,7 +1536,6 @@ def sync_emails():
         folder_obj = EmailFolder.query.filter_by(name=current_folder).first()
         folder_label = folder_obj.display_name if folder_obj else current_folder
     
-    # Synchronous fallback (z. B. klassische Form-Submits)
     if not is_async_request:
         try:
             if current_folder:
@@ -1670,7 +1555,6 @@ def sync_emails():
         target_kwargs = {'folder_name': current_folder} if current_folder else {}
         return redirect(url_for(target_endpoint, **target_kwargs))
     
-    # Asynchrone Verarbeitung: Job in Hintergrund-Thread ausführen
     user_id = current_user.id
     job_id = f"{user_id}-{uuid4().hex}"
     room = f'email_user_{user_id}'
@@ -1811,19 +1695,15 @@ def move_email_in_imap(email_id, from_folder, to_folder):
         return False, "IMAP-Verbindung fehlgeschlagen"
     
     try:
-        # First, try to select the source folder
         status, messages = mail_conn.select(from_folder)
         if status != 'OK':
-            # If source folder doesn't exist, try to create it or use INBOX
             if from_folder != 'INBOX':
                 status, messages = mail_conn.select('INBOX')
                 if status != 'OK':
                     return False, f"Quellordner '{from_folder}' und INBOX konnten nicht geöffnet werden"
         
-        # Try to copy the email
         status, response = mail_conn.copy(email_id, to_folder)
         if status != 'OK':
-            # If target folder doesn't exist, try to create it
             try:
                 mail_conn.create(to_folder)
                 status, response = mail_conn.copy(email_id, to_folder)

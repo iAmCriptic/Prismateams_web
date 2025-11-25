@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.name }} - Produktinformationen</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 2rem 0;
+        }
+        .product-card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            overflow: hidden;
+        }
+        .logo-container {
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .logo-container img {
+            max-height: 60px;
+            max-width: 200px;
+            margin-bottom: 1rem;
+        }
+        .ownership-badge {
+            background-color: #ffc107;
+            color: #000;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            text-align: center;
+            margin: 1rem;
+        }
+        .product-info {
+            padding: 2rem;
+        }
+        .product-image {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .info-row {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+        }
+        .info-value {
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-10 col-lg-8">
+                <div class="product-card">
+                    <!-- Logo -->
+                    <div class="logo-container">
+                        {% if portal_logo_filename %}
+                        <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="Portal Logo">
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Produktinformationen -->
+                    <div class="product-info">
+                        <h1 class="mb-4">{{ product.name }}</h1>
+                        
+                        <!-- Produktbild -->
+                        {% if product.image_path %}
+                            {% set image_filename = product.image_path.split('/')[-1] if '/' in product.image_path else product.image_path %}
+                            <div class="text-center mb-4">
+                                <img src="{{ url_for('inventory.serve_public_product_image', filename=image_filename) }}" 
+                                     alt="{{ product.name }}" 
+                                     class="product-image">
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Produktdetails -->
+                        <div class="mt-4">
+                            {% if product.serial_number %}
+                            <div class="info-row">
+                                <div class="info-label"><i class="bi bi-upc-scan"></i> Seriennummer</div>
+                                <div class="info-value">{{ product.serial_number }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if product.length %}
+                            <div class="info-row">
+                                <div class="info-label"><i class="bi bi-rulers"></i> Länge</div>
+                                <div class="info-value">{{ product.length }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if product.category %}
+                            <div class="info-row">
+                                <div class="info-label"><i class="bi bi-tag"></i> Kategorie</div>
+                                <div class="info-value">{{ product.category }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if product.condition %}
+                            <div class="info-row">
+                                <div class="info-label"><i class="bi bi-check-circle"></i> Zustand</div>
+                                <div class="info-value">{{ product.condition }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if product.location %}
+                            <div class="info-row">
+                                <div class="info-label"><i class="bi bi-geo-alt"></i> Lagerort</div>
+                                <div class="info-value">{{ product.location }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if product.description %}
+                            <div class="info-row">
+                                <div class="info-label"><i class="bi bi-file-text"></i> Beschreibung</div>
+                                <div class="info-value">{{ product.description }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Eigentumstext -->
+                        <div class="ownership-badge mt-4">
+                            <i class="bi bi-shield-check"></i> {{ ownership_text }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div class="text-center mt-4 text-muted small">
+                    <p>Gescannt via QR-Code</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+

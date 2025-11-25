@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Lagerverwaltung-Einstellungen - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Lagerverwaltung-Einstellungen</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-box-seam"></i> Lagerverwaltung-Einstellungen</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <h5 class="mb-3">Öffentliche Produktseiten</h5>
+                    
+                    <div class="mb-3">
+                        <label for="ownership_text" class="form-label">Eigentumstext</label>
+                        <input type="text" class="form-control" id="ownership_text" name="ownership_text" value="{{ ownership_text }}" placeholder="z.B. Eigentum der Technik">
+                        <div class="form-text">Dieser Text wird auf öffentlichen Produktseiten (QR-Code-Scans) prominent angezeigt.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-accent">Änderungen speichern</button>
+                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">Zurück</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

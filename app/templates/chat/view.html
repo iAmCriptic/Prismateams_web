@@ -80,7 +80,7 @@
                 </a></li>
                 <li><a class="dropdown-item" href="#" onclick="showChatInfoModal(); return false;"><i class="bi bi-info-circle me-2"></i>{{ _('chat.view.dropdown.info') }}</a></li>
                 {% if chat.created_by == current_user.id or current_user.is_admin %}
-                <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=chat.id) }}"><i class="bi bi-gear me-2"></i>{{ _('chat.view.dropdown.settings') }}</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=1 if chat.is_main_chat else chat.id) }}"><i class="bi bi-gear me-2"></i>{{ _('chat.view.dropdown.settings') }}</a></li>
                 {% endif %}
                 {% if not chat.is_main_chat and (chat.created_by == current_user.id or current_user.is_admin) %}
                 <li><hr class="dropdown-divider"></li>
@@ -256,7 +256,7 @@
 
 <!-- Mobile Message Input - New Design -->
 <div class="chat-input-container d-md-none">
-    <form id="message-form" method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
+    <form id="message-form" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
         <div class="mobile-input-group">
             <button class="btn" type="button" onclick="document.getElementById('file-upload').click()" title="{{ _('chat.view.input.attach') }}">
                 <i class="bi bi-paperclip"></i>
@@ -279,7 +279,7 @@
 
 <!-- Desktop Message Input -->
 <div class="chat-input-container d-none d-md-block">
-    <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=chat.id) }}" enctype="multipart/form-data">
+    <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
         <div class="input-group">
             <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-upload-desktop').click()" title="{{ _('chat.view.input.attach') }}">
                 <i class="bi bi-paperclip"></i>
@@ -301,7 +301,7 @@
 {% block extra_js %}
 {% set chat_view_js = current_translations.get('chat', {}).get('view', {}).get('js', {}) %}
 <script>
-    const chatId = {{ chat.id }};
+    const chatId = {{ 1 if chat.is_main_chat else chat.id }};
     const currentUserId = {{ current_user.id }};
     let lastMessageId = {{ messages[-1].id if messages else 0 }};
     let isPolling = true;

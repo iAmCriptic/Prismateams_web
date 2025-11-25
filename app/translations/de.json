@@ -452,6 +452,9 @@
       "onlyoffice_label": "OnlyOffice Integration:",
       "onlyoffice_active": "Aktiv",
       "onlyoffice_inactive": "Nicht aktiv",
+      "excalidraw_label": "Excalidraw Integration:",
+      "excalidraw_active": "Aktiv",
+      "excalidraw_inactive": "Nicht aktiv",
       "back_button": "Zurück zu Einstellungen"
     },
     "admin": {
@@ -1476,6 +1479,362 @@
         "submit": "Hochladen",
         "cancel": "Abbrechen"
       }
+    }
+  },
+  "inventory": {
+    "dashboard": {
+      "page_title": "Lagerverwaltung - Team Portal",
+      "heading": "Lagerverwaltung",
+      "subtitle": "Verwalten Sie Ihr Inventar und Ausleihen",
+      "cards": {
+        "stock": {
+          "title": "Bestand",
+          "description": "Übersicht aller Produkte"
+        },
+        "borrow": {
+          "title": "Ausleihen",
+          "description": "Produkte scannen und ausleihen"
+        },
+        "return": {
+          "title": "Rückgabe",
+          "description": "Ausgeliehene Artikel zurückgeben"
+        }
+      },
+      "my_borrows": {
+        "title": "Meine aktuellen Ausleihen",
+        "show_all": "Alle anzeigen",
+        "table": {
+          "product": "Produkt",
+          "borrow_date": "Ausleihdatum",
+          "return_date": "Rückgabedatum",
+          "status": "Status",
+          "actions": "Aktionen",
+          "serial_number": "SN:",
+          "overdue": "Überfällig",
+          "borrowed": "Ausgeliehen",
+          "return_button": "Rückgabe",
+          "download_receipt": "Ausleihschein herunterladen"
+        }
+      },
+      "more_functions": {
+        "title": "Weitere Funktionen",
+        "my_borrows": "Meine Ausleihen",
+        "all_borrows": "Alle Ausleihen",
+        "print_qr": "QR-Codes drucken",
+        "inventory_tool": "Inventurtool",
+        "statistics": "Statistiken",
+        "sets": "Produktsets"
+      }
+    },
+    "stock": {
+      "page_title": "Bestandsübersicht - Team Portal",
+      "heading": "Bestandsübersicht",
+      "breadcrumb_root": "Root",
+      "add_product": "Produkt hinzufügen",
+      "borrow_selected": "Ausgewählte ausleihen",
+      "search": {
+        "label": "Suchen",
+        "placeholder": "Name, Seriennummer, Länge (z.B. 5 m), Beschreibung, Lagerort, Kategorie...",
+        "help": "Durchsucht alle Produktattribute"
+      },
+      "quick_filters": {
+        "label": "Schnellfilter",
+        "all": "Alle anzeigen",
+        "favorites": "Meine Favoriten",
+        "available": "Verfügbar",
+        "borrowed": "Ausgeliehen"
+      },
+      "filters": {
+        "title": "Filter",
+        "category": "Kategorie",
+        "all_categories": "Alle Kategorien",
+        "status": "Status",
+        "all_status": "Alle Status",
+        "available": "Verfügbar",
+        "borrowed": "Ausgeliehen",
+        "missing": "Fehlend",
+        "condition": "Zustand",
+        "all_conditions": "Alle Zustände",
+        "location": "Lagerort",
+        "all_locations": "Alle Lagerorte",
+        "length": "Länge",
+        "all_lengths": "Alle Längen",
+        "purchase_year": "Anschaffungsjahr",
+        "all_years": "Alle Jahre",
+        "reset": "Filter zurücksetzen"
+      },
+      "sort": {
+        "title": "Sortieren",
+        "field": "Sortierkriterium",
+        "name": "Name",
+        "category": "Kategorie",
+        "condition": "Zustand",
+        "length": "Länge",
+        "direction": "Richtung",
+        "asc": "Aufsteigend (A–Z / kurz → lang)",
+        "desc": "Absteigend (Z–A / lang → kurz)",
+        "reset": "Sortierung zurücksetzen"
+      },
+      "bulk_selection": {
+        "selected": "Produkt(e) ausgewählt",
+        "select_all": "Alle auswählen",
+        "deselect_all": "Alle abwählen",
+        "edit": "Bearbeiten",
+        "borrow": "Ausleihen",
+        "delete": "Löschen"
+      },
+      "views": {
+        "list": "Listenansicht",
+        "grid": "Rasteransicht"
+      },
+      "modals": {
+        "product_details": {
+          "title": "Produktdetails",
+          "close": "Schließen"
+        },
+        "bulk_delete": {
+          "title": "Produkte löschen",
+          "warning": "Warnung: Diese Aktion kann nicht rückgängig gemacht werden!",
+          "message": "Möchten Sie wirklich {count} Produkt(e) löschen?",
+          "note": "Ausgeliehene Produkte können nicht gelöscht werden und werden automatisch ausgeschlossen.",
+          "cancel": "Abbrechen",
+          "confirm": "Ja, löschen"
+        },
+        "bulk_edit": {
+          "title": "Mehrere Produkte bearbeiten",
+          "info": "{count} Produkt(e) werden bearbeitet.",
+          "attribute_label": "Zu bearbeitendes Attribut",
+          "select_attribute": "Bitte wählen...",
+          "location": "Lagerort",
+          "length": "Länge (in Metern)",
+          "condition": "Zustand",
+          "category": "Kategorie",
+          "folder": "Ordner",
+          "remove_image": "Produktbild entfernen",
+          "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Produkte werden mit dem neuen Wert aktualisiert.",
+          "cancel": "Abbrechen",
+          "update": "Aktualisieren"
+        }
+      },
+      "errors": {
+        "load_error": "Fehler beim Laden der Bestandsverwaltung. Bitte Seite neu laden.",
+        "init_error": "Fehler bei der Initialisierung:",
+        "load_products_error": "Fehler beim Laden der Produkte:",
+        "critical_error": "Kritischer Fehler:"
+      }
+    },
+    "product": {
+      "form": {
+        "page_title_new": "Produkt hinzufügen - Team Portal",
+        "page_title_edit": "Produkt bearbeiten - Team Portal",
+        "heading_new": "Produkt hinzufügen",
+        "heading_edit": "Produkt bearbeiten",
+        "name": "Produktname",
+        "description": "Beschreibung / Details",
+        "folder": "Ordner",
+        "no_folder": "Kein Ordner",
+        "add_folder": "Neuen Ordner anlegen",
+        "manage_folders": "Ordner verwalten",
+        "category": "Kategorie",
+        "no_category": "Keine Kategorie",
+        "add_category": "Neue Kategorie anlegen",
+        "manage_categories": "Kategorien verwalten",
+        "condition": "Zustand",
+        "select_condition": "Bitte wählen...",
+        "condition_new": "Neu",
+        "condition_good": "Gut",
+        "condition_used": "Gebraucht",
+        "condition_damaged": "Beschädigt",
+        "serial_number": "Seriennummer",
+        "location": "Lagerort",
+        "length": "Länge",
+        "length_help": "z.B. 5 m, 3.5m, 2,5 Meter",
+        "quantity": "Anzahl",
+        "quantity_help": "Wie viele identische Produkte sollen erstellt werden? (1-100)",
+        "purchase_date": "Anschaffungsdatum",
+        "image": "Produktbild",
+        "image_help": "Nur JPG, PNG und GIF Dateien sind erlaubt. Maximale Größe: 5MB.",
+        "save": "Speichern",
+        "cancel": "Abbrechen"
+      },
+      "list": {
+        "page_title": "Inventurliste - Team Portal",
+        "heading": "Inventurliste",
+        "subtitle": "Vollständige Übersicht aller Produkte für die Inventur",
+        "download_pdf": "Als PDF herunterladen",
+        "print": "Drucken",
+        "table": {
+          "number": "#",
+          "name": "Produktname",
+          "category": "Kategorie",
+          "serial_number": "Seriennummer",
+          "location": "Lagerort",
+          "length": "Länge",
+          "status": "Status",
+          "condition": "Bemerkung",
+          "available": "Verfügbar",
+          "borrowed": "Ausgeliehen"
+        },
+        "empty": "Keine Produkte vorhanden"
+      }
+    },
+    "borrow": {
+      "page_title": "Produkt ausleihen - Team Portal",
+      "heading": "Produkt ausleihen",
+      "product_info": {
+        "title": "Produktinformationen",
+        "serial_number": "Seriennummer:",
+        "category": "Kategorie:"
+      },
+      "borrow_info": {
+        "title": "Ausleihinformationen",
+        "borrower": "Ausleihender",
+        "me": "(Ich)",
+        "expected_return_date": "Erwartetes Rückgabedatum",
+        "date_help": "Das Datum muss in der Zukunft liegen.",
+        "info": "Nach dem Bestätigen wird der Ausleihschein automatisch per E-Mail an Sie gesendet.",
+        "cancel": "Abbrechen",
+        "confirm": "Ausleihe bestätigen"
+      },
+      "errors": {
+        "date_future": "Das Rückgabedatum muss in der Zukunft liegen.",
+        "check_inputs": "Bitte überprüfen Sie Ihre Eingaben.",
+        "borrow_error": "Fehler bei der Ausleihe. Bitte versuchen Sie es erneut."
+      }
+    },
+    "return": {
+      "page_title": "Rückgabe - Team Portal",
+      "heading": "Rückgabe",
+      "subtitle": "Geben Sie ausgeliehene Artikel zurück",
+      "scanner": {
+        "label": "QR-Code scannen",
+        "start": "Kamera starten",
+        "stop": "Kamera stoppen",
+        "success": "QR-Code erkannt"
+      },
+      "manual": {
+        "title": "QR-Code oder Ausleihvorgangsnummer eingeben",
+        "qr_code": "QR-Code",
+        "qr_placeholder": "QR-Code eingeben (z.B. BORROW-INV-... oder PROD-...)",
+        "qr_help": "Geben Sie den QR-Code des Produkts oder der Ausleihe ein.",
+        "transaction_number": "oder Ausleihvorgangsnummer",
+        "transaction_placeholder": "z.B. INV-20251103-123456-ABCD",
+        "transaction_help": "Alternativ können Sie die Ausleihvorgangsnummer direkt eingeben.",
+        "confirm": "Rückgabe bestätigen"
+      },
+      "errors": {
+        "no_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
+        "return_error": "Fehler bei der Rückgabe. Bitte versuchen Sie es erneut."
+      }
+    },
+    "borrows": {
+      "page_title": "Ausleihen - Team Portal",
+      "heading": "Ausleihen",
+      "filters": {
+        "all": "Alle",
+        "my": "Meine",
+        "active": "Aktiv",
+        "returned": "Zurückgegeben",
+        "overdue": "Überfällig"
+      },
+      "table": {
+        "product": "Produkt",
+        "borrower": "Ausleihender",
+        "borrow_date": "Ausleihdatum",
+        "return_date": "Rückgabedatum",
+        "status": "Status",
+        "actions": "Aktionen"
+      },
+      "status": {
+        "active": "Aktiv",
+        "returned": "Zurückgegeben",
+        "overdue": "Überfällig"
+      }
+    },
+    "sets": {
+      "page_title": "Produktsets - Team Portal",
+      "heading": "Produktsets",
+      "subtitle": "Verwalten Sie Sets von Produkten",
+      "new_set": "Neues Set",
+      "table": {
+        "name": "Name",
+        "products": "Produkte",
+        "actions": "Aktionen"
+      },
+      "empty": "Keine Sets vorhanden",
+      "create_hint": "Erstellen Sie Ihr erstes Set!"
+    },
+    "folders": {
+      "page_title": "Ordner - Team Portal",
+      "heading": "Ordner",
+      "new_folder": "Neuer Ordner"
+    },
+    "tool": {
+      "page_title": "Inventurtool - Team Portal",
+      "heading": "Inventurtool"
+    },
+    "statistics": {
+      "page_title": "Statistiken - Team Portal",
+      "heading": "Statistiken"
+    },
+    "print_qr": {
+      "page_title": "QR-Codes drucken - Team Portal",
+      "heading": "QR-Codes drucken"
+    },
+    "flash": {
+      "folder_not_found": "Ordner nicht gefunden.",
+      "product_name_required": "Der Produktname ist verpflichtend.",
+      "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
+      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
+      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
+      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
+      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
+      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
+      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
+      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
+      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
+      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
+      "no_products_selected": "Keine Produkte ausgewählt.",
+      "invalid_product_ids": "Ungültige Produkt-IDs.",
+      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
+      "no_valid_products": "Keine gültigen Produkte gefunden.",
+      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
+      "invalid_date_format": "Ungültiges Datumsformat.",
+      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
+      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
+      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
+      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
+      "product_unavailable": "Das Produkt ist nicht verfügbar.",
+      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
+      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
+      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
+      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
+      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
+      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
+      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
+      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
+      "folder_name_required": "Der Ordnername ist verpflichtend.",
+      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
+      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
+      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
+      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "generate_error": "Fehler beim Generieren des Druckbogens.",
+      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
+      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
+      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
+      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
+      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
+      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
+      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
+      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
+      "no_file_selected": "Keine Datei ausgewählt.",
+      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
+      "invalid_request": "Ungültige Anfrage.",
+      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
+      "file_not_found": "Die Datei konnte nicht gefunden werden.",
+      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
+      "invalid_date": "Ungültiges Datum."
     }
   }
 }

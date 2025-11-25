@@ -961,6 +961,40 @@ def admin_inventory_categories():
     return render_template('settings/admin_inventory_categories.html', categories=categories)
 
 
+@settings_bp.route('/admin/inventory-settings', methods=['GET', 'POST'])
+@login_required
+def admin_inventory_settings():
+    """Lagerverwaltung-Einstellungen (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    if request.method == 'POST':
+        ownership_text = request.form.get('ownership_text', '').strip()
+        
+        # Speichere Eigentumstext in SystemSettings
+        ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
+        if ownership_setting:
+            ownership_setting.value = ownership_text if ownership_text else 'Eigentum der Technik'
+        else:
+            ownership_setting = SystemSettings(
+                key='inventory_ownership_text',
+                value=ownership_text if ownership_text else 'Eigentum der Technik',
+                description='Text der auf öffentlichen Produktseiten angezeigt wird'
+            )
+            db.session.add(ownership_setting)
+        
+        db.session.commit()
+        flash('Lagerverwaltung-Einstellungen wurden gespeichert.', 'success')
+        return redirect(url_for('settings.admin_inventory_settings'))
+    
+    # Lade aktuelle Einstellungen
+    ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
+    ownership_text = ownership_setting.value if ownership_setting and ownership_setting.value else 'Eigentum der Technik'
+    
+    return render_template('settings/admin_inventory_settings.html', ownership_text=ownership_text)
+
+
 @settings_bp.route('/admin/inventory-categories/<category_name>/delete', methods=['POST'])
 @login_required
 def admin_delete_inventory_category(category_name):

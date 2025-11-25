@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}{% if product %}Produkt bearbeiten{% else %}Produkt hinzufügen{% endif %} - Team Portal{% endblock %}
+{% block title %}{% if product %}{{ _('inventory.product.form.page_title_edit') }}{% else %}{{ _('inventory.product.form.page_title_new') }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
         <h1 class="mb-3">
             <i class="bi bi-{% if product %}pencil{% else %}plus-circle{% endif %}"></i> 
-            {% if product %}Produkt bearbeiten{% else %}Produkt hinzufügen{% endif %}
+            {% if product %}{{ _('inventory.product.form.heading_edit') }}{% else %}{{ _('inventory.product.form.heading_new') }}{% endif %}
         </h1>
     </div>
 </div>
@@ -19,32 +19,32 @@
                 <form method="POST" enctype="multipart/form-data">
                     <!-- Name (Pflichtfeld) -->
                     <div class="mb-3">
-                        <label for="name" class="form-label">Produktname <span class="text-danger">*</span></label>
+                        <label for="name" class="form-label">{{ _('inventory.product.form.name') }} <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name" 
                                value="{{ product.name if product else '' }}" required>
                     </div>
 
                     <!-- Beschreibung -->
                     <div class="mb-3">
-                        <label for="description" class="form-label">Beschreibung / Details</label>
+                        <label for="description" class="form-label">{{ _('inventory.product.form.description') }}</label>
                         <textarea class="form-control" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
                     </div>
 
                     <div class="row">
                         <!-- Ordner -->
                         <div class="col-md-6 mb-3">
-                            <label for="folder_id" class="form-label">Ordner</label>
+                            <label for="folder_id" class="form-label">{{ _('inventory.product.form.folder') }}</label>
                             <div class="input-group">
                                 <select class="form-select" id="folder_id" name="folder_id">
-                                    <option value="">Kein Ordner</option>
+                                    <option value="">{{ _('inventory.product.form.no_folder') }}</option>
                                     {% for folder in folders %}
                                     <option value="{{ folder.id }}" {% if product and product.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
                                     {% endfor %}
                                 </select>
-                                <button class="btn btn-outline-primary" type="button" id="addFolderBtn" title="Neuen Ordner anlegen">
+                                <button class="btn btn-outline-primary" type="button" id="addFolderBtn" title="{{ _('inventory.product.form.add_folder') }}">
                                     <i class="bi bi-plus"></i>
                                 </button>
-                                <button class="btn btn-outline-secondary" type="button" id="manageFoldersBtn" title="Ordner verwalten">
+                                <button class="btn btn-outline-secondary" type="button" id="manageFoldersBtn" title="{{ _('inventory.product.form.manage_folders') }}">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                             </div>
@@ -52,18 +52,18 @@
                         
                         <!-- Kategorie -->
                         <div class="col-md-6 mb-3">
-                            <label for="category" class="form-label">Kategorie</label>
+                            <label for="category" class="form-label">{{ _('inventory.product.form.category') }}</label>
                             <div class="input-group">
                                 <select class="form-select" id="category" name="category">
-                                    <option value="">Keine Kategorie</option>
+                                    <option value="">{{ _('inventory.product.form.no_category') }}</option>
                                     {% for cat in categories %}
                                     <option value="{{ cat }}" {% if product and product.category == cat %}selected{% endif %}>{{ cat }}</option>
                                     {% endfor %}
                                 </select>
-                                <button class="btn btn-outline-primary" type="button" id="addCategoryBtn" title="Neue Kategorie anlegen">
+                                <button class="btn btn-outline-primary" type="button" id="addCategoryBtn" title="{{ _('inventory.product.form.add_category') }}">
                                     <i class="bi bi-plus"></i>
                                 </button>
-                                <button class="btn btn-outline-secondary" type="button" id="manageCategoriesBtn" title="Kategorien verwalten">
+                                <button class="btn btn-outline-secondary" type="button" id="manageCategoriesBtn" title="{{ _('inventory.product.form.manage_categories') }}">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                             </div>
@@ -71,13 +71,13 @@
 
                         <!-- Zustand -->
                         <div class="col-md-6 mb-3">
-                            <label for="condition" class="form-label">Zustand</label>
+                            <label for="condition" class="form-label">{{ _('inventory.product.form.condition') }}</label>
                             <select class="form-select" id="condition" name="condition">
-                                <option value="">Bitte wählen...</option>
-                                <option value="Neu" {% if product and product.condition == 'Neu' %}selected{% endif %}>Neu</option>
-                                <option value="Gut" {% if product and product.condition == 'Gut' %}selected{% endif %}>Gut</option>
-                                <option value="Gebraucht" {% if product and product.condition == 'Gebraucht' %}selected{% endif %}>Gebraucht</option>
-                                <option value="Beschädigt" {% if product and product.condition == 'Beschädigt' %}selected{% endif %}>Beschädigt</option>
+                                <option value="">{{ _('inventory.product.form.select_condition') }}</option>
+                                <option value="Neu" {% if product and product.condition == 'Neu' %}selected{% endif %}>{{ _('inventory.product.form.condition_new') }}</option>
+                                <option value="Gut" {% if product and product.condition == 'Gut' %}selected{% endif %}>{{ _('inventory.product.form.condition_good') }}</option>
+                                <option value="Gebraucht" {% if product and product.condition == 'Gebraucht' %}selected{% endif %}>{{ _('inventory.product.form.condition_used') }}</option>
+                                <option value="Beschädigt" {% if product and product.condition == 'Beschädigt' %}selected{% endif %}>{{ _('inventory.product.form.condition_damaged') }}</option>
                             </select>
                         </div>
                     </div>
@@ -85,14 +85,14 @@
                     <div class="row">
                         <!-- Seriennummer -->
                         <div class="col-md-4 mb-3">
-                            <label for="serial_number" class="form-label">Seriennummer</label>
+                            <label for="serial_number" class="form-label">{{ _('inventory.product.form.serial_number') }}</label>
                             <input type="text" class="form-control" id="serial_number" name="serial_number" 
                                    value="{{ product.serial_number if product else '' }}">
                         </div>
 
                         <!-- Lagerort -->
                         <div class="col-md-4 mb-3">
-                            <label for="location" class="form-label">Lagerort</label>
+                            <label for="location" class="form-label">{{ _('inventory.product.form.location') }}</label>
                             <input type="text" class="form-control" id="location" name="location" 
                                    value="{{ product.location if product else '' }}">
                         </div>
@@ -107,17 +107,17 @@
                             {% else %}
                                 {% set length_value = '' %}
                             {% endif %}
-                            <label for="length" class="form-label">Länge (in Metern)</label>
+                            <label for="length" class="form-label">{{ _('inventory.product.form.length') }}</label>
                             <input type="number" class="form-control" id="length" name="length"
                                    value="{{ length_value }}" step="0.01" min="0"
                                    placeholder="z.B. 5.5">
-                            <small class="form-text text-muted">Bitte Meterwerte mit Punkt oder Komma als Dezimaltrennzeichen eingeben.</small>
+                            <small class="form-text text-muted">{{ _('inventory.product.form.length_help') }}</small>
                         </div>
                     </div>
 
                     <!-- Anschaffungsdatum -->
                     <div class="mb-3">
-                        <label for="purchase_date" class="form-label">Anschaffungsdatum</label>
+                        <label for="purchase_date" class="form-label">{{ _('inventory.product.form.purchase_date') }}</label>
                         <input type="date" class="form-control" id="purchase_date" name="purchase_date" 
                                value="{{ purchase_date_formatted if purchase_date_formatted else '' }}">
                     </div>
@@ -125,18 +125,18 @@
                     <!-- Status -->
                     {% if product %}
                     <div class="mb-3">
-                        <label for="status" class="form-label">Status</label>
+                        <label for="status" class="form-label">{{ _('common.status') }}</label>
                         <select class="form-select" id="status" name="status">
-                            <option value="available" {% if product.status == 'available' %}selected{% endif %}>Verfügbar</option>
-                            <option value="borrowed" {% if product.status == 'borrowed' %}selected{% endif %}>Ausgeliehen</option>
-                            <option value="missing" {% if product.status == 'missing' %}selected{% endif %}>Fehlend</option>
+                            <option value="available" {% if product.status == 'available' %}selected{% endif %}>{{ _('inventory.stock.filters.available') }}</option>
+                            <option value="borrowed" {% if product.status == 'borrowed' %}selected{% endif %}>{{ _('inventory.stock.filters.borrowed') }}</option>
+                            <option value="missing" {% if product.status == 'missing' %}selected{% endif %}>{{ _('inventory.stock.filters.missing') }}</option>
                         </select>
                     </div>
                     {% endif %}
 
                     <!-- Bild-Upload -->
                     <div class="mb-3">
-                        <label for="image" class="form-label">Produktbild</label>
+                        <label for="image" class="form-label">{{ _('inventory.product.form.image') }}</label>
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         {% if product and product.image_path %}
                         <div class="mt-2">
@@ -152,23 +152,24 @@
                             <input type="hidden" id="remove_image" name="remove_image" value="0">
                         </div>
                         {% endif %}
+                        <small class="form-text text-muted">{{ _('inventory.product.form.image_help') }}</small>
                     </div>
 
                     <!-- Anzahl (nur beim Erstellen) -->
                     {% if not product %}
                     <div class="mb-3">
-                        <label for="quantity" class="form-label">Anzahl</label>
+                        <label for="quantity" class="form-label">{{ _('inventory.product.form.quantity') }}</label>
                         <input type="number" class="form-control" id="quantity" name="quantity" 
                                value="1" min="1" max="100" required>
-                        <small class="form-text text-muted">Geben Sie an, wie viele Produkte mit denselben Attributen erstellt werden sollen.</small>
+                        <small class="form-text text-muted">{{ _('inventory.product.form.quantity_help') }}</small>
                     </div>
                     {% endif %}
 
                     <!-- Buttons -->
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">Abbrechen</a>
+                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">{{ _('inventory.product.form.cancel') }}</a>
                         <button type="submit" class="btn btn-accent">
-                            <i class="bi bi-check-circle"></i> {% if product %}Speichern{% else %}Erstellen{% endif %}
+                            <i class="bi bi-check-circle"></i> {{ _('inventory.product.form.save') }}
                         </button>
                     </div>
                 </form>

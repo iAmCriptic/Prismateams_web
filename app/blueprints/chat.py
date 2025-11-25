@@ -42,18 +42,24 @@ def index():
 @login_required
 def view_chat(chat_id):
     """View a specific chat."""
-    # Special handling: If chat_id is 1, redirect to the actual main chat
-    # This ensures /chat/1 always goes to the main chat, even if it has a different ID
+    # Special handling: If chat_id is 1, load the actual main chat
+    # This ensures /chat/1 always shows the main chat, even if it has a different ID
     if chat_id == 1:
         main_chat = Chat.query.filter_by(is_main_chat=True).first()
-        if main_chat and main_chat.id != 1:
-            return redirect(url_for('chat.view_chat', chat_id=main_chat.id))
+        if main_chat:
+            # Use the actual main chat ID for all operations, but keep URL as /chat/1
+            actual_chat_id = main_chat.id
+        else:
+            flash('Haupt-Chat nicht gefunden.', 'danger')
+            return redirect(url_for('chat.index'))
+    else:
+        actual_chat_id = chat_id
     
-    chat = Chat.query.get_or_404(chat_id)
+    chat = Chat.query.get_or_404(actual_chat_id)
     
     # Check if user is a member
     membership = ChatMember.query.filter_by(
-        chat_id=chat_id,
+        chat_id=actual_chat_id,
         user_id=current_user.id
     ).first()
     
@@ -63,7 +69,7 @@ def view_chat(chat_id):
     
     # Get all messages
     messages = ChatMessage.query.filter_by(
-        chat_id=chat_id,
+        chat_id=actual_chat_id,
         is_deleted=False
     ).order_by(ChatMessage.created_at).all()
     
@@ -74,7 +80,7 @@ def view_chat(chat_id):
     db.session.commit()
     
     # Get chat members - use ChatMember as base to ensure all members are included
-    chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
+    chat_memberships = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
     members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
     
@@ -90,11 +96,21 @@ def view_chat(chat_id):
 @login_required
 def send_message(chat_id):
     """Send a message in a chat."""
-    chat = Chat.query.get_or_404(chat_id)
+    # Special handling: If chat_id is 1, use the actual main chat ID
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            actual_chat_id = main_chat.id
+        else:
+            return jsonify({'error': 'Haupt-Chat nicht gefunden'}), 404
+    else:
+        actual_chat_id = chat_id
+    
+    chat = Chat.query.get_or_404(actual_chat_id)
     
     # Check if user is a member
     membership = ChatMember.query.filter_by(
-        chat_id=chat_id,
+        chat_id=actual_chat_id,
         user_id=current_user.id
     ).first()
     
@@ -137,7 +153,7 @@ def send_message(chat_id):
     
     # Create message
     message = ChatMessage(
-        chat_id=chat_id,
+        chat_id=actual_chat_id,
         sender_id=current_user.id,
         content=content,
         message_type=message_type,
@@ -150,7 +166,7 @@ def send_message(chat_id):
     # Sende Push-Benachrichtigungen an andere Chat-Mitglieder
     try:
         sent_count = send_chat_notification(
-            chat_id=chat_id,
+            chat_id=actual_chat_id,
             sender_id=current_user.id,
             message_content=content or f"[{message_type}]",
             chat_name=chat.name,
@@ -172,7 +188,9 @@ def send_message(chat_id):
             'created_at': get_local_time(message.created_at).isoformat()
         })
     
-    return redirect(url_for('chat.view_chat', chat_id=chat_id))
+    # Always redirect to /chat/1 for main chat to keep URL consistent
+    redirect_chat_id = 1 if chat.is_main_chat else chat_id
+    return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
 
 
 @chat_bp.route('/create', methods=['GET', 'POST'])
@@ -341,11 +359,21 @@ def serve_media(filename):
 @login_required
 def update_chat(chat_id):
     """Update chat settings (name, description, avatar)."""
-    chat = Chat.query.get_or_404(chat_id)
+    # Special handling: If chat_id is 1, use the actual main chat ID
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            actual_chat_id = main_chat.id
+        else:
+            return jsonify({'error': 'Haupt-Chat nicht gefunden'}), 404
+    else:
+        actual_chat_id = chat_id
+    
+    chat = Chat.query.get_or_404(actual_chat_id)
     
     # Check if user is a member
     membership = ChatMember.query.filter_by(
-        chat_id=chat_id,
+        chat_id=actual_chat_id,
         user_id=current_user.id
     ).first()
     
@@ -432,28 +460,41 @@ def update_chat(chat_id):
         })
     
     flash('Chat erfolgreich aktualisiert', 'success')
-    return redirect(url_for('chat.view_chat', chat_id=chat_id))
+    # Always redirect to /chat/1 for main chat to keep URL consistent
+    redirect_chat_id = 1 if chat.is_main_chat else chat_id
+    return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
 
 
 @chat_bp.route('/<int:chat_id>/delete', methods=['POST'])
 @login_required
 def delete_chat(chat_id):
     """Delete a chat (main chat cannot be deleted)."""
-    chat = Chat.query.get_or_404(chat_id)
+    # Special handling: If chat_id is 1, use the actual main chat ID
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            actual_chat_id = main_chat.id
+        else:
+            return jsonify({'error': 'Haupt-Chat nicht gefunden'}), 404
+    else:
+        actual_chat_id = chat_id
+    
+    chat = Chat.query.get_or_404(actual_chat_id)
     
     # Prevent deletion of main chat
     if chat.is_main_chat:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': 'Der Haupt-Chat kann nicht gelöscht werden'}), 400
         flash('Der Haupt-Chat kann nicht gelöscht werden', 'danger')
-        return redirect(url_for('chat.view_chat', chat_id=chat_id))
+        return redirect(url_for('chat.view_chat', chat_id=1))
     
     # Check if user is creator or admin
     if chat.created_by != current_user.id and not current_user.is_admin:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': 'Nur der Ersteller oder ein Administrator kann den Chat löschen'}), 403
         flash('Nur der Ersteller oder ein Administrator kann den Chat löschen', 'danger')
-        return redirect(url_for('chat.view_chat', chat_id=chat_id))
+        redirect_chat_id = 1 if chat.is_main_chat else chat_id
+        return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
     
     # Delete chat (cascade will handle messages and members)
     db.session.delete(chat)
@@ -470,11 +511,22 @@ def delete_chat(chat_id):
 @login_required
 def chat_settings(chat_id):
     """Chat settings page."""
-    chat = Chat.query.get_or_404(chat_id)
+    # Special handling: If chat_id is 1, use the actual main chat ID
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            actual_chat_id = main_chat.id
+        else:
+            flash('Haupt-Chat nicht gefunden.', 'danger')
+            return redirect(url_for('chat.index'))
+    else:
+        actual_chat_id = chat_id
+    
+    chat = Chat.query.get_or_404(actual_chat_id)
     
     # Check if user is a member
     membership = ChatMember.query.filter_by(
-        chat_id=chat_id,
+        chat_id=actual_chat_id,
         user_id=current_user.id
     ).first()
     
@@ -485,7 +537,8 @@ def chat_settings(chat_id):
     # Check if user is creator or admin (only they can access settings)
     if chat.created_by != current_user.id and not current_user.is_admin:
         flash('Nur der Ersteller oder ein Administrator kann die Chat-Einstellungen bearbeiten', 'danger')
-        return redirect(url_for('chat.view_chat', chat_id=chat_id))
+        redirect_chat_id = 1 if chat.is_main_chat else chat_id
+        return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
     
     if request.method == 'POST':
         return update_chat(chat_id)

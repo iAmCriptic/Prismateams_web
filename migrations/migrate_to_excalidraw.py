@@ -13,7 +13,6 @@ WICHTIG: Alle alten Canvas-Daten werden gelöscht (keine Migration der Daten).
 import os
 import sys
 
-# Projektverzeichnis zum Python-Pfad hinzufügen
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, db
@@ -53,10 +52,8 @@ def migrate():
                 print("")
                 print("📝 Aktualisiere canvases-Tabelle...")
                 
-                # Prüfe ob Spalten bereits existieren
                 columns = [col['name'] for col in inspector.get_columns('canvases')]
                 
-                # Füge excalidraw_data hinzu
                 if 'excalidraw_data' not in columns:
                     print("   + Füge Spalte 'excalidraw_data' hinzu...")
                     db.session.execute(text("""
@@ -68,7 +65,6 @@ def migrate():
                 else:
                     print("   ℹ Spalte 'excalidraw_data' existiert bereits")
                 
-                # Füge room_id hinzu
                 if 'room_id' not in columns:
                     print("   + Füge Spalte 'room_id' hinzu...")
                     db.session.execute(text("""
@@ -80,7 +76,6 @@ def migrate():
                 else:
                     print("   ℹ Spalte 'room_id' existiert bereits")
                 
-                # Lösche alte Canvas-Daten (keine Migration)
                 print("")
                 print("🗑️  Lösche alle alten Canvas-Daten...")
                 db.session.execute(text("DELETE FROM canvases"))

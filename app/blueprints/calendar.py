@@ -379,6 +379,12 @@ def remove_participant(event_id, user_id):
     if not current_user.is_admin:
         return jsonify({'error': 'Nicht autorisiert'}), 403
     
+    # Prüfe ob der zu entfernende Benutzer ein Administrator ist
+    user_to_remove = User.query.get_or_404(user_id)
+    if user_to_remove.is_admin:
+        flash('Administratoren können nicht aus Abstimmungen entfernt werden.', 'danger')
+        return redirect(url_for('calendar.view_event', event_id=event_id))
+    
     participation = EventParticipant.query.filter_by(
         event_id=event_id,
         user_id=user_id

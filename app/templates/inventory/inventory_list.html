@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Inventurliste - Team Portal{% endblock %}
+{% block title %}{{ _('inventory.product.list.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1 class="mb-3"><i class="bi bi-clipboard-checklist"></i> Inventurliste</h1>
-        <p class="text-muted">Vollständige Übersicht aller Produkte für die Inventur</p>
+        <h1 class="mb-3"><i class="bi bi-clipboard-checklist"></i> {{ _('inventory.product.list.heading') }}</h1>
+        <p class="text-muted">{{ _('inventory.product.list.subtitle') }}</p>
     </div>
     <div class="col-auto">
         <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-primary">
-            <i class="bi bi-file-pdf"></i> Als PDF herunterladen
+            <i class="bi bi-file-pdf"></i> {{ _('inventory.product.list.download_pdf') }}
         </a>
         <button class="btn btn-outline-primary ms-2" onclick="window.print()">
-            <i class="bi bi-printer"></i> Drucken
+            <i class="bi bi-printer"></i> {{ _('inventory.product.list.print') }}
         </button>
     </div>
 </div>
@@ -24,14 +24,14 @@
             <table class="table table-striped" id="inventoryTable">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Produktname</th>
-                        <th>Kategorie</th>
-                        <th>Seriennummer</th>
-                        <th>Lagerort</th>
-                        <th>Länge</th>
-                        <th>Status</th>
-                        <th>Bemerkung</th>
+                        <th>{{ _('inventory.product.list.table.number') }}</th>
+                        <th>{{ _('inventory.product.list.table.name') }}</th>
+                        <th>{{ _('inventory.product.list.table.category') }}</th>
+                        <th>{{ _('inventory.product.list.table.serial_number') }}</th>
+                        <th>{{ _('inventory.product.list.table.location') }}</th>
+                        <th>{{ _('inventory.product.list.table.length') }}</th>
+                        <th>{{ _('inventory.product.list.table.status') }}</th>
+                        <th>{{ _('inventory.product.list.table.condition') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,9 +45,9 @@
                         <td>{{ product.length or '-' }}</td>
                         <td>
                             {% if product.status == 'available' %}
-                            <span class="badge bg-success">Verfügbar</span>
+                            <span class="badge bg-success">{{ _('inventory.product.list.table.available') }}</span>
                             {% else %}
-                            <span class="badge bg-warning">Ausgeliehen</span>
+                            <span class="badge bg-warning">{{ _('inventory.product.list.table.borrowed') }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -65,7 +65,7 @@
         
         {% if not products %}
         <div class="text-center py-5">
-            <p class="text-muted">Keine Produkte vorhanden</p>
+            <p class="text-muted">{{ _('inventory.product.list.empty') }}</p>
         </div>
         {% endif %}
     </div>

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Rückgabe - Team Portal{% endblock %}
+{% block title %}{{ _('inventory.return.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1 class="mb-3"><i class="bi bi-arrow-counterclockwise"></i> Rückgabe</h1>
-        <p class="text-muted">Geben Sie ausgeliehene Artikel zurück</p>
+        <h1 class="mb-3"><i class="bi bi-arrow-counterclockwise"></i> {{ _('inventory.return.heading') }}</h1>
+        <p class="text-muted">{{ _('inventory.return.subtitle') }}</p>
     </div>
 </div>
 
@@ -17,13 +17,13 @@
                 <!-- QR-Code Scanner -->
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0">QR-Code scannen</label>
+                        <label class="form-label mb-0">{{ _('inventory.return.scanner.label') }}</label>
                         <div>
                             <button class="btn btn-sm btn-primary" id="startScannerBtn">
-                                <i class="bi bi-camera"></i> Kamera starten
+                                <i class="bi bi-camera"></i> {{ _('inventory.return.scanner.start') }}
                             </button>
                             <button class="btn btn-sm btn-danger" id="stopScannerBtn" style="display: none;">
-                                <i class="bi bi-stop-circle"></i> Kamera stoppen
+                                <i class="bi bi-stop-circle"></i> {{ _('inventory.return.scanner.stop') }}
                             </button>
                         </div>
                     </div>
@@ -36,7 +36,7 @@
                         <div id="scannerLine" class="scanner-line"></div>
                         <!-- Erfolgs-Popup -->
                         <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
-                            <i class="bi bi-check-circle-fill"></i> QR-Code erkannt
+                            <i class="bi bi-check-circle-fill"></i> {{ _('inventory.return.scanner.success') }}
                         </div>
                     </div>
                     <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
@@ -46,27 +46,27 @@
                 
                 <!-- Manuelle Eingabe -->
                 <div>
-                    <h5 class="mb-3">QR-Code oder Ausleihvorgangsnummer eingeben</h5>
+                    <h5 class="mb-3">{{ _('inventory.return.manual.title') }}</h5>
                     <form method="POST" id="returnForm">
                         <div class="mb-3">
-                            <label for="qr_code" class="form-label">QR-Code</label>
+                            <label for="qr_code" class="form-label">{{ _('inventory.return.manual.qr_code') }}</label>
                             <input type="text" class="form-control" id="qr_code" name="qr_code" 
-                                   placeholder="QR-Code eingeben (z.B. BORROW-INV-... oder PROD-...)" 
+                                   placeholder="{{ _('inventory.return.manual.qr_placeholder') }}" 
                                    autocomplete="off">
-                            <small class="form-text text-muted">Geben Sie den QR-Code des Produkts oder der Ausleihe ein.</small>
+                            <small class="form-text text-muted">{{ _('inventory.return.manual.qr_help') }}</small>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="transaction_number" class="form-label">oder Ausleihvorgangsnummer</label>
+                            <label for="transaction_number" class="form-label">{{ _('inventory.return.manual.transaction_number') }}</label>
                             <input type="text" class="form-control" id="transaction_number" name="transaction_number" 
                                    value="{{ preset_transaction_number }}"
-                                   placeholder="z.B. INV-20251103-123456-ABCD"
+                                   placeholder="{{ _('inventory.return.manual.transaction_placeholder') }}"
                                    autocomplete="off">
-                            <small class="form-text text-muted">Alternativ können Sie die Ausleihvorgangsnummer direkt eingeben.</small>
+                            <small class="form-text text-muted">{{ _('inventory.return.manual.transaction_help') }}</small>
                         </div>
 
                         <button type="submit" class="btn btn-accent w-100">
-                            <i class="bi bi-check-circle"></i> Rückgabe bestätigen
+                            <i class="bi bi-check-circle"></i> {{ _('inventory.return.manual.confirm') }}
                         </button>
                     </form>
                 </div>
@@ -123,14 +123,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     // HTTP Fehler
                     const result = await response.text();
                     if (result.includes('Keine aktive Ausleihe')) {
-                        alert('Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.');
+                        alert('{{ _('inventory.return.errors.no_borrow') }}');
                     } else {
-                        alert('Fehler bei der Rückgabe. Bitte versuchen Sie es erneut.');
+                        alert('{{ _('inventory.return.errors.return_error') }}');
                     }
                 }
             } catch (error) {
                 console.error('Fehler:', error);
-                alert('Fehler bei der Rückgabe. Bitte versuchen Sie es erneut.');
+                alert('{{ _('inventory.return.errors.return_error') }}');
             }
         });
     }

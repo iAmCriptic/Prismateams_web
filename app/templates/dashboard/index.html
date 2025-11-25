@@ -108,7 +108,7 @@
                 {% if unread_messages %}
                     <div class="list-group list-group-flush flex-grow-1">
                         {% for message in unread_messages[:3] %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('chat.view_chat', chat_id=message.chat_id) }}';">
+                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}';">
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">{{ message.sender.full_name }}</h6>
                                 <small class="text-muted">{{ message.created_at.strftime('%H:%M') }}</small>

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Produkt ausleihen - Team Portal{% endblock %}
+{% block title %}{{ _('inventory.borrow.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> Produkt ausleihen</h1>
+        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> {{ _('inventory.borrow.heading') }}</h1>
     </div>
 </div>
 
@@ -13,15 +13,15 @@
     <div class="col-12 col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Produktinformationen</h5>
+                <h5 class="mb-0">{{ _('inventory.borrow.product_info.title') }}</h5>
             </div>
             <div class="card-body">
                 <h4>{{ product.name }}</h4>
                 {% if product.serial_number %}
-                <p class="text-muted"><strong>Seriennummer:</strong> {{ product.serial_number }}</p>
+                <p class="text-muted"><strong>{{ _('inventory.borrow.product_info.serial_number') }}</strong> {{ product.serial_number }}</p>
                 {% endif %}
                 {% if product.category %}
-                <p class="text-muted"><strong>Kategorie:</strong> {{ product.category }}</p>
+                <p class="text-muted"><strong>{{ _('inventory.borrow.product_info.category') }}</strong> {{ product.category }}</p>
                 {% endif %}
                 {% if product.description %}
                 <p>{{ product.description }}</p>
@@ -52,15 +52,15 @@
     <div class="col-12 col-lg-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Ausleihinformationen</h5>
+                <h5 class="mb-0">{{ _('inventory.borrow.borrow_info.title') }}</h5>
             </div>
             <div class="card-body">
                 <form method="POST" id="borrowForm">
                     <!-- Ausleihender -->
                     <div class="mb-3">
-                        <label for="borrower_id" class="form-label">Ausleihender</label>
+                        <label for="borrower_id" class="form-label">{{ _('inventory.borrow.borrow_info.borrower') }}</label>
                         <select class="form-select" id="borrower_id" name="borrower_id">
-                            <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} (Ich)</option>
+                            <option value="{{ current_user.id }}" selected>{{ current_user.full_name }} {{ _('inventory.borrow.borrow_info.me') }}</option>
                             {% for user in users %}
                             {% if user.id != current_user.id %}
                             <option value="{{ user.id }}">{{ user.full_name }}</option>
@@ -72,22 +72,22 @@
                     <!-- Erwartetes Rückgabedatum -->
                     <div class="mb-3">
                         <label for="expected_return_date" class="form-label">
-                            Erwartetes Rückgabedatum <span class="text-danger">*</span>
+                            {{ _('inventory.borrow.borrow_info.expected_return_date') }} <span class="text-danger">*</span>
                         </label>
                         <input type="date" class="form-control" id="expected_return_date" 
                                name="expected_return_date" required>
-                        <small class="form-text text-muted">Das Datum muss in der Zukunft liegen.</small>
+                        <small class="form-text text-muted">{{ _('inventory.borrow.borrow_info.date_help') }}</small>
                     </div>
 
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i> 
-                        Nach dem Bestätigen wird der Ausleihschein automatisch per E-Mail an Sie gesendet.
+                        {{ _('inventory.borrow.borrow_info.info') }}
                     </div>
 
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">Abbrechen</a>
+                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">{{ _('inventory.borrow.borrow_info.cancel') }}</a>
                         <button type="submit" class="btn btn-accent">
-                            <i class="bi bi-check-circle"></i> Ausleihe bestätigen
+                            <i class="bi bi-check-circle"></i> {{ _('inventory.borrow.borrow_info.confirm') }}
                         </button>
                     </div>
                 </form>
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedDate <= today) {
             e.preventDefault();
-            alert('Das Rückgabedatum muss in der Zukunft liegen.');
+            alert('{{ _('inventory.borrow.errors.date_future') }}');
             return false;
         }
         
@@ -144,14 +144,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fehler
                 const text = await response.text();
                 if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
-                    alert('Bitte überprüfen Sie Ihre Eingaben.');
+                    alert('{{ _('inventory.borrow.errors.check_inputs') }}');
                 } else {
                     window.location.href = '/inventory/';
                 }
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.');
+            alert('{{ _('inventory.borrow.errors.borrow_error') }}');
         }
     });
 });

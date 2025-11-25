@@ -2,7 +2,6 @@ from app import create_app, db
 from app.models import *
 import os
 
-# Create the Flask application
 app = create_app(os.getenv('FLASK_ENV', 'development'))
 
 

@@ -12,19 +12,16 @@ class Folder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Briefkasten (Dropbox) fields
     is_dropbox = db.Column(db.Boolean, default=False, nullable=False)
     dropbox_token = db.Column(db.String(255), nullable=True, unique=True)
     dropbox_password_hash = db.Column(db.String(255), nullable=True)
     
-    # Sharing fields
     share_enabled = db.Column(db.Boolean, default=False, nullable=False)
     share_token = db.Column(db.String(255), nullable=True, unique=True)
     share_password_hash = db.Column(db.String(255), nullable=True)
     share_expires_at = db.Column(db.DateTime, nullable=True)
     share_name = db.Column(db.String(255), nullable=True)
     
-    # Self-referential relationship for nested folders
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
     files = db.relationship('File', back_populates='folder', cascade='all, delete-orphan')
     
@@ -48,7 +45,7 @@ class File(db.Model):
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
-    file_size = db.Column(db.Integer, nullable=False)  # in bytes
+    file_size = db.Column(db.Integer, nullable=False)
     mime_type = db.Column(db.String(100), nullable=True)
     version_number = db.Column(db.Integer, default=1, nullable=False)
     is_current = db.Column(db.Boolean, default=True, nullable=False)
@@ -63,7 +60,6 @@ class File(db.Model):
     share_expires_at = db.Column(db.DateTime, nullable=True)
     share_name = db.Column(db.String(255), nullable=True)
 
-    # Relationships
     folder = db.relationship('Folder', back_populates='files')
     uploader = db.relationship('User', back_populates='uploaded_files')
     versions = db.relationship('FileVersion', back_populates='file', cascade='all, delete-orphan', order_by='FileVersion.version_number.desc()')
@@ -83,7 +79,6 @@ class FileVersion(db.Model):
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
-    # Relationships
     file = db.relationship('File', back_populates='versions')
     
     def __repr__(self):

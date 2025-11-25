@@ -124,7 +124,7 @@
                             <span class="badge bg-warning">{{ _('calendar.view.statuses.pending') }}</span>
                             {% endif %}
                         </div>
-                        {% if current_user.is_admin and participant.status != 'removed' %}
+                        {% if current_user.is_admin and participant.status != 'removed' and not participant.user.is_admin %}
                         <form method="POST" action="{{ url_for('calendar.remove_participant', event_id=event.id, user_id=participant.user_id) }}" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('calendar.view.confirm.remove_participant') }}">
                                 <i class="bi bi-x"></i>

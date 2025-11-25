@@ -89,7 +89,6 @@ def resolve_language(explicit_language: Optional[str] = None) -> str:
     if explicit_language:
         return explicit_language
 
-    # Nutzerpräferenz, sofern vorhanden
     try:
         if current_user and getattr(current_user, "is_authenticated", False):
             user_language = getattr(current_user, "language", None)
@@ -98,7 +97,6 @@ def resolve_language(explicit_language: Optional[str] = None) -> str:
     except Exception:
         pass
 
-    # System-Default
     system_language = _get_system_setting("default_language", None)
     if system_language:
         return system_language
@@ -137,7 +135,6 @@ def translate(key: str, language: Optional[str] = None, **kwargs: Any) -> str:
         text = _walk_translation(_load_language(DEFAULT_LANGUAGE), parts)
 
     if text is None:
-        # Letzter Fallback: Schlüssel zurückgeben
         text = key
 
     if kwargs:
@@ -192,10 +189,8 @@ TRANSLATION_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "translations")
 )
 
-# Default language order: user -> system setting -> fallback chain
 DEFAULT_LANGUAGE = "de"
 FALLBACK_LANGUAGE = "en"
-# Hard-coded baseline of supported languages; can be restricted via settings
 BASE_SUPPORTED_LANGUAGES = ["de", "en", "pt", "es", "ru"]
 
 
@@ -233,7 +228,6 @@ def clear_translation_cache(language: Optional[str] = None) -> None:
     if language:
         cache = _load_translations.cache_info()  # type: ignore[attr-defined]
         if cache.hits or cache.misses:  # pragma: no branch - informative usage
-            # lru_cache bietet kein gezieltes Löschen -> globaler Reset
             _load_translations.cache_clear()  # type: ignore[attr-defined]
     else:
         _load_translations.cache_clear()  # type: ignore[attr-defined]
@@ -252,7 +246,6 @@ def _resolve_key(translations: Dict[str, Any], key: str) -> Optional[Any]:
 
 def get_available_languages() -> Iterable[str]:
     """Gibt die verfügbaren Sprachen zurück (System-Setting oder Basisliste)."""
-    # SystemSetting kann die Sprachen einschränken (JSON-Liste oder CSV)
     try:
         from app.models.settings import SystemSettings  # lokale Imports vermeiden Zirkularität
 
@@ -299,12 +292,10 @@ def _get_system_language(setting_key: str, default: str) -> str:
 
 def determine_language() -> str:
     """Bestimmt die aktuelle Sprache für den Request."""
-    # Expliziter Query-Parameter (z. B. /?lang=en) hat höchste Priorität
     lang = request.args.get("lang")
     if lang and lang in BASE_SUPPORTED_LANGUAGES:
         return lang
 
-    # User-Präferenz
     try:
         if current_user.is_authenticated:
             user_lang = getattr(current_user, "language", None)
@@ -313,7 +304,6 @@ def determine_language() -> str:
     except Exception:  # pylint: disable=broad-except
         pass
 
-    # System-Setting
     lang = _get_system_language("default_language", DEFAULT_LANGUAGE)
     if lang in BASE_SUPPORTED_LANGUAGES:
         return lang
@@ -390,7 +380,6 @@ def register_i18n(app) -> None:
     def translate_filter(key: str, **kwargs: Any) -> str:
         return translate(key, **kwargs)
 
-    # Für direkten Zugriff in Jinja (`{{ _('key') }}`) und Python (`from app.utils.i18n import _`)
     app.jinja_env.globals["_"] = translate
 
 

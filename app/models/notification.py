@@ -8,31 +8,25 @@ class NotificationSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
-    # Chat-Benachrichtigungen
     chat_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Datei-Benachrichtigungen
     file_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     file_new_notifications = db.Column(db.Boolean, default=True, nullable=False)
     file_modified_notifications = db.Column(db.Boolean, default=True, nullable=False)
     
-    # E-Mail-Benachrichtigungen
     email_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Kalender-Benachrichtigungen
     calendar_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     calendar_all_events = db.Column(db.Boolean, default=False, nullable=False)
     calendar_participating_only = db.Column(db.Boolean, default=True, nullable=False)
     calendar_not_participating = db.Column(db.Boolean, default=False, nullable=False)
     calendar_no_response = db.Column(db.Boolean, default=False, nullable=False)
     
-    # Erinnerungszeiten (in Minuten vor dem Event)
-    reminder_times = db.Column(db.Text, nullable=True)  # JSON array of minutes
+    reminder_times = db.Column(db.Text, nullable=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     user = db.relationship('User', backref='notification_settings')
     
     def __repr__(self):
@@ -62,7 +56,6 @@ class ChatNotificationSettings(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     user = db.relationship('User', backref='chat_notification_settings')
     chat = db.relationship('Chat', backref='notification_settings')
     
@@ -87,7 +80,6 @@ class PushSubscription(db.Model):
     last_used = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Relationships
     user = db.relationship('User', backref='push_subscriptions')
     
     def __repr__(self):
@@ -116,10 +108,9 @@ class NotificationLog(db.Model):
     sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     success = db.Column(db.Boolean, default=True, nullable=False)
     error_message = db.Column(db.Text, nullable=True)
-    is_read = db.Column(db.Boolean, default=False, nullable=False)  # Neu: Gelesen-Status
-    read_at = db.Column(db.DateTime, nullable=True)  # Neu: Zeitpunkt des Lesens
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True)
     
-    # Relationships
     user = db.relationship('User', backref='notification_logs')
     
     def __repr__(self):

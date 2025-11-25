@@ -9,7 +9,6 @@ import sys
 import subprocess
 from datetime import datetime
 
-# Füge das Projektverzeichnis zum Python-Pfad hinzu
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def check_requirements():
@@ -64,7 +63,6 @@ def init_database():
     print("\n🗄️  Initialisiere Datenbank...")
     
     try:
-        # Führe das Datenbank-Initialisierungsskript aus
         result = subprocess.run([
             sys.executable, 
             os.path.join(os.path.dirname(__file__), 'init_database.py')
@@ -112,11 +110,9 @@ def run_tests():
         app = create_app(os.getenv('FLASK_ENV', 'development'))
         
         with app.app_context():
-            # Teste Datenbankverbindung
             db.session.execute(db.text('SELECT 1'))
             print("✅ Datenbankverbindung funktioniert")
             
-            # Teste Model-Import
             user_count = User.query.count()
             print(f"✅ User-Model funktioniert ({user_count} Benutzer)")
             
@@ -135,7 +131,6 @@ def main():
     print(f"🐍 Python: {sys.version}")
     print(f"📂 Arbeitsverzeichnis: {os.getcwd()}")
     
-    # Führe alle Checks durch
     checks = [
         ("Abhängigkeiten", check_requirements),
         ("Umgebungsvariablen", check_environment),

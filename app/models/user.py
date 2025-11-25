@@ -50,16 +50,13 @@ class User(UserMixin, db.Model):
     chat_notifications = db.Column(db.Boolean, default=True, nullable=False)
     email_notifications = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Inventory Permissions
-    can_borrow = db.Column(db.Boolean, default=True, nullable=False)  # Kann der User Artikel ausleihen?
+    can_borrow = db.Column(db.Boolean, default=True, nullable=False)
     
     # Dashboard Configuration
-    dashboard_config = db.Column(db.Text, nullable=True)  # JSON string für Dashboard-Konfiguration
+    dashboard_config = db.Column(db.Text, nullable=True)
     
-    # Update Notifications
-    show_update_notifications = db.Column(db.Boolean, default=True, nullable=False)  # Update-Benachrichtigungen anzeigen
+    show_update_notifications = db.Column(db.Boolean, default=True, nullable=False)
     
-    # Relationships
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')
     sent_messages = db.relationship('ChatMessage', back_populates='sender', cascade='all, delete-orphan')
     uploaded_files = db.relationship('File', back_populates='uploader', cascade='all, delete-orphan')
@@ -101,13 +98,10 @@ class User(UserMixin, db.Model):
         """Stellt sicher, dass der Benutzer E-Mail-Berechtigungen hat."""
         from app.models.email import EmailPermission
         
-        # Prüfe ob bereits E-Mail-Berechtigungen existieren
         existing_perm = EmailPermission.query.filter_by(user_id=self.id).first()
         if existing_perm:
             return existing_perm
         
-        # Erstelle E-Mail-Berechtigungen
-        # Admins haben automatisch alle Rechte
         email_perm = EmailPermission(
             user_id=self.id,
             can_read=True,

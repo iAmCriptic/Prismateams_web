@@ -15,11 +15,9 @@ from cryptography.hazmat.backends import default_backend
 
 def generate_vapid_keys():
     """Generiere VAPID-Schlüsselpaar."""
-    # Erstelle EC-Schlüsselpaar
     private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
     public_key = private_key.public_key()
     
-    # Konvertiere zu PEM-Format
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
@@ -31,7 +29,6 @@ def generate_vapid_keys():
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     
-    # Konvertiere zu Base64-URL-Format für Web Push
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
         format=serialization.PrivateFormat.PKCS8,
@@ -43,7 +40,6 @@ def generate_vapid_keys():
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     
-    # Base64 URL-Encoding
     private_key_b64 = base64.urlsafe_b64encode(private_key_bytes).decode('utf-8').rstrip('=')
     public_key_b64 = base64.urlsafe_b64encode(public_key_bytes).decode('utf-8').rstrip('=')
     
@@ -99,7 +95,6 @@ def main():
     print("- Teilen Sie den Private Key niemals öffentlich!")
     print("- Verwenden Sie in der Produktion Umgebungsvariablen!")
     
-    # Speichere Schlüssel in Datei
     with open('vapid_keys.json', 'w') as f:
         json.dump(keys, f, indent=2)
     

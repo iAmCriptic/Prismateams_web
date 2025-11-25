@@ -30,7 +30,6 @@ import sys
 import json
 from typing import List, Tuple
 
-# Projektverzeichnis zum Python-Pfad hinzufügen
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, db
@@ -82,7 +81,6 @@ def migrate_table(table_name, fields_config, create_indexes=None):
                 except Exception as exc:  # pylint: disable=broad-except
                     print(f"  ⚠ Fehler beim Hinzufügen von {field_name}: {exc}")
 
-            # Indizes unter SQLite einzeln anlegen
             if create_indexes:
                 existing_indexes = {
                     idx['name']
@@ -543,7 +541,6 @@ def create_inventory_tables():
 
         conn.commit()
 
-    # Indizes anlegen, falls nicht vorhanden
     inspector = inspect(db.engine)
 
     for table_name, index_defs in [
@@ -797,7 +794,6 @@ def migrate_chat_updates_direct(engine):
     
     inspector = inspect(engine)
     
-    # Prüfe ob chats-Tabelle existiert
     if 'chats' not in inspector.get_table_names():
         print("  ⚠ Warnung: Tabelle 'chats' existiert nicht.")
         print("  Die Tabelle wird beim nächsten Start automatisch erstellt.")
@@ -921,20 +917,17 @@ def migrate_super_admin():
         return False
 
     print("\n5.2. Super-Admin setzen...")
-    # Prüfe ob bereits ein Super-Admin existiert
     existing_super_admin = User.query.filter_by(is_super_admin=True).first()
     if existing_super_admin:
         print(f"  ✓ Super-Admin existiert bereits: {existing_super_admin.email} (ID: {existing_super_admin.id})")
         return True
 
-    # Finde den ältesten Administrator
     oldest_admin = User.query.filter_by(is_admin=True).order_by(User.created_at.asc()).first()
 
     if not oldest_admin:
         print("  ⚠ Kein Administrator gefunden. Super-Admin wird beim nächsten Setup erstellt.")
         return True
 
-    # Setze den ältesten Admin als Super-Admin
     oldest_admin.is_super_admin = True
     db.session.commit()
     print(f"  ✓ Ältester Administrator als Super-Admin gesetzt: {oldest_admin.email} (ID: {oldest_admin.id}, erstellt: {oldest_admin.created_at})")
@@ -963,7 +956,6 @@ def migrate_product_lengths():
             product.length = normalized
             updated += 1
         else:
-            # Stelle sicher, dass der Wert exakt dem formatierten String entspricht
             product.length = normalized
 
     db.session.commit()
@@ -1195,9 +1187,6 @@ def migrate():
                 print("❌ Sprach-Systemeinstellungen konnten nicht angelegt werden!")
                 return False
 
-            # 11. Chat-Updates (bereits oben durchgeführt, hier nur Verifikation)
-            # Die Chat-Migration wurde bereits vor create_app() durchgeführt
-            # Hier nur noch einmal prüfen, ob alles korrekt ist
             print("\n11. Verifiziere Chat-Updates...")
             inspector = inspect(db.engine)
             if 'chats' in inspector.get_table_names():

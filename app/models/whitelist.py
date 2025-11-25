@@ -39,7 +39,6 @@ class WhitelistEntry(db.Model):
         email = email.lower().strip()
         domain = email.split('@')[-1] if '@' in email else ''
         
-        # Prüfe auf exakte E-Mail-Adresse
         email_entry = WhitelistEntry.query.filter_by(
             entry=email,
             entry_type='email',
@@ -49,9 +48,7 @@ class WhitelistEntry(db.Model):
         if email_entry:
             return True
         
-        # Prüfe auf Domain
         if domain:
-            # Prüfe sowohl mit als auch ohne @
             domain_with_at = '@' + domain
             domain_entry = WhitelistEntry.query.filter_by(
                 entry=domain_with_at,
@@ -87,7 +84,6 @@ class WhitelistEntry(db.Model):
         if entry_type == 'domain' and not entry.startswith('@'):
             entry = '@' + entry
         
-        # Prüfe auf Duplikate
         existing = WhitelistEntry.query.filter_by(entry=entry).first()
         if existing:
             return None

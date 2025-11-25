@@ -10,7 +10,6 @@ from app.models.file import File
 from app.models.email import EmailMessage
 from app.models.calendar import CalendarEvent, EventParticipant
 
-# Web Push wird später installiert
 try:
     from pywebpush import webpush, WebPushException
     WEBPUSH_AVAILABLE = True
@@ -18,7 +17,6 @@ except ImportError:
     WEBPUSH_AVAILABLE = False
     logging.warning("pywebpush nicht verfügbar. Push-Benachrichtigungen deaktiviert.")
 
-# VAPID Keys aus Config laden
 from flask import current_app
 import re
 import base64
@@ -34,26 +32,20 @@ def get_vapid_keys():
         logging.warning("VAPID Keys nicht konfiguriert. Push-Benachrichtigungen deaktiviert.")
         return None, None, None
     
-    # DEBUG: Logge die ursprünglichen Keys
     logging.info(f"VAPID Private Key (erste 20 Zeichen): {private_key[:20]}...")
     logging.info(f"VAPID Public Key (erste 20 Zeichen): {public_key[:20]}...")
     
-    # Konvertiere base64url Private Key zu PEM (SEC1 Format für pywebpush)
     converted_private_key = private_key
     
     try:
         if private_key and not private_key.startswith('-----BEGIN'):
-            # base64url zu base64 konvertieren
             b64 = private_key.replace('-', '+').replace('_', '/')
             b64 += '=' * ((4 - len(b64) % 4) % 4)
             
-            # Dekodiere zu RAW (32 Bytes für EC Private Key)
             raw = base64.b64decode(b64)
             if len(raw) == 32:
-                # Erstelle EC Private Key aus RAW
                 priv_int = int.from_bytes(raw, 'big')
                 priv_obj = ec.derive_private_key(priv_int, ec.SECP256R1())
-                # Verwende SEC1 Format (TraditionalOpenSSL) - das funktioniert!
                 converted_private_key = priv_obj.private_bytes(
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PrivateFormat.TraditionalOpenSSL,
@@ -64,10 +56,9 @@ def get_vapid_keys():
                 logging.error(f"VAPID Private Key hat unerwartete Länge: {len(raw)} Bytes (erwartet: 32)")
     except Exception as e:
         logging.error(f"VAPID Private Key Konvertierung fehlgeschlagen: {e}")
-        # Verwende Original-Key als Fallback
 
     vapid_claims = {
-        "sub": "mailto:admin@yourdomain.com"  # E-Mail des Administrators
+        "sub": "mailto:admin@yourdomain.com"
     }
     
     return converted_private_key, public_key, vapid_claims
@@ -100,7 +91,6 @@ def send_push_notification(
         logging.error("WebPush nicht verfügbar")
         return False
     
-    # Lade VAPID Keys aus Config
     vapid_private_key, vapid_public_key, vapid_claims = get_vapid_keys()
     if not vapid_private_key:
         logging.error("VAPID Keys nicht konfiguriert - Push-Benachrichtigungen deaktiviert")
@@ -111,7 +101,6 @@ def send_push_notification(
     if not user or not user.notifications_enabled:
         return False
     
-    # Hole alle aktiven Subscriptions des Benutzers
     subscriptions = PushSubscription.query.filter_by(
         user_id=user_id,
         is_active=True
@@ -123,29 +112,23 @@ def send_push_notification(
     
     logging.info(f"Gefunden {len(subscriptions)} Push-Subscriptions für Benutzer {user_id}")
     
-    # Lade Portal-Name und Logo aus Datenbank für Standard-Werte
     try:
         from app.models.settings import SystemSettings
         from flask import url_for, current_app
         
-        # Portal-Name aus Datenbank (wenn title nicht angegeben oder Standard)
         portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
         portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
         
-        # Portal-Logo aus Datenbank
         portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
         if portal_logo_setting and portal_logo_setting.value:
-            # Portal-Logo URL erstellen
             portal_logo_url = url_for('settings.portal_logo', filename=portal_logo_setting.value, _external=True)
             if not icon or icon == "/static/img/logo.png":
                 icon = portal_logo_url
         else:
-            # Fallback zu statischem Logo
             if not icon or icon == "":
                 icon = url_for('static', filename='img/logo.png', _external=True)
     except Exception as e:
         logging.warning(f"Could not load portal settings for push notification: {e}")
-        # Fallback zu statischem Logo
         if not icon or icon == "":
             try:
                 icon = url_for('static', filename='img/logo.png', _external=True)
@@ -155,7 +138,6 @@ def send_push_notification(
     success_count = 0
     total_count = len(subscriptions)
     
-    # Bereite Payload vor (einmal für alle Subscriptions)
     payload = {
         "title": title,
         "body": body,
@@ -168,7 +150,6 @@ def send_push_notification(
         if not isinstance(value, str):
             return value
         v = value.strip()
-        # Belasse urlsafe-Zeichen, füge nur Padding hinzu
         padding = (4 - (len(v) % 4)) % 4
         if padding:
             v += '=' * padding
@@ -176,15 +157,12 @@ def send_push_notification(
 
     for subscription in subscriptions:
         try:
-            # Subscription vorbereiten: korrekte Base64url-Padding hinzufügen
             sub_info = subscription.to_dict()
             if 'keys' in sub_info:
                 sub_info['keys'] = dict(sub_info['keys'])
                 sub_info['keys']['p256dh'] = ensure_padded_base64url(sub_info['keys'].get('p256dh'))
                 sub_info['keys']['auth'] = ensure_padded_base64url(sub_info['keys'].get('auth'))
 
-            # Sende Push-Benachrichtigung - verwende base64url-Key direkt
-            # pywebpush kann base64url-Keys direkt verarbeiten
             original_private_key = current_app.config.get('VAPID_PRIVATE_KEY')
             webpush(
                 subscription_info=sub_info,
@@ -194,7 +172,6 @@ def send_push_notification(
                 ttl=86400  # 24 Stunden TTL
             )
             
-            # Update last_used
             subscription.last_used = datetime.utcnow()
             success_count += 1
             
@@ -203,11 +180,9 @@ def send_push_notification(
         except WebPushException as e:
             logging.error(f"WebPush Fehler für Benutzer {user_id}: {e}")
             
-            # Deaktiviere Subscription bei permanenten Fehlern
             if e.response and e.response.status_code in [410, 404, 400]:
                 subscription.is_active = False
                 logging.info(f"Push-Subscription {subscription.id} deaktiviert (Status: {e.response.status_code})")
-                # Sofort in Datenbank speichern
                 try:
                     db.session.commit()
                 except Exception as commit_error:
@@ -216,7 +191,6 @@ def send_push_notification(
         except Exception as e:
             logging.error(f"Unerwarteter Fehler beim Senden der Push-Benachrichtigung: {e}")
     
-    # Logge das Ergebnis nur bei erfolgreichen Push-Benachrichtigungen
     if success_count > 0:
         try:
             log_entry = NotificationLog(
@@ -234,7 +208,6 @@ def send_push_notification(
             logging.error(f"Fehler beim Loggen der Push-Benachrichtigung: {e}")
             db.session.rollback()
     
-    # Commit alle Änderungen
     try:
         db.session.commit()
     except Exception as e:
@@ -276,7 +249,6 @@ def send_chat_notification(
     Returns:
         int: Anzahl der gesendeten Benachrichtigungen
     """
-    # Hole alle Chat-Mitglieder außer dem Absender
     members = ChatMember.query.filter_by(chat_id=chat_id).all()
     recipients = [m for m in members if m.user_id != sender_id]
     
@@ -291,12 +263,10 @@ def send_chat_notification(
         if not user:
             continue
         
-        # Prüfe globale Chat-Benachrichtigungseinstellungen
         settings = get_or_create_notification_settings(user.id)
         if not settings.chat_notifications_enabled:
             continue
         
-        # Prüfe Chat-spezifische Einstellungen
         chat_settings = ChatNotificationSettings.query.filter_by(
             user_id=user.id,
             chat_id=chat_id
@@ -305,7 +275,6 @@ def send_chat_notification(
         if chat_settings and not chat_settings.notifications_enabled:
             continue
         
-        # Zähle ungelesene Nachrichten in diesem Chat
         unread_count = ChatMessage.query.filter(
             ChatMessage.chat_id == chat_id,
             ChatMessage.sender_id != user.id,
@@ -316,8 +285,6 @@ def send_chat_notification(
         if unread_count == 0:
             continue  # Keine ungelesenen Nachrichten
         
-        # Prüfe ob bereits eine Benachrichtigung für diesen Chat in den letzten 30 Sekunden gesendet wurde
-        # Wenn ja, prüfe ob sich die Anzahl der ungelesenen Nachrichten erhöht hat
         existing_notification = NotificationLog.query.filter_by(
             user_id=user.id,
             url=f"/chat/{chat_id}",
@@ -327,19 +294,14 @@ def send_chat_notification(
         ).order_by(NotificationLog.sent_at.desc()).first()
         
         if existing_notification:
-            # Extrahiere die alte Anzahl aus dem Body der letzten Benachrichtigung
             old_body = existing_notification.body or ""
-            # Suche nach "X neue Nachricht(en)" - unterstützt sowohl Singular als auch Plural
             old_count_match = re.search(r'(\d+)\s+neue\s+Nachricht(?:en)?', old_body)
             old_count = int(old_count_match.group(1)) if old_count_match else 0
             
-            # Wenn die Anzahl gleich geblieben ist, überspringe (verhindert Duplikate bei gleichzeitigen Nachrichten)
             if old_count >= unread_count:
                 logging.info(f"Chat-Benachrichtigung übersprungen: Anzahl unverändert ({old_count} -> {unread_count})")
                 continue
-            # Wenn die Anzahl erhöht wurde, sende eine neue Benachrichtigung mit aktualisierter Anzahl
         
-        # Erstelle zusammengefasste Benachrichtigung
         if unread_count == 1:
             title = f'"{chat_name or "Team Chat"}"'
             body = f'1 neue Nachricht'
@@ -347,7 +309,6 @@ def send_chat_notification(
             title = f'"{chat_name or "Team Chat"}"'
             body = f'{unread_count} neue Nachrichten'
         
-        # Sende Server-Push-Benachrichtigung
         push_success = send_push_notification(
             user_id=user.id,
             title=title,
@@ -384,7 +345,6 @@ def send_file_notification(
     if not file:
         return 0
     
-    # Hole alle Benutzer mit aktivierten Datei-Benachrichtigungen
     users = User.query.join(NotificationSettings).filter(
         NotificationSettings.file_notifications_enabled == True
     ).all()
@@ -394,7 +354,6 @@ def send_file_notification(
     for user in users:
         settings = get_or_create_notification_settings(user.id)
         
-        # Prüfe spezifische Datei-Benachrichtigungseinstellungen
         if notification_type == 'new' and not settings.file_new_notifications:
             continue
         if notification_type == 'modified' and not settings.file_modified_notifications:
@@ -435,7 +394,6 @@ def send_email_notification(
     print(f"=== UTILS: E-MAIL-BENACHRICHTIGUNG START ===")
     print(f"UTILS: E-Mail-Benachrichtigung für E-Mail ID: {email_id}")
     
-    # Verwende flush() um sicherzustellen, dass die E-Mail in der Datenbank verfügbar ist
     try:
         db.session.flush()
         email = EmailMessage.query.get(email_id)
@@ -448,7 +406,6 @@ def send_email_notification(
         print(f"UTILS: Fehler beim Laden der E-Mail: {e}")
         return 0
     
-    # Hole alle Benutzer mit aktivierten E-Mail-Benachrichtigungen
     try:
         users = User.query.join(NotificationSettings).filter(
             NotificationSettings.email_notifications_enabled == True
@@ -464,7 +421,6 @@ def send_email_notification(
     for user in users:
         print(f"UTILS: Verarbeite Benutzer {user.id} ({user.username})")
         
-        # Zähle ungelesene E-Mails
         unread_count = EmailMessage.query.filter(
             EmailMessage.is_read == False,
             EmailMessage.is_sent == False  # Nur empfangene E-Mails
@@ -476,8 +432,6 @@ def send_email_notification(
             print(f"UTILS: Keine ungelesenen E-Mails für Benutzer {user.id}")
             continue  # Keine ungelesenen E-Mails
         
-        # Prüfe ob bereits eine E-Mail-Benachrichtigung in den letzten 30 Sekunden gesendet wurde
-        # Wenn ja, prüfe ob sich die Anzahl der ungelesenen E-Mails erhöht hat
         existing_notification = NotificationLog.query.filter_by(
             user_id=user.id,
             url="/email/",
@@ -487,19 +441,14 @@ def send_email_notification(
         ).order_by(NotificationLog.sent_at.desc()).first()
         
         if existing_notification:
-            # Extrahiere die alte Anzahl aus dem Body der letzten Benachrichtigung
             old_body = existing_notification.body or ""
-            # Suche nach "X neue E-Mail(s)" - unterstützt sowohl Singular als auch Plural
             old_count_match = re.search(r'(\d+)\s+neue\s+E-Mail(?:s)?', old_body)
             old_count = int(old_count_match.group(1)) if old_count_match else 0
             
-            # Wenn die Anzahl gleich geblieben ist, überspringe (verhindert Duplikate bei gleichzeitigen E-Mails)
             if old_count >= unread_count:
                 print(f"UTILS: E-Mail-Benachrichtigung übersprungen: Anzahl unverändert ({old_count} -> {unread_count})")
                 continue
-            # Wenn die Anzahl erhöht wurde, sende eine neue Benachrichtigung mit aktualisierter Anzahl
         
-        # Erstelle zusammengefasste Benachrichtigung
         if unread_count == 1:
             title = "E-Mail"
             body = "1 neue E-Mail"
@@ -509,7 +458,6 @@ def send_email_notification(
         
         print(f"UTILS: Erstelle Benachrichtigung: {title} - {body}")
         
-        # Sende Server-Push-Benachrichtigung
         try:
             push_success = send_push_notification(
                 user_id=user.id,
@@ -550,7 +498,6 @@ def send_calendar_notification(
     if not event:
         return 0
     
-    # Hole alle Benutzer mit aktivierten Kalender-Benachrichtigungen
     users = User.query.join(NotificationSettings).filter(
         NotificationSettings.calendar_notifications_enabled == True
     ).all()
@@ -560,7 +507,6 @@ def send_calendar_notification(
     for user in users:
         settings = get_or_create_notification_settings(user.id)
         
-        # Prüfe Teilnahme-Status
         participation = EventParticipant.query.filter_by(
             event_id=event_id,
             user_id=user.id
@@ -582,7 +528,6 @@ def send_calendar_notification(
         if not should_notify:
             continue
         
-        # Formatiere Zeit
         time_str = event.start_time.strftime('%H:%M')
         date_str = event.start_time.strftime('%d.%m.%Y')
         
@@ -618,14 +563,12 @@ def schedule_calendar_reminders():
     """
     now = datetime.utcnow()
     
-    # Hole alle Events in den nächsten 7 Tagen
     future_events = CalendarEvent.query.filter(
         CalendarEvent.start_time > now,
         CalendarEvent.start_time <= now + timedelta(days=7)
     ).all()
     
     for event in future_events:
-        # Hole alle Benutzer mit Kalender-Benachrichtigungen
         users = User.query.join(NotificationSettings).filter(
             NotificationSettings.calendar_notifications_enabled == True
         ).all()
@@ -637,7 +580,6 @@ def schedule_calendar_reminders():
             for reminder_minutes in reminder_times:
                 reminder_time = event.start_time - timedelta(minutes=reminder_minutes)
                 
-                # Prüfe ob es Zeit für diese Erinnerung ist (mit 5 Minuten Toleranz)
                 if abs((reminder_time - now).total_seconds()) <= 300:  # 5 Minuten
                     send_calendar_notification(event.id, reminder_minutes)
 
@@ -661,12 +603,10 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         endpoint = subscription_data.get('endpoint')
         keys = subscription_data.get('keys', {})
 
-        # Normalisiere Schlüssel auf base64url (pywebpush erwartet urlsafe, ohne Padding)
         def to_base64url(value: str) -> str:
             if not isinstance(value, str):
                 return value
             v = value.strip()
-            # wenn bereits urlsafe, nur Padding entfernen
             v = v.replace('+', '-').replace('/', '_')
             v = v.rstrip('=')
             return v
@@ -686,7 +626,6 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
             print(f"UTILS: auth Key vorhanden: {bool(keys.get('auth'))}")
             return False
         
-        # Prüfe ob Subscription bereits existiert
         existing = PushSubscription.query.filter_by(
             user_id=user_id,
             endpoint=endpoint
@@ -694,14 +633,12 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         
         if existing:
             print(f"UTILS: Update bestehende Push-Subscription für Benutzer {user_id}")
-            # Update bestehende Subscription
             existing.p256dh_key = keys['p256dh']
             existing.auth_key = keys['auth']
             existing.last_used = datetime.utcnow()
             existing.is_active = True
         else:
             print(f"UTILS: Erstelle neue Push-Subscription für Benutzer {user_id}")
-            # Erstelle neue Subscription
             new_subscription = PushSubscription(
                 user_id=user_id,
                 endpoint=endpoint,
@@ -714,7 +651,6 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
         db.session.commit()
         print(f"UTILS: Push-Subscription erfolgreich registriert für Benutzer {user_id}")
         
-        # Verifiziere dass die Subscription gespeichert wurde
         saved_subscription = PushSubscription.query.filter_by(
             user_id=user_id,
             endpoint=endpoint
@@ -744,7 +680,6 @@ def cleanup_inactive_subscriptions():
     """Bereinigt inaktive Push-Subscriptions."""
     from datetime import timedelta
     
-    # Lösche Subscriptions die länger als 30 Tage nicht verwendet wurden
     cutoff_date = datetime.utcnow() - timedelta(days=30)
     
     inactive_subscriptions = PushSubscription.query.filter(
@@ -762,13 +697,10 @@ def cleanup_inactive_subscriptions():
 def cleanup_failed_subscriptions():
     """Bereinigt fehlgeschlagene Push-Subscriptions basierend auf WebPush-Fehlern."""
     try:
-        # Deaktiviere alle Subscriptions die alt sind (älter als 1 Stunde)
-        # Diese werden beim nächsten Test automatisch neu erstellt
         old_subscriptions = PushSubscription.query.filter_by(is_active=True).all()
         
         deactivated_count = 0
         for subscription in old_subscriptions:
-            # Prüfe ob Subscription alt ist (älter als 1 Stunde)
             if subscription.created_at < datetime.utcnow() - timedelta(hours=1):
                 subscription.is_active = False
                 deactivated_count += 1

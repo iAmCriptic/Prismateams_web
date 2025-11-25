@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app, session, send_from_directory
 from flask_login import login_required, current_user
 from app import db
+from app.utils.i18n import _
 from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 from app.models.api_token import ApiToken
 from app.models.user import User
@@ -76,7 +77,6 @@ def check_borrow_permission():
 
 def generate_transaction_number():
     """Generiert eine eindeutige Ausleihvorgangsnummer."""
-    # Format: INV-YYYYMMDD-HHMMSS-XXXX
     timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
     random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
     return f"INV-{timestamp}-{random_part}"
@@ -84,13 +84,34 @@ def generate_transaction_number():
 
 def generate_borrow_group_id():
     """Generiert eine eindeutige Gruppierungs-ID für Mehrfachausleihen."""
-    # Format: GRP-YYYYMMDD-HHMMSS-XXXX
     timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
     random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
     return f"GRP-{timestamp}-{random_part}"
 
 
 # ========== Frontend Routes ==========
+
+@inventory_bp.route('/public/product/<int:product_id>')
+def public_product(product_id):
+    """Öffentliche Produktseite ohne Anmeldung."""
+    product = Product.query.get_or_404(product_id)
+    
+    portal_logo_filename = None
+    ownership_text = "Eigentum der Technik"  # Standardwert
+    
+    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+    if portal_logo_setting and portal_logo_setting.value:
+        portal_logo_filename = portal_logo_setting.value
+    
+    ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
+    if ownership_setting and ownership_setting.value:
+        ownership_text = ownership_setting.value
+    
+    return render_template('inventory/public_product.html',
+                         product=product,
+                         portal_logo_filename=portal_logo_filename,
+                         ownership_text=ownership_text)
+
 
 @inventory_bp.route('/')
 @login_required
@@ -116,14 +137,9 @@ def stock(folder_id=None):
     if folder_id:
         current_folder = ProductFolder.query.get(folder_id)
         if not current_folder:
-            flash('Ordner nicht gefunden.', 'warning')
+            flash(_('inventory.flash.folder_not_found'), 'warning')
             return redirect(url_for('inventory.stock'))
-        
-        # Lade Unterordner (falls parent_id später implementiert wird)
-        # subfolders = ProductFolder.query.filter_by(parent_id=folder_id).order_by(ProductFolder.name).all()
     else:
-        # Lade alle Root-Ordner (Ordner ohne parent_id)
-        # Für jetzt: alle Ordner, da parent_id noch nicht implementiert ist
         subfolders = ProductFolder.query.order_by(ProductFolder.name).all()
     
     return render_template('inventory/stock.html', 
@@ -151,7 +167,7 @@ def product_new():
         length_input = request.form.get('length', '').strip()
         normalized_length, _ = normalize_length_input(length_input) if length_input else (None, None)
         if length_input and normalized_length is None:
-            flash('Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).', 'danger')
+            flash(_('inventory.flash.invalid_length'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
             return render_template('inventory/product_form.html', categories=categories, folders=folders)
@@ -169,29 +185,26 @@ def product_new():
         if folder_id:
             try:
                 folder_id_int = int(folder_id)
-                # Prüfe ob Ordner existiert
                 if not ProductFolder.query.get(folder_id_int):
                     folder_id_int = None
             except ValueError:
                 folder_id_int = None
         
-        # Anzahl auslesen und validieren
         quantity = 1
         quantity_str = request.form.get('quantity', '1').strip()
         try:
             quantity = int(quantity_str)
             if quantity < 1 or quantity > 100:
-                flash('Die Anzahl muss zwischen 1 und 100 liegen.', 'danger')
+                flash(_('inventory.flash.quantity_range'), 'danger')
                 categories = get_inventory_categories()
                 folders = get_product_folders()
                 return render_template('inventory/product_form.html', categories=categories, folders=folders)
         except ValueError:
-            flash('Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.', 'danger')
+            flash(_('inventory.flash.invalid_quantity'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
             return render_template('inventory/product_form.html', categories=categories, folders=folders)
         
-        # Bild-Upload verarbeiten
         image_path = None
         if 'image' in request.files:
             file = request.files['image']
@@ -203,10 +216,8 @@ def product_new():
                 os.makedirs(upload_dir, exist_ok=True)
                 filepath = os.path.join(upload_dir, stored_filename)
                 file.save(filepath)
-                # Speichere nur den Dateinamen für einfachere URL-Generierung
                 image_path = stored_filename
         
-        # Produkte erstellen (Mehrfach-Erstellung)
         created_products = []
         try:
             for i in range(quantity):
@@ -228,30 +239,28 @@ def product_new():
                 db.session.add(product)
                 db.session.flush()  # Um die ID zu erhalten
                 
-                # QR-Code für jedes Produkt individuell generieren
                 qr_data = generate_product_qr_code(product.id)
                 product.qr_code_data = qr_data
                 
                 created_products.append(product)
             
             db.session.commit()
-            
+
             # Flash-Nachricht anpassen je nach Anzahl
             if quantity == 1:
-                flash(f'Produkt "{name}" wurde erfolgreich erstellt.', 'success')
+                flash(_('inventory.flash.product_created', name=name), 'success')
             else:
-                flash(f'{quantity} Produkte "{name}" wurden erfolgreich erstellt.', 'success')
+                flash(_('inventory.flash.products_created', quantity=quantity, name=name), 'success')
             
             return redirect(url_for('inventory.stock'))
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Fehler beim Erstellen der Produkte: {e}", exc_info=True)
-            flash('Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.', 'danger')
+            flash(_('inventory.flash.create_error'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
             return render_template('inventory/product_form.html', categories=categories, folders=folders)
     
-    # Kategorien und Ordner laden
     categories = get_inventory_categories()
     folders = get_product_folders()
     
@@ -292,7 +301,6 @@ def product_edit(product_id):
         else:
             product.length = None
         
-        # Ordner aktualisieren
         folder_id = request.form.get('folder_id', '').strip()
         folder_id_int = None
         if folder_id:
@@ -304,7 +312,6 @@ def product_edit(product_id):
                 folder_id_int = None
         product.folder_id = folder_id_int
         
-        # Status aktualisieren (nur beim Bearbeiten)
         if 'status' in request.form:
             product.status = request.form.get('status', 'available')
         
@@ -317,7 +324,6 @@ def product_edit(product_id):
         else:
             product.purchase_date = None
         
-        # Bild entfernen (wenn remove_image gesetzt ist)
         if request.form.get('remove_image') == '1':
             if product.image_path:
                 upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
@@ -329,11 +335,9 @@ def product_edit(product_id):
                         current_app.logger.error(f"Fehler beim Löschen des Bildes: {e}")
             product.image_path = None
         
-        # Neues Bild hochladen (optional)
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename != '' and allowed_file(file.filename):
-                # Altes Bild löschen (optional)
                 if product.image_path:
                     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
                     old_filepath = os.path.join(upload_dir, product.image_path)
@@ -350,26 +354,50 @@ def product_edit(product_id):
                 os.makedirs(upload_dir, exist_ok=True)
                 filepath = os.path.join(upload_dir, stored_filename)
                 file.save(filepath)
-                # Speichere nur den Dateinamen für einfachere URL-Generierung
                 product.image_path = stored_filename
         
-        # QR-Code aktualisieren falls nötig
         if not product.qr_code_data:
             product.qr_code_data = generate_product_qr_code(product.id)
         
         db.session.commit()
         
-        flash(f'Produkt "{name}" wurde erfolgreich aktualisiert.', 'success')
+        flash(_('inventory.flash.product_updated', name=name), 'success')
         return redirect(url_for('inventory.stock'))
     
-    # Datum formatieren für Input-Feld
     purchase_date_formatted = product.purchase_date.strftime('%Y-%m-%d') if product.purchase_date else ''
     
-    # Kategorien und Ordner laden
     categories = get_inventory_categories()
     folders = get_product_folders()
     
     return render_template('inventory/product_form.html', product=product, purchase_date_formatted=purchase_date_formatted, categories=categories, folders=folders)
+
+
+@inventory_bp.route('/public/product-images/<path:filename>')
+def serve_public_product_image(filename):
+    """Serviere Produktbilder für öffentliche Produktseiten."""
+    try:
+        from flask import abort
+        from urllib.parse import unquote
+        
+        filename = unquote(filename)
+        
+        if os.path.isabs(filename) or '/' in filename or '\\' in filename:
+            filename = os.path.basename(filename)
+        
+        project_root = os.path.dirname(current_app.root_path)
+        directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
+        full_path = os.path.join(directory, filename)
+        
+        if not os.path.abspath(full_path).startswith(os.path.abspath(directory)):
+            abort(403)
+        
+        if os.path.isfile(full_path):
+            return send_from_directory(directory, filename)
+        else:
+            abort(404)
+    except Exception as e:
+        current_app.logger.error(f"Fehler beim Servieren des Produktbildes: {e}")
+        abort(404)
 
 
 @inventory_bp.route('/product-images/<path:filename>')
@@ -380,26 +408,20 @@ def serve_product_image(filename):
         from flask import abort
         from urllib.parse import unquote
         
-        # URL-decode den Dateinamen
         filename = unquote(filename)
         
-        # Falls filename ein absoluter Pfad ist, extrahiere nur den Dateinamen
         if os.path.isabs(filename) or '/' in filename or '\\' in filename:
-            # Extrahiere nur den Dateinamen
             filename = os.path.basename(filename)
         
-        # Konstruiere absoluten Pfad
         project_root = os.path.dirname(current_app.root_path)
         directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
         full_path = os.path.join(directory, filename)
         
-        # Debug-Logging
         if current_app.debug:
             current_app.logger.debug(f"[PRODUCT IMAGE] Requested filename: {filename}")
             current_app.logger.debug(f"[PRODUCT IMAGE] Full path: {full_path}")
             current_app.logger.debug(f"[PRODUCT IMAGE] File exists: {os.path.isfile(full_path)}")
             if not os.path.isfile(full_path):
-                # Liste alle Dateien im Verzeichnis für Debugging
                 if os.path.exists(directory):
                     current_app.logger.debug(f"[PRODUCT IMAGE] Directory contents: {os.listdir(directory)}")
         
@@ -442,17 +464,15 @@ def product_delete(product_id):
     """Produkt löschen."""
     product = Product.query.get_or_404(product_id)
     
-    # Prüfen ob Produkt ausgeliehen ist
     active_borrow = BorrowTransaction.query.filter_by(
         product_id=product_id,
         status='active'
     ).first()
     
     if active_borrow:
-        flash('Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.', 'danger')
+        flash(_('inventory.flash.product_cannot_delete'), 'danger')
         return redirect(url_for('inventory.stock'))
     
-    # Bild löschen falls vorhanden
     if product.image_path and os.path.exists(product.image_path):
         try:
             os.remove(product.image_path)
@@ -462,7 +482,7 @@ def product_delete(product_id):
     db.session.delete(product)
     db.session.commit()
     
-    flash(f'Produkt "{product.name}" wurde gelöscht.', 'success')
+    flash(_('inventory.flash.product_deleted', name=product.name), 'success')
     return redirect(url_for('inventory.stock'))
 
 
@@ -471,34 +491,32 @@ def product_delete(product_id):
 def borrow_multiple():
     """Mehrfachausleihe - mehrere Produkte gleichzeitig ausleihen."""
     if not check_borrow_permission():
-        flash('Sie haben keine Berechtigung, Artikel auszuleihen.', 'danger')
+        flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.stock'))
     
     if request.method == 'GET':
         product_ids_str = request.args.get('product_ids', '')
         if not product_ids_str:
-            flash('Keine Produkte ausgewählt.', 'danger')
+            flash(_('inventory.flash.no_products_selected'), 'danger')
             return redirect(url_for('inventory.stock'))
         
         try:
             product_ids = [int(pid) for pid in product_ids_str.split(',')]
         except ValueError:
-            flash('Ungültige Produkt-IDs.', 'danger')
+            flash(_('inventory.flash.invalid_product_ids'), 'danger')
             return redirect(url_for('inventory.stock'))
         
         products = Product.query.filter(Product.id.in_(product_ids)).all()
         
-        # Prüfe ob alle Produkte verfügbar sind
         unavailable_products = [p for p in products if p.status != 'available']
         if unavailable_products:
-            flash(f'Einige Produkte sind nicht verfügbar: {", ".join([p.name for p in unavailable_products])}', 'danger')
+            flash(_('inventory.flash.products_unavailable', products=', '.join([p.name for p in unavailable_products])), 'danger')
             return redirect(url_for('inventory.stock'))
         
         if not products:
-            flash('Keine gültigen Produkte gefunden.', 'danger')
+            flash(_('inventory.flash.no_valid_products'), 'danger')
             return redirect(url_for('inventory.stock'))
         
-        # Alle Benutzer für Auswahl
         users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
         
         return render_template('inventory/borrow_multiple.html', products=products, users=users)
@@ -519,20 +537,19 @@ def borrow_multiple():
         borrower_id = request.form.get('borrower_id', '').strip()
         
         if not expected_return_date_str:
-            flash('Das erwartete Rückgabedatum ist verpflichtend.', 'danger')
+            flash(_('inventory.flash.return_date_required'), 'danger')
             return redirect(url_for('inventory.borrow_multiple', product_ids=','.join(map(str, product_ids))))
         
         try:
             expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
         except ValueError:
-            flash('Ungültiges Datumsformat.', 'danger')
+            flash(_('inventory.flash.invalid_date_format'), 'danger')
             return redirect(url_for('inventory.borrow_multiple', product_ids=','.join(map(str, product_ids))))
         
         if expected_return_date < date.today():
-            flash('Das Rückgabedatum darf nicht in der Vergangenheit liegen.', 'danger')
+            flash(_('inventory.flash.return_date_past'), 'danger')
             return redirect(url_for('inventory.borrow_multiple', product_ids=','.join(map(str, product_ids))))
         
-        # Ausleihender bestimmen
         if borrower_id:
             try:
                 borrower = User.query.get(int(borrower_id))
@@ -543,11 +560,9 @@ def borrow_multiple():
         else:
             borrower = current_user
         
-        # Alle Produkte ausleihen
         products = Product.query.filter(Product.id.in_(product_ids)).all()
         transactions = []
         
-        # Gemeinsame Gruppierungs-ID für alle Produkte dieser Mehrfachausleihe
         borrow_group_id = generate_borrow_group_id()
         
         for product in products:
@@ -575,17 +590,16 @@ def borrow_multiple():
         
         db.session.commit()
         
-        flash(f'{len(transactions)} Produkt(e) erfolgreich ausgeliehen.', 'success')
+        flash(_('inventory.flash.borrow_success', count=len(transactions)), 'success')
         
-        # PDF per E-Mail versenden mit allen Transaktionen
         if transactions:
             from app.utils.email_sender import send_borrow_receipt_email
             email_sent = send_borrow_receipt_email(transactions)
             
             if email_sent:
-                flash('Der Ausleihschein wurde per E-Mail an Sie gesendet.', 'success')
+                flash(_('inventory.flash.receipt_sent'), 'success')
             else:
-                flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
+                flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
         
         return redirect(url_for('inventory.dashboard'))
 
@@ -595,13 +609,13 @@ def borrow_multiple():
 def product_borrow(product_id):
     """Ausleihvorgang starten."""
     if not check_borrow_permission():
-        flash('Sie haben keine Berechtigung, Artikel auszuleihen.', 'danger')
+        flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.stock'))
     
     product = Product.query.get_or_404(product_id)
     
     if product.status != 'available':
-        flash('Das Produkt ist nicht verfügbar.', 'danger')
+        flash(_('inventory.flash.product_unavailable'), 'danger')
         return redirect(url_for('inventory.stock'))
     
     if request.method == 'POST':
@@ -609,21 +623,19 @@ def product_borrow(product_id):
         borrower_id = request.form.get('borrower_id', '').strip()
         
         if not expected_return_date_str:
-            flash('Das erwartete Rückgabedatum ist verpflichtend.', 'danger')
+            flash(_('inventory.flash.return_date_required'), 'danger')
             return render_template('inventory/borrow.html', product=product)
         
         try:
             expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
         except ValueError:
-            flash('Ungültiges Datumsformat.', 'danger')
+            flash(_('inventory.flash.invalid_date_format'), 'danger')
             return render_template('inventory/borrow.html', product=product)
         
-        # Prüfen ob Datum in der Zukunft liegt
         if expected_return_date < date.today():
-            flash('Das Rückgabedatum darf nicht in der Vergangenheit liegen.', 'danger')
+            flash(_('inventory.flash.return_date_past'), 'danger')
             return render_template('inventory/borrow.html', product=product)
         
-        # Ausleihender bestimmen
         if borrower_id:
             try:
                 borrower = User.query.get(int(borrower_id))
@@ -634,10 +646,8 @@ def product_borrow(product_id):
         else:
             borrower = current_user
         
-        # Transaktionsnummer generieren
         transaction_number = generate_transaction_number()
         
-        # Ausleihvorgang erstellen
         borrow_transaction = BorrowTransaction(
             transaction_number=transaction_number,
             product_id=product.id,
@@ -648,31 +658,27 @@ def product_borrow(product_id):
             status='active'
         )
         
-        # QR-Code für Ausleihvorgang generieren
         qr_data = generate_borrow_qr_code(transaction_number)
         borrow_transaction.qr_code_data = qr_data
         
-        # Produktstatus ändern
         product.status = 'borrowed'
         product.qr_code_data = qr_data  # Temporär für Ausleihe
         
         db.session.add(borrow_transaction)
         db.session.commit()
         
-        flash(f'Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}', 'success')
+        flash(_('inventory.flash.borrow_registered', transaction_number=transaction_number), 'success')
         
-        # PDF per E-Mail versenden
         from app.utils.email_sender import send_borrow_receipt_email
         email_sent = send_borrow_receipt_email(borrow_transaction)
         
         if email_sent:
-            flash('Der Ausleihschein wurde per E-Mail an Sie gesendet.', 'success')
+            flash(_('inventory.flash.receipt_sent'), 'success')
         else:
-            flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
+            flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
         
         return redirect(url_for('inventory.dashboard'))
     
-    # Alle Benutzer für Auswahl
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     
     return render_template('inventory/borrow.html', product=product, users=users)
@@ -689,7 +695,6 @@ def borrows():
 @login_required
 def return_item():
     """Rückgabe-Interface."""
-    # Query-Parameter für vorausgefüllte Transaktionsnummer
     preset_transaction_number = request.args.get('transaction_number', '')
     
     if request.method == 'POST':
@@ -698,7 +703,6 @@ def return_item():
         
         borrow_transaction = None
         
-        # QR-Code parsen
         if qr_code:
             parsed = parse_qr_code(qr_code)
             if parsed:
@@ -709,7 +713,6 @@ def return_item():
                         status='active'
                     ).first()
                 elif qr_type == 'product':
-                    # Suche aktive Ausleihe für dieses Produkt
                     product = Product.query.get(identifier)
                     if product:
                         borrow_transaction = BorrowTransaction.query.filter_by(
@@ -717,7 +720,6 @@ def return_item():
                             status='active'
                         ).first()
         
-        # Oder direkt nach Transaktionsnummer suchen
         elif transaction_number:
             borrow_transaction = BorrowTransaction.query.filter_by(
                 transaction_number=transaction_number,
@@ -725,21 +727,19 @@ def return_item():
             ).first()
         
         if not borrow_transaction:
-            flash('Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.', 'danger')
+            flash(_('inventory.flash.no_active_borrow'), 'danger')
             return render_template('inventory/return.html', preset_transaction_number=preset_transaction_number)
         
-        # Rückgabe durchführen
         borrow_transaction.mark_as_returned()
         db.session.commit()
         
-        # E-Mail-Bestätigung senden
         from app.utils.email_sender import send_return_confirmation_email
         try:
             send_return_confirmation_email(borrow_transaction)
         except Exception as e:
             current_app.logger.error(f"Fehler beim Senden der Rückgabe-Bestätigung: {e}")
         
-        flash(f'Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.', 'success')
+        flash(_('inventory.flash.return_success'), 'success')
         return redirect(url_for('inventory.dashboard'))
     
     return render_template('inventory/return.html', preset_transaction_number=preset_transaction_number)
@@ -751,7 +751,6 @@ def borrow_scanner():
     """Ausleihen geben - Scanner-Seite mit Warenkorb."""
     if not check_borrow_permission():
         if request.method == 'POST':
-            # Bei POST-Requests (API) JSON-Fehler zurückgeben
             return jsonify({'error': 'Sie haben keine Berechtigung, Artikel auszuleihen.'}), 403
         flash('Sie haben keine Berechtigung, Artikel auszuleihen.', 'danger')
         return redirect(url_for('inventory.dashboard'))
@@ -759,14 +758,12 @@ def borrow_scanner():
     if request.method == 'POST':
         action = request.form.get('action')
         
-        # Debug-Logging
         current_app.logger.debug(f'borrow_scanner POST: action={action}, qr_code={request.form.get("qr_code", "")[:50]}')
         
         if not action:
             return jsonify({'error': 'Keine Aktion angegeben.'}), 400
         
         if action == 'add_to_cart':
-            # QR-Code oder Produkt-ID hinzufügen
             qr_code = request.form.get('qr_code', '').strip()
             product_id = request.form.get('product_id')
             
@@ -785,7 +782,6 @@ def borrow_scanner():
                         product_set = ProductSet.query.get(qr_id)
                         current_app.logger.debug(f'Set gefunden: {product_set.id if product_set else None}')
                 else:
-                    # Fallback: Versuche als direkte Produkt-ID zu interpretieren
                     try:
                         direct_product_id = int(qr_code)
                         product = Product.query.get(direct_product_id)
@@ -801,19 +797,15 @@ def borrow_scanner():
                     current_app.logger.debug(f'Ungültige Produkt-ID: {product_id}')
                     pass  # Keine gültige Produkt-ID
             
-            # Wenn ein Set gescannt wurde
             if product_set:
-                # Alle Produkte des Sets zum Warenkorb hinzufügen
                 cart = session.get('borrow_cart', [])
                 added_products = []
                 unavailable_products = []
-                # Verwende ein Dictionary, um die Menge jedes Produkts zu tracken
                 product_quantities = {}
                 
                 for item in product_set.items:
                     product = Product.query.get(item.product_id)
                     if product:
-                        # Tracke die Menge für die Anzeige
                         if product.id not in product_quantities:
                             product_quantities[product.id] = {
                                 'product': product,
@@ -822,14 +814,12 @@ def borrow_scanner():
                                 'was_in_cart': product.id in cart
                             }
                         
-                        # Für jedes Set-Item die entsprechende Menge an Produkten hinzufügen
                         for _ in range(item.quantity):
                             if product.status == 'available':
                                 if product.id not in cart:
                                     cart.append(product.id)
                                     product_quantities[product.id]['added'] += 1
                             else:
-                                # Nur einmal zur unavailable_products Liste hinzufügen
                                 if product.id not in [p['id'] for p in unavailable_products]:
                                     unavailable_products.append({
                                         'id': product.id,
@@ -838,8 +828,6 @@ def borrow_scanner():
                                     })
                             product_quantities[product.id]['quantity'] += 1
                 
-                # Erstelle added_products Liste mit Mengen-Informationen
-                # Zeige ALLE Produkte des Sets, auch wenn sie nicht hinzugefügt wurden (z.B. bereits im Warenkorb)
                 for product_id, info in product_quantities.items():
                     added_products.append({
                         'id': info['product'].id,
@@ -866,7 +854,6 @@ def borrow_scanner():
                     'cart_count': len(cart)
                 })
             
-            # Einzelnes Produkt hinzufügen
             if not product:
                 current_app.logger.warning(f'Produkt nicht gefunden für QR-Code: {qr_code}')
                 return jsonify({'error': 'Produkt oder Set nicht gefunden.'}), 404
@@ -876,7 +863,6 @@ def borrow_scanner():
                 current_app.logger.warning(f'Produkt nicht verfügbar: {product.id}, Status: {product.status}')
                 return jsonify({'error': f'Produkt ist nicht verfügbar. Status: {product.status}'}), 400
             
-            # Session-Warenkorb verwenden
             cart = session.get('borrow_cart', [])
             if product.id not in cart:
                 cart.append(product.id)
@@ -908,15 +894,12 @@ def borrow_scanner():
             session.modified = True
             return jsonify({'success': True})
         else:
-            # Unbekannte Aktion
             current_app.logger.warning(f'Unbekannte Aktion in borrow_scanner: {action}')
             return jsonify({'error': f'Unbekannte Aktion: {action}'}), 400
     
-    # Warenkorb laden
     cart_product_ids = session.get('borrow_cart', [])
     cart_products = Product.query.filter(Product.id.in_(cart_product_ids)).all() if cart_product_ids else []
     
-    # Alle Benutzer für Auswahl
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     
     return render_template('inventory/borrow_scanner.html', cart_products=cart_products, users=users)
@@ -927,29 +910,29 @@ def borrow_scanner():
 def borrow_scanner_checkout():
     """Warenkorb checkout - alle Produkte ausleihen."""
     if not check_borrow_permission():
-        flash('Sie haben keine Berechtigung, Artikel auszuleihen.', 'danger')
+        flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
     
     cart_product_ids = session.get('borrow_cart', [])
     if not cart_product_ids:
-        flash('Keine Produkte zum Ausleihen ausgewählt.', 'danger')
+        flash(_('inventory.flash.no_products_to_borrow'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
     
     expected_return_date_str = request.form.get('expected_return_date', '').strip()
     borrower_id = request.form.get('borrower_id', '').strip()
     
     if not expected_return_date_str:
-        flash('Das erwartete Rückgabedatum ist verpflichtend.', 'danger')
+        flash(_('inventory.flash.return_date_required'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
     
     try:
         expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
     except ValueError:
-        flash('Ungültiges Datumsformat.', 'danger')
+        flash(_('inventory.flash.invalid_date_format'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
     
     if expected_return_date < date.today():
-        flash('Das Rückgabedatum darf nicht in der Vergangenheit liegen.', 'danger')
+        flash(_('inventory.flash.return_date_past'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
     
     # Ausleihender bestimmen
@@ -995,10 +978,9 @@ def borrow_scanner_checkout():
     
     db.session.commit()
     
-    # Warenkorb leeren
     session.pop('borrow_cart', None)
     
-    flash(f'{len(transactions)} Produkt(e) erfolgreich ausgeliehen.', 'success')
+    flash(_('inventory.flash.borrow_success', count=len(transactions)), 'success')
     
     # PDF per E-Mail versenden mit allen Transaktionen
     if transactions:
@@ -1006,9 +988,9 @@ def borrow_scanner_checkout():
         email_sent = send_borrow_receipt_email(transactions)
         
         if email_sent:
-            flash('Der Ausleihschein wurde per E-Mail an Sie gesendet.', 'success')
+            flash(_('inventory.flash.receipt_sent'), 'success')
         else:
-            flash('Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.', 'warning')
+            flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
     
     return redirect(url_for('inventory.dashboard'))
 
@@ -1048,19 +1030,16 @@ def inventory_list_pdf():
 @login_required
 def inventory_tool():
     """Hauptseite für das Inventurtool."""
-    # Prüfe ob aktive Inventur existiert
     active_inventory = Inventory.query.filter_by(status='active').first()
     
     if request.method == 'POST':
         action = request.form.get('action')
         
         if action == 'start':
-            # Prüfe ob bereits aktive Inventur existiert
             if active_inventory:
-                flash('Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.', 'warning')
+                flash(_('inventory.flash.inventory_active_exists'), 'warning')
                 return redirect(url_for('inventory.inventory_tool'))
             
-            # Neue Inventur starten
             name = request.form.get('name', '').strip()
             if not name:
                 name = f"Inventur {datetime.now().strftime('%d.%m.%Y %H:%M')}"
@@ -1076,7 +1055,6 @@ def inventory_tool():
             db.session.add(new_inventory)
             db.session.flush()
             
-            # Erstelle InventoryItems für alle Produkte
             products = Product.query.all()
             for product in products:
                 inventory_item = InventoryItem(
@@ -1086,10 +1064,9 @@ def inventory_tool():
                 db.session.add(inventory_item)
             
             db.session.commit()
-            flash(f'Inventur "{name}" wurde gestartet.', 'success')
+            flash(_('inventory.flash.inventory_started', name=name), 'success')
             return redirect(url_for('inventory.inventory_tool'))
     
-    # Lade Inventur-Items wenn aktive Inventur existiert
     inventory_items = []
     if active_inventory:
         inventory_items = InventoryItem.query.filter_by(inventory_id=active_inventory.id).options(
@@ -1109,10 +1086,9 @@ def inventory_complete(inventory_id):
     inventory = Inventory.query.get_or_404(inventory_id)
     
     if inventory.status != 'active':
-        flash('Diese Inventur ist bereits abgeschlossen.', 'warning')
+        flash(_('inventory.flash.inventory_completed'), 'warning')
         return redirect(url_for('inventory.inventory_tool'))
     
-    # Wende Änderungen auf Produkte an
     items = InventoryItem.query.filter_by(inventory_id=inventory_id).all()
     updated_count = 0
     
@@ -1125,13 +1101,12 @@ def inventory_complete(inventory_id):
             item.product.condition = item.new_condition
             updated_count += 1
     
-    # Markiere Inventur als abgeschlossen
     inventory.status = 'completed'
     inventory.completed_at = datetime.utcnow()
     
     db.session.commit()
     
-    flash(f'Inventur wurde abgeschlossen. {updated_count} Produkt(e) wurden aktualisiert.', 'success')
+    flash(_('inventory.flash.inventory_finished', count=updated_count), 'success')
     return redirect(url_for('inventory.inventory_tool'))
 
 
@@ -1157,7 +1132,6 @@ def inventory_tool_pdf(inventory_id):
         joinedload(InventoryItem.product)
     ).all()
     
-    # Sortiere nach Produktname
     items.sort(key=lambda x: x.product.name if x.product else '')
     
     pdf_buffer = BytesIO()
@@ -1238,7 +1212,6 @@ def api_inventory_item_update(inventory_id, product_id):
     
     data = request.get_json()
     
-    # Update Felder
     if 'checked' in data:
         item.checked = bool(data['checked'])
         if item.checked:
@@ -1342,7 +1315,6 @@ def api_inventory_scan(inventory_id):
         if not product:
             return jsonify({'error': 'Produkt nicht gefunden.'}), 404
         
-        # Finde oder erstelle InventoryItem
         item = InventoryItem.query.filter_by(
             inventory_id=inventory_id,
             product_id=product.id
@@ -1351,7 +1323,6 @@ def api_inventory_scan(inventory_id):
         if not item:
             return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
         
-        # Automatisch abhaken
         item.checked = True
         item.checked_by = current_user.id
         item.checked_at = datetime.utcnow()
@@ -1385,19 +1356,17 @@ def api_inventory_scan(inventory_id):
 def folders():
     """Ordner-Verwaltung."""
     if request.method == 'POST':
-        # Neuen Ordner erstellen
         name = request.form.get('name', '').strip()
         if not name:
-            flash('Der Ordnername ist verpflichtend.', 'danger')
+            flash(_('inventory.flash.folder_name_required'), 'danger')
             return redirect(url_for('inventory.folders'))
         
         description = request.form.get('description', '').strip()
         color = request.form.get('color', '').strip() or None
         
-        # Prüfe ob Ordner mit diesem Namen bereits existiert
         existing = ProductFolder.query.filter_by(name=name).first()
         if existing:
-            flash('Ein Ordner mit diesem Namen existiert bereits.', 'danger')
+            flash(_('inventory.flash.folder_exists'), 'danger')
             return redirect(url_for('inventory.folders'))
         
         folder = ProductFolder(
@@ -1410,10 +1379,9 @@ def folders():
         db.session.add(folder)
         db.session.commit()
         
-        flash(f'Ordner "{name}" wurde erfolgreich erstellt.', 'success')
+        flash(_('inventory.flash.folder_created', name=name), 'success')
         return redirect(url_for('inventory.folders'))
     
-    # Alle Ordner laden
     folders_list = ProductFolder.query.order_by(ProductFolder.name).all()
     return render_template('inventory/folders.html', folders=folders_list)
 
@@ -1424,9 +1392,7 @@ def folder_delete(folder_id):
     """Ordner löschen."""
     folder = ProductFolder.query.get_or_404(folder_id)
     
-    # Prüfe ob Ordner Produkte enthält
     if folder.products:
-        # Ordner-ID von allen Produkten entfernen
         for product in folder.products:
             product.folder_id = None
         db.session.commit()
@@ -1434,7 +1400,7 @@ def folder_delete(folder_id):
     db.session.delete(folder)
     db.session.commit()
     
-    flash(f'Ordner "{folder.name}" wurde gelöscht.', 'success')
+    flash(_('inventory.flash.folder_deleted', name=folder.name), 'success')
     return redirect(url_for('inventory.folders'))
 
 
@@ -1447,7 +1413,7 @@ def print_qr():
         label_type = request.form.get('label_type', 'cable')  # 'cable' oder 'device'
         
         if not product_ids:
-            flash('Bitte wählen Sie mindestens ein Produkt aus.', 'danger')
+            flash(_('inventory.flash.select_products'), 'danger')
             return redirect(url_for('inventory.print_qr'))
         
         try:
@@ -1455,10 +1421,9 @@ def print_qr():
             products = Product.query.filter(Product.id.in_(product_ids)).all()
             
             if not products:
-                flash('Keine gültigen Produkte gefunden.', 'danger')
+                flash(_('inventory.flash.no_valid_products'), 'danger')
                 return redirect(url_for('inventory.print_qr'))
             
-            # PDF generieren
             pdf_buffer = BytesIO()
             generate_qr_code_sheet_pdf(products, pdf_buffer, label_type=label_type)
             pdf_buffer.seek(0)
@@ -1473,14 +1438,11 @@ def print_qr():
             )
         except Exception as e:
             current_app.logger.error(f"Fehler beim Generieren des QR-Code-Druckbogens: {e}")
-            flash('Fehler beim Generieren des Druckbogens.', 'danger')
+            flash(_('inventory.flash.generate_error'), 'danger')
             return redirect(url_for('inventory.print_qr'))
     
-    # Alle Produkte mit Ordner-Informationen für Auswahl
-    # Sortiere nach Ordner (None zuerst), dann nach Name
     products = Product.query.options(joinedload(Product.folder)).all()
     
-    # Sortiere in Python: Produkte ohne Ordner zuerst, dann nach Ordnername, dann nach Produktname
     def sort_key(product):
         if product.folder:
             return (1, product.folder.name, product.name)
@@ -1489,7 +1451,6 @@ def print_qr():
     
     products = sorted(products, key=sort_key)
     
-    # Hole alle Ordner für Struktur
     folders = ProductFolder.query.order_by(ProductFolder.name).all()
     
     return render_template('inventory/print_qr.html', products=products, folders=folders)
@@ -1513,7 +1474,7 @@ def print_color_codes():
         )
     except Exception as e:
         current_app.logger.error(f"Fehler beim Generieren der Farbcodes-Tabelle: {e}")
-        flash('Fehler beim Generieren der Farbcodes-Tabelle.', 'danger')
+        flash(_('inventory.flash.color_table_error'), 'danger')
         return redirect(url_for('inventory.print_qr'))
 
 
@@ -1540,7 +1501,6 @@ def api_products():
         
         query = Product.query
         
-        # Suchfilter
         if search:
             query = query.filter(
                 or_(
@@ -1550,15 +1510,12 @@ def api_products():
                 )
             )
         
-        # Kategorie-Filter
         if category:
             query = query.filter_by(category=category)
         
-        # Status-Filter
         if status:
             query = query.filter_by(status=status)
         
-        # Versuche Ordner-Relationship zu laden, falls vorhanden
         try:
             sort_field_map = {
                 'name': Product.name,
@@ -1576,7 +1533,6 @@ def api_products():
                 order_clause = sort_column.desc() if descending else sort_column.asc()
                 products_query = products_query.order_by(order_clause)
             else:
-                # Fallback-Sortierung, bevor wir in Python sortieren
                 products_query = products_query.order_by(Product.name.asc())
             
             products = products_query.all()
@@ -1590,14 +1546,12 @@ def api_products():
                 
                 products.sort(key=length_sort_key)
         except Exception as e:
-            # Falls joinedload fehlschlägt (z.B. wenn Relationship nicht existiert), ohne eager loading
             current_app.logger.warning(f"joinedload fehlgeschlagen, verwende Standard-Query: {e}")
             products = query.order_by(Product.name).all()
         
         result = []
         for p in products:
             try:
-                # Prüfe ob folder_id Attribut existiert (falls Migration noch nicht durchgeführt wurde)
                 folder_id = getattr(p, 'folder_id', None)
                 folder_name = None
                 if folder_id and p.folder:
@@ -1605,22 +1559,17 @@ def api_products():
                 elif hasattr(p, 'folder') and p.folder:
                     folder_name = p.folder.name
                 
-                # Prüfe location und length explizit - konvertiere None zu None, aber behalte leere Strings
                 location = getattr(p, 'location', None)
                 length = getattr(p, 'length', None)
                 
-                # Stelle sicher, dass location und length als String oder None zurückgegeben werden
                 location_value = location if (location and str(location).strip()) else None
                 length_value = length if (length and str(length).strip()) else None
                 
-                # Normalisiere image_path: Wenn absoluter Pfad, extrahiere nur Dateinamen
                 image_path_value = None
                 if p.image_path:
                     if os.path.isabs(p.image_path):
-                        # Extrahiere nur den Dateinamen aus dem absoluten Pfad
                         image_path_value = os.path.basename(p.image_path)
                     else:
-                        # Bereits nur Dateiname
                         image_path_value = p.image_path
                 
                 result.append({
@@ -1644,7 +1593,6 @@ def api_products():
                 })
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Serialisieren von Produkt {p.id}: {e}", exc_info=True)
-                # Normalisiere image_path auch im Fallback
                 image_path_value = None
                 image_path_raw = getattr(p, 'image_path', None)
                 if image_path_raw:
@@ -1652,7 +1600,6 @@ def api_products():
                         image_path_value = os.path.basename(image_path_raw)
                     else:
                         image_path_value = image_path_raw
-                # Fallback ohne Ordner-Informationen
                 result.append({
                     'id': p.id,
                     'name': p.name,
@@ -1685,14 +1632,11 @@ def api_product_get(product_id):
     """API: Einzelnes Produkt abrufen."""
     product = Product.query.options(joinedload(Product.folder)).get_or_404(product_id)
     
-    # Normalisiere image_path: Wenn absoluter Pfad, extrahiere nur Dateinamen
     image_path_value = None
     if product.image_path:
         if os.path.isabs(product.image_path):
-            # Extrahiere nur den Dateinamen aus dem absoluten Pfad
             image_path_value = os.path.basename(product.image_path)
         else:
-            # Bereits nur Dateiname
             image_path_value = product.image_path
     
     return jsonify({
@@ -1840,7 +1784,6 @@ def api_products_bulk_update():
     if len(product_ids) == 0:
         return jsonify({'error': 'Keine Produkt-IDs übermittelt.'}), 400
     
-    # Lade alle Produkte
     try:
         product_ids_int = [int(pid) for pid in product_ids]
     except (ValueError, TypeError):
@@ -1851,16 +1794,13 @@ def api_products_bulk_update():
     if len(products) != len(product_ids_int):
         return jsonify({'error': 'Einige Produkt-IDs wurden nicht gefunden.'}), 404
     
-    # Update-Daten verarbeiten
     updates = {}
     errors = []
     
-    # Location
     if 'location' in data:
         location_value = data.get('location', '').strip() or None
         updates['location'] = location_value
     
-    # Length
     if 'length' in data:
         length_raw = data.get('length')
         if length_raw in (None, ''):
@@ -1872,7 +1812,6 @@ def api_products_bulk_update():
             else:
                 updates['length'] = normalized_length
     
-    # Condition
     if 'condition' in data:
         condition_value = data.get('condition', '').strip() or None
         if condition_value not in (None, '', 'Neu', 'Gut', 'Gebraucht', 'Beschädigt'):
@@ -1880,12 +1819,10 @@ def api_products_bulk_update():
         else:
             updates['condition'] = condition_value
     
-    # Category
     if 'category' in data:
         category_value = data.get('category', '').strip() or None
         updates['category'] = category_value
     
-    # Folder ID
     if 'folder_id' in data:
         folder_id_raw = data.get('folder_id')
         if folder_id_raw in (None, ''):
@@ -1893,7 +1830,6 @@ def api_products_bulk_update():
         else:
             try:
                 folder_id_int = int(folder_id_raw)
-                # Prüfe ob Ordner existiert
                 folder = ProductFolder.query.get(folder_id_int)
                 if not folder:
                     errors.append(f'Ordner mit ID {folder_id_int} nicht gefunden.')
@@ -1902,7 +1838,6 @@ def api_products_bulk_update():
             except (ValueError, TypeError):
                 errors.append('Ungültige Ordner-ID.')
     
-    # Image (Bild entfernen)
     if 'remove_image' in data and data.get('remove_image'):
         updates['remove_image'] = True
     
@@ -1969,7 +1904,6 @@ def api_products_bulk_delete():
     if len(product_ids) == 0:
         return jsonify({'error': 'Keine Produkt-IDs übermittelt.'}), 400
     
-    # Lade alle Produkte
     try:
         product_ids_int = [int(pid) for pid in product_ids]
     except (ValueError, TypeError):
@@ -1980,7 +1914,6 @@ def api_products_bulk_delete():
     if len(products) != len(product_ids_int):
         return jsonify({'error': 'Einige Produkt-IDs wurden nicht gefunden.'}), 404
     
-    # Prüfe ob Produkte ausgeliehen sind
     active_borrows = BorrowTransaction.query.filter(
         BorrowTransaction.product_id.in_(product_ids_int),
         BorrowTransaction.status == 'active'
@@ -2001,7 +1934,6 @@ def api_products_bulk_delete():
     
     for product in products:
         try:
-            # Bild löschen falls vorhanden
             if product.image_path and os.path.exists(product.image_path):
                 try:
                     os.remove(product.image_path)
@@ -2103,13 +2035,11 @@ def api_stock():
     if status:
         query = query.filter_by(status=status)
     
-    # Lade Ordner-Relationship mit eager loading
     products = query.options(joinedload(Product.folder)).order_by(Product.name).all()
     
     result = []
     for p in products:
         try:
-            # Normalisiere image_path: Wenn absoluter Pfad, extrahiere nur Dateinamen
             image_path_value = None
             if p.image_path:
                 if os.path.isabs(p.image_path):
@@ -2213,7 +2143,6 @@ def api_filter_options():
         lengths_result = lengths_query.all()
         lengths_raw = [len[0].strip() for len in lengths_result if len[0] and len[0].strip()]
         
-        # Sortiere Längen intelligent (numerisch wenn möglich)
         try:
             lengths = sorted(lengths_raw, key=lambda x: (
                 float(str(x).replace(',', '.').replace('m', '').replace('cm', '').replace('mm', '').strip()) 
@@ -2400,7 +2329,6 @@ def api_borrows_my_grouped():
         if b.expected_return_date > current_max_date:
             grouped[group_key]['expected_return_date'] = b.expected_return_date.isoformat()
         
-        # Prüfe ob überfällig
         if b.is_overdue:
             grouped[group_key]['is_overdue'] = True
     
@@ -2419,7 +2347,6 @@ def api_borrows_my_grouped():
             'transactions': group_data['transactions']  # Für Details falls benötigt
         })
     
-    # Sortiere nach Datum (neueste zuerst)
     result.sort(key=lambda x: x['borrow_date'], reverse=True)
     
     return jsonify(result)
@@ -2465,7 +2392,6 @@ def api_return():
     borrow_transaction.mark_as_returned()
     db.session.commit()
     
-    # E-Mail-Bestätigung senden
     from app.utils.email_sender import send_return_confirmation_email
     try:
         send_return_confirmation_email(borrow_transaction)
@@ -2552,7 +2478,6 @@ def set_new():
             products_data = [{'id': p.id, 'name': p.name} for p in products]
             return render_template('inventory/set_form.html', products=products, products_data=products_data)
         
-        # Produkt-IDs aus Formular holen
         product_ids = request.form.getlist('product_ids')
         quantities = request.form.getlist('quantities')
         
@@ -2571,13 +2496,11 @@ def set_new():
         db.session.add(product_set)
         db.session.flush()
         
-        # Produkte zum Set hinzufügen
         for i, product_id in enumerate(product_ids):
             try:
                 product_id_int = int(product_id)
                 quantity = int(quantities[i]) if i < len(quantities) and quantities[i] else 1
                 
-                # Prüfe ob Produkt existiert
                 product = Product.query.get(product_id_int)
                 if not product:
                     continue
@@ -2592,7 +2515,7 @@ def set_new():
                 continue
         
         db.session.commit()
-        flash(f'Produktset "{name}" wurde erfolgreich erstellt.', 'success')
+        flash(_('inventory.flash.set_created', name=name), 'success')
         return redirect(url_for('inventory.sets'))
     
     # GET: Formular anzeigen
@@ -2607,10 +2530,8 @@ def set_new():
 def set_view(set_id):
     """Produktset Details anzeigen."""
     product_set = ProductSet.query.get_or_404(set_id)
-    # QR-Code-Daten generieren falls noch nicht vorhanden
     if not hasattr(product_set, 'qr_code_data') or not product_set.qr_code_data:
         qr_data = generate_set_qr_code(product_set.id)
-        # QR-Code-Daten temporär für Template verfügbar machen
         product_set.qr_code_data = qr_data
     return render_template('inventory/set_view.html', product_set=product_set)
 
@@ -2622,7 +2543,6 @@ def set_qr_code(set_id):
     product_set = ProductSet.query.get_or_404(set_id)
     qr_data = generate_set_qr_code(set_id)
     
-    # QR-Code generieren
     qr_image_bytes = generate_qr_code_bytes(qr_data)
     
     from flask import Response
@@ -2640,7 +2560,7 @@ def set_edit(set_id):
         description = request.form.get('description', '').strip() or None
         
         if not name:
-            flash('Bitte geben Sie einen Namen für das Set ein.', 'danger')
+            flash(_('inventory.flash.set_name_required'), 'danger')
             products = Product.query.order_by(Product.name).all()
             products_data = [{'id': p.id, 'name': p.name} for p in products]
             return render_template('inventory/set_form.html', product_set=product_set, products=products, products_data=products_data)
@@ -2648,7 +2568,6 @@ def set_edit(set_id):
         product_set.name = name
         product_set.description = description
         
-        # Produkt-IDs aus Formular holen
         product_ids = request.form.getlist('product_ids')
         quantities = request.form.getlist('quantities')
         
@@ -2675,7 +2594,7 @@ def set_edit(set_id):
                 continue
         
         db.session.commit()
-        flash(f'Produktset "{name}" wurde erfolgreich aktualisiert.', 'success')
+        flash(_('inventory.flash.set_updated', name=name), 'success')
         return redirect(url_for('inventory.set_view', set_id=product_set.id))
     
     # GET: Formular anzeigen
@@ -2708,7 +2627,7 @@ def set_delete(set_id):
 def set_borrow(set_id):
     """Alle Produkte eines Sets ausleihen."""
     if not check_borrow_permission():
-        flash('Sie haben keine Berechtigung, Produkte auszuleihen.', 'danger')
+        flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.sets'))
     
     product_set = ProductSet.query.get_or_404(set_id)
@@ -2718,21 +2637,20 @@ def set_borrow(set_id):
         expected_return_date = request.form.get('expected_return_date')
         
         if not borrower_id or not expected_return_date:
-            flash('Bitte füllen Sie alle Felder aus.', 'danger')
+            flash(_('inventory.flash.fill_all_fields'), 'danger')
             users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
             return render_template('inventory/set_borrow.html', product_set=product_set, users=users)
         
         try:
             expected_return_date = datetime.strptime(expected_return_date, '%Y-%m-%d').date()
         except ValueError:
-            flash('Ungültiges Datum.', 'danger')
+            flash(_('inventory.flash.invalid_date'), 'danger')
             users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
             return render_template('inventory/set_borrow.html', product_set=product_set, users=users)
         
         borrower = User.query.get_or_404(borrower_id)
         borrow_group_id = generate_borrow_group_id()
         
-        # Alle Produkte des Sets ausleihen
         borrowed_products = []
         failed_products = []
         
@@ -2760,9 +2678,9 @@ def set_borrow(set_id):
         db.session.commit()
         
         if borrowed_products:
-            flash(f'Set "{product_set.name}" erfolgreich ausgeliehen. {len(borrowed_products)} Produkte ausgeliehen.', 'success')
+            flash(_('inventory.flash.set_borrow_success', name=product_set.name, count=len(borrowed_products)), 'success')
         if failed_products:
-            flash(f'Folgende Produkte konnten nicht ausgeliehen werden: {", ".join(failed_products)}', 'warning')
+            flash(_('inventory.flash.set_borrow_partial', products=', '.join(failed_products)), 'warning')
         
         return redirect(url_for('inventory.dashboard'))
     
@@ -2833,7 +2751,7 @@ def product_document_upload(product_id):
     product = Product.query.get_or_404(product_id)
     
     if 'file' not in request.files:
-        flash('Keine Datei ausgewählt.', 'danger')
+        flash(_('inventory.flash.no_file_selected'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
     
     file = request.files['file']
@@ -2841,7 +2759,7 @@ def product_document_upload(product_id):
     manual_id = request.form.get('manual_id', type=int) or None
     
     if file.filename == '':
-        flash('Keine Datei ausgewählt.', 'danger')
+        flash(_('inventory.flash.no_file_selected'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
     
     # Datei speichern
@@ -2868,7 +2786,7 @@ def product_document_upload(product_id):
     db.session.add(document)
     db.session.commit()
     
-    flash(f'Dokument "{filename}" wurde erfolgreich hochgeladen.', 'success')
+    flash(_('inventory.flash.document_uploaded', filename=filename), 'success')
     return redirect(url_for('inventory.product_documents', product_id=product_id))
 
 
@@ -2893,7 +2811,7 @@ def product_document_delete(product_id, document_id):
     db.session.delete(document)
     db.session.commit()
     
-    flash(f'Dokument "{filename}" wurde erfolgreich gelöscht.', 'success')
+    flash(_('inventory.flash.document_deleted', filename=filename), 'success')
     return redirect(url_for('inventory.product_documents', product_id=product_id))
 
 
@@ -2904,11 +2822,11 @@ def product_document_download(product_id, document_id):
     document = ProductDocument.query.get_or_404(document_id)
     
     if document.product_id != product_id:
-        flash('Ungültige Anfrage.', 'danger')
+        flash(_('inventory.flash.invalid_request'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
     
     if not os.path.exists(document.file_path):
-        flash('Die Datei konnte nicht gefunden werden.', 'danger')
+        flash(_('inventory.flash.file_not_found'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
     
     return send_file(document.file_path, as_attachment=True, download_name=document.file_name)
@@ -3010,7 +2928,6 @@ def api_filter_save():
     if not name:
         return jsonify({'error': 'Filtername erforderlich.'}), 400
     
-    # Prüfe ob Name bereits existiert
     existing = SavedFilter.query.filter_by(user_id=current_user.id, name=name).first()
     if existing:
         return jsonify({'error': 'Ein Filter mit diesem Namen existiert bereits.'}), 400
@@ -3075,7 +2992,6 @@ def api_favorite_toggle(product_id):
     product = Product.query.get_or_404(product_id)
     
     if request.method == 'POST':
-        # Prüfe ob bereits Favorit
         existing = ProductFavorite.query.filter_by(
             user_id=current_user.id,
             product_id=product_id
@@ -3146,7 +3062,6 @@ def api_statistics():
         
         # Meist ausgeliehene Produkte (Top 10)
         try:
-            # Prüfe ob es überhaupt zurückgegebene Ausleihen gibt
             returned_count = BorrowTransaction.query.filter_by(status='returned').count()
             if returned_count > 0:
                 top_borrowed = db.session.query(
@@ -3220,7 +3135,6 @@ def api_statistics():
             current_app.logger.error(f"Fehler bei Monatstrends: {e}")
             monthly_data = []
         
-        # Status-Verteilung
         try:
             status_distribution = db.session.query(
                 Product.status,
@@ -3480,7 +3394,6 @@ def api_mobile_scan():
     qr_type, qr_id = parsed
     
     if qr_type == 'product':
-        # Produkt gefunden
         product = Product.query.get(qr_id)
         if product:
             return jsonify({
@@ -3514,7 +3427,6 @@ def api_mobile_scan():
             return jsonify({'error': 'Ausleihtransaktion nicht gefunden.'}), 404
     
     elif qr_type == 'set':
-        # Produktset gefunden
         product_set = ProductSet.query.get(qr_id)
         if product_set:
             items_data = [{
@@ -3628,7 +3540,6 @@ def api_category_update_delete(category_name):
             return jsonify({'error': 'Eine Kategorie mit diesem Namen existiert bereits.'}), 400
         updated_categories = [new_name if c == original_name else c for c in categories]
         save_inventory_categories(updated_categories)
-        # Produkte aktualisieren
         Product.query.filter_by(category=original_name).update({'category': new_name}, synchronize_session=False)
         db.session.commit()
         return jsonify({'name': new_name})

@@ -452,6 +452,9 @@
       "onlyoffice_label": "OnlyOffice integration:",
       "onlyoffice_active": "Active",
       "onlyoffice_inactive": "Inactive",
+      "excalidraw_label": "Excalidraw integration:",
+      "excalidraw_active": "Active",
+      "excalidraw_inactive": "Inactive",
       "back_button": "Back to settings"
     },
     "admin": {
@@ -1466,6 +1469,360 @@
         "submit": "Upload",
         "cancel": "Cancel"
       }
+    }
+  },
+  "inventory": {
+    "dashboard": {
+      "page_title": "Inventory - Team Portal",
+      "heading": "Inventory",
+      "subtitle": "Manage your inventory and loans",
+      "cards": {
+        "stock": {
+          "title": "Stock",
+          "description": "Overview of all products"
+        },
+        "borrow": {
+          "title": "Borrow",
+          "description": "Scan and borrow products"
+        },
+        "return": {
+          "title": "Return",
+          "description": "Return borrowed items"
+        }
+      },
+      "my_borrows": {
+        "title": "My current loans",
+        "show_all": "Show all",
+        "table": {
+          "product": "Product",
+          "borrow_date": "Borrow date",
+          "return_date": "Return date",
+          "status": "Status",
+          "actions": "Actions",
+          "serial_number": "SN:",
+          "overdue": "Overdue",
+          "borrowed": "Borrowed",
+          "return_button": "Return",
+          "download_receipt": "Download receipt"
+        }
+      },
+      "more_functions": {
+        "title": "More functions",
+        "my_borrows": "My loans",
+        "all_borrows": "All loans",
+        "print_qr": "Print QR codes",
+        "inventory_tool": "Inventory tool",
+        "statistics": "Statistics",
+        "sets": "Product sets"
+      }
+    },
+    "stock": {
+      "page_title": "Stock overview - Team Portal",
+      "heading": "Stock overview",
+      "breadcrumb_root": "Root",
+      "add_product": "Add product",
+      "borrow_selected": "Borrow selected",
+      "search": {
+        "label": "Search",
+        "placeholder": "Name, serial number, length (e.g. 5 m), description, location, category...",
+        "help": "Searches all product attributes"
+      },
+      "quick_filters": {
+        "label": "Quick filters",
+        "all": "Show all",
+        "favorites": "My favorites",
+        "available": "Available",
+        "borrowed": "Borrowed"
+      },
+      "filters": {
+        "title": "Filters",
+        "category": "Category",
+        "all_categories": "All categories",
+        "status": "Status",
+        "all_status": "All status",
+        "available": "Available",
+        "borrowed": "Borrowed",
+        "missing": "Missing",
+        "condition": "Condition",
+        "all_conditions": "All conditions",
+        "location": "Location",
+        "all_locations": "All locations",
+        "length": "Length",
+        "all_lengths": "All lengths",
+        "purchase_year": "Purchase year",
+        "all_years": "All years",
+        "reset": "Reset filters"
+      },
+      "sort": {
+        "title": "Sort",
+        "field": "Sort criterion",
+        "name": "Name",
+        "category": "Category",
+        "condition": "Condition",
+        "length": "Length",
+        "direction": "Direction",
+        "asc": "Ascending (A–Z / short → long)",
+        "desc": "Descending (Z–A / long → short)",
+        "reset": "Reset sorting"
+      },
+      "bulk_selection": {
+        "selected": "product(s) selected",
+        "select_all": "Select all",
+        "deselect_all": "Deselect all",
+        "edit": "Edit",
+        "borrow": "Borrow",
+        "delete": "Delete"
+      },
+      "views": {
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "modals": {
+        "product_details": {
+          "title": "Product details",
+          "close": "Close"
+        },
+        "bulk_delete": {
+          "title": "Delete products",
+          "warning": "Warning: This action cannot be undone!",
+          "message": "Do you really want to delete {count} product(s)?",
+          "note": "Borrowed products cannot be deleted and will be automatically excluded.",
+          "cancel": "Cancel",
+          "confirm": "Yes, delete"
+        },
+        "bulk_edit": {
+          "title": "Edit multiple products",
+          "info": "{count} product(s) will be edited.",
+          "attribute_label": "Attribute to edit",
+          "select_attribute": "Please select...",
+          "location": "Location",
+          "length": "Length (in meters)",
+          "condition": "Condition",
+          "category": "Category",
+          "folder": "Folder",
+          "remove_image": "Remove product image",
+          "warning": "This action cannot be undone. All selected products will be updated with the new value.",
+          "cancel": "Cancel",
+          "update": "Update"
+        }
+      },
+      "errors": {
+        "load_error": "Error loading inventory management. Please reload the page.",
+        "init_error": "Initialization error:",
+        "load_products_error": "Error loading products:",
+        "critical_error": "Critical error:"
+      }
+    },
+    "product": {
+      "form": {
+        "page_title_new": "Add product - Team Portal",
+        "page_title_edit": "Edit product - Team Portal",
+        "heading_new": "Add product",
+        "heading_edit": "Edit product",
+        "name": "Product name",
+        "description": "Description / Details",
+        "folder": "Folder",
+        "no_folder": "No folder",
+        "add_folder": "Create new folder",
+        "manage_folders": "Manage folders",
+        "category": "Category",
+        "no_category": "No category",
+        "add_category": "Create new category",
+        "manage_categories": "Manage categories",
+        "condition": "Condition",
+        "select_condition": "Please select...",
+        "condition_new": "New",
+        "condition_good": "Good",
+        "condition_used": "Used",
+        "condition_damaged": "Damaged",
+        "serial_number": "Serial number",
+        "location": "Location",
+        "length": "Length",
+        "length_help": "e.g. 5 m, 3.5m, 2.5 meters",
+        "quantity": "Quantity",
+        "quantity_help": "How many identical products should be created? (1-100)",
+        "purchase_date": "Purchase date",
+        "image": "Product image",
+        "image_help": "Only JPG, PNG and GIF files are allowed. Maximum size: 5MB.",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "list": {
+        "page_title": "Inventory list - Team Portal",
+        "heading": "Inventory list",
+        "subtitle": "Complete overview of all products for inventory",
+        "download_pdf": "Download as PDF",
+        "print": "Print",
+        "table": {
+          "number": "#",
+          "name": "Product name",
+          "category": "Category",
+          "serial_number": "Serial number",
+          "location": "Location",
+          "length": "Length",
+          "status": "Status",
+          "condition": "Note",
+          "available": "Available",
+          "borrowed": "Borrowed"
+        },
+        "empty": "No products available"
+      }
+    },
+    "borrow": {
+      "page_title": "Borrow product - Team Portal",
+      "heading": "Borrow product",
+      "product_info": {
+        "title": "Product information",
+        "serial_number": "Serial number:",
+        "category": "Category:"
+      },
+      "borrow_info": {
+        "title": "Borrow information",
+        "borrower": "Borrower",
+        "me": "(Me)",
+        "expected_return_date": "Expected return date",
+        "date_help": "The date must be in the future.",
+        "info": "After confirmation, the receipt will be automatically sent to you by email.",
+        "cancel": "Cancel",
+        "confirm": "Confirm loan"
+      },
+      "errors": {
+        "date_future": "The return date must be in the future.",
+        "check_inputs": "Please check your inputs.",
+        "borrow_error": "Error borrowing. Please try again."
+      }
+    },
+    "return": {
+      "page_title": "Return - Team Portal",
+      "heading": "Return",
+      "subtitle": "Return borrowed items",
+      "scanner": {
+        "label": "Scan QR code",
+        "start": "Start camera",
+        "stop": "Stop camera",
+        "success": "QR code recognized"
+      },
+      "manual": {
+        "title": "Enter QR code or transaction number",
+        "qr_code": "QR code",
+        "qr_placeholder": "Enter QR code (e.g. BORROW-INV-... or PROD-...)",
+        "qr_help": "Enter the QR code of the product or loan.",
+        "transaction_number": "or transaction number",
+        "transaction_placeholder": "e.g. INV-20251103-123456-ABCD",
+        "transaction_help": "Alternatively, you can enter the transaction number directly.",
+        "confirm": "Confirm return"
+      },
+      "errors": {
+        "no_borrow": "No active loan found. Please check your input.",
+        "return_error": "Error returning. Please try again."
+      }
+    },
+    "borrows": {
+      "page_title": "Loans - Team Portal",
+      "heading": "Loans",
+      "filters": {
+        "all": "All",
+        "my": "My",
+        "active": "Active",
+        "returned": "Returned",
+        "overdue": "Overdue"
+      },
+      "table": {
+        "product": "Product",
+        "borrower": "Borrower",
+        "borrow_date": "Borrow date",
+        "return_date": "Return date",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "returned": "Returned",
+        "overdue": "Overdue"
+      }
+    },
+    "sets": {
+      "page_title": "Product sets - Team Portal",
+      "heading": "Product sets",
+      "subtitle": "Manage sets of products",
+      "new_set": "New set",
+      "table": {
+        "name": "Name",
+        "products": "Products",
+        "actions": "Actions"
+      },
+      "empty": "No sets available",
+      "create_hint": "Create your first set!"
+    },
+    "folders": {
+      "page_title": "Folders - Team Portal",
+      "heading": "Folders",
+      "new_folder": "New folder"
+    },
+    "tool": {
+      "page_title": "Inventory tool - Team Portal",
+      "heading": "Inventory tool"
+    },
+    "statistics": {
+      "page_title": "Statistics - Team Portal",
+      "heading": "Statistics"
+    },
+    "print_qr": {
+      "page_title": "Print QR codes - Team Portal",
+      "heading": "Print QR codes"
+    },
+    "flash": {
+      "folder_not_found": "Folder not found.",
+      "product_name_required": "The product name is required.",
+      "invalid_length": "Invalid length specification. Please enter the length in meters (e.g. 5.5).",
+      "quantity_range": "The quantity must be between 1 and 100.",
+      "invalid_quantity": "Invalid quantity. Please enter a number between 1 and 100.",
+      "product_created": "Product \"{name}\" has been created successfully.",
+      "products_created": "{quantity} products \"{name}\" have been created successfully.",
+      "create_error": "Error creating products. Please try again.",
+      "product_updated": "Product \"{name}\" has been updated successfully.",
+      "product_cannot_delete": "The product cannot be deleted because it is currently borrowed.",
+      "product_deleted": "Product \"{name}\" has been deleted.",
+      "no_borrow_permission": "You do not have permission to borrow items.",
+      "no_products_selected": "No products selected.",
+      "invalid_product_ids": "Invalid product IDs.",
+      "products_unavailable": "Some products are not available: {products}",
+      "no_valid_products": "No valid products found.",
+      "return_date_required": "The expected return date is required.",
+      "invalid_date_format": "Invalid date format.",
+      "return_date_past": "The return date must not be in the past.",
+      "borrow_success": "{count} product(s) borrowed successfully.",
+      "receipt_sent": "The receipt has been sent to you by email.",
+      "borrow_registered_no_email": "The loan was registered, but the email could not be sent. Please contact the administrator.",
+      "product_unavailable": "The product is not available.",
+      "borrow_registered": "Loan registered successfully. Transaction number: {transaction_number}",
+      "no_active_borrow": "No active loan found. Please check your input.",
+      "return_success": "Return registered successfully. A confirmation email has been sent.",
+      "no_products_to_borrow": "No products selected for borrowing.",
+      "inventory_active_exists": "An active inventory already exists. Please close it first.",
+      "inventory_started": "Inventory \"{name}\" has been started.",
+      "inventory_completed": "This inventory is already completed.",
+      "inventory_finished": "Inventory has been completed. {count} product(s) have been updated.",
+      "folder_name_required": "The folder name is required.",
+      "folder_exists": "A folder with this name already exists.",
+      "folder_created": "Folder \"{name}\" has been created successfully.",
+      "folder_deleted": "Folder \"{name}\" has been deleted.",
+      "select_products": "Please select at least one product.",
+      "generate_error": "Error generating print sheet.",
+      "color_table_error": "Error generating color code table.",
+      "set_name_required": "Please enter a name for the set.",
+      "set_products_required": "Please select at least one product.",
+      "set_created": "Product set \"{name}\" has been created successfully.",
+      "set_updated": "Product set \"{name}\" has been updated successfully.",
+      "set_no_delete_permission": "You do not have permission to delete this set.",
+      "set_deleted": "Product set \"{name}\" has been deleted successfully.",
+      "set_borrow_success": "Set \"{name}\" borrowed successfully. {count} products borrowed.",
+      "set_borrow_partial": "The following products could not be borrowed: {products}",
+      "no_file_selected": "No file selected.",
+      "document_uploaded": "Document \"{filename}\" has been uploaded successfully.",
+      "invalid_request": "Invalid request.",
+      "document_deleted": "Document \"{filename}\" has been deleted successfully.",
+      "file_not_found": "The file could not be found."
     }
   }
 }

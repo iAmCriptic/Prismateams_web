@@ -60,7 +60,6 @@ def parse_length_to_meters(raw_value: Optional[str]) -> Optional[float]:
     elif unit in {"km", "kilometer"}:
         multiplier = 1000.0
     else:
-        # Unbekannte Einheit
         return None
 
     return round(value * multiplier, 6)
@@ -80,11 +79,9 @@ def format_length_from_meters(
 
     format_str = f"{{:.{decimal_places}f}}"
     formatted = format_str.format(value)
-    # Nachkommastellen säubern (entferne trailing zeros und Punkt)
     formatted = formatted.rstrip("0").rstrip(".")
     if formatted == "":
         formatted = "0"
-    # Für deutschsprachige Darstellung Komma verwenden
     formatted = formatted.replace(".", ",")
     return f"{formatted} m"
 
@@ -110,6 +107,9 @@ __all__ = [
     "normalize_length_input",
     "parse_length_to_meters",
 ]
+
+
+
 
 
 
