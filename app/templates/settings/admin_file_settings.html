@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Datei-Einstellungen - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Datei-Einstellungen</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Datei-Einstellungen</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <h5 class="mb-3">Datei-Funktionen</h5>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="files_dropbox_enabled">
+                            <strong>Briefkästen aktivieren</strong>
+                            <p class="text-muted small mb-0">Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.</p>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="files_sharing_enabled">
+                            <strong>Freigaben aktivieren</strong>
+                            <p class="text-muted small mb-0">Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.</p>
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-accent">Änderungen speichern</button>
+                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">Zurück</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -6,6 +6,7 @@ from app.models.inventory import Product, BorrowTransaction, ProductFolder, Prod
 from app.models.api_token import ApiToken
 from app.models.user import User
 from app.models.settings import SystemSettings
+from app.utils.access_control import check_module_access
 import json
 from urllib.parse import unquote
 from app.utils.qr_code import (
@@ -115,6 +116,7 @@ def public_product(product_id):
 
 @inventory_bp.route('/')
 @login_required
+@check_module_access('module_inventory')
 def dashboard():
     """Lager-Dashboard Hauptansicht."""
     # Meine aktuellen Ausleihen
@@ -129,6 +131,7 @@ def dashboard():
 @inventory_bp.route('/stock')
 @inventory_bp.route('/stock/<int:folder_id>')
 @login_required
+@check_module_access('module_inventory')
 def stock(folder_id=None):
     """Bestandsübersicht mit optionaler Ordner-Filterung."""
     current_folder = None
@@ -149,6 +152,7 @@ def stock(folder_id=None):
 
 @inventory_bp.route('/products/new', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_inventory')
 def product_new():
     """Neues Produkt erstellen."""
     if request.method == 'POST':
@@ -269,6 +273,7 @@ def product_new():
 
 @inventory_bp.route('/products/<int:product_id>/edit', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_inventory')
 def product_edit(product_id):
     """Produkt bearbeiten."""
     product = Product.query.get_or_404(product_id)

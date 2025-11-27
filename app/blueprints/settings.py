@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User
@@ -7,13 +7,18 @@ from app.models.settings import SystemSettings
 from app.models.notification import NotificationSettings, ChatNotificationSettings
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
+from app.models.role import UserModuleRole
 from app.utils.notifications import get_or_create_notification_settings
 from app.utils.backup import export_backup, import_backup, SUPPORTED_CATEGORIES
+from app.utils.common import is_module_enabled
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 import tempfile
 from app.utils.i18n import available_languages, translate
+from app.models.booking import BookingForm, BookingFormField, BookingFormImage
+import json
+from sqlalchemy import func
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -321,23 +326,54 @@ def activate_user(user_id):
     user = User.query.get_or_404(user_id)
     user.is_active = True
     
-    # Ensure user is added to main chat when activated
+    # Zuweise Standardrollen wenn noch keine vorhanden
+    if not user.has_full_access and UserModuleRole.query.filter_by(user_id=user.id).count() == 0:
+        default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+        if default_roles_setting:
+            try:
+                default_roles = json.loads(default_roles_setting.value)
+                
+                if default_roles.get('full_access', False):
+                    user.has_full_access = True
+                else:
+                    # Modulspezifische Rollen zuweisen
+                    from app.utils.common import is_module_enabled
+                    all_modules = [
+                        'module_chat', 'module_files', 'module_calendar', 'module_email',
+                        'module_credentials', 'module_manuals', 'module_canvas',
+                        'module_inventory', 'module_wiki', 'module_booking'
+                    ]
+                    
+                    for module_key in all_modules:
+                        if default_roles.get(module_key, False) and is_module_enabled(module_key):
+                            role = UserModuleRole(
+                                user_id=user.id,
+                                module_key=module_key,
+                                has_access=True
+                            )
+                            db.session.add(role)
+            except:
+                pass  # Bei Fehler: Keine Standardrollen zuweisen
+    
+    # Ensure user is added to main chat when activated (only if has chat access)
     from app.models.chat import Chat, ChatMember
-    main_chat = Chat.query.filter_by(is_main_chat=True).first()
-    if main_chat:
-        # Check if user is already a member
-        existing_membership = ChatMember.query.filter_by(
-            chat_id=main_chat.id,
-            user_id=user.id
-        ).first()
-        
-        if not existing_membership:
-            # Add user to main chat
-            member = ChatMember(
+    from app.utils.access_control import has_module_access
+    if has_module_access(user, 'module_chat'):
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            # Check if user is already a member
+            existing_membership = ChatMember.query.filter_by(
                 chat_id=main_chat.id,
                 user_id=user.id
-            )
-            db.session.add(member)
+            ).first()
+            
+            if not existing_membership:
+                # Add user to main chat
+                member = ChatMember(
+                    chat_id=main_chat.id,
+                    user_id=user.id
+                )
+                db.session.add(member)
     
     db.session.commit()
     
@@ -615,22 +651,6 @@ def admin_system():
                     flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
                     return redirect(url_for('settings.admin_system'))
         
-        # Feature Flags: Dateien
-        dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
-        sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
-
-        dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
-        if dropbox_setting:
-            dropbox_setting.value = str(dropbox_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_dropbox_enabled', value=str(dropbox_enabled)))
-
-        sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
-        if sharing_setting:
-            sharing_setting.value = str(sharing_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_sharing_enabled', value=str(sharing_enabled)))
-
         db.session.commit()
         flash('System-Einstellungen wurden aktualisiert.', 'success')
         return redirect(url_for('settings.admin_system'))
@@ -638,16 +658,11 @@ def admin_system():
     # Get current settings
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-    dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
-    sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     
     portal_name = portal_name_setting.value if portal_name_setting else ''
     portal_logo = portal_logo_setting.value if portal_logo_setting else None
-    files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
-    files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
     
-    return render_template('settings/admin_system.html', portal_name=portal_name, portal_logo=portal_logo,
-                           files_dropbox_enabled=files_dropbox_enabled, files_sharing_enabled=files_sharing_enabled)
+    return render_template('settings/admin_system.html', portal_name=portal_name, portal_logo=portal_logo)
 
 
 @settings_bp.route('/admin/modules', methods=['GET', 'POST'])
@@ -673,7 +688,8 @@ def admin_modules():
             'module_manuals': request.form.get('module_manuals') == 'on',
             'module_canvas': request.form.get('module_canvas') == 'on' if excalidraw_available else False,
             'module_inventory': request.form.get('module_inventory') == 'on',
-            'module_wiki': request.form.get('module_wiki') == 'on'
+            'module_wiki': request.form.get('module_wiki') == 'on',
+            'module_booking': request.form.get('module_booking') == 'on'
         }
         
         # Canvas kann nur aktiviert werden wenn Excalidraw verfügbar ist
@@ -703,6 +719,7 @@ def admin_modules():
     module_canvas_enabled = is_module_enabled('module_canvas') and excalidraw_available
     module_inventory_enabled = is_module_enabled('module_inventory')
     module_wiki_enabled = is_module_enabled('module_wiki')
+    module_booking_enabled = is_module_enabled('module_booking')
     
     return render_template('settings/admin_modules.html',
                            module_chat_enabled=module_chat_enabled,
@@ -710,6 +727,7 @@ def admin_modules():
                            module_calendar_enabled=module_calendar_enabled,
                            module_email_enabled=module_email_enabled,
                            module_credentials_enabled=module_credentials_enabled,
+                           module_booking_enabled=module_booking_enabled,
                            module_manuals_enabled=module_manuals_enabled,
                            module_canvas_enabled=module_canvas_enabled,
                            module_inventory_enabled=module_inventory_enabled,
@@ -1078,4 +1096,591 @@ LANGUAGE_FALLBACK_NAMES = {
     'es': 'Español',
     'ru': 'Русский'
 }
+
+
+def allowed_image_file(filename):
+    """Prüft ob die Datei ein erlaubtes Bildformat hat."""
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@settings_bp.route('/booking-forms')
+@login_required
+def booking_forms():
+    """Übersicht aller Buchungsformulare (Admin)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    forms = BookingForm.query.order_by(BookingForm.created_at.desc()).all()
+    return render_template('booking/admin/forms.html', forms=forms)
+
+
+@settings_bp.route('/booking-forms/create', methods=['GET', 'POST'])
+@login_required
+def booking_form_create():
+    """Neues Buchungsformular erstellen (Admin)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        is_active = request.form.get('is_active') == 'on'
+        archive_days = int(request.form.get('archive_days', 30))
+        enable_mailbox = request.form.get('enable_mailbox') == 'on'
+        enable_shared_folder = request.form.get('enable_shared_folder') == 'on'
+        
+        if not title:
+            flash('Bitte geben Sie einen Titel ein.', 'danger')
+            return render_template('booking/admin/form_edit.html', form=None)
+        
+        booking_form = BookingForm(
+            title=title,
+            description=description,
+            is_active=is_active,
+            created_by=current_user.id,
+            archive_days=archive_days,
+            enable_mailbox=enable_mailbox,
+            enable_shared_folder=enable_shared_folder
+        )
+        db.session.add(booking_form)
+        db.session.commit()
+        
+        flash('Buchungsformular wurde erstellt.', 'success')
+        return redirect(url_for('settings.booking_form_edit', form_id=booking_form.id))
+    
+    return render_template('booking/admin/form_edit.html', form=None)
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/edit', methods=['GET', 'POST'])
+@login_required
+def booking_form_edit(form_id):
+    """Buchungsformular bearbeiten (Admin)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    if request.method == 'POST':
+        form.title = request.form.get('title', '').strip()
+        form.description = request.form.get('description', '').strip()
+        form.is_active = request.form.get('is_active') == 'on'
+        form.archive_days = int(request.form.get('archive_days', 30))
+        form.enable_mailbox = request.form.get('enable_mailbox') == 'on'
+        form.enable_shared_folder = request.form.get('enable_shared_folder') == 'on'
+        
+        if not form.title:
+            flash('Bitte geben Sie einen Titel ein.', 'danger')
+            return render_template('booking/admin/form_edit.html', form=form)
+        
+        db.session.commit()
+        flash('Buchungsformular wurde aktualisiert.', 'success')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    # Sortiere Felder nach field_order
+    fields = sorted(form.fields, key=lambda f: f.field_order)
+    return render_template('booking/admin/form_edit.html', form=form, fields=fields)
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/delete', methods=['POST'])
+@login_required
+def booking_form_delete(form_id):
+    """Buchungsformular löschen (Admin)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    form = BookingForm.query.get_or_404(form_id)
+    db.session.delete(form)
+    db.session.commit()
+    
+    flash('Buchungsformular wurde gelöscht.', 'success')
+    return redirect(url_for('settings.booking_forms'))
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/field/add', methods=['POST'])
+@login_required
+def booking_field_add(form_id):
+    """Feld zum Formular hinzufügen (Admin)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    field_type = request.form.get('field_type', 'text')
+    field_label = request.form.get('field_label', '').strip()
+    field_name = request.form.get('field_name', '').strip() or field_label.lower().replace(' ', '_')
+    is_required = request.form.get('is_required') == 'on'
+    placeholder = request.form.get('placeholder', '').strip()
+    
+    # Bestimme nächste field_order
+    max_order = db.session.query(func.max(BookingFormField.field_order)).filter_by(form_id=form_id).scalar() or 0
+    
+    # Parse Optionen für Select/Checkbox
+    field_options = None
+    if field_type in ['select', 'checkbox']:
+        options_str = request.form.get('field_options', '').strip()
+        if options_str:
+            options = [opt.strip() for opt in options_str.split('\n') if opt.strip()]
+            if options:
+                field_options = json.dumps(options)
+    
+    field = BookingFormField(
+        form_id=form_id,
+        field_type=field_type,
+        field_name=field_name,
+        field_label=field_label,
+        is_required=is_required,
+        field_order=max_order + 1,
+        placeholder=placeholder,
+        field_options=field_options
+    )
+    db.session.add(field)
+    db.session.commit()
+    
+    flash('Feld wurde hinzugefügt.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/field/<int:field_id>/edit', methods=['POST'])
+@login_required
+def booking_field_edit(form_id, field_id):
+    """Feld bearbeiten (Admin)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    field = BookingFormField.query.get_or_404(field_id)
+    if field.form_id != form_id:
+        return jsonify({'error': 'Feld gehört nicht zu diesem Formular'}), 400
+    
+    field.field_type = request.form.get('field_type', 'text')
+    field.field_label = request.form.get('field_label', '').strip()
+    field.field_name = request.form.get('field_name', '').strip() or field.field_label.lower().replace(' ', '_')
+    field.is_required = request.form.get('is_required') == 'on'
+    field.placeholder = request.form.get('placeholder', '').strip()
+    
+    # Parse Optionen für Select/Checkbox
+    if field.field_type in ['select', 'checkbox']:
+        options_str = request.form.get('field_options', '').strip()
+        if options_str:
+            options = [opt.strip() for opt in options_str.split('\n') if opt.strip()]
+            field.field_options = json.dumps(options) if options else None
+        else:
+            field.field_options = None
+    
+    db.session.commit()
+    
+    flash('Feld wurde aktualisiert.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/field/<int:field_id>/delete', methods=['POST'])
+@login_required
+def booking_field_delete(form_id, field_id):
+    """Feld löschen (Admin)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    field = BookingFormField.query.get_or_404(field_id)
+    if field.form_id != form_id:
+        return jsonify({'error': 'Feld gehört nicht zu diesem Formular'}), 400
+    
+    db.session.delete(field)
+    db.session.commit()
+    
+    flash('Feld wurde gelöscht.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/field/order', methods=['POST'])
+@login_required
+def booking_field_order(form_id):
+    """Reihenfolge der Felder aktualisieren (Admin)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    data = request.get_json()
+    field_orders = data.get('field_orders', [])
+    
+    for field_id, order in field_orders:
+        field = BookingFormField.query.get(field_id)
+        if field and field.form_id == form_id:
+            field.field_order = order
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/image/upload', methods=['POST'])
+@login_required
+def booking_image_upload(form_id):
+    """Bild für Buchungsseite hochladen (Admin)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    if 'image' not in request.files:
+        flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    file = request.files['image']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    if not allowed_image_file(file.filename):
+        flash('Ungültiger Dateityp. Nur Bilddateien sind erlaubt.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    # Erstelle Upload-Ordner
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'booking_forms', str(form_id))
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Speichere Datei
+    filename = secure_filename(file.filename)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"{timestamp}_{filename}"
+    file_path = os.path.join(upload_dir, filename)
+    file.save(file_path)
+    
+    # Bestimme nächste display_order
+    max_order = db.session.query(func.max(BookingFormImage.display_order)).filter_by(form_id=form_id).scalar() or 0
+    
+    # Speichere Bild-Referenz
+    image = BookingFormImage(
+        form_id=form_id,
+        image_path=file_path,
+        display_order=max_order + 1
+    )
+    db.session.add(image)
+    db.session.commit()
+    
+    flash('Bild wurde hochgeladen.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/image/<int:image_id>/delete', methods=['POST'])
+@login_required
+def booking_image_delete(form_id, image_id):
+    """Bild löschen (Admin)."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+    
+    image = BookingFormImage.query.get_or_404(image_id)
+    if image.form_id != form_id:
+        return jsonify({'error': 'Bild gehört nicht zu diesem Formular'}), 400
+    
+    # Lösche Datei
+    if os.path.exists(image.image_path):
+        try:
+            os.remove(image.image_path)
+        except OSError:
+            pass
+    
+    db.session.delete(image)
+    db.session.commit()
+    
+    flash('Bild wurde gelöscht.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/booking-forms/<int:form_id>/image/<int:image_id>')
+def booking_image(form_id, image_id):
+    """Zeigt Bild für Buchungsformular."""
+    image = BookingFormImage.query.get_or_404(image_id)
+    if image.form_id != form_id:
+        abort(404)
+    
+    # Konvertiere relativen Pfad zu absolutem Pfad
+    if os.path.isabs(image.image_path):
+        image_dir = os.path.dirname(image.image_path)
+        image_file = os.path.basename(image.image_path)
+    else:
+        # Relativer Pfad - nehme an, dass es relativ zu UPLOAD_FOLDER ist
+        image_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'booking_forms', str(form_id))
+        image_file = os.path.basename(image.image_path)
+    
+    return send_from_directory(image_dir, image_file)
+
+
+@settings_bp.route('/admin/file-settings', methods=['GET', 'POST'])
+@login_required
+def admin_file_settings():
+    """Datei-Einstellungen (Admin)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    if request.method == 'POST':
+        # Feature Flags: Dateien
+        dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
+        sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
+
+        dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
+        if dropbox_setting:
+            dropbox_setting.value = str(dropbox_enabled)
+        else:
+            db.session.add(SystemSettings(key='files_dropbox_enabled', value=str(dropbox_enabled)))
+
+        sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
+        if sharing_setting:
+            sharing_setting.value = str(sharing_enabled)
+        else:
+            db.session.add(SystemSettings(key='files_sharing_enabled', value=str(sharing_enabled)))
+
+        db.session.commit()
+        flash('Datei-Einstellungen wurden aktualisiert.', 'success')
+        return redirect(url_for('settings.admin_file_settings'))
+    
+    # Lade aktuelle Einstellungen
+    dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
+    sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
+    
+    files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
+    files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
+    
+    return render_template('settings/admin_file_settings.html',
+                           files_dropbox_enabled=files_dropbox_enabled, 
+                           files_sharing_enabled=files_sharing_enabled)
+
+
+@settings_bp.route('/admin/roles', methods=['GET'])
+@login_required
+def admin_roles():
+    """Rollenverwaltung - Übersicht aller Benutzer."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    users = User.query.order_by(User.last_name, User.first_name).all()
+    
+    # Lade Rollenstatus für jeden Benutzer
+    users_with_roles = []
+    for user in users:
+        roles = UserModuleRole.query.filter_by(user_id=user.id).all()
+        users_with_roles.append({
+            'user': user,
+            'has_full_access': user.has_full_access,
+            'module_roles': {role.module_key: role.has_access for role in roles}
+        })
+    
+    # Lade Standardrollen
+    default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+    default_roles = {}
+    if default_roles_setting:
+        try:
+            default_roles = json.loads(default_roles_setting.value)
+        except:
+            pass
+    
+    # Liste aller Module
+    all_modules = [
+        ('module_chat', 'Chat'),
+        ('module_files', 'Dateien'),
+        ('module_calendar', 'Kalender'),
+        ('module_email', 'E-Mail'),
+        ('module_credentials', 'Zugangsdaten'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_canvas', 'Canvas'),
+        ('module_inventory', 'Inventar'),
+        ('module_wiki', 'Wiki'),
+        ('module_booking', 'Buchungen')
+    ]
+    
+    return render_template('settings/admin_roles.html',
+                         users_with_roles=users_with_roles,
+                         default_roles=default_roles,
+                         all_modules=all_modules)
+
+
+@settings_bp.route('/admin/roles/user/<int:user_id>', methods=['GET'])
+@login_required
+def admin_roles_user(user_id):
+    """Einzelne Benutzer-Rollen bearbeiten."""
+    if not current_user.is_admin:
+        if request.args.get('format') == 'json':
+            return jsonify({'error': 'Nur Administratoren haben Zugriff auf diese Seite.'}), 403
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Lade aktuelle Rollen
+    roles = UserModuleRole.query.filter_by(user_id=user.id).all()
+    module_roles = {role.module_key: role.has_access for role in roles}
+    
+    # Wenn JSON-Format angefragt wird (für Modal)
+    if request.args.get('format') == 'json':
+        return jsonify({
+            'has_full_access': user.has_full_access or False,
+            'module_roles': module_roles
+        })
+    
+    # Liste aller Module
+    all_modules = [
+        ('module_chat', 'Chat'),
+        ('module_files', 'Dateien'),
+        ('module_calendar', 'Kalender'),
+        ('module_email', 'E-Mail'),
+        ('module_credentials', 'Zugangsdaten'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_canvas', 'Canvas'),
+        ('module_inventory', 'Inventar'),
+        ('module_wiki', 'Wiki'),
+        ('module_booking', 'Buchungen')
+    ]
+    
+    return render_template('settings/admin_roles_user.html',
+                         user=user,
+                         module_roles=module_roles,
+                         all_modules=all_modules)
+
+
+@settings_bp.route('/admin/roles/user/<int:user_id>/update', methods=['POST'])
+@login_required
+def admin_roles_update(user_id):
+    """Rollen für Benutzer aktualisieren."""
+    if not current_user.is_admin:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Nur Administratoren haben Zugriff auf diese Seite.'}), 403
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Prüfe ob Hauptadministrator (kann nicht geändert werden)
+    if user.is_super_admin and user.id != current_user.id:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Die Rollen des Hauptadministrators können nicht geändert werden.'}), 403
+        flash('Die Rollen des Hauptadministrators können nicht geändert werden.', 'danger')
+        return redirect(url_for('settings.admin_roles_user', user_id=user_id))
+    
+    try:
+        # Vollzugriff
+        has_full_access = request.form.get('has_full_access') == 'on'
+        user.has_full_access = has_full_access
+        
+        # Modulspezifische Rollen (nur wenn kein Vollzugriff)
+        if not has_full_access:
+            all_modules = [
+                'module_chat', 'module_files', 'module_calendar', 'module_email',
+                'module_credentials', 'module_manuals', 'module_canvas',
+                'module_inventory', 'module_wiki', 'module_booking'
+            ]
+            
+            for module_key in all_modules:
+                has_access = request.form.get(module_key) == 'on'
+                
+                # Prüfe ob Modul aktiviert ist
+                if not is_module_enabled(module_key):
+                    continue
+                
+                role = UserModuleRole.query.filter_by(
+                    user_id=user.id,
+                    module_key=module_key
+                ).first()
+                
+                if role:
+                    role.has_access = has_access
+                    role.updated_at = datetime.utcnow()
+                else:
+                    role = UserModuleRole(
+                        user_id=user.id,
+                        module_key=module_key,
+                        has_access=has_access
+                    )
+                    db.session.add(role)
+        else:
+            # Wenn Vollzugriff aktiviert, lösche alle modulspezifischen Rollen
+            UserModuleRole.query.filter_by(user_id=user.id).delete()
+        
+        db.session.commit()
+        
+        # JSON-Antwort für AJAX
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': f'Rollen für {user.full_name} wurden aktualisiert.'})
+        
+        flash(f'Rollen für {user.full_name} wurden aktualisiert.', 'success')
+        return redirect(url_for('settings.admin_users'))
+    except Exception as e:
+        db.session.rollback()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Fehler beim Aktualisieren der Rollen: {str(e)}', 'danger')
+        return redirect(url_for('settings.admin_users'))
+
+
+@settings_bp.route('/admin/roles/default', methods=['GET', 'POST'])
+@login_required
+def admin_roles_default():
+    """Standardrollen konfigurieren (für neue Benutzer)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    if request.method == 'POST':
+        default_roles = {}
+        
+        # Vollzugriff als Standard
+        if request.form.get('default_full_access') == 'on':
+            default_roles['full_access'] = True
+        else:
+            # Modulspezifische Standardrollen
+            all_modules = [
+                'module_chat', 'module_files', 'module_calendar', 'module_email',
+                'module_credentials', 'module_manuals', 'module_canvas',
+                'module_inventory', 'module_wiki', 'module_booking'
+            ]
+            
+            for module_key in all_modules:
+                if request.form.get(f'default_{module_key}') == 'on':
+                    default_roles[module_key] = True
+        
+        # Speichere in SystemSettings
+        setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+        if setting:
+            setting.value = json.dumps(default_roles)
+        else:
+            setting = SystemSettings(
+                key='default_module_roles',
+                value=json.dumps(default_roles),
+                description='Standardrollen für neue Benutzer'
+            )
+            db.session.add(setting)
+        
+        db.session.commit()
+        flash('Standardrollen wurden aktualisiert.', 'success')
+        return redirect(url_for('settings.admin_roles_default'))
+    
+    # GET: Lade aktuelle Standardrollen
+    default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+    default_roles = {}
+    if default_roles_setting:
+        try:
+            default_roles = json.loads(default_roles_setting.value)
+        except:
+            pass
+    
+    # Liste aller Module
+    all_modules = [
+        ('module_chat', 'Chat'),
+        ('module_files', 'Dateien'),
+        ('module_calendar', 'Kalender'),
+        ('module_email', 'E-Mail'),
+        ('module_credentials', 'Zugangsdaten'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_canvas', 'Canvas'),
+        ('module_inventory', 'Inventar'),
+        ('module_wiki', 'Wiki'),
+        ('module_booking', 'Buchungen')
+    ]
+    
+    return render_template('settings/admin_roles_default.html',
+                         default_roles=default_roles,
+                         all_modules=all_modules)
 

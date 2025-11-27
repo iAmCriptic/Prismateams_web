@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Buchungsformulare - Admin{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Buchungsformulare</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Buchungsformulare</h2>
+    <a href="{{ url_for('settings.booking_form_create') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Neues Formular erstellen
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <div class="card-body">
+        {% if forms %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th>Status</th>
+                        <th>Anfragen</th>
+                        <th>Erstellt</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in forms %}
+                    <tr>
+                        <td>
+                            <strong>{{ form.title }}</strong>
+                            {% if form.description %}
+                            <br><small class="text-muted">{{ form.description[:100] }}{% if form.description|length > 100 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if form.is_active %}
+                            <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inaktiv</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ form.requests|length }}</td>
+                        <td>{{ form.created_at.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            <a href="{{ url_for('settings.booking_form_edit', form_id=form.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Bearbeiten
+                            </a>
+                            <form method="POST" action="{{ url_for('settings.booking_form_delete', form_id=form.id) }}" class="d-inline" onsubmit="return confirm('Möchten Sie dieses Formular wirklich löschen?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-5">Noch keine Buchungsformulare erstellt.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

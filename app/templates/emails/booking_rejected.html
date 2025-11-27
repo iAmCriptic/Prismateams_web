@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .rejection {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #0d6efd;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if logo_base64 %}
+        <img src="{{ logo_base64 }}" alt="{{ app_name }}" class="logo">
+        {% endif %}
+        <h1>{{ app_name }}</h1>
+    </div>
+    
+    <div class="content">
+        <div class="rejection">
+            <h2>Buchung abgelehnt</h2>
+        </div>
+        
+        <p>Hallo,</p>
+        <p>leider müssen wir Ihnen mitteilen, dass Ihre Buchungsanfrage für <strong>{{ booking_request.event_name }}</strong> nicht angenommen werden kann.</p>
+        
+        {% if booking_request.rejection_reason %}
+        <p><strong>Begründung:</strong></p>
+        <p>{{ booking_request.rejection_reason }}</p>
+        {% endif %}
+        
+        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+        
+        <p><a href="{{ booking_url }}" class="button">Zur Buchungsübersicht</a></p>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{ current_year }} {{ app_name }}. Alle Rechte vorbehalten.</p>
+    </div>
+</body>
+</html>
+

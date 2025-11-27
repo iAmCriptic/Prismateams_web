@@ -29,6 +29,9 @@ class CalendarEvent(db.Model):
     public_ical_token = db.Column(db.String(64), unique=True, nullable=True)
     is_public = db.Column(db.Boolean, default=False, nullable=False)
     
+    # Buchungsmodul-Integration
+    booking_request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'), nullable=True)
+    
     # Relationships
     creator = db.relationship('User', back_populates='created_events')
     participants = db.relationship('EventParticipant', back_populates='event', cascade='all, delete-orphan')

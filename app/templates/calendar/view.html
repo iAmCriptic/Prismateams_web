@@ -39,6 +39,15 @@
                 </div>
                 {% endif %}
                 
+                {% if booking_request %}
+                <div class="mb-3">
+                    <strong><i class="bi bi-calendar-check"></i> Zur Buchung</strong><br>
+                    <a href="{{ url_for('booking.request_detail', request_id=booking_request.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-link-45deg"></i> Buchungsdetails anzeigen
+                    </a>
+                </div>
+                {% endif %}
+                
                 {% if event.is_master_event %}
                 <div class="mb-3">
                     <strong><i class="bi bi-arrow-repeat"></i> {{ _('calendar.view.recurrence_label') }}</strong><br>

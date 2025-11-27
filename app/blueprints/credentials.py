@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app import db
 from app.models.credential import Credential
+from app.utils.access_control import check_module_access
 from cryptography.fernet import Fernet
 import os
 import requests
@@ -51,6 +52,7 @@ def get_favicon_url(website_url):
 
 @credentials_bp.route('/')
 @login_required
+@check_module_access('module_credentials')
 def index():
     """List all credentials."""
     credentials = Credential.query.order_by(Credential.website_name).all()
@@ -59,6 +61,7 @@ def index():
 
 @credentials_bp.route('/create', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_credentials')
 def create():
     """Create a new credential entry."""
     if request.method == 'POST':
@@ -100,6 +103,7 @@ def create():
 
 @credentials_bp.route('/edit/<int:credential_id>', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_credentials')
 def edit(credential_id):
     """Edit a credential entry."""
     credential = Credential.query.get_or_404(credential_id)
@@ -131,6 +135,7 @@ def edit(credential_id):
 
 @credentials_bp.route('/delete/<int:credential_id>', methods=['POST'])
 @login_required
+@check_module_access('module_credentials')
 def delete(credential_id):
     """Delete a credential entry."""
     credential = Credential.query.get_or_404(credential_id)
@@ -144,6 +149,7 @@ def delete(credential_id):
 
 @credentials_bp.route('/view-password/<int:credential_id>')
 @login_required
+@check_module_access('module_credentials')
 def view_password(credential_id):
     """View decrypted password (AJAX endpoint)."""
     credential = Credential.query.get_or_404(credential_id)

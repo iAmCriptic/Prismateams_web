@@ -104,15 +104,49 @@ def register():
         from app.utils.email_sender import send_confirmation_email
         email_sent = send_confirmation_email(new_user)
         
-        # Add user to main chat if it exists
+        # Zuweise Standardrollen
+        from app.models.settings import SystemSettings
+        from app.models.role import UserModuleRole
+        from app.utils.access_control import has_module_access
+        from app.utils.common import is_module_enabled
+        import json
+        
+        default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+        if default_roles_setting:
+            try:
+                default_roles = json.loads(default_roles_setting.value)
+                
+                if default_roles.get('full_access', False):
+                    new_user.has_full_access = True
+                else:
+                    # Modulspezifische Rollen zuweisen
+                    all_modules = [
+                        'module_chat', 'module_files', 'module_calendar', 'module_email',
+                        'module_credentials', 'module_manuals', 'module_canvas',
+                        'module_inventory', 'module_wiki', 'module_booking'
+                    ]
+                    
+                    for module_key in all_modules:
+                        if default_roles.get(module_key, False) and is_module_enabled(module_key):
+                            role = UserModuleRole(
+                                user_id=new_user.id,
+                                module_key=module_key,
+                                has_access=True
+                            )
+                            db.session.add(role)
+            except:
+                pass  # Bei Fehler: Keine Standardrollen zuweisen
+        
+        # Add user to main chat if it exists and user has chat access
         from app.models.chat import Chat, ChatMember
-        main_chat = Chat.query.filter_by(is_main_chat=True).first()
-        if main_chat:
-            member = ChatMember(
-                chat_id=main_chat.id,
-                user_id=new_user.id
-            )
-            db.session.add(member)
+        if has_module_access(new_user, 'module_chat'):
+            main_chat = Chat.query.filter_by(is_main_chat=True).first()
+            if main_chat:
+                member = ChatMember(
+                    chat_id=main_chat.id,
+                    user_id=new_user.id
+                )
+                db.session.add(member)
         
         db.session.commit()
         
@@ -174,21 +208,23 @@ def login():
         # Log user in
         login_user(user, remember=remember)
         
-        # Add user to main chat if not already a member
-        main_chat = Chat.query.filter_by(is_main_chat=True).first()
-        if main_chat:
-            existing_membership = ChatMember.query.filter_by(
-                chat_id=main_chat.id,
-                user_id=user.id
-            ).first()
-            
-            if not existing_membership:
-                chat_member = ChatMember(
+        # Add user to main chat if not already a member and user has chat access
+        from app.utils.access_control import has_module_access
+        if has_module_access(user, 'module_chat'):
+            main_chat = Chat.query.filter_by(is_main_chat=True).first()
+            if main_chat:
+                existing_membership = ChatMember.query.filter_by(
                     chat_id=main_chat.id,
                     user_id=user.id
-                )
-                db.session.add(chat_member)
-                db.session.commit()
+                ).first()
+                
+                if not existing_membership:
+                    chat_member = ChatMember(
+                        chat_id=main_chat.id,
+                        user_id=user.id
+                    )
+                    db.session.add(chat_member)
+                    db.session.commit()
         
         # Make session permanent if remember me is checked
         if remember:

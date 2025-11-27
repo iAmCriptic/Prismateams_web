@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Buchungsanfragen{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Buchungsanfragen</li>
+    </ol>
+</nav>
+
+<h2>Buchungsanfragen</h2>
+
+<div class="mb-3">
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('booking.requests', status='pending') }}" 
+           class="btn btn-outline-{% if status_filter == 'pending' %}primary{% else %}secondary{% endif %}">
+            Offen
+        </a>
+        <a href="{{ url_for('booking.requests', status='accepted') }}" 
+           class="btn btn-outline-{% if status_filter == 'accepted' %}primary{% else %}secondary{% endif %}">
+            Angenommen
+        </a>
+        <a href="{{ url_for('booking.requests', status='rejected') }}" 
+           class="btn btn-outline-{% if status_filter == 'rejected' %}primary{% else %}secondary{% endif %}">
+            Abgelehnt
+        </a>
+        <a href="{{ url_for('booking.requests', status='archived') }}" 
+           class="btn btn-outline-{% if status_filter == 'archived' %}primary{% else %}secondary{% endif %}">
+            Archiviert
+        </a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card">
+    <div class="card-body">
+        {% if requests %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Veranstaltung</th>
+                        <th>E-Mail</th>
+                        <th>Datum</th>
+                        <th>Formular</th>
+                        <th>Status</th>
+                        <th>Erstellt</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in requests %}
+                    <tr>
+                        <td><strong>{{ request.event_name }}</strong></td>
+                        <td>{{ request.email }}</td>
+                        <td>
+                            {% if request.event_date %}
+                            {{ request.event_date.strftime('%d.%m.%Y') }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ request.form.title }}</td>
+                        <td>
+                            {% if request.status == 'pending' %}
+                            <span class="badge bg-warning">Offen</span>
+                            {% elif request.status == 'accepted' %}
+                            <span class="badge bg-success">Angenommen</span>
+                            {% elif request.status == 'rejected' %}
+                            <span class="badge bg-danger">Abgelehnt</span>
+                            {% elif request.status == 'archived' %}
+                            <span class="badge bg-secondary">Archiviert</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ request.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('booking.request_detail', request_id=request.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-5">Keine Buchungsanfragen in dieser Kategorie.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

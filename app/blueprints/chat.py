@@ -4,6 +4,7 @@ from app import db
 from app.models.chat import Chat, ChatMessage, ChatMember
 from app.models.user import User
 from app.utils.notifications import send_chat_notification
+from app.utils.access_control import check_module_access
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
@@ -19,6 +20,7 @@ def allowed_file(filename):
 
 @chat_bp.route('/')
 @login_required
+@check_module_access('module_chat')
 def index():
     """List all chats for current user."""
     # Get all chats where user is a member
@@ -40,6 +42,7 @@ def index():
 
 @chat_bp.route('/<int:chat_id>')
 @login_required
+@check_module_access('module_chat')
 def view_chat(chat_id):
     """View a specific chat."""
     # Special handling: If chat_id is 1, load the actual main chat
@@ -94,6 +97,7 @@ def view_chat(chat_id):
 
 @chat_bp.route('/<int:chat_id>/send', methods=['POST'])
 @login_required
+@check_module_access('module_chat')
 def send_message(chat_id):
     """Send a message in a chat."""
     # Special handling: If chat_id is 1, use the actual main chat ID
@@ -195,6 +199,7 @@ def send_message(chat_id):
 
 @chat_bp.route('/create', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_chat')
 def create_chat():
     """Create a new group chat or private chat."""
     if request.method == 'POST':
@@ -296,6 +301,7 @@ def create_chat():
 
 @chat_bp.route('/direct/<int:user_id>')
 @login_required
+@check_module_access('module_chat')
 def direct_message(user_id):
     """Start or continue a direct message with a user."""
     other_user = User.query.get_or_404(user_id)
@@ -333,6 +339,7 @@ def direct_message(user_id):
 
 @chat_bp.route('/media/<path:filename>')
 @login_required
+@check_module_access('module_chat')
 def serve_media(filename):
     """Serve uploaded chat media files (images, videos, audio)."""
     try:
@@ -357,6 +364,7 @@ def serve_media(filename):
 
 @chat_bp.route('/<int:chat_id>/update', methods=['POST'])
 @login_required
+@check_module_access('module_chat')
 def update_chat(chat_id):
     """Update chat settings (name, description, avatar)."""
     # Special handling: If chat_id is 1, use the actual main chat ID
@@ -467,6 +475,7 @@ def update_chat(chat_id):
 
 @chat_bp.route('/<int:chat_id>/delete', methods=['POST'])
 @login_required
+@check_module_access('module_chat')
 def delete_chat(chat_id):
     """Delete a chat (main chat cannot be deleted)."""
     # Special handling: If chat_id is 1, use the actual main chat ID
@@ -509,6 +518,7 @@ def delete_chat(chat_id):
 
 @chat_bp.route('/<int:chat_id>/settings', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_chat')
 def chat_settings(chat_id):
     """Chat settings page."""
     # Special handling: If chat_id is 1, use the actual main chat ID

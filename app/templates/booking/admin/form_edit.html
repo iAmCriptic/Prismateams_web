@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}{% if form %}Formular bearbeiten{% else %}Neues Formular{% endif %} - Admin{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.booking_forms') }}">Buchungsformulare</a></li>
+        <li class="breadcrumb-item active">{% if form %}Bearbeiten{% else %}Erstellen{% endif %}</li>
+    </ol>
+</nav>
+
+<h2>{% if form %}Formular bearbeiten{% else %}Neues Formular erstellen{% endif %}</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Grundinformationen</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Titel <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ form.title if form else '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ form.description if form else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if form and form.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">
+                                Formular ist aktiv
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="archive_days" class="form-label">Archivierung (Tage)</label>
+                        <input type="number" class="form-control" id="archive_days" name="archive_days" value="{{ form.archive_days if form else 30 }}" min="1">
+                        <small class="form-text text-muted">Nach wie vielen Tagen sollen vergangene Events archiviert werden?</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enable_mailbox" name="enable_mailbox" {% if form and form.enable_mailbox %}checked{% endif %}>
+                            <label class="form-check-label" for="enable_mailbox">
+                                Briefkasten aktivieren
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enable_shared_folder" name="enable_shared_folder" {% if form and form.enable_shared_folder %}checked{% endif %}>
+                            <label class="form-check-label" for="enable_shared_folder">
+                                Geteilter Ordner aktivieren
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Speichern
+                    </button>
+                    <a href="{{ url_for('settings.booking_forms') }}" class="btn btn-secondary">Abbrechen</a>
+                </form>
+            </div>
+        </div>
+        
+        {% if form %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Zusätzliche Felder</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addFieldModal">
+                    <i class="bi bi-plus"></i> Feld hinzufügen
+                </button>
+            </div>
+            <div class="card-body">
+                {% if fields %}
+                <div class="list-group">
+                    {% for field in fields %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ field.field_label }}</strong>
+                                <span class="badge bg-secondary">{{ field.field_type }}</span>
+                                {% if field.is_required %}<span class="badge bg-danger">Pflicht</span>{% endif %}
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editField({{ field.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('settings.booking_field_delete', form_id=form.id, field_id=field.id) }}" class="d-inline" onsubmit="return confirm('Feld wirklich löschen?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Noch keine zusätzlichen Felder hinzugefügt.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Bilder</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('settings.booking_image_upload', form_id=form.id) }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Bild hochladen</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Hochladen
+                    </button>
+                </form>
+                
+                {% if form.images %}
+                <div class="row mt-3">
+                    {% for image in form.images %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <img src="{{ url_for('settings.booking_image', form_id=form.id, image_id=image.id) }}" class="card-img-top" alt="Formularbild">
+                            <div class="card-body">
+                                <form method="POST" action="{{ url_for('settings.booking_image_delete', form_id=form.id, image_id=image.id) }}" onsubmit="return confirm('Bild wirklich löschen?');">
+                                    <button type="submit" class="btn btn-sm btn-danger w-100">
+                                        <i class="bi bi-trash"></i> Löschen
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Field Modal -->
+{% if form %}
+<div class="modal fade" id="addFieldModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Feld hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('settings.booking_field_add', form_id=form.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="field_type" class="form-label">Feldtyp</label>
+                        <select class="form-select" id="field_type" name="field_type" required>
+                            <option value="text">Text</option>
+                            <option value="textarea">Mehrzeiliger Text</option>
+                            <option value="date">Datum</option>
+                            <option value="number">Zahl</option>
+                            <option value="select">Auswahl (Dropdown)</option>
+                            <option value="checkbox">Checkbox</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="field_label" class="form-label">Bezeichnung</label>
+                        <input type="text" class="form-control" id="field_label" name="field_label" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="field_name" class="form-label">Interner Name</label>
+                        <input type="text" class="form-control" id="field_name" name="field_name">
+                        <small class="form-text text-muted">Wird automatisch generiert, wenn leer</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="placeholder" class="form-label">Platzhalter</label>
+                        <input type="text" class="form-control" id="placeholder" name="placeholder">
+                    </div>
+                    <div class="mb-3" id="options_field" style="display: none;">
+                        <label for="field_options" class="form-label">Optionen (eine pro Zeile)</label>
+                        <textarea class="form-control" id="field_options" name="field_options" rows="5"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_required" name="is_required">
+                        <label class="form-check-label" for="is_required">
+                            Pflichtfeld
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('field_type').addEventListener('change', function() {
+    const optionsField = document.getElementById('options_field');
+    if (this.value === 'select' || this.value === 'checkbox') {
+        optionsField.style.display = 'block';
+    } else {
+        optionsField.style.display = 'none';
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
+

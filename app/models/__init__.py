@@ -13,6 +13,8 @@ from .inventory import Product, BorrowTransaction, ProductFolder, ProductSet, Pr
 from .api_token import ApiToken
 from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
+from .booking import BookingForm, BookingFormField, BookingFormImage, BookingRequest, BookingRequestField, BookingRequestFile
+from .role import UserModuleRole
 
 __all__ = [
     'User',
@@ -29,7 +31,9 @@ __all__ = [
     'Product', 'BorrowTransaction', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem',
     'ApiToken',
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
-    'Comment', 'CommentMention'
+    'Comment', 'CommentMention',
+    'BookingForm', 'BookingFormField', 'BookingFormImage', 'BookingRequest', 'BookingRequestField', 'BookingRequestFile',
+    'UserModuleRole'
 ]
 
 

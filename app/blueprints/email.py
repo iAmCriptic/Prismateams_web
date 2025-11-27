@@ -6,6 +6,7 @@ from app import db, mail, socketio
 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_email_notification
+from app.utils.access_control import check_module_access
 from flask_mail import Message
 from datetime import datetime, timedelta
 from html import unescape
@@ -934,6 +935,7 @@ def check_email_permission(permission_type='read'):
 
 @email_bp.route('/')
 @login_required
+@check_module_access('module_email')
 def index():
     """Email inbox with folder support."""
     if not check_email_permission('read'):
@@ -988,6 +990,7 @@ def index():
 
 @email_bp.route('/folder/<folder_name>')
 @login_required
+@check_module_access('module_email')
 def folder_view(folder_name):
     """View emails in a specific folder."""
     if not check_email_permission('read'):
@@ -1046,6 +1049,7 @@ def folder_view(folder_name):
 
 @email_bp.route('/view/<int:email_id>')
 @login_required
+@check_module_access('module_email')
 def view_email(email_id):
     """View a specific email."""
     if not check_email_permission('read'):
@@ -1278,6 +1282,7 @@ def build_forward_context(email_msg: EmailMessage, include_attachments: bool):
 
 @email_bp.route('/reply/<int:email_id>')
 @login_required
+@check_module_access('module_email')
 def reply(email_id: int):
     if not check_email_permission('send'):
         flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
@@ -1289,6 +1294,7 @@ def reply(email_id: int):
 
 @email_bp.route('/reply-all/<int:email_id>')
 @login_required
+@check_module_access('module_email')
 def reply_all(email_id: int):
     if not check_email_permission('send'):
         flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
@@ -1300,6 +1306,7 @@ def reply_all(email_id: int):
 
 @email_bp.route('/forward/<int:email_id>')
 @login_required
+@check_module_access('module_email')
 def forward(email_id: int):
     if not check_email_permission('send'):
         flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
@@ -1311,6 +1318,7 @@ def forward(email_id: int):
 
 @email_bp.route('/attachment/<int:attachment_id>')
 @login_required
+@check_module_access('module_email')
 def download_attachment(attachment_id):
     """Download an email attachment with support for large files."""
     if not check_email_permission('read'):
@@ -1382,6 +1390,7 @@ def download_attachment(attachment_id):
 
 @email_bp.route('/compose', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_email')
 def compose():
     """Compose and send an email."""
     if not check_email_permission('send'):
@@ -1494,6 +1503,7 @@ def compose():
 
 @email_bp.route('/preview/custom', methods=['POST'])
 @login_required
+@check_module_access('module_email')
 def preview_custom_email():
     if not check_email_permission('send'):
         return jsonify({'error': 'Nicht autorisiert'}), 403
@@ -1518,6 +1528,7 @@ def preview_custom_email():
 
 @email_bp.route('/sync', methods=['POST'])
 @login_required
+@check_module_access('module_email')
 def sync_emails():
     """Sync emails from IMAP server (runs in background)."""
     if not check_email_permission('read'):
@@ -1613,6 +1624,7 @@ def sync_emails():
 
 @email_bp.route('/delete/<int:email_id>', methods=['POST'])
 @login_required
+@check_module_access('module_email')
 def delete_email(email_id):
     """Delete email from both portal and IMAP."""
     if not check_email_permission('read'):
@@ -1634,6 +1646,7 @@ def delete_email(email_id):
 
 @email_bp.route('/move/<int:email_id>', methods=['POST'])
 @login_required
+@check_module_access('module_email')
 def move_email(email_id):
     """Move email to another folder in both portal and IMAP."""
     if not check_email_permission('read'):

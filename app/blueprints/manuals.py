@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app import db
 from app.models.manual import Manual
+from app.utils.access_control import check_module_access
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
@@ -11,6 +12,7 @@ manuals_bp = Blueprint('manuals', __name__)
 
 @manuals_bp.route('/')
 @login_required
+@check_module_access('module_manuals')
 def index():
     """List all manuals."""
     manuals = Manual.query.order_by(Manual.uploaded_at.desc()).all()
@@ -19,6 +21,7 @@ def index():
 
 @manuals_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_manuals')
 def upload():
     """Upload a new manual (admin only)."""
     if not current_user.is_admin:
@@ -74,6 +77,7 @@ def upload():
 
 @manuals_bp.route('/view/<int:manual_id>')
 @login_required
+@check_module_access('module_manuals')
 def view(manual_id):
     """View a manual (PDF in browser)."""
     manual = Manual.query.get_or_404(manual_id)
@@ -101,6 +105,7 @@ def view(manual_id):
 
 @manuals_bp.route('/download/<int:manual_id>')
 @login_required
+@check_module_access('module_manuals')
 def download(manual_id):
     """Download a manual."""
     manual = Manual.query.get_or_404(manual_id)
@@ -128,6 +133,7 @@ def download(manual_id):
 
 @manuals_bp.route('/delete/<int:manual_id>', methods=['POST'])
 @login_required
+@check_module_access('module_manuals')
 def delete(manual_id):
     """Delete a manual (admin only)."""
     if not current_user.is_admin:

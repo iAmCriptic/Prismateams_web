@@ -11,6 +11,7 @@ from datetime import datetime
 import logging
 import os
 import tempfile
+import json
 
 setup_bp = Blueprint('setup', __name__)
 
@@ -330,6 +331,24 @@ def setup_complete():
                 )
                 db.session.add(module_setting)
                 logging.info(f"Module setting created: {module_key}={enabled}")
+            
+            # Standardrollen speichern
+            default_roles = {}
+            if request.form.get('default_full_access') == 'on':
+                default_roles['full_access'] = True
+            else:
+                # Modulspezifische Standardrollen
+                for module_key in modules.keys():
+                    if request.form.get(f'default_{module_key}') == 'on':
+                        default_roles[module_key] = True
+            
+            default_roles_setting = SystemSettings(
+                key='default_module_roles',
+                value=json.dumps(default_roles),
+                description='Standardrollen für neue Benutzer'
+            )
+            db.session.add(default_roles_setting)
+            logging.info(f"Default roles setting created: {default_roles}")
             
             db.session.commit()
             logging.info("All data committed successfully")

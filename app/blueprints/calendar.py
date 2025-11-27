@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
 from app.models.user import User
+from app.utils.access_control import check_module_access
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import generate_ical_feed, import_events_from_ical
@@ -113,6 +114,7 @@ def generate_recurring_instances(master_event, start_date, end_date):
 
 @calendar_bp.route('/')
 @login_required
+@check_module_access('module_calendar')
 def index():
     """Calendar overview."""
     # Get all events
@@ -140,6 +142,7 @@ def index():
 
 @calendar_bp.route('/event/<int:event_id>')
 @login_required
+@check_module_access('module_calendar')
 def view_event(event_id):
     """View event details."""
     event = CalendarEvent.query.get_or_404(event_id)
@@ -151,16 +154,24 @@ def view_event(event_id):
         user_id=current_user.id
     ).first()
     
+    # Lade Buchungsanfrage falls vorhanden
+    booking_request = event.booking_request_obj if hasattr(event, 'booking_request_obj') else None
+    if not booking_request and event.booking_request_id:
+        from app.models.booking import BookingRequest
+        booking_request = BookingRequest.query.get(event.booking_request_id)
+    
     return render_template(
         'calendar/view.html',
         event=event,
         participants=participants,
-        user_participation=user_participation
+        user_participation=user_participation,
+        booking_request=booking_request
     )
 
 
 @calendar_bp.route('/create', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_calendar')
 def create_event():
     """Create a new event."""
     if request.method == 'POST':
@@ -244,6 +255,7 @@ def create_event():
 
 @calendar_bp.route('/edit/<int:event_id>', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_calendar')
 def edit_event(event_id):
     """Edit an event."""
     event = CalendarEvent.query.get_or_404(event_id)
@@ -313,6 +325,7 @@ def edit_event(event_id):
 
 @calendar_bp.route('/delete/<int:event_id>', methods=['POST'])
 @login_required
+@check_module_access('module_calendar')
 def delete_event(event_id):
     """Delete an event (admin only)."""
     if not current_user.is_admin:
@@ -337,6 +350,7 @@ def delete_event(event_id):
 
 @calendar_bp.route('/participate/<int:event_id>/<status>', methods=['POST'])
 @login_required
+@check_module_access('module_calendar')
 def set_participation(event_id, status):
     """Set user's participation status for an event."""
     if status not in ['accepted', 'declined']:
@@ -374,6 +388,7 @@ def set_participation(event_id, status):
 
 @calendar_bp.route('/remove-participant/<int:event_id>/<int:user_id>', methods=['POST'])
 @login_required
+@check_module_access('module_calendar')
 def remove_participant(event_id, user_id):
     """Remove a user from an event (admin only)."""
     if not current_user.is_admin:
@@ -399,6 +414,7 @@ def remove_participant(event_id, user_id):
 
 @calendar_bp.route('/api/events/<int:year>/<int:month>')
 @login_required
+@check_module_access('module_calendar')
 def get_events_for_month(year, month):
     """Get all events for a specific month."""
     # Get start and end dates for the month
@@ -478,6 +494,7 @@ def get_events_for_month(year, month):
 
 @calendar_bp.route('/api/events/range/<start_date>/<end_date>')
 @login_required
+@check_module_access('module_calendar')
 def get_events_for_range(start_date, end_date):
     """Get all events for a date range."""
     try:
@@ -557,6 +574,7 @@ def get_events_for_range(start_date, end_date):
 
 @calendar_bp.route('/recurring/<int:event_id>/delete-all', methods=['POST'])
 @login_required
+@check_module_access('module_calendar')
 def delete_recurring_event_all(event_id):
     """Delete master event and all instances (admin only)."""
     if not current_user.is_admin:
@@ -583,6 +601,7 @@ def delete_recurring_event_all(event_id):
 
 @calendar_bp.route('/recurring/<int:event_id>/instances')
 @login_required
+@check_module_access('module_calendar')
 def view_recurring_instances(event_id):
     """View all instances of a recurring event."""
     event = CalendarEvent.query.get_or_404(event_id)
@@ -640,6 +659,7 @@ def public_ical_feed(token):
 
 @calendar_bp.route('/feed/create', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_calendar')
 def create_feed():
     """Erstellt einen neuen öffentlichen iCal-Feed."""
     if request.method == 'POST':
@@ -671,6 +691,7 @@ def create_feed():
 
 @calendar_bp.route('/feed/manage')
 @login_required
+@check_module_access('module_calendar')
 def manage_feeds():
     """Übersicht aller erstellten Feeds."""
     feeds = PublicCalendarFeed.query.filter_by(created_by=current_user.id).all()
@@ -689,6 +710,7 @@ def manage_feeds():
 
 @calendar_bp.route('/feed/delete/<int:feed_id>', methods=['POST'])
 @login_required
+@check_module_access('module_calendar')
 def delete_feed(feed_id):
     """Löscht einen Feed."""
     feed = PublicCalendarFeed.query.get_or_404(feed_id)
@@ -707,6 +729,7 @@ def delete_feed(feed_id):
 
 @calendar_bp.route('/export')
 @login_required
+@check_module_access('module_calendar')
 def export_calendar():
     """Exportiert alle Events des Benutzers als iCal-Datei."""
     # Hole alle Events
@@ -728,6 +751,7 @@ def export_calendar():
 
 @calendar_bp.route('/import', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_calendar')
 def import_calendar():
     """Importiert Events aus einer iCal-Datei."""
     if request.method == 'POST':

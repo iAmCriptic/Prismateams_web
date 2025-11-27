@@ -6,6 +6,7 @@ from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, Wi
 from app.models.user import User
 from app.utils.markdown import process_markdown
 from app.utils.common import is_module_enabled
+from app.utils.access_control import check_module_access
 from datetime import datetime
 import os
 import re
@@ -25,6 +26,7 @@ def check_wiki_module():
 
 @wiki_bp.route('/')
 @login_required
+@check_module_access('module_wiki')
 def index():
     """Wiki Übersichtsseite mit Suche und Filter."""
     if not check_wiki_module():
@@ -102,6 +104,7 @@ def index():
 
 @wiki_bp.route('/view/<slug>')
 @login_required
+@check_module_access('module_wiki')
 def view(slug):
     """Wiki-Seite anzeigen."""
     if not check_wiki_module():
@@ -117,6 +120,7 @@ def view(slug):
 
 @wiki_bp.route('/create', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_wiki')
 def create():
     """Neue Wiki-Seite erstellen."""
     if not check_wiki_module():
@@ -204,6 +208,7 @@ def create():
 
 @wiki_bp.route('/edit/<slug>', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_wiki')
 def edit(slug):
     """Wiki-Seite bearbeiten."""
     if not check_wiki_module():
@@ -314,6 +319,7 @@ def edit(slug):
 
 @wiki_bp.route('/delete/<slug>', methods=['POST'])
 @login_required
+@check_module_access('module_wiki')
 def delete(slug):
     """Wiki-Seite löschen."""
     if not check_wiki_module():
@@ -339,6 +345,7 @@ def delete(slug):
 
 @wiki_bp.route('/history/<slug>')
 @login_required
+@check_module_access('module_wiki')
 def history(slug):
     """Versionshistorie einer Wiki-Seite anzeigen."""
     if not check_wiki_module():
@@ -354,6 +361,7 @@ def history(slug):
 
 @wiki_bp.route('/preview', methods=['POST'])
 @login_required
+@check_module_access('module_wiki')
 def preview():
     """Vorschau-Endpoint für Editor (nutzt gleiche Logik wie /view/)."""
     if not check_wiki_module():
@@ -367,6 +375,7 @@ def preview():
 
 @wiki_bp.route('/search')
 @login_required
+@check_module_access('module_wiki')
 def search():
     """Volltextsuche API."""
     if not check_wiki_module():
@@ -397,6 +406,7 @@ def search():
 
 @wiki_bp.route('/api/favorite/<int:page_id>', methods=['POST', 'DELETE'])
 @login_required
+@check_module_access('module_wiki')
 def toggle_favorite(page_id):
     """Wiki-Seite zu Favoriten hinzufügen oder entfernen."""
     if not check_wiki_module():
@@ -446,6 +456,7 @@ def toggle_favorite(page_id):
 
 @wiki_bp.route('/api/favorite/check/<int:page_id>', methods=['GET'])
 @login_required
+@check_module_access('module_wiki')
 def check_favorite(page_id):
     """Prüfe ob Wiki-Seite favorisiert ist."""
     if not check_wiki_module():

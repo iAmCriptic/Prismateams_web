@@ -26,17 +26,6 @@
                         <input type="text" class="form-control" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="z.B. Prismateams">
                         <div class="form-text">Der Name des Portals, der an verschiedenen Stellen angezeigt wird.</div>
                     </div>
-                    <hr class="my-4">
-                    <h5 class="mb-3">Datei-Einstellungen</h5>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_dropbox_enabled">Briefkästen aktivieren</label>
-                    </div>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_sharing_enabled">Freigaben aktivieren</label>
-                    </div>
-                    
                     <div class="mb-3">
                         <label for="portal_logo" class="form-label">Portalslogo</label>
                         {% if portal_logo %}
