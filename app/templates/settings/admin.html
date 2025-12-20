@@ -230,6 +230,22 @@
             </div>
         </div>
         {% endif %}
+        {% if is_module_enabled('module_music') %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-music-note-beamed text-success"></i>
+                        Musikmodul
+                    </h5>
+                    <p class="card-text">Spotify und YouTube Music verbinden und konfigurieren</p>
+                    <a href="{{ url_for('settings.admin_music') }}" class="btn btn-outline-primary">
+                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         <div class="col-12 col-md-6 col-lg-4">
             <div class="card h-100">
                 <div class="card-body">
@@ -238,7 +254,7 @@
                         Datei-Einstellungen
                     </h5>
                     <p class="card-text">Briefkästen und Freigaben aktivieren oder deaktivieren</p>
-                    <a href="{{ url_for('settings.admin_file_settings') }}" class="btn btn-outline-primary">
+                    <a href="{{ url_for('settings.admin_system') }}" class="btn btn-outline-primary">
                         {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>

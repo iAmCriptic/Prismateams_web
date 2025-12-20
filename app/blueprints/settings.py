@@ -1052,6 +1052,321 @@ def admin_toggle_borrow_permission(user_id):
     return redirect(url_for('settings.admin_inventory_permissions'))
 
 
+@settings_bp.route('/admin/music', methods=['GET', 'POST'])
+@login_required
+def admin_music():
+    """Musikmodul-Einstellungen (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.music import MusicSettings, MusicProviderToken
+    from app.utils.music_oauth import is_provider_connected
+    
+    if request.method == 'POST':
+        # Speichere OAuth-Credentials
+        spotify_client_id = request.form.get('spotify_client_id', '').strip()
+        spotify_client_secret = request.form.get('spotify_client_secret', '').strip()
+        youtube_client_id = request.form.get('youtube_client_id', '').strip()
+        youtube_client_secret = request.form.get('youtube_client_secret', '').strip()
+        
+        # Spotify Settings
+        spotify_id_setting = MusicSettings.query.filter_by(key='spotify_client_id').first()
+        if spotify_id_setting:
+            spotify_id_setting.value = spotify_client_id
+        else:
+            spotify_id_setting = MusicSettings(key='spotify_client_id', value=spotify_client_id, description='Spotify OAuth Client ID')
+            db.session.add(spotify_id_setting)
+        
+        spotify_secret_setting = MusicSettings.query.filter_by(key='spotify_client_secret').first()
+        if spotify_secret_setting:
+            spotify_secret_setting.value = spotify_client_secret
+        else:
+            spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify OAuth Client Secret')
+            db.session.add(spotify_secret_setting)
+        
+        # YouTube Settings
+        youtube_id_setting = MusicSettings.query.filter_by(key='youtube_client_id').first()
+        if youtube_id_setting:
+            youtube_id_setting.value = youtube_client_id
+        else:
+            youtube_id_setting = MusicSettings(key='youtube_client_id', value=youtube_client_id, description='YouTube OAuth Client ID')
+            db.session.add(youtube_id_setting)
+        
+        youtube_secret_setting = MusicSettings.query.filter_by(key='youtube_client_secret').first()
+        if youtube_secret_setting:
+            youtube_secret_setting.value = youtube_client_secret
+        else:
+            youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret')
+            db.session.add(youtube_secret_setting)
+        
+        db.session.commit()
+        flash('Musikmodul-Einstellungen wurden gespeichert.', 'success')
+        return redirect(url_for('settings.admin_music'))
+    
+    # GET: Zeige Einstellungsseite
+    spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
+    spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
+    youtube_client_id = MusicSettings.query.filter_by(key='youtube_client_id').first()
+    youtube_client_secret = MusicSettings.query.filter_by(key='youtube_client_secret').first()
+    
+    # Prüfe Verbindungsstatus für aktuellen Benutzer
+    spotify_connected = is_provider_connected(current_user.id, 'spotify')
+    youtube_connected = is_provider_connected(current_user.id, 'youtube')
+    
+    # Redirect URIs
+    spotify_redirect_uri = url_for('music.spotify_callback', _external=True)
+    youtube_redirect_uri = url_for('music.youtube_callback', _external=True)
+    
+    return render_template('settings/admin_music.html',
+                         spotify_client_id=spotify_client_id.value if spotify_client_id else '',
+                         spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
+                         youtube_client_id=youtube_client_id.value if youtube_client_id else '',
+                         youtube_client_secret=youtube_client_secret.value if youtube_client_secret else '',
+                         spotify_connected=spotify_connected,
+                         youtube_connected=youtube_connected,
+                         spotify_redirect_uri=spotify_redirect_uri,
+                         youtube_redirect_uri=youtube_redirect_uri)
+
+
+@settings_bp.route('/admin/roles')
+@login_required
+def admin_roles():
+    """Rollenverwaltung - Übersicht aller Benutzer mit ihren Rollen (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.role import UserModuleRole
+    
+    # Liste aller Module
+    all_modules = [
+        ('module_chat', 'Chat'),
+        ('module_files', 'Dateien'),
+        ('module_calendar', 'Kalender'),
+        ('module_email', 'E-Mail'),
+        ('module_credentials', 'Zugangsdaten'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_canvas', 'Canvas'),
+        ('module_inventory', 'Lagerverwaltung'),
+        ('module_wiki', 'Wiki'),
+        ('module_booking', 'Buchungen')
+    ]
+    
+    # Hole alle aktiven Benutzer
+    users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
+    
+    # Erstelle Liste mit Benutzer-Rollen-Informationen
+    users_with_roles = []
+    for user in users:
+        # Hole Modul-Rollen für diesen Benutzer
+        module_roles = {}
+        user_module_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
+        for role in user_module_roles:
+            module_roles[role.module_key] = role.has_access
+        
+        users_with_roles.append({
+            'user': user,
+            'has_full_access': user.has_full_access,
+            'module_roles': module_roles
+        })
+    
+    return render_template('settings/admin_roles.html',
+                         users_with_roles=users_with_roles,
+                         all_modules=all_modules)
+
+
+@settings_bp.route('/admin/roles/user/<int:user_id>')
+@login_required
+def admin_roles_user(user_id):
+    """Zeige Rollen für einen bestimmten Benutzer (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.role import UserModuleRole
+    from app.models.booking import BookingFormRole, BookingFormRoleUser, BookingForm
+    from flask import jsonify
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Prüfe ob JSON-Format angefordert wird
+    if request.args.get('format') == 'json':
+        # Lade Modul-Rollen
+        module_roles = {}
+        user_module_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
+        for role in user_module_roles:
+            module_roles[role.module_key] = role.has_access
+        
+        # Lade Buchungsrollen
+        booking_roles = []
+        all_booking_roles = BookingFormRole.query.join(BookingForm).all()
+        for role in all_booking_roles:
+            # Prüfe ob Benutzer dieser Rolle zugeordnet ist
+            assignment = BookingFormRoleUser.query.filter_by(
+                role_id=role.id,
+                user_id=user.id
+            ).first()
+            
+            booking_roles.append({
+                'role_id': role.id,
+                'role_name': role.role_name,
+                'form_id': role.form_id,
+                'form_title': role.form.title,
+                'form_is_active': role.form.is_active,
+                'is_required': role.is_required,
+                'is_assigned': assignment is not None
+            })
+        
+        return jsonify({
+            'has_full_access': user.has_full_access,
+            'module_roles': module_roles,
+            'booking_roles': booking_roles
+        })
+    
+    # HTML-Ansicht (falls benötigt)
+    return redirect(url_for('settings.admin_users'))
+
+
+@settings_bp.route('/admin/roles/user/<int:user_id>/update', methods=['POST'])
+@login_required
+def admin_roles_user_update(user_id):
+    """Aktualisiere Rollen für einen bestimmten Benutzer (admin only)."""
+    if not current_user.is_admin:
+        from flask import jsonify
+        return jsonify({'success': False, 'error': 'Nicht autorisiert'}), 403
+    
+    from app.models.role import UserModuleRole
+    from app.models.booking import BookingFormRoleUser
+    from flask import jsonify
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Super-Admins können nicht geändert werden
+    if user.is_super_admin:
+        return jsonify({'success': False, 'error': 'Hauptadministrator-Rollen können nicht geändert werden'}), 400
+    
+    try:
+        # Aktualisiere Vollzugriff
+        user.has_full_access = request.form.get('has_full_access') == 'on'
+        
+        # Liste aller Module
+        all_modules = [
+            'module_chat', 'module_files', 'module_calendar', 'module_email',
+            'module_credentials', 'module_manuals', 'module_canvas',
+            'module_inventory', 'module_wiki', 'module_booking'
+        ]
+        
+        # Aktualisiere Modul-Rollen
+        if not user.has_full_access:
+            # Lösche alle bestehenden Modul-Rollen
+            UserModuleRole.query.filter_by(user_id=user.id).delete()
+            
+            # Erstelle neue Modul-Rollen
+            for module_key in all_modules:
+                if request.form.get(module_key) == 'on':
+                    role = UserModuleRole(
+                        user_id=user.id,
+                        module_key=module_key,
+                        has_access=True
+                    )
+                    db.session.add(role)
+        else:
+            # Bei Vollzugriff: Lösche alle Modul-Rollen
+            UserModuleRole.query.filter_by(user_id=user.id).delete()
+        
+        # Aktualisiere Buchungsrollen
+        # Lösche alle bestehenden Buchungsrollen-Zuordnungen
+        BookingFormRoleUser.query.filter_by(user_id=user.id).delete()
+        
+        # Füge neue Buchungsrollen-Zuordnungen hinzu
+        booking_role_ids = request.form.getlist('booking_role')
+        for role_id in booking_role_ids:
+            try:
+                role_id_int = int(role_id)
+                assignment = BookingFormRoleUser(
+                    role_id=role_id_int,
+                    user_id=user.id
+                )
+                db.session.add(assignment)
+            except ValueError:
+                continue  # Ignoriere ungültige IDs
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Fehler beim Aktualisieren der Rollen: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@settings_bp.route('/admin/roles/default', methods=['GET', 'POST'])
+@login_required
+def admin_roles_default():
+    """Konfiguriere Standardrollen für neue Benutzer (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    import json
+    from app.utils.common import is_module_enabled
+    
+    # Liste aller Module
+    all_modules = [
+        ('module_chat', 'Chat'),
+        ('module_files', 'Dateien'),
+        ('module_calendar', 'Kalender'),
+        ('module_email', 'E-Mail'),
+        ('module_credentials', 'Zugangsdaten'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_canvas', 'Canvas'),
+        ('module_inventory', 'Lagerverwaltung'),
+        ('module_wiki', 'Wiki'),
+        ('module_booking', 'Buchungen')
+    ]
+    
+    if request.method == 'POST':
+        # Sammle Standardrollen-Einstellungen
+        default_roles = {
+            'full_access': request.form.get('default_full_access') == 'on'
+        }
+        
+        # Modulspezifische Rollen
+        for module_key, _ in all_modules:
+            default_roles[module_key] = request.form.get(f'default_{module_key}') == 'on'
+        
+        # Speichere in SystemSettings
+        default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+        if default_roles_setting:
+            default_roles_setting.value = json.dumps(default_roles)
+        else:
+            default_roles_setting = SystemSettings(
+                key='default_module_roles',
+                value=json.dumps(default_roles),
+                description='Standardrollen für neue Benutzer'
+            )
+            db.session.add(default_roles_setting)
+        
+        db.session.commit()
+        flash('Standardrollen wurden erfolgreich gespeichert.', 'success')
+        return redirect(url_for('settings.admin_roles_default'))
+    
+    # GET: Lade aktuelle Standardrollen
+    default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+    if default_roles_setting and default_roles_setting.value:
+        try:
+            default_roles = json.loads(default_roles_setting.value)
+        except:
+            default_roles = {}
+    else:
+        default_roles = {}
+    
+    return render_template('settings/admin_roles_default.html', 
+                         default_roles=default_roles,
+                         all_modules=all_modules)
+
+
 @settings_bp.route('/about')
 @login_required
 def about():

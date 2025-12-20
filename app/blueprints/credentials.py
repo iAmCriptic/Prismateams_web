@@ -13,15 +13,25 @@ credentials_bp = Blueprint('credentials', __name__)
 
 def get_encryption_key():
     """Get or create encryption key for credentials."""
+    # Versuche zuerst aus Umgebungsvariable zu lesen
+    key = os.environ.get('CREDENTIAL_ENCRYPTION_KEY')
+    if key:
+        # Wenn als String, in Bytes konvertieren
+        if isinstance(key, str):
+            return key.encode('utf-8')
+        return key
+    
+    # Fallback: Versuche aus Datei zu lesen (für Migration)
     key_file = 'credential_key.key'
     if os.path.exists(key_file):
         with open(key_file, 'rb') as f:
             return f.read()
-    else:
-        key = Fernet.generate_key()
-        with open(key_file, 'wb') as f:
-            f.write(key)
-        return key
+    
+    # Wenn nichts gefunden, generiere neuen Key (nur für Entwicklung)
+    # In Produktion sollte der Key immer in .env gesetzt sein
+    key = Fernet.generate_key()
+    print("WARNUNG: CREDENTIAL_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei.")
+    return key
 
 
 def get_favicon_url(website_url):

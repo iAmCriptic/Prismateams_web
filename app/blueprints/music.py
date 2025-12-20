@@ -53,17 +53,31 @@ def public_wishlist():
         if not all([provider, track_id, title]):
             return jsonify({'error': 'Fehlende Daten'}), 400
         
-        # Prüfe ob Lied bereits in Wunschliste ist
+        # Prüfe ob Lied bereits existiert (beliebiger Status)
         existing = MusicWish.query.filter_by(
             provider=provider,
-            track_id=track_id,
-            status='pending'
+            track_id=track_id
         ).first()
         
         if existing:
-            return jsonify({'error': 'Lied ist bereits in der Wunschliste'}), 400
+            # Lied existiert bereits - erhöhe Wunschzähler
+            existing.wish_count += 1
+            existing.updated_at = datetime.utcnow()
+            # Status bleibt unverändert (played bleibt played, pending bleibt pending, etc.)
+            db.session.commit()
+            
+            # WebSocket-Update senden
+            socketio.emit('music:wish_added', {
+                'wish_id': existing.id,
+                'title': existing.title,
+                'artist': existing.artist,
+                'provider': existing.provider,
+                'wish_count': existing.wish_count
+            }, namespace='/')
+            
+            return jsonify({'success': True, 'message': f'Wunschzähler erhöht ({existing.wish_count}x gewünscht)'})
         
-        # Erstelle Wunsch
+        # Erstelle neuen Wunsch
         wish = MusicWish(
             title=title,
             artist=artist or '',
@@ -73,7 +87,8 @@ def public_wishlist():
             image_url=image_url or '',
             duration_ms=int(duration_ms) if duration_ms and duration_ms.isdigit() else None,
             added_by_name=request.form.get('added_by_name', '').strip() or None,
-            status='pending'
+            status='pending',
+            wish_count=1
         )
         
         db.session.add(wish)
@@ -84,7 +99,8 @@ def public_wishlist():
             'wish_id': wish.id,
             'title': wish.title,
             'artist': wish.artist,
-            'provider': wish.provider
+            'provider': wish.provider,
+            'wish_count': wish.wish_count
         }, namespace='/')
         
         return jsonify({'success': True, 'message': 'Lied zur Wunschliste hinzugefügt'})
@@ -143,10 +159,14 @@ def index():
     # Hole aktuell spielendes Lied
     playing = MusicQueue.query.filter_by(status='playing').first()
     
+    # Hole bereits gespielte Lieder
+    played_wishes = MusicWish.query.filter_by(status='played').order_by(MusicWish.updated_at.desc()).all()
+    
     return render_template('music/index.html',
                          wishes=wishes,
                          queue=queue,
-                         playing=playing)
+                         playing=playing,
+                         played_wishes=played_wishes)
 
 
 @music_bp.route('/wishlist/add-to-queue', methods=['POST'])
@@ -264,14 +284,19 @@ def move_queue_item():
 @login_required
 @check_module_access('module_music')
 def remove_from_queue():
-    """Entfernt ein Lied aus der Warteschlange."""
+    """Entfernt ein Lied aus der Warteschlange und setzt Status auf 'played'."""
     queue_id = request.json.get('queue_id')
     
     queue_entry = MusicQueue.query.get_or_404(queue_id)
     wish = queue_entry.wish
     
-    # Setze Wish-Status zurück
-    wish.status = 'pending'
+    # Setze Wish-Status auf 'played' (nicht löschen)
+    wish.status = 'played'
+    wish.updated_at = datetime.utcnow()
+    
+    # Setze played_at Datum im Queue-Eintrag, falls vorhanden
+    if hasattr(queue_entry, 'played_at'):
+        queue_entry.played_at = datetime.utcnow()
     
     # Entferne aus Queue
     db.session.delete(queue_entry)
@@ -299,11 +324,14 @@ def remove_from_queue():
 @login_required
 @check_module_access('module_music')
 def clear_queue():
-    """Löscht die gesamte Warteschlange."""
+    """Löscht die gesamte Warteschlange und setzt Status der Wünsche auf 'played'."""
     queue_entries = MusicQueue.query.filter_by(status='pending').all()
     
     for entry in queue_entries:
-        entry.wish.status = 'pending'
+        entry.wish.status = 'played'
+        entry.wish.updated_at = datetime.utcnow()
+        if hasattr(entry, 'played_at'):
+            entry.played_at = datetime.utcnow()
         db.session.delete(entry)
     
     db.session.commit()
@@ -320,7 +348,7 @@ def clear_queue():
 @login_required
 @check_module_access('module_music')
 def clear_wishlist():
-    """Löscht die gesamte Wunschliste."""
+    """Löscht nur Wünsche mit Status 'pending'. Bereits gespielte Lieder bleiben erhalten."""
     wishes = MusicWish.query.filter_by(status='pending').all()
     
     for wish in wishes:

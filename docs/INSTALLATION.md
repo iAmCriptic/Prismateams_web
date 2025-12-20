@@ -34,9 +34,17 @@ copy env.example .env
 # Linux/Mac:
 cp env.example .env
 
+# Generiere Verschlüsselungsschlüssel
+# Windows:
+python scripts/generate_encryption_keys.py
+# Linux/Mac:
+python3 scripts/generate_encryption_keys.py
+
 # Bearbeite .env und setze mindestens:
-# - SECRET_KEY (generiere einen sicheren Schlüssel)
+# - SECRET_KEY (generiere einen sicheren Schlüssel, z.B. mit: openssl rand -hex 32)
 # - DATABASE_URI (für SQLite: sqlite:///teamportal.db)
+# - CREDENTIAL_ENCRYPTION_KEY (aus dem Script kopieren)
+# - MUSIC_ENCRYPTION_KEY (aus dem Script kopieren)
 ```
 
 ### 4. Datenbank-Setup (Entwicklung)
@@ -255,6 +263,11 @@ curl http://localhost:8082/
 # .env erstellen
 cd /var/www/teamportal
 sudo cp docs/env.example .env
+
+# Generiere Verschlüsselungsschlüssel
+sudo -u www-data bash -c "source venv/bin/activate && python scripts/generate_encryption_keys.py"
+
+# Bearbeite .env
 sudo nano .env
 ```
 
@@ -267,6 +280,10 @@ FLASK_ENV=production
 
 # Database Configuration
 DATABASE_URI=mysql+pymysql://teamportal:IhrSicheresPasswort123!@localhost/teamportal
+
+# Encryption Keys (aus generate_encryption_keys.py kopieren)
+CREDENTIAL_ENCRYPTION_KEY=your-credential-encryption-key-here
+MUSIC_ENCRYPTION_KEY=your-music-encryption-key-here
 
 # ONLYOFFICE Configuration (OPTIONAL)
 # Setzen Sie ONLYOFFICE_ENABLED=False, wenn OnlyOffice NICHT installiert ist
@@ -302,6 +319,8 @@ SESSION_COOKIE_SAMESITE=Lax
 **Wichtige Hinweise zur Konfiguration:**
 
 - **SECRET_KEY:** Generieren Sie einen sicheren Schlüssel (z.B. mit `openssl rand -hex 32`)
+- **CREDENTIAL_ENCRYPTION_KEY:** Kopieren Sie den Key aus der Ausgabe von `generate_encryption_keys.py`
+- **MUSIC_ENCRYPTION_KEY:** Kopieren Sie den Key aus der Ausgabe von `generate_encryption_keys.py`
 - **ONLYOFFICE_ENABLED:** 
   - Setzen Sie auf `True`, wenn OnlyOffice installiert ist (Schritt 5)
   - Setzen Sie auf `False`, wenn OnlyOffice NICHT installiert ist
@@ -309,6 +328,11 @@ SESSION_COOKIE_SAMESITE=Lax
   - Setzen Sie auf `True`, wenn Excalidraw installiert ist (Schritt 6)
   - Setzen Sie auf `False`, wenn Excalidraw NICHT installiert ist
 - **ONLYOFFICE_SECRET_KEY:** Muss mit dem JWT_SECRET übereinstimmen, den Sie in Schritt 5 gesetzt haben (oder leer lassen, wenn ohne JWT)
+
+**Wichtig zu den Encryption Keys:**
+- Die Keys werden verwendet, um sensible Daten zu verschlüsseln (Passwörter im Credentials-Modul, OAuth-Tokens im Music-Modul)
+- Wenn Sie die Keys ändern, können bereits verschlüsselte Daten nicht mehr entschlüsselt werden
+- Bewahren Sie die Keys sicher auf und teilen Sie sie niemals öffentlich
 
 ### Schritt 8: Berechtigungen setzen
 

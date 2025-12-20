@@ -53,6 +53,7 @@ class MusicWish(db.Model):
     duration_ms = db.Column(db.Integer, nullable=True)
     added_by_name = db.Column(db.String(255), nullable=True)  # Anonym, optional
     status = db.Column(db.String(20), default='pending', nullable=False)  # pending, in_queue, played
+    wish_count = db.Column(db.Integer, default=1, nullable=False)  # Anzahl der Wünsche für dieses Lied
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

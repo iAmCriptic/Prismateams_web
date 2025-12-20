@@ -1,21 +1,48 @@
 import requests
 from flask import url_for, session
 from app import db
-from app.models.music import MusicProviderToken
+from app.models.music import MusicProviderToken, MusicSettings
 from cryptography.fernet import Fernet
 import os
 import base64
 from datetime import datetime, timedelta
 
 
+def get_music_setting(key, default=None):
+    """Holt eine Musik-Einstellung aus MusicSettings oder Fallback."""
+    from flask import current_app
+    
+    # Versuche zuerst aus MusicSettings
+    setting = MusicSettings.query.filter_by(key=key).first()
+    if setting and setting.value:
+        return setting.value
+    
+    # Fallback zu config oder Umgebungsvariable
+    config_key = key.upper()
+    return current_app.config.get(config_key) or os.environ.get(config_key) or default
+
+
 def get_encryption_key():
     """Holt oder erstellt den Verschlüsselungsschlüssel."""
+    # Versuche zuerst aus Umgebungsvariable zu lesen
     key = os.environ.get('MUSIC_ENCRYPTION_KEY')
-    if not key:
-        # Generiere einen neuen Schlüssel (sollte in Produktion aus Umgebungsvariable kommen)
-        key = Fernet.generate_key().decode()
-        os.environ['MUSIC_ENCRYPTION_KEY'] = key
-    return key.encode() if isinstance(key, str) else key
+    if key:
+        # Wenn als String, in Bytes konvertieren
+        if isinstance(key, str):
+            return key.encode('utf-8')
+        return key
+    
+    # Fallback: Versuche aus Datei zu lesen (für Migration)
+    key_file = 'music_token_key.key'
+    if os.path.exists(key_file):
+        with open(key_file, 'rb') as f:
+            return f.read()
+    
+    # Wenn nichts gefunden, generiere neuen Key (nur für Entwicklung)
+    # In Produktion sollte der Key immer in .env gesetzt sein
+    key = Fernet.generate_key()
+    print("WARNUNG: MUSIC_ENCRYPTION_KEY nicht in .env gefunden! Bitte setzen Sie den Key in der .env-Datei.")
+    return key
 
 
 def encrypt_token(token):
@@ -34,8 +61,9 @@ def decrypt_token(encrypted_token):
 
 def get_spotify_oauth_url():
     """Generiert die Spotify OAuth URL."""
-    from flask import current_app
-    client_id = current_app.config.get('SPOTIFY_CLIENT_ID') or os.environ.get('SPOTIFY_CLIENT_ID')
+    client_id = get_music_setting('spotify_client_id')
+    if not client_id:
+        raise Exception("Spotify Client ID nicht konfiguriert. Bitte in den Einstellungen konfigurieren.")
     redirect_uri = url_for('music.spotify_callback', _external=True)
     scope = 'user-read-private user-read-email user-read-playback-state user-modify-playback-state user-read-currently-playing'
     state = os.urandom(16).hex()
@@ -47,8 +75,9 @@ def get_spotify_oauth_url():
 
 def get_youtube_oauth_url():
     """Generiert die YouTube OAuth URL."""
-    from flask import current_app
-    client_id = current_app.config.get('YOUTUBE_CLIENT_ID') or os.environ.get('YOUTUBE_CLIENT_ID')
+    client_id = get_music_setting('youtube_client_id')
+    if not client_id:
+        raise Exception("YouTube Client ID nicht konfiguriert. Bitte in den Einstellungen konfigurieren.")
     redirect_uri = url_for('music.youtube_callback', _external=True)
     scope = 'https://www.googleapis.com/auth/youtube.readonly'
     state = os.urandom(16).hex()
@@ -60,15 +89,17 @@ def get_youtube_oauth_url():
 
 def handle_spotify_callback(code, state):
     """Verarbeitet den Spotify OAuth Callback."""
-    from flask import current_app, session
+    from flask import session
     from flask_login import current_user
     
     # Validiere State
     if state != session.get('spotify_oauth_state'):
         raise Exception("Ungültiger State-Parameter")
     
-    client_id = current_app.config.get('SPOTIFY_CLIENT_ID') or os.environ.get('SPOTIFY_CLIENT_ID')
-    client_secret = current_app.config.get('SPOTIFY_CLIENT_SECRET') or os.environ.get('SPOTIFY_CLIENT_SECRET')
+    client_id = get_music_setting('spotify_client_id')
+    client_secret = get_music_setting('spotify_client_secret')
+    if not client_id or not client_secret:
+        raise Exception("Spotify Credentials nicht konfiguriert. Bitte in den Einstellungen konfigurieren.")
     redirect_uri = url_for('music.spotify_callback', _external=True)
     
     # Tausche Code gegen Token
@@ -112,15 +143,17 @@ def handle_spotify_callback(code, state):
 
 def handle_youtube_callback(code, state):
     """Verarbeitet den YouTube OAuth Callback."""
-    from flask import current_app, session
+    from flask import session
     from flask_login import current_user
     
     # Validiere State
     if state != session.get('youtube_oauth_state'):
         raise Exception("Ungültiger State-Parameter")
     
-    client_id = current_app.config.get('YOUTUBE_CLIENT_ID') or os.environ.get('YOUTUBE_CLIENT_ID')
-    client_secret = current_app.config.get('YOUTUBE_CLIENT_SECRET') or os.environ.get('YOUTUBE_CLIENT_SECRET')
+    client_id = get_music_setting('youtube_client_id')
+    client_secret = get_music_setting('youtube_client_secret')
+    if not client_id or not client_secret:
+        raise Exception("YouTube Credentials nicht konfiguriert. Bitte in den Einstellungen konfigurieren.")
     redirect_uri = url_for('music.youtube_callback', _external=True)
     
     # Tausche Code gegen Token
@@ -170,11 +203,11 @@ def refresh_token_if_needed(token_obj):
     if not token_obj.refresh_token:
         raise Exception("Kein Refresh-Token verfügbar")
     
-    from flask import current_app
-    
     if token_obj.provider == 'spotify':
-        client_id = current_app.config.get('SPOTIFY_CLIENT_ID') or os.environ.get('SPOTIFY_CLIENT_ID')
-        client_secret = current_app.config.get('SPOTIFY_CLIENT_SECRET') or os.environ.get('SPOTIFY_CLIENT_SECRET')
+        client_id = get_music_setting('spotify_client_id')
+        client_secret = get_music_setting('spotify_client_secret')
+        if not client_id or not client_secret:
+            raise Exception("Spotify Credentials nicht konfiguriert.")
         
         response = requests.post(
             'https://accounts.spotify.com/api/token',
@@ -195,8 +228,10 @@ def refresh_token_if_needed(token_obj):
         token_obj.token_expires_at = datetime.utcnow() + timedelta(seconds=token_data.get('expires_in', 3600))
         
     elif token_obj.provider == 'youtube':
-        client_id = current_app.config.get('YOUTUBE_CLIENT_ID') or os.environ.get('YOUTUBE_CLIENT_ID')
-        client_secret = current_app.config.get('YOUTUBE_CLIENT_SECRET') or os.environ.get('YOUTUBE_CLIENT_SECRET')
+        client_id = get_music_setting('youtube_client_id')
+        client_secret = get_music_setting('youtube_client_secret')
+        if not client_id or not client_secret:
+            raise Exception("YouTube Credentials nicht konfiguriert.")
         
         response = requests.post(
             'https://oauth2.googleapis.com/token',

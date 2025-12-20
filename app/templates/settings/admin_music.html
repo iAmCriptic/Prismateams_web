@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Musikmodul-Einstellungen - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Musikmodul-Einstellungen</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-music-note-beamed"></i> Musikmodul-Einstellungen</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <h5 class="mb-3">Spotify OAuth-Konfiguration</h5>
+                    
+                    <div class="mb-3">
+                        <label for="spotify_client_id" class="form-label">Spotify Client ID</label>
+                        <input type="text" class="form-control" id="spotify_client_id" name="spotify_client_id" 
+                               value="{{ spotify_client_id }}" placeholder="Ihre Spotify Client ID">
+                        <div class="form-text">Erhalten Sie diese von <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer Dashboard</a></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="spotify_client_secret" class="form-label">Spotify Client Secret</label>
+                        <input type="password" class="form-control" id="spotify_client_secret" name="spotify_client_secret" 
+                               value="{{ spotify_client_secret }}" placeholder="Ihr Spotify Client Secret">
+                    </div>
+                    
+                    <div class="alert alert-info alert-permanent" role="alert">
+                        <strong>Redirect URI:</strong> <code>{{ spotify_redirect_uri }}</code><br>
+                        <small>Fügen Sie diese URL in Ihrem Spotify Developer Dashboard als Redirect URI hinzu.</small>
+                    </div>
+                    
+                    {% if spotify_connected %}
+                    <div class="alert alert-success alert-permanent" role="alert">
+                        <i class="bi bi-check-circle"></i> Spotify ist mit Ihrem Account verbunden.
+                        <a href="{{ url_for('music.disconnect', provider='spotify') }}" class="btn btn-sm btn-outline-danger ms-2">Trennen</a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning alert-permanent" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> Spotify ist nicht verbunden.
+                        <a href="{{ url_for('music.connect_spotify') }}" class="btn btn-sm btn-outline-primary ms-2">Verbinden</a>
+                    </div>
+                    {% endif %}
+                    
+                    <hr class="my-4">
+                    
+                    <h5 class="mb-3">YouTube Music OAuth-Konfiguration</h5>
+                    
+                    <div class="mb-3">
+                        <label for="youtube_client_id" class="form-label">YouTube Client ID</label>
+                        <input type="text" class="form-control" id="youtube_client_id" name="youtube_client_id" 
+                               value="{{ youtube_client_id }}" placeholder="Ihre YouTube Client ID">
+                        <div class="form-text">Erhalten Sie diese von <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="youtube_client_secret" class="form-label">YouTube Client Secret</label>
+                        <input type="password" class="form-control" id="youtube_client_secret" name="youtube_client_secret" 
+                               value="{{ youtube_client_secret }}" placeholder="Ihr YouTube Client Secret">
+                    </div>
+                    
+                    <div class="alert alert-info alert-permanent" role="alert">
+                        <strong>Redirect URI:</strong> <code>{{ youtube_redirect_uri }}</code><br>
+                        <small>Fügen Sie diese URL in Ihrer Google Cloud Console als autorisierte Redirect URI hinzu.</small>
+                    </div>
+                    
+                    {% if youtube_connected %}
+                    <div class="alert alert-success alert-permanent" role="alert">
+                        <i class="bi bi-check-circle"></i> YouTube Music ist mit Ihrem Account verbunden.
+                        <a href="{{ url_for('music.disconnect', provider='youtube') }}" class="btn btn-sm btn-outline-danger ms-2">Trennen</a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning alert-permanent" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> YouTube Music ist nicht verbunden.
+                        <a href="{{ url_for('music.connect_youtube') }}" class="btn btn-sm btn-outline-primary ms-2">Verbinden</a>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Einstellungen speichern
+                        </button>
+                        <a href="{{ url_for('settings.admin') }}" class="btn btn-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
