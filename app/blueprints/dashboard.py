@@ -191,7 +191,8 @@ def edit():
             'email': 'email',
             'inventory': 'inventory',
             'wiki': 'wiki',
-            'booking': 'booking'
+            'booking': 'booking',
+            'music': 'music'
         }
         for link_key, link_value in available_links.items():
             if request.form.get(f'link_{link_key}') == 'on':

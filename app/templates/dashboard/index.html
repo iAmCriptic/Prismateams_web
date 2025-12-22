@@ -442,7 +442,8 @@
                         'email': {'url': url_for('email.index'), 'icon': 'bi-envelope', 'label_key': 'layout.nav.email', 'module': 'module_email'},
                         'inventory': {'url': url_for('inventory.dashboard'), 'icon': 'bi-box-seam', 'label_key': 'layout.nav.inventory', 'module': 'module_inventory'},
                         'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'},
-                        'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'}
+                        'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'},
+                        'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'}
                     } %}
                     {% for link_key in quick_access_links %}
                         {% if link_key in link_map %}

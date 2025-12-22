@@ -145,6 +145,11 @@
         "return_by": "Return by {date}",
         "return_button": "Return",
         "empty": "No active loans"
+      },
+      "bookings": {
+        "title": "Bookings",
+        "empty": "No pending bookings",
+        "more_indicator": "and {count} more"
       }
     },
     "quick_access": {
@@ -205,7 +210,9 @@
           "manuals": "Manuals",
           "canvas": "Canvas",
           "inventory": "Inventory",
-          "wiki": "Wiki"
+          "wiki": "Wiki",
+          "booking": "Bookings",
+          "music": "Music"
         }
       }
     }

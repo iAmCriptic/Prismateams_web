@@ -145,6 +145,11 @@
         "return_by": "Rückgabe: {date}",
         "return_button": "Zurückgeben",
         "empty": "Keine aktiven Ausleihen"
+      },
+      "bookings": {
+        "title": "Buchungen",
+        "empty": "Keine ausstehenden Buchungen",
+        "more_indicator": "und {count} weitere"
       }
     },
     "quick_access": {
@@ -205,7 +210,9 @@
           "manuals": "Anleitungen",
           "canvas": "Canvas",
           "inventory": "Lagerverwaltung",
-          "wiki": "Wiki"
+          "wiki": "Wiki",
+          "booking": "Buchungen",
+          "music": "Musik"
         }
       }
     }
