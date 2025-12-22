@@ -800,8 +800,6 @@ def create_app(config_name='default'):
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
     
-    from app.blueprints import canvas
-    
     return app
 
 

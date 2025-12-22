@@ -463,6 +463,28 @@
       "breadcrumb_settings": "Settings",
       "breadcrumb_admin": "Administration",
       "heading": "Administration",
+      "admin_modules": {
+        "page_title": "Modules - Administration",
+        "breadcrumb_settings": "Settings",
+        "breadcrumb_admin": "Administration",
+        "breadcrumb_modules": "Modules",
+        "heading": "Manage Modules",
+        "description": "Enable or disable modules for all users. Disabled modules will be hidden in the navigation.",
+        "module_booking": "Bookings",
+        "module_music": "Music",
+        "save": "Save changes",
+        "cancel": "Back",
+        "flash_updated": "Module settings have been updated."
+      },
+      "users": {
+        "page_title": "User Management - Administration",
+        "breadcrumb_settings": "Settings",
+        "breadcrumb_admin": "Administration",
+        "breadcrumb_users": "User Management",
+        "heading": "User Management",
+        "configure_default_roles": "Configure Default Roles",
+        "flash_unauthorized": "Only administrators have access to this page."
+      },
       "sections": {
         "users": {
           "title": "User management"
@@ -524,7 +546,42 @@
         "inventory_permissions": {
           "title": "Borrow permissions",
           "description": "Manage item borrowing permissions"
+        },
+        "file_settings": {
+          "title": "File Settings",
+          "description": "Enable or disable mailboxes and shares"
         }
+      },
+      "file_settings": {
+        "page_title": "File Settings - Administration",
+        "breadcrumb_file_settings": "File Settings",
+        "heading": "File Settings",
+        "section_title": "File Functions",
+        "dropbox_label": "Enable Mailboxes",
+        "dropbox_help": "Allows creating mailboxes (upload-only folders) for bookings and other purposes.",
+        "sharing_label": "Enable Shares",
+        "sharing_help": "Allows creating shared folders for bookings and other purposes.",
+        "save_button": "Save Changes",
+        "flash_updated": "File settings have been updated.",
+        "flash_unauthorized": "Only administrators have access to this page."
+      },
+      "system": {
+        "page_title": "System Settings - Administration",
+        "breadcrumb_system": "System Settings",
+        "heading": "System Settings",
+        "section_title": "Portal Settings",
+        "portal_name_label": "Portal Name",
+        "portal_name_placeholder": "e.g. Prismateams",
+        "portal_name_help": "The name of the portal that is displayed in various places.",
+        "portal_logo_label": "Portal Logo",
+        "current_logo": "Current Logo",
+        "portal_logo_help": "Logo for the portal (PNG, JPG, JPEG, GIF or SVG, max. 5MB)",
+        "save_button": "Save Changes",
+        "back_button": "Back",
+        "flash_updated": "System settings have been updated."
+      },
+      "booking_forms": {
+        "flash_unauthorized": "Only administrators have access to this page."
       }
     }
   },
@@ -1824,6 +1881,288 @@
       "invalid_request": "Invalid request.",
       "document_deleted": "Document \"{filename}\" has been deleted successfully.",
       "file_not_found": "The file could not be found."
+    }
+  },
+  "music": {
+    "common": {
+      "title": "Music"
+    },
+    "index": {
+      "page_title": "Music - Team Portal",
+      "reset_all": "Reset Wishlist",
+      "tabs": {
+        "wishlist": "Wishlist",
+        "queue": "Queue",
+        "played": "Played"
+      },
+      "wishlist": {
+        "title": "Wishlist",
+        "clear": "Clear",
+        "empty": "No wishes available",
+        "unknown_artist": "Unknown artist",
+        "add_next": "Next",
+        "add_last": "Last of wishlist",
+        "add_end": "End"
+      },
+      "queue": {
+        "title": "Queue",
+        "clear": "Clear",
+        "playing": "Now playing:",
+        "empty": "Queue is empty",
+        "remove": "Remove song from queue?"
+      },
+      "played": {
+        "title": "Played",
+        "empty": "No songs played yet",
+        "played_at": "Played:"
+      },
+      "confirmations": {
+        "clear_queue": "Do you really want to clear the queue? This action cannot be undone.",
+        "clear_wishlist": "Do you really want to clear the wishlist? This action cannot be undone.",
+        "reset_all": "Do you really want to reset EVERYTHING?\n\nThis will delete:\n- The entire wishlist\n- The entire queue\n- All played songs\n\nThis action cannot be undone!",
+        "reset_all_confirm": "Are you really sure? All data will be permanently deleted!"
+      },
+      "errors": {
+        "generic": "Error: {error}",
+        "unknown": "Unknown error"
+      }
+    },
+    "public_wishlist": {
+      "page_title": "Music Wishlist",
+      "title": "Music Wishlist",
+      "subtitle": "Search for songs and add them to the wishlist",
+      "provider_select": "Select music service",
+      "search_label": "Search for song",
+      "search_placeholder": "Title, artist, album...",
+      "search_button": "Search",
+      "search_results": "Search results",
+      "loading": "Loading...",
+      "no_results": "No results found.",
+      "add_button": "Add",
+      "success_message": "Song successfully added to wishlist!",
+      "error_message": "Search error: {error}",
+      "wish_count_increased": "Wish count increased ({count}x requested)"
+    },
+    "admin": {
+      "page_title": "Music Module Settings - Administration",
+      "breadcrumb_settings": "Settings",
+      "breadcrumb_admin": "Administration",
+      "breadcrumb_music": "Music Module Settings",
+      "heading": "Music Module Settings",
+      "spotify": {
+        "title": "Spotify OAuth Configuration",
+        "client_id": "Spotify Client ID",
+        "client_id_placeholder": "Your Spotify Client ID",
+        "client_id_help": "Get this from {link}",
+        "client_secret": "Spotify Client Secret",
+        "client_secret_placeholder": "Your Spotify Client Secret",
+        "redirect_uri": "Redirect URI:",
+        "redirect_uri_help": "Add this URL to your Spotify Developer Dashboard as a redirect URI.",
+        "connected": "Spotify is connected to your account.",
+        "disconnect": "Disconnect",
+        "not_connected": "Spotify is not connected.",
+        "connect": "Connect"
+      },
+      "youtube": {
+        "title": "YouTube Music OAuth Configuration",
+        "client_id": "YouTube Client ID",
+        "client_id_placeholder": "Your YouTube Client ID",
+        "client_id_help": "Get this from {link}",
+        "client_secret": "YouTube Client Secret",
+        "client_secret_placeholder": "Your YouTube Client Secret",
+        "redirect_uri": "Redirect URI:",
+        "redirect_uri_help": "Add this URL to your Google Cloud Console as an authorized redirect URI.",
+        "connected": "YouTube Music is connected to your account.",
+        "disconnect": "Disconnect",
+        "not_connected": "YouTube Music is not connected.",
+        "connect": "Connect"
+      },
+      "save": "Save settings",
+      "cancel": "Cancel"
+    },
+    "flash": {
+      "spotify_connected": "Spotify successfully connected!",
+      "youtube_connected": "YouTube Music successfully connected!",
+      "connect_error": "Error connecting: {error}",
+      "oauth_error": "{provider} OAuth error: {error}",
+      "no_auth_code": "No auth code received",
+      "invalid_provider": "Invalid provider"
+    }
+  },
+  "booking": {
+    "requests": {
+      "page_title": "Booking Requests - Team Portal",
+      "breadcrumb_dashboard": "Dashboard",
+      "breadcrumb_requests": "Booking Requests",
+      "heading": "Booking Requests",
+      "filters": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "archived": "Archived"
+      },
+      "table": {
+        "event": "Event",
+        "email": "Email",
+        "date": "Date",
+        "form": "Form",
+        "status": "Status",
+        "created": "Created",
+        "actions": "Actions",
+        "details": "Details"
+      },
+      "status": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "archived": "Archived"
+      },
+      "empty": "No booking requests available"
+    },
+    "request_detail": {
+      "page_title": "{event_name} - Booking Request",
+      "breadcrumb_dashboard": "Dashboard",
+      "breadcrumb_requests": "Booking Requests",
+      "heading": "Booking Details",
+      "status_label": "Status",
+      "email_label": "Email",
+      "date_label": "Date",
+      "time_at": "at",
+      "time_suffix": "",
+      "time_separator": "-",
+      "accepted_message": "Booking has been accepted. Calendar event created:",
+      "calendar_link": "View calendar event",
+      "rejection_reason_label": "Rejection reason:",
+      "additional_info": "Additional Information",
+      "files": "Files",
+      "approvals": "Approvals",
+      "actions": {
+        "accept": "Accept",
+        "reject": "Reject",
+        "send_email": "Send Email",
+        "download_pdf": "Download PDF"
+      },
+      "role": {
+        "required": "Required",
+        "optional": "Optional",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "pending": "Pending",
+        "approved_by": "Approved by:",
+        "rejected_by": "Rejected by:",
+        "date": "Date:",
+        "comment": "Comment:",
+        "approve": "Approve",
+        "approve_for": "Approval for {role_name}",
+        "reject_for": "Rejection for {role_name}",
+        "comment_placeholder": "Comment (optional)",
+        "rejection_reason_placeholder": "Rejection reason (optional)"
+      },
+      "modals": {
+        "reject_title": "Reject Booking",
+        "rejection_reason_label": "Rejection reason",
+        "rejection_reason_required": "*",
+        "rejection_reason_help": "This reason will be sent to the booking customer by email.",
+        "cancel": "Cancel",
+        "reject_button": "Reject",
+        "email_title": "Send Email",
+        "email_subject": "Subject",
+        "email_subject_required": "*",
+        "email_body": "Message",
+        "email_body_required": "*",
+        "send": "Send"
+      },
+      "confirm_accept": "Really accept this booking? A calendar event will be created."
+    },
+    "public_form": {
+      "page_title": "{form_title} - Booking",
+      "title": "Booking Details",
+      "fields": {
+        "applicant_name": "Your Name",
+        "event_name": "Event Name",
+        "email": "Email Address",
+        "event_date": "Desired Date",
+        "event_start_time": "Start Time",
+        "event_end_time": "End Time"
+      },
+      "required": "*",
+      "submit": "Submit Booking",
+      "errors": {
+        "name_required": "Please enter your name.",
+        "event_name_required": "Please enter a name for the event.",
+        "email_required": "Please enter a valid email address.",
+        "field_required": "The field \"{field_label}\" is required."
+      }
+    },
+    "public_view": {
+      "page_title": "Booking Overview - {event_name}",
+      "status": "Status:",
+      "status_pending": "Pending",
+      "status_accepted": "Accepted",
+      "status_rejected": "Rejected",
+      "status_archived": "Archived",
+      "email": "Email:",
+      "date": "Date:",
+      "time": "Time:",
+      "additional_info": "Additional Information",
+      "mailbox_link": "Upload Files",
+      "mailbox_description": "You can upload files for this booking."
+    },
+    "public_form_select": {
+      "page_title": "Select Booking Form",
+      "title": "Select Booking Form",
+      "select": "Select Form"
+    },
+    "no_forms": {
+      "page_title": "No Booking Forms Available",
+      "title": "No Booking Forms Available",
+      "message": "Currently no active booking forms are available."
+    },
+    "mailbox_upload": {
+      "page_title": "Upload Files - {event_name}",
+      "title": "Upload Files",
+      "subtitle": "Upload files for this booking",
+      "file_label": "Select File",
+      "file_help": "Maximum file size: 50MB per file",
+      "upload_button": "Upload",
+      "uploaded_files": "Uploaded Files",
+      "no_files": "No files uploaded yet",
+      "errors": {
+        "no_file": "No file selected.",
+        "file_too_large": "File \"{filename}\" is too large (max. 50MB).",
+        "upload_error": "Error uploading files."
+      },
+      "success": "{count} file(s) uploaded successfully.",
+      "warning": "No files were uploaded."
+    },
+    "admin": {
+      "cards": {
+        "booking_forms": {
+          "title": "Booking Forms",
+          "description": "Create, edit and manage booking forms"
+        },
+        "music_module": {
+          "title": "Music Module",
+          "description": "Connect and configure Spotify and YouTube Music"
+        }
+      }
+    },
+    "flash": {
+      "form_inactive": "This booking form is no longer active.",
+      "request_accepted": "Booking has been accepted and calendar event has been created.",
+      "request_rejected": "Booking has been rejected.",
+      "email_sent": "Email has been sent.",
+      "email_error": "Error sending email.",
+      "rejection_reason_required": "Please enter a rejection reason.",
+      "cannot_accept": "This booking can no longer be accepted.",
+      "cannot_reject": "This booking can no longer be rejected.",
+      "date_required": "Please enter a date for the event.",
+      "email_subject_required": "Please fill in subject and message.",
+      "role_not_assigned": "You are not assigned to this role.",
+      "approval_saved": "Approval for {role_name} has been saved.",
+      "rejection_saved": "Rejection for {role_name} has been saved.",
+      "mailbox_not_available": "Mailbox is not available for this booking.",
+      "mailbox_not_created": "Mailbox has not been created yet."
     }
   }
 }

@@ -38,6 +38,15 @@
 <body>
     <div class="wishlist-header">
         <div class="container">
+            <div class="text-center mb-3">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="64" class="mb-3">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="64" class="mb-3">
+                {% else %}
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" height="64" class="mb-3">
+                {% endif %}
+            </div>
             <h1 class="text-center mb-2"><i class="bi bi-music-note-beamed"></i> Musikwunschliste</h1>
             <p class="text-center mb-0">Suchen Sie nach Liedern und fügen Sie sie zur Wunschliste hinzu</p>
         </div>

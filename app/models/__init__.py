@@ -13,7 +13,7 @@ from .inventory import Product, BorrowTransaction, ProductFolder, ProductSet, Pr
 from .api_token import ApiToken
 from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
-from .music import MusicProviderToken, MusicWish, MusicQueue, MusicPlaylist, MusicSettings
+from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 
 __all__ = [
     'User',
@@ -31,7 +31,7 @@ __all__ = [
     'ApiToken',
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
     'Comment', 'CommentMention',
-    'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicPlaylist', 'MusicSettings'
+    'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings'
 ]
 
 

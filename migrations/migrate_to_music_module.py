@@ -10,7 +10,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from app import create_app, db
-from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicPlaylist, MusicSettings
+from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from sqlalchemy import inspect, text
 
 

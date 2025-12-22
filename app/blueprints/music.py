@@ -9,6 +9,7 @@ from app.utils.music_oauth import (
 )
 from app.utils.music_api import search_music, get_track
 from app.utils.access_control import check_module_access
+from datetime import datetime
 import secrets
 
 music_bp = Blueprint('music', __name__, url_prefix='/music')
@@ -357,6 +358,32 @@ def clear_wishlist():
     db.session.commit()
     
     # WebSocket-Update senden
+    socketio.emit('music:wishlist_cleared', {}, namespace='/')
+    
+    return jsonify({'success': True})
+
+
+@music_bp.route('/reset-all', methods=['POST'])
+@login_required
+@check_module_access('module_music')
+def reset_all():
+    """Löscht ALLES: Wunschliste, Warteschlange und bereits gespielte Lieder."""
+    # Lösche alle Queue-Einträge
+    queue_entries = MusicQueue.query.all()
+    for entry in queue_entries:
+        db.session.delete(entry)
+    
+    # Lösche alle Wünsche (unabhängig vom Status)
+    wishes = MusicWish.query.all()
+    for wish in wishes:
+        db.session.delete(wish)
+    
+    db.session.commit()
+    
+    # WebSocket-Updates senden
+    socketio.emit('music:queue_updated', {
+        'action': 'cleared'
+    }, namespace='/')
     socketio.emit('music:wishlist_cleared', {}, namespace='/')
     
     return jsonify({'success': True})

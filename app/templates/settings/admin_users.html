@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Benutzerverwaltung - Administration{% endblock %}
+{% block title %}{{ _('settings.admin.users.page_title') }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item active">Benutzerverwaltung</li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.users.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.users.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.admin.users.breadcrumb_users') }}</li>
     </ol>
 </nav>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Benutzerverwaltung</h2>
+    <h2 class="mb-0">{{ _('settings.admin.users.heading') }}</h2>
     <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-gear"></i> Standardrollen konfigurieren
+        <i class="bi bi-gear"></i> {{ _('settings.admin.users.configure_default_roles') }}
     </a>
 </div>
 
@@ -67,12 +67,14 @@
                         <th>Name</th>
                         <th>E-Mail</th>
                         <th>Rolle</th>
+                        <th>Rollenstatus</th>
                         <th>Letzter Login</th>
                         <th>Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for user in active_users %}
+                    {% for item in users_with_roles %}
+                    {% set user = item.user %}
                     <tr>
                         <td>{{ user.full_name }}</td>
                         <td>{{ user.email }}</td>
@@ -85,6 +87,26 @@
                                 {% endif %}
                             {% else %}
                             <span class="badge bg-secondary">Benutzer</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_super_admin or user.is_admin %}
+                                <span class="badge bg-success">Vollzugriff (Admin)</span>
+                            {% elif item.has_full_access %}
+                                <span class="badge bg-primary">Vollzugriff</span>
+                            {% else %}
+                                <span class="badge bg-info">Modulspezifisch</span>
+                                <div class="small text-muted mt-1">
+                                    {% for module_key, has_access in item.module_roles.items() %}
+                                        {% if has_access %}
+                                            {% for key, name in all_modules %}
+                                                {% if key == module_key %}
+                                                    {{ name }}{% if not loop.last %}, {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
                             {% endif %}
                         </td>
                         <td>{{ user.last_login.strftime('%d.%m.%Y') if user.last_login else 'Nie' }}</td>

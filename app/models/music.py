@@ -80,27 +80,6 @@ class MusicQueue(db.Model):
         return f'<MusicQueue {self.wish.title} (Pos: {self.position})>'
 
 
-class MusicPlaylist(db.Model):
-    __tablename__ = 'music_playlists'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    provider = db.Column(db.String(20), nullable=False)
-    playlist_id = db.Column(db.String(100), nullable=False)
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.String(500), nullable=True)
-    track_count = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    user = db.relationship('User', backref='music_playlists')
-
-    __table_args__ = (db.UniqueConstraint('user_id', 'provider', 'playlist_id', name='unique_user_provider_playlist'),)
-
-    def __repr__(self):
-        return f'<MusicPlaylist {self.name} ({self.provider})>'
-
-
 class MusicSettings(db.Model):
     __tablename__ = 'music_settings'
     id = db.Column(db.Integer, primary_key=True)

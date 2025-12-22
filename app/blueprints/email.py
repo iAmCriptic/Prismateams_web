@@ -19,9 +19,9 @@ import threading
 import time
 import logging
 import io
-import sqlalchemy
 from markupsafe import Markup
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 import re
 
 from app.utils.email_sender import get_logo_base64
@@ -245,8 +245,6 @@ def sync_imap_folders():
 
                     try:
                         if dialect_name in ('mysql', 'mariadb'):
-                            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
                             insert_stmt = mysql_insert(EmailFolder.__table__).values(**folder_payload)
                             update_stmt = {
                                 'display_name': insert_stmt.inserted.display_name,

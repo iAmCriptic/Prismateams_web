@@ -116,38 +116,38 @@
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
                             <strong>{{ role.role_name }}</strong>
-                            {% if role.is_required %}<span class="badge bg-danger">Erforderlich</span>{% else %}<span class="badge bg-secondary">Optional</span>{% endif %}
+                            {% if role.is_required %}<span class="badge bg-danger">{{ _('booking.request_detail.role.required') }}</span>{% else %}<span class="badge bg-secondary">{{ _('booking.request_detail.role.optional') }}</span>{% endif %}
                         </div>
                         {% set approval = approvals.get(role.id) %}
                         {% if approval %}
                             {% if approval.status == 'approved' %}
-                            <span class="badge bg-success">Zugestimmt</span>
+                            <span class="badge bg-success">{{ _('booking.request_detail.role.approved') }}</span>
                             {% elif approval.status == 'rejected' %}
-                            <span class="badge bg-danger">Abgelehnt</span>
+                            <span class="badge bg-danger">{{ _('booking.request_detail.role.rejected') }}</span>
                             {% else %}
-                            <span class="badge bg-warning">Ausstehend</span>
+                            <span class="badge bg-warning">{{ _('booking.request_detail.role.pending') }}</span>
                             {% endif %}
                         {% else %}
-                        <span class="badge bg-warning">Ausstehend</span>
+                        <span class="badge bg-warning">{{ _('booking.request_detail.role.pending') }}</span>
                         {% endif %}
                     </div>
                     
                     {% if approval %}
                         {% if approval.status == 'approved' %}
                         <div class="mb-2">
-                            <small class="text-muted">Zugestimmt von: <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
-                            <small class="text-muted">Datum: {{ approval.approved_at.strftime('%d.%m.%Y %H:%M') if approval.approved_at else '-' }}</small>
+                            <small class="text-muted">{{ _('booking.request_detail.role.approved_by') }} <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
+                            <small class="text-muted">{{ _('booking.request_detail.role.date') }} {{ approval.approved_at.strftime('%d.%m.%Y %H:%M') if approval.approved_at else '-' }}</small>
                         </div>
                         {% elif approval.status == 'rejected' %}
                         <div class="mb-2">
-                            <small class="text-muted">Abgelehnt von: <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
-                            <small class="text-muted">Datum: {{ approval.rejected_at.strftime('%d.%m.%Y %H:%M') if approval.rejected_at else '-' }}</small>
+                            <small class="text-muted">{{ _('booking.request_detail.role.rejected_by') }} <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
+                            <small class="text-muted">{{ _('booking.request_detail.role.date') }} {{ approval.rejected_at.strftime('%d.%m.%Y %H:%M') if approval.rejected_at else '-' }}</small>
                         </div>
                         {% endif %}
                         
                         {% if approval.comment %}
                         <div class="alert alert-info mb-2">
-                            <small><strong>Kommentar:</strong> {{ approval.comment }}</small>
+                            <small><strong>{{ _('booking.request_detail.role.comment') }}</strong> {{ approval.comment }}</small>
                         </div>
                         {% endif %}
                     {% endif %}
@@ -156,7 +156,7 @@
                         {% if not approval or approval.status == 'pending' %}
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ role.id }}">
-                                <i class="bi bi-check-circle"></i> Zustimmen
+                                <i class="bi bi-check-circle"></i> {{ _('booking.request_detail.role.approve') }}
                             </button>
                             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectRoleModal{{ role.id }}">
                                 <i class="bi bi-x-circle"></i> {{ _('booking.request_detail.actions.reject') }}
@@ -179,7 +179,7 @@
             <div class="card-body">
                 {% if request.status == 'pending' %}
                 <form method="POST" action="{{ url_for('booking.request_accept', request_id=request.id) }}" class="mb-3">
-                    <button type="submit" class="btn btn-success w-100" onclick="return confirm('Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt.');">
+                    <button type="submit" class="btn btn-success w-100" onclick="return confirm('{{ _('booking.request_detail.confirm_accept') }}');">
                         <i class="bi bi-check-circle"></i> {{ _('booking.request_detail.actions.accept') }}
                     </button>
                 </form>
@@ -207,20 +207,20 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Buchung ablehnen</h5>
+                <h5 class="modal-title">{{ _('booking.request_detail.modals.reject_title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_reject', request_id=request.id) }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="rejection_reason" class="form-label">Ablehnungsgrund <span class="text-danger">*</span></label>
+                        <label for="rejection_reason" class="form-label">{{ _('booking.request_detail.modals.rejection_reason_label') }} <span class="text-danger">{{ _('booking.request_detail.modals.rejection_reason_required') }}</span></label>
                         <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="4" required></textarea>
-                        <small class="form-text text-muted">Dieser Grund wird dem Buchungskunden per E-Mail mitgeteilt.</small>
+                        <small class="form-text text-muted">{{ _('booking.request_detail.modals.rejection_reason_help') }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-danger">Ablehnen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn btn-danger">{{ _('booking.request_detail.modals.reject_button') }}</button>
                 </div>
             </form>
         </div>
@@ -233,23 +233,23 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">E-Mail senden</h5>
+                <h5 class="modal-title">{{ _('booking.request_detail.modals.email_title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_send_email', request_id=request.id) }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="email_subject" class="form-label">Betreff <span class="text-danger">*</span></label>
+                        <label for="email_subject" class="form-label">{{ _('booking.request_detail.modals.email_subject') }} <span class="text-danger">{{ _('booking.request_detail.modals.email_subject_required') }}</span></label>
                         <input type="text" class="form-control" id="email_subject" name="email_subject" required>
                     </div>
                     <div class="mb-3">
-                        <label for="email_body" class="form-label">Nachricht <span class="text-danger">*</span></label>
+                        <label for="email_body" class="form-label">{{ _('booking.request_detail.modals.email_body') }} <span class="text-danger">{{ _('booking.request_detail.modals.email_body_required') }}</span></label>
                         <textarea class="form-control" id="email_body" name="email_body" rows="6" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Senden</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ _('booking.request_detail.modals.send') }}</button>
                 </div>
             </form>
         </div>
@@ -264,19 +264,19 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Zustimmung für {{ role.role_name }}</h5>
+                <h5 class="modal-title">{{ _('booking.request_detail.role.approve_for', role_name=role.role_name) }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_approve', request_id=request.id, role_id=role.id) }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="comment{{ role.id }}" class="form-label">Kommentar (optional)</label>
+                        <label for="comment{{ role.id }}" class="form-label">{{ _('booking.request_detail.role.comment_placeholder') }}</label>
                         <textarea class="form-control" id="comment{{ role.id }}" name="comment" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-success">Zustimmen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn btn-success">{{ _('booking.request_detail.role.approve') }}</button>
                 </div>
             </form>
         </div>
@@ -287,19 +287,19 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Ablehnung für {{ role.role_name }}</h5>
+                <h5 class="modal-title">{{ _('booking.request_detail.role.reject_for', role_name=role.role_name) }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_reject_role', request_id=request.id, role_id=role.id) }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="rejection_reason{{ role.id }}" class="form-label">Ablehnungsgrund (optional)</label>
+                        <label for="rejection_reason{{ role.id }}" class="form-label">{{ _('booking.request_detail.role.rejection_reason_placeholder') }}</label>
                         <textarea class="form-control" id="rejection_reason{{ role.id }}" name="rejection_reason" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-danger">Ablehnen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn btn-danger">{{ _('booking.request_detail.modals.reject_button') }}</button>
                 </div>
             </form>
         </div>

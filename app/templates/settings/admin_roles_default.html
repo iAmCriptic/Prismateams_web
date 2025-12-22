@@ -7,7 +7,7 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
         <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin_roles') }}">Rollenverwaltung</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin_users') }}">Benutzerverwaltung</a></li>
         <li class="breadcrumb-item active">Standardrollen</li>
     </ol>
 </nav>
@@ -62,7 +62,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> Speichern
                         </button>
-                        <a href="{{ url_for('settings.admin_roles') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('settings.admin_users') }}" class="btn btn-secondary">
                             <i class="bi bi-arrow-left"></i> Zurück
                         </a>
                     </div>
@@ -95,6 +95,7 @@ function toggleDefaultModuleRoles() {
 toggleDefaultModuleRoles();
 </script>
 {% endblock %}
+
 
 
 

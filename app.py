@@ -1,5 +1,15 @@
 from app import create_app, db
-from app.models import *
+from app.models import (
+    User, Chat, ChatMessage, ChatMember,
+    File, FileVersion, Folder,
+    CalendarEvent, EventParticipant,
+    EmailMessage, EmailPermission, EmailAttachment,
+    Credential, Manual, Canvas,
+    SystemSettings, WhitelistEntry,
+    NotificationSettings, ChatNotificationSettings,
+    PushSubscription, NotificationLog,
+    Product, BorrowTransaction
+)
 import os
 
 app = create_app(os.getenv('FLASK_ENV', 'development'))

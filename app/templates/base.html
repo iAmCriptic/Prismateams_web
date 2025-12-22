@@ -351,7 +351,7 @@
             {% endif %}
             {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
             <li>
-                <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint %}active{% endif %}">
+                <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
                     <i class="bi bi-calendar-check me-2"></i>
                     Buchungen
                 </a>
@@ -359,7 +359,7 @@
             {% endif %}
             {% if is_module_enabled('module_music') and (not current_user.is_authenticated or has_module_access(current_user, 'module_music')) %}
             <li>
-                <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint %}active{% endif %}">
+                <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
                     <i class="bi bi-music-note-beamed me-2"></i>
                     {{ _('layout.nav.music') }}
                 </a>
@@ -448,7 +448,7 @@
                 {% endif %}
                 {% if is_module_enabled('module_booking') %}
                 <li>
-                    <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
                         <i class="bi bi-calendar-check me-2"></i>
                         Buchungen
                     </a>
@@ -456,7 +456,7 @@
                 {% endif %}
                 {% if is_module_enabled('module_music') %}
                 <li>
-                    <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
                         <i class="bi bi-music-note-beamed me-2"></i>
                         {{ _('layout.nav.music') }}
                     </a>

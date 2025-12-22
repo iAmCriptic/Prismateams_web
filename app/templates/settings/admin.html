@@ -220,10 +220,10 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="bi bi-calendar-check text-primary"></i>
-                        Buchungsformulare
+                        {{ _('booking.admin.cards.booking_forms.title') }}
                     </h5>
-                    <p class="card-text">Buchungsformulare erstellen, bearbeiten und verwalten</p>
-                    <a href="{{ url_for('booking.requests') }}" class="btn btn-outline-primary">
+                    <p class="card-text">{{ _('booking.admin.cards.booking_forms.description') }}</p>
+                    <a href="{{ url_for('settings.booking_forms') }}" class="btn btn-outline-primary">
                         {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
@@ -236,9 +236,9 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="bi bi-music-note-beamed text-success"></i>
-                        Musikmodul
+                        {{ _('booking.admin.cards.music_module.title') }}
                     </h5>
-                    <p class="card-text">Spotify und YouTube Music verbinden und konfigurieren</p>
+                    <p class="card-text">{{ _('booking.admin.cards.music_module.description') }}</p>
                     <a href="{{ url_for('settings.admin_music') }}" class="btn btn-outline-primary">
                         {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
                     </a>
@@ -251,10 +251,10 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="bi bi-folder text-info"></i>
-                        Datei-Einstellungen
+                        {{ _('settings.admin.cards.file_settings.title') }}
                     </h5>
-                    <p class="card-text">Briefkästen und Freigaben aktivieren oder deaktivieren</p>
-                    <a href="{{ url_for('settings.admin_system') }}" class="btn btn-outline-primary">
+                    <p class="card-text">{{ _('settings.admin.cards.file_settings.description') }}</p>
+                    <a href="{{ url_for('settings.admin_file_settings') }}" class="btn btn-outline-primary">
                         {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>

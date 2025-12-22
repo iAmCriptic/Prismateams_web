@@ -5,8 +5,11 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="row">
-        <div class="col-12 mb-4">
-            <h2><i class="bi bi-music-note-beamed"></i> {{ _('music.common.title') }}</h2>
+        <div class="col-12 mb-4 d-flex justify-content-between align-items-center">
+            <h2 class="mb-0"><i class="bi bi-music-note-beamed"></i> {{ _('music.common.title') }}</h2>
+            <button class="btn btn-danger" onclick="resetAll()">
+                <i class="bi bi-arrow-counterclockwise"></i> {{ _('music.index.reset_all') }}
+            </button>
         </div>
     </div>
     
@@ -14,19 +17,19 @@
     <ul class="nav nav-tabs mb-4" id="musicTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="wishlist-tab" data-bs-toggle="tab" data-bs-target="#wishlist" type="button" role="tab" aria-controls="wishlist" aria-selected="true">
-                <i class="bi bi-heart"></i> Wunschliste
+                <i class="bi bi-heart"></i> {{ _('music.index.tabs.wishlist') }}
                 <span class="badge bg-primary ms-2">{{ wishes|length }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab" aria-controls="queue" aria-selected="false">
-                <i class="bi bi-list-ol"></i> Warteschlange
+                <i class="bi bi-list-ol"></i> {{ _('music.index.tabs.queue') }}
                 <span class="badge bg-primary ms-2">{{ queue|length }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="played-tab" data-bs-toggle="tab" data-bs-target="#played" type="button" role="tab" aria-controls="played" aria-selected="false">
-                <i class="bi bi-check-circle"></i> Bereits Gespielt
+                <i class="bi bi-check-circle"></i> {{ _('music.index.tabs.played') }}
                 <span class="badge bg-secondary ms-2">{{ played_wishes|length }}</span>
             </button>
         </li>
@@ -38,11 +41,11 @@
         <div class="tab-pane fade show active" id="wishlist" role="tabpanel" aria-labelledby="wishlist-tab">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-heart"></i> Wunschliste</h5>
+                    <h5 class="mb-0"><i class="bi bi-heart"></i> {{ _('music.index.wishlist.title') }}</h5>
                     <div>
                         {% if wishes|length > 0 %}
                         <button class="btn btn-sm btn-outline-danger" onclick="clearWishlist()">
-                            <i class="bi bi-trash"></i> Leeren
+                            <i class="bi bi-trash"></i> {{ _('music.index.wishlist.clear') }}
                         </button>
                         {% endif %}
                     </div>
@@ -76,17 +79,17 @@
                                             <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
                                         {% endif %}
                                     </h6>
-                                    <p class="text-muted mb-1 small">{{ wish.artist or 'Unbekannter Künstler' }}</p>
+                                    <p class="text-muted mb-1 small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
                                     <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
                                 </div>
                                 <div class="btn-group-vertical btn-group-sm">
-                                    <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="Als nächstes">
+                                    <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
                                         <i class="bi bi-arrow-up-circle"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="Als letztes von Wunschliedern">
+                                    <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
                                         <i class="bi bi-arrow-down-circle"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-secondary" onclick="addToQueue({{ wish.id }}, 'end')" title="Am Ende">
+                                    <button class="btn btn-sm btn-secondary" onclick="addToQueue({{ wish.id }}, 'end')" title="{{ _('music.index.wishlist.add_end') }}">
                                         <i class="bi bi-arrow-down"></i>
                                     </button>
                                 </div>
@@ -95,7 +98,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>
+                    <p class="text-muted text-center py-4">{{ _('music.index.wishlist.empty') }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -105,11 +108,11 @@
         <div class="tab-pane fade" id="queue" role="tabpanel" aria-labelledby="queue-tab">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-list-ol"></i> Warteschlange</h5>
+                    <h5 class="mb-0"><i class="bi bi-list-ol"></i> {{ _('music.index.queue.title') }}</h5>
                     <div>
                         {% if queue|length > 0 %}
                         <button class="btn btn-sm btn-outline-danger" onclick="clearQueue()">
-                            <i class="bi bi-trash"></i> Leeren
+                            <i class="bi bi-trash"></i> {{ _('music.index.queue.clear') }}
                         </button>
                         {% endif %}
                     </div>
@@ -117,8 +120,8 @@
                 <div class="card-body">
                     {% if playing %}
                     <div class="alert alert-info mb-3">
-                        <strong><i class="bi bi-play-circle"></i> Läuft gerade:</strong><br>
-                        {{ playing.wish.title }} - {{ playing.wish.artist or 'Unbekannter Künstler' }}
+                        <strong><i class="bi bi-play-circle"></i> {{ _('music.index.queue.playing') }}</strong><br>
+                        {{ playing.wish.title }} - {{ playing.wish.artist or _('music.index.wishlist.unknown_artist') }}
                     </div>
                     {% endif %}
                     
@@ -152,7 +155,7 @@
                                             <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
                                         {% endif %}
                                     </h6>
-                                    <p class="text-muted mb-1 small">{{ entry.wish.artist or 'Unbekannter Künstler' }}</p>
+                                    <p class="text-muted mb-1 small">{{ entry.wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
                                     <span class="badge bg-{{ 'success' if entry.wish.provider == 'spotify' else 'danger' }} provider-badge">{{ entry.wish.provider }}</span>
                                 </div>
                                 <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue({{ entry.id }})">
@@ -163,7 +166,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <p class="text-muted text-center py-4">Warteschlange ist leer</p>
+                    <p class="text-muted text-center py-4">{{ _('music.index.queue.empty') }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -173,7 +176,7 @@
         <div class="tab-pane fade" id="played" role="tabpanel" aria-labelledby="played-tab">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-check-circle"></i> Bereits Gespielt</h5>
+                    <h5 class="mb-0"><i class="bi bi-check-circle"></i> {{ _('music.index.played.title') }}</h5>
                 </div>
                 <div class="card-body">
                     {% if played_wishes %}
@@ -204,10 +207,10 @@
                                             <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
                                         {% endif %}
                                     </h6>
-                                    <p class="text-muted mb-1 small">{{ wish.artist or 'Unbekannter Künstler' }}</p>
+                                    <p class="text-muted mb-1 small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
                                     <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
                                     <small class="text-muted d-block mt-1">
-                                        <i class="bi bi-clock"></i> Gespielt: {{ wish.updated_at.strftime('%d.%m.%Y %H:%M') if wish.updated_at else 'Unbekannt' }}
+                                        <i class="bi bi-clock"></i> {{ _('music.index.played.played_at') }} {{ wish.updated_at.strftime('%d.%m.%Y %H:%M') if wish.updated_at else _('common.unknown') }}
                                     </small>
                                 </div>
                             </div>
@@ -215,7 +218,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <p class="text-muted text-center py-4">Noch keine Lieder gespielt</p>
+                    <p class="text-muted text-center py-4">{{ _('music.index.played.empty') }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -242,16 +245,17 @@
             if (data.success) {
                 location.reload();
             } else {
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
             }
         })
         .catch(error => {
-            alert('Fehler: ' + error.message);
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
         });
     }
     
     function removeFromQueue(queueId) {
-        if (!confirm('Lied aus der Warteschlange entfernen?')) {
+        if (!confirm('{{ _("music.index.queue.remove") }}')) {
             return;
         }
         
@@ -269,16 +273,17 @@
             if (data.success) {
                 location.reload();
             } else {
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
             }
         })
         .catch(error => {
-            alert('Fehler: ' + error.message);
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
         });
     }
     
     function clearQueue() {
-        if (!confirm('Möchten Sie die Warteschlange wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+        if (!confirm('{{ _("music.index.confirmations.clear_queue") }}')) {
             return;
         }
         
@@ -293,16 +298,17 @@
             if (data.success) {
                 location.reload();
             } else {
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
             }
         })
         .catch(error => {
-            alert('Fehler: ' + error.message);
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
         });
     }
     
     function clearWishlist() {
-        if (!confirm('Möchten Sie die Wunschliste wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+        if (!confirm('{{ _("music.index.confirmations.clear_wishlist") }}')) {
             return;
         }
         
@@ -317,11 +323,42 @@
             if (data.success) {
                 location.reload();
             } else {
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
             }
         })
         .catch(error => {
-            alert('Fehler: ' + error.message);
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+        });
+    }
+    
+    function resetAll() {
+        if (!confirm('{{ _("music.index.confirmations.reset_all") }}')) {
+            return;
+        }
+        
+        // Doppelte Bestätigung
+        if (!confirm('{{ _("music.index.confirmations.reset_all_confirm") }}')) {
+            return;
+        }
+        
+        fetch('/music/reset-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+            }
+        })
+        .catch(error => {
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
         });
     }
     
