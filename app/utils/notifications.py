@@ -263,6 +263,11 @@ def send_chat_notification(
         if not user:
             continue
         
+        # Prüfe ob Benutzer Zugriff auf Chat-Modul hat
+        from app.utils.access_control import has_module_access
+        if not has_module_access(user, 'module_chat'):
+            continue
+        
         settings = get_or_create_notification_settings(user.id)
         if not settings.chat_notifications_enabled:
             continue
@@ -333,6 +338,7 @@ def send_file_notification(
 ) -> int:
     """
     Sendet Push-Benachrichtigungen für neue oder geänderte Dateien.
+    Nur an Benutzer mit Files-Zugriff.
     
     Args:
         file_id: ID der Datei
@@ -341,6 +347,7 @@ def send_file_notification(
     Returns:
         int: Anzahl der gesendeten Benachrichtigungen
     """
+    from app.utils.access_control import has_module_access
     file = File.query.get(file_id)
     if not file:
         return 0
@@ -352,6 +359,10 @@ def send_file_notification(
     sent_count = 0
     
     for user in users:
+        # Prüfe ob Benutzer Zugriff auf Files-Modul hat
+        if not has_module_access(user, 'module_files'):
+            continue
+        
         settings = get_or_create_notification_settings(user.id)
         
         if notification_type == 'new' and not settings.file_new_notifications:
@@ -419,6 +430,11 @@ def send_email_notification(
     sent_count = 0
     
     for user in users:
+        # Prüfe ob Benutzer Zugriff auf Email-Modul hat
+        from app.utils.access_control import has_module_access
+        if not has_module_access(user, 'module_email'):
+            continue
+        
         print(f"UTILS: Verarbeite Benutzer {user.id} ({user.username})")
         
         unread_count = EmailMessage.query.filter(
@@ -505,6 +521,11 @@ def send_calendar_notification(
     sent_count = 0
     
     for user in users:
+        # Prüfe ob Benutzer Zugriff auf Calendar-Modul hat
+        from app.utils.access_control import has_module_access
+        if not has_module_access(user, 'module_calendar'):
+            continue
+        
         settings = get_or_create_notification_settings(user.id)
         
         participation = EventParticipant.query.filter_by(

@@ -6,6 +6,7 @@ from app.models.file import File, FileVersion, Folder
 from app.models.user import User
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
+from app.utils.access_control import check_module_access
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -22,6 +23,7 @@ MAX_FILE_VERSIONS = 3
 
 @files_bp.route('/')
 @login_required
+@check_module_access('module_files')
 def index():
     """File manager root view."""
     return browse_folder(None)
@@ -29,6 +31,7 @@ def index():
 
 @files_bp.route('/folder/<int:folder_id>')
 @login_required
+@check_module_access('module_files')
 def browse_folder(folder_id):
     """Browse a specific folder."""
     current_folder = None
@@ -106,6 +109,7 @@ def browse_folder(folder_id):
 
 @files_bp.route('/create-folder', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def create_folder():
     """Create a new folder."""
     folder_name = request.form.get('folder_name', '').strip()
@@ -134,6 +138,7 @@ def create_folder():
 
 @files_bp.route('/file/<int:file_id>/rename', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def rename_file(file_id):
     """Benennt eine Datei um."""
     file = File.query.get_or_404(file_id)
@@ -159,6 +164,7 @@ def rename_file(file_id):
 
 @files_bp.route('/folder/<int:folder_id>/rename', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def rename_folder(folder_id):
     """Benennt einen Ordner um."""
     folder = Folder.query.get_or_404(folder_id)
@@ -182,6 +188,7 @@ def rename_folder(folder_id):
 
 @files_bp.route('/create-file', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def create_file():
     """Create a new text or markdown file."""
     filename = request.form.get('filename', '').strip()
@@ -249,6 +256,7 @@ def create_file():
 
 @files_bp.route('/create-office-file', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def create_office_file():
     """Create a new empty Office file (DOCX, XLSX, PPTX)."""
     filename = request.form.get('filename', '').strip()
@@ -338,6 +346,7 @@ def create_office_file():
 
 @files_bp.route('/upload', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def upload_file():
     """Upload a file or folder."""
     folder_id = request.form.get('folder_id')
@@ -581,6 +590,7 @@ def _process_file_upload(file, original_name, folder_id, user_id):
 
 @files_bp.route('/download/<int:file_id>')
 @login_required
+@check_module_access('module_files')
 def download_file(file_id):
     """Download a file."""
     file = File.query.get_or_404(file_id)
@@ -625,6 +635,7 @@ def download_file(file_id):
 
 @files_bp.route('/download-version/<int:version_id>')
 @login_required
+@check_module_access('module_files')
 def download_version(version_id):
     """Download a specific file version."""
     version = FileVersion.query.get_or_404(version_id)
@@ -675,6 +686,7 @@ def download_version(version_id):
 
 @files_bp.route('/edit/<int:file_id>', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_files')
 def edit_file(file_id):
     """Edit a text file online."""
     file = File.query.get_or_404(file_id)
@@ -761,6 +773,7 @@ def edit_file(file_id):
 
 @files_bp.route('/preview/<int:file_id>', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def preview_file(file_id):
     """Vorschau-Endpoint für Editor (nutzt gleiche Logik wie /view/)."""
     file = File.query.get_or_404(file_id)
@@ -790,6 +803,7 @@ def preview_file(file_id):
 
 @files_bp.route('/view/<int:file_id>')
 @login_required
+@check_module_access('module_files')
 def view_file(file_id):
     """View a file in fullscreen mode (for markdown/text files)."""
     file = File.query.get_or_404(file_id)
@@ -839,6 +853,7 @@ def view_file(file_id):
 
 @files_bp.route('/delete/<int:file_id>', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def delete_file(file_id):
     """Delete a file."""
     file = File.query.get_or_404(file_id)
@@ -874,6 +889,7 @@ def delete_file(file_id):
 
 @files_bp.route('/delete-folder/<int:folder_id>', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def delete_folder(folder_id):
     """Delete a folder and all its contents."""
     folder = Folder.query.get_or_404(folder_id)
@@ -917,6 +933,7 @@ def delete_folder(folder_id):
 
 @files_bp.route('/api/file-details/<int:file_id>')
 @login_required
+@check_module_access('module_files')
 def get_file_details(file_id):
     """Get file details for the side menu."""
     file = File.query.get_or_404(file_id)
@@ -986,6 +1003,7 @@ def get_file_details(file_id):
 # Briefkasten (Dropbox) Routes
 @files_bp.route('/folder/<int:folder_id>/make-dropbox', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def make_dropbox(folder_id):
     """Aktiviere Briefkasten für einen Ordner."""
     folder = Folder.query.get_or_404(folder_id)
@@ -1005,6 +1023,7 @@ def make_dropbox(folder_id):
 
 @files_bp.route('/folder/<int:folder_id>/dropbox-settings', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_files')
 def dropbox_settings(folder_id):
     """Briefkasten-Einstellungen anzeigen und bearbeiten."""
     folder = Folder.query.get_or_404(folder_id)
@@ -1057,6 +1076,7 @@ def dropbox_settings(folder_id):
 
 @files_bp.route('/folder/<int:folder_id>/disable-dropbox', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def disable_dropbox(folder_id):
     """Deaktiviere Briefkasten für einen Ordner."""
     folder = Folder.query.get_or_404(folder_id)
@@ -1236,6 +1256,7 @@ def _check_share_access(token):
 
 @files_bp.route('/file/<int:file_id>/share', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def create_file_share(file_id):
     if not _is_sharing_enabled():
         flash('Freigaben sind deaktiviert.', 'warning')
@@ -1257,6 +1278,7 @@ def create_file_share(file_id):
 
 @files_bp.route('/folder/<int:folder_id>/share', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def create_folder_share(folder_id):
     if not _is_sharing_enabled():
         flash('Freigaben sind deaktiviert.', 'warning')
@@ -1278,6 +1300,7 @@ def create_folder_share(folder_id):
 
 @files_bp.route('/file/<int:file_id>/share-settings')
 @login_required
+@check_module_access('module_files')
 def file_share_settings(file_id):
     file = File.query.get_or_404(file_id)
     if not file.share_enabled or not file.share_token:
@@ -1288,6 +1311,7 @@ def file_share_settings(file_id):
 
 @files_bp.route('/folder/<int:folder_id>/share-settings')
 @login_required
+@check_module_access('module_files')
 def folder_share_settings(folder_id):
     folder = Folder.query.get_or_404(folder_id)
     if not folder.share_enabled or not folder.share_token:
@@ -1298,6 +1322,7 @@ def folder_share_settings(folder_id):
 
 @files_bp.route('/file/<int:file_id>/share-settings', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def update_file_share(file_id):
     file = File.query.get_or_404(file_id)
     action = request.form.get('action')
@@ -1319,6 +1344,7 @@ def update_file_share(file_id):
 
 @files_bp.route('/folder/<int:folder_id>/share-settings', methods=['POST'])
 @login_required
+@check_module_access('module_files')
 def update_folder_share(folder_id):
     folder = Folder.query.get_or_404(folder_id)
     action = request.form.get('action')
@@ -1489,6 +1515,7 @@ def public_share_upload(token):
 # ONLYOFFICE Routes
 @files_bp.route('/edit-onlyoffice/<int:file_id>')
 @login_required
+@check_module_access('module_files')
 def edit_onlyoffice(file_id):
     """Edit a file using ONLYOFFICE editor."""
     # Check if ONLYOFFICE is enabled

@@ -225,7 +225,7 @@
                         <div class="small">{{ _('layout.nav.dashboard') }}</div>
                     </a>
                 </div>
-                {% if is_module_enabled('module_chat') %}
+                {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
                 <div class="col">
                     <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-chat-dots fs-4"></i>
@@ -233,7 +233,7 @@
                     </a>
                 </div>
                 {% endif %}
-                {% if is_module_enabled('module_files') %}
+                {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
                 <div class="col">
                     <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-folder fs-4"></i>
@@ -241,7 +241,7 @@
                     </a>
                 </div>
                 {% endif %}
-                {% if is_module_enabled('module_calendar') %}
+                {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
                 <div class="col">
                     <a href="{{ url_for('calendar.index') }}" class="nav-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-calendar-event fs-4"></i>
@@ -277,7 +277,7 @@
                     {{ _('layout.nav.dashboard') }}
                 </a>
             </li>
-            {% if is_module_enabled('module_chat') %}
+            {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
             <li>
                 <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-chat-dots me-2"></i>
@@ -285,7 +285,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_files') %}
+            {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
             <li>
                 <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-folder me-2"></i>
@@ -293,7 +293,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_calendar') %}
+            {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
             <li>
                 <a href="{{ url_for('calendar.index') }}" class="nav-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-calendar-event me-2"></i>
@@ -301,7 +301,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_email') %}
+            {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
             <li>
                 <a href="{{ url_for('email.index') }}" class="nav-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-envelope me-2"></i>
@@ -309,7 +309,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_credentials') %}
+            {% if is_module_enabled('module_credentials') and (not current_user.is_authenticated or has_module_access(current_user, 'module_credentials')) %}
             <li>
                 <a href="{{ url_for('credentials.index') }}" class="nav-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-key me-2"></i>
@@ -317,7 +317,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_manuals') %}
+            {% if is_module_enabled('module_manuals') and (not current_user.is_authenticated or has_module_access(current_user, 'module_manuals')) %}
             <li>
                 <a href="{{ url_for('manuals.index') }}" class="nav-link {% if request.endpoint and 'manuals' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-book me-2"></i>
@@ -325,7 +325,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_canvas') %}
+            {% if is_module_enabled('module_canvas') and (not current_user.is_authenticated or has_module_access(current_user, 'module_canvas')) %}
             <li>
                 <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-palette me-2"></i>
@@ -333,7 +333,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_inventory') %}
+            {% if is_module_enabled('module_inventory') and (not current_user.is_authenticated or has_module_access(current_user, 'module_inventory')) %}
             <li>
                 <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-box-seam me-2"></i>
@@ -341,11 +341,27 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_wiki') %}
+            {% if is_module_enabled('module_wiki') and (not current_user.is_authenticated or has_module_access(current_user, 'module_wiki')) %}
             <li>
                 <a href="{{ url_for('wiki.index') }}" class="nav-link {% if request.endpoint and 'wiki' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-journal-text me-2"></i>
                     {{ _('layout.nav.wiki') }}
+                </a>
+            </li>
+            {% endif %}
+            {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
+            <li>
+                <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-calendar-check me-2"></i>
+                    Buchungen
+                </a>
+            </li>
+            {% endif %}
+            {% if is_module_enabled('module_music') and (not current_user.is_authenticated or has_module_access(current_user, 'module_music')) %}
+            <li>
+                <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-music-note-beamed me-2"></i>
+                    {{ _('layout.nav.music') }}
                 </a>
             </li>
             {% endif %}
@@ -427,6 +443,22 @@
                     <a href="{{ url_for('wiki.index') }}" class="nav-link {% if request.endpoint and 'wiki' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-journal-text me-2"></i>
                         {{ _('layout.nav.wiki') }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if is_module_enabled('module_booking') %}
+                <li>
+                    <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-calendar-check me-2"></i>
+                        Buchungen
+                    </a>
+                </li>
+                {% endif %}
+                {% if is_module_enabled('module_music') %}
+                <li>
+                    <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-music-note-beamed me-2"></i>
+                        {{ _('layout.nav.music') }}
                     </a>
                 </li>
                 {% endif %}

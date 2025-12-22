@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Musikwunschliste</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .wishlist-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+        }
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .track-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .track-item:hover {
+            background-color: #f8f9fa;
+        }
+        .track-image {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .provider-badge {
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="wishlist-header">
+        <div class="container">
+            <div class="text-center mb-3">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="64" class="mb-3">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="64" class="mb-3">
+                {% else %}
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" height="64" class="mb-3">
+                {% endif %}
+            </div>
+            <h1 class="text-center mb-2"><i class="bi bi-music-note-beamed"></i> Musikwunschliste</h1>
+            <p class="text-center mb-0">Suchen Sie nach Liedern und fügen Sie sie zur Wunschliste hinzu</p>
+        </div>
+    </div>
+    
+    <div class="container mb-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label for="provider-select" class="form-label">Musikdienst auswählen</label>
+                            <select class="form-select" id="provider-select">
+                                {% if spotify_connected %}
+                                <option value="spotify">Spotify</option>
+                                {% endif %}
+                                {% if youtube_connected %}
+                                <option value="youtube">YouTube Music</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="search-query" class="form-label">Lied suchen</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="search-query" placeholder="Titel, Künstler, Album...">
+                                <button class="btn btn-primary" type="button" id="search-btn">
+                                    <i class="bi bi-search"></i> Suchen
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="search-results" class="search-results" style="display: none;">
+                            <h5 class="mb-3">Suchergebnisse</h5>
+                            <div id="results-list"></div>
+                        </div>
+                        
+                        <div id="loading" class="text-center" style="display: none;">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Laden...</span>
+                            </div>
+                        </div>
+                        
+                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                        
+                        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let searchTimeout;
+        
+        document.getElementById('search-query').addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            if (query.length >= 2) {
+                searchTimeout = setTimeout(() => performSearch(query), 500);
+            } else {
+                document.getElementById('search-results').style.display = 'none';
+            }
+        });
+        
+        document.getElementById('search-btn').addEventListener('click', function() {
+            const query = document.getElementById('search-query').value.trim();
+            if (query) {
+                performSearch(query);
+            }
+        });
+        
+        function performSearch(query) {
+            const provider = document.getElementById('provider-select').value;
+            const loading = document.getElementById('loading');
+            const resultsDiv = document.getElementById('search-results');
+            const resultsList = document.getElementById('results-list');
+            const errorMsg = document.getElementById('error-message');
+            
+            loading.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            fetch(`/music/wishlist/search`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    provider: provider,
+                    query: query
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.error) {
+                    errorMsg.textContent = data.error;
+                    errorMsg.style.display = 'block';
+                } else if (data.results && data.results.length > 0) {
+                    displayResults(data.results);
+                    resultsDiv.style.display = 'block';
+                } else {
+                    resultsList.innerHTML = '<p class="text-muted">Keine Ergebnisse gefunden.</p>';
+                    resultsDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                errorMsg.textContent = 'Fehler bei der Suche: ' + error.message;
+                errorMsg.style.display = 'block';
+            });
+        }
+        
+        function displayResults(results) {
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+            
+            results.forEach(track => {
+                const item = document.createElement('div');
+                item.className = 'track-item p-3 border-bottom';
+                item.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <img src="${track.image_url || '/static/img/logo.png'}" alt="Cover" class="track-image me-3">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${escapeHtml(track.title)}</h6>
+                            <p class="text-muted mb-1 small">${escapeHtml(track.artist)}</p>
+                            <span class="badge bg-primary provider-badge">${track.provider}</span>
+                        </div>
+                        <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
+                            <i class="bi bi-plus-circle"></i> Hinzufügen
+                        </button>
+                    </div>
+                `;
+                resultsList.appendChild(item);
+            });
+        }
+        
+        function addToWishlist(track) {
+            const formData = new FormData();
+            formData.append('provider', track.provider);
+            formData.append('track_id', track.id);
+            formData.append('title', track.title);
+            formData.append('artist', track.artist || '');
+            formData.append('track_url', track.url || '');
+            formData.append('image_url', track.image_url || '');
+            formData.append('duration_ms', track.duration_ms || '');
+            
+            fetch(`/music/wishlist`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const successMsg = document.getElementById('success-message');
+                const errorMsg = document.getElementById('error-message');
+                
+                if (data.error) {
+                    errorMsg.textContent = data.error;
+                    errorMsg.style.display = 'block';
+                    successMsg.style.display = 'none';
+                } else {
+                    successMsg.textContent = 'Lied erfolgreich zur Wunschliste hinzugefügt!';
+                    successMsg.style.display = 'block';
+                    errorMsg.style.display = 'none';
+                    
+                    // Leere Suchfeld
+                    document.getElementById('search-query').value = '';
+                    document.getElementById('search-results').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = 'Fehler: ' + error.message;
+                errorMsg.style.display = 'block';
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
+

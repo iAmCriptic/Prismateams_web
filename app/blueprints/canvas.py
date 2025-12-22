@@ -4,6 +4,7 @@ from app.utils.i18n import _
 from app import db
 from app.models.canvas import Canvas
 from app.models.user import User
+from app.utils.access_control import check_module_access
 from datetime import datetime
 import uuid
 
@@ -12,6 +13,7 @@ canvas_bp = Blueprint('canvas', __name__)
 
 @canvas_bp.route('/')
 @login_required
+@check_module_access('module_canvas')
 def index():
     """List all canvases."""
     from app.utils.excalidraw import is_excalidraw_enabled
@@ -25,6 +27,7 @@ def index():
 
 @canvas_bp.route('/create', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_canvas')
 def create():
     """Create a new canvas."""
     from app.utils.excalidraw import is_excalidraw_enabled
@@ -73,6 +76,7 @@ def create():
 
 @canvas_bp.route('/edit/<int:canvas_id>')
 @login_required
+@check_module_access('module_canvas')
 def edit(canvas_id):
     """Edit a canvas with Excalidraw."""
     from app.utils.excalidraw import is_excalidraw_enabled
@@ -111,6 +115,7 @@ def edit(canvas_id):
 
 @canvas_bp.route('/delete/<int:canvas_id>', methods=['POST'])
 @login_required
+@check_module_access('module_canvas')
 def delete(canvas_id):
     """Delete a canvas."""
     canvas_obj = Canvas.query.get_or_404(canvas_id)
@@ -128,6 +133,7 @@ def delete(canvas_id):
 
 @canvas_bp.route('/<int:canvas_id>/load', methods=['GET', 'OPTIONS'])
 @login_required
+@check_module_access('module_canvas')
 def load(canvas_id):
     """Load Excalidraw data for a canvas."""
     from flask import current_app
@@ -178,6 +184,7 @@ def load(canvas_id):
 
 @canvas_bp.route('/<int:canvas_id>/save', methods=['POST', 'OPTIONS'])
 @login_required
+@check_module_access('module_canvas')
 def save(canvas_id):
     """Save Excalidraw data for a canvas."""
     from flask import current_app

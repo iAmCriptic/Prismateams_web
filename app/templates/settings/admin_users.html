@@ -1,17 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Benutzerverwaltung - Administration{% endblock %}
+{% block title %}{{ _('settings.admin.users.page_title') }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item active">Benutzerverwaltung</li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.users.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.users.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.admin.users.breadcrumb_users') }}</li>
     </ol>
 </nav>
 
-<h2 class="mb-4">Benutzerverwaltung</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">{{ _('settings.admin.users.heading') }}</h2>
+    <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-gear"></i> {{ _('settings.admin.users.configure_default_roles') }}
+    </a>
+</div>
 
 <!-- Pending Users -->
 {% if pending_users %}
@@ -62,12 +67,14 @@
                         <th>Name</th>
                         <th>E-Mail</th>
                         <th>Rolle</th>
+                        <th>Rollenstatus</th>
                         <th>Letzter Login</th>
                         <th>Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for user in active_users %}
+                    {% for item in users_with_roles %}
+                    {% set user = item.user %}
                     <tr>
                         <td>{{ user.full_name }}</td>
                         <td>{{ user.email }}</td>
@@ -82,9 +89,32 @@
                             <span class="badge bg-secondary">Benutzer</span>
                             {% endif %}
                         </td>
+                        <td>
+                            {% if user.is_super_admin or user.is_admin %}
+                                <span class="badge bg-success">Vollzugriff (Admin)</span>
+                            {% elif item.has_full_access %}
+                                <span class="badge bg-primary">Vollzugriff</span>
+                            {% else %}
+                                <span class="badge bg-info">Modulspezifisch</span>
+                                <div class="small text-muted mt-1">
+                                    {% for module_key, has_access in item.module_roles.items() %}
+                                        {% if has_access %}
+                                            {% for key, name in all_modules %}
+                                                {% if key == module_key %}
+                                                    {{ name }}{% if not loop.last %}, {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
                         <td>{{ user.last_login.strftime('%d.%m.%Y') if user.last_login else 'Nie' }}</td>
                         <td>
                             <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary" title="Rollen verwalten" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
+                                    <i class="bi bi-person-badge"></i>
+                                </button>
                                 {% if not user.is_admin %}
                                 <form method="POST" action="{{ url_for('settings.make_admin', user_id=user.id) }}" class="d-inline">
                                     <button type="submit" class="btn btn-outline-warning" title="Zum Admin machen">
@@ -117,6 +147,275 @@
         </div>
     </div>
 </div>
+
+<!-- Rollenverwaltungs-Modal -->
+<div class="modal fade" id="rolesModal" tabindex="-1" aria-labelledby="rolesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rolesModalLabel">
+                    <i class="bi bi-person-badge"></i> Rollen verwalten: <span id="modalUserName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="rolesForm">
+                    <input type="hidden" id="modalUserId" name="user_id">
+                    
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access" 
+                                   onchange="toggleModuleRoles()">
+                            <label class="form-check-label" for="modalHasFullAccess">
+                                <strong>Vollzugriff</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Wenn aktiviert, hat der Benutzer Zugriff auf alle Module. Modulspezifische Rollen werden ignoriert.
+                        </small>
+                    </div>
+                    
+                    <div id="moduleRolesSection">
+                        <h6 class="mb-3">Modulspezifische Rollen</h6>
+                        <p class="text-muted mb-3">Wählen Sie die Module aus, auf die dieser Benutzer Zugriff haben soll:</p>
+                        
+                        <div class="row g-3" id="moduleCheckboxes">
+                            <!-- Wird dynamisch geladen -->
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div id="bookingRolesSection">
+                        <h6 class="mb-3">Buchungsrollen</h6>
+                        <p class="text-muted mb-3">Weisen Sie diesem Benutzer Buchungsrollen zu, damit er Buchungsanfragen zustimmen oder ablehnen kann:</p>
+                        
+                        <div id="bookingRolesCheckboxes">
+                            <!-- Wird dynamisch geladen -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="saveRoles()">
+                    <i class="bi bi-save"></i> Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Liste aller Module
+const allModules = [
+    {key: 'module_chat', name: 'Chat'},
+    {key: 'module_files', name: 'Dateien'},
+    {key: 'module_calendar', name: 'Kalender'},
+    {key: 'module_email', name: 'E-Mail'},
+    {key: 'module_credentials', name: 'Zugangsdaten'},
+    {key: 'module_manuals', name: 'Anleitungen'},
+    {key: 'module_canvas', name: 'Canvas'},
+    {key: 'module_inventory', name: 'Lagerverwaltung'},
+    {key: 'module_wiki', name: 'Wiki'},
+    {key: 'module_booking', name: 'Buchungen'}
+];
+
+// Modal öffnen und Daten laden
+document.getElementById('rolesModal').addEventListener('show.bs.modal', function (event) {
+    const button = event.relatedTarget;
+    const userId = button.getAttribute('data-user-id');
+    const userName = button.getAttribute('data-user-name');
+    
+    document.getElementById('modalUserId').value = userId;
+    document.getElementById('modalUserName').textContent = userName;
+    
+    // Lade Rollen-Daten
+    loadUserRoles(userId);
+});
+
+function loadUserRoles(userId) {
+    fetch(`/settings/admin/roles/user/${userId}?format=json`)
+        .then(response => response.json())
+        .then(data => {
+            // Setze Vollzugriff
+            document.getElementById('modalHasFullAccess').checked = data.has_full_access || false;
+            
+            // Erstelle Checkboxen für Module
+            const container = document.getElementById('moduleCheckboxes');
+            container.innerHTML = '';
+            
+            allModules.forEach(module => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6';
+                
+                const formCheck = document.createElement('div');
+                formCheck.className = 'form-check form-switch';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input module-checkbox';
+                checkbox.id = `modal_${module.key}`;
+                checkbox.name = module.key;
+                checkbox.checked = data.module_roles[module.key] || false;
+                
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = `modal_${module.key}`;
+                label.textContent = module.name;
+                
+                formCheck.appendChild(checkbox);
+                formCheck.appendChild(label);
+                col.appendChild(formCheck);
+                container.appendChild(col);
+            });
+            
+            // Lade Buchungsrollen
+            loadBookingRoles(data.booking_roles || []);
+            
+            toggleModuleRoles();
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der Rollen:', error);
+            alert('Fehler beim Laden der Rollen. Bitte Seite neu laden.');
+        });
+}
+
+function loadBookingRoles(bookingRoles) {
+    const container = document.getElementById('bookingRolesCheckboxes');
+    container.innerHTML = '';
+    
+    if (!bookingRoles || bookingRoles.length === 0) {
+        container.innerHTML = '<p class="text-muted">Keine Buchungsrollen verfügbar. Erstellen Sie zuerst Rollen in den Buchungsformularen.</p>';
+        return;
+    }
+    
+    // Gruppiere nach Formular
+    const formsMap = {};
+    bookingRoles.forEach(role => {
+        if (!formsMap[role.form_id]) {
+            formsMap[role.form_id] = {
+                form_title: role.form_title,
+                form_is_active: role.form_is_active !== undefined ? role.form_is_active : true,
+                roles: []
+            };
+        }
+        formsMap[role.form_id].roles.push(role);
+    });
+    
+    // Erstelle UI für jedes Formular
+    Object.keys(formsMap).forEach(formId => {
+        const formData = formsMap[formId];
+        
+        const formCard = document.createElement('div');
+        formCard.className = 'card mb-3';
+        
+        const cardHeader = document.createElement('div');
+        cardHeader.className = formData.form_is_active ? 'card-header bg-light' : 'card-header bg-secondary text-white';
+        let headerText = `<strong>${formData.form_title}</strong>`;
+        if (!formData.form_is_active) {
+            headerText += ' <span class="badge bg-warning ms-2">Inaktiv</span>';
+        }
+        cardHeader.innerHTML = headerText;
+        formCard.appendChild(cardHeader);
+        
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+        
+        formData.roles.forEach(role => {
+            const formCheck = document.createElement('div');
+            formCheck.className = 'form-check form-switch mb-2';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input booking-role-checkbox';
+            checkbox.id = `booking_role_${role.role_id}`;
+            checkbox.name = 'booking_role';
+            checkbox.value = role.role_id;
+            checkbox.checked = role.is_assigned || false;
+            
+            const label = document.createElement('label');
+            label.className = 'form-check-label';
+            label.htmlFor = `booking_role_${role.role_id}`;
+            label.innerHTML = `${role.role_name} ${role.is_required ? '<span class="badge bg-danger ms-2">Erforderlich</span>' : '<span class="badge bg-secondary ms-2">Optional</span>'}`;
+            
+            formCheck.appendChild(checkbox);
+            formCheck.appendChild(label);
+            cardBody.appendChild(formCheck);
+        });
+        
+        formCard.appendChild(cardBody);
+        container.appendChild(formCard);
+    });
+}
+
+function toggleModuleRoles() {
+    const fullAccess = document.getElementById('modalHasFullAccess').checked;
+    const moduleSection = document.getElementById('moduleRolesSection');
+    const moduleCheckboxes = document.querySelectorAll('.module-checkbox');
+    
+    if (fullAccess) {
+        moduleSection.style.opacity = '0.5';
+        moduleCheckboxes.forEach(cb => {
+            cb.disabled = true;
+        });
+    } else {
+        moduleSection.style.opacity = '1';
+        moduleCheckboxes.forEach(cb => {
+            cb.disabled = false;
+        });
+    }
+}
+
+function saveRoles() {
+    const userId = document.getElementById('modalUserId').value;
+    const formData = new FormData();
+    
+    formData.append('has_full_access', document.getElementById('modalHasFullAccess').checked ? 'on' : '');
+    
+    // Sammle Modul-Checkboxen
+    allModules.forEach(module => {
+        const checkbox = document.getElementById(`modal_${module.key}`);
+        if (checkbox && checkbox.checked) {
+            formData.append(module.key, 'on');
+        }
+    });
+    
+    // Sammle Buchungsrollen-Checkboxen
+    const bookingRoleCheckboxes = document.querySelectorAll('.booking-role-checkbox:checked');
+    bookingRoleCheckboxes.forEach(checkbox => {
+        formData.append('booking_role', checkbox.value);
+    });
+    
+    fetch(`/settings/admin/roles/user/${userId}/update`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Schließe Modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('rolesModal'));
+            modal.hide();
+            
+            // Zeige Erfolgsmeldung
+            alert('Rollen erfolgreich gespeichert!');
+            
+            // Lade Seite neu, um Änderungen anzuzeigen
+            location.reload();
+        } else {
+            alert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'));
+        }
+    })
+    .catch(error => {
+        console.error('Fehler beim Speichern:', error);
+        alert('Fehler beim Speichern der Rollen. Bitte erneut versuchen.');
+    });
+}
+</script>
 {% endblock %}
 
 

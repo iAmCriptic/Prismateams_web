@@ -374,6 +374,52 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Buchungen Widget -->
+    {% if 'buchungen' in enabled_widgets and is_module_enabled('module_booking') %}
+    <div class="col-12 col-md-6 col-lg-4 d-flex">
+        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('booking.requests') }}'">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-check widget-icon text-primary"></i>
+                        {{ _('dashboard.widgets.bookings.title') }}
+                    </h5>
+                    <span class="badge bg-primary bookings-badge">{{ total_pending_bookings }}</span>
+                </div>
+                
+                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
+                {% if new_booking_requests %}
+                    <div class="list-group list-group-flush flex-grow-1">
+                        {% for request in new_booking_requests %}
+                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('booking.request_detail', request_id=request.id) }}';">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 text-truncate">{{ request.event_name }}</h6>
+                                <small class="text-muted">{{ request.created_at.strftime('%d.%m.') }}</small>
+                            </div>
+                            <small class="text-muted">{{ request.created_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
+                            {% if request.email %}
+                            <br><small class="text-muted">{{ request.email }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if total_pending_bookings > 3 %}
+                        <div class="list-group-item px-0 text-center">
+                            <small class="text-muted">
+                                {{ _('dashboard.widgets.bookings.more_indicator', count=total_pending_bookings - 3) }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="d-flex align-items-center" style="min-height: 100px;">
+                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.bookings.empty') }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <div class="row mt-4">
@@ -395,7 +441,9 @@
                         'calendar': {'url': url_for('calendar.index'), 'icon': 'bi-calendar-event', 'label_key': 'layout.nav.calendar', 'module': 'module_calendar'},
                         'email': {'url': url_for('email.index'), 'icon': 'bi-envelope', 'label_key': 'layout.nav.email', 'module': 'module_email'},
                         'inventory': {'url': url_for('inventory.dashboard'), 'icon': 'bi-box-seam', 'label_key': 'layout.nav.inventory', 'module': 'module_inventory'},
-                        'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'}
+                        'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'},
+                        'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'},
+                        'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'}
                     } %}
                     {% for link_key in quick_access_links %}
                         {% if link_key in link_map %}

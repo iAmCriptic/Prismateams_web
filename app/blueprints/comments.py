@@ -1,12 +1,10 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models.comment import Comment, CommentMention
 from app.models.user import User
 from app.utils.notifications import send_push_notification
 from datetime import datetime
-import re
-import logging
 
 comments_bp = Blueprint('comments', __name__, url_prefix='/api/comments')
 

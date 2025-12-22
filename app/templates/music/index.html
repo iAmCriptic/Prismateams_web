@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('music.common.title') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12 mb-4 d-flex justify-content-between align-items-center">
+            <h2 class="mb-0"><i class="bi bi-music-note-beamed"></i> {{ _('music.common.title') }}</h2>
+            <button class="btn btn-danger" onclick="resetAll()">
+                <i class="bi bi-arrow-counterclockwise"></i> {{ _('music.index.reset_all') }}
+            </button>
+        </div>
+    </div>
+    
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="musicTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="wishlist-tab" data-bs-toggle="tab" data-bs-target="#wishlist" type="button" role="tab" aria-controls="wishlist" aria-selected="true">
+                <i class="bi bi-heart"></i> {{ _('music.index.tabs.wishlist') }}
+                <span class="badge bg-primary ms-2">{{ wishes|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab" aria-controls="queue" aria-selected="false">
+                <i class="bi bi-list-ol"></i> {{ _('music.index.tabs.queue') }}
+                <span class="badge bg-primary ms-2">{{ queue|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="played-tab" data-bs-toggle="tab" data-bs-target="#played" type="button" role="tab" aria-controls="played" aria-selected="false">
+                <i class="bi bi-check-circle"></i> {{ _('music.index.tabs.played') }}
+                <span class="badge bg-secondary ms-2">{{ played_wishes|length }}</span>
+            </button>
+        </li>
+    </ul>
+    
+    <!-- Tab Content -->
+    <div class="tab-content" id="musicTabContent">
+        <!-- Wunschliste Tab -->
+        <div class="tab-pane fade show active" id="wishlist" role="tabpanel" aria-labelledby="wishlist-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-heart"></i> {{ _('music.index.wishlist.title') }}</h5>
+                    <div>
+                        {% if wishes|length > 0 %}
+                        <button class="btn btn-sm btn-outline-danger" onclick="clearWishlist()">
+                            <i class="bi bi-trash"></i> {{ _('music.index.wishlist.clear') }}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if wishes %}
+                    <div class="list-group">
+                        {% for wish in wishes %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                {% if wish.image_url %}
+                                <img src="{{ wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
+                                {% else %}
+                                <div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-music-note"></i>
+                                </div>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {{ wish.title }}
+                                        {% set wish_count = wish.wish_count or 1 %}
+                                        {% if wish_count > 1 %}
+                                            {% if wish_count <= 3 %}
+                                                <span class="badge bg-primary ms-2">{{ wish_count }}x</span>
+                                            {% elif wish_count <= 5 %}
+                                                <span class="badge bg-warning ms-2">{{ wish_count }}x</span>
+                                            {% else %}
+                                                <span class="badge bg-danger ms-2">{{ wish_count }}x</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="text-muted mb-1 small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
+                                    <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
+                                </div>
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
+                                        <i class="bi bi-arrow-up-circle"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
+                                        <i class="bi bi-arrow-down-circle"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="addToQueue({{ wish.id }}, 'end')" title="{{ _('music.index.wishlist.add_end') }}">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">{{ _('music.index.wishlist.empty') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Warteschlange Tab -->
+        <div class="tab-pane fade" id="queue" role="tabpanel" aria-labelledby="queue-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-list-ol"></i> {{ _('music.index.queue.title') }}</h5>
+                    <div>
+                        {% if queue|length > 0 %}
+                        <button class="btn btn-sm btn-outline-danger" onclick="clearQueue()">
+                            <i class="bi bi-trash"></i> {{ _('music.index.queue.clear') }}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if playing %}
+                    <div class="alert alert-info mb-3">
+                        <strong><i class="bi bi-play-circle"></i> {{ _('music.index.queue.playing') }}</strong><br>
+                        {{ playing.wish.title }} - {{ playing.wish.artist or _('music.index.wishlist.unknown_artist') }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if queue %}
+                    <div class="list-group" id="queue-list">
+                        {% for entry in queue %}
+                        <div class="list-group-item queue-item" data-queue-id="{{ entry.id }}" data-position="{{ entry.position }}" draggable="true">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
+                                <span class="badge bg-secondary me-2">{{ entry.position }}</span>
+                                {% if entry.wish.image_url %}
+                                <img src="{{ entry.wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
+                                {% else %}
+                                <div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-music-note"></i>
+                                </div>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {{ entry.wish.title }}
+                                        {% set wish_count = entry.wish.wish_count or 1 %}
+                                        {% if wish_count > 1 %}
+                                            {% if wish_count <= 3 %}
+                                                <span class="badge bg-primary ms-2">{{ wish_count }}x</span>
+                                            {% elif wish_count <= 5 %}
+                                                <span class="badge bg-warning ms-2">{{ wish_count }}x</span>
+                                            {% else %}
+                                                <span class="badge bg-danger ms-2">{{ wish_count }}x</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="text-muted mb-1 small">{{ entry.wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
+                                    <span class="badge bg-{{ 'success' if entry.wish.provider == 'spotify' else 'danger' }} provider-badge">{{ entry.wish.provider }}</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue({{ entry.id }})">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">{{ _('music.index.queue.empty') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bereits Gespielt Tab -->
+        <div class="tab-pane fade" id="played" role="tabpanel" aria-labelledby="played-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-check-circle"></i> {{ _('music.index.played.title') }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if played_wishes %}
+                    <div class="list-group">
+                        {% for wish in played_wishes %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                {% if wish.image_url %}
+                                <img src="{{ wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
+                                {% else %}
+                                <div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-music-note"></i>
+                                </div>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {{ wish.title }}
+                                        {% set wish_count = wish.wish_count or 1 %}
+                                        {% if wish_count > 1 %}
+                                            {% if wish_count <= 3 %}
+                                                <span class="badge bg-primary ms-2">{{ wish_count }}x</span>
+                                            {% elif wish_count <= 5 %}
+                                                <span class="badge bg-warning ms-2">{{ wish_count }}x</span>
+                                            {% else %}
+                                                <span class="badge bg-danger ms-2">{{ wish_count }}x</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="text-muted mb-1 small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
+                                    <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="bi bi-clock"></i> {{ _('music.index.played.played_at') }} {{ wish.updated_at.strftime('%d.%m.%Y %H:%M') if wish.updated_at else _('common.unknown') }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">{{ _('music.index.played.empty') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/music.js') }}"></script>
+<script>
+    function addToQueue(wishId, position) {
+        fetch('/music/wishlist/add-to-queue', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                wish_id: wishId,
+                position: position
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+            }
+        })
+        .catch(error => {
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+        });
+    }
+    
+    function removeFromQueue(queueId) {
+        if (!confirm('{{ _("music.index.queue.remove") }}')) {
+            return;
+        }
+        
+        fetch('/music/queue/remove', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                queue_id: queueId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+            }
+        })
+        .catch(error => {
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+        });
+    }
+    
+    function clearQueue() {
+        if (!confirm('{{ _("music.index.confirmations.clear_queue") }}')) {
+            return;
+        }
+        
+        fetch('/music/queue/clear', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+            }
+        })
+        .catch(error => {
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+        });
+    }
+    
+    function clearWishlist() {
+        if (!confirm('{{ _("music.index.confirmations.clear_wishlist") }}')) {
+            return;
+        }
+        
+        fetch('/music/wishlist/clear', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+            }
+        })
+        .catch(error => {
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+        });
+    }
+    
+    function resetAll() {
+        if (!confirm('{{ _("music.index.confirmations.reset_all") }}')) {
+            return;
+        }
+        
+        // Doppelte Bestätigung
+        if (!confirm('{{ _("music.index.confirmations.reset_all_confirm") }}')) {
+            return;
+        }
+        
+        fetch('/music/reset-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
+                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+            }
+        })
+        .catch(error => {
+            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+        });
+    }
+    
+    // Tab-Navigation: Aktualisiere Badge-Zahlen beim Tab-Wechsel
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('#musicTabs button[data-bs-toggle="tab"]');
+        tabButtons.forEach(button => {
+            button.addEventListener('shown.bs.tab', function(event) {
+                // Tab wurde gewechselt - Seite wird bei Bedarf neu geladen
+            });
+        });
+    });
+</script>
+{% endblock %}

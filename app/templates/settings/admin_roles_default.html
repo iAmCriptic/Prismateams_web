@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Standardrollen konfigurieren{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin_users') }}">Benutzerverwaltung</a></li>
+        <li class="breadcrumb-item active">Standardrollen</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-gear"></i> Standardrollen konfigurieren</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Legen Sie fest, welche Rollen neue Benutzer standardmäßig erhalten sollen. Diese Einstellungen werden bei der Registrierung oder Erstellung neuer Benutzer angewendet.
+                </p>
+                
+                <form method="POST" id="defaultRolesForm">
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access" 
+                                   {% if default_roles.get('full_access', False) %}checked{% endif %}
+                                   onchange="toggleDefaultModuleRoles()">
+                            <label class="form-check-label" for="default_full_access">
+                                <strong>Vollzugriff als Standard</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Wenn aktiviert, erhalten neue Benutzer automatisch Vollzugriff auf alle Module.
+                        </small>
+                    </div>
+                    
+                    <div id="defaultModuleRolesSection">
+                        <h5 class="mb-3">Modulspezifische Standardrollen</h5>
+                        <p class="text-muted mb-3">Wählen Sie die Module aus, auf die neue Benutzer standardmäßig Zugriff haben sollen:</p>
+                        
+                        <div class="row g-3">
+                            {% for module_key, module_name in all_modules %}
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input default-module-checkbox" type="checkbox" 
+                                           id="default_{{ module_key }}" name="default_{{ module_key }}"
+                                           {% if default_roles.get(module_key, False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="default_{{ module_key }}">
+                                        {{ module_name }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                        <a href="{{ url_for('settings.admin_users') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Zurück
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDefaultModuleRoles() {
+    const fullAccess = document.getElementById('default_full_access').checked;
+    const moduleSection = document.getElementById('defaultModuleRolesSection');
+    const moduleCheckboxes = document.querySelectorAll('.default-module-checkbox');
+    
+    if (fullAccess) {
+        moduleSection.style.opacity = '0.5';
+        moduleCheckboxes.forEach(cb => {
+            cb.disabled = true;
+        });
+    } else {
+        moduleSection.style.opacity = '1';
+        moduleCheckboxes.forEach(cb => {
+            cb.disabled = false;
+        });
+    }
+}
+
+// Initial aufrufen
+toggleDefaultModuleRoles();
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+

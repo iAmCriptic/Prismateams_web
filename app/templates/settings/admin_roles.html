@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Rollenverwaltung - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">Rollenverwaltung</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-person-badge"></i> Rollenverwaltung</h4>
+                <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-gear"></i> Standardrollen konfigurieren
+                </a>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Verwalten Sie die Zugriffsrechte für jeden Benutzer. Sie können Vollzugriff gewähren oder modulspezifische Rollen vergeben.
+                </p>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Benutzer</th>
+                                <th>E-Mail</th>
+                                <th>Rollenstatus</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in users_with_roles %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.user.full_name }}</strong>
+                                    {% if item.user.is_super_admin %}
+                                        <span class="badge bg-danger ms-2">Hauptadministrator</span>
+                                    {% elif item.user.is_admin %}
+                                        <span class="badge bg-warning ms-2">Administrator</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.user.email }}</td>
+                                <td>
+                                    {% if item.user.is_super_admin or item.user.is_admin %}
+                                        <span class="badge bg-success">Vollzugriff (Admin)</span>
+                                    {% elif item.has_full_access %}
+                                        <span class="badge bg-primary">Vollzugriff</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Modulspezifisch</span>
+                                        <div class="small text-muted mt-1">
+                                            {% for module_key, has_access in item.module_roles.items() %}
+                                                {% if has_access %}
+                                                    {% for key, name in all_modules %}
+                                                        {% if key == module_key %}
+                                                            {{ name }}{% if not loop.last %}, {% endif %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not item.user.is_super_admin or item.user.id == current_user.id %}
+                                        <a href="{{ url_for('settings.admin_roles_user', user_id=item.user.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-pencil"></i> Rollen bearbeiten
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Kann nicht geändert werden</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+

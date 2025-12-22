@@ -54,6 +54,11 @@ def create_app(config_name='default'):
              request.endpoint.startswith('api.') or
              request.endpoint.startswith('files.onlyoffice') or
              request.endpoint.startswith('files.share_onlyoffice') or
+             request.endpoint.startswith('booking.public') or
+             request.endpoint.startswith('booking.public_') or
+             request.endpoint == 'booking.public_booking' or
+             request.endpoint == 'booking.public_form' or
+             request.endpoint == 'booking.public_view' or
              request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo')):
             return
@@ -87,12 +92,18 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'inventory', 'product_documents'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'system'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'wiki'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'bookings'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'booking_forms'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'veranstaltungen'),
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
     
     @app.context_processor
     def inject_app_config():
+        from app.utils.common import is_module_enabled
+        from app.utils.access_control import has_module_access
+        from flask_login import current_user
         app_name = app.config.get('APP_NAME', 'Prismateams')
         app_logo = app.config.get('APP_LOGO')
         color_gradient = None
@@ -188,6 +199,18 @@ def create_app(config_name='default'):
                 'settings.admin_delete_inventory_category': 'settings.admin',
                 'settings.admin_inventory_permissions': 'settings.admin',
                 'settings.admin_toggle_borrow_permission': 'settings.admin',
+                'settings.admin_file_settings': 'settings.admin',
+                'settings.booking_forms': 'settings.admin',
+                'settings.booking_form_create': 'settings.admin',
+                'settings.booking_form_edit': 'settings.admin',
+                'settings.booking_form_delete': 'settings.admin',
+                'settings.booking_field_add': 'settings.admin',
+                'settings.booking_field_edit': 'settings.admin',
+                'settings.booking_field_delete': 'settings.admin',
+                'settings.booking_field_order': 'settings.admin',
+                'settings.booking_image_upload': 'settings.admin',
+                'settings.booking_image_delete': 'settings.admin',
+                'settings.booking_image': 'settings.admin',
                 'auth.show_confirmation_codes': 'settings.admin',
                 'auth.test_email': 'settings.admin',
                 'calendar.view': 'calendar.index',
@@ -258,6 +281,7 @@ def create_app(config_name='default'):
             'onlyoffice_available': onlyoffice_available,
             'excalidraw_available': excalidraw_available,
             'is_module_enabled': is_module_enabled,
+            'has_module_access': has_module_access,
             'get_back_url': get_back_url,
             'get_chat_display_name': get_chat_display_name
         }
@@ -449,6 +473,8 @@ def create_app(config_name='default'):
     from app.blueprints.inventory import inventory_bp
     from app.blueprints.wiki import wiki_bp
     from app.blueprints.comments import comments_bp
+    from app.blueprints.booking import booking_bp
+    from app.blueprints.music import music_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -466,6 +492,8 @@ def create_app(config_name='default'):
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(wiki_bp)
     app.register_blueprint(comments_bp)
+    app.register_blueprint(booking_bp, url_prefix='/booking')
+    app.register_blueprint(music_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -678,27 +706,89 @@ def create_app(config_name='default'):
             db.session.flush()
             
             from app.models.chat import ChatMember
-            active_users = User.query.filter_by(is_active=True).all()
-            for user in active_users:
-                member = ChatMember(
-                    chat_id=main_chat.id,
-                    user_id=user.id
-                )
-                db.session.add(member)
+            # Prüfe ob has_full_access Spalte existiert
+            try:
+                from sqlalchemy import inspect
+                inspector = inspect(db.engine)
+                if 'users' in inspector.get_table_names():
+                    columns = {col['name'] for col in inspector.get_columns('users')}
+                    if 'has_full_access' in columns:
+                        from app.utils.access_control import has_module_access
+                        active_users = User.query.filter_by(is_active=True).all()
+                        for user in active_users:
+                            if has_module_access(user, 'module_chat'):
+                                member = ChatMember(
+                                    chat_id=main_chat.id,
+                                    user_id=user.id
+                                )
+                                db.session.add(member)
+                    else:
+                        # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
+                        active_users = User.query.filter_by(is_active=True).all()
+                        for user in active_users:
+                            member = ChatMember(
+                                chat_id=main_chat.id,
+                                user_id=user.id
+                            )
+                            db.session.add(member)
+            except Exception as e:
+                print(f"WARNING: Could not check has_full_access column: {e}")
+                # Fallback: Füge alle aktiven Benutzer hinzu
+                from app.models.chat import ChatMember
+                active_users = User.query.filter_by(is_active=True).all()
+                for user in active_users:
+                    member = ChatMember(
+                        chat_id=main_chat.id,
+                        user_id=user.id
+                    )
+                    db.session.add(member)
         else:
             from app.models.chat import ChatMember
             try:
-                active_users = User.query.filter_by(is_active=True).all()
-                existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
-                existing_user_ids = [member.user_id for member in existing_members]
-                
-                for user in active_users:
-                    if user.id not in existing_user_ids:
-                        member = ChatMember(
-                            chat_id=main_chat.id,
-                            user_id=user.id
-                        )
-                        db.session.add(member)
+                # Prüfe ob has_full_access Spalte existiert
+                from sqlalchemy import inspect
+                inspector = inspect(db.engine)
+                if 'users' in inspector.get_table_names():
+                    columns = {col['name'] for col in inspector.get_columns('users')}
+                    if 'has_full_access' in columns:
+                        from app.utils.access_control import has_module_access
+                        active_users = User.query.filter_by(is_active=True).all()
+                        existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                        existing_user_ids = [member.user_id for member in existing_members]
+                        
+                        for user in active_users:
+                            if user.id not in existing_user_ids and has_module_access(user, 'module_chat'):
+                                member = ChatMember(
+                                    chat_id=main_chat.id,
+                                    user_id=user.id
+                                )
+                                db.session.add(member)
+                    else:
+                        # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
+                        active_users = User.query.filter_by(is_active=True).all()
+                        existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                        existing_user_ids = [member.user_id for member in existing_members]
+                        
+                        for user in active_users:
+                            if user.id not in existing_user_ids:
+                                member = ChatMember(
+                                    chat_id=main_chat.id,
+                                    user_id=user.id
+                                )
+                                db.session.add(member)
+                else:
+                    # Fallback: Füge alle aktiven Benutzer hinzu
+                    active_users = User.query.filter_by(is_active=True).all()
+                    existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                    existing_user_ids = [member.user_id for member in existing_members]
+                    
+                    for user in active_users:
+                        if user.id not in existing_user_ids:
+                            member = ChatMember(
+                                chat_id=main_chat.id,
+                                user_id=user.id
+                            )
+                            db.session.add(member)
             except Exception as e:
                 print(f"WARNING: Could not update main chat members: {e}")
         
@@ -709,8 +799,6 @@ def create_app(config_name='default'):
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
-    
-    from app.blueprints import canvas
     
     return app
 

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}System-Einstellungen - Administration{% endblock %}
+{% block title %}{{ _('settings.admin.system.page_title') }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item active">System-Einstellungen</li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.admin.system.breadcrumb_system') }}</li>
     </ol>
 </nav>
 
@@ -15,43 +15,32 @@
     <div class="col-lg-8 mx-auto">
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0">System-Einstellungen</h4>
+                <h4 class="mb-0">{{ _('settings.admin.system.heading') }}</h4>
             </div>
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
-                    <h5 class="mb-3">Portal-Einstellungen</h5>
+                    <h5 class="mb-3">{{ _('settings.admin.system.section_title') }}</h5>
                     
                     <div class="mb-3">
-                        <label for="portal_name" class="form-label">Portalsname</label>
-                        <input type="text" class="form-control" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="z.B. Prismateams">
-                        <div class="form-text">Der Name des Portals, der an verschiedenen Stellen angezeigt wird.</div>
+                        <label for="portal_name" class="form-label">{{ _('settings.admin.system.portal_name_label') }}</label>
+                        <input type="text" class="form-control" id="portal_name" name="portal_name" value="{{ portal_name }}" placeholder="{{ _('settings.admin.system.portal_name_placeholder') }}">
+                        <div class="form-text">{{ _('settings.admin.system.portal_name_help') }}</div>
                     </div>
-                    <hr class="my-4">
-                    <h5 class="mb-3">Datei-Einstellungen</h5>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_dropbox_enabled">Briefkästen aktivieren</label>
-                    </div>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_sharing_enabled">Freigaben aktivieren</label>
-                    </div>
-                    
                     <div class="mb-3">
-                        <label for="portal_logo" class="form-label">Portalslogo</label>
+                        <label for="portal_logo" class="form-label">{{ _('settings.admin.system.portal_logo_label') }}</label>
                         {% if portal_logo %}
                         <div class="mb-2">
-                            <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="Portalslogo" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
-                            <p class="text-muted small mt-1">Aktuelles Logo</p>
+                            <img src="{{ url_for('settings.portal_logo', filename=portal_logo) }}" alt="{{ _('settings.admin.system.portal_logo_label') }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
+                            <p class="text-muted small mt-1">{{ _('settings.admin.system.current_logo') }}</p>
                         </div>
                         {% endif %}
                         <input type="file" class="form-control" id="portal_logo" name="portal_logo" accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml">
-                        <div class="form-text">Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)</div>
+                        <div class="form-text">{{ _('settings.admin.system.portal_logo_help') }}</div>
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">Änderungen speichern</button>
-                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">Zurück</a>
+                        <button type="submit" class="btn btn-accent">{{ _('settings.admin.system.save_button') }}</button>
+                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('settings.admin.system.back_button') }}</a>
                     </div>
                 </form>
             </div>

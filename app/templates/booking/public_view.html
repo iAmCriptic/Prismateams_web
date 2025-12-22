@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buchungsübersicht - {{ request.event_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .status-badge {
+            font-size: 1.1rem;
+            padding: 0.5rem 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="text-center mb-3">
+                            <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap">
+                                {% if portal_logo_filename %}
+                                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="Portal Logo" style="max-height: 50px; height: auto;">
+                                {% endif %}
+                                {% if form.secondary_logo_path %}
+                                {% set logo_filename = form.secondary_logo_path.replace('\\', '/').split('/')[-1] %}
+                                <img src="{{ url_for('settings.booking_secondary_logo', form_id=form.id, filename=logo_filename) }}" alt="Formular Logo" style="max-height: 50px; height: auto;">
+                                {% endif %}
+                            </div>
+                        </div>
+                        <h3 class="mb-0 text-center">{{ request.event_name }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Status:</strong>
+                            {% if request.status == 'pending' %}
+                            <span class="badge bg-warning status-badge">Offen</span>
+                            {% elif request.status == 'accepted' %}
+                            <span class="badge bg-success status-badge">Angenommen</span>
+                            {% elif request.status == 'rejected' %}
+                            <span class="badge bg-danger status-badge">Abgelehnt</span>
+                            {% elif request.status == 'archived' %}
+                            <span class="badge bg-secondary status-badge">Archiviert</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>E-Mail:</strong> {{ request.email }}
+                        </div>
+                        
+                        {% if request.event_date %}
+                        <div class="mb-3">
+                            <strong>Gewünschtes Datum:</strong> {{ request.event_date.strftime('%d.%m.%Y') }}
+                            {% if request.event_start_time %}
+                            um {{ request.event_start_time.strftime('%H:%M') }} Uhr
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if request.status == 'accepted' and request.calendar_event %}
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> Ihre Buchung wurde angenommen! 
+                            Der Termin wurde in den Kalender eingetragen.
+                        </div>
+                        {% endif %}
+                        
+                        {% if request.status == 'rejected' and request.rejection_reason %}
+                        <div class="alert alert-danger">
+                            <i class="bi bi-x-circle"></i> <strong>Buchung abgelehnt</strong><br>
+                            {{ request.rejection_reason }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if field_values %}
+                        <hr>
+                        <h5>Weitere Informationen</h5>
+                        {% for field in form.fields %}
+                            {% if field.id in field_values %}
+                            <div class="mb-2">
+                                <strong>{{ field.field_label }}:</strong>
+                                {% if field_values[field.id].file_path %}
+                                <a href="{{ url_for('booking.download_file', request_id=request.id, field_id=field.id) }}" target="_blank">
+                                    Datei anzeigen
+                                </a>
+                                {% else %}
+                                {{ field_values[field.id].field_value }}
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        
+                        {% if request.folder and (form.enable_mailbox or form.enable_shared_folder) %}
+                        <hr>
+                        <h5>Dateien</h5>
+                        <p>
+                            {% if form.enable_mailbox %}
+                            <i class="bi bi-mailbox"></i> Briefkasten verfügbar
+                            <br>
+                            <a href="{{ url_for('booking.mailbox_upload', token=token) }}" class="btn btn-primary mt-2">
+                                <i class="bi bi-upload"></i> Dateien zum Briefkasten hinzufügen
+                            </a>
+                            {% endif %}
+                            {% if form.enable_shared_folder %}
+                            <br>
+                            <i class="bi bi-folder"></i> Geteilter Ordner verfügbar
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

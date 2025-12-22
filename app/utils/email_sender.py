@@ -4,7 +4,7 @@ import string
 import logging
 import base64
 from datetime import datetime, timedelta
-from flask import render_template, current_app
+from flask import render_template, current_app, url_for
 from flask_mail import Message
 from app import mail
 from app.models.user import User
@@ -399,4 +399,198 @@ def send_return_confirmation_email(borrow_transaction):
         
     except Exception as e:
         logging.error(f"Failed to send return confirmation email: {str(e)}")
+        return False
+
+
+def send_booking_confirmation_email(booking_request):
+    """Sendet eine Bestätigungs-E-Mail nach Buchungsanfrage."""
+    try:
+        from app.models.booking import BookingRequest
+        
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Bestätigung für Buchung {booking_request.id} nicht gesendet.")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # Erstelle E-Mail
+        from config import get_formatted_sender
+        sender = get_formatted_sender() or mail_username
+        msg = Message(
+            subject=f'Buchungsbestätigung - {portal_name}',
+            recipients=[booking_request.email],
+            sender=sender
+        )
+        
+        # Logo als Base64 laden
+        logo_base64 = get_logo_base64()
+        
+        # Generiere Link zur Buchungsübersicht
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        
+        # HTML-Template rendern
+        html_content = render_template(
+            'emails/booking_confirmation.html',
+            app_name=portal_name,
+            booking_request=booking_request,
+            booking_url=booking_url,
+            current_year=datetime.utcnow().year,
+            logo_base64=logo_base64
+        )
+        
+        msg.html = html_content
+        
+        # E-Mail senden
+        try:
+            mail.send(msg)
+            logging.info(f"Booking confirmation email sent to {booking_request.email} for booking {booking_request.id}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send booking confirmation email to {booking_request.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send booking confirmation email: {str(e)}")
+        return False
+
+
+def send_booking_accepted_email(booking_request, calendar_event):
+    """Sendet eine E-Mail bei Annahme einer Buchung."""
+    try:
+        from app.models.booking import BookingRequest
+        from flask import url_for
+        
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Annahme-Benachrichtigung für Buchung {booking_request.id} nicht gesendet.")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # Erstelle E-Mail
+        from config import get_formatted_sender
+        sender = get_formatted_sender() or mail_username
+        msg = Message(
+            subject=f'Buchung angenommen - {booking_request.event_name}',
+            recipients=[booking_request.email],
+            sender=sender
+        )
+        
+        # Logo als Base64 laden
+        logo_base64 = get_logo_base64()
+        
+        # Generiere Links
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        calendar_url = url_for('calendar.view_event', event_id=calendar_event.id, _external=True) if calendar_event else None
+        
+        # HTML-Template rendern
+        html_content = render_template(
+            'emails/booking_accepted.html',
+            app_name=portal_name,
+            booking_request=booking_request,
+            calendar_event=calendar_event,
+            booking_url=booking_url,
+            calendar_url=calendar_url,
+            current_year=datetime.utcnow().year,
+            logo_base64=logo_base64
+        )
+        
+        msg.html = html_content
+        
+        # E-Mail senden
+        try:
+            mail.send(msg)
+            logging.info(f"Booking accepted email sent to {booking_request.email} for booking {booking_request.id}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send booking accepted email to {booking_request.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send booking accepted email: {str(e)}")
+        return False
+
+
+def send_booking_rejected_email(booking_request):
+    """Sendet eine E-Mail bei Ablehnung einer Buchung."""
+    try:
+        from app.models.booking import BookingRequest
+        from flask import url_for
+        
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Ablehnungs-Benachrichtigung für Buchung {booking_request.id} nicht gesendet.")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # Erstelle E-Mail
+        from config import get_formatted_sender
+        sender = get_formatted_sender() or mail_username
+        msg = Message(
+            subject=f'Buchung abgelehnt - {booking_request.event_name}',
+            recipients=[booking_request.email],
+            sender=sender
+        )
+        
+        # Logo als Base64 laden
+        logo_base64 = get_logo_base64()
+        
+        # Generiere Link zur Buchungsübersicht
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        
+        # HTML-Template rendern
+        html_content = render_template(
+            'emails/booking_rejected.html',
+            app_name=portal_name,
+            booking_request=booking_request,
+            booking_url=booking_url,
+            current_year=datetime.utcnow().year,
+            logo_base64=logo_base64
+        )
+        
+        msg.html = html_content
+        
+        # E-Mail senden
+        try:
+            mail.send(msg)
+            logging.info(f"Booking rejected email sent to {booking_request.email} for booking {booking_request.id}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send booking rejected email to {booking_request.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send booking rejected email: {str(e)}")
         return False

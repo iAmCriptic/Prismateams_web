@@ -7,6 +7,7 @@ from app.models.file import File
 from app.models.canvas import Canvas
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
+from app.models.booking import BookingRequest
 from app import db
 from app.utils.common import is_module_enabled, check_for_updates
 from datetime import datetime, date
@@ -124,6 +125,19 @@ def index():
         # Konvertiere zu Liste und sortiere nach Ausleihdatum (neueste zuerst)
         my_borrow_groups = sorted(grouped.values(), key=lambda x: x['borrow_date'], reverse=True)
     
+    # Buchungen Widget
+    new_booking_requests = []
+    total_pending_bookings = 0
+    if 'buchungen' in enabled_widgets and is_module_enabled('module_booking'):
+        new_booking_requests = BookingRequest.query.filter_by(
+            status='pending'
+        ).order_by(BookingRequest.created_at.desc()).limit(3).all()
+        
+        # Gesamtanzahl für Indikator
+        total_pending_bookings = BookingRequest.query.filter_by(
+            status='pending'
+        ).count()
+    
     # Prüfe ob Setup gerade abgeschlossen wurde
     setup_completed = session.pop('setup_completed', False)
     
@@ -142,6 +156,8 @@ def index():
         recent_wiki_pages=recent_wiki_pages,
         my_wiki_favorites=my_wiki_favorites,
         my_borrow_groups=my_borrow_groups,
+        new_booking_requests=new_booking_requests,
+        total_pending_bookings=total_pending_bookings,
         dashboard_config=config,
         setup_completed=setup_completed,
         update_info=update_info
@@ -158,7 +174,7 @@ def edit():
         
         # Widgets aus Formular
         enabled_widgets = []
-        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'canvas', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen']
+        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'canvas', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen']
         for widget in available_widgets:
             if request.form.get(f'widget_{widget}') == 'on':
                 enabled_widgets.append(widget)
@@ -174,7 +190,9 @@ def edit():
             'calendar': 'calendar',
             'email': 'email',
             'inventory': 'inventory',
-            'wiki': 'wiki'
+            'wiki': 'wiki',
+            'booking': 'booking',
+            'music': 'music'
         }
         for link_key, link_value in available_links.items():
             if request.form.get(f'link_{link_key}') == 'on':

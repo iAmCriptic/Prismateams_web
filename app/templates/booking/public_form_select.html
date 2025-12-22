@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buchung - Formular auswählen</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .form-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .form-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <h1 class="text-center mb-4">Buchungsformular auswählen</h1>
+                <p class="text-center text-muted mb-5">Bitte wählen Sie das gewünschte Buchungsformular aus:</p>
+                
+                <div class="row">
+                    {% for form in forms %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card form-card h-100" onclick="window.location.href='{{ url_for('booking.public_form', form_id=form.id) }}'">
+                            <div class="card-body">
+                                <h4 class="card-title">{{ form.title }}</h4>
+                                {% if form.description %}
+                                <p class="card-text text-muted">{{ form.description[:200] }}{% if form.description|length > 200 %}...{% endif %}</p>
+                                {% endif %}
+                                <a href="{{ url_for('booking.public_form', form_id=form.id) }}" class="btn btn-primary">
+                                    Formular ausfüllen <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

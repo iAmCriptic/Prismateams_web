@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}{% if form %}Formular bearbeiten{% else %}Neues Formular{% endif %} - Admin{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.booking_forms') }}">Buchungsformulare</a></li>
+        <li class="breadcrumb-item active">{% if form %}Bearbeiten{% else %}Erstellen{% endif %}</li>
+    </ol>
+</nav>
+
+<h2>{% if form %}Formular bearbeiten{% else %}Neues Formular erstellen{% endif %}</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Grundinformationen</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('settings.booking_form_edit', form_id=form.id) if form else '' }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Titel <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ form.title if form else '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ form.description if form else '' }}</textarea>
+                    </div>
+                    
+                    {% if form %}
+                    <div class="mb-3">
+                        <label for="pdf_application_text" class="form-label">PDF-Antragstext</label>
+                        <textarea class="form-control" id="pdf_application_text" name="pdf_application_text" rows="10">{{ form.pdf_application_text if form.pdf_application_text else '' }}</textarea>
+                        <small class="form-text text-muted">
+                            <strong>Verfügbare Platzhalter:</strong><br>
+                            <code>{applicant}</code> - Name des Antragstellers (aus E-Mail-Adresse extrahiert)<br>
+                            <code>{time_range}</code> - Zeitraum (z.B. "01.12.2025 von 10:00 Uhr bis 12:00 Uhr")<br>
+                            <code>{role_1}</code>, <code>{role_2}</code>, etc. - Name der Person, die für die jeweilige Rolle zugestimmt/abgelehnt hat (durchnummeriert ab 1, leer wenn noch keine Zustimmung)<br>
+                            <code>{status}</code> - Status des Antrags: "Angenommen", "Abgelehnt" oder "Ausstehend"<br>
+                            <br>
+                            <strong>Hinweis:</strong> Zeilenumbrüche werden automatisch übernommen.
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="archive_days" class="form-label">Archivierung (Tage)</label>
+                        <input type="number" class="form-control" id="archive_days" name="archive_days" value="{{ form.archive_days if form else 30 }}" min="1">
+                        <small class="form-text text-muted">Nach wie vielen Tagen sollen vergangene Events archiviert werden?</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enable_mailbox" name="enable_mailbox" {% if form and form.enable_mailbox %}checked{% endif %}>
+                            <label class="form-check-label" for="enable_mailbox">
+                                Briefkasten aktivieren
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enable_shared_folder" name="enable_shared_folder" {% if form and form.enable_shared_folder %}checked{% endif %}>
+                            <label class="form-check-label" for="enable_shared_folder">
+                                Geteilter Ordner aktivieren
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Speichern
+                    </button>
+                    <a href="{{ url_for('settings.booking_forms') }}" class="btn btn-secondary">Abbrechen</a>
+                </form>
+            </div>
+        </div>
+        
+        {% if form %}
+        <!-- Optionales 2. Logo - Außerhalb des Hauptformulars -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Optionales 2. Logo</h5>
+            </div>
+            <div class="card-body">
+                {% if form.secondary_logo_path %}
+                <div class="mb-2">
+                    {% set logo_filename = form.secondary_logo_path.replace('\\', '/').split('/')[-1] %}
+                    <img src="{{ url_for('settings.booking_secondary_logo', form_id=form.id, filename=logo_filename) }}" alt="Optionales 2. Logo" style="max-height: 100px; max-width: 100%;">
+                </div>
+                <form method="POST" action="{{ url_for('settings.booking_secondary_logo_delete', form_id=form.id) }}" class="d-inline" onsubmit="return confirm('Optionales 2. Logo wirklich löschen?');">
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('settings.booking_secondary_logo_upload', form_id=form.id) }}" enctype="multipart/form-data">
+                    <div class="mb-2">
+                        <input type="file" class="form-control" id="logo" name="logo" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-upload"></i> Optionales 2. Logo hochladen
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Status</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if form.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">
+                            <strong>Formular ist aktiv</strong>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm mt-2">
+                        <i class="bi bi-save"></i> Status speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Zusätzliche Felder</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addFieldModal">
+                    <i class="bi bi-plus"></i> Feld hinzufügen
+                </button>
+            </div>
+            <div class="card-body">
+                {% if fields %}
+                <div class="list-group">
+                    {% for field in fields %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ field.field_label }}</strong>
+                                <span class="badge bg-secondary">{{ field.field_type }}</span>
+                                {% if field.is_required %}<span class="badge bg-danger">Pflicht</span>{% endif %}
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editField({{ field.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('settings.booking_field_delete', form_id=form.id, field_id=field.id) }}" class="d-inline" onsubmit="return confirm('Feld wirklich löschen?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Noch keine zusätzlichen Felder hinzugefügt.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Zustimmungsrollen</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                    <i class="bi bi-plus"></i> Rolle hinzufügen
+                </button>
+            </div>
+            <div class="card-body">
+                {% if form.roles %}
+                <div class="list-group">
+                    {% for role in form.roles|sort(attribute='role_order') %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ role.role_name }}</strong>
+                                {% if role.is_required %}<span class="badge bg-danger">Erforderlich</span>{% else %}<span class="badge bg-secondary">Optional</span>{% endif %}
+                                <span class="badge bg-info">{{ role.users|length }} Benutzer</span>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editRole({{ role.id }}, '{{ role.role_name }}', {{ 'true' if role.is_required else 'false' }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="manageRoleUsers({{ role.id }}, '{{ role.role_name }}')">
+                                    <i class="bi bi-people"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('settings.booking_role_delete', form_id=form.id, role_id=role.id) }}" class="d-inline" onsubmit="return confirm('Rolle wirklich löschen?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Noch keine Zustimmungsrollen hinzugefügt.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Field Modal -->
+{% if form %}
+<div class="modal fade" id="addFieldModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Feld hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('settings.booking_field_add', form_id=form.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="field_type" class="form-label">Feldtyp</label>
+                        <select class="form-select" id="field_type" name="field_type" required>
+                            <option value="text">Text</option>
+                            <option value="textarea">Mehrzeiliger Text</option>
+                            <option value="date">Datum</option>
+                            <option value="number">Zahl</option>
+                            <option value="select">Auswahl (Dropdown)</option>
+                            <option value="checkbox">Checkbox</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="field_label" class="form-label">Bezeichnung</label>
+                        <input type="text" class="form-control" id="field_label" name="field_label" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="field_name" class="form-label">Interner Name</label>
+                        <input type="text" class="form-control" id="field_name" name="field_name">
+                        <small class="form-text text-muted">Wird automatisch generiert, wenn leer</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="placeholder" class="form-label">Platzhalter</label>
+                        <input type="text" class="form-control" id="placeholder" name="placeholder">
+                    </div>
+                    <div class="mb-3" id="options_field" style="display: none;">
+                        <label for="field_options" class="form-label">Optionen (eine pro Zeile)</label>
+                        <textarea class="form-control" id="field_options" name="field_options" rows="5"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_required" name="is_required">
+                        <label class="form-check-label" for="is_required">
+                            Pflichtfeld
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Role Modal -->
+{% if form %}
+<div class="modal fade" id="addRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rolle hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('settings.booking_role_create', form_id=form.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="role_name" class="form-label">Rollenname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="role_name" name="role_name" required>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_required" name="is_required" checked>
+                        <label class="form-check-label" for="is_required">
+                            Zustimmung erforderlich
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Role Modal -->
+<div class="modal fade" id="editRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rolle bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editRoleForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_role_name" class="form-label">Rollenname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_role_name" name="role_name" required>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="edit_is_required" name="is_required">
+                        <label class="form-check-label" for="edit_is_required">
+                            Zustimmung erforderlich
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Role Users Modal -->
+<div class="modal fade" id="manageUsersModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Benutzer für Rolle verwalten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="manageUsersForm">
+                <div class="modal-body">
+                    <p id="roleNameDisplay"></p>
+                    <div class="mb-3">
+                        <label for="user_ids" class="form-label">Benutzer auswählen</label>
+                        <select class="form-select" id="user_ids" name="user_ids" multiple size="10">
+                            {% for user in all_users %}
+                            <option value="{{ user.id }}">{{ user.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Mehrfachauswahl mit Strg/Cmd möglich</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.getElementById('field_type').addEventListener('change', function() {
+    const optionsField = document.getElementById('options_field');
+    if (this.value === 'select' || this.value === 'checkbox') {
+        optionsField.style.display = 'block';
+    } else {
+        optionsField.style.display = 'none';
+    }
+});
+
+function editRole(roleId, roleName, isRequired) {
+    document.getElementById('edit_role_name').value = roleName;
+    document.getElementById('edit_is_required').checked = isRequired === 'true';
+    document.getElementById('editRoleForm').action = '{{ url_for("settings.booking_role_edit", form_id=form.id, role_id=0) }}'.replace('/0/', '/' + roleId + '/');
+    new bootstrap.Modal(document.getElementById('editRoleModal')).show();
+}
+
+function manageRoleUsers(roleId, roleName) {
+    document.getElementById('roleNameDisplay').textContent = 'Rolle: ' + roleName;
+    document.getElementById('manageUsersForm').action = '{{ url_for("settings.booking_role_user_add", form_id=form.id, role_id=0) }}'.replace('/0/', '/' + roleId + '/');
+    
+    // Lade aktuelle Benutzer der Rolle
+    fetch('{{ url_for("settings.booking_roles", form_id=form.id) }}')
+        .then(response => response.json())
+        .then(data => {
+            const role = data.roles.find(r => r.id === roleId);
+            if (role) {
+                const select = document.getElementById('user_ids');
+                Array.from(select.options).forEach(option => {
+                    option.selected = role.users.some(u => u.id === parseInt(option.value));
+                });
+            }
+        });
+    
+    new bootstrap.Modal(document.getElementById('manageUsersModal')).show();
+}
+</script>
+{% endif %}
+{% endblock %}
+

@@ -14,6 +14,7 @@
       "canvas": "Canvas",
       "inventory": "Inventar",
       "wiki": "Wiki",
+      "music": "Musik",
       "settings": "Einstellungen",
       "profile": "Profil",
       "logout": "Abmelden",
@@ -144,6 +145,11 @@
         "return_by": "Rückgabe: {date}",
         "return_button": "Zurückgeben",
         "empty": "Keine aktiven Ausleihen"
+      },
+      "bookings": {
+        "title": "Buchungen",
+        "empty": "Keine ausstehenden Buchungen",
+        "more_indicator": "und {count} weitere"
       }
     },
     "quick_access": {
@@ -204,7 +210,9 @@
           "manuals": "Anleitungen",
           "canvas": "Canvas",
           "inventory": "Lagerverwaltung",
-          "wiki": "Wiki"
+          "wiki": "Wiki",
+          "booking": "Buchungen",
+          "music": "Musik"
         }
       }
     }
@@ -462,6 +470,28 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_admin": "Administration",
       "heading": "Administration",
+      "admin_modules": {
+        "page_title": "Module - Administration",
+        "breadcrumb_settings": "Einstellungen",
+        "breadcrumb_admin": "Administration",
+        "breadcrumb_modules": "Module",
+        "heading": "Module verwalten",
+        "description": "Aktivieren oder deaktivieren Sie Module für alle Benutzer. Deaktivierte Module werden in der Navigation ausgeblendet.",
+        "module_booking": "Buchungen",
+        "module_music": "Musik",
+        "save": "Änderungen speichern",
+        "cancel": "Zurück",
+        "flash_updated": "Module-Einstellungen wurden aktualisiert."
+      },
+      "users": {
+        "page_title": "Benutzerverwaltung - Administration",
+        "breadcrumb_settings": "Einstellungen",
+        "breadcrumb_admin": "Administration",
+        "breadcrumb_users": "Benutzerverwaltung",
+        "heading": "Benutzerverwaltung",
+        "configure_default_roles": "Standardrollen konfigurieren",
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+      },
       "sections": {
         "users": {
           "title": "Benutzerverwaltung"
@@ -523,7 +553,42 @@
         "inventory_permissions": {
           "title": "Ausleihe-Berechtigungen",
           "description": "Berechtigungen für Artikelausleihe verwalten"
+        },
+        "file_settings": {
+          "title": "Datei-Einstellungen",
+          "description": "Briefkästen und Freigaben aktivieren oder deaktivieren"
         }
+      },
+      "file_settings": {
+        "page_title": "Datei-Einstellungen - Administration",
+        "breadcrumb_file_settings": "Datei-Einstellungen",
+        "heading": "Datei-Einstellungen",
+        "section_title": "Datei-Funktionen",
+        "dropbox_label": "Briefkästen aktivieren",
+        "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
+        "sharing_label": "Freigaben aktivieren",
+        "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
+        "save_button": "Änderungen speichern",
+        "flash_updated": "Datei-Einstellungen wurden aktualisiert.",
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+      },
+      "system": {
+        "page_title": "System-Einstellungen - Administration",
+        "breadcrumb_system": "System-Einstellungen",
+        "heading": "System-Einstellungen",
+        "section_title": "Portal-Einstellungen",
+        "portal_name_label": "Portalsname",
+        "portal_name_placeholder": "z.B. Prismateams",
+        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
+        "portal_logo_label": "Portalslogo",
+        "current_logo": "Aktuelles Logo",
+        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
+        "save_button": "Änderungen speichern",
+        "back_button": "Zurück",
+        "flash_updated": "System-Einstellungen wurden aktualisiert."
+      },
+      "booking_forms": {
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
       }
     }
   },
@@ -1835,6 +1900,288 @@
       "file_not_found": "Die Datei konnte nicht gefunden werden.",
       "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
       "invalid_date": "Ungültiges Datum."
+    }
+  },
+  "music": {
+    "common": {
+      "title": "Musik"
+    },
+    "index": {
+      "page_title": "Musik - Team Portal",
+      "reset_all": "Wunschliste Zurücksetzen",
+      "tabs": {
+        "wishlist": "Wunschliste",
+        "queue": "Warteschlange",
+        "played": "Bereits Gespielt"
+      },
+      "wishlist": {
+        "title": "Wunschliste",
+        "clear": "Leeren",
+        "empty": "Keine Wünsche vorhanden",
+        "unknown_artist": "Unbekannter Künstler",
+        "add_next": "Als nächstes",
+        "add_last": "Als letztes von Wunschliedern",
+        "add_end": "Am Ende"
+      },
+      "queue": {
+        "title": "Warteschlange",
+        "clear": "Leeren",
+        "playing": "Läuft gerade:",
+        "empty": "Warteschlange ist leer",
+        "remove": "Lied aus der Warteschlange entfernen?"
+      },
+      "played": {
+        "title": "Bereits Gespielt",
+        "empty": "Noch keine Lieder gespielt",
+        "played_at": "Gespielt:"
+      },
+      "confirmations": {
+        "clear_queue": "Möchten Sie die Warteschlange wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "clear_wishlist": "Möchten Sie die Wunschliste wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "reset_all": "Möchten Sie wirklich ALLES zurücksetzen?\n\nDies löscht:\n- Die gesamte Wunschliste\n- Die gesamte Warteschlange\n- Alle bereits gespielten Lieder\n\nDiese Aktion kann nicht rückgängig gemacht werden!",
+        "reset_all_confirm": "Sind Sie sich wirklich sicher? Alle Daten werden unwiderruflich gelöscht!"
+      },
+      "errors": {
+        "generic": "Fehler: {error}",
+        "unknown": "Unbekannter Fehler"
+      }
+    },
+    "public_wishlist": {
+      "page_title": "Musikwunschliste",
+      "title": "Musikwunschliste",
+      "subtitle": "Suchen Sie nach Liedern und fügen Sie sie zur Wunschliste hinzu",
+      "provider_select": "Musikdienst auswählen",
+      "search_label": "Lied suchen",
+      "search_placeholder": "Titel, Künstler, Album...",
+      "search_button": "Suchen",
+      "search_results": "Suchergebnisse",
+      "loading": "Laden...",
+      "no_results": "Keine Ergebnisse gefunden.",
+      "add_button": "Hinzufügen",
+      "success_message": "Lied erfolgreich zur Wunschliste hinzugefügt!",
+      "error_message": "Fehler bei der Suche: {error}",
+      "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)"
+    },
+    "admin": {
+      "page_title": "Musikmodul-Einstellungen - Administration",
+      "breadcrumb_settings": "Einstellungen",
+      "breadcrumb_admin": "Administration",
+      "breadcrumb_music": "Musikmodul-Einstellungen",
+      "heading": "Musikmodul-Einstellungen",
+      "spotify": {
+        "title": "Spotify OAuth-Konfiguration",
+        "client_id": "Spotify Client ID",
+        "client_id_placeholder": "Ihre Spotify Client ID",
+        "client_id_help": "Erhalten Sie diese von {link}",
+        "client_secret": "Spotify Client Secret",
+        "client_secret_placeholder": "Ihr Spotify Client Secret",
+        "redirect_uri": "Redirect URI:",
+        "redirect_uri_help": "Fügen Sie diese URL in Ihrem Spotify Developer Dashboard als Redirect URI hinzu.",
+        "connected": "Spotify ist mit Ihrem Account verbunden.",
+        "disconnect": "Trennen",
+        "not_connected": "Spotify ist nicht verbunden.",
+        "connect": "Verbinden"
+      },
+      "youtube": {
+        "title": "YouTube Music OAuth-Konfiguration",
+        "client_id": "YouTube Client ID",
+        "client_id_placeholder": "Ihre YouTube Client ID",
+        "client_id_help": "Erhalten Sie diese von {link}",
+        "client_secret": "YouTube Client Secret",
+        "client_secret_placeholder": "Ihr YouTube Client Secret",
+        "redirect_uri": "Redirect URI:",
+        "redirect_uri_help": "Fügen Sie diese URL in Ihrer Google Cloud Console als autorisierte Redirect URI hinzu.",
+        "connected": "YouTube Music ist mit Ihrem Account verbunden.",
+        "disconnect": "Trennen",
+        "not_connected": "YouTube Music ist nicht verbunden.",
+        "connect": "Verbinden"
+      },
+      "save": "Einstellungen speichern",
+      "cancel": "Abbrechen"
+    },
+    "flash": {
+      "spotify_connected": "Spotify erfolgreich verbunden!",
+      "youtube_connected": "YouTube Music erfolgreich verbunden!",
+      "connect_error": "Fehler beim Verbinden: {error}",
+      "oauth_error": "{provider} OAuth Fehler: {error}",
+      "no_auth_code": "Kein Auth-Code erhalten",
+      "invalid_provider": "Ungültiger Provider"
+    }
+  },
+  "booking": {
+    "requests": {
+      "page_title": "Buchungsanfragen - Team Portal",
+      "breadcrumb_dashboard": "Dashboard",
+      "breadcrumb_requests": "Buchungsanfragen",
+      "heading": "Buchungsanfragen",
+      "filters": {
+        "pending": "Ausstehend",
+        "accepted": "Angenommen",
+        "rejected": "Abgelehnt",
+        "archived": "Archiviert"
+      },
+      "table": {
+        "event": "Veranstaltung",
+        "email": "E-Mail",
+        "date": "Datum",
+        "form": "Formular",
+        "status": "Status",
+        "created": "Erstellt",
+        "actions": "Aktionen",
+        "details": "Details"
+      },
+      "status": {
+        "pending": "Ausstehend",
+        "accepted": "Angenommen",
+        "rejected": "Abgelehnt",
+        "archived": "Archiviert"
+      },
+      "empty": "Keine Buchungsanfragen vorhanden"
+    },
+    "request_detail": {
+      "page_title": "{event_name} - Buchungsanfrage",
+      "breadcrumb_dashboard": "Dashboard",
+      "breadcrumb_requests": "Buchungsanfragen",
+      "heading": "Buchungsdetails",
+      "status_label": "Status",
+      "email_label": "E-Mail",
+      "date_label": "Datum",
+      "time_at": "um",
+      "time_suffix": "Uhr",
+      "time_separator": "-",
+      "accepted_message": "Buchung wurde angenommen. Kalendereintrag erstellt:",
+      "calendar_link": "Zum Kalendereintrag",
+      "rejection_reason_label": "Ablehnungsgrund:",
+      "additional_info": "Zusätzliche Informationen",
+      "files": "Dateien",
+      "approvals": "Zustimmungen",
+      "actions": {
+        "accept": "Annehmen",
+        "reject": "Ablehnen",
+        "send_email": "E-Mail senden",
+        "download_pdf": "PDF herunterladen"
+      },
+      "role": {
+        "required": "Erforderlich",
+        "optional": "Optional",
+        "approved": "Zugestimmt",
+        "rejected": "Abgelehnt",
+        "pending": "Ausstehend",
+        "approved_by": "Zugestimmt von:",
+        "rejected_by": "Abgelehnt von:",
+        "date": "Datum:",
+        "comment": "Kommentar:",
+        "approve": "Zustimmen",
+        "approve_for": "Zustimmung für {role_name}",
+        "reject_for": "Ablehnung für {role_name}",
+        "comment_placeholder": "Kommentar (optional)",
+        "rejection_reason_placeholder": "Ablehnungsgrund (optional)"
+      },
+      "modals": {
+        "reject_title": "Buchung ablehnen",
+        "rejection_reason_label": "Ablehnungsgrund",
+        "rejection_reason_required": "*",
+        "rejection_reason_help": "Dieser Grund wird dem Buchungskunden per E-Mail mitgeteilt.",
+        "cancel": "Abbrechen",
+        "reject_button": "Ablehnen",
+        "email_title": "E-Mail senden",
+        "email_subject": "Betreff",
+        "email_subject_required": "*",
+        "email_body": "Nachricht",
+        "email_body_required": "*",
+        "send": "Senden"
+      },
+      "confirm_accept": "Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt."
+    },
+    "public_form": {
+      "page_title": "{form_title} - Buchung",
+      "title": "Buchungsdetails",
+      "fields": {
+        "applicant_name": "Ihr Name",
+        "event_name": "Name der Veranstaltung",
+        "email": "E-Mail-Adresse",
+        "event_date": "Gewünschtes Datum",
+        "event_start_time": "Startzeit",
+        "event_end_time": "Endzeit"
+      },
+      "required": "*",
+      "submit": "Buchung absenden",
+      "errors": {
+        "name_required": "Bitte geben Sie Ihren Namen ein.",
+        "event_name_required": "Bitte geben Sie einen Namen für die Veranstaltung ein.",
+        "email_required": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        "field_required": "Das Feld \"{field_label}\" ist ein Pflichtfeld."
+      }
+    },
+    "public_view": {
+      "page_title": "Buchungsübersicht - {event_name}",
+      "status": "Status:",
+      "status_pending": "Offen",
+      "status_accepted": "Angenommen",
+      "status_rejected": "Abgelehnt",
+      "status_archived": "Archiviert",
+      "email": "E-Mail:",
+      "date": "Datum:",
+      "time": "Uhrzeit:",
+      "additional_info": "Zusätzliche Informationen",
+      "mailbox_link": "Dateien hochladen",
+      "mailbox_description": "Sie können Dateien für diese Buchung hochladen."
+    },
+    "public_form_select": {
+      "page_title": "Buchungsformular auswählen",
+      "title": "Buchungsformular auswählen",
+      "select": "Formular auswählen"
+    },
+    "no_forms": {
+      "page_title": "Keine Buchungsformulare verfügbar",
+      "title": "Keine Buchungsformulare verfügbar",
+      "message": "Derzeit sind keine aktiven Buchungsformulare verfügbar."
+    },
+    "mailbox_upload": {
+      "page_title": "Dateien hochladen - {event_name}",
+      "title": "Dateien hochladen",
+      "subtitle": "Laden Sie Dateien für diese Buchung hoch",
+      "file_label": "Datei auswählen",
+      "file_help": "Maximale Dateigröße: 50MB pro Datei",
+      "upload_button": "Hochladen",
+      "uploaded_files": "Hochgeladene Dateien",
+      "no_files": "Noch keine Dateien hochgeladen",
+      "errors": {
+        "no_file": "Keine Datei ausgewählt.",
+        "file_too_large": "Datei \"{filename}\" ist zu groß (max. 50MB).",
+        "upload_error": "Fehler beim Hochladen der Dateien."
+      },
+      "success": "{count} Datei(en) wurden erfolgreich hochgeladen.",
+      "warning": "Keine Dateien wurden hochgeladen."
+    },
+    "admin": {
+      "cards": {
+        "booking_forms": {
+          "title": "Buchungsformulare",
+          "description": "Buchungsformulare erstellen, bearbeiten und verwalten"
+        },
+        "music_module": {
+          "title": "Musikmodul",
+          "description": "Spotify und YouTube Music verbinden und konfigurieren"
+        }
+      }
+    },
+    "flash": {
+      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
+      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
+      "request_rejected": "Buchung wurde abgelehnt.",
+      "email_sent": "E-Mail wurde gesendet.",
+      "email_error": "Fehler beim Senden der E-Mail.",
+      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
+      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
+      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
+      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
+      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
+      "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
+      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
+      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
+      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     }
   }
 }

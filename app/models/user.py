@@ -52,6 +52,9 @@ class User(UserMixin, db.Model):
     
     can_borrow = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Module Access Control
+    has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module
+    
     # Dashboard Configuration
     dashboard_config = db.Column(db.Text, nullable=True)
     

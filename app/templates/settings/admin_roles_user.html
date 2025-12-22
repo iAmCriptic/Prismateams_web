@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Rollen bearbeiten - {{ user.full_name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin_users') }}">Benutzerverwaltung</a></li>
+        <li class="breadcrumb-item active">{{ user.full_name }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-person-badge"></i> Rollen bearbeiten: {{ user.full_name }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('settings.admin_roles_update', user_id=user.id) }}" id="rolesForm">
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="has_full_access" name="has_full_access" 
+                                   {% if user.has_full_access %}checked{% endif %}
+                                   onchange="toggleModuleRoles()">
+                            <label class="form-check-label" for="has_full_access">
+                                <strong>Vollzugriff</strong>
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Wenn aktiviert, hat der Benutzer Zugriff auf alle Module. Modulspezifische Rollen werden ignoriert.
+                        </small>
+                    </div>
+                    
+                    <div id="moduleRolesSection">
+                        <h5 class="mb-3">Modulspezifische Rollen</h5>
+                        <p class="text-muted mb-3">Wählen Sie die Module aus, auf die dieser Benutzer Zugriff haben soll:</p>
+                        
+                        <div class="row g-3">
+                            {% for module_key, module_name in all_modules %}
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input module-checkbox" type="checkbox" 
+                                           id="{{ module_key }}" name="{{ module_key }}"
+                                           {% if module_roles.get(module_key, False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="{{ module_key }}">
+                                        {{ module_name }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                        <a href="{{ url_for('settings.admin_users') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Zurück
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleModuleRoles() {
+    const fullAccess = document.getElementById('has_full_access').checked;
+    const moduleSection = document.getElementById('moduleRolesSection');
+    const moduleCheckboxes = document.querySelectorAll('.module-checkbox');
+    
+    if (fullAccess) {
+        moduleSection.style.opacity = '0.5';
+        moduleCheckboxes.forEach(cb => {
+            cb.disabled = true;
+        });
+    } else {
+        moduleSection.style.opacity = '1';
+        moduleCheckboxes.forEach(cb => {
+            cb.disabled = false;
+        });
+    }
+}
+
+// Initial aufrufen
+toggleModuleRoles();
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+

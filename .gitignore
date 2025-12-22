@@ -53,3 +53,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+.key
+credential_key.key
