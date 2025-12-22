@@ -1,0 +1,900 @@
+#!/bin/bash
+
+###############################################################################
+# Vollautomatisiertes Installationsskript für Ubuntu 24.04.3 LTS
+# Team Portal - Prismateams Web
+#
+# Dieses Skript installiert und konfiguriert automatisch:
+# - Python 3.12+ und Virtual Environment
+# - MySQL/MariaDB mit automatischer Datenbank- und Benutzererstellung
+# - Nginx mit vollständiger Konfiguration
+# - Gunicorn als WSGI-Server
+# - OnlyOffice Document Server (Docker)
+# - Excalidraw (Docker)
+# - Automatische Generierung aller Keys
+# - Automatische .env-Konfiguration
+# - Datenbank-Initialisierung
+# - Systemd Service für Gunicorn
+# - Optional: SSL mit Let's Encrypt
+###############################################################################
+
+set -e  # Beende bei Fehlern
+set -o pipefail  # Beende bei Fehlern in Pipes
+
+# Error Handler
+error_exit() {
+    log_error "$1"
+    exit 1
+}
+
+# Trap für Fehler
+trap 'error_exit "Fehler in Zeile $LINENO. Befehl: $BASH_COMMAND"' ERR
+
+# Farben für Ausgabe
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging-Funktion
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Überprüfung auf Root-Rechte
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        log_error "Dieses Skript muss als root ausgeführt werden!"
+        log_info "Verwenden Sie: sudo $0"
+        exit 1
+    fi
+}
+
+# Überprüfung auf Ubuntu 24.04
+check_ubuntu() {
+    if [ ! -f /etc/os-release ]; then
+        log_error "Konnte /etc/os-release nicht finden. Nicht Ubuntu?"
+        exit 1
+    fi
+    
+    . /etc/os-release
+    
+    if [ "$ID" != "ubuntu" ]; then
+        log_error "Dieses Skript ist nur für Ubuntu gedacht!"
+        exit 1
+    fi
+    
+    if [ "$VERSION_ID" != "24.04" ]; then
+        log_warning "Dieses Skript wurde für Ubuntu 24.04 entwickelt. Aktuelle Version: $VERSION_ID"
+        read -p "Fortfahren? (j/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[JjYy]$ ]]; then
+            exit 1
+        fi
+    fi
+}
+
+# Sichere Passwort-Generierung
+generate_password() {
+    openssl rand -base64 32 | tr -d "=+/" | cut -c1-32
+}
+
+# Zufälliger String für Secret Keys
+generate_secret() {
+    openssl rand -hex 32
+}
+
+# Interaktive Abfragen
+gather_information() {
+    log_info "=== Konfigurationsabfrage ==="
+    
+    # Installationspfad
+    read -p "Installationspfad [/var/www/teamportal]: " INSTALL_DIR
+    INSTALL_DIR=${INSTALL_DIR:-/var/www/teamportal}
+    
+    # Domain/IP
+    read -p "Domain oder IP-Adresse für Nginx: " DOMAIN
+    if [ -z "$DOMAIN" ]; then
+        log_error "Domain/IP ist erforderlich!"
+        exit 1
+    fi
+    
+    # SSL
+    read -p "SSL mit Let's Encrypt einrichten? (j/n) [n]: " SETUP_SSL
+    SETUP_SSL=${SETUP_SSL:-n}
+    
+    if [[ $SETUP_SSL =~ ^[JjYy]$ ]]; then
+        read -p "E-Mail-Adresse für Let's Encrypt: " LETSENCRYPT_EMAIL
+        if [ -z "$LETSENCRYPT_EMAIL" ]; then
+            log_warning "Keine E-Mail angegeben. Verwende webmaster@$DOMAIN"
+            LETSENCRYPT_EMAIL="webmaster@$DOMAIN"
+        fi
+    fi
+    
+    # Datenbank-Root-Passwort
+    read -p "MySQL Root-Passwort (leer lassen für automatische Generierung): " MYSQL_ROOT_PASS
+    if [ -z "$MYSQL_ROOT_PASS" ]; then
+        MYSQL_ROOT_PASS=$(generate_password)
+        log_info "MySQL Root-Passwort wurde automatisch generiert"
+    fi
+    
+    # Datenbank-Benutzer-Passwort
+    DB_USER="teamportal"
+    DB_PASS=$(generate_password)
+    DB_NAME="teamportal"
+    
+    log_success "Konfiguration gesammelt"
+}
+
+# System-Vorbereitung
+setup_system() {
+    log_info "=== System-Vorbereitung ==="
+    
+    log_info "Aktualisiere Paketlisten..."
+    export DEBIAN_FRONTEND=noninteractive
+    if ! apt-get update -qq; then
+        error_exit "Paketlisten-Update fehlgeschlagen"
+    fi
+    
+    log_info "Installiere Basis-Pakete..."
+    if ! apt-get install -y -qq \
+        curl \
+        wget \
+        git \
+        build-essential \
+        software-properties-common \
+        apt-transport-https \
+        ca-certificates \
+        gnupg \
+        lsb-release \
+        python3 \
+        python3-pip \
+        python3-venv \
+        python3-dev \
+        libmysqlclient-dev \
+        pkg-config \
+        ufw \
+        nginx \
+        supervisor \
+        mysql-server \
+        mysql-client \
+        openssl \
+        certbot \
+        python3-certbot-nginx; then
+        error_exit "Paket-Installation fehlgeschlagen"
+    fi
+    
+    # Validierung
+    if ! command -v python3 &> /dev/null; then
+        error_exit "Python3 wurde nicht korrekt installiert"
+    fi
+    
+    if ! command -v nginx &> /dev/null; then
+        error_exit "Nginx wurde nicht korrekt installiert"
+    fi
+    
+    log_info "Aktualisiere pip..."
+    python3 -m pip install --upgrade pip --quiet || log_warning "pip Update fehlgeschlagen, fahre fort..."
+    
+    log_success "System-Vorbereitung abgeschlossen"
+}
+
+# MySQL Setup
+setup_mysql() {
+    log_info "=== MySQL/MariaDB Setup ==="
+    
+    # Prüfe ob MySQL bereits läuft
+    if systemctl is-active --quiet mysql || systemctl is-active --quiet mariadb; then
+        log_info "MySQL läuft bereits"
+    else
+        # MySQL sicher starten
+        systemctl start mysql 2>/dev/null || systemctl start mariadb 2>/dev/null
+        systemctl enable mysql 2>/dev/null || systemctl enable mariadb 2>/dev/null
+    fi
+    
+    # Warte auf MySQL
+    log_info "Warte auf MySQL-Service..."
+    MYSQL_READY=0
+    for i in {1..30}; do
+        if mysqladmin ping -h localhost --silent 2>/dev/null; then
+            MYSQL_READY=1
+            break
+        fi
+        sleep 1
+    done
+    
+    if [ $MYSQL_READY -eq 0 ]; then
+        error_exit "MySQL konnte nicht gestartet werden"
+    fi
+    
+    # MySQL Root-Passwort setzen (falls noch nicht gesetzt)
+    log_info "Konfiguriere MySQL..."
+    
+    # Versuche zuerst ohne Passwort
+    if mysql -u root -e "SELECT 1" 2>/dev/null; then
+        # MySQL läuft ohne Passwort, setze es
+        log_info "Setze MySQL Root-Passwort..."
+        mysql -u root <<EOF
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASS}';
+FLUSH PRIVILEGES;
+EOF
+    else
+        # MySQL hat bereits ein Passwort
+        log_warning "MySQL Root-Passwort ist bereits gesetzt."
+        log_info "Versuche mit bereitgestelltem Passwort..."
+        # Versuche mit dem bereitgestellten Passwort
+        if ! mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT 1" 2>/dev/null; then
+            log_error "MySQL Root-Passwort ist falsch oder MySQL ist nicht korrekt konfiguriert."
+            log_info "Bitte setzen Sie das MySQL Root-Passwort manuell oder geben Sie das korrekte Passwort ein."
+            exit 1
+        fi
+    fi
+    
+    # Erstelle Datenbank und Benutzer
+    log_info "Erstelle Datenbank und Benutzer..."
+    mysql -u root -p"${MYSQL_ROOT_PASS}" <<EOF 2>/dev/null || {
+        log_error "Datenbank-Erstellung fehlgeschlagen"
+        exit 1
+    }
+CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+    
+    # Validierung
+    if mysql -u "${DB_USER}" -p"${DB_PASS}" -e "USE ${DB_NAME}; SELECT 1;" 2>/dev/null; then
+        log_success "Datenbank-Verbindungstest erfolgreich"
+    else
+        log_warning "Datenbank-Verbindungstest fehlgeschlagen. Möglicherweise müssen Sie die Berechtigungen prüfen."
+    fi
+    
+    log_success "MySQL konfiguriert"
+    log_info "Datenbank: ${DB_NAME}"
+    log_info "Benutzer: ${DB_USER}"
+}
+
+# Docker Installation
+install_docker() {
+    log_info "=== Docker Installation ==="
+    
+    if command -v docker &> /dev/null; then
+        log_info "Docker ist bereits installiert"
+        return
+    fi
+    
+    log_info "Installiere Docker..."
+    
+    # Docker Repository hinzufügen
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    apt-get update -qq
+    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    
+    # Docker Service starten
+    systemctl start docker
+    systemctl enable docker
+    
+    log_success "Docker installiert"
+}
+
+# OnlyOffice Installation
+install_onlyoffice() {
+    log_info "=== OnlyOffice Document Server Installation ==="
+    
+    # OnlyOffice Secret Key generieren
+    ONLYOFFICE_SECRET=$(generate_secret)
+    
+    # Verzeichnisse erstellen
+    mkdir -p /var/lib/onlyoffice/DocumentServer/data
+    mkdir -p /var/lib/onlyoffice/DocumentServer/logs
+    
+    # OnlyOffice Container starten
+    log_info "Starte OnlyOffice Container..."
+    
+    docker run -i -t -d -p 8080:80 --restart=always \
+        --name onlyoffice-documentserver \
+        -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+        -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
+        -e JWT_SECRET="${ONLYOFFICE_SECRET}" \
+        onlyoffice/documentserver:latest || {
+        log_warning "OnlyOffice Container konnte nicht gestartet werden. Möglicherweise läuft bereits ein Container."
+    }
+    
+    # Warte auf OnlyOffice
+    sleep 10
+    
+    log_success "OnlyOffice installiert"
+    log_info "OnlyOffice Secret Key: ${ONLYOFFICE_SECRET}"
+}
+
+# Excalidraw Installation
+install_excalidraw() {
+    log_info "=== Excalidraw Installation ==="
+    
+    # Excalidraw Client
+    log_info "Starte Excalidraw Client Container..."
+    docker run -i -t -d -p 8081:80 --restart=always \
+        --name excalidraw \
+        excalidraw/excalidraw:latest || {
+        log_warning "Excalidraw Client Container konnte nicht gestartet werden."
+    }
+    
+    # Excalidraw Room Server
+    log_info "Starte Excalidraw Room Server Container..."
+    docker run -i -t -d -p 8082:80 --restart=always \
+        --name excalidraw-room \
+        -e PORT=80 \
+        excalidraw/excalidraw-room:latest || {
+        log_warning "Excalidraw Room Server Container konnte nicht gestartet werden."
+    }
+    
+    sleep 5
+    
+    log_success "Excalidraw installiert"
+}
+
+# Projekt-Verzeichnis erstellen
+setup_project_directory() {
+    log_info "=== Projekt-Verzeichnis Setup ==="
+    
+    # Verzeichnis erstellen
+    mkdir -p "$INSTALL_DIR"
+    
+    # Prüfe ob bereits Code vorhanden ist
+    if [ -d "$INSTALL_DIR/.git" ] || [ -f "$INSTALL_DIR/app.py" ]; then
+        log_warning "Projekt-Verzeichnis enthält bereits Code. Überspringe Klonen."
+        return
+    fi
+    
+    # Versuche das aktuelle Verzeichnis zu verwenden, wenn es das Projekt ist
+    CURRENT_DIR=$(pwd)
+    if [ -f "$CURRENT_DIR/app.py" ] && [ -f "$CURRENT_DIR/requirements.txt" ]; then
+        log_info "Kopiere Projekt von $CURRENT_DIR nach $INSTALL_DIR..."
+        cp -r "$CURRENT_DIR"/* "$INSTALL_DIR"/ 2>/dev/null || {
+            log_warning "Kopieren fehlgeschlagen. Bitte manuell kopieren."
+        }
+    else
+        # Wenn kein Code vorhanden, muss der Benutzer das Repository klonen
+        log_info "Bitte klonen Sie das Repository manuell nach $INSTALL_DIR"
+        log_info "Oder kopieren Sie die Dateien dorthin"
+        read -p "Drücken Sie Enter, wenn das Repository in $INSTALL_DIR vorhanden ist..."
+    fi
+    
+    if [ ! -f "$INSTALL_DIR/app.py" ]; then
+        log_error "app.py nicht gefunden in $INSTALL_DIR"
+        log_error "Bitte stellen Sie sicher, dass das Projekt in $INSTALL_DIR vorhanden ist"
+        exit 1
+    fi
+    
+    log_success "Projekt-Verzeichnis eingerichtet"
+}
+
+# Python Virtual Environment
+setup_venv() {
+    log_info "=== Python Virtual Environment Setup ==="
+    
+    cd "$INSTALL_DIR"
+    
+    if [ -d "venv" ]; then
+        log_warning "venv existiert bereits. Überspringe Erstellung."
+    else
+        log_info "Erstelle Virtual Environment..."
+        python3 -m venv venv
+    fi
+    
+    log_info "Installiere Python-Dependencies..."
+    source venv/bin/activate
+    pip install --upgrade pip --quiet
+    pip install -r requirements.txt --quiet
+    
+    log_success "Virtual Environment eingerichtet"
+}
+
+# Key-Generierung
+generate_keys() {
+    log_info "=== Key-Generierung ==="
+    
+    cd "$INSTALL_DIR"
+    source venv/bin/activate
+    
+    # Flask Secret Key
+    FLASK_SECRET=$(generate_secret)
+    
+    # VAPID Keys - Erstelle temporäres Python-Skript für Key-Extraktion
+    log_info "Generiere VAPID Keys..."
+    VAPID_TEMP=$(mktemp)
+    cat > "$VAPID_TEMP" <<'PYEOF'
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from scripts.generate_vapid_keys import generate_vapid_keys
+keys = generate_vapid_keys()
+print(f"VAPID_PRIVATE={keys['private_key_b64']}")
+print(f"VAPID_PUBLIC={keys['public_key_b64']}")
+PYEOF
+    
+    VAPID_OUTPUT=$(python3 "$VAPID_TEMP" 2>/dev/null)
+    VAPID_PRIVATE=$(echo "$VAPID_OUTPUT" | grep "VAPID_PRIVATE=" | cut -d'=' -f2)
+    VAPID_PUBLIC=$(echo "$VAPID_OUTPUT" | grep "VAPID_PUBLIC=" | cut -d'=' -f2)
+    rm -f "$VAPID_TEMP"
+    
+    # Encryption Keys - Erstelle temporäres Python-Skript für Key-Extraktion
+    log_info "Generiere Encryption Keys..."
+    ENCRYPT_TEMP=$(mktemp)
+    cat > "$ENCRYPT_TEMP" <<'PYEOF'
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from scripts.generate_encryption_keys import generate_encryption_key
+credential_key = generate_encryption_key()
+music_key = generate_encryption_key()
+print(f"CREDENTIAL_KEY={credential_key}")
+print(f"MUSIC_KEY={music_key}")
+PYEOF
+    
+    ENCRYPT_OUTPUT=$(python3 "$ENCRYPT_TEMP" 2>/dev/null)
+    CREDENTIAL_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "CREDENTIAL_KEY=" | cut -d'=' -f2)
+    MUSIC_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "MUSIC_KEY=" | cut -d'=' -f2)
+    rm -f "$ENCRYPT_TEMP"
+    
+    # OnlyOffice Secret (bereits generiert)
+    # ONLYOFFICE_SECRET ist bereits in install_onlyoffice() gesetzt
+    
+    # Validierung
+    if [ -z "$VAPID_PRIVATE" ] || [ -z "$VAPID_PUBLIC" ]; then
+        log_error "VAPID Key-Generierung fehlgeschlagen!"
+        exit 1
+    fi
+    
+    if [ -z "$CREDENTIAL_KEY" ] || [ -z "$MUSIC_KEY" ]; then
+        log_error "Encryption Key-Generierung fehlgeschlagen!"
+        exit 1
+    fi
+    
+    log_success "Alle Keys generiert"
+}
+
+# .env-Konfiguration
+configure_env() {
+    log_info "=== .env-Konfiguration ==="
+    
+    cd "$INSTALL_DIR"
+    
+    # Kopiere env.example
+    if [ ! -f .env ]; then
+        cp docs/env.example .env
+    fi
+    
+    # Aktualisiere .env mit generierten Werten
+    log_info "Aktualisiere .env-Datei..."
+    
+    # SECRET_KEY
+    sed -i "s|SECRET_KEY=.*|SECRET_KEY=${FLASK_SECRET}|" .env
+    
+    # DATABASE_URI
+    DATABASE_URI="mysql+pymysql://${DB_USER}:${DB_PASS}@localhost/${DB_NAME}"
+    sed -i "s|DATABASE_URI=.*|DATABASE_URI=${DATABASE_URI}|" .env
+    
+    # VAPID Keys
+    sed -i "s|VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${VAPID_PUBLIC}|" .env
+    sed -i "s|VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVATE}|" .env
+    
+    # Encryption Keys
+    sed -i "s|CREDENTIAL_ENCRYPTION_KEY=.*|CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_KEY}|" .env
+    sed -i "s|MUSIC_ENCRYPTION_KEY=.*|MUSIC_ENCRYPTION_KEY=${MUSIC_KEY}|" .env
+    
+    # OnlyOffice
+    sed -i "s|ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
+    sed -i "s|ONLYOFFICE_DOCUMENT_SERVER_URL=.*|ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice|" .env
+    if [ -n "$ONLYOFFICE_SECRET" ]; then
+        sed -i "s|ONLYOFFICE_SECRET_KEY=.*|ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}|" .env
+    fi
+    
+    # Excalidraw
+    sed -i "s|EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
+    sed -i "s|EXCALIDRAW_URL=.*|EXCALIDRAW_URL=/excalidraw|" .env
+    sed -i "s|EXCALIDRAW_ROOM_URL=.*|EXCALIDRAW_ROOM_URL=/excalidraw-room|" .env
+    
+    # Production Settings
+    sed -i "s|FLASK_ENV=.*|FLASK_ENV=production|" .env
+    
+    # Sichere Berechtigungen
+    chmod 600 .env
+    chown www-data:www-data .env
+    
+    log_success ".env-Datei konfiguriert"
+}
+
+# Upload-Verzeichnisse erstellen
+setup_upload_directories() {
+    log_info "=== Upload-Verzeichnisse Setup ==="
+    
+    cd "$INSTALL_DIR"
+    
+    mkdir -p uploads/{files,chat,manuals,profile_pics,inventory/product_images,inventory/product_documents,system,attachments,booking_forms,bookings,email_attachments,veranstaltungen,wiki}
+    
+    chown -R www-data:www-data uploads
+    chmod -R 775 uploads
+    
+    log_success "Upload-Verzeichnisse erstellt"
+}
+
+# Datenbank-Initialisierung
+init_database() {
+    log_info "=== Datenbank-Initialisierung ==="
+    
+    cd "$INSTALL_DIR"
+    source venv/bin/activate
+    
+    log_info "Initialisiere Datenbank..."
+    if ! python3 scripts/init_database.py; then
+        log_warning "Datenbank-Initialisierung gab Warnungen. Prüfe Logs."
+    fi
+    
+    # Validierung: Prüfe ob Datenbank erreichbar ist
+    if ! python3 -c "
+import os
+import sys
+sys.path.insert(0, '${INSTALL_DIR}')
+from app import create_app, db
+app = create_app('production')
+with app.app_context():
+    db.session.execute(db.text('SELECT 1'))
+"; then
+        log_warning "Datenbank-Verbindungstest fehlgeschlagen. Möglicherweise müssen Sie die Datenbank manuell initialisieren."
+    else
+        log_success "Datenbank-Verbindung erfolgreich"
+    fi
+    
+    log_success "Datenbank initialisiert"
+}
+
+# Gunicorn Systemd Service
+setup_gunicorn_service() {
+    log_info "=== Gunicorn Systemd Service Setup ==="
+    
+    # Prüfe ob Gunicorn installiert ist
+    if [ ! -f "${INSTALL_DIR}/venv/bin/gunicorn" ]; then
+        log_info "Installiere Gunicorn..."
+        cd "$INSTALL_DIR"
+        source venv/bin/activate
+        pip install gunicorn --quiet || error_exit "Gunicorn Installation fehlgeschlagen"
+    fi
+    
+    # Service-Datei erstellen
+    cat > /etc/systemd/system/teamportal.service <<EOF
+[Unit]
+Description=Team Portal Gunicorn Application Server
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=${INSTALL_DIR}
+Environment="PATH=${INSTALL_DIR}/venv/bin"
+Environment="FLASK_ENV=production"
+ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
+    --workers 4 \\
+    --bind 127.0.0.1:5000 \\
+    --timeout 600 \\
+    --access-logfile - \\
+    --error-logfile - \\
+    wsgi:app
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # Service aktivieren und starten
+    systemctl daemon-reload || error_exit "systemd daemon-reload fehlgeschlagen"
+    systemctl enable teamportal || error_exit "Service-Aktivierung fehlgeschlagen"
+    
+    # Warte kurz bevor Start
+    sleep 2
+    
+    systemctl start teamportal || {
+        log_error "Service-Start fehlgeschlagen. Prüfe Logs mit: journalctl -u teamportal -n 50"
+        log_warning "Service wird trotzdem aktiviert. Bitte manuell prüfen."
+    }
+    
+    # Prüfe Status
+    sleep 3
+    if systemctl is-active --quiet teamportal; then
+        log_success "Gunicorn Service läuft"
+    else
+        log_warning "Service-Status unklar. Prüfe mit: systemctl status teamportal"
+    fi
+    
+    log_success "Gunicorn Service eingerichtet"
+}
+
+# Nginx Konfiguration
+setup_nginx() {
+    log_info "=== Nginx Konfiguration ==="
+    
+    # Nginx Site-Konfiguration erstellen
+    cat > /etc/nginx/sites-available/teamportal <<EOF
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # File upload limit
+    client_max_body_size 100M;
+
+    # OnlyOffice Document Server
+    location /onlyoffice {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+
+    # Excalidraw Room Server (MUSS VOR /excalidraw kommen!)
+    location /excalidraw-room {
+        proxy_pass http://127.0.0.1:8082;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+
+    # Excalidraw Client
+    location /excalidraw {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+
+    # Statische Dateien
+    location /static {
+        alias ${INSTALL_DIR}/app/static;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Uploads
+    location /uploads {
+        alias ${INSTALL_DIR}/uploads;
+        expires 7d;
+    }
+
+    # Hauptanwendung
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+EOF
+    
+    # Site aktivieren
+    ln -sf /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
+    
+    # Nginx testen
+    if ! nginx -t; then
+        error_exit "Nginx-Konfigurationstest fehlgeschlagen"
+    fi
+    
+    # Nginx neu laden
+    systemctl enable nginx || error_exit "Nginx-Aktivierung fehlgeschlagen"
+    systemctl restart nginx || error_exit "Nginx-Neustart fehlgeschlagen"
+    
+    # Prüfe Status
+    sleep 2
+    if systemctl is-active --quiet nginx; then
+        log_success "Nginx läuft"
+    else
+        error_exit "Nginx läuft nicht. Prüfe Logs: journalctl -u nginx -n 50"
+    fi
+    
+    log_success "Nginx konfiguriert"
+}
+
+# Firewall Setup
+setup_firewall() {
+    log_info "=== Firewall Setup ==="
+    
+    # UFW konfigurieren
+    ufw --force enable
+    ufw allow 22/tcp
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    
+    log_success "Firewall konfiguriert"
+}
+
+# SSL Setup
+setup_ssl() {
+    if [[ ! $SETUP_SSL =~ ^[JjYy]$ ]]; then
+        return
+    fi
+    
+    log_info "=== SSL Setup mit Let's Encrypt ==="
+    
+    # Prüfe ob Certbot verfügbar ist
+    if ! command -v certbot &> /dev/null; then
+        log_warning "Certbot nicht gefunden. Installiere..."
+        apt-get install -y -qq certbot python3-certbot-nginx || {
+            log_warning "Certbot Installation fehlgeschlagen. SSL wird übersprungen."
+            return
+        }
+    fi
+    
+    # Prüfe ob Domain erreichbar ist (Port 80 muss offen sein)
+    log_info "Prüfe Domain-Erreichbarkeit..."
+    if ! curl -s -o /dev/null -w "%{http_code}" "http://${DOMAIN}" | grep -q "200\|301\|302\|403"; then
+        log_warning "Domain $DOMAIN scheint nicht erreichbar zu sein. SSL-Setup könnte fehlschlagen."
+        log_info "Stelle sicher, dass Port 80 von außen erreichbar ist und auf diesen Server zeigt."
+        read -p "Trotzdem fortfahren? (j/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[JjYy]$ ]]; then
+            log_info "SSL-Setup übersprungen"
+            return
+        fi
+    fi
+    
+    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
+        log_success "SSL konfiguriert"
+        systemctl reload nginx
+    else
+        log_warning "SSL-Setup fehlgeschlagen. Bitte manuell einrichten mit:"
+        log_info "  certbot --nginx -d $DOMAIN"
+    fi
+}
+
+# Berechtigungen setzen
+set_permissions() {
+    log_info "=== Berechtigungen setzen ==="
+    
+    chown -R www-data:www-data "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR"
+    chmod -R 775 "$INSTALL_DIR/uploads"
+    
+    log_success "Berechtigungen gesetzt"
+}
+
+# Zusammenfassung ausgeben
+print_summary() {
+    log_success "=== Installation abgeschlossen! ==="
+    echo
+    echo "Zusammenfassung:"
+    echo "==============="
+    echo "Installationspfad: $INSTALL_DIR"
+    echo "Domain: $DOMAIN"
+    echo "Datenbank: $DB_NAME"
+    echo "Datenbank-Benutzer: $DB_USER"
+    echo "Datenbank-Passwort: $DB_PASS"
+    echo "MySQL Root-Passwort: $MYSQL_ROOT_PASS"
+    echo
+    if [ -n "$ONLYOFFICE_SECRET" ]; then
+        echo "OnlyOffice Secret Key: $ONLYOFFICE_SECRET"
+    fi
+    echo
+    echo "WICHTIG: Speichern Sie diese Informationen sicher!"
+    echo "         Besonders die Passwörter und Secret Keys!"
+    echo
+    echo "Nächste Schritte:"
+    echo "1. Konfigurieren Sie die E-Mail-Einstellungen in $INSTALL_DIR/.env"
+    echo "2. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
+    echo "3. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+    echo
+    echo "Service-Status prüfen:"
+    echo "  systemctl status teamportal"
+    echo "  systemctl status nginx"
+    echo "  docker ps"
+    echo
+    echo "Logs ansehen:"
+    echo "  journalctl -u teamportal -f"
+    echo "  journalctl -u nginx -f"
+    echo "  docker logs onlyoffice-documentserver"
+    echo "  docker logs excalidraw"
+    echo "  docker logs excalidraw-room"
+    echo
+    echo "Bei Problemen:"
+    echo "  - Prüfe Logs: journalctl -u teamportal -n 100"
+    echo "  - Prüfe Nginx: nginx -t && systemctl status nginx"
+    echo "  - Prüfe Datenbank: mysql -u $DB_USER -p$DB_PASS $DB_NAME -e 'SHOW TABLES;'"
+    echo
+}
+
+# Hauptfunktion
+main() {
+    echo "=========================================="
+    echo "Team Portal - Automatische Installation"
+    echo "Ubuntu 24.04.3 LTS"
+    echo "=========================================="
+    echo
+    
+    check_root
+    check_ubuntu
+    gather_information
+    
+    setup_system
+    setup_mysql
+    install_docker
+    install_onlyoffice
+    install_excalidraw
+    setup_project_directory
+    setup_venv
+    generate_keys
+    configure_env
+    setup_upload_directories
+    init_database
+    setup_gunicorn_service
+    setup_nginx
+    setup_firewall
+    setup_ssl
+    set_permissions
+    
+    print_summary
+}
+
+# Skript ausführen
+main "$@"
+
