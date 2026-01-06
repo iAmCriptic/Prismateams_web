@@ -484,48 +484,74 @@ setup_venv() {
 generate_keys() {
     log_info "=== Key-Generierung ==="
     
-    cd "$INSTALL_DIR"
-    source venv/bin/activate
+    cd "$INSTALL_DIR" || {
+        log_error "Konnte nicht nach $INSTALL_DIR wechseln"
+        exit 1
+    }
+    
+    if [ ! -f "venv/bin/activate" ]; then
+        log_error "Virtual Environment nicht gefunden in $INSTALL_DIR/venv"
+        exit 1
+    fi
+    
+    source venv/bin/activate || {
+        log_error "Konnte Virtual Environment nicht aktivieren"
+        exit 1
+    }
     
     # Flask Secret Key
     FLASK_SECRET=$(generate_secret)
     
-    # VAPID Keys - Erstelle temporäres Python-Skript für Key-Extraktion
+    # VAPID Keys - Rufe Python-Skript direkt auf
     log_info "Generiere VAPID Keys..."
-    VAPID_TEMP=$(mktemp)
-    cat > "$VAPID_TEMP" <<'PYEOF'
+    if [ ! -f "${INSTALL_DIR}/scripts/generate_vapid_keys.py" ]; then
+        log_error "VAPID Key-Generator nicht gefunden: ${INSTALL_DIR}/scripts/generate_vapid_keys.py"
+        exit 1
+    fi
+    
+    VAPID_OUTPUT=$(cd "${INSTALL_DIR}" && python3 -c "
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.getcwd())
 from scripts.generate_vapid_keys import generate_vapid_keys
 keys = generate_vapid_keys()
-print(f"VAPID_PRIVATE={keys['private_key_b64']}")
-print(f"VAPID_PUBLIC={keys['public_key_b64']}")
-PYEOF
-    
-    VAPID_OUTPUT=$(python3 "$VAPID_TEMP" 2>/dev/null)
+print('VAPID_PRIVATE=' + keys['private_key_b64'])
+print('VAPID_PUBLIC=' + keys['public_key_b64'])
+" 2>&1)
+    VAPID_EXIT_CODE=$?
+    if [ $VAPID_EXIT_CODE -ne 0 ]; then
+        log_error "VAPID Key-Generierung fehlgeschlagen (Exit Code: $VAPID_EXIT_CODE)"
+        log_error "Python Output: $VAPID_OUTPUT"
+        exit 1
+    fi
     VAPID_PRIVATE=$(echo "$VAPID_OUTPUT" | grep "VAPID_PRIVATE=" | cut -d'=' -f2)
     VAPID_PUBLIC=$(echo "$VAPID_OUTPUT" | grep "VAPID_PUBLIC=" | cut -d'=' -f2)
-    rm -f "$VAPID_TEMP"
     
-    # Encryption Keys - Erstelle temporäres Python-Skript für Key-Extraktion
+    # Encryption Keys - Rufe Python-Skript direkt auf
     log_info "Generiere Encryption Keys..."
-    ENCRYPT_TEMP=$(mktemp)
-    cat > "$ENCRYPT_TEMP" <<'PYEOF'
+    if [ ! -f "${INSTALL_DIR}/scripts/generate_encryption_keys.py" ]; then
+        log_error "Encryption Key-Generator nicht gefunden: ${INSTALL_DIR}/scripts/generate_encryption_keys.py"
+        exit 1
+    fi
+    
+    ENCRYPT_OUTPUT=$(cd "${INSTALL_DIR}" && python3 -c "
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.getcwd())
 from scripts.generate_encryption_keys import generate_encryption_key
 credential_key = generate_encryption_key()
 music_key = generate_encryption_key()
-print(f"CREDENTIAL_KEY={credential_key}")
-print(f"MUSIC_KEY={music_key}")
-PYEOF
-    
-    ENCRYPT_OUTPUT=$(python3 "$ENCRYPT_TEMP" 2>/dev/null)
+print('CREDENTIAL_KEY=' + credential_key)
+print('MUSIC_KEY=' + music_key)
+" 2>&1)
+    ENCRYPT_EXIT_CODE=$?
+    if [ $ENCRYPT_EXIT_CODE -ne 0 ]; then
+        log_error "Encryption Key-Generierung fehlgeschlagen (Exit Code: $ENCRYPT_EXIT_CODE)"
+        log_error "Python Output: $ENCRYPT_OUTPUT"
+        exit 1
+    fi
     CREDENTIAL_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "CREDENTIAL_KEY=" | cut -d'=' -f2)
     MUSIC_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "MUSIC_KEY=" | cut -d'=' -f2)
-    rm -f "$ENCRYPT_TEMP"
     
     # OnlyOffice Secret (bereits generiert)
     # ONLYOFFICE_SECRET ist bereits in install_onlyoffice() gesetzt
@@ -533,11 +559,13 @@ PYEOF
     # Validierung
     if [ -z "$VAPID_PRIVATE" ] || [ -z "$VAPID_PUBLIC" ]; then
         log_error "VAPID Key-Generierung fehlgeschlagen!"
+        log_error "VAPID_OUTPUT war: $VAPID_OUTPUT"
         exit 1
     fi
     
     if [ -z "$CREDENTIAL_KEY" ] || [ -z "$MUSIC_KEY" ]; then
         log_error "Encryption Key-Generierung fehlgeschlagen!"
+        log_error "ENCRYPT_OUTPUT war: $ENCRYPT_OUTPUT"
         exit 1
     fi
     
