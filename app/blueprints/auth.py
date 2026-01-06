@@ -324,9 +324,9 @@ def test_email():
         return redirect(url_for('dashboard.index'))
     
     from flask import current_app
-        from flask_mail import Message
-        from app import mail
-        from app.utils.email_sender import send_email_with_lock
+    from flask_mail import Message
+    from app import mail
+    from app.utils.email_sender import send_email_with_lock
     
     try:
         # Prüfe E-Mail-Konfiguration
