@@ -1513,6 +1513,104 @@ def public_share_upload(token):
     return redirect(url_for('files.public_share', token=token))
 
 # ONLYOFFICE Routes
+@files_bp.route('/api/onlyoffice-diagnose', methods=['GET'])
+@login_required
+@check_module_access('module_files')
+def onlyoffice_diagnose():
+    """Diagnose OnlyOffice Document Server connectivity."""
+    import requests
+    from urllib.parse import urljoin
+    
+    results = {
+        'onlyoffice_enabled': current_app.config.get('ONLYOFFICE_ENABLED', False),
+        'onlyoffice_url': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice'),
+        'tests': {}
+    }
+    
+    if not results['onlyoffice_enabled']:
+        return jsonify(results)
+    
+    onlyoffice_url = results['onlyoffice_url']
+    
+    # Test 1: Direct connection to OnlyOffice on port 8080
+    try:
+        response = requests.get('http://127.0.0.1:8080/welcome/', timeout=5)
+        results['tests']['direct_8080'] = {
+            'status': 'success' if response.status_code == 200 else 'failed',
+            'status_code': response.status_code,
+            'content_type': response.headers.get('Content-Type', ''),
+            'message': 'OnlyOffice is reachable on port 8080' if response.status_code == 200 else f'OnlyOffice returned status {response.status_code}'
+        }
+    except requests.exceptions.ConnectionError:
+        results['tests']['direct_8080'] = {
+            'status': 'failed',
+            'message': 'Cannot connect to OnlyOffice on port 8080. Is the Docker container running?'
+        }
+    except Exception as e:
+        results['tests']['direct_8080'] = {
+            'status': 'error',
+            'message': f'Error: {str(e)}'
+        }
+    
+    # Test 2: OnlyOffice API via Nginx proxy
+    if onlyoffice_url.startswith('http'):
+        api_url = f"{onlyoffice_url.rstrip('/')}/web-apps/apps/api/documents/api.js"
+    else:
+        scheme = request.scheme
+        host = request.host
+        if not onlyoffice_url.startswith('/'):
+            onlyoffice_url = '/' + onlyoffice_url
+        onlyoffice_url = onlyoffice_url.rstrip('/')
+        api_url = f"{scheme}://{host}{onlyoffice_url}/web-apps/apps/api/documents/api.js"
+    
+    try:
+        response = requests.get(api_url, timeout=5)
+        content_type = response.headers.get('Content-Type', '')
+        is_javascript = 'javascript' in content_type.lower() or response.text.strip().startswith(('var ', 'function ', '!function', '(function'))
+        is_html = '<html' in response.text.lower() or '<!doctype' in response.text.lower()
+        
+        results['tests']['api_via_nginx'] = {
+            'status': 'success' if is_javascript and not is_html else 'failed',
+            'status_code': response.status_code,
+            'content_type': content_type,
+            'url': api_url,
+            'is_javascript': is_javascript,
+            'is_html': is_html,
+            'content_preview': response.text[:200] if len(response.text) > 0 else '(empty)',
+            'message': 'API file is correctly served as JavaScript' if is_javascript and not is_html else 'API file is NOT served as JavaScript (likely HTML error page)'
+        }
+    except Exception as e:
+        results['tests']['api_via_nginx'] = {
+            'status': 'error',
+            'url': api_url,
+            'message': f'Error accessing API via Nginx: {str(e)}'
+        }
+    
+    # Test 3: OnlyOffice welcome page via Nginx
+    if onlyoffice_url.startswith('http'):
+        welcome_url = f"{onlyoffice_url.rstrip('/')}/welcome/"
+    else:
+        welcome_url = f"{scheme}://{host}{onlyoffice_url}/welcome/"
+    
+    try:
+        response = requests.get(welcome_url, timeout=5)
+        results['tests']['welcome_via_nginx'] = {
+            'status': 'success' if response.status_code == 200 else 'failed',
+            'status_code': response.status_code,
+            'content_type': response.headers.get('Content-Type', ''),
+            'url': welcome_url,
+            'message': 'Welcome page is accessible via Nginx' if response.status_code == 200 else f'Welcome page returned status {response.status_code}'
+        }
+    except Exception as e:
+        results['tests']['welcome_via_nginx'] = {
+            'status': 'error',
+            'url': welcome_url,
+            'message': f'Error accessing welcome page via Nginx: {str(e)}'
+        }
+    
+    return jsonify(results)
+
+
 @files_bp.route('/edit-onlyoffice/<int:file_id>')
 @login_required
 @check_module_access('module_files')

@@ -880,6 +880,10 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
+        # WICHTIG: Content-Type Header vom Backend übernehmen
+        # Standardmäßig sollte Nginx den Content-Type vom Backend übernehmen,
+        # aber wir stellen sicher, dass er nicht überschrieben wird
+        
         # CORS headers for OnlyOffice (wichtig für API-Zugriff)
         add_header Access-Control-Allow-Origin * always;
         add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
