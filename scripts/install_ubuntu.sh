@@ -13,8 +13,8 @@
 # - Excalidraw (Docker)
 # - Automatische Generierung aller Keys
 # - Automatische .env-Konfiguration (inkl. E-Mail-Einstellungen)
-# - Datenbank-Initialisierung
-# - Systemd Service für Gunicorn
+# - Systemd Service für Gunicorn (mit 1 Worker für ersten Start)
+# - Datenbank wird automatisch beim ersten Start durch Gunicorn initialisiert
 # - Optional: SSL mit Let's Encrypt
 #
 # Verwendung:
@@ -381,17 +381,37 @@ install_onlyoffice() {
     # OnlyOffice Container starten
     log_info "Starte OnlyOffice Container..."
     
+    # Prüfe ob Container bereits existiert
+    if docker ps -a --format '{{.Names}}' | grep -q "^onlyoffice-documentserver$"; then
+        log_info "OnlyOffice Container existiert bereits. Entferne alten Container..."
+        docker stop onlyoffice-documentserver 2>/dev/null || true
+        docker rm onlyoffice-documentserver 2>/dev/null || true
+    fi
+    
     docker run -i -t -d -p 8080:80 --restart=always \
         --name onlyoffice-documentserver \
         -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
         -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
         -e JWT_SECRET="${ONLYOFFICE_SECRET}" \
+        -e JWT_ENABLED=true \
         onlyoffice/documentserver:latest || {
-        log_warning "OnlyOffice Container konnte nicht gestartet werden. Möglicherweise läuft bereits ein Container."
+        log_error "OnlyOffice Container konnte nicht gestartet werden"
+        exit 1
     }
     
-    # Warte auf OnlyOffice
-    sleep 10
+    # Warte auf OnlyOffice (länger warten, damit OnlyOffice vollständig startet)
+    log_info "Warte auf OnlyOffice-Service (kann bis zu 60 Sekunden dauern)..."
+    for i in {1..60}; do
+        if curl -s http://127.0.0.1:8080/welcome/ > /dev/null 2>&1; then
+            log_success "OnlyOffice ist bereit"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            log_warning "OnlyOffice antwortet noch nicht, aber fahre fort..."
+        else
+            sleep 1
+        fi
+    done
     
     log_success "OnlyOffice installiert"
     log_info "OnlyOffice Secret Key: ${ONLYOFFICE_SECRET}"
@@ -403,6 +423,13 @@ install_excalidraw() {
     
     # Excalidraw Client
     log_info "Starte Excalidraw Client Container..."
+    # Prüfe ob Container bereits existiert
+    if docker ps -a --format '{{.Names}}' | grep -q "^excalidraw$"; then
+        log_info "Excalidraw Client Container existiert bereits. Entferne alten Container..."
+        docker stop excalidraw 2>/dev/null || true
+        docker rm excalidraw 2>/dev/null || true
+    fi
+    
     docker run -i -t -d -p 8081:80 --restart=always \
         --name excalidraw \
         excalidraw/excalidraw:latest || {
@@ -411,6 +438,13 @@ install_excalidraw() {
     
     # Excalidraw Room Server
     log_info "Starte Excalidraw Room Server Container..."
+    # Prüfe ob Container bereits existiert
+    if docker ps -a --format '{{.Names}}' | grep -q "^excalidraw-room$"; then
+        log_info "Excalidraw Room Server Container existiert bereits. Entferne alten Container..."
+        docker stop excalidraw-room 2>/dev/null || true
+        docker rm excalidraw-room 2>/dev/null || true
+    fi
+    
     docker run -i -t -d -p 8082:80 --restart=always \
         --name excalidraw-room \
         -e PORT=80 \
@@ -605,17 +639,58 @@ configure_env() {
     sed -i "s|CREDENTIAL_ENCRYPTION_KEY=.*|CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_KEY}|" .env
     sed -i "s|MUSIC_ENCRYPTION_KEY=.*|MUSIC_ENCRYPTION_KEY=${MUSIC_KEY}|" .env
     
-    # OnlyOffice
-    sed -i "s|ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
-    sed -i "s|ONLYOFFICE_DOCUMENT_SERVER_URL=.*|ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice|" .env
+    # OnlyOffice - Entferne Kommentare (#) am Zeilenanfang und setze Werte
+    # Entferne # am Anfang und Kommentare am Ende, dann setze Werte
+    sed -i "s|^#.*ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
+    sed -i "s|^ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
+    # Entferne Kommentare am Ende der Zeile für ONLYOFFICE_DOCUMENT_SERVER_URL
+    sed -i "s|^#.*ONLYOFFICE_DOCUMENT_SERVER_URL=\([^#]*\).*|ONLYOFFICE_DOCUMENT_SERVER_URL=\1|" .env
+    sed -i "s|^ONLYOFFICE_DOCUMENT_SERVER_URL=\([^#]*\).*|ONLYOFFICE_DOCUMENT_SERVER_URL=\1|" .env
+    sed -i "s|^ONLYOFFICE_DOCUMENT_SERVER_URL=.*|ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice|" .env
     if [ -n "$ONLYOFFICE_SECRET" ]; then
-        sed -i "s|ONLYOFFICE_SECRET_KEY=.*|ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}|" .env
+        # Entferne Kommentare am Ende der Zeile für ONLYOFFICE_SECRET_KEY
+        sed -i "s|^#.*ONLYOFFICE_SECRET_KEY=\([^#]*\).*|ONLYOFFICE_SECRET_KEY=\1|" .env
+        sed -i "s|^ONLYOFFICE_SECRET_KEY=\([^#]*\).*|ONLYOFFICE_SECRET_KEY=\1|" .env
+        sed -i "s|^ONLYOFFICE_SECRET_KEY=.*|ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}|" .env
+    fi
+    # Stelle sicher, dass ONLYOFFICE-Einstellungen gesetzt sind (falls nicht in env.example vorhanden)
+    if ! grep -q "^ONLYOFFICE_ENABLED=" .env; then
+        echo "ONLYOFFICE_ENABLED=True" >> .env
+    fi
+    if ! grep -q "^ONLYOFFICE_DOCUMENT_SERVER_URL=" .env; then
+        echo "ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice" >> .env
+    fi
+    if [ -n "$ONLYOFFICE_SECRET" ] && ! grep -q "^ONLYOFFICE_SECRET_KEY=" .env; then
+        echo "ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}" >> .env
     fi
     
-    # Excalidraw
-    sed -i "s|EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
-    sed -i "s|EXCALIDRAW_URL=.*|EXCALIDRAW_URL=/excalidraw|" .env
-    sed -i "s|EXCALIDRAW_ROOM_URL=.*|EXCALIDRAW_ROOM_URL=/excalidraw-room|" .env
+    # Excalidraw - Entferne Kommentare (#) am Zeilenanfang und setze Werte
+    sed -i "s|^#.*EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
+    sed -i "s|^EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
+    # Entferne Kommentare am Ende der Zeile für EXCALIDRAW_URL
+    sed -i "s|^#.*EXCALIDRAW_URL=\([^#]*\).*|EXCALIDRAW_URL=\1|" .env
+    sed -i "s|^EXCALIDRAW_URL=\([^#]*\).*|EXCALIDRAW_URL=\1|" .env
+    sed -i "s|^EXCALIDRAW_URL=.*|EXCALIDRAW_URL=/excalidraw|" .env
+    # Entferne Kommentare am Ende der Zeile für EXCALIDRAW_ROOM_URL
+    sed -i "s|^#.*EXCALIDRAW_ROOM_URL=\([^#]*\).*|EXCALIDRAW_ROOM_URL=\1|" .env
+    sed -i "s|^EXCALIDRAW_ROOM_URL=\([^#]*\).*|EXCALIDRAW_ROOM_URL=\1|" .env
+    sed -i "s|^EXCALIDRAW_ROOM_URL=.*|EXCALIDRAW_ROOM_URL=/excalidraw-room|" .env
+    # EXCALIDRAW_PUBLIC_URL (optional, leer lassen wenn nicht benötigt)
+    sed -i "s|^#.*EXCALIDRAW_PUBLIC_URL=.*|EXCALIDRAW_PUBLIC_URL=|" .env
+    sed -i "s|^EXCALIDRAW_PUBLIC_URL=.*|EXCALIDRAW_PUBLIC_URL=|" .env
+    # Stelle sicher, dass Excalidraw-Einstellungen gesetzt sind (falls nicht in env.example vorhanden)
+    if ! grep -q "^EXCALIDRAW_ENABLED=" .env; then
+        echo "EXCALIDRAW_ENABLED=True" >> .env
+    fi
+    if ! grep -q "^EXCALIDRAW_URL=" .env; then
+        echo "EXCALIDRAW_URL=/excalidraw" >> .env
+    fi
+    if ! grep -q "^EXCALIDRAW_ROOM_URL=" .env; then
+        echo "EXCALIDRAW_ROOM_URL=/excalidraw-room" >> .env
+    fi
+    if ! grep -q "^EXCALIDRAW_PUBLIC_URL=" .env; then
+        echo "EXCALIDRAW_PUBLIC_URL=" >> .env
+    fi
     
     # Production Settings
     sed -i "s|FLASK_ENV=.*|FLASK_ENV=production|" .env
@@ -703,38 +778,10 @@ setup_upload_directories() {
     log_success "Upload-Verzeichnisse erstellt"
 }
 
-# Datenbank-Initialisierung
-init_database() {
-    log_info "=== Datenbank-Initialisierung ==="
-    
-    cd "$INSTALL_DIR"
-    source venv/bin/activate
-    
-    log_info "Initialisiere Datenbank..."
-    if ! python3 scripts/init_database.py; then
-        log_warning "Datenbank-Initialisierung gab Warnungen. Prüfe Logs."
-    fi
-    
-    # Validierung: Prüfe ob Datenbank erreichbar ist
-    DB_TEST_TEMP=$(mktemp)
-    cat > "$DB_TEST_TEMP" <<PYEOF
-import os
-import sys
-sys.path.insert(0, '${INSTALL_DIR}')
-from app import create_app, db
-app = create_app('production')
-with app.app_context():
-    db.session.execute(db.text('SELECT 1'))
-PYEOF
-    if ! python3 "$DB_TEST_TEMP" 2>/dev/null; then
-        log_warning "Datenbank-Verbindungstest fehlgeschlagen. Möglicherweise müssen Sie die Datenbank manuell initialisieren."
-    else
-        log_success "Datenbank-Verbindung erfolgreich"
-    fi
-    rm -f "$DB_TEST_TEMP"
-    
-    log_success "Datenbank initialisiert"
-}
+# Datenbank-Initialisierung wird NICHT durch das Skript durchgeführt
+# Die Datenbank wird automatisch beim ersten Start von Gunicorn initialisiert
+# (siehe INSTALLATION.md - Schritt 9: Supervisor konfigurieren)
+# WICHTIG: Verwenden Sie -w 1 (1 Worker) für den ersten Start!
 
 # Gunicorn Systemd Service
 setup_gunicorn_service() {
@@ -749,6 +796,9 @@ setup_gunicorn_service() {
     fi
     
     # Service-Datei erstellen
+    # WICHTIG: Verwenden Sie -w 1 (1 Worker) für den ersten Start!
+    # Die Datenbank wird automatisch beim ersten Start initialisiert.
+    # Nach erfolgreichem Start können Sie auf mehrere Worker umstellen (z.B. -w 4)
     cat > /etc/systemd/system/teamportal.service <<EOF
 [Unit]
 Description=Team Portal Gunicorn Application Server
@@ -761,7 +811,7 @@ WorkingDirectory=${INSTALL_DIR}
 Environment="PATH=${INSTALL_DIR}/venv/bin"
 Environment="FLASK_ENV=production"
 ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
-    --workers 4 \\
+    --workers 1 \\
     --bind 127.0.0.1:5000 \\
     --timeout 600 \\
     --access-logfile - \\
@@ -816,7 +866,7 @@ server {
     # File upload limit
     client_max_body_size 100M;
 
-    # OnlyOffice Document Server
+    # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
     location /onlyoffice {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
@@ -824,17 +874,41 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         
+        # OnlyOffice spezifische Header
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
+        # CORS headers for OnlyOffice
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+        add_header Access-Control-Allow-Credentials true always;
+        
+        # Handle preflight requests
+        if (\$request_method = 'OPTIONS') {
+            add_header Access-Control-Allow-Origin * always;
+            add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+            add_header Access-Control-Allow-Credentials true always;
+            add_header Content-Length 0;
+            add_header Content-Type text/plain;
+            return 204;
+        }
+        
+        # Timeouts für große Dokumente
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
         send_timeout 600;
+        
+        # Disable buffering for OnlyOffice
+        proxy_buffering off;
+        proxy_request_buffering off;
     }
 
-    # Excalidraw Room Server (MUSS VOR /excalidraw kommen!)
+    # Excalidraw Room Server (OPTIONAL - nur wenn installiert)
+    # WICHTIG: Muss VOR /excalidraw kommen!
     location /excalidraw-room {
         proxy_pass http://127.0.0.1:8082;
         proxy_set_header Host \$host;
@@ -842,17 +916,19 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         
+        # WebSocket support (wichtig für Echtzeit-Kollaboration)
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
+        # Timeouts für WebSocket-Verbindungen
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
         send_timeout 600;
     }
 
-    # Excalidraw Client
+    # Excalidraw Client (OPTIONAL - nur wenn installiert)
     location /excalidraw {
         proxy_pass http://127.0.0.1:8081;
         proxy_set_header Host \$host;
@@ -860,30 +936,32 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         
+        # WebSocket support
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
+        # Timeouts
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
         send_timeout 600;
     }
 
-    # Statische Dateien
+    # Statische Dateien (MUSS VOR / kommen!)
     location /static {
         alias ${INSTALL_DIR}/app/static;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
 
-    # Uploads
+    # Uploads (MUSS VOR / kommen!)
     location /uploads {
         alias ${INSTALL_DIR}/uploads;
         expires 7d;
     }
 
-    # Hauptanwendung
+    # Hauptanwendung (MUSS ZULETZT kommen!)
     location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host \$host;
@@ -1022,8 +1100,16 @@ print_summary() {
     else
         echo "1. E-Mail-Einstellungen wurden bereits konfiguriert"
     fi
-    echo "2. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
-    echo "3. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+    echo "2. Warten Sie etwa 1 Minute, damit die Datenbank beim ersten Start initialisiert wird"
+    echo "3. Prüfen Sie die Logs: journalctl -u teamportal -n 50"
+    echo "4. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
+    echo "5. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+    echo
+    echo "WICHTIG: Nach erfolgreichem ersten Start können Sie auf mehrere Worker umstellen:"
+    echo "  sudo nano /etc/systemd/system/teamportal.service"
+    echo "  Ändern Sie '--workers 1' zu '--workers 4' (oder mehr)"
+    echo "  sudo systemctl daemon-reload"
+    echo "  sudo systemctl restart teamportal"
     echo
     echo "Service-Status prüfen:"
     echo "  systemctl status teamportal"
@@ -1066,7 +1152,7 @@ main() {
     generate_keys
     configure_env
     setup_upload_directories
-    init_database
+    # init_database wird NICHT aufgerufen - DB wird durch Gunicorn beim ersten Start initialisiert
     setup_gunicorn_service
     setup_nginx
     setup_firewall

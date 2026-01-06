@@ -48,7 +48,7 @@ class EmailAttachment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email_id = db.Column(db.Integer, db.ForeignKey('email_messages.id'), nullable=False)
     
-    filename = db.Column(db.String(255), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)  # Erweitert von 255 auf 500 für längere Dateinamen
     content_type = db.Column(db.String(100), nullable=False)
     size = db.Column(db.Integer, nullable=False)  # Size in bytes
     content = db.Column(db.LargeBinary, nullable=True)  # File content (can be None for file storage)
