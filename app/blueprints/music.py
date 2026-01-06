@@ -481,6 +481,25 @@ def disconnect(provider):
         return jsonify({'error': str(e)}), 500
 
 
+@music_bp.route('/public-url')
+@login_required
+@check_module_access('module_music')
+def public_url_page():
+    """Zeigt eine Seite mit QR-Code und Link für die öffentliche Wunschliste."""
+    from app.models.settings import SystemSettings
+    
+    # Hole Portallogo
+    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+    portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
+    
+    # Generiere Public URL
+    public_url = url_for('music.public_wishlist', _external=True)
+    
+    return render_template('music/public_url.html',
+                         portal_logo_filename=portal_logo_filename,
+                         public_url=public_url)
+
+
 @music_bp.route('/api/public-link')
 @login_required
 @check_module_access('module_music')
@@ -488,4 +507,40 @@ def get_public_link():
     """Gibt den öffentlichen Link zur Wunschliste zurück."""
     link = url_for('music.public_wishlist', _external=True)
     return jsonify({'link': link})
+
+
+@music_bp.route('/api/qr-code')
+@login_required
+@check_module_access('module_music')
+def get_qr_code():
+    """Gibt einen QR-Code für die Public URL zurück."""
+    from app.utils.qr_code import generate_qr_code_bytes
+    from flask import Response
+    
+    url = request.args.get('url')
+    if not url:
+        url = url_for('music.public_wishlist', _external=True)
+    
+    qr_bytes = generate_qr_code_bytes(url, box_size=10, border=4)
+    return Response(qr_bytes, mimetype='image/png')
+
+
+@music_bp.route('/api/public-link/pdf')
+@login_required
+@check_module_access('module_music')
+def download_public_link_pdf():
+    """Generiert und gibt eine A5-PDF mit QR-Code für die Public URL zurück."""
+    from app.utils.pdf_generator import generate_music_wish_pdf
+    from flask import Response
+    
+    public_url = url_for('music.public_wishlist', _external=True)
+    pdf_bytes = generate_music_wish_pdf(public_url)
+    
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': 'attachment; filename=musikwuensche.pdf'
+        }
+    )
 

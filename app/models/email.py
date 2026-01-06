@@ -124,7 +124,8 @@ class EmailFolder(db.Model):
             'Deleted Messages': 'Papierkorb',
             'Spam': 'Spam',
             'Junk': 'Spam',
-            'Archive': 'Archiv'
+            'Archive': 'Archiv',
+            'Archives': 'Archiv'
         }
         return display_names.get(imap_name, imap_name)
 

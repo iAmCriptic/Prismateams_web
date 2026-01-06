@@ -453,6 +453,8 @@
       "section_repository_title": "GitHub Repository",
       "section_repository_description": "Das Quellcode-Repository finden Sie auf GitHub:",
       "section_repository_button": "GitHub Repository öffnen",
+      "section_repository_improvement_note": "Die Software wird kontinuierlich weiterentwickelt und verbessert. Sollten Sie einen Fehler entdecken, melden Sie diesen bitte gerne mit einem Screenshot und/oder einer ausführlichen Beschreibung über die Issues-Seite auf GitHub.",
+      "section_repository_issues_button": "Fehler melden",
       "section_system_title": "Über Dieses System",
       "version_label": "Version:",
       "version_value": "",
@@ -936,6 +938,9 @@
         "error_title": "Fehler",
         "unknown_response": "Unbekannte Antwort für die Vorschau erhalten."
       },
+      "original_email": {
+        "title": "Ursprüngliche E-Mail"
+      },
       "attachments": {
         "label": "Anhänge (optional)",
         "help": "Mehrere Dateien auswählen möglich",
@@ -959,7 +964,8 @@
         "from": "Von:",
         "to": "An:",
         "cc": "CC:",
-        "date": "Datum:"
+        "date": "Datum:",
+        "subject": "Betreff:"
       },
       "attachments": {
         "title": "Anhänge ({count})",

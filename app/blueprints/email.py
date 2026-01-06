@@ -184,6 +184,103 @@ def connect_imap():
         return None
 
 
+def find_sent_folder(mail_conn):
+    """Find the Sent folder name on IMAP server (auto-detect)."""
+    try:
+        status, folders = mail_conn.list()
+        if status != 'OK':
+            return None
+        
+        # Mögliche Namen für den Sent-Ordner
+        sent_folder_names = ['Sent', 'Sent Messages', 'Gesendet', 'Gesendete Nachrichten']
+        
+        for folder_info in folders:
+            try:
+                folder_str = folder_info.decode('utf-8')
+                parts = folder_str.split('"')
+                if len(parts) >= 3:
+                    folder_name = parts[-2]
+                    if folder_name in sent_folder_names:
+                        return folder_name
+            except:
+                continue
+        
+        # Fallback: Versuche 'Sent' direkt
+        try:
+            status, _ = mail_conn.select('Sent')
+            if status == 'OK':
+                return 'Sent'
+        except:
+            pass
+        
+        return None
+    except Exception as e:
+        logging.error(f"Error finding Sent folder: {e}")
+        return None
+
+
+def save_email_to_imap_sent(msg):
+    """Save sent email to IMAP Sent folder."""
+    try:
+        imap_server = current_app.config.get('IMAP_SERVER')
+        imap_port = current_app.config.get('IMAP_PORT', 993)
+        imap_use_ssl = current_app.config.get('IMAP_USE_SSL', True)
+        username = current_app.config.get('MAIL_USERNAME')
+        password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([imap_server, username, password]):
+            logging.warning("IMAP configuration missing, cannot save to Sent folder")
+            return False
+        
+        # Verbindung herstellen
+        if imap_use_ssl:
+            mail_conn = imaplib.IMAP4_SSL(imap_server, imap_port)
+        else:
+            mail_conn = imaplib.IMAP4(imap_server, imap_port)
+        
+        mail_conn.login(username, password)
+        
+        # Sent-Ordner finden
+        sent_folder = find_sent_folder(mail_conn)
+        if not sent_folder:
+            logging.warning("Sent folder not found on IMAP server, cannot save email")
+            mail_conn.close()
+            mail_conn.logout()
+            return False
+        
+        # E-Mail als RFC822-String konvertieren
+        email_string = msg.as_string()
+        email_bytes = email_string.encode('utf-8')
+        
+        # E-Mail im Sent-Ordner speichern
+        try:
+            mail_conn.select(sent_folder)
+            result = mail_conn.append(sent_folder, None, None, email_bytes)
+            
+            if result[0] == 'OK':
+                logging.info(f"Email saved to IMAP Sent folder '{sent_folder}'")
+                mail_conn.close()
+                mail_conn.logout()
+                return True
+            else:
+                logging.warning(f"Failed to save email to IMAP Sent folder: {result}")
+                mail_conn.close()
+                mail_conn.logout()
+                return False
+        except Exception as e:
+            logging.error(f"Error saving email to IMAP Sent folder: {e}")
+            try:
+                mail_conn.close()
+                mail_conn.logout()
+            except:
+                pass
+            return False
+            
+    except Exception as e:
+        logging.error(f"Error connecting to IMAP to save sent email: {e}")
+        return False
+
+
 def sync_imap_folders():
     """Sync IMAP folders from server to database."""
     mail_conn = connect_imap()
@@ -217,7 +314,7 @@ def sync_imap_folders():
                         logging.debug(f"Skipping system folder: '{folder_name}'")
                         continue
                     
-                    is_system = folder_name in ['INBOX', 'Sent', 'Sent Messages', 'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk', 'Archive']
+                    is_system = folder_name in ['INBOX', 'Sent', 'Sent Messages', 'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk', 'Archive', 'Archives']
                     display_name = EmailFolder.get_folder_display_name(folder_name)
 
                     separator = parts[1] if len(parts) >= 3 and parts[1] else '/'
@@ -352,19 +449,34 @@ def sync_emails_from_folder(folder_name):
                 except:
                     pass
                 if status != 'OK':
-                    logging.error(f"IMAP folder selection failed for '{folder_name}': {messages}")
-                    try:
-                        db_folder = EmailFolder.query.filter_by(name=folder_name).first()
-                        if db_folder:
-                            db.session.delete(db_folder)
-                            db.session.commit()
-                            logging.info(f"Removed non-existent folder '{folder_name}' from local database")
-                    except Exception as _cleanup_err:
-                        db.session.rollback()
-                    return False, f"Ordner '{folder_name}' konnte nicht geöffnet werden: {messages[0].decode() if messages else 'Unbekannter Fehler'}"
+                    # Ordner existiert nicht auf dem Server - überspringen, aber in DB behalten
+                    error_msg = messages[0].decode() if messages else 'Unbekannter Fehler'
+                    # Prüfe ob es sich um einen Archiv-Ordner handelt (Archive oder Archives)
+                    is_archive_folder = folder_name in ['Archive', 'Archives']
+                    if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg:
+                        if is_archive_folder:
+                            logging.info(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
+                        else:
+                            logging.warning(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
+                        try:
+                            mail_conn.logout()
+                        except:
+                            pass
+                        return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
+                    else:
+                        logging.warning(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
+                        try:
+                            mail_conn.logout()
+                        except:
+                            pass
+                        return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
         except Exception as e:
-            logging.error(f"Exception while selecting folder '{folder_name}': {e}")
-            return False, f"Fehler beim Öffnen des Ordners '{folder_name}': {str(e)}"
+            logging.warning(f"Exception while selecting folder '{folder_name}': {e}")
+            try:
+                mail_conn.logout()
+            except:
+                pass
+            return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {str(e)}"
         
         try:
             message_count = int(messages[0].decode().split()[1])
@@ -413,7 +525,7 @@ def sync_emails_from_folder(folder_name):
                         email_obj.last_imap_sync = datetime.utcnow()
                         stats['deleted_emails'] += 1
         
-        max_emails = 100 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive'] else 30
+        max_emails = 100 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] else 30
         emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
         logging.info(f"Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
         
@@ -752,7 +864,7 @@ def sync_emails_from_folder(folder_name):
                 try:
                     db.session.add(email_entry)
                     db.session.flush()
-                except sqlalchemy.exc.IntegrityError as integrity_error:
+                except IntegrityError as integrity_error:
                     if "Duplicate entry" in str(integrity_error) or "1062" in str(integrity_error):
                         logging.debug(f"Email with message_id '{message_id}' already exists in another folder, skipping")
                         stats['skipped_emails'] += 1
@@ -888,6 +1000,55 @@ def sync_emails_from_folder(folder_name):
         return False, f"E-Mail-Sync-Fehler für Ordner '{folder_name}': {str(e)}"
 
 
+def cleanup_old_emails():
+    """Lösche alte E-Mails basierend auf der konfigurierten Speicherdauer."""
+    try:
+        # Hole Speicherdauer aus Einstellungen
+        storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()
+        storage_days = 0
+        if storage_setting and storage_setting.value:
+            try:
+                storage_days = int(storage_setting.value)
+            except ValueError:
+                storage_days = 0
+        
+        # Wenn Speicherdauer 0 ist, keine Bereinigung
+        if storage_days <= 0:
+            logging.debug("E-Mail-Bereinigung deaktiviert (Speicherdauer = 0)")
+            return 0
+        
+        # Berechne das Datum, ab dem E-Mails gelöscht werden sollen
+        cutoff_date = datetime.utcnow() - timedelta(days=storage_days)
+        
+        # Finde E-Mails, die älter als die Speicherdauer sind
+        old_emails = EmailMessage.query.filter(
+            EmailMessage.created_at < cutoff_date
+        ).all()
+        
+        deleted_count = 0
+        for email in old_emails:
+            try:
+                # Lösche auch alle Anhänge (wird durch cascade automatisch gemacht)
+                db.session.delete(email)
+                deleted_count += 1
+            except Exception as e:
+                logging.error(f"Fehler beim Löschen der E-Mail {email.id}: {e}")
+                continue
+        
+        if deleted_count > 0:
+            db.session.commit()
+            logging.info(f"E-Mail-Bereinigung: {deleted_count} E-Mails gelöscht (älter als {storage_days} Tage)")
+        else:
+            logging.debug(f"E-Mail-Bereinigung: Keine E-Mails zum Löschen gefunden (älter als {storage_days} Tage)")
+        
+        return deleted_count
+        
+    except Exception as e:
+        logging.error(f"Fehler bei der E-Mail-Bereinigung: {e}", exc_info=True)
+        db.session.rollback()
+        return 0
+
+
 def sync_emails_from_server():
     """Sync emails from IMAP server to database with folder support."""
     folder_success, folder_message = sync_imap_folders()
@@ -948,8 +1109,8 @@ def index():
     all_folders = EmailFolder.query.all()
     
     # Define standard folder order
-    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Trash', 'Spam']
-    standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Papierkorb', 'Spam']
+    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Archives', 'Trash', 'Spam']
+    standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Archiv', 'Papierkorb', 'Spam']
     
     # Separate standard and custom folders
     standard_folders = []
@@ -1019,8 +1180,8 @@ def folder_view(folder_name):
     
     all_folders = EmailFolder.query.all()
     
-    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Trash', 'Spam']
-    standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Papierkorb', 'Spam']
+    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Archives', 'Trash', 'Spam']
+    standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Archiv', 'Papierkorb', 'Spam']
     
     # Separate standard and custom folders
     standard_folders = []
@@ -1253,13 +1414,157 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
 
     subject = prefix_subject(email_msg.subject or '', 'Re')
     body_prefill = quote_plain(email_msg)
+    
+    # Extrahiere erste Zeile für Vorschau
+    first_line = ''
+    body_text = email_msg.body_text or ''
+    if not body_text and email_msg.body_html:
+        import re
+        body_text = re.sub(r'<[^>]+>', '', email_msg.body_html)
+        body_text = body_text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+    
+    if body_text:
+        lines = body_text.strip().split('\n')
+        first_line = lines[0].strip() if lines else ''
+        if len(first_line) > 100:
+            first_line = first_line[:100] + '...'
+    
+    # HTML-Inhalt für Vorschau vorbereiten (mit gleicher Formatierung wie in view_email)
+    original_html = None
+    if email_msg.body_html:
+        try:
+            if isinstance(email_msg.body_html, bytes):
+                html_content = email_msg.body_html.decode('utf-8', errors='replace')
+            else:
+                html_content = str(email_msg.body_html)
+            
+            import re
+            
+            # Gleiche Formatierung wie in view_email
+            html_content = html_content.replace('\u2011', '-')
+            html_content = html_content.replace('\u2013', '-')
+            html_content = html_content.replace('\u2014', '--')
+            html_content = html_content.replace('\u2018', "'")
+            html_content = html_content.replace('\u2019', "'")
+            html_content = html_content.replace('\u201c', '"')
+            html_content = html_content.replace('\u201d', '"')
+            html_content = html_content.replace('\u2026', '...')
+            html_content = html_content.replace('\ufffc', '')
+            
+            html_content = re.sub(r'<o:p\s*/>', '', html_content)
+            html_content = re.sub(r'<o:p>.*?</o:p>', '', html_content, flags=re.DOTALL)
+            html_content = re.sub(r'<w:.*?>.*?</w:.*?>', '', html_content, flags=re.DOTALL)
+            html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
+            html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
+            
+            html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
+            
+            body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, flags=re.IGNORECASE | re.DOTALL)
+            if body_match:
+                body_content = body_match.group(1)
+                html_content = re.sub(r'<body[^>]*>.*?</body>', '<div class="email-body-wrapper">' + body_content + '</div>', html_content, flags=re.IGNORECASE | re.DOTALL)
+            else:
+                if not html_content.strip().startswith('<div'):
+                    html_content = '<div class="email-body-wrapper">' + html_content + '</div>'
+            
+            # Remove html tags
+            html_content = re.sub(r'<html[^>]*>', '', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'</html>', '', html_content, flags=re.IGNORECASE)
+            
+            def scope_style_tags(match):
+                style_content = match.group(1) if match.group(1) else ''
+                if not style_content.strip():
+                    return ''
+                
+                lines = style_content.split('\n')
+                scoped_lines = []
+                in_media = False
+                media_prefix = ''
+                
+                for line in lines:
+                    line_stripped = line.strip()
+                    if line_stripped.startswith('@'):
+                        if '@media' in line_stripped:
+                            in_media = True
+                            media_prefix = line_stripped
+                            scoped_lines.append(line)
+                            continue
+                        elif line_stripped == '}' and in_media:
+                            in_media = False
+                            media_prefix = ''
+                            scoped_lines.append(line)
+                            continue
+                    
+                    if in_media:
+                        if '{' in line and not line_stripped.startswith('@'):
+                            scoped_line = re.sub(
+                                r'([^{}]+)\{',
+                                r'.email-original-content-inner \1{',
+                                line
+                            )
+                            scoped_lines.append(scoped_line)
+                        else:
+                            scoped_lines.append(line)
+                    else:
+                        if '{' in line:
+                            scoped_line = re.sub(
+                                r'([^{}]+)\{',
+                                r'.email-original-content-inner \1{',
+                                line
+                            )
+                            scoped_lines.append(scoped_line)
+                        else:
+                            scoped_lines.append(line)
+                
+                scoped_css = '\n'.join(scoped_lines)
+                scoped_css = re.sub(r'\.email-original-content-inner\s+\.email-original-content-inner', '.email-original-content-inner', scoped_css)
+                scoped_css = re.sub(r'\.email-original-content-inner\s+body\s*\{', '.email-original-content-inner {', scoped_css, flags=re.IGNORECASE)
+                scoped_css = re.sub(r'\.email-original-content-inner\s+html\s*\{', '.email-original-content-inner {', scoped_css, flags=re.IGNORECASE)
+                
+                return f'<style type="text/css">{scoped_css}</style>'
+            
+            html_content = re.sub(r'<style[^>]*>(.*?)</style>', scope_style_tags, html_content, flags=re.IGNORECASE | re.DOTALL)
+            
+            if not html_content.strip().startswith('<'):
+                html_content = f'<div class="email-body-wrapper">{html_content}</div>'
+            
+            if not html_content.strip().startswith('<div class="email-original-content-inner">'):
+                html_content = f'<div class="email-original-content-inner">{html_content}</div>'
+            
+            # Inline-Bilder ersetzen
+            for attachment in email_msg.attachments:
+                if attachment.is_inline and attachment.content_type.startswith('image/'):
+                    data_url = attachment.get_data_url()
+                    if data_url:
+                        cid_pattern = f'cid:{attachment.filename}'
+                        html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
+                        html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
+                        content_id = attachment.content_id
+                        if content_id:
+                            html_content = html_content.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
+                            html_content = html_content.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
+            
+            html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"', html_content)
+            
+            original_html = html_content
+        except Exception as e:
+            logging.error(f"HTML processing error for original email: {e}")
+            original_html = None
+    
+    # Anhänge-IDs für Mitnahme
+    attachment_ids = [str(a.id) for a in email_msg.attachments]
+    
     return {
         'to': ', '.join(to_list),
         'cc': ', '.join(cc_list),
         'subject': subject,
         'body': body_prefill,
         'in_reply_to': email_msg.message_id or '',
-        'references': email_msg.message_id or ''
+        'references': email_msg.message_id or '',
+        'original_email': email_msg,
+        'original_html': original_html,
+        'original_first_line': first_line,
+        'original_attachment_ids': ','.join(attachment_ids)
     }
 
 
@@ -1287,6 +1592,7 @@ def reply(email_id: int):
         return redirect(url_for('email.view_email', email_id=email_id))
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_reply_context(email_msg, 'reply')
+    ctx['is_reply'] = True
     return render_template('email/compose.html', **ctx)
 
 
@@ -1299,6 +1605,7 @@ def reply_all(email_id: int):
         return redirect(url_for('email.view_email', email_id=email_id))
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_reply_context(email_msg, 'reply_all')
+    ctx['is_reply'] = True
     return render_template('email/compose.html', **ctx)
 
 
@@ -1403,6 +1710,7 @@ def compose():
         in_reply_to = request.form.get('in_reply_to', '').strip()
         references = request.form.get('references', '').strip()
         forward_attachment_ids = request.form.get('forward_attachment_ids', '').strip()
+        original_attachment_ids = request.form.get('original_attachment_ids', '').strip()
         
         if not all([to, subject, body_html]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
@@ -1453,6 +1761,7 @@ def compose():
                         )
                         attachment.seek(0)
 
+            # Forward attachments
             if forward_attachment_ids:
                 id_list = [i for i in forward_attachment_ids.split(',') if i]
                 for aid in id_list:
@@ -1471,7 +1780,33 @@ def compose():
                     except Exception as _:
                         continue
             
+            # Original attachments (from reply)
+            if original_attachment_ids:
+                id_list = [i for i in original_attachment_ids.split(',') if i]
+                for aid in id_list:
+                    try:
+                        att = EmailAttachment.query.get(int(aid))
+                        if not att:
+                            continue
+                        if att.is_large_file and att.file_path:
+                            with open(att.file_path, 'rb') as f:
+                                data = f.read()
+                            msg.attach(att.filename, att.content_type or 'application/octet-stream', data)
+                        else:
+                            data = att.get_content()
+                            if data:
+                                msg.attach(att.filename, att.content_type or 'application/octet-stream', data)
+                    except Exception as _:
+                        continue
+            
             mail.send(msg)
+            
+            # E-Mail im IMAP Sent-Ordner speichern
+            try:
+                save_email_to_imap_sent(msg)
+            except Exception as save_error:
+                logging.warning(f"Failed to save email to IMAP Sent folder: {save_error}")
+                # Nicht kritisch - E-Mail wurde bereits versendet
             
             email_record = EmailMessage(
                 subject=subject,
@@ -1484,7 +1819,7 @@ def compose():
                 is_sent=True,
                 sent_by_user_id=current_user.id,
                 sent_at=datetime.utcnow(),
-                has_attachments=bool(request.files.getlist('attachments')) or bool(forward_attachment_ids)
+                has_attachments=bool(request.files.getlist('attachments')) or bool(forward_attachment_ids) or bool(original_attachment_ids)
             )
             db.session.add(email_record)
             db.session.commit()

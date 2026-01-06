@@ -62,55 +62,6 @@
     </div>
 </div>
 
-<div class="mb-5">
-    <h3 class="mb-3"><i class="bi bi-envelope-fill text-success"></i> {{ _('settings.admin.sections.email.title') }}</h3>
-    <div class="row g-3">
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-envelope-check text-success"></i>
-                        {{ _('settings.admin.cards.email_permissions.title') }}
-                    </h5>
-                    <p class="card-text">{{ _('settings.admin.cards.email_permissions.description') }}</p>
-                    <a href="{{ url_for('settings.admin_email_permissions') }}" class="btn btn-outline-primary">
-                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-envelope text-warning"></i>
-                        {{ _('settings.admin.cards.email_test.title') }}
-                    </h5>
-                    <p class="card-text">{{ _('settings.admin.cards.email_test.description') }}</p>
-                    <a href="{{ url_for('auth.test_email') }}" class="btn btn-outline-primary">
-                        {{ _('settings.admin.cards.test_button') }} <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-envelope-paper text-primary"></i>
-                        {{ _('settings.admin.cards.email_footer.title') }}
-                    </h5>
-                    <p class="card-text">{{ _('settings.admin.cards.email_footer.description') }}</p>
-                    <a href="{{ url_for('settings.admin_email_footer') }}" class="btn btn-outline-primary">
-                        {{ _('settings.admin.cards.configure_button') }} <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="mb-5">
     <h3 class="mb-3"><i class="bi bi-gear-fill text-secondary"></i> {{ _('settings.admin.sections.system.title') }}</h3>
@@ -241,6 +192,22 @@
                     <p class="card-text">{{ _('booking.admin.cards.music_module.description') }}</p>
                     <a href="{{ url_for('settings.admin_music') }}" class="btn btn-outline-primary">
                         {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if is_module_enabled('module_email') %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-envelope text-info"></i>
+                        E-Mail-Einstellungen
+                    </h5>
+                    <p class="card-text">E-Mail-Test, Footer und System-Einstellungen für das E-Mail-Modul konfigurieren.</p>
+                    <a href="{{ url_for('settings.admin_email_module') }}" class="btn btn-outline-primary">
+                        Öffnen <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
             </div>

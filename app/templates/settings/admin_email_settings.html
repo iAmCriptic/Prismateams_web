@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}E-Mail-Einstellungen - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item active">E-Mail-Einstellungen</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">
+            <i class="bi bi-envelope-gear"></i> E-Mail-System-Einstellungen
+        </h4>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-4">
+                <h5 class="mb-3"><i class="bi bi-database"></i> Speicherverwaltung</h5>
+                
+                <div class="mb-3">
+                    <label for="storage_days" class="form-label">
+                        <strong>Speicherdauer für E-Mails (in Tagen)</strong>
+                    </label>
+                    <input 
+                        type="number" 
+                        class="form-control" 
+                        id="storage_days" 
+                        name="storage_days" 
+                        value="{{ storage_days }}" 
+                        min="0" 
+                        step="1"
+                        placeholder="0 für unbegrenzt"
+                    >
+                    <div class="form-text">
+                        Legen Sie fest, wie lange E-Mails im System gespeichert werden sollen. 
+                        E-Mails, die älter als die angegebene Anzahl von Tagen sind, werden automatisch gelöscht. 
+                        Setzen Sie <strong>0</strong> für unbegrenzte Speicherung.
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h5 class="mb-3"><i class="bi bi-arrow-repeat"></i> Synchronisation</h5>
+                
+                <div class="mb-3">
+                    <label for="sync_interval" class="form-label">
+                        <strong>Synchronisationsintervall (in Minuten)</strong>
+                    </label>
+                    <select class="form-select" id="sync_interval" name="sync_interval">
+                        <option value="15" {% if sync_interval == 15 %}selected{% endif %}>15 Minuten</option>
+                        <option value="30" {% if sync_interval == 30 %}selected{% endif %}>30 Minuten</option>
+                        <option value="60" {% if sync_interval == 60 %}selected{% endif %}>60 Minuten (1 Stunde)</option>
+                    </select>
+                    <div class="form-text">
+                        Legen Sie fest, wie oft das System automatisch E-Mails vom IMAP-Server synchronisieren soll. 
+                        Die manuelle Synchronisation bleibt weiterhin möglich.
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                <strong>Hinweis:</strong> Änderungen an diesen Einstellungen werden sofort wirksam. 
+                Die automatische Synchronisation startet beim nächsten Neustart der Anwendung.
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Speichern
+                </button>
+                <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

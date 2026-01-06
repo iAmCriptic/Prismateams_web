@@ -453,6 +453,8 @@
       "section_repository_title": "GitHub repository",
       "section_repository_description": "You can find the source code repository on GitHub:",
       "section_repository_button": "Open GitHub repository",
+      "section_repository_improvement_note": "The software is continuously being improved and developed. If you discover a bug, please report it with a screenshot and/or detailed description via the Issues page on GitHub.",
+      "section_repository_issues_button": "Report issue",
       "section_system_title": "About this system",
       "version_label": "Version:",
       "version_value": "V2.1.5 - Stable release",

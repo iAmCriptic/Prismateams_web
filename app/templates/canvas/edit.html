@@ -122,26 +122,55 @@ let iframeWindow = null;
 
 // Baue die Excalidraw-URL mit allen Parametern
 function buildExcalidrawURL() {
+    // Validiere EXCALIDRAW_URL
+    if (!EXCALIDRAW_URL || EXCALIDRAW_URL.trim() === '') {
+        console.error('EXCALIDRAW_URL ist nicht definiert');
+        return '';
+    }
+    
+    // Stelle sicher, dass die URL mit / beginnt, wenn sie relativ ist
+    let baseUrl = EXCALIDRAW_URL;
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://') && !baseUrl.startsWith('/')) {
+        baseUrl = '/' + baseUrl;
+    }
+    
     const params = new URLSearchParams();
     
     // Modus: embed
     params.append('mode', 'embed');
     
     // Sprache
-    params.append('locale', EXCALIDRAW_LANG);
+    if (EXCALIDRAW_LANG) {
+        params.append('locale', EXCALIDRAW_LANG);
+    }
     
     // Room-Integration für Kollaboration
     if (ROOM_ID && ROOM_URL) {
+        // Stelle sicher, dass ROOM_URL absolut ist oder mit / beginnt
+        let roomUrl = ROOM_URL;
+        if (!roomUrl.startsWith('http://') && !roomUrl.startsWith('https://') && !roomUrl.startsWith('/')) {
+            roomUrl = '/' + roomUrl;
+        }
+        
         params.append('roomId', ROOM_ID);
         params.append('roomKey', String(CANVAS_ID));
-        params.append('roomServerUrl', ROOM_URL);
+        params.append('roomServerUrl', roomUrl);
     }
     
     // Benutzer-Informationen
     params.append('username', encodeURIComponent('{{ current_user.full_name }}'));
     params.append('userId', String('{{ current_user.id }}'));
     
-    return `${EXCALIDRAW_URL}?${params.toString()}`;
+    // Füge Load- und Save-URLs hinzu
+    if (LOAD_URL) {
+        params.append('loadUrl', LOAD_URL);
+    }
+    if (SAVE_URL) {
+        params.append('saveUrl', SAVE_URL);
+    }
+    
+    const queryString = params.toString();
+    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
 }
 
 // Lade Excalidraw im Iframe
@@ -151,10 +180,37 @@ function loadExcalidraw() {
     
     console.log('Lade Excalidraw:', url);
     
+    // Validiere URL
+    if (!url || url.trim() === '') {
+        console.error('Excalidraw URL ist leer oder ungültig');
+        showError('Excalidraw URL ist nicht konfiguriert. Bitte überprüfen Sie die Einstellungen.');
+        return;
+    }
+    
+    // Fehlerbehandlung für Iframe-Laden
+    iframe.addEventListener('error', function(e) {
+        console.error('Fehler beim Laden des Excalidraw-Iframes:', e);
+        showError('Excalidraw konnte nicht geladen werden. Bitte überprüfen Sie, ob Excalidraw erreichbar ist.');
+    });
+    
+    // Timeout für Iframe-Laden
+    const loadTimeout = setTimeout(() => {
+        try {
+            // Prüfe, ob Iframe geladen wurde
+            if (!iframe.contentWindow || !iframe.contentDocument) {
+                console.warn('Excalidraw Iframe lädt länger als erwartet...');
+            }
+        } catch (error) {
+            // CORS-Fehler sind normal bei Cross-Origin Iframes
+            console.log('CORS-Prüfung (normal bei Cross-Origin):', error.message);
+        }
+    }, 5000);
+    
     iframe.src = url;
     
     // Warte auf das Laden des Iframes
     iframe.addEventListener('load', function() {
+        clearTimeout(loadTimeout);
         try {
             iframeWindow = iframe.contentWindow;
             console.log('Excalidraw geladen');
@@ -164,9 +220,37 @@ function loadExcalidraw() {
                 loadAndSendInitialData();
             }, 1000);
         } catch (error) {
-            console.error('Fehler beim Zugriff auf Iframe:', error);
+            // CORS-Fehler sind normal bei Cross-Origin Iframes
+            console.log('CORS-Prüfung beim Zugriff auf Iframe (normal bei Cross-Origin):', error.message);
+            
+            // Versuche trotzdem, die Daten zu laden
+            setTimeout(() => {
+                loadAndSendInitialData();
+            }, 1000);
         }
     });
+}
+
+// Zeige Fehlermeldung an
+function showError(message) {
+    const container = document.querySelector('.excalidraw-editor-container');
+    if (container) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger';
+        errorDiv.style.cssText = 'position: absolute; top: 40px; left: 50%; transform: translateX(-50%); z-index: 10002; max-width: 600px;';
+        errorDiv.innerHTML = `
+            <i class="bi bi-exclamation-triangle"></i> <strong>Fehler:</strong> ${message}
+            <br><small>Bitte überprüfen Sie die Excalidraw-Konfiguration in den Einstellungen.</small>
+        `;
+        container.appendChild(errorDiv);
+        
+        // Entferne Fehlermeldung nach 10 Sekunden
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 10000);
+    }
 }
 
 // Lade initiale Daten und sende sie an Excalidraw

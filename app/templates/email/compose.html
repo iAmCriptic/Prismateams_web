@@ -241,6 +241,7 @@
         padding: 1rem;
         border-radius: 0 0 0.375rem 0.375rem;
     }
+    
 </style>
 {% endblock %}
 
@@ -265,6 +266,7 @@
                     <input type="hidden" name="in_reply_to" value="{{ in_reply_to|default('') }}">
                     <input type="hidden" name="references" value="{{ references|default('') }}">
                     <input type="hidden" name="forward_attachment_ids" value="{{ forward_attachment_ids|default('') }}">
+                    <input type="hidden" name="original_attachment_ids" id="originalAttachmentIds" value="{{ original_attachment_ids|default('') }}">
                     <input type="hidden" name="body" id="bodyHtml" value="">
                     
                     <div class="p-3 border-bottom">
@@ -546,6 +548,51 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     {% endif %}
     
+    // Original E-Mail einfach am Ende einfügen
+    {% if is_reply and original_email %}
+    (function() {
+        setTimeout(function() {
+            try {
+                // Einfacher Header
+                var headerText = '{{ _('email.view.header.from') }} ' + {{ original_email.sender|decode_email_header|tojson|safe }} + '\n';
+                headerText += '{{ _('email.view.header.to') }} ' + {{ original_email.recipients|decode_email_header|tojson|safe }} + '\n';
+                {% if original_email.cc %}
+                headerText += '{{ _('email.view.header.cc') }} ' + {{ original_email.cc|decode_email_header|tojson|safe }} + '\n';
+                {% endif %}
+                headerText += '{{ _('email.view.header.date') }} {{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else original_email.sent_at.strftime('%d.%m.%Y %H:%M') }}\n';
+                headerText += '{{ _('email.view.header.subject') }} ' + {{ original_email.subject|decode_email_header|tojson|safe }} + '\n\n';
+                
+                // Trennlinie
+                var separator = '\n##- Bitte geben Sie Ihre Antwort über dieser Zeile ein. -##\n\n';
+                
+                // Original-E-Mail Text
+                var originalText = '';
+                {% if original_email.body_text %}
+                originalText = {{ original_email.body_text|tojson|safe }};
+                {% elif original_html %}
+                // HTML zu Text konvertieren (einfach)
+                var htmlContent = {{ original_html|tojson|safe }};
+                var tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlContent;
+                originalText = tempDiv.textContent || tempDiv.innerText || '';
+                {% endif %}
+                
+                // Alles zusammenfügen: Header + Trennlinie + Original-Text
+                var fullText = headerText + separator + originalText;
+                
+                // Am Ende des Editors einfügen
+                var length = quill.getLength();
+                quill.insertText(length - 1, fullText, 'user');
+                
+                // Cursor an den Anfang setzen (vor dem Header)
+                quill.setSelection(0);
+            } catch (e) {
+                console.error('Fehler beim Einfügen der Original-E-Mail:', e);
+            }
+        }, 300);
+    })();
+    {% endif %}
+    
     // Update hidden field before form submission
     document.getElementById('emailComposeForm').addEventListener('submit', function(e) {
         var htmlContent = quill.root.innerHTML;
@@ -566,6 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (subjectInput) {
         subjectInput.addEventListener('input', schedulePreview);
     }
+    
 });
 </script>
 {% endblock %}

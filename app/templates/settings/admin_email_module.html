@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}E-Mail-Moduleinstellungen - Administration{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}#modules">Moduleinstellungen</a></li>
+        <li class="breadcrumb-item active">E-Mail-Einstellungen</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4"><i class="bi bi-envelope-gear"></i> E-Mail-Moduleinstellungen</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-envelope text-warning"></i>
+                    E-Mail-Test
+                </h5>
+                <p class="card-text">E-Mail-Konfiguration testen und prüfen</p>
+                <a href="{{ url_for('auth.test_email') }}" class="btn btn-outline-primary">
+                    Testen <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-envelope-paper text-primary"></i>
+                    E-Mail-Footer
+                </h5>
+                <p class="card-text">E-Mail-Footer-Template mit Variablen konfigurieren</p>
+                <a href="{{ url_for('settings.admin_email_footer') }}" class="btn btn-outline-primary">
+                    Konfigurieren <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-envelope-gear text-info"></i>
+                    System-Einstellungen
+                </h5>
+                <p class="card-text">Speicherdauer und Synchronisationsintervall für das E-Mail-System konfigurieren</p>
+                <a href="{{ url_for('settings.admin_email_settings') }}" class="btn btn-outline-primary">
+                    Öffnen <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-2">
+    <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Zurück zur Administration
+    </a>
+</div>
+{% endblock %}
+

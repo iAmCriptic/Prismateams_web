@@ -13,7 +13,8 @@ from app.utils.qr_code import (
     generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code,
     parse_qr_code, generate_qr_code_bytes
 )
-from app.utils.pdf_generator import generate_borrow_receipt_pdf, generate_qr_code_sheet_pdf, generate_color_code_table_pdf
+from app.utils.pdf_generator import generate_borrow_receipt_pdf, generate_qr_code_sheet_pdf
+from app.utils.pdf_generator_color_table import generate_color_code_table_pdf
 from app.utils.lengths import normalize_length_input, parse_length_to_meters
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
