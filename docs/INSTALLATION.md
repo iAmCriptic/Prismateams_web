@@ -441,6 +441,7 @@ server {
     # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
     # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
     location /onlyoffice {
+        # WICHTIG: Kein trailing slash bei proxy_pass, damit der Pfad korrekt weitergegeben wird
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -452,11 +453,32 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         
+        # CORS headers für OnlyOffice (wichtig für API-Zugriff)
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+        add_header Access-Control-Allow-Credentials true always;
+        
+        # Handle preflight requests
+        if ($request_method = 'OPTIONS') {
+            add_header Access-Control-Allow-Origin * always;
+            add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+            add_header Access-Control-Allow-Credentials true always;
+            add_header Content-Length 0;
+            add_header Content-Type text/plain;
+            return 204;
+        }
+        
         # Timeouts für große Dokumente
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
         send_timeout 600;
+        
+        # Disable buffering für OnlyOffice (wichtig für Streaming)
+        proxy_buffering off;
+        proxy_request_buffering off;
     }
 
     # Excalidraw Room Server (OPTIONAL - nur wenn installiert)
@@ -820,6 +842,23 @@ sudo docker ps | grep onlyoffice
 
 # Prüfe Port 8080
 sudo netstat -tlnp | grep 8080
+
+# Prüfe OnlyOffice Logs
+sudo docker logs onlyoffice-documentserver
+
+# OnlyOffice neu starten
+sudo docker restart onlyoffice-documentserver
+
+# Teste ob OnlyOffice direkt auf Port 8080 erreichbar ist
+curl http://127.0.0.1:8080/welcome/
+
+# Teste ob OnlyOffice API über Nginx erreichbar ist
+curl http://192.168.188.142/onlyoffice/web-apps/apps/api/documents/api.js | head -20
+
+# Wenn die API HTML statt JavaScript zurückgibt, ist die Nginx-Konfiguration fehlerhaft
+# Überprüfen Sie:
+# 1. proxy_pass sollte KEINEN trailing slash haben: proxy_pass http://127.0.0.1:8080;
+# 2. Nginx-Konfiguration neu laden: sudo nginx -t && sudo systemctl reload nginx
 
 # Prüfe OnlyOffice Logs
 sudo docker logs onlyoffice-documentserver

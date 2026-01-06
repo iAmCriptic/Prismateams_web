@@ -867,6 +867,7 @@ server {
     client_max_body_size 100M;
 
     # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
+    # WICHTIG: Kein trailing slash bei proxy_pass, damit der Pfad korrekt weitergegeben wird
     location /onlyoffice {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
@@ -879,7 +880,7 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
-        # CORS headers for OnlyOffice
+        # CORS headers for OnlyOffice (wichtig für API-Zugriff)
         add_header Access-Control-Allow-Origin * always;
         add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
         add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
@@ -902,7 +903,7 @@ server {
         proxy_read_timeout 600;
         send_timeout 600;
         
-        # Disable buffering for OnlyOffice
+        # Disable buffering for OnlyOffice (wichtig für Streaming)
         proxy_buffering off;
         proxy_request_buffering off;
     }
