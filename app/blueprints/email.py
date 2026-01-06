@@ -157,6 +157,32 @@ def decode_header_field(field):
             return 'Unknown'
 
 
+def truncate_filename(filename, max_length=500):
+    """
+    Kürzt einen Dateinamen auf die maximale Länge, behält dabei die Dateiendung.
+    
+    Args:
+        filename: Der zu kürzende Dateiname
+        max_length: Maximale Länge (Standard: 500 Zeichen)
+    
+    Returns:
+        Gekürzter Dateiname
+    """
+    if not filename or len(filename) <= max_length:
+        return filename
+    
+    # Behalte Dateiendung und kürze den Namen
+    if '.' in filename:
+        name, ext = filename.rsplit('.', 1)
+        max_name_length = max_length - len(ext) - 1  # -1 für den Punkt
+        if max_name_length < 1:
+            # Falls die Endung zu lang ist, kürze einfach den ganzen Namen
+            return filename[:max_length]
+        return name[:max_name_length] + '.' + ext
+    else:
+        return filename[:max_length]
+
+
 def connect_imap():
     """Connect to IMAP server with robust error handling."""
     try:
@@ -699,6 +725,9 @@ def sync_emails_from_folder(folder_name):
                                             filename = decoded_filename[0][0]
                                     except:
                                         pass
+                                    
+                                    # Kürze Dateinamen auf maximal 500 Zeichen (Datenbanklimit)
+                                    filename = truncate_filename(filename, max_length=500)
                                 
                                 try:
                                     payload = None
@@ -876,7 +905,7 @@ def sync_emails_from_folder(folder_name):
                 for attachment_data in attachments_data:
                     try:
                         attachment_size = attachment_data['size']
-                        filename = attachment_data['filename']
+                        filename = truncate_filename(attachment_data['filename'], max_length=500)
                         
                         if attachment_size > 1 * 1024 * 1024:
                             logging.info(f"Processing large attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - from disk")
