@@ -866,6 +866,29 @@ server {
     # File upload limit
     client_max_body_size 100M;
 
+    # OnlyOffice Cache (MUSS VOR /onlyoffice kommen!)
+    # OnlyOffice benötigt diesen Pfad für interne Cache-Dateien
+    # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+    location /cache {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+        
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
     # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
     # WICHTIG: MIT trailing slash bei proxy_pass, damit der /onlyoffice Präfix entfernt wird
     # OnlyOffice erwartet /web-apps/... nicht /onlyoffice/web-apps/...

@@ -151,16 +151,20 @@ def register():
         db.session.commit()
         
         if is_whitelisted:
+            # Benutzer ist whitelisted - direkt einloggen und zur E-Mail-Bestätigung weiterleiten
+            login_user(new_user, remember=False)
             if email_sent:
-                flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Eine Bestätigungs-E-Mail wurde an Sie gesendet.', 'success')
+                flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Bitte bestätigen Sie Ihre E-Mail-Adresse.', 'success')
             else:
                 flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.', 'warning')
+            return redirect(url_for('auth.confirm_email'))
         else:
+            # Benutzer ist nicht whitelisted - zurück zum Login mit entsprechender Meldung
             if email_sent:
-                flash('Registrierung erfolgreich! Eine Bestätigungs-E-Mail wurde an Sie gesendet. Ein Administrator muss Ihr Konto noch freischalten.', 'success')
+                flash('Dein Konto muss vom Administrator aktiviert werden. Eine Bestätigungs-E-Mail wurde an Sie gesendet.', 'info')
             else:
-                flash('Registrierung erfolgreich! E-Mail-Bestätigung konnte nicht gesendet werden. Ein Administrator muss Ihr Konto noch freischalten.', 'warning')
-        return redirect(url_for('auth.login'))
+                flash('Dein Konto muss vom Administrator aktiviert werden. E-Mail-Bestätigung konnte nicht gesendet werden.', 'warning')
+            return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', color_gradient=get_color_gradient())
 
@@ -320,8 +324,9 @@ def test_email():
         return redirect(url_for('dashboard.index'))
     
     from flask import current_app
-    from flask_mail import Message
-    from app import mail
+        from flask_mail import Message
+        from app import mail
+        from app.utils.email_sender import send_email_with_lock
     
     try:
         # Prüfe E-Mail-Konfiguration
@@ -349,7 +354,7 @@ def test_email():
         )
         msg.body = 'Dies ist eine Test-E-Mail von Prismateams.'
         
-        mail.send(msg)
+        send_email_with_lock(msg)
         
         flash('Test-E-Mail erfolgreich gesendet!', 'success')
         return render_template('auth/email_test_result.html', 

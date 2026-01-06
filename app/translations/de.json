@@ -862,6 +862,9 @@
         "settings_error": "Fehler beim Laden der Einstellungen",
         "file_too_large": "Die Datei ist zu groß. Maximale Größe: 100MB pro Datei"
       }
+    },
+    "onlyoffice": {
+      "back_button_label": "Zurück"
     }
   },
   "email": {

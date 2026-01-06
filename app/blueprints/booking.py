@@ -567,6 +567,7 @@ def request_send_email(request_id):
     try:
         from flask_mail import Message
         from app import mail
+        from app.utils.email_sender import send_email_with_lock
         from config import get_formatted_sender
         
         msg = Message(
@@ -575,7 +576,7 @@ def request_send_email(request_id):
             sender=get_formatted_sender() or current_app.config.get('MAIL_USERNAME'),
             body=email_body
         )
-        mail.send(msg)
+        send_email_with_lock(msg)
         
         flash('E-Mail wurde gesendet.', 'success')
     except Exception as e:

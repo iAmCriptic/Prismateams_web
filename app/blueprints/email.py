@@ -24,7 +24,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 import re
 
-from app.utils.email_sender import get_logo_base64
+from app.utils.email_sender import get_logo_base64, send_email_with_lock
+from app.utils.lock_manager import acquire_email_sync_lock
 
 email_bp = Blueprint('email', __name__)
 
@@ -1828,7 +1829,7 @@ def compose():
                     except Exception as _:
                         continue
             
-            mail.send(msg)
+            send_email_with_lock(msg)
             
             # E-Mail im IMAP Sent-Ordner speichern
             try:
@@ -1911,15 +1912,20 @@ def sync_emails():
     
     if not is_async_request:
         try:
-            if current_folder:
-                success, message = sync_emails_from_folder(current_folder)
-            else:
-                success, message = sync_emails_from_server()
-            
-            if success:
-                flash(f'✅ {message}', 'success')
-            else:
-                flash(f'❌ FEHLER: {message}', 'danger')
+            # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
+            with acquire_email_sync_lock(timeout=60) as acquired:
+                if acquired:
+                    if current_folder:
+                        success, message = sync_emails_from_folder(current_folder)
+                    else:
+                        success, message = sync_emails_from_server()
+                    
+                    if success:
+                        flash(f'✅ {message}', 'success')
+                    else:
+                        flash(f'❌ FEHLER: {message}', 'danger')
+                else:
+                    flash('⚠️ Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.', 'warning')
         except Exception as exc:
             current_app.logger.error(f"E-Mail-Synchronisation Fehler (synchron): {exc}", exc_info=True)
             flash(f'❌ FEHLER bei der Synchronisation: {str(exc)}', 'danger')
@@ -1954,15 +1960,20 @@ def sync_emails():
             emit_status('started', start_msg, 'info', shouldRefresh=False)
             
             try:
-                if current_folder:
-                    success, message = sync_emails_from_folder(current_folder)
-                else:
-                    success, message = sync_emails_from_server()
-                
-                if success:
-                    emit_status('success', message, 'success', shouldRefresh=True)
-                else:
-                    emit_status('error', message, 'danger', shouldRefresh=False)
+                # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
+                with acquire_email_sync_lock(timeout=60) as acquired:
+                    if acquired:
+                        if current_folder:
+                            success, message = sync_emails_from_folder(current_folder)
+                        else:
+                            success, message = sync_emails_from_server()
+                        
+                        if success:
+                            emit_status('success', message, 'success', shouldRefresh=True)
+                        else:
+                            emit_status('error', message, 'danger', shouldRefresh=False)
+                    else:
+                        emit_status('warning', 'Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.', 'warning', shouldRefresh=False)
             except Exception as exc:
                 app_instance.logger.error(f"E-Mail-Synchronisation Fehler: {exc}", exc_info=True)
                 emit_status('error', str(exc), 'danger', shouldRefresh=False)

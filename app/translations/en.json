@@ -862,6 +862,9 @@
         "settings_error": "Error loading settings",
         "file_too_large": "The file is too large. Maximum size: 100MB per file."
       }
+    },
+    "onlyoffice": {
+      "back_button_label": "Back"
     }
   },
   "canvas": {

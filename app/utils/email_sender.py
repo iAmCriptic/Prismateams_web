@@ -8,6 +8,32 @@ from flask import render_template, current_app, url_for
 from flask_mail import Message
 from app import mail
 from app.models.user import User
+from app.utils.lock_manager import acquire_email_send_lock
+
+
+def send_email_with_lock(msg, timeout=60):
+    """
+    Sendet eine E-Mail mit Lock-Schutz, um sicherzustellen, dass nur ein Worker gleichzeitig sendet.
+    
+    Args:
+        msg: Flask-Mail Message-Objekt
+        timeout: Maximale Wartezeit für Lock in Sekunden (Standard: 60)
+    
+    Returns:
+        True wenn erfolgreich gesendet, False sonst
+    
+    Raises:
+        Exception: Wenn E-Mail-Versand fehlschlägt
+    """
+    with acquire_email_send_lock(timeout=timeout) as acquired:
+        if acquired:
+            mail.send(msg)
+            return True
+        else:
+            logging.warning("E-Mail-Versand-Lock konnte nicht erworben werden, versuche erneut ohne Lock...")
+            # Fallback: Versuche ohne Lock zu senden (falls Lock-Mechanismus nicht funktioniert)
+            mail.send(msg)
+            return True
 
 
 def generate_confirmation_code():
@@ -146,7 +172,7 @@ def send_confirmation_email(user):
         
         # E-Mail senden mit verbesserter Fehlerbehandlung
         try:
-            mail.send(msg)
+            send_email_with_lock(msg)
             logging.info(f"Confirmation email sent to {user.email} with code: {confirmation_code}")
             return True
         except Exception as send_error:
@@ -189,7 +215,7 @@ def send_confirmation_email(user):
                 msg_alt.html = html_content
                 
                 # Versuche erneut zu senden
-                mail.send(msg_alt)
+                send_email_with_lock(msg_alt)
                 logging.info(f"Alternative E-Mail erfolgreich gesendet an {user.email}")
                 return True
                 
@@ -312,7 +338,7 @@ def send_borrow_receipt_email(borrow_transactions):
         
         # E-Mail senden
         try:
-            mail.send(msg)
+            send_email_with_lock(msg)
             logging.info(f"Borrow receipt email sent to {borrower.email} for transaction {first_transaction.transaction_number}")
             return True
         except Exception as send_error:
@@ -390,7 +416,7 @@ def send_return_confirmation_email(borrow_transaction):
         
         # E-Mail senden
         try:
-            mail.send(msg)
+            send_email_with_lock(msg)
             logging.info(f"Return confirmation email sent to {borrower.email} for transaction {borrow_transaction.transaction_number}")
             return True
         except Exception as send_error:
@@ -453,7 +479,7 @@ def send_booking_confirmation_email(booking_request):
         
         # E-Mail senden
         try:
-            mail.send(msg)
+            send_email_with_lock(msg)
             logging.info(f"Booking confirmation email sent to {booking_request.email} for booking {booking_request.id}")
             return True
         except Exception as send_error:
@@ -520,7 +546,7 @@ def send_booking_accepted_email(booking_request, calendar_event):
         
         # E-Mail senden
         try:
-            mail.send(msg)
+            send_email_with_lock(msg)
             logging.info(f"Booking accepted email sent to {booking_request.email} for booking {booking_request.id}")
             return True
         except Exception as send_error:
@@ -584,7 +610,7 @@ def send_booking_rejected_email(booking_request):
         
         # E-Mail senden
         try:
-            mail.send(msg)
+            send_email_with_lock(msg)
             logging.info(f"Booking rejected email sent to {booking_request.email} for booking {booking_request.id}")
             return True
         except Exception as send_error:
