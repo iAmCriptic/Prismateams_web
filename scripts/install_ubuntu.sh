@@ -562,7 +562,7 @@ configure_env() {
     
     # DATABASE_URI (URL-encode password for database URI)
     # Python urllib.parse.quote wird verwendet, um Sonderzeichen im Passwort zu encodieren
-    DB_PASS_URI=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${DB_PASS}', safe=''))")
+    DB_PASS_URI=$(python3 -c "import urllib.parse; import sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")
     DATABASE_URI="mysql+pymysql://${DB_USER}:${DB_PASS_URI}@localhost/${DB_NAME}"
     # Escape für sed (nur Pipe-Zeichen, da wir | als Trennzeichen verwenden)
     DATABASE_URI_ESC=$(echo "$DATABASE_URI" | sed 's/|/\\|/g')
@@ -1046,4 +1046,3 @@ main() {
 
 # Skript ausführen
 main "$@"
-
