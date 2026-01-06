@@ -867,8 +867,10 @@ server {
     client_max_body_size 100M;
 
     # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
+    # WICHTIG: MIT trailing slash bei proxy_pass, damit der /onlyoffice Präfix entfernt wird
+    # OnlyOffice erwartet /web-apps/... nicht /onlyoffice/web-apps/...
     location /onlyoffice {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -879,7 +881,11 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         
-        # CORS headers for OnlyOffice
+        # WICHTIG: Content-Type Header vom Backend übernehmen
+        # Standardmäßig sollte Nginx den Content-Type vom Backend übernehmen,
+        # aber wir stellen sicher, dass er nicht überschrieben wird
+        
+        # CORS headers for OnlyOffice (wichtig für API-Zugriff)
         add_header Access-Control-Allow-Origin * always;
         add_header Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE" always;
         add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
@@ -902,7 +908,7 @@ server {
         proxy_read_timeout 600;
         send_timeout 600;
         
-        # Disable buffering for OnlyOffice
+        # Disable buffering for OnlyOffice (wichtig für Streaming)
         proxy_buffering off;
         proxy_request_buffering off;
     }

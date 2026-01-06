@@ -169,12 +169,33 @@
     <div id="onlyoffice-editor"></div>
 </div>
 
-<script src="{{ onlyoffice_api_url }}"></script>
 <script>
 let docEditor;
 let isEditorReady = false;
 let apiLoadAttempts = 0;
 const MAX_API_LOAD_ATTEMPTS = 50; // 5 seconds total (50 * 100ms)
+
+// Load OnlyOffice API script with error handling
+const apiScript = document.createElement('script');
+apiScript.src = "{{ onlyoffice_api_url }}";
+apiScript.onerror = function() {
+    console.error('Fehler beim Laden der OnlyOffice API:', "{{ onlyoffice_api_url }}");
+    console.error('Mögliche Ursachen:');
+    console.error('1. OnlyOffice Document Server läuft nicht auf Port 8080');
+    console.error('2. Nginx-Konfiguration ist fehlerhaft (proxy_pass sollte ohne trailing slash sein)');
+    console.error('3. OnlyOffice ist nicht unter /onlyoffice erreichbar');
+    console.error('4. Firewall blockiert Port 8080');
+    
+    // Show user-friendly error message
+    const editorDiv = document.getElementById('onlyoffice-editor');
+    if (editorDiv) {
+        editorDiv.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;"><h3>OnlyOffice konnte nicht geladen werden</h3><p>Bitte überprüfen Sie:</p><ul style="text-align: left; display: inline-block;"><li>OnlyOffice Document Server läuft auf Port 8080</li><li>Nginx-Konfiguration ist korrekt</li><li>OnlyOffice ist unter /onlyoffice erreichbar</li></ul><p style="margin-top: 1rem;">API-URL: {{ onlyoffice_api_url }}</p></div>';
+    }
+};
+apiScript.onload = function() {
+    console.log('OnlyOffice API-Skript erfolgreich geladen');
+};
+document.head.appendChild(apiScript);
 
 function waitForOnlyOfficeAPI(callback) {
     if (typeof DocsAPI !== 'undefined' && typeof DocsAPI.DocEditor !== 'undefined') {
@@ -182,11 +203,18 @@ function waitForOnlyOfficeAPI(callback) {
         return;
     }
     
-        apiLoadAttempts++;
-        if (apiLoadAttempts >= MAX_API_LOAD_ATTEMPTS) {
-            console.error('ONLYOFFICE Document Server API konnte nicht geladen werden. Bitte stellen Sie sicher, dass ONLYOFFICE Document Server unter {{ onlyoffice_url }} erreichbar ist.');
-            return;
+    apiLoadAttempts++;
+    if (apiLoadAttempts >= MAX_API_LOAD_ATTEMPTS) {
+        console.error('ONLYOFFICE Document Server API konnte nicht geladen werden. Bitte stellen Sie sicher, dass ONLYOFFICE Document Server unter {{ onlyoffice_url }} erreichbar ist.');
+        console.error('API-URL, die geladen werden sollte:', "{{ onlyoffice_api_url }}");
+        
+        // Show user-friendly error message
+        const editorDiv = document.getElementById('onlyoffice-editor');
+        if (editorDiv) {
+            editorDiv.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;"><h3>OnlyOffice API konnte nicht geladen werden</h3><p>Die API-Datei konnte nach 5 Sekunden nicht geladen werden.</p><p>Bitte überprüfen Sie die Browser-Konsole für weitere Details.</p><p style="margin-top: 1rem;">API-URL: {{ onlyoffice_api_url }}</p></div>';
         }
+        return;
+    }
     
     setTimeout(function() {
         waitForOnlyOfficeAPI(callback);
