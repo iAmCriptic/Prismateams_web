@@ -1915,10 +1915,16 @@ def onlyoffice_document(file_id):
             from urllib.parse import urlparse
             parsed = urlparse(onlyoffice_url)
             origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        else:
+            # OnlyOffice läuft auf demselben Server - verwende Request-Origin
+            origin = request.headers.get('Origin', '*')
+            if origin == 'null' or not origin or origin == '*':
+                origin = f"{request.scheme}://{request.host}"
+        
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
     
     # Log ALL requests to this endpoint (including failed ones)
@@ -2014,17 +2020,25 @@ def onlyoffice_document(file_id):
         as_attachment=False
     )
     
-    # Add CORS headers to allow OnlyOffice from different server
+    # Add CORS headers to allow OnlyOffice (auch wenn auf demselben Server über Proxy)
+    # OnlyOffice läuft über einen Proxy, daher benötigen wir CORS-Header
     onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
     if onlyoffice_url.startswith('http'):
         # Extract origin from OnlyOffice URL
         from urllib.parse import urlparse
         parsed = urlparse(onlyoffice_url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    else:
+        # OnlyOffice läuft auf demselben Server, aber über Proxy - verwende Request-Origin
+        origin = request.headers.get('Origin', '*')
+        if origin == 'null' or not origin or origin == '*':
+            # Fallback: verwende die aktuelle Request-URL als Origin
+            origin = f"{request.scheme}://{request.host}"
+    
+    response.headers['Access-Control-Allow-Origin'] = origin
+    response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     
     return response
 
@@ -2040,10 +2054,16 @@ def share_onlyoffice_document(token, file_id):
             from urllib.parse import urlparse
             parsed = urlparse(onlyoffice_url)
             origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        else:
+            # OnlyOffice läuft auf demselben Server - verwende Request-Origin
+            origin = request.headers.get('Origin', '*')
+            if origin == 'null' or not origin or origin == '*':
+                origin = f"{request.scheme}://{request.host}"
+        
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
     
     # Log ALL requests to this endpoint
@@ -2120,17 +2140,25 @@ def share_onlyoffice_document(token, file_id):
         as_attachment=False
     )
     
-    # Add CORS headers to allow OnlyOffice from different server
+    # Add CORS headers to allow OnlyOffice (auch wenn auf demselben Server über Proxy)
+    # OnlyOffice läuft über einen Proxy, daher benötigen wir CORS-Header
     onlyoffice_url = current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice')
     if onlyoffice_url.startswith('http'):
         # Extract origin from OnlyOffice URL
         from urllib.parse import urlparse
         parsed = urlparse(onlyoffice_url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    else:
+        # OnlyOffice läuft auf demselben Server, aber über Proxy - verwende Request-Origin
+        origin = request.headers.get('Origin', '*')
+        if origin == 'null' or not origin or origin == '*':
+            # Fallback: verwende die aktuelle Request-URL als Origin
+            origin = f"{request.scheme}://{request.host}"
+    
+    response.headers['Access-Control-Allow-Origin'] = origin
+    response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     
     return response
 

@@ -441,8 +441,9 @@ server {
     # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
     # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
     location /onlyoffice {
-        # WICHTIG: Kein trailing slash bei proxy_pass, damit der Pfad korrekt weitergegeben wird
-        proxy_pass http://127.0.0.1:8080;
+        # WICHTIG: MIT trailing slash bei proxy_pass, damit der /onlyoffice Präfix entfernt wird
+        # OnlyOffice erwartet /web-apps/... nicht /onlyoffice/web-apps/...
+        proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -867,9 +867,10 @@ server {
     client_max_body_size 100M;
 
     # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
-    # WICHTIG: Kein trailing slash bei proxy_pass, damit der Pfad korrekt weitergegeben wird
+    # WICHTIG: MIT trailing slash bei proxy_pass, damit der /onlyoffice Präfix entfernt wird
+    # OnlyOffice erwartet /web-apps/... nicht /onlyoffice/web-apps/...
     location /onlyoffice {
-        proxy_pass http://127.0.0.1:8080;
+        proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
