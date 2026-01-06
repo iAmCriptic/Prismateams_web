@@ -313,15 +313,16 @@ EOF
     
     # Erstelle Datenbank und Benutzer
     log_info "Erstelle Datenbank und Benutzer..."
-    mysql -u root -p"${MYSQL_ROOT_PASS}" <<EOF 2>/dev/null || {
-        log_error "Datenbank-Erstellung fehlgeschlagen"
-        exit 1
-    }
+    mysql -u root -p"${MYSQL_ROOT_PASS}" <<EOF 2>/dev/null
 CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
 GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
+    if [ $? -ne 0 ]; then
+        log_error "Datenbank-Erstellung fehlgeschlagen"
+        exit 1
+    fi
     
     # Validierung
     if mysql -u "${DB_USER}" -p"${DB_PASS}" -e "USE ${DB_NAME}; SELECT 1;" 2>/dev/null; then
