@@ -1513,6 +1513,81 @@ def public_share_upload(token):
     return redirect(url_for('files.public_share', token=token))
 
 # ONLYOFFICE Routes
+@files_bp.route('/api/onlyoffice-debug', methods=['GET'])
+@login_required
+@check_module_access('module_files')
+def onlyoffice_debug():
+    """Debug endpoint to show OnlyOffice configuration and URLs."""
+    from flask import url_for
+    from urllib.parse import quote
+    
+    # Get a test file if available
+    test_file = File.query.filter(File.original_name.like('%.docx')).first()
+    if not test_file:
+        test_file = File.query.first()
+    
+    debug_info = {
+        'config': {
+            'ONLYOFFICE_ENABLED': current_app.config.get('ONLYOFFICE_ENABLED', False),
+            'ONLYOFFICE_DOCUMENT_SERVER_URL': current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL', '/onlyoffice'),
+            'ONLYOFFICE_PUBLIC_URL': current_app.config.get('ONLYOFFICE_PUBLIC_URL', ''),
+            'ONLYOFFICE_SECRET_KEY_SET': bool(current_app.config.get('ONLYOFFICE_SECRET_KEY', '').strip()),
+        },
+        'request_info': {
+            'scheme': request.scheme,
+            'host': request.host,
+            'url': request.url,
+            'base_url': request.url_root,
+        }
+    }
+    
+    if test_file:
+        # Generate URLs like in edit_onlyoffice
+        from app.utils.onlyoffice import generate_onlyoffice_access_token
+        access_token = generate_onlyoffice_access_token(test_file.id, current_user.id)
+        public_url = current_app.config.get('ONLYOFFICE_PUBLIC_URL', '').strip()
+        
+        if public_url:
+            public_url = public_url.rstrip('/')
+            from urllib.parse import quote
+            base_url = url_for('files.onlyoffice_document', file_id=test_file.id)
+            encoded_token = quote(access_token, safe='')
+            document_url = f"{public_url}{base_url}?token={encoded_token}"
+        else:
+            from urllib.parse import quote
+            base_url = url_for('files.onlyoffice_document', file_id=test_file.id, _external=True)
+            encoded_token = quote(access_token, safe='')
+            document_url = f"{base_url}?token={encoded_token}"
+        
+        debug_info['test_file'] = {
+            'id': test_file.id,
+            'name': test_file.original_name,
+            'file_path': test_file.file_path,
+            'document_url': document_url,
+            'access_token_length': len(access_token),
+        }
+        
+        # Check file permissions
+        import stat
+        file_path = test_file.file_path if os.path.isabs(test_file.file_path) else os.path.join(os.getcwd(), test_file.file_path)
+        if os.path.exists(file_path):
+            try:
+                file_stat = os.stat(file_path)
+                debug_info['test_file']['permissions'] = {
+                    'exists': True,
+                    'readable': os.access(file_path, os.R_OK),
+                    'permissions_octal': oct(stat.S_IMODE(file_stat.st_mode)),
+                    'owner_uid': file_stat.st_uid,
+                    'group_gid': file_stat.st_gid,
+                }
+            except Exception as e:
+                debug_info['test_file']['permissions'] = {'error': str(e)}
+        else:
+            debug_info['test_file']['permissions'] = {'exists': False}
+    
+    return jsonify(debug_info)
+
+
 @files_bp.route('/api/onlyoffice-diagnose', methods=['GET'])
 @login_required
 @check_module_access('module_files')

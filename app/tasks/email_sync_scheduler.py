@@ -71,19 +71,25 @@ class EmailSyncScheduler:
                 with self.app.app_context():
                     # Importiere hier, um zirkuläre Imports zu vermeiden
                     from app.blueprints.email import sync_emails_from_server, cleanup_old_emails
+                    from app.utils.lock_manager import acquire_email_sync_lock
                     
-                    logger.info("Starte automatische E-Mail-Synchronisation...")
-                    success, message = sync_emails_from_server()
-                    
-                    if success:
-                        logger.info(f"E-Mail-Synchronisation erfolgreich: {message}")
-                    else:
-                        logger.warning(f"E-Mail-Synchronisation fehlgeschlagen: {message}")
-                    
-                    # Führe E-Mail-Bereinigung durch
-                    deleted_count = cleanup_old_emails()
-                    if deleted_count > 0:
-                        logger.info(f"E-Mail-Bereinigung: {deleted_count} E-Mails gelöscht")
+                    # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
+                    with acquire_email_sync_lock(timeout=300) as acquired:
+                        if acquired:
+                            logger.info("Starte automatische E-Mail-Synchronisation...")
+                            success, message = sync_emails_from_server()
+                            
+                            if success:
+                                logger.info(f"E-Mail-Synchronisation erfolgreich: {message}")
+                            else:
+                                logger.warning(f"E-Mail-Synchronisation fehlgeschlagen: {message}")
+                            
+                            # Führe E-Mail-Bereinigung durch
+                            deleted_count = cleanup_old_emails()
+                            if deleted_count > 0:
+                                logger.info(f"E-Mail-Bereinigung: {deleted_count} E-Mails gelöscht")
+                        else:
+                            logger.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
                     
                     # Hole das Intervall innerhalb des Application Contexts
                     interval_seconds = self._get_sync_interval()

@@ -104,7 +104,12 @@ sudo chmod -R 755 uploads/
 sudo chmod -R 755 instance/
 ```
 
-### 4. OnlyOffice weißer Bildschirm
+### 4. OnlyOffice weißer Bildschirm oder "Herunterladen ist fehlgeschlagen"
+
+**Symptome:**
+- OnlyOffice Editor zeigt einen weißen Bildschirm
+- Fehler "Herunterladen ist fehlgeschlagen" im Editor
+- 404-Fehler für `/cache/files/data/...` in der Browser-Konsole
 
 **Lösung:**
 1. Prüfe die .env-Datei (Kommentare entfernen):
@@ -118,13 +123,41 @@ sudo docker ps | grep onlyoffice
 sudo docker logs onlyoffice-documentserver --tail 50
 ```
 
-3. Prüfe Nginx-Konfiguration:
+3. **WICHTIG: Prüfe Nginx-Konfiguration für /cache Location:**
+```bash
+sudo cat /etc/nginx/sites-available/teamportal | grep -A 15 "location /cache"
+```
+
+Die Nginx-Konfiguration muss eine `/cache` Location VOR der `/onlyoffice` Location haben:
+```nginx
+location /cache {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    
+    proxy_connect_timeout 600;
+    proxy_send_timeout 600;
+    proxy_read_timeout 600;
+    send_timeout 600;
+    
+    proxy_buffering off;
+    proxy_request_buffering off;
+}
+```
+
+4. Nginx-Konfiguration testen und neu laden:
 ```bash
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-4. Service neu starten:
+5. Service neu starten:
 ```bash
 sudo systemctl restart teamportal
 ```
