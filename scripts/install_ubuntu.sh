@@ -12,10 +12,16 @@
 # - OnlyOffice Document Server (Docker)
 # - Excalidraw (Docker)
 # - Automatische Generierung aller Keys
-# - Automatische .env-Konfiguration
+# - Automatische .env-Konfiguration (inkl. E-Mail-Einstellungen)
 # - Datenbank-Initialisierung
 # - Systemd Service für Gunicorn
 # - Optional: SSL mit Let's Encrypt
+#
+# Verwendung:
+#   sudo bash scripts/install_ubuntu.sh
+#
+# Das Skript fragt interaktiv nach allen benötigten Konfigurationen,
+# einschließlich E-Mail-Einstellungen (SMTP/IMAP).
 ###############################################################################
 
 set -e  # Beende bei Fehlern
@@ -135,6 +141,68 @@ gather_information() {
     DB_USER="teamportal"
     DB_PASS=$(generate_password)
     DB_NAME="teamportal"
+    
+    # E-Mail-Konfiguration
+    log_info ""
+    log_info "=== E-Mail-Konfiguration ==="
+    read -p "SMTP-Server (z.B. smtp.example.com): " MAIL_SERVER
+    if [ -n "$MAIL_SERVER" ]; then
+        read -p "SMTP-Port [587]: " MAIL_PORT
+        MAIL_PORT=${MAIL_PORT:-587}
+        
+        read -p "TLS verwenden? (j/n) [j]: " MAIL_USE_TLS
+        MAIL_USE_TLS=${MAIL_USE_TLS:-j}
+        if [[ $MAIL_USE_TLS =~ ^[JjYy]$ ]]; then
+            MAIL_USE_TLS="True"
+        else
+            MAIL_USE_TLS="False"
+        fi
+        
+        read -p "SSL verwenden? (j/n) [n]: " MAIL_USE_SSL
+        MAIL_USE_SSL=${MAIL_USE_SSL:-n}
+        if [[ $MAIL_USE_SSL =~ ^[JjYy]$ ]]; then
+            MAIL_USE_SSL="True"
+        else
+            MAIL_USE_SSL="False"
+        fi
+        
+        read -p "E-Mail-Benutzername: " MAIL_USERNAME
+        read -sp "E-Mail-Passwort: " MAIL_PASSWORD
+        echo
+        read -p "Standard-Absender-E-Mail [${MAIL_USERNAME}]: " MAIL_DEFAULT_SENDER
+        MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-$MAIL_USERNAME}
+        read -p "Absender-Name (optional, z.B. 'Teamportal'): " MAIL_SENDER_NAME
+        
+        # IMAP-Konfiguration
+        log_info ""
+        log_info "IMAP-Konfiguration (für E-Mail-Synchronisation):"
+        read -p "IMAP-Server (z.B. imap.example.com): " IMAP_SERVER
+        if [ -n "$IMAP_SERVER" ]; then
+            read -p "IMAP-Port [993]: " IMAP_PORT
+            IMAP_PORT=${IMAP_PORT:-993}
+            
+            read -p "IMAP SSL verwenden? (j/n) [j]: " IMAP_USE_SSL
+            IMAP_USE_SSL=${IMAP_USE_SSL:-j}
+            if [[ $IMAP_USE_SSL =~ ^[JjYy]$ ]]; then
+                IMAP_USE_SSL="True"
+            else
+                IMAP_USE_SSL="False"
+            fi
+        fi
+    else
+        log_warning "Keine E-Mail-Konfiguration angegeben. E-Mail-Funktionen werden nicht verfügbar sein."
+        MAIL_SERVER=""
+        MAIL_PORT="587"
+        MAIL_USE_TLS="True"
+        MAIL_USE_SSL="False"
+        MAIL_USERNAME=""
+        MAIL_PASSWORD=""
+        MAIL_DEFAULT_SENDER=""
+        MAIL_SENDER_NAME=""
+        IMAP_SERVER=""
+        IMAP_PORT="993"
+        IMAP_USE_SSL="True"
+    fi
     
     log_success "Konfiguration gesammelt"
 }
@@ -492,9 +560,13 @@ configure_env() {
     # SECRET_KEY
     sed -i "s|SECRET_KEY=.*|SECRET_KEY=${FLASK_SECRET}|" .env
     
-    # DATABASE_URI
-    DATABASE_URI="mysql+pymysql://${DB_USER}:${DB_PASS}@localhost/${DB_NAME}"
-    sed -i "s|DATABASE_URI=.*|DATABASE_URI=${DATABASE_URI}|" .env
+    # DATABASE_URI (URL-encode password for database URI)
+    # Python urllib.parse.quote wird verwendet, um Sonderzeichen im Passwort zu encodieren
+    DB_PASS_URI=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${DB_PASS}', safe=''))")
+    DATABASE_URI="mysql+pymysql://${DB_USER}:${DB_PASS_URI}@localhost/${DB_NAME}"
+    # Escape für sed (nur Pipe-Zeichen, da wir | als Trennzeichen verwenden)
+    DATABASE_URI_ESC=$(echo "$DATABASE_URI" | sed 's/|/\\|/g')
+    sed -i "s|DATABASE_URI=.*|DATABASE_URI=${DATABASE_URI_ESC}|" .env
     
     # VAPID Keys
     sed -i "s|VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${VAPID_PUBLIC}|" .env
@@ -519,6 +591,62 @@ configure_env() {
     # Production Settings
     sed -i "s|FLASK_ENV=.*|FLASK_ENV=production|" .env
     
+    # E-Mail-Konfiguration
+    if [ -n "$MAIL_SERVER" ]; then
+        log_info "Konfiguriere E-Mail-Einstellungen..."
+        sed -i "s|^MAIL_SERVER=.*|MAIL_SERVER=${MAIL_SERVER}|" .env
+        sed -i "s|^MAIL_PORT=.*|MAIL_PORT=${MAIL_PORT}|" .env
+        sed -i "s|^MAIL_USE_TLS=.*|MAIL_USE_TLS=${MAIL_USE_TLS}|" .env
+        sed -i "s|^MAIL_USE_SSL=.*|MAIL_USE_SSL=${MAIL_USE_SSL}|" .env
+        if [ -n "$MAIL_USERNAME" ]; then
+            sed -i "s|^MAIL_USERNAME=.*|MAIL_USERNAME=${MAIL_USERNAME}|" .env
+        else
+            sed -i "s|^MAIL_USERNAME=.*|MAIL_USERNAME=|" .env
+        fi
+        if [ -n "$MAIL_PASSWORD" ]; then
+            # Escape special characters in password for sed
+            MAIL_PASSWORD_ESC=$(echo "$MAIL_PASSWORD" | sed 's/[[\.*^$()+?{|]/\\&/g')
+            sed -i "s|^MAIL_PASSWORD=.*|MAIL_PASSWORD=${MAIL_PASSWORD_ESC}|" .env
+        else
+            sed -i "s|^MAIL_PASSWORD=.*|MAIL_PASSWORD=|" .env
+        fi
+        if [ -n "$MAIL_DEFAULT_SENDER" ]; then
+            sed -i "s|^MAIL_DEFAULT_SENDER=.*|MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}|" .env
+        else
+            sed -i "s|^MAIL_DEFAULT_SENDER=.*|MAIL_DEFAULT_SENDER=|" .env
+        fi
+        if [ -n "$MAIL_SENDER_NAME" ]; then
+            sed -i "s|^MAIL_SENDER_NAME=.*|MAIL_SENDER_NAME=${MAIL_SENDER_NAME}|" .env
+        else
+            sed -i "s|^MAIL_SENDER_NAME=.*|MAIL_SENDER_NAME=|" .env
+        fi
+        
+        # IMAP-Konfiguration
+        if [ -n "$IMAP_SERVER" ]; then
+            sed -i "s|^IMAP_SERVER=.*|IMAP_SERVER=${IMAP_SERVER}|" .env
+            sed -i "s|^IMAP_PORT=.*|IMAP_PORT=${IMAP_PORT}|" .env
+            sed -i "s|^IMAP_USE_SSL=.*|IMAP_USE_SSL=${IMAP_USE_SSL}|" .env
+        else
+            sed -i "s|^IMAP_SERVER=.*|IMAP_SERVER=|" .env
+            sed -i "s|^IMAP_PORT=.*|IMAP_PORT=993|" .env
+            sed -i "s|^IMAP_USE_SSL=.*|IMAP_USE_SSL=True|" .env
+        fi
+    else
+        log_info "E-Mail-Konfiguration übersprungen (nicht angegeben)"
+        # Setze leere Werte, damit Platzhalter ersetzt werden
+        sed -i "s|^MAIL_SERVER=.*|MAIL_SERVER=|" .env
+        sed -i "s|^MAIL_PORT=.*|MAIL_PORT=587|" .env
+        sed -i "s|^MAIL_USE_TLS=.*|MAIL_USE_TLS=True|" .env
+        sed -i "s|^MAIL_USE_SSL=.*|MAIL_USE_SSL=False|" .env
+        sed -i "s|^MAIL_USERNAME=.*|MAIL_USERNAME=|" .env
+        sed -i "s|^MAIL_PASSWORD=.*|MAIL_PASSWORD=|" .env
+        sed -i "s|^MAIL_DEFAULT_SENDER=.*|MAIL_DEFAULT_SENDER=|" .env
+        sed -i "s|^MAIL_SENDER_NAME=.*|MAIL_SENDER_NAME=|" .env
+        sed -i "s|^IMAP_SERVER=.*|IMAP_SERVER=|" .env
+        sed -i "s|^IMAP_PORT=.*|IMAP_PORT=993|" .env
+        sed -i "s|^IMAP_USE_SSL=.*|IMAP_USE_SSL=True|" .env
+    fi
+    
     # Sichere Berechtigungen
     chmod 600 .env
     chown www-data:www-data .env
@@ -532,9 +660,15 @@ setup_upload_directories() {
     
     cd "$INSTALL_DIR"
     
-    mkdir -p uploads/{files,chat,manuals,profile_pics,inventory/product_images,inventory/product_documents,system,attachments,booking_forms,bookings,email_attachments,veranstaltungen,wiki}
+    # Erstelle instance-Verzeichnis (für Flask)
+    mkdir -p instance
     
-    chown -R www-data:www-data uploads
+    # Erstelle alle Upload-Verzeichnisse
+    mkdir -p uploads/{files,chat,manuals,profile_pics,inventory/product_images,inventory/product_documents,system,attachments,booking_forms,bookings,email_attachments,veranstaltungen,wiki}
+    mkdir -p uploads/chat/avatars
+    
+    chown -R www-data:www-data instance uploads
+    chmod -R 755 instance
     chmod -R 775 uploads
     
     log_success "Upload-Verzeichnisse erstellt"
@@ -836,11 +970,26 @@ print_summary() {
         echo "OnlyOffice Secret Key: $ONLYOFFICE_SECRET"
     fi
     echo
+    if [ -n "$MAIL_SERVER" ]; then
+        echo "E-Mail-Konfiguration:"
+        echo "  SMTP-Server: $MAIL_SERVER"
+        echo "  SMTP-Port: $MAIL_PORT"
+        echo "  E-Mail-Benutzer: $MAIL_USERNAME"
+        if [ -n "$IMAP_SERVER" ]; then
+            echo "  IMAP-Server: $IMAP_SERVER"
+            echo "  IMAP-Port: $IMAP_PORT"
+        fi
+        echo
+    fi
     echo "WICHTIG: Speichern Sie diese Informationen sicher!"
     echo "         Besonders die Passwörter und Secret Keys!"
     echo
     echo "Nächste Schritte:"
-    echo "1. Konfigurieren Sie die E-Mail-Einstellungen in $INSTALL_DIR/.env"
+    if [ -z "$MAIL_SERVER" ]; then
+        echo "1. Konfigurieren Sie die E-Mail-Einstellungen in $INSTALL_DIR/.env (falls benötigt)"
+    else
+        echo "1. E-Mail-Einstellungen wurden bereits konfiguriert"
+    fi
     echo "2. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
     echo "3. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
     echo

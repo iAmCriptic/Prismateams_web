@@ -7,9 +7,14 @@
     <div class="row">
         <div class="col-12 mb-4 d-flex justify-content-between align-items-center">
             <h2 class="mb-0"><i class="bi bi-music-note-beamed"></i> {{ _('music.common.title') }}</h2>
-            <button class="btn btn-danger" onclick="resetAll()">
-                <i class="bi bi-arrow-counterclockwise"></i> {{ _('music.index.reset_all') }}
-            </button>
+            <div class="btn-group">
+                <a href="{{ url_for('music.public_url_page') }}" class="btn btn-primary" target="_blank">
+                    <i class="bi bi-link-45deg"></i> Public URL Abrufen
+                </a>
+                <button class="btn btn-danger" onclick="resetAll()">
+                    <i class="bi bi-arrow-counterclockwise"></i> {{ _('music.index.reset_all') }}
+                </button>
+            </div>
         </div>
     </div>
     
@@ -229,7 +234,9 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/music.js') }}"></script>
 <script>
+    // Globale Funktionen - außerhalb von DOMContentLoaded
     function addToQueue(wishId, position) {
+        console.log('addToQueue aufgerufen:', wishId, position);
         fetch('/music/wishlist/add-to-queue', {
             method: 'POST',
             headers: {
@@ -240,22 +247,31 @@
                 position: position
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response Data:', data);
             if (data.success) {
                 location.reload();
             } else {
-                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
-                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+                const errorMsg = data.error || 'Unbekannter Fehler';
+                alert('Fehler: ' + errorMsg);
             }
         })
         .catch(error => {
-            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+            console.error('Fehler beim Hinzufügen zur Warteschlange:', error);
+            alert('Fehler beim Hinzufügen zur Warteschlange: ' + error.message);
         });
     }
     
     function removeFromQueue(queueId) {
-        if (!confirm('{{ _("music.index.queue.remove") }}')) {
+        console.log('removeFromQueue aufgerufen:', queueId);
+        if (!confirm('Möchten Sie dieses Lied aus der Warteschlange entfernen?')) {
             return;
         }
         
@@ -268,22 +284,31 @@
                 queue_id: queueId
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response Data:', data);
             if (data.success) {
                 location.reload();
             } else {
-                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
-                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+                const errorMsg = data.error || 'Unbekannter Fehler';
+                alert('Fehler: ' + errorMsg);
             }
         })
         .catch(error => {
-            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+            console.error('Fehler beim Entfernen aus der Warteschlange:', error);
+            alert('Fehler beim Entfernen aus der Warteschlange: ' + error.message);
         });
     }
     
     function clearQueue() {
-        if (!confirm('{{ _("music.index.confirmations.clear_queue") }}')) {
+        console.log('clearQueue aufgerufen');
+        if (!confirm('Möchten Sie die gesamte Warteschlange leeren?')) {
             return;
         }
         
@@ -293,22 +318,31 @@
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response Data:', data);
             if (data.success) {
                 location.reload();
             } else {
-                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
-                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+                const errorMsg = data.error || 'Unbekannter Fehler';
+                alert('Fehler: ' + errorMsg);
             }
         })
         .catch(error => {
-            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+            console.error('Fehler beim Leeren der Warteschlange:', error);
+            alert('Fehler beim Leeren der Warteschlange: ' + error.message);
         });
     }
     
     function clearWishlist() {
-        if (!confirm('{{ _("music.index.confirmations.clear_wishlist") }}')) {
+        console.log('clearWishlist aufgerufen');
+        if (!confirm('Möchten Sie die Wunschliste leeren?')) {
             return;
         }
         
@@ -318,27 +352,36 @@
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response Data:', data);
             if (data.success) {
                 location.reload();
             } else {
-                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
-                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+                const errorMsg = data.error || 'Unbekannter Fehler';
+                alert('Fehler: ' + errorMsg);
             }
         })
         .catch(error => {
-            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+            console.error('Fehler beim Leeren der Wunschliste:', error);
+            alert('Fehler beim Leeren der Wunschliste: ' + error.message);
         });
     }
     
     function resetAll() {
-        if (!confirm('{{ _("music.index.confirmations.reset_all") }}')) {
+        console.log('resetAll aufgerufen');
+        if (!confirm('Möchten Sie wirklich ALLES zurücksetzen? Dies kann nicht rückgängig gemacht werden!')) {
             return;
         }
         
         // Doppelte Bestätigung
-        if (!confirm('{{ _("music.index.confirmations.reset_all_confirm") }}')) {
+        if (!confirm('Sind Sie sicher? Alle Wünsche, die Warteschlange und bereits gespielte Lieder werden gelöscht!')) {
             return;
         }
         
@@ -348,22 +391,31 @@
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response Data:', data);
             if (data.success) {
                 location.reload();
             } else {
-                const errorMsg = data.error || '{{ _("music.index.errors.unknown") }}';
-                alert('{{ _("music.index.errors.generic", error="") }}' + errorMsg);
+                const errorMsg = data.error || 'Unbekannter Fehler';
+                alert('Fehler: ' + errorMsg);
             }
         })
         .catch(error => {
-            alert('{{ _("music.index.errors.generic", error="") }}' + error.message);
+            console.error('Fehler beim Zurücksetzen:', error);
+            alert('Fehler beim Zurücksetzen: ' + error.message);
         });
     }
     
     // Tab-Navigation: Aktualisiere Badge-Zahlen beim Tab-Wechsel
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Music-Modul geladen');
         const tabButtons = document.querySelectorAll('#musicTabs button[data-bs-toggle="tab"]');
         tabButtons.forEach(button => {
             button.addEventListener('shown.bs.tab', function(event) {

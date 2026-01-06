@@ -595,7 +595,8 @@ def create_app(config_name='default'):
                 {'name': 'Drafts', 'display_name': 'Entwürfe', 'folder_type': 'standard', 'is_system': True},
                 {'name': 'Trash', 'display_name': 'Papierkorb', 'folder_type': 'standard', 'is_system': True},
                 {'name': 'Spam', 'display_name': 'Spam', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Archive', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True}
+                {'name': 'Archive', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True},
+                {'name': 'Archives', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True}
             ]
             
             for folder_data in standard_folders:
@@ -799,6 +800,9 @@ def create_app(config_name='default'):
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
+        
+        from app.tasks.email_sync_scheduler import start_email_sync_scheduler
+        start_email_sync_scheduler(app)
     
     return app
 

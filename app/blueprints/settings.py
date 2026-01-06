@@ -317,7 +317,8 @@ def admin_users():
         ('module_canvas', 'Canvas'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_booking', 'Buchungen')
+        ('module_booking', 'Buchungen'),
+        ('module_music', 'Musik')
     ]
     
     # Get all users
@@ -520,19 +521,13 @@ Gesendet von <user> (<email>)
 @settings_bp.route('/admin/email-permissions')
 @login_required
 def admin_email_permissions():
-    """Manage email permissions (admin only)."""
+    """Umleitung zur Benutzerverwaltung (E-Mail-Berechtigungen wurden in Rollenverwaltung verschoben)."""
     if not current_user.is_admin:
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
-    permissions = {}
-    
-    for user in users:
-        perm = EmailPermission.query.filter_by(user_id=user.id).first()
-        permissions[user.id] = perm
-    
-    return render_template('settings/admin_email_permissions.html', users=users, permissions=permissions)
+    flash('E-Mail-Berechtigungen werden jetzt in der Benutzerverwaltung unter Rollen verwaltet.', 'info')
+    return redirect(url_for('settings.admin_users'))
 
 
 @settings_bp.route('/admin/email-permissions/<int:user_id>/toggle-read', methods=['POST'])
@@ -1056,6 +1051,83 @@ def admin_inventory_settings():
     return render_template('settings/admin_inventory_settings.html', ownership_text=ownership_text)
 
 
+@settings_bp.route('/admin/email-module')
+@login_required
+def admin_email_module():
+    """E-Mail-Moduleinstellungen Übersicht (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    return render_template('settings/admin_email_module.html')
+
+
+@settings_bp.route('/admin/email-settings', methods=['GET', 'POST'])
+@login_required
+def admin_email_settings():
+    """E-Mail-System-Einstellungen (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    if request.method == 'POST':
+        # Speicherdauer in Tagen (0 = unbegrenzt)
+        storage_days = request.form.get('storage_days', '').strip()
+        try:
+            storage_days = int(storage_days) if storage_days else 0
+            if storage_days < 0:
+                storage_days = 0
+        except ValueError:
+            storage_days = 0
+        
+        # Synchronisationsintervall in Minuten
+        sync_interval = request.form.get('sync_interval', '').strip()
+        try:
+            sync_interval = int(sync_interval) if sync_interval else 30
+            if sync_interval < 15:
+                sync_interval = 15
+        except ValueError:
+            sync_interval = 30
+        
+        # Speichere Einstellungen in SystemSettings
+        storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()
+        if storage_setting:
+            storage_setting.value = str(storage_days)
+        else:
+            storage_setting = SystemSettings(
+                key='email_storage_days',
+                value=str(storage_days),
+                description='Speicherdauer für E-Mails in Tagen (0 = unbegrenzt)'
+            )
+            db.session.add(storage_setting)
+        
+        sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
+        if sync_setting:
+            sync_setting.value = str(sync_interval)
+        else:
+            sync_setting = SystemSettings(
+                key='email_sync_interval_minutes',
+                value=str(sync_interval),
+                description='Automatisches Synchronisationsintervall in Minuten'
+            )
+            db.session.add(sync_setting)
+        
+        db.session.commit()
+        flash('E-Mail-Einstellungen wurden gespeichert.', 'success')
+        return redirect(url_for('settings.admin_email_settings'))
+    
+    # Lade aktuelle Einstellungen
+    storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()
+    storage_days = int(storage_setting.value) if storage_setting and storage_setting.value else 0
+    
+    sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
+    sync_interval = int(sync_setting.value) if sync_setting and sync_setting.value else 30
+    
+    return render_template('settings/admin_email_settings.html', 
+                         storage_days=storage_days, 
+                         sync_interval=sync_interval)
+
+
 @settings_bp.route('/admin/inventory-categories/<category_name>/delete', methods=['POST'])
 @login_required
 def admin_delete_inventory_category(category_name):
@@ -1240,10 +1312,20 @@ def admin_roles_user(user_id):
                 'is_assigned': assignment is not None
             })
         
+        # Lade E-Mail-Berechtigungen
+        email_permissions = None
+        email_perm = EmailPermission.query.filter_by(user_id=user.id).first()
+        if email_perm:
+            email_permissions = {
+                'can_read': email_perm.can_read,
+                'can_send': email_perm.can_send
+            }
+        
         return jsonify({
             'has_full_access': user.has_full_access,
             'module_roles': module_roles,
-            'booking_roles': booking_roles
+            'booking_roles': booking_roles,
+            'email_permissions': email_permissions
         })
     
     # HTML-Ansicht (falls benötigt)
@@ -1276,7 +1358,7 @@ def admin_roles_user_update(user_id):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_credentials', 'module_manuals', 'module_canvas',
-            'module_inventory', 'module_wiki', 'module_booking'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_music'
         ]
         
         # Aktualisiere Modul-Rollen
@@ -1296,6 +1378,23 @@ def admin_roles_user_update(user_id):
         else:
             # Bei Vollzugriff: Lösche alle Modul-Rollen
             UserModuleRole.query.filter_by(user_id=user.id).delete()
+        
+        # Aktualisiere E-Mail-Berechtigungen
+        email_can_read = request.form.get('email_can_read') == 'on'
+        email_can_send = request.form.get('email_can_send') == 'on'
+        
+        email_perm = EmailPermission.query.filter_by(user_id=user.id).first()
+        if email_can_read or email_can_send:
+            if not email_perm:
+                email_perm = EmailPermission(user_id=user.id, can_read=email_can_read, can_send=email_can_send)
+                db.session.add(email_perm)
+            else:
+                email_perm.can_read = email_can_read
+                email_perm.can_send = email_can_send
+        else:
+            # Wenn beide deaktiviert sind, lösche die Berechtigung
+            if email_perm:
+                db.session.delete(email_perm)
         
         # Aktualisiere Buchungsrollen
         # Lösche alle bestehenden Buchungsrollen-Zuordnungen
@@ -1345,7 +1444,8 @@ def admin_roles_default():
         ('module_canvas', 'Canvas'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_booking', 'Buchungen')
+        ('module_booking', 'Buchungen'),
+        ('module_music', 'Musik')
     ]
     
     if request.method == 'POST':

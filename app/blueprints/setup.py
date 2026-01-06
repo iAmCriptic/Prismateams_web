@@ -319,7 +319,9 @@ def setup_complete():
                 'module_manuals': request.form.get('module_manuals') == 'on',
                 'module_canvas': request.form.get('module_canvas') == 'on',
                 'module_inventory': request.form.get('module_inventory') == 'on',
-                'module_wiki': request.form.get('module_wiki') == 'on'
+                'module_wiki': request.form.get('module_wiki') == 'on',
+                'module_booking': request.form.get('module_booking') == 'on',
+                'module_music': request.form.get('module_music') == 'on'
             }
             
             for module_key, enabled in modules.items():
@@ -553,7 +555,9 @@ def setup_step3():
             'module_manuals': request.form.get('module_manuals') == 'on',
             'module_canvas': request.form.get('module_canvas') == 'on',
             'module_inventory': request.form.get('module_inventory') == 'on',
-            'module_wiki': request.form.get('module_wiki') == 'on'
+            'module_wiki': request.form.get('module_wiki') == 'on',
+            'module_booking': request.form.get('module_booking') == 'on',
+            'module_music': request.form.get('module_music') == 'on'
         }
         
         session['setup_modules'] = modules
@@ -749,7 +753,9 @@ def setup_step4():
                 'module_manuals': True,
                 'module_canvas': True,
                 'module_inventory': True,
-                'module_wiki': True
+                'module_wiki': True,
+                'module_booking': True,
+                'module_music': True
             })
             
             for module_key, enabled in modules.items():

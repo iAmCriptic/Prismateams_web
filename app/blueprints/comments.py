@@ -161,6 +161,13 @@ def create_comment(content_type, content_id):
     if content_type not in ['file', 'wiki', 'canvas']:
         return jsonify({'error': 'Ungültiger content_type'}), 400
     
+    # Prüfe ob Kommentare für .md Dateien deaktiviert sind
+    if content_type == 'file':
+        from app.models.file import File
+        file = File.query.get(content_id)
+        if file and file.name.endswith('.md'):
+            return jsonify({'error': 'Kommentare sind für Markdown-Dateien deaktiviert'}), 403
+    
     data = request.get_json()
     content = data.get('content', '').strip()
     parent_id = data.get('parent_id', None)

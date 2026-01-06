@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, url_for as flask_url_for
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, url_for as flask_url_for, current_app
 from flask_login import login_required, current_user
 from app.utils.i18n import _
 from app import db
@@ -79,10 +79,17 @@ def create():
 @check_module_access('module_canvas')
 def edit(canvas_id):
     """Edit a canvas with Excalidraw."""
-    from app.utils.excalidraw import is_excalidraw_enabled
+    from app.utils.excalidraw import is_excalidraw_enabled, validate_excalidraw_config
     if not is_excalidraw_enabled():
         flash('Excalidraw ist nicht aktiviert. Bitte aktivieren Sie Excalidraw in den Einstellungen.', 'warning')
         return redirect(url_for('canvas.index'))
+    
+    # Validiere Excalidraw-Konfiguration
+    config_warnings = validate_excalidraw_config()
+    if config_warnings:
+        for warning in config_warnings:
+            current_app.logger.warning(f"Excalidraw-Konfigurationswarnung: {warning}")
+            flash(f'Excalidraw-Konfigurationswarnung: {warning}', 'warning')
     
     canvas_obj = Canvas.query.get_or_404(canvas_id)
     
@@ -97,8 +104,27 @@ def edit(canvas_id):
     room_url = get_excalidraw_room_url()
     public_url = get_excalidraw_public_url()
     
-    document_url = f"{public_url}{flask_url_for('canvas.load', canvas_id=canvas_id)}" if public_url else flask_url_for('canvas.load', canvas_id=canvas_id, _external=True)
-    save_url = f"{public_url}{flask_url_for('canvas.save', canvas_id=canvas_id)}" if public_url else flask_url_for('canvas.save', canvas_id=canvas_id, _external=True)
+    # Validiere URLs
+    if not excalidraw_url or excalidraw_url.strip() == '':
+        flash('Excalidraw URL ist nicht konfiguriert. Bitte überprüfen Sie die Einstellungen.', 'danger')
+        return redirect(url_for('canvas.index'))
+    
+    # Generiere absolute URLs für Load und Save
+    # Verwende EXCALIDRAW_PUBLIC_URL wenn gesetzt, sonst _external=True
+    try:
+        if public_url:
+            # Entferne führendes / von public_url falls vorhanden, da url_for bereits / hinzufügt
+            public_url_clean = public_url.rstrip('/')
+            document_url = f"{public_url_clean}{flask_url_for('canvas.load', canvas_id=canvas_id)}"
+            save_url = f"{public_url_clean}{flask_url_for('canvas.save', canvas_id=canvas_id)}"
+        else:
+            document_url = flask_url_for('canvas.load', canvas_id=canvas_id, _external=True)
+            save_url = flask_url_for('canvas.save', canvas_id=canvas_id, _external=True)
+    except Exception as e:
+        # Fallback auf relative URLs bei Fehler
+        current_app.logger.error(f"Fehler bei URL-Generierung: {e}", exc_info=True)
+        document_url = flask_url_for('canvas.load', canvas_id=canvas_id)
+        save_url = flask_url_for('canvas.save', canvas_id=canvas_id)
     
     return render_template(
         'canvas/edit.html',
@@ -138,17 +164,26 @@ def load(canvas_id):
     """Load Excalidraw data for a canvas."""
     from flask import current_app
     from urllib.parse import urlparse
+    from app.utils.excalidraw import get_excalidraw_room_url
     
     if request.method == 'OPTIONS':
         response = jsonify({})
-        room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
-        if room_url.startswith('http'):
-            parsed = urlparse(room_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        room_url = get_excalidraw_room_url()
+        
+        # Setze CORS-Header für Excalidraw Room Server
+        # Wenn room_url absolut ist, extrahiere den Origin
+        if room_url.startswith('http://') or room_url.startswith('https://'):
+            try:
+                parsed = urlparse(room_url)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                response.headers['Access-Control-Allow-Origin'] = origin
+            except Exception:
+                pass
+        
+        # Setze auch generische CORS-Header für Excalidraw
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
     
     canvas_obj = Canvas.query.get_or_404(canvas_id)
@@ -170,14 +205,20 @@ def load(canvas_id):
     
     response = jsonify(excalidraw_data)
     
-    room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
-    if room_url.startswith('http'):
-        parsed = urlparse(room_url)
-        origin = f"{parsed.scheme}://{parsed.netloc}"
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    # Setze CORS-Header für Excalidraw Room Server
+    room_url = get_excalidraw_room_url()
+    if room_url.startswith('http://') or room_url.startswith('https://'):
+        try:
+            parsed = urlparse(room_url)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            response.headers['Access-Control-Allow-Origin'] = origin
+        except Exception:
+            pass
+    
+    # Setze auch generische CORS-Header
+    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
     
     return response
 
@@ -189,17 +230,26 @@ def save(canvas_id):
     """Save Excalidraw data for a canvas."""
     from flask import current_app
     from urllib.parse import urlparse
+    from app.utils.excalidraw import get_excalidraw_room_url
     
     if request.method == 'OPTIONS':
         response = jsonify({})
-        room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
-        if room_url.startswith('http'):
-            parsed = urlparse(room_url)
-            origin = f"{parsed.scheme}://{parsed.netloc}"
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        room_url = get_excalidraw_room_url()
+        
+        # Setze CORS-Header für Excalidraw Room Server
+        # Wenn room_url absolut ist, extrahiere den Origin
+        if room_url.startswith('http://') or room_url.startswith('https://'):
+            try:
+                parsed = urlparse(room_url)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                response.headers['Access-Control-Allow-Origin'] = origin
+            except Exception:
+                pass
+        
+        # Setze auch generische CORS-Header für Excalidraw
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
     
     canvas_obj = Canvas.query.get_or_404(canvas_id)
@@ -214,17 +264,24 @@ def save(canvas_id):
             
             response = jsonify({'success': True})
             
-            room_url = current_app.config.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
-            if room_url.startswith('http'):
-                parsed = urlparse(room_url)
-                origin = f"{parsed.scheme}://{parsed.netloc}"
-                response.headers['Access-Control-Allow-Origin'] = origin
-                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
-                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-                response.headers['Access-Control-Allow-Credentials'] = 'true'
+            # Setze CORS-Header für Excalidraw Room Server
+            room_url = get_excalidraw_room_url()
+            if room_url.startswith('http://') or room_url.startswith('https://'):
+                try:
+                    parsed = urlparse(room_url)
+                    origin = f"{parsed.scheme}://{parsed.netloc}"
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                except Exception:
+                    pass
+            
+            # Setze auch generische CORS-Header
+            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
             
             return response
         else:
             return jsonify({'error': 'No data provided'}), 400
     except Exception as e:
+        current_app.logger.error(f"Fehler beim Speichern des Canvas {canvas_id}: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500

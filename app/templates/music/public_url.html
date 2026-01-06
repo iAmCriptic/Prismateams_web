@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Musikwunsch - QR Code</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f8f9fa;
+        }
+        
+        .presentation-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+        }
+        
+        .logo-container {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+        }
+        
+        .logo-container img {
+            max-height: 120px;
+            height: auto;
+            width: auto;
+        }
+        
+        .qr-section {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .qr-section img {
+            max-width: 500px;
+            width: 100%;
+            height: auto;
+        }
+        
+        .link-section {
+            text-align: center;
+            margin: 2rem 0;
+        }
+        
+        .print-button {
+            position: absolute;
+            bottom: 2rem;
+            left: 2rem;
+        }
+        
+        /* Druckansicht */
+        @media print {
+            @page {
+                margin: 2cm;
+            }
+            
+            body {
+                background: white;
+            }
+            
+            .presentation-container {
+                padding: 0;
+                display: block;
+                position: relative;
+            }
+            
+            .logo-container {
+                position: absolute;
+                top: 0;
+                left: 0;
+                margin: 0;
+            }
+            
+            .logo-container img {
+                max-height: 100px;
+            }
+            
+            .print-content {
+                margin-top: 120px;
+            }
+            
+            .print-header {
+                margin-bottom: 2rem;
+                text-align: center;
+            }
+            
+            .print-header h1 {
+                font-size: 2.5rem;
+                margin: 0 0 0.5rem 0;
+                font-weight: bold;
+                color: #000;
+                text-align: center;
+            }
+            
+            .print-header p {
+                font-size: 1.2rem;
+                color: #666;
+                margin: 0;
+                text-align: center;
+            }
+            
+            .qr-section {
+                margin: 2rem 0;
+                text-align: center;
+            }
+            
+            .qr-section img {
+                max-width: 400px;
+            }
+            
+            .link-section {
+                margin-top: 1.5rem;
+                text-align: center;
+            }
+            
+            .link-text {
+                font-size: 1rem;
+                word-break: break-all;
+                color: #333;
+                text-align: center;
+            }
+            
+            .print-button {
+                display: none !important;
+            }
+        }
+        
+        /* Normale Ansicht - verstecke Druckelemente */
+        .print-only {
+            display: none;
+        }
+        
+        @media print {
+            .print-only {
+                display: block;
+            }
+            .screen-only {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- Logo oben links -->
+        <div class="logo-container">
+            {% if portal_logo_filename %}
+            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" 
+                 alt="Portal Logo">
+            {% endif %}
+        </div>
+        
+        <!-- Screen-Ansicht: QR-Code und Link -->
+        <div class="screen-only">
+            <!-- QR-Code groß in der Mitte -->
+            <div class="qr-section">
+                <img src="/music/api/qr-code?url={{ public_url|urlencode }}" 
+                     alt="QR Code">
+            </div>
+            
+            <!-- Link darunter -->
+            <div class="link-section">
+                <label class="form-label fw-bold mb-2">Link:</label>
+                <div class="input-group" style="max-width: 600px; margin: 0 auto;">
+                    <input type="text" 
+                           class="form-control" 
+                           id="publicLinkInput" 
+                           value="{{ public_url }}" 
+                           readonly>
+                    <button class="btn btn-outline-secondary" 
+                            type="button" 
+                            id="copyLinkBtn"
+                            onclick="copyLink()">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Druckansicht: Header, QR Code und Link -->
+        <div class="print-only print-content" style="width: 100%;">
+            <div class="print-header">
+                <h1>Musikwunsch?</h1>
+                <p>Scanne den QR Code</p>
+            </div>
+            
+            <!-- QR-Code -->
+            <div class="qr-section">
+                <img src="/music/api/qr-code?url={{ public_url|urlencode }}" 
+                     alt="QR Code">
+            </div>
+            
+            <!-- Link darunter -->
+            <div class="link-text">
+                {{ public_url }}
+            </div>
+        </div>
+        
+        <!-- Drucken-Button unten links -->
+        <div class="print-button">
+            <button type="button" 
+                    class="btn btn-sm btn-outline-secondary" 
+                    onclick="window.print()">
+                <i class="bi bi-printer"></i> Drucken
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function copyLink() {
+            const input = document.getElementById('publicLinkInput');
+            if (!input) {
+                console.error('Input-Element nicht gefunden');
+                return;
+            }
+            
+            input.select();
+            input.setSelectionRange(0, 99999); // Für mobile Geräte
+            
+            navigator.clipboard.writeText(input.value).then(() => {
+                const btn = document.getElementById('copyLinkBtn');
+                if (btn) {
+                    const originalHtml = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check"></i>';
+                    btn.classList.add('btn-success');
+                    btn.classList.remove('btn-outline-secondary');
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-secondary');
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('Fehler beim Kopieren:', err);
+                alert('Link wurde in die Zwischenablage kopiert');
+            });
+        }
+    </script>
+</body>
+</html>

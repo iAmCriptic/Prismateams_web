@@ -439,7 +439,9 @@
             <div class="text-content">{{ content }}</div>
         {% endif %}
         
-        {% set content_type='file' %}{% set content_id=file.id %}{% include 'comments/_comments.html' %}
+        {% if not file.name.endswith('.md') %}
+            {% set content_type='file' %}{% set content_id=file.id %}{% include 'comments/_comments.html' %}
+        {% endif %}
     </div>
 </div>
 

@@ -186,6 +186,33 @@
                     
                     <hr class="my-4">
                     
+                    <div id="emailPermissionsSection">
+                        <h6 class="mb-3"><i class="bi bi-envelope"></i> E-Mail-Berechtigungen</h6>
+                        <p class="text-muted mb-3">Legen Sie fest, welche E-Mail-Funktionen dieser Benutzer nutzen kann:</p>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="emailCanRead" name="email_can_read">
+                                <label class="form-check-label" for="emailCanRead">
+                                    <strong>E-Mails lesen</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block ms-4">Benutzer kann E-Mails im Portal anzeigen und lesen</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="emailCanSend" name="email_can_send">
+                                <label class="form-check-label" for="emailCanSend">
+                                    <strong>E-Mails senden</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block ms-4">Benutzer kann E-Mails über das Portal versenden</small>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
                     <div id="bookingRolesSection">
                         <h6 class="mb-3">Buchungsrollen</h6>
                         <p class="text-muted mb-3">Weisen Sie diesem Benutzer Buchungsrollen zu, damit er Buchungsanfragen zustimmen oder ablehnen kann:</p>
@@ -240,6 +267,15 @@ function loadUserRoles(userId) {
         .then(data => {
             // Setze Vollzugriff
             document.getElementById('modalHasFullAccess').checked = data.has_full_access || false;
+            
+            // Setze E-Mail-Berechtigungen
+            if (data.email_permissions) {
+                document.getElementById('emailCanRead').checked = data.email_permissions.can_read || false;
+                document.getElementById('emailCanSend').checked = data.email_permissions.can_send || false;
+            } else {
+                document.getElementById('emailCanRead').checked = false;
+                document.getElementById('emailCanSend').checked = false;
+            }
             
             // Erstelle Checkboxen für Module
             const container = document.getElementById('moduleCheckboxes');
@@ -380,6 +416,10 @@ function saveRoles() {
             formData.append(module.key, 'on');
         }
     });
+    
+    // Sammle E-Mail-Berechtigungen
+    formData.append('email_can_read', document.getElementById('emailCanRead').checked ? 'on' : '');
+    formData.append('email_can_send', document.getElementById('emailCanSend').checked ? 'on' : '');
     
     // Sammle Buchungsrollen-Checkboxen
     const bookingRoleCheckboxes = document.querySelectorAll('.booking-role-checkbox:checked');
