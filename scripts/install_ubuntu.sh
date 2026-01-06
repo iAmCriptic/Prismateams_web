@@ -687,7 +687,8 @@ init_database() {
     fi
     
     # Validierung: Prüfe ob Datenbank erreichbar ist
-    if ! python3 -c "
+    DB_TEST_TEMP=$(mktemp)
+    cat > "$DB_TEST_TEMP" <<PYEOF
 import os
 import sys
 sys.path.insert(0, '${INSTALL_DIR}')
@@ -695,11 +696,13 @@ from app import create_app, db
 app = create_app('production')
 with app.app_context():
     db.session.execute(db.text('SELECT 1'))
-"; then
+PYEOF
+    if ! python3 "$DB_TEST_TEMP" 2>/dev/null; then
         log_warning "Datenbank-Verbindungstest fehlgeschlagen. Möglicherweise müssen Sie die Datenbank manuell initialisieren."
     else
         log_success "Datenbank-Verbindung erfolgreich"
     fi
+    rm -f "$DB_TEST_TEMP"
     
     log_success "Datenbank initialisiert"
 }
