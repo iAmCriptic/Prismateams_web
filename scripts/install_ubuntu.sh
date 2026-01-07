@@ -461,34 +461,77 @@ install_excalidraw() {
 setup_project_directory() {
     log_info "=== Projekt-Verzeichnis Setup ==="
     
+    REPO_URL="https://github.com/iAmCriptic/Prismateams_web.git"
+    
     # Verzeichnis erstellen
     mkdir -p "$INSTALL_DIR"
     
-    # Prüfe ob bereits Code vorhanden ist
-    if [ -d "$INSTALL_DIR/.git" ] || [ -f "$INSTALL_DIR/app.py" ]; then
-        log_warning "Projekt-Verzeichnis enthält bereits Code. Überspringe Klonen."
-        return
-    fi
-    
-    # Versuche das aktuelle Verzeichnis zu verwenden, wenn es das Projekt ist
-    CURRENT_DIR=$(pwd)
-    if [ -f "$CURRENT_DIR/app.py" ] && [ -f "$CURRENT_DIR/requirements.txt" ]; then
-        log_info "Kopiere Projekt von $CURRENT_DIR nach $INSTALL_DIR..."
-        cp -r "$CURRENT_DIR"/* "$INSTALL_DIR"/ 2>/dev/null || {
-            log_warning "Kopieren fehlgeschlagen. Bitte manuell kopieren."
-        }
+    # Prüfe ob bereits ein Git-Repository vorhanden ist
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        log_info "Git-Repository bereits vorhanden in $INSTALL_DIR"
+        cd "$INSTALL_DIR"
+        
+        # Prüfe ob es das richtige Repository ist
+        CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
+        if [ "$CURRENT_REMOTE" = "$REPO_URL" ] || [ "$CURRENT_REMOTE" = "${REPO_URL%.git}" ]; then
+            log_info "Korrektes Repository gefunden. Aktualisiere auf neueste Version..."
+            git fetch origin --quiet || log_warning "Git fetch fehlgeschlagen"
+            git pull origin main --quiet || git pull origin master --quiet || log_warning "Git pull fehlgeschlagen"
+            log_success "Repository aktualisiert"
+        else
+            if [ -n "$CURRENT_REMOTE" ]; then
+                log_warning "Anderes Repository gefunden: $CURRENT_REMOTE"
+                log_warning "Erwartet: $REPO_URL"
+                read -p "Trotzdem fortfahren? (j/n): " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[JjYy]$ ]]; then
+                    log_error "Installation abgebrochen"
+                    exit 1
+                fi
+            else
+                log_warning "Git-Repository ohne Remote-URL gefunden"
+            fi
+        fi
     else
-        # Wenn kein Code vorhanden, muss der Benutzer das Repository klonen
-        log_info "Bitte klonen Sie das Repository manuell nach $INSTALL_DIR"
-        log_info "Oder kopieren Sie die Dateien dorthin"
-        read -p "Drücken Sie Enter, wenn das Repository in $INSTALL_DIR vorhanden ist..."
+        # Prüfe ob Verzeichnis leer ist oder nur versteckte Dateien enthält
+        if [ -z "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ] || [ "$(ls -A "$INSTALL_DIR" 2>/dev/null | grep -v '^\.')" = "" ]; then
+            log_info "Klone Repository nach $INSTALL_DIR..."
+            git clone "$REPO_URL" "$INSTALL_DIR" || {
+                log_error "Repository konnte nicht geklont werden"
+                exit 1
+            }
+            log_success "Repository geklont"
+        else
+            log_warning "Verzeichnis $INSTALL_DIR ist nicht leer und enthält kein Git-Repository"
+            log_info "Erwartetes Repository: $REPO_URL"
+            read -p "Soll das Verzeichnis gelöscht und neu geklont werden? (j/n) [n]: " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[JjYy]$ ]]; then
+                log_info "Lösche Verzeichnis..."
+                rm -rf "$INSTALL_DIR"/*
+                rm -rf "$INSTALL_DIR"/.* 2>/dev/null || true
+                log_info "Klone Repository nach $INSTALL_DIR..."
+                git clone "$REPO_URL" "$INSTALL_DIR" || {
+                    log_error "Repository konnte nicht geklont werden"
+                    exit 1
+                }
+                log_success "Repository geklont"
+            else
+                log_error "Installation abgebrochen. Bitte leeren Sie das Verzeichnis oder klonen Sie das Repository manuell."
+                exit 1
+            fi
+        fi
     fi
     
+    # Prüfe ob app.py vorhanden ist
     if [ ! -f "$INSTALL_DIR/app.py" ]; then
         log_error "app.py nicht gefunden in $INSTALL_DIR"
-        log_error "Bitte stellen Sie sicher, dass das Projekt in $INSTALL_DIR vorhanden ist"
+        log_error "Bitte stellen Sie sicher, dass das Repository korrekt geklont wurde"
         exit 1
     fi
+    
+    # Stelle sicher, dass wir im richtigen Verzeichnis sind
+    cd "$INSTALL_DIR"
     
     log_success "Projekt-Verzeichnis eingerichtet"
 }
