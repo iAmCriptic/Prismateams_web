@@ -13,8 +13,8 @@
 #
 ###############################################################################
 
-set -e  # Beende bei Fehlern
-set -o pipefail  # Beende bei Fehlern in Pipes
+# set -e temporär deaktiviert, da pkill Fehler verursachen kann
+# set -o pipefail
 
 # Farben für Ausgabe
 RED='\033[0;31m'
@@ -46,8 +46,8 @@ error_exit() {
     exit 1
 }
 
-# Trap für Fehler
-trap 'error_exit "Fehler in Zeile $LINENO. Befehl: $BASH_COMMAND"' ERR
+# Trap für Fehler (deaktiviert, um Script nicht zu beenden bei pkill)
+# trap 'error_exit "Fehler in Zeile $LINENO. Befehl: $BASH_COMMAND"' ERR
 
 # Prüfen ob als root/sudo ausgeführt
 if [ "$EUID" -ne 0 ]; then
@@ -97,9 +97,29 @@ fi
 
 # Zusätzlich alle mysql-Prozesse beenden (falls Service nicht gestoppt wurde)
 log_info "Beende alle laufenden MySQL-Prozesse..."
-pkill -9 mysql || true
-pkill -9 mysqld || true
-pkill -9 mysqld_safe || true
+
+# Beende MySQL-Prozesse sicher - zuerst SIGTERM (höflich), dann SIGKILL (wenn nötig)
+# Verwende ps und kill für genauere Kontrolle
+if pgrep -x mysqld > /dev/null 2>&1; then
+    log_info "Stoppe mysqld-Prozesse..."
+    pkill -TERM mysqld 2>/dev/null || true
+    sleep 2
+    # Nur wenn Prozesse noch laufen, SIGKILL verwenden
+    if pgrep -x mysqld > /dev/null 2>&1; then
+        pkill -KILL mysqld 2>/dev/null || true
+    fi
+fi
+
+if pgrep -x mysqld_safe > /dev/null 2>&1; then
+    log_info "Stoppe mysqld_safe-Prozesse..."
+    pkill -TERM mysqld_safe 2>/dev/null || true
+    sleep 1
+    if pgrep -x mysqld_safe > /dev/null 2>&1; then
+        pkill -KILL mysqld_safe 2>/dev/null || true
+    fi
+fi
+
+# Warte kurz, damit Prozesse beendet werden können
 sleep 2
 
 log_success "Services gestoppt."
@@ -124,11 +144,14 @@ log_info "Schritt 3: Deinstalliere MySQL/MariaDB Pakete..."
 
 if [ -n "$MYSQL_PACKAGES" ]; then
     # Entferne Pakete ohne Konfigurationsdateien zu löschen (später manuell)
-    apt-get remove --purge -y $MYSQL_PACKAGES 2>/dev/null || true
+    log_info "Entferne installierte Pakete..."
+    for package in $MYSQL_PACKAGES; do
+        apt-get remove --purge -y "$package" 2>/dev/null || log_warning "Konnte Paket $package nicht entfernen"
+    done
     
     # Entferne auch als Abhängigkeiten markierte Pakete
-    apt-get autoremove -y 2>/dev/null || true
-    apt-get autoclean -y 2>/dev/null || true
+    apt-get autoremove -y 2>/dev/null || log_warning "Autoremove fehlgeschlagen"
+    apt-get autoclean -y 2>/dev/null || log_warning "Autoclean fehlgeschlagen"
 fi
 
 log_success "Pakete deinstalliert."
@@ -208,8 +231,11 @@ echo ""
 
 # Schritt 6: Apt-Cache aufräumen
 log_info "Schritt 6: Räume Apt-Cache auf..."
-apt-get update 2>/dev/null || true
-log_success "Apt-Cache aktualisiert."
+if apt-get update 2>/dev/null; then
+    log_success "Apt-Cache aktualisiert."
+else
+    log_warning "Apt-Cache Update fehlgeschlagen (kann ignoriert werden)."
+fi
 echo ""
 
 # Schritt 7: Finale Prüfung
