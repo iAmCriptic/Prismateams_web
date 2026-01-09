@@ -38,6 +38,31 @@
                         <div class="form-text">{{ _('settings.admin.system.portal_logo_help') }}</div>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="default_accent_color" class="form-label">{{ _('settings.admin.system.default_accent_color_label') }}</label>
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <input type="color" class="form-control form-control-color" id="default_accent_color" name="default_accent_color" value="{{ default_accent_color }}" title="Wählen Sie eine Farbe">
+                            <span class="badge" id="default-color-preview" style="background-color: {{ default_accent_color }}; padding: 1rem 2rem;">Vorschau</span>
+                        </div>
+                        <div class="form-text">{{ _('settings.admin.system.default_accent_color_help') }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="color_gradient" class="form-label">{{ _('settings.admin.system.color_gradient_label') }}</label>
+                        <select class="form-select" id="color_gradient" name="color_gradient">
+                            <option value="" {% if not color_gradient %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_default') }}</option>
+                            <option value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" {% if color_gradient == 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_purple_blue') }}</option>
+                            <option value="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" {% if color_gradient == 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_pink_red') }}</option>
+                            <option value="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" {% if color_gradient == 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_blue_cyan') }}</option>
+                            <option value="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" {% if color_gradient == 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_green_teal') }}</option>
+                            <option value="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" {% if color_gradient == 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_pink_yellow') }}</option>
+                            <option value="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" {% if color_gradient == 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_pastel') }}</option>
+                            <option value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" {% if color_gradient == 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_rose_pastel') }}</option>
+                            <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)" {% if color_gradient == 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' %}selected{% endif %}>{{ _('settings.admin.system.color_gradient_orange_pastel') }}</option>
+                        </select>
+                        <div class="form-text">{{ _('settings.admin.system.color_gradient_help') }}</div>
+                    </div>
+                    
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-accent">{{ _('settings.admin.system.save_button') }}</button>
                         <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('settings.admin.system.back_button') }}</a>
@@ -47,6 +72,20 @@
         </div>
     </div>
 </div>
+
+<script>
+// Farbvorschau für Standard-Akzentfarbe
+document.addEventListener('DOMContentLoaded', function() {
+    const defaultAccentColor = document.getElementById('default_accent_color');
+    const colorPreview = document.getElementById('default-color-preview');
+    
+    if (defaultAccentColor && colorPreview) {
+        defaultAccentColor.addEventListener('input', function() {
+            colorPreview.style.backgroundColor = this.value;
+        });
+    }
+});
+</script>
 {% endblock %}
 
 

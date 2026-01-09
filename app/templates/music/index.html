@@ -61,13 +61,12 @@
                         {% for wish in wishes %}
                         <div class="list-group-item" data-wish-id="{{ wish.id }}">
                             <div class="d-flex align-items-center">
-                                {% if wish.image_url %}
-                                <img src="{{ wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
-                                {% else %}
-                                <div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-music-note"></i>
+                                <div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-music-note" style="color: #000000;"></i>
+                                    {% if wish.image_url %}
+                                    <img data-src="{{ wish.image_url }}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';">
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1">
                                         {{ wish.title }}
@@ -88,14 +87,14 @@
                                     <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
                                 </div>
                                 <div class="btn-group-vertical btn-group-sm">
-                                    <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
+                                    <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="An 1. Stelle einfügen">
                                         <i class="bi bi-arrow-up-circle"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
+                                    <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="An letzter Stelle einfügen">
                                         <i class="bi bi-arrow-down-circle"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-secondary" onclick="addToQueue({{ wish.id }}, 'end')" title="{{ _('music.index.wishlist.add_end') }}">
-                                        <i class="bi bi-arrow-down"></i>
+                                    <button class="btn btn-sm btn-danger" onclick="markAsPlayed({{ wish.id }})" title="Zu bereits gespielt verschieben">
+                                        <i class="bi bi-x-circle"></i>
                                     </button>
                                 </div>
                             </div>
@@ -137,13 +136,12 @@
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
                                 <span class="badge bg-secondary me-2">{{ entry.position }}</span>
-                                {% if entry.wish.image_url %}
-                                <img src="{{ entry.wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
-                                {% else %}
-                                <div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-music-note"></i>
+                                <div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-music-note" style="color: #000000;"></i>
+                                    {% if entry.wish.image_url %}
+                                    <img data-src="{{ entry.wish.image_url }}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';">
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1">
                                         {{ entry.wish.title }}
@@ -200,6 +198,70 @@
 <script src="{{ url_for('static', filename='js/music.js') }}"></script>
 <script>
     // Globale Funktionen - außerhalb von DOMContentLoaded
+    function markAsPlayed(wishId) {
+        console.log('markAsPlayed aufgerufen:', wishId);
+        if (!confirm('Möchten Sie dieses Lied als bereits gespielt markieren?')) {
+            return;
+        }
+        
+        fetch('/music/wishlist/mark-as-played', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                wish_id: wishId
+            })
+        })
+        .then(response => {
+            console.log('Response Status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response Data:', data);
+            if (data.success) {
+                // Entferne Wunsch sofort aus der Anzeige
+                const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
+                if (wishItem) {
+                    wishItem.remove();
+                }
+                
+                // Prüfe ob Liste jetzt leer ist
+                const wishlistContainer = document.querySelector('#wishlist-list');
+                if (wishlistContainer) {
+                    if (wishlistContainer.children.length === 0) {
+                        wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+                    }
+                    // Aktualisiere Badge
+                    const badge = document.querySelector('#wishlist-tab .badge');
+                    if (badge) {
+                        const currentCount = parseInt(badge.textContent) || 0;
+                        badge.textContent = Math.max(0, currentCount - 1);
+                    }
+                }
+                
+                // Aktualisiere Played-Badge (SocketIO-Event wird die genaue Zahl senden)
+                const playedBadge = document.querySelector('#played-tab .badge');
+                if (playedBadge) {
+                    const currentPlayedCount = parseInt(playedBadge.textContent) || 0;
+                    playedBadge.textContent = currentPlayedCount + 1;
+                }
+                
+                // SocketIO-Event wird die Updates senden
+            } else {
+                const errorMsg = data.error || 'Unbekannter Fehler';
+                alert('Fehler: ' + errorMsg);
+            }
+        })
+        .catch(error => {
+            console.error('Fehler beim Markieren als gespielt:', error);
+            alert('Fehler beim Markieren als gespielt: ' + error.message);
+        });
+    }
+    
     function addToQueue(wishId, position) {
         console.log('addToQueue aufgerufen:', wishId, position);
         fetch('/music/wishlist/add-to-queue', {

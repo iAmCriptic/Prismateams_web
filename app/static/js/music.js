@@ -94,19 +94,66 @@ if (typeof io !== 'undefined') {
     });
     
     socket.on('music:wishlist_cleared', function(data) {
-        console.log('Wunschliste geleert');
+        console.log('Wunschliste geleert', data);
         // Invalidiere Cache
         invalidateCache('wishlist');
+        
+        // Wenn force_reload gesetzt ist, lade die Seite komplett neu
+        if (data && data.force_reload) {
+            // Kurze Verzögerung, damit SocketIO-Event verarbeitet wird
+            setTimeout(function() {
+                window.location.reload();
+            }, 100);
+            return;
+        }
+        
+        // Ansonsten normale DOM-Update
         clearWishlistDisplay();
         cachedCounts.wishlist = 0;
         updateWishlistBadgeDirect(0);
     });
     
+    socket.on('music:played_updated', function(data) {
+        console.log('Played-Update empfangen:', data);
+        // Invalidiere Cache für Played-Liste
+        invalidateCache('played');
+        
+        // Aktualisiere Badge
+        if (data.count !== undefined) {
+            updatePlayedBadgeDirect(data.count);
+        }
+        
+        // Wenn Wish-Daten vorhanden sind, füge zur Played-Liste hinzu
+        if (data.wish) {
+            addToPlayedDisplayDirect(data.wish);
+        }
+    });
+    
     socket.on('connect', function() {
         console.log('SocketIO verbunden');
+        // Trete dem Musikmodul-Room bei
+        socket.emit('music:join', {});
+        console.log('Musikmodul: Room beigetreten');
         // Initialisiere Badges nach Verbindung
         setTimeout(initializeBadges, 500);
     });
+    
+    // Verlasse den Room beim Schließen der Seite oder Wechseln zu anderer Seite
+    window.addEventListener('beforeunload', function() {
+        if (socket && socket.connected) {
+            socket.emit('music:leave', {});
+        }
+    });
+    
+    // Verlasse den Room auch bei Visibility Change (Tab-Wechsel) - optional für weitere Optimierung
+    // Kommentiert aus, da es bei Tab-Wechseln zu aggressiv sein könnte
+    // document.addEventListener('visibilitychange', function() {
+    //     if (document.hidden && socket && socket.connected) {
+    //         socket.emit('music:leave', {});
+    //     } else if (!document.hidden && socket && socket.connected) {
+    //         socket.emit('music:join', {});
+    //     }
+    // });
 }
 
 // Direktes DOM-Update für Queue ohne Fetch-Request
@@ -145,9 +192,10 @@ function updateQueueDisplayDirect(queueData) {
                 }
             }
             
-            const imageHtml = entry.wish.image_url 
-                ? `<img src="${escapeHtml(entry.wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(entry.wish.image_url)}">`
-                : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+            const imageUrl = entry.wish.image_url && entry.wish.image_url !== 'undefined' && entry.wish.image_url !== 'null' && entry.wish.image_url.trim() !== '' ? entry.wish.image_url : null;
+            const imageHtml = imageUrl
+                ? `<div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i><img data-src="${escapeHtml(imageUrl)}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';"></div>`
+                : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i></div>`;
             
             return `
                 <div class="list-group-item queue-item" data-queue-id="${entry.id}" data-position="${entry.position}" draggable="true">
@@ -247,9 +295,10 @@ function addWishToDisplayDirect(wish) {
             }
         }
         
-        const imageHtml = wish.image_url 
-            ? `<img src="${escapeHtml(wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(wish.image_url)}">`
-            : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+        const imageUrl = wish.image_url && wish.image_url !== 'undefined' && wish.image_url !== 'null' && wish.image_url.trim() !== '' ? wish.image_url : null;
+        const imageHtml = imageUrl
+            ? `<div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i><img data-src="${escapeHtml(imageUrl)}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';"></div>`
+            : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i></div>`;
         
         wishItem.innerHTML = `
             <div class="d-flex align-items-center">
@@ -263,14 +312,14 @@ function addWishToDisplayDirect(wish) {
                     <span class="badge bg-${providerClass} provider-badge">${wish.provider}</span>
                 </div>
                 <div class="btn-group-vertical btn-group-sm">
-                    <button class="btn btn-sm btn-success" onclick="addToQueue(${wish.id}, 'next')" title="Als nächstes hinzufügen">
+                    <button class="btn btn-sm btn-success" onclick="addToQueue(${wish.id}, 'next')" title="An 1. Stelle einfügen">
                         <i class="bi bi-arrow-up-circle"></i>
                     </button>
-                    <button class="btn btn-sm btn-primary" onclick="addToQueue(${wish.id}, 'last')" title="Als letztes hinzufügen">
+                    <button class="btn btn-sm btn-primary" onclick="addToQueue(${wish.id}, 'last')" title="An letzter Stelle einfügen">
                         <i class="bi bi-arrow-down-circle"></i>
                     </button>
-                    <button class="btn btn-sm btn-secondary" onclick="addToQueue(${wish.id}, 'end')" title="Am Ende hinzufügen">
-                        <i class="bi bi-arrow-down"></i>
+                    <button class="btn btn-sm btn-danger" onclick="markAsPlayed(${wish.id})" title="Zu bereits gespielt verschieben">
+                        <i class="bi bi-x-circle"></i>
                     </button>
                 </div>
             </div>
@@ -352,6 +401,9 @@ function updateWishInDisplay(wish) {
         cachedCounts.wishlist = wishItems.length;
         updateWishlistBadgeDirect(wishItems.length);
     }
+    
+    // Lade Bilder lazy (falls Bild-URL aktualisiert wurde)
+    loadLazyImages();
 }
 
 function clearWishlistDisplay() {
@@ -365,8 +417,20 @@ function clearWishlistDisplay() {
     }
     if (!wishlistContainer) return;
     
+    // Entferne ALLE Wish-Items aus dem DOM
+    while (wishlistContainer.firstChild) {
+        wishlistContainer.removeChild(wishlistContainer.firstChild);
+    }
+    
+    // Setze leere Nachricht
     wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+    
+    // Aktualisiere Badge sofort
     updateWishlistBadgeDirect(0);
+    cachedCounts.wishlist = 0;
+    
+    // Invalidiere alle Caches
+    invalidateCache('wishlist');
 }
 
 // Direktes Badge-Update ohne Fetch-Request
@@ -381,6 +445,14 @@ function updateWishlistBadgeDirect(count) {
 function updateQueueBadgeDirect(count) {
     cachedCounts.queue = count;
     const badge = document.querySelector('#queue-tab .badge');
+    if (badge) {
+        badge.textContent = count;
+    }
+}
+
+function updatePlayedBadgeDirect(count) {
+    cachedCounts.played = count;
+    const badge = document.querySelector('#played-tab .badge');
     if (badge) {
         badge.textContent = count;
     }
@@ -435,29 +507,85 @@ function escapeHtml(text) {
 }
 
 // Lazy Loading für Bilder mit Intersection Observer
+let imageObserver = null;
+
 function loadLazyImages() {
     const lazyImages = document.querySelectorAll('img.lazy-image[data-src]');
     
+    if (lazyImages.length === 0) return;
+    
     if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    img.classList.remove('lazy-image');
-                    observer.unobserve(img);
-                }
+        // Erstelle Observer nur einmal, wenn noch nicht vorhanden
+        if (!imageObserver) {
+            imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        const imageUrl = img.dataset.src;
+                        
+                        // Prüfe ob URL gültig ist
+                        if (!imageUrl || imageUrl === 'undefined' || imageUrl === 'null' || imageUrl.trim() === '') {
+                            // Ungültige URL - verstecke Bild und zeige Platzhalter
+                            img.removeAttribute('data-src');
+                            img.classList.remove('lazy-image');
+                            img.style.display = 'none';
+                            observer.unobserve(img);
+                            return;
+                        }
+                        
+                        // Erstelle neues Image-Objekt zum Testen, bevor wir src setzen
+                        const testImg = new Image();
+                        testImg.onload = function() {
+                            // Bild erfolgreich geladen
+                            img.src = imageUrl;
+                            img.removeAttribute('data-src');
+                            img.classList.remove('lazy-image');
+                            // Zeige Bild mit Fade-In
+                            img.style.opacity = '1';
+                            // Verstecke Platzhalter-Icon
+                            const placeholder = img.previousElementSibling;
+                            if (placeholder && (placeholder.tagName === 'I' || placeholder.tagName === 'DIV')) {
+                                placeholder.style.display = 'none';
+                            }
+                            observer.unobserve(img);
+                        };
+                        testImg.onerror = function() {
+                            // Bild konnte nicht geladen werden (404, etc.) - stumme Fehlerbehandlung
+                            img.removeAttribute('data-src');
+                            img.classList.remove('lazy-image');
+                            img.style.display = 'none';
+                            // Platzhalter-Icon bleibt sichtbar
+                            observer.unobserve(img);
+                        };
+                        // Starte Test-Laden
+                        testImg.src = imageUrl;
+                    }
+                });
+            }, {
+                rootMargin: '50px' // Lade Bilder 50px bevor sie sichtbar werden
             });
-        });
+        }
         
-        lazyImages.forEach(img => imageObserver.observe(img));
+        // Beobachte alle neuen Bilder
+        lazyImages.forEach(img => {
+            // Prüfe ob Bild bereits beobachtet wird
+            if (!img.dataset.observed) {
+                imageObserver.observe(img);
+                img.dataset.observed = 'true';
+            }
+        });
     } else {
         // Fallback für Browser ohne IntersectionObserver
         lazyImages.forEach(img => {
-            img.src = img.dataset.src;
-            img.removeAttribute('data-src');
-            img.classList.remove('lazy-image');
+            const imageUrl = img.dataset.src;
+            if (imageUrl && imageUrl !== 'undefined' && imageUrl !== 'null' && imageUrl.trim() !== '') {
+                img.src = imageUrl;
+                img.removeAttribute('data-src');
+                img.classList.remove('lazy-image');
+            } else {
+                // Ungültige URL - verstecke Bild
+                img.style.display = 'none';
+            }
         });
     }
 }
@@ -694,9 +822,10 @@ function createWishItem(wish) {
         }
     }
     
-    const imageHtml = wish.image_url 
-        ? `<img src="${escapeHtml(wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(wish.image_url)}">`
-        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+    const imageUrl = wish.image_url && wish.image_url !== 'undefined' && wish.image_url !== 'null' && wish.image_url.trim() !== '' ? wish.image_url : null;
+    const imageHtml = imageUrl
+        ? `<div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i><img data-src="${escapeHtml(imageUrl)}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';"></div>`
+        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i></div>`;
     
     wishItem.innerHTML = `
         <div class="d-flex align-items-center">
@@ -710,14 +839,14 @@ function createWishItem(wish) {
                 <span class="badge bg-${providerClass} provider-badge">${wish.provider}</span>
             </div>
             <div class="btn-group-vertical btn-group-sm">
-                <button class="btn btn-sm btn-success" onclick="addToQueue(${wish.id}, 'next')" title="Als nächstes hinzufügen">
+                <button class="btn btn-sm btn-success" onclick="addToQueue(${wish.id}, 'next')" title="An 1. Stelle einfügen">
                     <i class="bi bi-arrow-up-circle"></i>
                 </button>
-                <button class="btn btn-sm btn-primary" onclick="addToQueue(${wish.id}, 'last')" title="Als letztes hinzufügen">
+                <button class="btn btn-sm btn-primary" onclick="addToQueue(${wish.id}, 'last')" title="An letzter Stelle einfügen">
                     <i class="bi bi-arrow-down-circle"></i>
                 </button>
-                <button class="btn btn-sm btn-secondary" onclick="addToQueue(${wish.id}, 'end')" title="Am Ende hinzufügen">
-                    <i class="bi bi-arrow-down"></i>
+                <button class="btn btn-sm btn-danger" onclick="markAsPlayed(${wish.id})" title="Zu bereits gespielt verschieben">
+                    <i class="bi bi-x-circle"></i>
                 </button>
             </div>
         </div>
@@ -726,10 +855,46 @@ function createWishItem(wish) {
     return wishItem;
 }
 
+// Direktes DOM-Update für Played-Liste ohne Fetch-Request
+function addToPlayedDisplayDirect(wish) {
+    const playedContainer = document.querySelector('#played .list-group');
+    if (!playedContainer) return;
+    
+    // Prüfe ob bereits existiert
+    const existingItem = playedContainer.querySelector(`[data-wish-id="${wish.id}"]`);
+    if (existingItem) {
+        // Aktualisiere bestehendes Element
+        const wishItem = createPlayedItem(wish);
+        existingItem.replaceWith(wishItem);
+        loadLazyImages();
+        return;
+    }
+    
+    // Entferne "Leer"-Nachricht falls vorhanden
+    const emptyMessage = playedContainer.querySelector('.text-muted.text-center');
+    if (emptyMessage) {
+        emptyMessage.remove();
+    }
+    
+    // Erstelle neues Element
+    const wishItem = createPlayedItem(wish);
+    
+    // Füge am Anfang der Liste hinzu (neueste zuerst)
+    if (playedContainer.children.length === 0) {
+        playedContainer.appendChild(wishItem);
+    } else {
+        playedContainer.insertBefore(wishItem, playedContainer.firstChild);
+    }
+    
+    // Lade Bilder lazy
+    loadLazyImages();
+}
+
 // Helper: Erstelle Played-Item Element
 function createPlayedItem(wish) {
     const wishItem = document.createElement('div');
     wishItem.className = 'list-group-item';
+    wishItem.setAttribute('data-wish-id', wish.id);
     
     const providerClass = wish.provider === 'spotify' ? 'success' : 'danger';
     const wishCount = wish.wish_count || 1;
@@ -744,9 +909,10 @@ function createPlayedItem(wish) {
         }
     }
     
-    const imageHtml = wish.image_url 
-        ? `<img src="${escapeHtml(wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(wish.image_url)}">`
-        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+    const imageUrl = wish.image_url && wish.image_url !== 'undefined' && wish.image_url !== 'null' && wish.image_url.trim() !== '' ? wish.image_url : null;
+    const imageHtml = imageUrl
+        ? `<div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i><img data-src="${escapeHtml(imageUrl)}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';"></div>`
+        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note" style="color: #000000;"></i></div>`;
     
     const updatedAt = wish.updated_at ? new Date(wish.updated_at).toLocaleString('de-DE') : 'Unbekannt';
     
@@ -845,6 +1011,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialisiere Lazy Loading für Bilder
     loadLazyImages();
     
+    // Lade Lazy Images auch nach DOM-Updates (z.B. nach SocketIO-Events)
+    const observer = new MutationObserver(function(mutations) {
+        loadLazyImages();
+    });
+    
+    // Beobachte Änderungen in den Listen-Containern
+    const wishlistContainer = document.querySelector('#wishlist-list');
+    const queueContainer = document.querySelector('#queue-list');
+    if (wishlistContainer) {
+        observer.observe(wishlistContainer, { childList: true, subtree: true });
+    }
+    if (queueContainer) {
+        observer.observe(queueContainer, { childList: true, subtree: true });
+    }
+    
     // Tab-Wechsel-Listener für Lazy Loading
     const tabButtons = document.querySelectorAll('#musicTabs button[data-bs-toggle="tab"]');
     tabButtons.forEach(button => {
@@ -864,6 +1045,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialisiere Badges basierend auf tatsächlichen DOM-Elementen
     initializeBadges();
 });
+
+// Fallback: Lade Played-Count per Fetch (für Initial-Load)
+function updatePlayedBadge() {
+    const cacheKey = 'played_count';
+    const cached = getCached(cacheKey);
+    if (cached !== null) {
+        updatePlayedBadgeDirect(cached);
+        return;
+    }
+    
+    fetch('/music/api/played/count')
+        .then(response => response.json())
+        .then(data => {
+            const count = data.count || 0;
+            setCached(cacheKey, count);
+            updatePlayedBadgeDirect(count);
+        })
+        .catch(error => {
+            console.error('Fehler beim Aktualisieren des Played-Badges:', error);
+        });
+}
 
 // Initialisiere Badges beim Laden der Seite
 function initializeBadges() {
@@ -890,6 +1092,9 @@ function initializeBadges() {
         // Fallback: Lade Count per API
         updateQueueBadge();
     }
+    
+    // Played-Count wird per API geladen (da Tab lazy geladen wird)
+    updatePlayedBadge();
 }
 
 function getDragAfterElement(container, y) {

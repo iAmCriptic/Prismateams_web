@@ -83,6 +83,13 @@ self.addEventListener('fetch', function(event) {
       event.request.method !== 'GET') {
     return;
   }
+  
+  // Ignoriere ungültige URLs (mit undefined, null, etc.)
+  if (requestUrl.pathname.includes('undefined') || 
+      requestUrl.pathname.includes('null') ||
+      requestUrl.pathname.includes('NaN')) {
+    return; // Lass Browser den Fehler selbst behandeln
+  }
 
   // Prüfe ob Route immer frisch geladen werden soll
   const shouldAlwaysUseNetwork = ALWAYS_NETWORK_ROUTES.some(route => {

@@ -650,6 +650,37 @@ def admin_system():
                     flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
                     return redirect(url_for('settings.admin_system'))
         
+        # Update default accent color
+        default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
+        accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+        if accent_color_setting:
+            accent_color_setting.value = default_accent_color
+        else:
+            accent_color_setting = SystemSettings(
+                key='default_accent_color',
+                value=default_accent_color,
+                description='Standard-Akzentfarbe für neue Benutzer'
+            )
+            db.session.add(accent_color_setting)
+        
+        # Update color gradient
+        color_gradient = request.form.get('color_gradient', '').strip()
+        gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+        if color_gradient:
+            if gradient_setting:
+                gradient_setting.value = color_gradient
+            else:
+                gradient_setting = SystemSettings(
+                    key='color_gradient',
+                    value=color_gradient,
+                    description='Farbverlauf für Login/Register-Seiten'
+                )
+                db.session.add(gradient_setting)
+        else:
+            # If empty, remove existing gradient setting (use default)
+            if gradient_setting:
+                db.session.delete(gradient_setting)
+        
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
         return redirect(url_for('settings.admin_system'))
@@ -657,11 +688,19 @@ def admin_system():
     # Get current settings
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+    accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     
     portal_name = portal_name_setting.value if portal_name_setting else ''
     portal_logo = portal_logo_setting.value if portal_logo_setting else None
+    default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
+    color_gradient = gradient_setting.value if gradient_setting else ''
     
-    return render_template('settings/admin_system.html', portal_name=portal_name, portal_logo=portal_logo)
+    return render_template('settings/admin_system.html', 
+                         portal_name=portal_name, 
+                         portal_logo=portal_logo,
+                         default_accent_color=default_accent_color,
+                         color_gradient=color_gradient)
 
 
 @settings_bp.route('/admin/file-settings', methods=['GET', 'POST'])
