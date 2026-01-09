@@ -525,10 +525,19 @@ def create_app(config_name='default'):
     @app.route('/manifest.json')
     def manifest():
         import json
+        from flask import url_for
         from app.models.settings import SystemSettings
         
         portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
         portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else app.config.get('APP_NAME', 'Prismateams')
+        
+        # Standard Logo-URL
+        logo_url = url_for('static', filename='img/logo.png')
+        
+        # Portal-Logo prüfen
+        portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+        if portal_logo_setting and portal_logo_setting.value:
+            logo_url = url_for('settings.portal_logo', filename=portal_logo_setting.value)
         
         manifest_path = os.path.join(app.static_folder, 'manifest.json')
         try:
@@ -536,11 +545,51 @@ def create_app(config_name='default'):
                 manifest_data = json.load(f)
             
             manifest_data['name'] = portal_name
-            manifest_data['short_name'] = portal_name
+            manifest_data['short_name'] = portal_name[:12]  # short_name sollte max 12 Zeichen haben
+            
+            # Logo in allen Icon-Einträgen aktualisieren
+            for icon in manifest_data.get('icons', []):
+                icon['src'] = logo_url
+            
+            # Logo auch in Screenshots aktualisieren (falls vorhanden)
+            for screenshot in manifest_data.get('screenshots', []):
+                screenshot['src'] = logo_url
             
             return jsonify(manifest_data)
         except:
-            return app.send_static_file('manifest.json')
+            # Fallback: Statische Datei senden, aber trotzdem Portalnamen verwenden
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest_data = json.load(f)
+                manifest_data['name'] = portal_name
+                manifest_data['short_name'] = portal_name[:12]
+                for icon in manifest_data.get('icons', []):
+                    icon['src'] = logo_url
+                return jsonify(manifest_data)
+            except:
+                return app.send_static_file('manifest.json')
+    
+    @app.route('/api/portal-info')
+    def portal_info():
+        """API-Endpoint für Portal-Informationen (für Service Worker)."""
+        from flask import url_for
+        from app.models.settings import SystemSettings
+        
+        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+        portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else app.config.get('APP_NAME', 'Prismateams')
+        
+        # Standard Logo-URL
+        logo_url = url_for('static', filename='img/logo.png', _external=False)
+        
+        # Portal-Logo prüfen
+        portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+        if portal_logo_setting and portal_logo_setting.value:
+            logo_url = url_for('settings.portal_logo', filename=portal_logo_setting.value, _external=False)
+        
+        return jsonify({
+            'name': portal_name,
+            'logo': logo_url
+        })
     
     @app.route('/sw.js')
     def service_worker():
