@@ -36,40 +36,29 @@ if ('serviceWorker' in navigator) {
 }
 
 // PWA Install Prompt
-let deferredPrompt;
-let promptTimeout = null;
+// Verwende window.deferredPrompt für globale Verfügbarkeit (auch in settings/notifications.html)
+window.deferredPrompt = null;
 let promptShown = false;
+let installButtonHideTimeout = null;
+let lastUserActivity = Date.now();
 
 window.addEventListener('beforeinstallprompt', function(e) {
+    // Verhindere Standard-Browser-Prompt, da wir unseren eigenen Install-Button zeigen
     e.preventDefault();
-    deferredPrompt = e;
+    window.deferredPrompt = e;
     
-    // Zeige Install-Button (optional)
+    // Zeige Install-Button (nur Button, KEIN automatischer Prompt!)
     showInstallButton();
     
-    // Rufe Prompt automatisch nach 30 Sekunden auf, wenn Benutzer nicht interagiert hat
-    // Dies verhindert die Browser-Warnung, dass prompt() aufgerufen werden muss
-    promptTimeout = setTimeout(function() {
-        if (deferredPrompt && !promptShown) {
-            try {
-                deferredPrompt.prompt();
-                promptShown = true;
-                deferredPrompt.userChoice.then(function(choiceResult) {
-                    deferredPrompt = null;
-                    promptShown = false;
-                });
-            } catch (err) {
-                // Prompt konnte nicht angezeigt werden (z.B. bereits angezeigt oder nicht mehr verfügbar)
-                console.debug('PWA Install Prompt konnte nicht angezeigt werden:', err);
-            }
-        }
-    }, 30000); // 30 Sekunden
+    // Starte Activity-Tracker für Auto-Hide nach 1 Minute
+    startActivityTracking();
     
-    // Bereinige Timeout beim Verlassen der Seite
+    // KEIN automatischer Prompt mehr - nur beim Klick auf den Install-Button
+    // Bereinige beim Verlassen der Seite, um Ressourcen freizugeben
     window.addEventListener('pagehide', function() {
-        if (promptTimeout) {
-            clearTimeout(promptTimeout);
-            promptTimeout = null;
+        stopActivityTracking();
+        if (window.deferredPrompt && !promptShown) {
+            window.deferredPrompt = null;
         }
     }, { once: true });
 });
@@ -88,30 +77,117 @@ function showInstallButton() {
         // Zeige Button nach kurzer Verzögerung
         setTimeout(() => {
             installBtn.style.display = 'block';
+            lastUserActivity = Date.now();
+            scheduleButtonHide();
         }, 3000);
     }
 }
 
+function startActivityTracking() {
+    // Tracke Benutzeraktivität: Scroll, Mausbewegung, Klicks, Touch-Events
+    const activityEvents = ['scroll', 'mousemove', 'click', 'touchstart', 'keydown'];
+    const activityHandler = function() {
+        const installBtn = document.getElementById('pwa-install-btn');
+        if (installBtn && installBtn.style.display !== 'none') {
+            lastUserActivity = Date.now();
+            scheduleButtonHide(); // Timer zurücksetzen
+        }
+    };
+    
+    // Füge Event-Listener hinzu
+    activityEvents.forEach(eventType => {
+        document.addEventListener(eventType, activityHandler, { passive: true });
+    });
+    
+    // Speichere Handler für Cleanup
+    window._pwaActivityHandler = activityHandler;
+    window._pwaActivityEvents = activityEvents;
+}
+
+function stopActivityTracking() {
+    // Entferne Event-Listener
+    if (window._pwaActivityHandler && window._pwaActivityEvents) {
+        window._pwaActivityEvents.forEach(eventType => {
+            document.removeEventListener(eventType, window._pwaActivityHandler);
+        });
+    }
+    if (installButtonHideTimeout) {
+        clearTimeout(installButtonHideTimeout);
+        installButtonHideTimeout = null;
+    }
+}
+
+function scheduleButtonHide() {
+    // Lösche bestehenden Timeout
+    if (installButtonHideTimeout) {
+        clearTimeout(installButtonHideTimeout);
+    }
+    
+    // Plane Ausblenden nach 1 Minute (60000ms) ab letzter Aktivität
+    installButtonHideTimeout = setTimeout(function() {
+        const installBtn = document.getElementById('pwa-install-btn');
+        if (installBtn && installBtn.style.display !== 'none') {
+            // Prüfe, ob seit letzter Aktivität wirklich 1 Minute vergangen sind
+            const timeSinceActivity = Date.now() - lastUserActivity;
+            if (timeSinceActivity >= 60000) {
+                // Sanft ausblenden mit Fade-Out
+                installBtn.style.transition = 'opacity 0.5s ease-out';
+                installBtn.style.opacity = '0';
+                setTimeout(function() {
+                    installBtn.style.display = 'none';
+                    installBtn.style.opacity = '1'; // Zurücksetzen für nächstes Mal
+                    installBtn.style.transition = '';
+                }, 500);
+            } else {
+                // Wenn noch nicht 1 Minute vergangen, neu planen
+                scheduleButtonHide();
+            }
+        }
+    }, 60000); // 1 Minute
+}
+
 function installPWA() {
-    if (deferredPrompt && !promptShown) {
-        // Lösche Timeout, da Benutzer manuell installiert
-        if (promptTimeout) {
-            clearTimeout(promptTimeout);
-            promptTimeout = null;
+    if (window.deferredPrompt && !promptShown) {
+        promptShown = true;
+        
+        // Stoppe Auto-Hide Timer, da Benutzer interagiert
+        if (installButtonHideTimeout) {
+            clearTimeout(installButtonHideTimeout);
+            installButtonHideTimeout = null;
         }
         
-        promptShown = true;
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function(choiceResult) {
-            deferredPrompt = null;
+        try {
+            // Prompt() kann nur innerhalb einer Benutzeraktion aufgerufen werden
+            // Diese Funktion wird nur bei Button-Klick aufgerufen, daher ist das sicher
+            window.deferredPrompt.prompt().then(function() {
+                return window.deferredPrompt.userChoice;
+            }).then(function(choiceResult) {
+                // Ergebnis verarbeiten
+                if (choiceResult.outcome === 'accepted') {
+                    console.debug('Benutzer hat PWA-Installation akzeptiert');
+                } else {
+                    console.debug('Benutzer hat PWA-Installation abgelehnt');
+                }
+                
+                window.deferredPrompt = null;
+                promptShown = false;
+                
+                // Verstecke Install-Button
+                const installBtn = document.getElementById('pwa-install-btn');
+                if (installBtn) {
+                    installBtn.style.display = 'none';
+                }
+            }).catch(function(error) {
+                console.debug('Fehler beim Anzeigen des PWA-Install-Prompts:', error);
+                window.deferredPrompt = null;
+                promptShown = false;
+            });
+        } catch (error) {
+            // Fallback für Browser, die prompt() nicht direkt unterstützen
+            console.debug('prompt() konnte nicht aufgerufen werden:', error);
+            window.deferredPrompt = null;
             promptShown = false;
-            
-            // Verstecke Install-Button
-            const installBtn = document.getElementById('pwa-install-btn');
-            if (installBtn) {
-                installBtn.style.display = 'none';
-            }
-        });
+        }
     }
 }
 

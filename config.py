@@ -69,6 +69,10 @@ class Config:
     EXCALIDRAW_URL = os.environ.get('EXCALIDRAW_URL', '/excalidraw')
     EXCALIDRAW_ROOM_URL = os.environ.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
     EXCALIDRAW_PUBLIC_URL = os.environ.get('EXCALIDRAW_PUBLIC_URL', '')
+    
+    # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
 
 
 class DevelopmentConfig(Config):

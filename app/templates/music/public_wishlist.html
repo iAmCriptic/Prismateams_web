@@ -65,12 +65,14 @@
                         <div class="mb-4">
                             <label for="search-query" class="form-label">Lied suchen</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="search-query" placeholder="Titel, Künstler, Album... (z.B. 'sido straßenjunge')">
+                                <input type="text" class="form-control" id="search-query" placeholder='"Titel" "Künstler" oder frei (z.B. Straßenjunge Sido)'>
                                 <button class="btn btn-primary" type="button" id="search-btn">
                                     <i class="bi bi-search"></i> Suchen
                                 </button>
                             </div>
-                            <div class="form-text">Die Suche durchsucht automatisch alle aktivierten Provider: 
+                            <div class="form-text">
+                                <strong>Format:</strong> Mit Anführungszeichen: <code>"Straßenjunge" "Sido"</code> oder frei: <code>Straßenjunge Sido</code><br>
+                                Die Suche durchsucht automatisch alle aktivierten Provider: 
                                 {% for provider in enabled_providers %}
                                     {% if provider == 'spotify' %}Spotify{% elif provider == 'youtube' %}YouTube{% elif provider == 'musicbrainz' %}MusicBrainz{% endif %}{% if not loop.last %}, {% endif %}
                                 {% endfor %}
@@ -81,6 +83,14 @@
                         <div id="search-results" class="search-results" style="display: none;">
                             <h5 class="mb-3">Suchergebnisse</h5>
                             <div id="results-list"></div>
+                            
+                            <div id="recommendations-section" style="display: none;" class="mt-4">
+                                <hr>
+                                <h5 class="mb-3">
+                                    <i class="bi bi-lightbulb"></i> Empfehlungen
+                                </h5>
+                                <div id="recommendations-list"></div>
+                            </div>
                         </div>
                         
                         <div id="loading" class="text-center" style="display: none;">
@@ -109,6 +119,7 @@
                 searchTimeout = setTimeout(() => performSearch(query), 500);
             } else {
                 document.getElementById('search-results').style.display = 'none';
+                document.getElementById('recommendations-section').style.display = 'none';
             }
         });
         
@@ -147,9 +158,18 @@
                 } else if (data.results && data.results.length > 0) {
                     displayResults(data.results);
                     resultsDiv.style.display = 'block';
+                    
+                    // Zeige Recommendations wenn vorhanden
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        displayRecommendations(data.recommendations);
+                        document.getElementById('recommendations-section').style.display = 'block';
+                    } else {
+                        document.getElementById('recommendations-section').style.display = 'none';
+                    }
                 } else {
                     resultsList.innerHTML = '<p class="text-muted">Keine Ergebnisse gefunden.</p>';
                     resultsDiv.style.display = 'block';
+                    document.getElementById('recommendations-section').style.display = 'none';
                 }
             })
             .catch(error => {
@@ -185,6 +205,48 @@
                     </div>
                 `;
                 resultsList.appendChild(item);
+            });
+        }
+        
+        function displayRecommendations(recommendations) {
+            const recommendationsList = document.getElementById('recommendations-list');
+            recommendationsList.innerHTML = '';
+            
+            if (recommendations.length === 0) {
+                recommendationsList.innerHTML = '<p class="text-muted">Keine Empfehlungen verfügbar.</p>';
+                return;
+            }
+            
+            recommendations.forEach(track => {
+                const item = document.createElement('div');
+                item.className = 'track-item p-3 border-bottom';
+                
+                // Bestimme Provider-Badge
+                let providerBadge = '';
+                if (track.provider === 'spotify') {
+                    providerBadge = '<span class="badge bg-success provider-badge ms-2">Spotify</span>';
+                } else if (track.provider === 'youtube') {
+                    providerBadge = '<span class="badge bg-danger provider-badge ms-2">YouTube</span>';
+                }
+                
+                item.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <img src="${track.image_url || '/static/img/logo.png'}" alt="Cover" class="track-image me-3">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${escapeHtml(track.title)}</h6>
+                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || 'Unbekannter Künstler')}</p>
+                            ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
+                            <span class="badge bg-info provider-badge">
+                                <i class="bi bi-lightbulb"></i> Empfehlung
+                            </span>
+                            ${providerBadge}
+                        </div>
+                        <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
+                            <i class="bi bi-plus-circle"></i> Hinzufügen
+                        </button>
+                    </div>
+                `;
+                recommendationsList.appendChild(item);
             });
         }
         

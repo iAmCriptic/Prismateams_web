@@ -23,19 +23,19 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="wishlist-tab" data-bs-toggle="tab" data-bs-target="#wishlist" type="button" role="tab" aria-controls="wishlist" aria-selected="true">
                 <i class="bi bi-heart"></i> {{ _('music.index.tabs.wishlist') }}
-                <span class="badge bg-primary ms-2">{{ wishes|length }}</span>
+                <span class="badge bg-primary ms-2">{{ wish_count }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab" aria-controls="queue" aria-selected="false">
                 <i class="bi bi-list-ol"></i> {{ _('music.index.tabs.queue') }}
-                <span class="badge bg-primary ms-2">{{ queue|length }}</span>
+                <span class="badge bg-primary ms-2">{{ queue_count }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="played-tab" data-bs-toggle="tab" data-bs-target="#played" type="button" role="tab" aria-controls="played" aria-selected="false">
                 <i class="bi bi-check-circle"></i> {{ _('music.index.tabs.played') }}
-                <span class="badge bg-secondary ms-2">{{ played_wishes|length }}</span>
+                <span class="badge bg-secondary ms-2">{{ played_count }}</span>
             </button>
         </li>
     </ul>
@@ -56,10 +56,10 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if wishes %}
-                    <div class="list-group">
+                    <div class="list-group" id="wishlist-list">
+                        {% if wishes and wishes|length > 0 %}
                         {% for wish in wishes %}
-                        <div class="list-group-item">
+                        <div class="list-group-item" data-wish-id="{{ wish.id }}">
                             <div class="d-flex align-items-center">
                                 {% if wish.image_url %}
                                 <img src="{{ wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
@@ -101,10 +101,10 @@
                             </div>
                         </div>
                         {% endfor %}
+                        {% else %}
+                        <p class="text-muted text-center py-4">{{ _('music.index.wishlist.empty') }}</p>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center py-4">{{ _('music.index.wishlist.empty') }}</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -130,8 +130,8 @@
                     </div>
                     {% endif %}
                     
-                    {% if queue %}
                     <div class="list-group" id="queue-list">
+                        {% if queue and queue|length > 0 %}
                         {% for entry in queue %}
                         <div class="list-group-item queue-item" data-queue-id="{{ entry.id }}" data-position="{{ entry.position }}" draggable="true">
                             <div class="d-flex align-items-center">
@@ -169,10 +169,10 @@
                             </div>
                         </div>
                         {% endfor %}
+                        {% else %}
+                        <p class="text-muted text-center py-4">{{ _('music.index.queue.empty') }}</p>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center py-4">{{ _('music.index.queue.empty') }}</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -184,47 +184,12 @@
                     <h5 class="mb-0"><i class="bi bi-check-circle"></i> {{ _('music.index.played.title') }}</h5>
                 </div>
                 <div class="card-body">
-                    {% if played_wishes %}
+                    <!-- Wird per Lazy Loading geladen -->
                     <div class="list-group">
-                        {% for wish in played_wishes %}
-                        <div class="list-group-item">
-                            <div class="d-flex align-items-center">
-                                {% if wish.image_url %}
-                                <img src="{{ wish.image_url }}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
-                                {% else %}
-                                <div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-music-note"></i>
-                                </div>
-                                {% endif %}
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{ wish.title }}
-                                        {% set wish_count = wish.wish_count or 1 %}
-                                        {% if wish_count > 1 %}
-                                            {% if wish_count <= 3 %}
-                                                <span class="badge bg-primary ms-2">{{ wish_count }}x</span>
-                                            {% elif wish_count <= 5 %}
-                                                <span class="badge bg-warning ms-2">{{ wish_count }}x</span>
-                                            {% else %}
-                                                <span class="badge bg-danger ms-2">{{ wish_count }}x</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
-                                        {% endif %}
-                                    </h6>
-                                    <p class="text-muted mb-1 small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
-                                    <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
-                                    <small class="text-muted d-block mt-1">
-                                        <i class="bi bi-clock"></i> {{ _('music.index.played.played_at') }} {{ wish.updated_at.strftime('%d.%m.%Y %H:%M') if wish.updated_at else _('common.unknown') }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
+                        <p class="text-muted text-center py-4">
+                            <i class="bi bi-info-circle"></i> {{ _('music.index.played.loading_hint') if _('music.index.played.loading_hint') else 'Klicken Sie auf den Tab, um die Liste zu laden' }}
+                        </p>
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center py-4">{{ _('music.index.played.empty') }}</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -257,23 +222,27 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                // Aktualisiere Live-Updates statt Seite neu zu laden
-                if (typeof updateQueueDisplay === 'function') {
-                    updateQueueDisplay();
-                }
-                // Entferne Wunsch aus der Anzeige, wenn er zur Queue hinzugefügt wurde
+                // Entferne Wunsch sofort aus der Anzeige
                 const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
                 if (wishItem) {
                     wishItem.remove();
-                    // Prüfe ob Liste jetzt leer ist
-                    const wishlistContainer = document.querySelector('#wishlist .list-group');
-                    if (wishlistContainer && wishlistContainer.children.length === 0) {
+                }
+                
+                // Prüfe ob Liste jetzt leer ist
+                const wishlistContainer = document.querySelector('#wishlist-list');
+                if (wishlistContainer) {
+                    if (wishlistContainer.children.length === 0) {
                         wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
                     }
-                    if (typeof updateWishlistBadge === 'function') {
-                        updateWishlistBadge();
+                    // Aktualisiere Badge
+                    const badge = document.querySelector('#wishlist-tab .badge');
+                    if (badge) {
+                        const currentCount = parseInt(badge.textContent) || 0;
+                        badge.textContent = Math.max(0, currentCount - 1);
                     }
                 }
+                
+                // SocketIO-Event wird die Queue aktualisieren
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -310,10 +279,26 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                // Aktualisiere Live-Updates statt Seite neu zu laden
-                if (typeof updateQueueDisplay === 'function') {
-                    updateQueueDisplay();
+                // Entferne Queue-Item sofort aus der Anzeige
+                const queueItem = document.querySelector(`[data-queue-id="${queueId}"]`);
+                if (queueItem) {
+                    queueItem.remove();
                 }
+                
+                // Prüfe ob Queue jetzt leer ist
+                const queueContainer = document.querySelector('#queue-list');
+                if (queueContainer && queueContainer.children.length === 0) {
+                    queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
+                }
+                
+                // Aktualisiere Badge
+                const badge = document.querySelector('#queue-tab .badge');
+                if (badge) {
+                    const currentCount = parseInt(badge.textContent) || 0;
+                    badge.textContent = Math.max(0, currentCount - 1);
+                }
+                
+                // SocketIO-Event wird die Queue vollständig aktualisieren
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -347,10 +332,19 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                // Aktualisiere Live-Updates statt Seite neu zu laden
-                if (typeof updateQueueDisplay === 'function') {
-                    updateQueueDisplay();
+                // Leere Queue sofort
+                const queueContainer = document.querySelector('#queue-list');
+                if (queueContainer) {
+                    queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
                 }
+                
+                // Aktualisiere Badge
+                const badge = document.querySelector('#queue-tab .badge');
+                if (badge) {
+                    badge.textContent = '0';
+                }
+                
+                // SocketIO-Event wird die Queue vollständig aktualisieren
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -384,10 +378,19 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                // Aktualisiere Live-Updates statt Seite neu zu laden
-                if (typeof clearWishlistDisplay === 'function') {
-                    clearWishlistDisplay();
+                // Leere Wishlist sofort
+                const wishlistContainer = document.querySelector('#wishlist-list');
+                if (wishlistContainer) {
+                    wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
                 }
+                
+                // Aktualisiere Badge
+                const badge = document.querySelector('#wishlist-tab .badge');
+                if (badge) {
+                    badge.textContent = '0';
+                }
+                
+                // SocketIO-Event wird die Wishlist vollständig aktualisieren
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -426,23 +429,29 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                // Aktualisiere Live-Updates statt Seite neu zu laden
-                if (typeof updateQueueDisplay === 'function') {
-                    updateQueueDisplay();
+                // Leere alles sofort
+                const wishlistContainer = document.querySelector('#wishlist-list');
+                if (wishlistContainer) {
+                    wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
                 }
-                // Entferne Wunsch aus der Anzeige, wenn er zur Queue hinzugefügt wurde
-                const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
-                if (wishItem) {
-                    wishItem.remove();
-                    // Prüfe ob Liste jetzt leer ist
-                    const wishlistContainer = document.querySelector('#wishlist .list-group');
-                    if (wishlistContainer && wishlistContainer.children.length === 0) {
-                        wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
-                    }
-                    if (typeof updateWishlistBadge === 'function') {
-                        updateWishlistBadge();
-                    }
+                
+                const queueContainer = document.querySelector('#queue-list');
+                if (queueContainer) {
+                    queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
                 }
+                
+                // Aktualisiere Badges
+                const wishlistBadge = document.querySelector('#wishlist-tab .badge');
+                if (wishlistBadge) {
+                    wishlistBadge.textContent = '0';
+                }
+                
+                const queueBadge = document.querySelector('#queue-tab .badge');
+                if (queueBadge) {
+                    queueBadge.textContent = '0';
+                }
+                
+                // SocketIO-Events werden alles vollständig aktualisieren
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -454,15 +463,9 @@
         });
     }
     
-    // Tab-Navigation: Aktualisiere Badge-Zahlen beim Tab-Wechsel
+    // Tab-Navigation wird in music.js gehandhabt
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Music-Modul geladen');
-        const tabButtons = document.querySelectorAll('#musicTabs button[data-bs-toggle="tab"]');
-        tabButtons.forEach(button => {
-            button.addEventListener('shown.bs.tab', function(event) {
-                // Tab wurde gewechselt - Seite wird bei Bedarf neu geladen
-            });
-        });
     });
 </script>
 {% endblock %}

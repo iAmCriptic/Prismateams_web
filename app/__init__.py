@@ -13,7 +13,14 @@ from app.utils.i18n import register_i18n, translate
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
-socketio = SocketIO(cors_allowed_origins="*")
+
+# SocketIO mit optionaler Redis Message Queue für Multi-Worker-Setups
+def create_socketio():
+    """Erstellt SocketIO-Instanz mit optionaler Redis Message Queue."""
+    # Initial ohne Config (wird später in create_app konfiguriert)
+    return SocketIO(cors_allowed_origins="*")
+
+socketio = create_socketio()
 
 
 def create_app(config_name='default'):
@@ -27,7 +34,37 @@ def create_app(config_name='default'):
     db.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-    socketio.init_app(app)
+    
+    # Konfiguriere SocketIO mit optionaler Redis Message Queue
+    redis_enabled = app.config.get('REDIS_ENABLED', False)
+    if redis_enabled:
+        try:
+            redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
+            # Verwende Redis als Message Queue für Multi-Worker-Setups
+            socketio.init_app(
+                app,
+                message_queue=redis_url,
+                async_mode='threading'
+            )
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"SocketIO mit Redis Message Queue konfiguriert: {redis_url}")
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Redis nicht verfügbar, verwende SocketIO ohne Message Queue: {e}")
+            logger.warning("Hinweis: Multi-Worker-Setups funktionieren nur mit Redis!")
+            # Fallback: SocketIO ohne Message Queue (nur für Single-Worker)
+            socketio.init_app(app)
+    else:
+        # Kein Redis konfiguriert - nur für Single-Worker oder Development
+        socketio.init_app(app)
+        if config_name == 'production':
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Redis nicht aktiviert! Multi-Worker-Setups funktionieren nicht korrekt.")
+            logger.warning("Setze REDIS_ENABLED=True in der .env für Production mit mehreren Workern.")
+    
     register_i18n(app)
     
     login_manager.login_view = 'auth.login'

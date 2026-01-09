@@ -1,153 +1,193 @@
 // WebSocket-Verbindung für Live-Updates
 let socket = null;
 
+// Debouncing für Updates
+let updateQueueTimeout = null;
+let updateWishlistTimeout = null;
+
+// Cache für Counts
+let cachedCounts = {
+    wishlist: 0,
+    queue: 0,
+    played: 0
+};
+
+// Cache für API-Responses (TTL: 5 Sekunden)
+let apiCache = {};
+const CACHE_TTL = 5000; // 5 Sekunden
+
+// Cache-Helper
+function getCached(key) {
+    const cached = apiCache[key];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+    }
+    delete apiCache[key];
+    return null;
+}
+
+function setCached(key, data) {
+    apiCache[key] = {
+        data: data,
+        timestamp: Date.now()
+    };
+}
+
+// Cache invalidation
+function invalidateCache(pattern) {
+    Object.keys(apiCache).forEach(key => {
+        if (key.includes(pattern)) {
+            delete apiCache[key];
+        }
+    });
+}
+
 if (typeof io !== 'undefined') {
     socket = io();
     
     socket.on('music:queue_updated', function(data) {
         console.log('Queue-Update empfangen:', data);
-        updateQueueDisplay();
+        // Invalidiere Cache
+        invalidateCache('queue');
+        // Verwende vollständige Queue-Daten aus Event
+        if (data.queue !== undefined) {
+            updateQueueDisplayDirect(data.queue);
+        } else {
+            // Fallback: Lade Daten falls nicht vorhanden
+            updateQueueDisplay();
+        }
     });
     
     socket.on('music:wish_added', function(data) {
         console.log('Wunsch hinzugefügt:', data);
-        addWishToDisplay(data);
-        updateWishlistBadge();
+        // Invalidiere Cache
+        invalidateCache('wishlist');
+        if (data.wish) {
+            addWishToDisplayDirect(data.wish);
+            // Aktualisiere Badge basierend auf tatsächlicher Anzahl im DOM
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
+                const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                cachedCounts.wishlist = wishItems.length;
+                updateWishlistBadgeDirect(wishItems.length);
+            } else {
+                cachedCounts.wishlist += 1;
+                updateWishlistBadgeDirect(cachedCounts.wishlist);
+            }
+        }
+    });
+    
+    socket.on('music:wish_updated', function(data) {
+        console.log('Wunsch aktualisiert:', data);
+        // Invalidiere Cache
+        invalidateCache('wishlist');
+        if (data.wish) {
+            updateWishInDisplay(data.wish);
+            // Aktualisiere Badge basierend auf tatsächlicher Anzahl im DOM
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
+                const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                cachedCounts.wishlist = wishItems.length;
+                updateWishlistBadgeDirect(wishItems.length);
+            }
+        }
     });
     
     socket.on('music:wishlist_cleared', function(data) {
         console.log('Wunschliste geleert');
+        // Invalidiere Cache
+        invalidateCache('wishlist');
         clearWishlistDisplay();
-        updateWishlistBadge();
+        cachedCounts.wishlist = 0;
+        updateWishlistBadgeDirect(0);
+    });
+    
+    socket.on('connect', function() {
+        console.log('SocketIO verbunden');
+        // Initialisiere Badges nach Verbindung
+        setTimeout(initializeBadges, 500);
     });
 }
 
-// Funktionen für Live-Updates
-function updateWishlistBadge() {
-    // Lade aktuelle Anzahl der Wünsche
-    fetch('/music/api/wishlist/count')
-        .then(response => response.json())
-        .then(data => {
-            const badge = document.querySelector('#wishlist-tab .badge');
-            if (badge && data.count !== undefined) {
-                badge.textContent = data.count;
-            }
-        })
-        .catch(error => {
-            console.error('Fehler beim Aktualisieren des Wishlist-Badges:', error);
-        });
-}
-
-function updateQueueBadge() {
-    // Lade aktuelle Anzahl der Queue-Einträge
-    fetch('/music/api/queue/count')
-        .then(response => response.json())
-        .then(data => {
-            const badge = document.querySelector('#queue-tab .badge');
-            if (badge && data.count !== undefined) {
-                badge.textContent = data.count;
-            }
-        })
-        .catch(error => {
-            console.error('Fehler beim Aktualisieren des Queue-Badges:', error);
-        });
-}
-
-function addWishToDisplay(wishData) {
-    // Prüfe ob wir auf der Wishlist-Seite sind
-    const wishlistContainer = document.querySelector('#wishlist .list-group');
-    if (!wishlistContainer) return;
+// Direktes DOM-Update für Queue ohne Fetch-Request
+function updateQueueDisplayDirect(queueData) {
+    // Debouncing: Warte 100ms bevor Update ausgeführt wird
+    if (updateQueueTimeout) {
+        clearTimeout(updateQueueTimeout);
+    }
     
-    // Prüfe ob Wunsch bereits existiert
-    const existingWish = wishlistContainer.querySelector(`[data-wish-id="${wishData.wish_id}"]`);
-    if (existingWish) {
-        // Aktualisiere Wish-Count
-        const wishCountBadge = existingWish.querySelector('.wish-count-badge');
-        if (wishCountBadge && wishData.wish_count) {
-            wishCountBadge.textContent = wishData.wish_count + 'x';
-            // Aktualisiere Badge-Farbe basierend auf Count
-            wishCountBadge.className = 'badge ms-2 wish-count-badge';
-            if (wishData.wish_count <= 3) {
-                wishCountBadge.classList.add('bg-primary');
-            } else if (wishData.wish_count <= 5) {
-                wishCountBadge.classList.add('bg-warning');
-            } else {
-                wishCountBadge.classList.add('bg-danger');
-            }
+    updateQueueTimeout = setTimeout(() => {
+        const queueContainer = document.querySelector('#queue-list');
+        if (!queueContainer) return;
+        
+        // Aktualisiere Cache und Badge
+        const queueCount = queueData ? queueData.length : 0;
+        cachedCounts.queue = queueCount;
+        updateQueueBadgeDirect(queueCount);
+        
+        if (!queueData || queueData.length === 0) {
+            queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
+            return;
         }
-        // Aktualisiere Badge trotzdem
-        updateWishlistBadge();
+        
+        // Erstelle Queue-Elemente
+        queueContainer.innerHTML = queueData.map(entry => {
+            const providerClass = entry.wish.provider === 'spotify' ? 'success' : 'danger';
+            const wishCount = entry.wish.wish_count || 1;
+            let countBadgeClass = 'bg-secondary';
+            if (wishCount > 1) {
+                if (wishCount <= 3) {
+                    countBadgeClass = 'bg-primary';
+                } else if (wishCount <= 5) {
+                    countBadgeClass = 'bg-warning';
+                } else {
+                    countBadgeClass = 'bg-danger';
+                }
+            }
+            
+            const imageHtml = entry.wish.image_url 
+                ? `<img src="${escapeHtml(entry.wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(entry.wish.image_url)}">`
+                : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+            
+            return `
+                <div class="list-group-item queue-item" data-queue-id="${entry.id}" data-position="${entry.position}" draggable="true">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
+                        <span class="badge bg-secondary me-2">${entry.position}</span>
+                        ${imageHtml}
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                ${escapeHtml(entry.wish.title || 'Unbekannt')}
+                                <span class="badge ${countBadgeClass} ms-2">${wishCount}x</span>
+                            </h6>
+                            <p class="text-muted mb-1 small">${escapeHtml(entry.wish.artist || 'Unbekannter Künstler')}</p>
+                            <span class="badge bg-${providerClass} provider-badge">${entry.wish.provider}</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue(${entry.id})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Lade Bilder lazy
+        loadLazyImages();
+        
+        // Re-initialisiere Drag & Drop
+        initializeDragAndDrop();
+    }, 100);
+}
+
+// Fallback: Lade Queue-Daten per Fetch (wenn Event keine Daten enthält)
+function updateQueueDisplay() {
+    const cacheKey = 'queue_list';
+    const cached = getCached(cacheKey);
+    if (cached) {
+        updateQueueDisplayDirect(cached);
         return;
     }
     
-    // Erstelle neues Wish-Element
-    const wishItem = document.createElement('div');
-    wishItem.className = 'list-group-item';
-    wishItem.setAttribute('data-wish-id', wishData.wish_id);
-    
-    const providerClass = wishData.provider === 'spotify' ? 'success' : 'danger';
-    const wishCount = wishData.wish_count || 1;
-    let countBadgeClass = 'bg-secondary';
-    if (wishCount > 1) {
-        if (wishCount <= 3) {
-            countBadgeClass = 'bg-primary';
-        } else if (wishCount <= 5) {
-            countBadgeClass = 'bg-warning';
-        } else {
-            countBadgeClass = 'bg-danger';
-        }
-    }
-    
-    const imageHtml = wishData.image_url 
-        ? `<img src="${escapeHtml(wishData.image_url)}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">`
-        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
-    
-    wishItem.innerHTML = `
-        <div class="d-flex align-items-center">
-            ${imageHtml}
-            <div class="flex-grow-1">
-                <h6 class="mb-1">
-                    ${escapeHtml(wishData.title || 'Unbekannt')}
-                    <span class="badge ${countBadgeClass} ms-2 wish-count-badge">${wishCount}x</span>
-                </h6>
-                <p class="text-muted mb-1 small">${escapeHtml(wishData.artist || 'Unbekannter Künstler')}</p>
-                <span class="badge bg-${providerClass} provider-badge">${wishData.provider}</span>
-            </div>
-            <div class="btn-group-vertical btn-group-sm">
-                <button class="btn btn-sm btn-success" onclick="addToQueue(${wishData.wish_id}, 'next')" title="Als nächstes hinzufügen">
-                    <i class="bi bi-arrow-up-circle"></i>
-                </button>
-                <button class="btn btn-sm btn-primary" onclick="addToQueue(${wishData.wish_id}, 'last')" title="Als letztes hinzufügen">
-                    <i class="bi bi-arrow-down-circle"></i>
-                </button>
-                <button class="btn btn-sm btn-secondary" onclick="addToQueue(${wishData.wish_id}, 'end')" title="Am Ende hinzufügen">
-                    <i class="bi bi-arrow-down"></i>
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Füge am Anfang der Liste hinzu
-    if (wishlistContainer.children.length === 0 || wishlistContainer.querySelector('.text-muted.text-center')) {
-        // Liste ist leer, ersetze "Leer"-Nachricht
-        wishlistContainer.innerHTML = '';
-    }
-    wishlistContainer.insertBefore(wishItem, wishlistContainer.firstChild);
-    
-    // Aktualisiere Badge
-    updateWishlistBadge();
-}
-
-function clearWishlistDisplay() {
-    const wishlistContainer = document.querySelector('#wishlist .list-group');
-    if (!wishlistContainer) return;
-    
-    wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
-    updateWishlistBadge();
-}
-
-function updateQueueDisplay() {
-    // Lade aktuelle Queue-Daten
     fetch('/music/api/queue/list')
         .then(response => response.json())
         .then(data => {
@@ -155,63 +195,235 @@ function updateQueueDisplay() {
                 console.error('Fehler beim Laden der Queue:', data.error);
                 return;
             }
-            
-            const queueContainer = document.querySelector('#queue-list');
-            if (!queueContainer) return;
-            
-            if (!data.queue || data.queue.length === 0) {
-                queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
-                updateQueueBadge();
-                return;
-            }
-            
-            // Erstelle Queue-Elemente
-            queueContainer.innerHTML = data.queue.map(entry => {
-                const providerClass = entry.wish.provider === 'spotify' ? 'success' : 'danger';
-                const wishCount = entry.wish.wish_count || 1;
-                let countBadgeClass = 'bg-secondary';
-                if (wishCount > 1) {
-                    if (wishCount <= 3) {
-                        countBadgeClass = 'bg-primary';
-                    } else if (wishCount <= 5) {
-                        countBadgeClass = 'bg-warning';
-                    } else {
-                        countBadgeClass = 'bg-danger';
-                    }
-                }
-                
-                const imageHtml = entry.wish.image_url 
-                    ? `<img src="${escapeHtml(entry.wish.image_url)}" alt="Cover" class="me-3" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">`
-                    : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
-                
-                return `
-                    <div class="list-group-item queue-item" data-queue-id="${entry.id}" data-position="${entry.position}" draggable="true">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
-                            <span class="badge bg-secondary me-2">${entry.position}</span>
-                            ${imageHtml}
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1">
-                                    ${escapeHtml(entry.wish.title || 'Unbekannt')}
-                                    <span class="badge ${countBadgeClass} ms-2">${wishCount}x</span>
-                                </h6>
-                                <p class="text-muted mb-1 small">${escapeHtml(entry.wish.artist || 'Unbekannter Künstler')}</p>
-                                <span class="badge bg-${providerClass} provider-badge">${entry.wish.provider}</span>
-                            </div>
-                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue(${entry.id})">
-                                <i class="bi bi-x"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            // Re-initialisiere Drag & Drop
-            initializeDragAndDrop();
-            updateQueueBadge();
+            setCached(cacheKey, data.queue);
+            updateQueueDisplayDirect(data.queue);
         })
         .catch(error => {
             console.error('Fehler beim Aktualisieren der Queue:', error);
+        });
+}
+
+// Direktes DOM-Update für Wish ohne Fetch-Request
+function addWishToDisplayDirect(wish) {
+    // Debouncing: Warte 100ms bevor Update ausgeführt wird
+    if (updateWishlistTimeout) {
+        clearTimeout(updateWishlistTimeout);
+    }
+    
+    updateWishlistTimeout = setTimeout(() => {
+        // Versuche mehrere Selektoren
+        let wishlistContainer = document.querySelector('#wishlist-list');
+        if (!wishlistContainer) {
+            wishlistContainer = document.querySelector('#wishlist .list-group');
+        }
+        if (!wishlistContainer) {
+            wishlistContainer = document.querySelector('#wishlist .card-body .list-group');
+        }
+        if (!wishlistContainer) return;
+        
+        // Prüfe ob Wunsch bereits existiert
+        const existingWish = wishlistContainer.querySelector(`[data-wish-id="${wish.id}"]`);
+        if (existingWish) {
+            // Aktualisiere bestehenden Wunsch
+            updateWishInDisplay(wish);
+            return;
+        }
+        
+        // Erstelle neues Wish-Element
+        const wishItem = document.createElement('div');
+        wishItem.className = 'list-group-item';
+        wishItem.setAttribute('data-wish-id', wish.id);
+        
+        const providerClass = wish.provider === 'spotify' ? 'success' : 'danger';
+        const wishCount = wish.wish_count || 1;
+        let countBadgeClass = 'bg-secondary';
+        if (wishCount > 1) {
+            if (wishCount <= 3) {
+                countBadgeClass = 'bg-primary';
+            } else if (wishCount <= 5) {
+                countBadgeClass = 'bg-warning';
+            } else {
+                countBadgeClass = 'bg-danger';
+            }
+        }
+        
+        const imageHtml = wish.image_url 
+            ? `<img src="${escapeHtml(wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(wish.image_url)}">`
+            : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+        
+        wishItem.innerHTML = `
+            <div class="d-flex align-items-center">
+                ${imageHtml}
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">
+                        ${escapeHtml(wish.title || 'Unbekannt')}
+                        <span class="badge ${countBadgeClass} ms-2 wish-count-badge">${wishCount}x</span>
+                    </h6>
+                    <p class="text-muted mb-1 small">${escapeHtml(wish.artist || 'Unbekannter Künstler')}</p>
+                    <span class="badge bg-${providerClass} provider-badge">${wish.provider}</span>
+                </div>
+                <div class="btn-group-vertical btn-group-sm">
+                    <button class="btn btn-sm btn-success" onclick="addToQueue(${wish.id}, 'next')" title="Als nächstes hinzufügen">
+                        <i class="bi bi-arrow-up-circle"></i>
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="addToQueue(${wish.id}, 'last')" title="Als letztes hinzufügen">
+                        <i class="bi bi-arrow-down-circle"></i>
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="addToQueue(${wish.id}, 'end')" title="Am Ende hinzufügen">
+                        <i class="bi bi-arrow-down"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Entferne "Leer"-Nachricht falls vorhanden
+        const emptyMessage = wishlistContainer.querySelector('.text-muted.text-center');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+        
+        // Stelle sicher, dass Container eine list-group ist
+        if (!wishlistContainer.classList.contains('list-group')) {
+            wishlistContainer.classList.add('list-group');
+        }
+        
+        // Füge am Anfang der Liste hinzu
+        if (wishlistContainer.children.length === 0) {
+            wishlistContainer.appendChild(wishItem);
+        } else {
+            wishlistContainer.insertBefore(wishItem, wishlistContainer.firstChild);
+        }
+        
+        // Aktualisiere Badge basierend auf tatsächlicher Anzahl
+        const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+        cachedCounts.wishlist = wishItems.length;
+        updateWishlistBadgeDirect(wishItems.length);
+        
+        // Lade Bilder lazy
+        loadLazyImages();
+    }, 100);
+}
+
+// Aktualisiere bestehenden Wish in der Anzeige
+function updateWishInDisplay(wish) {
+    // Versuche mehrere Selektoren
+    let wishlistContainer = document.querySelector('#wishlist-list');
+    if (!wishlistContainer) {
+        wishlistContainer = document.querySelector('#wishlist .list-group');
+    }
+    if (!wishlistContainer) {
+        wishlistContainer = document.querySelector('#wishlist .card-body .list-group');
+    }
+    if (!wishlistContainer) return;
+    
+    const existingWish = wishlistContainer.querySelector(`[data-wish-id="${wish.id}"]`);
+    if (!existingWish) {
+        // Wenn nicht in Wishlist, aber Status ist pending, füge hinzu
+        if (wish.status === 'pending') {
+            addWishToDisplayDirect(wish);
+        }
+        return;
+    }
+    
+    // Aktualisiere Wish-Count
+    const wishCountBadge = existingWish.querySelector('.wish-count-badge');
+    if (wishCountBadge && wish.wish_count) {
+        wishCountBadge.textContent = wish.wish_count + 'x';
+        // Aktualisiere Badge-Farbe basierend auf Count
+        wishCountBadge.className = 'badge ms-2 wish-count-badge';
+        if (wish.wish_count <= 3) {
+            wishCountBadge.classList.add('bg-primary');
+        } else if (wish.wish_count <= 5) {
+            wishCountBadge.classList.add('bg-warning');
+        } else {
+            wishCountBadge.classList.add('bg-danger');
+        }
+    }
+    
+    // Wenn Status nicht mehr pending ist, entferne aus Wishlist
+    if (wish.status !== 'pending') {
+        existingWish.remove();
+        // Prüfe ob Liste jetzt leer ist
+        if (wishlistContainer.children.length === 0) {
+            wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+        }
+        // Aktualisiere Badge
+        const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+        cachedCounts.wishlist = wishItems.length;
+        updateWishlistBadgeDirect(wishItems.length);
+    }
+}
+
+function clearWishlistDisplay() {
+    // Versuche mehrere Selektoren
+    let wishlistContainer = document.querySelector('#wishlist-list');
+    if (!wishlistContainer) {
+        wishlistContainer = document.querySelector('#wishlist .list-group');
+    }
+    if (!wishlistContainer) {
+        wishlistContainer = document.querySelector('#wishlist .card-body .list-group');
+    }
+    if (!wishlistContainer) return;
+    
+    wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+    updateWishlistBadgeDirect(0);
+}
+
+// Direktes Badge-Update ohne Fetch-Request
+function updateWishlistBadgeDirect(count) {
+    cachedCounts.wishlist = count;
+    const badge = document.querySelector('#wishlist-tab .badge');
+    if (badge) {
+        badge.textContent = count;
+    }
+}
+
+function updateQueueBadgeDirect(count) {
+    cachedCounts.queue = count;
+    const badge = document.querySelector('#queue-tab .badge');
+    if (badge) {
+        badge.textContent = count;
+    }
+}
+
+// Fallback: Lade Counts per Fetch (für Initial-Load)
+function updateWishlistBadge() {
+    const cacheKey = 'wishlist_count';
+    const cached = getCached(cacheKey);
+    if (cached !== null) {
+        updateWishlistBadgeDirect(cached);
+        return;
+    }
+    
+    fetch('/music/api/wishlist/count')
+        .then(response => response.json())
+        .then(data => {
+            const count = data.count || 0;
+            setCached(cacheKey, count);
+            updateWishlistBadgeDirect(count);
+        })
+        .catch(error => {
+            console.error('Fehler beim Aktualisieren des Wishlist-Badges:', error);
+        });
+}
+
+function updateQueueBadge() {
+    const cacheKey = 'queue_count';
+    const cached = getCached(cacheKey);
+    if (cached !== null) {
+        updateQueueBadgeDirect(cached);
+        return;
+    }
+    
+    fetch('/music/api/queue/count')
+        .then(response => response.json())
+        .then(data => {
+            const count = data.count || 0;
+            setCached(cacheKey, count);
+            updateQueueBadgeDirect(count);
+        })
+        .catch(error => {
+            console.error('Fehler beim Aktualisieren des Queue-Badges:', error);
         });
 }
 
@@ -220,6 +432,34 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Lazy Loading für Bilder mit Intersection Observer
+function loadLazyImages() {
+    const lazyImages = document.querySelectorAll('img.lazy-image[data-src]');
+    
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    img.classList.remove('lazy-image');
+                    observer.unobserve(img);
+                }
+            });
+        });
+        
+        lazyImages.forEach(img => imageObserver.observe(img));
+    } else {
+        // Fallback für Browser ohne IntersectionObserver
+        lazyImages.forEach(img => {
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+            img.classList.remove('lazy-image');
+        });
+    }
 }
 
 function initializeDragAndDrop() {
@@ -239,6 +479,295 @@ function initializeDragAndDrop() {
             this.classList.remove('dragging');
         });
     });
+}
+
+// Lazy Loading für Tabs
+let loadedTabs = {
+    wishlist: false,
+    queue: false,
+    played: false
+};
+
+let playedPagination = {
+    currentPage: 1,
+    perPage: 50,
+    total: 0,
+    pages: 0
+};
+
+// Lade "Bereits gespielt" Tab beim ersten Öffnen
+function loadPlayedTab(page = 1) {
+    if (loadedTabs.played && page === 1) {
+        return; // Bereits geladen
+    }
+    
+    const playedContainer = document.querySelector('#played .list-group');
+    if (!playedContainer) return;
+    
+    // Prüfe Cache
+    const cacheKey = `played_list_${page}`;
+    const cached = getCached(cacheKey);
+    if (cached && page === 1) {
+        // Verwende gecachte Daten
+        playedContainer.innerHTML = '';
+        cached.forEach(wish => {
+            const wishItem = createPlayedItem(wish);
+            playedContainer.appendChild(wishItem);
+        });
+        loadLazyImages();
+        return;
+    }
+    
+    // Zeige Loading-Indikator
+    if (page === 1) {
+        playedContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Laden...</span></div></div>';
+    }
+    
+    fetch(`/music/api/played/list?page=${page}&per_page=${playedPagination.perPage}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Fehler beim Laden der gespielten Lieder:', data.error);
+                playedContainer.innerHTML = '<p class="text-muted text-center py-4">Fehler beim Laden</p>';
+                return;
+            }
+            
+            if (page === 1) {
+                playedContainer.innerHTML = '';
+            }
+            
+            if (!data.played || data.played.length === 0) {
+                if (page === 1) {
+                    playedContainer.innerHTML = '<p class="text-muted text-center py-4">Keine gespielten Lieder vorhanden</p>';
+                }
+                return;
+            }
+            
+            // Cache für erste Seite
+            if (page === 1) {
+                setCached(cacheKey, data.played);
+            }
+            
+            // Füge Einträge hinzu
+            data.played.forEach(wish => {
+                const wishItem = createPlayedItem(wish);
+                playedContainer.appendChild(wishItem);
+            });
+            
+            // Aktualisiere Pagination-Info
+            if (data.pagination) {
+                playedPagination.currentPage = data.pagination.page;
+                playedPagination.total = data.pagination.total;
+                playedPagination.pages = data.pagination.pages;
+                
+                // Erstelle/Update Pagination-Controls
+                updatePlayedPaginationControls();
+            }
+            
+            // Lade Bilder lazy
+            loadLazyImages();
+            
+            loadedTabs.played = true;
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der gespielten Lieder:', error);
+            playedContainer.innerHTML = '<p class="text-muted text-center py-4">Fehler beim Laden</p>';
+        });
+}
+
+// Update Pagination-Controls für "Bereits gespielt"
+function updatePlayedPaginationControls() {
+    let paginationContainer = document.getElementById('played-pagination');
+    if (!paginationContainer) {
+        // Erstelle Pagination-Container
+        const playedCard = document.querySelector('#played .card-body');
+        if (!playedCard) return;
+        
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'played-pagination';
+        paginationContainer.className = 'mt-3 d-flex justify-content-center';
+        playedCard.appendChild(paginationContainer);
+    }
+    
+    if (playedPagination.pages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '<nav><ul class="pagination">';
+    
+    // Previous Button
+    if (playedPagination.currentPage > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadPlayedTab(${playedPagination.currentPage - 1}); return false;">Vorherige</a></li>`;
+    } else {
+        paginationHTML += `<li class="page-item disabled"><span class="page-link">Vorherige</span></li>`;
+    }
+    
+    // Page Numbers (max 5 Seiten anzeigen)
+    const startPage = Math.max(1, playedPagination.currentPage - 2);
+    const endPage = Math.min(playedPagination.pages, playedPagination.currentPage + 2);
+    
+    if (startPage > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadPlayedTab(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === playedPagination.currentPage) {
+            paginationHTML += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadPlayedTab(${i}); return false;">${i}</a></li>`;
+        }
+    }
+    
+    if (endPage < playedPagination.pages) {
+        if (endPage < playedPagination.pages - 1) {
+            paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadPlayedTab(${playedPagination.pages}); return false;">${playedPagination.pages}</a></li>`;
+    }
+    
+    // Next Button
+    if (playedPagination.currentPage < playedPagination.pages) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadPlayedTab(${playedPagination.currentPage + 1}); return false;">Nächste</a></li>`;
+    } else {
+        paginationHTML += `<li class="page-item disabled"><span class="page-link">Nächste</span></li>`;
+    }
+    
+    paginationHTML += '</ul></nav>';
+    paginationContainer.innerHTML = paginationHTML;
+}
+
+// Lade Wishlist vollständig wenn nötig (mehr als 50 Einträge)
+function loadFullWishlist() {
+    const wishlistContainer = document.querySelector('#wishlist .list-group');
+    if (!wishlistContainer) return;
+    
+    // Prüfe ob bereits mehr als 50 Einträge geladen sind
+    const currentItems = wishlistContainer.querySelectorAll('.list-group-item').length;
+    if (currentItems < 50) {
+        return; // Weniger als 50, keine weitere Ladung nötig
+    }
+    
+    // Lade weitere Einträge
+    fetch('/music/api/wishlist/list?page=1&per_page=100')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error || !data.wishes) return;
+            
+            // Ersetze nur wenn mehr Einträge vorhanden sind
+            if (data.wishes.length > currentItems) {
+                // Aktualisiere nur die zusätzlichen Einträge
+                // (Für jetzt: Ersetze alles, könnte optimiert werden)
+                wishlistContainer.innerHTML = '';
+                data.wishes.forEach(wish => {
+                    const wishItem = createWishItem(wish);
+                    wishlistContainer.appendChild(wishItem);
+                });
+                
+                loadLazyImages();
+            }
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der vollständigen Wishlist:', error);
+        });
+}
+
+// Helper: Erstelle Wish-Item Element
+function createWishItem(wish) {
+    const wishItem = document.createElement('div');
+    wishItem.className = 'list-group-item';
+    wishItem.setAttribute('data-wish-id', wish.id);
+    
+    const providerClass = wish.provider === 'spotify' ? 'success' : 'danger';
+    const wishCount = wish.wish_count || 1;
+    let countBadgeClass = 'bg-secondary';
+    if (wishCount > 1) {
+        if (wishCount <= 3) {
+            countBadgeClass = 'bg-primary';
+        } else if (wishCount <= 5) {
+            countBadgeClass = 'bg-warning';
+        } else {
+            countBadgeClass = 'bg-danger';
+        }
+    }
+    
+    const imageHtml = wish.image_url 
+        ? `<img src="${escapeHtml(wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(wish.image_url)}">`
+        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+    
+    wishItem.innerHTML = `
+        <div class="d-flex align-items-center">
+            ${imageHtml}
+            <div class="flex-grow-1">
+                <h6 class="mb-1">
+                    ${escapeHtml(wish.title || 'Unbekannt')}
+                    <span class="badge ${countBadgeClass} ms-2 wish-count-badge">${wishCount}x</span>
+                </h6>
+                <p class="text-muted mb-1 small">${escapeHtml(wish.artist || 'Unbekannter Künstler')}</p>
+                <span class="badge bg-${providerClass} provider-badge">${wish.provider}</span>
+            </div>
+            <div class="btn-group-vertical btn-group-sm">
+                <button class="btn btn-sm btn-success" onclick="addToQueue(${wish.id}, 'next')" title="Als nächstes hinzufügen">
+                    <i class="bi bi-arrow-up-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="addToQueue(${wish.id}, 'last')" title="Als letztes hinzufügen">
+                    <i class="bi bi-arrow-down-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="addToQueue(${wish.id}, 'end')" title="Am Ende hinzufügen">
+                    <i class="bi bi-arrow-down"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    return wishItem;
+}
+
+// Helper: Erstelle Played-Item Element
+function createPlayedItem(wish) {
+    const wishItem = document.createElement('div');
+    wishItem.className = 'list-group-item';
+    
+    const providerClass = wish.provider === 'spotify' ? 'success' : 'danger';
+    const wishCount = wish.wish_count || 1;
+    let countBadgeClass = 'bg-secondary';
+    if (wishCount > 1) {
+        if (wishCount <= 3) {
+            countBadgeClass = 'bg-primary';
+        } else if (wishCount <= 5) {
+            countBadgeClass = 'bg-warning';
+        } else {
+            countBadgeClass = 'bg-danger';
+        }
+    }
+    
+    const imageHtml = wish.image_url 
+        ? `<img src="${escapeHtml(wish.image_url)}" alt="Cover" class="me-3 lazy-image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;" data-src="${escapeHtml(wish.image_url)}">`
+        : `<div class="me-3" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note"></i></div>`;
+    
+    const updatedAt = wish.updated_at ? new Date(wish.updated_at).toLocaleString('de-DE') : 'Unbekannt';
+    
+    wishItem.innerHTML = `
+        <div class="d-flex align-items-center">
+            ${imageHtml}
+            <div class="flex-grow-1">
+                <h6 class="mb-1">
+                    ${escapeHtml(wish.title || 'Unbekannt')}
+                    <span class="badge ${countBadgeClass} ms-2">${wishCount}x</span>
+                </h6>
+                <p class="text-muted mb-1 small">${escapeHtml(wish.artist || 'Unbekannter Künstler')}</p>
+                <span class="badge bg-${providerClass} provider-badge">${wish.provider}</span>
+                <small class="text-muted d-block mt-1">
+                    <i class="bi bi-clock"></i> Gespielt: ${updatedAt}
+                </small>
+            </div>
+        </div>
+    `;
+    
+    return wishItem;
 }
 
 // Drag & Drop für Warteschlange
@@ -297,35 +826,71 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                // SocketIO-Event wird automatisch die Queue aktualisieren
+                // Kein location.reload() mehr nötig!
             } else {
                 alert('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'));
-                location.reload();
+                // Lade Queue neu bei Fehler
+                updateQueueDisplay();
             }
         })
         .catch(error => {
             alert('Fehler: ' + error.message);
-            location.reload();
+            updateQueueDisplay();
         });
         
         draggedElement = null;
     });
     
-    // Mache alle Queue-Items draggable
-    const queueItems = queueList.querySelectorAll('.queue-item');
-    queueItems.forEach(item => {
-        item.draggable = true;
-        item.classList.add('draggable');
-        
-        item.addEventListener('dragstart', function(e) {
-            this.classList.add('dragging');
-        });
-        
-        item.addEventListener('dragend', function(e) {
-            this.classList.remove('dragging');
+    // Initialisiere Lazy Loading für Bilder
+    loadLazyImages();
+    
+    // Tab-Wechsel-Listener für Lazy Loading
+    const tabButtons = document.querySelectorAll('#musicTabs button[data-bs-toggle="tab"]');
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function(event) {
+            const targetTab = event.target.getAttribute('data-bs-target');
+            
+            // Lade "Bereits gespielt" Tab beim ersten Öffnen
+            if (targetTab === '#played' && !loadedTabs.played) {
+                loadPlayedTab(1);
+            }
+            
+            // Lade Bilder lazy beim Tab-Wechsel
+            loadLazyImages();
         });
     });
+    
+    // Initialisiere Badges basierend auf tatsächlichen DOM-Elementen
+    initializeBadges();
 });
+
+// Initialisiere Badges beim Laden der Seite
+function initializeBadges() {
+    // Zähle tatsächliche Wünsche im DOM
+    const wishlistContainer = document.querySelector('#wishlist-list');
+    if (wishlistContainer) {
+        const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+        const wishCount = wishItems.length;
+        cachedCounts.wishlist = wishCount;
+        updateWishlistBadgeDirect(wishCount);
+    } else {
+        // Fallback: Lade Count per API
+        updateWishlistBadge();
+    }
+    
+    // Zähle tatsächliche Queue-Items im DOM
+    const queueContainer = document.querySelector('#queue-list');
+    if (queueContainer) {
+        const queueItems = queueContainer.querySelectorAll('.queue-item[data-queue-id]');
+        const queueCount = queueItems.length;
+        cachedCounts.queue = queueCount;
+        updateQueueBadgeDirect(queueCount);
+    } else {
+        // Fallback: Lade Count per API
+        updateQueueBadge();
+    }
+}
 
 function getDragAfterElement(container, y) {
     const draggableElements = [...container.querySelectorAll('.queue-item:not(.dragging)')];
@@ -341,4 +906,3 @@ function getDragAfterElement(container, y) {
         }
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
-

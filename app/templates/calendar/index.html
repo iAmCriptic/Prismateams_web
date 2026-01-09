@@ -300,43 +300,102 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`/calendar/api/events/${year}/${month}`);
             if (response.ok) {
                 const events = await response.json();
+                const calendarBody = document.getElementById('calendarBody');
+                const dayCells = document.querySelectorAll('.calendar-day:not(.empty)');
                 
-                // Events zu den entsprechenden Tagen hinzufügen
+                // Calculate first day of month and offset
+                const firstDay = new Date(year, month - 1, 1);
+                const startDayOffset = (firstDay.getDay() + 6) % 7; // Montag = 0
+                
+                // Create a map of day numbers to grid positions
+                const dayToGridPosition = new Map();
+                dayCells.forEach((cell, index) => {
+                    const dayNum = parseInt(cell.textContent);
+                    if (dayNum && !dayToGridPosition.has(dayNum)) {
+                        dayToGridPosition.set(dayNum, startDayOffset + index);
+                    }
+                });
+                
+                // Separate single-day and multi-day events
+                const singleDayEvents = [];
+                const multiDayEvents = [];
+                
                 events.forEach(event => {
-                    const dayCells = document.querySelectorAll('.calendar-day:not(.empty)');
-                    dayCells.forEach(dayCell => {
-                        if (parseInt(dayCell.textContent) === event.day) {
-                            const eventElement = document.createElement('div');
-                            eventElement.className = 'calendar-event';
-                            
-                            // Add status-based styling
-                            if (event.participation_status === 'accepted') {
-                                eventElement.classList.add('accepted');
-                            } else if (event.participation_status === 'declined') {
-                                eventElement.classList.add('declined');
-                            } else if (event.participation_status === 'removed') {
-                                eventElement.classList.add('removed');
+                    if (event.duration_days && event.duration_days > 1) {
+                        multiDayEvents.push(event);
+                    } else {
+                        singleDayEvents.push(event);
+                    }
+                });
+                
+                // Handle single-day events
+                singleDayEvents.forEach(event => {
+                    const dayNum = parseInt(event.start_time.split('T')[0].split('-')[2]);
+                    const dayCell = Array.from(dayCells).find(cell => parseInt(cell.textContent) === dayNum);
+                    if (dayCell) {
+                        const eventElement = createEventElement(event);
+                        dayCell.appendChild(eventElement);
+                    }
+                });
+                
+                // Handle multi-day events - show on each day
+                multiDayEvents.forEach(event => {
+                    const startDate = new Date(event.start_date + 'T00:00:00');
+                    const endDate = new Date(event.end_date + 'T23:59:59');
+                    const startDay = startDate.getDate();
+                    const endDay = endDate.getDate();
+                    const lastDayInMonth = new Date(year, month - 1, 0).getDate();
+                    
+                    // Show event on each day it spans
+                    for (let day = startDay; day <= Math.min(endDay, lastDayInMonth); day++) {
+                        const dayCell = Array.from(dayCells).find(cell => parseInt(cell.textContent) === day);
+                        if (dayCell) {
+                            const eventElement = createEventElement(event, true);
+                            eventElement.classList.add('multi-day');
+                            // Add indicator for multi-day events
+                            if (day === startDay) {
+                                eventElement.textContent = `→ ${event.title}`;
+                            } else if (day === Math.min(endDay, lastDayInMonth)) {
+                                eventElement.textContent = `${event.title} ←`;
                             } else {
-                                eventElement.classList.add('pending');
+                                eventElement.textContent = `↔ ${event.title}`;
                             }
-                            
-                            eventElement.textContent = event.title;
-                            eventElement.title = `${event.title} - ${event.time}${event.location ? ' - ' + event.location : ''}`;
-                            
-                            // Make event clickable
-                            eventElement.style.cursor = 'pointer';
-                            eventElement.addEventListener('click', function() {
-                                window.location.href = event.url;
-                            });
-                            
                             dayCell.appendChild(eventElement);
                         }
-                    });
+                    }
                 });
             }
         } catch (error) {
             console.error('Error loading events:', error);
         }
+    }
+    
+    function createEventElement(event, isMultiDay = false) {
+        const eventElement = document.createElement('div');
+        eventElement.className = 'calendar-event';
+        
+        // Add status-based styling
+        if (event.participation_status === 'accepted') {
+            eventElement.classList.add('accepted');
+        } else if (event.participation_status === 'declined') {
+            eventElement.classList.add('declined');
+        } else if (event.participation_status === 'removed') {
+            eventElement.classList.add('removed');
+        } else {
+            eventElement.classList.add('pending');
+        }
+        
+        eventElement.textContent = event.title;
+        const timeText = event.time || 'Ganztägig';
+        eventElement.title = `${event.title} - ${timeText}${event.location ? ' - ' + event.location : ''}`;
+        
+        // Make event clickable
+        eventElement.style.cursor = 'pointer';
+        eventElement.addEventListener('click', function() {
+            window.location.href = event.url;
+        });
+        
+        return eventElement;
     }
     
     document.getElementById('prevMonth').addEventListener('click', function() {
@@ -420,7 +479,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`/calendar/api/events/range/${startDate.toISOString().split('T')[0]}/${endDate.toISOString().split('T')[0]}`);
             if (response.ok) {
                 const events = await response.json();
+                
+                // Separate single-day and multi-day events
+                const singleDayEvents = [];
+                const multiDayEvents = [];
+                
                 events.forEach(event => {
+                    if (event.duration_days && event.duration_days > 1) {
+                        multiDayEvents.push(event);
+                    } else {
+                        singleDayEvents.push(event);
+                    }
+                });
+                
+                // Handle single-day events
+                singleDayEvents.forEach(event => {
                     const eventDate = new Date(event.start_time).toISOString().split('T')[0];
                     const eventHour = new Date(event.start_time).getHours();
                     const timeSlot = document.querySelector(`[data-date="${eventDate}"][data-hour="${eventHour}"]`);
@@ -428,14 +501,59 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (timeSlot) {
                         const eventElement = document.createElement('div');
                         eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
+                        const timeText = event.time || 'Ganztägig';
                         eventElement.innerHTML = `
-                            <strong>${event.time}</strong><br>
+                            <strong>${timeText}</strong><br>
                             ${event.title}
                             ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
                         `;
                         eventElement.title = formatTooltip(event);
                         eventElement.onclick = () => window.location.href = event.url;
                         timeSlot.appendChild(eventElement);
+                    }
+                });
+                
+                // Handle multi-day events - show on each day in the week
+                multiDayEvents.forEach(event => {
+                    const eventStartDate = new Date(event.start_date + 'T00:00:00');
+                    const eventEndDate = new Date(event.end_date + 'T23:59:59');
+                    
+                    // Show event on each day it spans within the week
+                    for (let day = 0; day < 7; day++) {
+                        const currentDate = new Date(startDate);
+                        currentDate.setDate(startDate.getDate() + day);
+                        const currentDateStr = currentDate.toISOString().split('T')[0];
+                        
+                        // Check if event spans this day
+                        if (currentDate >= eventStartDate && currentDate <= eventEndDate) {
+                            const eventHour = new Date(event.start_time).getHours();
+                            const timeSlot = document.querySelector(`[data-date="${currentDateStr}"][data-hour="${eventHour}"]`);
+                            
+                            if (timeSlot) {
+                                const eventElement = document.createElement('div');
+                                eventElement.className = `calendar-event multi-day ${event.participation_status || 'pending'}`;
+                                const timeText = event.time || 'Ganztägig';
+                                let titleText = event.title;
+                                
+                                // Add indicators for start/end
+                                if (currentDateStr === event.start_date) {
+                                    titleText = `→ ${event.title}`;
+                                } else if (currentDateStr === event.end_date) {
+                                    titleText = `${event.title} ←`;
+                                } else {
+                                    titleText = `↔ ${event.title}`;
+                                }
+                                
+                                eventElement.innerHTML = `
+                                    <strong>${timeText}</strong><br>
+                                    ${titleText}
+                                    ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
+                                `;
+                                eventElement.title = `${event.title} - ${event.start_date} bis ${event.end_date}${event.location ? ' - ' + event.location : ''}`;
+                                eventElement.onclick = () => window.location.href = event.url;
+                                timeSlot.appendChild(eventElement);
+                            }
+                        }
                     }
                 });
             }
@@ -480,20 +598,44 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 const events = await response.json();
                 events.forEach(event => {
-                    const eventHour = new Date(event.start_time).getHours();
-                    const timeSlot = document.querySelector(`[data-hour="${eventHour}"]`);
+                    const eventStartDate = new Date(event.start_date + 'T00:00:00');
+                    const eventEndDate = new Date(event.end_date + 'T23:59:59');
+                    const currentDate = new Date(dateStr + 'T00:00:00');
+                    
+                    // Check if event spans this day
+                    if (currentDate >= eventStartDate && currentDate <= eventEndDate) {
+                        const eventHour = new Date(event.start_time).getHours();
+                        const timeSlot = document.querySelector(`[data-hour="${eventHour}"]`);
 
-                    if (timeSlot) {
-                        const eventElement = document.createElement('div');
-                        eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
-                        eventElement.innerHTML = `
-                            <strong>${event.time}</strong><br>
-                            ${event.title}
-                            ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
-                        `;
-                        eventElement.title = formatTooltip(event);
-                        eventElement.onclick = () => window.location.href = event.url;
-                        timeSlot.appendChild(eventElement);
+                        if (timeSlot) {
+                            const eventElement = document.createElement('div');
+                            eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
+                            
+                            // Format title with day indicator for multi-day events
+                            let titleText = event.title;
+                            if (event.duration_days && event.duration_days > 1) {
+                                const dayNumber = Math.floor((currentDate - eventStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                                let prefix = '';
+                                if (dateStr === event.start_date) {
+                                    prefix = '→ ';
+                                } else if (dateStr === event.end_date) {
+                                    prefix = '';
+                                } else {
+                                    prefix = '↔ ';
+                                }
+                                titleText = `${prefix}${event.title} (Tag ${dayNumber}/${event.duration_days})`;
+                            }
+                            
+                            const timeText = event.time || 'Ganztägig';
+                            eventElement.innerHTML = `
+                                <strong>${timeText}</strong><br>
+                                ${titleText}
+                                ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
+                            `;
+                            eventElement.title = formatTooltip(event);
+                            eventElement.onclick = () => window.location.href = event.url;
+                            timeSlot.appendChild(eventElement);
+                        }
                     }
                 });
             }

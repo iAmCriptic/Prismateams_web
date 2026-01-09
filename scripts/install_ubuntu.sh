@@ -239,6 +239,7 @@ setup_system() {
         supervisor \
         mysql-server \
         mysql-client \
+        redis-server \
         openssl \
         certbot \
         python3-certbot-nginx; then
@@ -334,6 +335,40 @@ EOF
     log_success "MySQL konfiguriert"
     log_info "Datenbank: ${DB_NAME}"
     log_info "Benutzer: ${DB_USER}"
+}
+
+# Redis Setup
+setup_redis() {
+    log_info "=== Redis Setup ==="
+    
+    # Prüfe ob Redis bereits läuft
+    if systemctl is-active --quiet redis-server; then
+        log_info "Redis läuft bereits"
+    else
+        # Redis starten und aktivieren
+        log_info "Starte Redis..."
+        systemctl start redis-server || error_exit "Redis konnte nicht gestartet werden"
+        systemctl enable redis-server || error_exit "Redis konnte nicht aktiviert werden"
+    fi
+    
+    # Warte auf Redis
+    log_info "Warte auf Redis-Service..."
+    REDIS_READY=0
+    for i in {1..10}; do
+        if redis-cli ping > /dev/null 2>&1; then
+            REDIS_READY=1
+            break
+        fi
+        sleep 1
+    done
+    
+    if [ $REDIS_READY -eq 0 ]; then
+        log_warning "Redis antwortet nicht, aber fahre fort..."
+    else
+        log_success "Redis ist bereit"
+    fi
+    
+    log_success "Redis konfiguriert"
 }
 
 # Docker Installation
@@ -737,6 +772,22 @@ configure_env() {
     
     # Production Settings
     sed -i "s|FLASK_ENV=.*|FLASK_ENV=production|" .env
+    
+    # Redis-Konfiguration (für SocketIO Message Queue)
+    # Entferne Kommentare (#) am Zeilenanfang und setze Werte
+    sed -i "s|^#.*REDIS_ENABLED=.*|REDIS_ENABLED=True|" .env
+    sed -i "s|^REDIS_ENABLED=.*|REDIS_ENABLED=True|" .env
+    # Entferne Kommentare am Ende der Zeile für REDIS_URL
+    sed -i "s|^#.*REDIS_URL=\([^#]*\).*|REDIS_URL=\1|" .env
+    sed -i "s|^REDIS_URL=\([^#]*\).*|REDIS_URL=\1|" .env
+    sed -i "s|^REDIS_URL=.*|REDIS_URL=redis://localhost:6379/0|" .env
+    # Stelle sicher, dass Redis-Einstellungen gesetzt sind (falls nicht in env.example vorhanden)
+    if ! grep -q "^REDIS_ENABLED=" .env; then
+        echo "REDIS_ENABLED=True" >> .env
+    fi
+    if ! grep -q "^REDIS_URL=" .env; then
+        echo "REDIS_URL=redis://localhost:6379/0" >> .env
+    fi
     
     # E-Mail-Konfiguration
     if [ -n "$MAIL_SERVER" ]; then
@@ -1183,6 +1234,9 @@ print_summary() {
     echo "  sudo systemctl daemon-reload"
     echo "  sudo systemctl restart teamportal"
     echo
+    echo "Hinweis: Redis wurde installiert und konfiguriert für SocketIO Message Queue."
+    echo "         Dies ermöglicht Multi-Worker-Setups mit korrekten Echtzeit-Updates."
+    echo
     echo "Service-Status prüfen:"
     echo "  systemctl status teamportal"
     echo "  systemctl status nginx"
@@ -1216,6 +1270,7 @@ main() {
     
     setup_system
     setup_mysql
+    setup_redis
     install_docker
     install_onlyoffice
     install_excalidraw

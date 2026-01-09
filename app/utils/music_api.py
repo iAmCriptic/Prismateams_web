@@ -31,8 +31,23 @@ class SpotifyAPI:
             'Content-Type': 'application/json'
         }
     
-    def search(self, query, limit=10):
-        """Sucht nach Liedern."""
+    def search(self, query, limit=10, parsed_query=None):
+        """
+        Sucht nach Liedern.
+        
+        Args:
+            query: Rohe Query-String (für Fallback)
+            limit: Maximale Anzahl Ergebnisse
+            parsed_query: Optionales Dictionary mit 'title', 'artist', 'album' für erweiterte Suche
+        """
+        from app.utils.music_search_parser import build_search_query_for_provider
+        
+        # Wenn geparste Query vorhanden, baue optimierte Query
+        if parsed_query:
+            search_query = build_search_query_for_provider(parsed_query, 'spotify')
+        else:
+            search_query = query
+        
         last_exception = None
         
         for attempt in range(MAX_RETRIES + 1):
@@ -41,7 +56,7 @@ class SpotifyAPI:
                     f'{self.BASE_URL}/search',
                     headers=self.headers,
                     params={
-                        'q': query,
+                        'q': search_query,
                         'type': 'track',
                         'limit': limit
                     },
@@ -139,6 +154,80 @@ class SpotifyAPI:
                 raise Exception(f"Spotify API Fehler: {str(e)}")
         
         raise Exception(f"Spotify API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
+    
+    def get_recommendations(self, track_id, limit=5):
+        """
+        Holt Empfehlungen basierend auf einem Track.
+        
+        Args:
+            track_id: Spotify Track-ID als Seed
+            limit: Maximale Anzahl Recommendations (max 100, aber wir nutzen typisch 5-10)
+            
+        Returns:
+            Liste von Track-Dictionaries im gleichen Format wie search()
+        """
+        last_exception = None
+        
+        # Stelle sicher, dass limit nicht zu hoch ist
+        limit = min(limit, 100)
+        
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                response = requests.get(
+                    f'{self.BASE_URL}/recommendations',
+                    headers=self.headers,
+                    params={
+                        'seed_tracks': track_id,
+                        'limit': limit
+                    },
+                    timeout=MUSIC_API_TIMEOUT
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                results = []
+                for track in data.get('tracks', []):
+                    results.append({
+                        'id': track['id'],
+                        'title': track['name'],
+                        'artist': ', '.join([artist['name'] for artist in track['artists']]),
+                        'album': track['album']['name'],
+                        'image_url': track['album']['images'][0]['url'] if track['album']['images'] else None,
+                        'url': track['external_urls']['spotify'],
+                        'duration_ms': track['duration_ms'],
+                        'provider': 'spotify',
+                        'is_recommendation': True  # Flag für Frontend
+                    })
+                return results
+            except Timeout as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"Spotify Recommendations API Timeout (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Spotify Recommendations API Timeout: Die Anfrage dauerte zu lange.")
+            except ConnectionError as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"Spotify Recommendations API Verbindungsfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Spotify Recommendations API Verbindungsfehler: {str(e)}")
+            except RequestException as e:
+                last_exception = e
+                if attempt < MAX_RETRIES and e.response and e.response.status_code >= 500:
+                    logger.warning(f"Spotify Recommendations API Serverfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                # Bei 401/403 könnte es ein Berechtigungsproblem sein - logge aber nicht als Fehler
+                if e.response and e.response.status_code in [401, 403]:
+                    logger.info(f"Spotify Recommendations API: Keine Berechtigung oder Track nicht verfügbar")
+                    return []
+                raise Exception(f"Spotify Recommendations API Fehler: {str(e)}")
+            except Exception as e:
+                raise Exception(f"Spotify Recommendations API Fehler: {str(e)}")
+        
+        raise Exception(f"Spotify Recommendations API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
 
 
 class YouTubeMusicAPI:
@@ -162,19 +251,38 @@ class YouTubeMusicAPI:
         if access_token:
             self.headers['Authorization'] = f'Bearer {access_token}'
     
-    def search(self, query, limit=10):
-        """Sucht nach Liedern."""
+    def search(self, query, limit=10, parsed_query=None):
+        """
+        Sucht nach Liedern.
+        
+        Args:
+            query: Rohe Query-String (für Fallback)
+            limit: Maximale Anzahl Ergebnisse
+            parsed_query: Optionales Dictionary mit 'title', 'artist', 'album' für optimierte Suche
+        """
+        from app.utils.music_search_parser import build_search_query_for_provider
+        
+        # Wenn geparste Query vorhanden, baue optimierte Query
+        if parsed_query:
+            search_query = build_search_query_for_provider(parsed_query, 'youtube')
+            # Für YouTube Music fügen wir spezifische Begriffe hinzu, um YouTube Music Inhalte zu priorisieren
+            # "official audio" hilft dabei, offizielle Musik-Versionen zu finden
+            search_query = f'{search_query} official audio'
+        else:
+            search_query = f'{query} official audio music'
+        
         last_exception = None
         
         for attempt in range(MAX_RETRIES + 1):
             try:
-                # Suche nach Musik-Videos
+                # Suche nach Musik-Videos mit Fokus auf YouTube Music
                 params = {
-                    'q': f'{query} music song',
+                    'q': search_query,
                     'type': 'video',
                     'videoCategoryId': '10',  # Music category
-                    'maxResults': limit,
-                    'part': 'snippet'
+                    'maxResults': limit * 2,  # Hole mehr, um dann zu filtern
+                    'part': 'snippet',
+                    'order': 'relevance'  # Relevanz-Sortierung
                 }
                 
                 # Verwende API-Key wenn verfügbar, sonst OAuth Token
@@ -190,40 +298,72 @@ class YouTubeMusicAPI:
                 response.raise_for_status()
                 data = response.json()
                 
-                results = []
+                # Priorisiere YouTube Music spezifische Inhalte
+                prioritized_results = []
+                other_results = []
+                
                 for item in data.get('items', []):
-                    # Filtere nach "official audio" oder "official music video" für bessere Ergebnisse
                     title = item['snippet']['title']
                     description = item['snippet'].get('description', '').lower()
+                    channel_title = item['snippet'].get('channelTitle', '').lower()
                     
-                    # Priorisiere offizielle Audio/Music Videos
-                    if 'official audio' in description.lower() or 'official music video' in description.lower() or 'music' in title.lower():
-                        results.append({
-                            'id': item['id']['videoId'],
-                            'title': title,
-                            'artist': item['snippet'].get('channelTitle', 'Unbekannt'),
-                            'album': None,
-                            'image_url': item['snippet']['thumbnails']['high']['url'] if 'high' in item['snippet']['thumbnails'] else item['snippet']['thumbnails']['default']['url'],
-                            'url': f"https://www.youtube.com/watch?v={item['id']['videoId']}",
-                            'duration_ms': None,
-                            'provider': 'youtube'
-                        })
+                    track_data = {
+                        'id': item['id']['videoId'],
+                        'title': title,
+                        'artist': item['snippet'].get('channelTitle', 'Unbekannt'),
+                        'album': None,
+                        'image_url': item['snippet']['thumbnails']['high']['url'] if 'high' in item['snippet']['thumbnails'] else item['snippet']['thumbnails']['default']['url'],
+                        'url': f"https://www.youtube.com/watch?v={item['id']['videoId']}",
+                        'duration_ms': None,
+                        'provider': 'youtube',
+                        '_youtube_music_score': 0  # Score für Priorisierung
+                    }
+                    
+                    # Score basierend auf YouTube Music Indikatoren
+                    score = 0
+                    
+                    # Höchste Priorität: "Official Audio" oder "Official Music Video" im Titel/Description
+                    if 'official audio' in title.lower() or 'official audio' in description:
+                        score += 100
+                    if 'official music video' in title.lower() or 'official music video' in description:
+                        score += 90
+                    
+                    # YouTube Music Topic Channels (offizielle Musik-Channels)
+                    if '- topic' in channel_title or 'topic' in channel_title:
+                        score += 80
+                    
+                    # VEVO Channels (offizielle Musik-Videos)
+                    if 'vevo' in channel_title:
+                        score += 70
+                    
+                    # "Music" im Titel
+                    if 'music' in title.lower():
+                        score += 20
+                    
+                    # Offizielle Künstler-Channels (oft Name des Künstlers = Channel-Name)
+                    if parsed_query and parsed_query.get('artist'):
+                        artist_name = parsed_query.get('artist', '').lower()
+                        if artist_name in channel_title:
+                            score += 60
+                    
+                    track_data['_youtube_music_score'] = score
+                    
+                    if score >= 50:  # Mindestens 50 Punkte = priorisiert
+                        prioritized_results.append(track_data)
+                    else:
+                        other_results.append(track_data)
                 
-                # Falls keine Ergebnisse, nimm alle
-                if not results:
-                    for item in data.get('items', []):
-                        results.append({
-                            'id': item['id']['videoId'],
-                            'title': item['snippet']['title'],
-                            'artist': item['snippet'].get('channelTitle', 'Unbekannt'),
-                            'album': None,
-                            'image_url': item['snippet']['thumbnails']['high']['url'] if 'high' in item['snippet']['thumbnails'] else item['snippet']['thumbnails']['default']['url'],
-                            'url': f"https://www.youtube.com/watch?v={item['id']['videoId']}",
-                            'duration_ms': None,
-                            'provider': 'youtube'
-                        })
+                # Sortiere priorisierte Ergebnisse nach Score
+                prioritized_results.sort(key=lambda x: -x['_youtube_music_score'])
                 
-                return results[:limit]
+                # Kombiniere: Erst priorisierte, dann andere
+                all_results = prioritized_results + other_results
+                
+                # Entferne Score vor Rückgabe
+                for result in all_results:
+                    result.pop('_youtube_music_score', None)
+                
+                return all_results[:limit]
             except Timeout as e:
                 last_exception = e
                 if attempt < MAX_RETRIES:
@@ -309,6 +449,118 @@ class YouTubeMusicAPI:
         
         raise Exception(f"YouTube API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
     
+    def get_related_videos(self, video_id, limit=5):
+        """
+        Holt ähnliche/verwandte Videos basierend auf einem Video-ID (für Recommendations).
+        
+        Args:
+            video_id: YouTube Video-ID als Seed
+            limit: Maximale Anzahl Recommendations
+            
+        Returns:
+            Liste von Track-Dictionaries im gleichen Format wie search()
+        """
+        last_exception = None
+        
+        # Stelle sicher, dass limit nicht zu hoch ist (YouTube API Limit: 50)
+        limit = min(limit, 50)
+        
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                # Suche nach ähnlichen Videos mit relatedToVideoId
+                # Wichtig: Dieser Parameter funktioniert nur in Kombination mit type=video
+                params = {
+                    'relatedToVideoId': video_id,
+                    'type': 'video',
+                    'videoCategoryId': '10',  # Nur Musik-Videos
+                    'maxResults': limit,
+                    'part': 'snippet',
+                    'order': 'relevance'
+                }
+                
+                # Verwende API-Key wenn verfügbar, sonst OAuth Token
+                if self.api_key:
+                    params['key'] = self.api_key
+                
+                response = requests.get(
+                    f'{self.BASE_URL}/search',
+                    headers=self.headers,
+                    params=params,
+                    timeout=MUSIC_API_TIMEOUT
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                results = []
+                for item in data.get('items', []):
+                    # Überspringe das ursprüngliche Video selbst
+                    if item['id']['videoId'] == video_id:
+                        continue
+                    
+                    title = item['snippet']['title']
+                    channel_title = item['snippet'].get('channelTitle', 'Unbekannt')
+                    
+                    # Priorisiere YouTube Music Inhalte
+                    score = 0
+                    if '- topic' in channel_title.lower() or 'topic' in channel_title.lower():
+                        score += 50
+                    if 'vevo' in channel_title.lower():
+                        score += 40
+                    if 'official audio' in title.lower() or 'official music video' in title.lower():
+                        score += 60
+                    
+                    results.append({
+                        'id': item['id']['videoId'],
+                        'title': title,
+                        'artist': channel_title,
+                        'album': None,
+                        'image_url': item['snippet']['thumbnails']['high']['url'] if 'high' in item['snippet']['thumbnails'] else item['snippet']['thumbnails']['default']['url'],
+                        'url': f"https://www.youtube.com/watch?v={item['id']['videoId']}",
+                        'duration_ms': None,
+                        'provider': 'youtube',
+                        'is_recommendation': True,  # Flag für Frontend
+                        '_score': score
+                    })
+                
+                # Sortiere nach Score (höhere Scores = bessere YouTube Music Inhalte)
+                results.sort(key=lambda x: -x.get('_score', 0))
+                
+                # Entferne Score vor Rückgabe
+                for result in results:
+                    result.pop('_score', None)
+                
+                return results[:limit]
+                
+            except Timeout as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"YouTube Related Videos API Timeout (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"YouTube Related Videos API Timeout: Die Anfrage dauerte zu lange.")
+            except ConnectionError as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"YouTube Related Videos API Verbindungsfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"YouTube Related Videos API Verbindungsfehler: {str(e)}")
+            except RequestException as e:
+                last_exception = e
+                if attempt < MAX_RETRIES and e.response and e.response.status_code >= 500:
+                    logger.warning(f"YouTube Related Videos API Serverfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                # Bei 400 könnte relatedToVideoId nicht unterstützt werden (limitiert in manchen API-Keys)
+                if e.response and e.response.status_code == 400:
+                    logger.info(f"YouTube Related Videos API: relatedToVideoId Parameter nicht unterstützt oder ungültig")
+                    return []
+                raise Exception(f"YouTube Related Videos API Fehler: {str(e)}")
+            except Exception as e:
+                raise Exception(f"YouTube Related Videos API Fehler: {str(e)}")
+        
+        raise Exception(f"YouTube Related Videos API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
+    
     def get_playlists(self):
         """Holt Playlists des Benutzers."""
         last_exception = None
@@ -387,19 +639,30 @@ class MusicBrainzAPI:
             time.sleep(1.0 - time_since_last)
         self._last_request_time = time.time()
     
-    def search(self, query, limit=10):
-        """Sucht nach Liedern. Unterstützt erweiterte Suche (Titel, Künstler, Album)."""
-        last_exception = None
+    def search(self, query, limit=10, parsed_query=None):
+        """
+        Sucht nach Liedern. Unterstützt erweiterte Suche (Titel, Künstler, Album).
+        
+        Args:
+            query: Rohe Query-String (für Fallback)
+            limit: Maximale Anzahl Ergebnisse
+            parsed_query: Optionales Dictionary mit 'title', 'artist', 'album' für erweiterte Syntax
+        """
+        from app.utils.music_search_parser import build_search_query_for_provider
         
         # Rate Limiting beachten
         self._rate_limit()
         
+        # Wenn geparste Query vorhanden, baue optimierte Query
+        if parsed_query:
+            search_query = build_search_query_for_provider(parsed_query, 'musicbrainz')
+        else:
+            search_query = query
+        
+        last_exception = None
+        
         for attempt in range(MAX_RETRIES + 1):
             try:
-                # MusicBrainz unterstützt erweiterte Suche
-                # Beispiel: "sido straßenjunge" wird als allgemeine Suche interpretiert
-                # Wir können auch spezifische Felder verwenden: artist:sido AND recording:straßenjunge
-                search_query = query
                 
                 response = requests.get(
                     f'{self.BASE_URL}/recording',
@@ -598,28 +861,91 @@ def get_api_client(user_id=None, provider=None, use_client_credentials=False):
         raise Exception(f"Unbekannter Provider: {provider}")
 
 
-def search_music(user_id, provider, query, limit=10):
+def search_music(user_id, provider, query, limit=10, parsed_query=None):
     """Sucht nach Musik über den angegebenen Provider."""
     client = get_api_client(user_id, provider)
-    return client.search(query, limit)
+    return client.search(query, limit, parsed_query=parsed_query)
 
 
-def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
+def _calculate_relevance_score(result, parsed_query):
+    """
+    Berechnet einen Relevanz-Score für ein Suchergebnis basierend auf der geparsten Query.
+    
+    Args:
+        result: Track-Dictionary mit title, artist, album
+        parsed_query: Geparste Query mit title, artist, album
+        
+    Returns:
+        Score (höher = relevanter)
+    """
+    score = 0
+    result_title = (result.get('title', '') or '').lower().strip()
+    result_artist = (result.get('artist', '') or '').lower().strip()
+    result_album = (result.get('album', '') or '').lower().strip()
+    
+    query_title = (parsed_query.get('title') or '').lower().strip()
+    query_artist = (parsed_query.get('artist') or '').lower().strip()
+    query_album = (parsed_query.get('album') or '').lower().strip()
+    
+    # Exakte Titel-Übereinstimmung (höchste Priorität)
+    if query_title and result_title == query_title:
+        score += 1000
+    elif query_title and result_title.startswith(query_title):
+        score += 500
+    elif query_title and query_title in result_title:
+        score += 200
+    
+    # Exakte Artist-Übereinstimmung
+    if query_artist and result_artist:
+        # Prüfe ob query_artist in result_artist enthalten ist (wegen mehrerer Artists)
+        if query_artist == result_artist:
+            score += 800
+        elif query_artist in result_artist:
+            score += 400
+        # Prüfe auch einzelne Wörter (z.B. "Sido" in "Sido, Samy Deluxe")
+        artist_words = query_artist.split()
+        for word in artist_words:
+            if word in result_artist:
+                score += 150
+    
+    # Album-Übereinstimmung
+    if query_album and result_album and query_album in result_album:
+        score += 300
+    
+    # Bonus für vollständige Informationen
+    if result.get('artist') and result.get('image_url'):
+        score += 100
+    if result.get('album'):
+        score += 50
+    
+    # Bonus für Spotify (bessere Qualität)
+    if result.get('provider') == 'spotify':
+        score += 20
+    
+    return score
+
+
+def search_music_multi_provider(query, limit=10, min_results=5, user_id=None, include_recommendations=False):
     """
     Sucht nach Musik über alle aktivierten Provider in konfigurierter Reihenfolge.
     Stoppt, wenn genug Ergebnisse gefunden wurden.
     
     Args:
-        query: Suchbegriff (kann Titel, Künstler, Album enthalten, z.B. "sido straßenjunge")
+        query: Suchbegriff (kann Titel, Künstler, Album enthalten, z.B. "sido straßenjunge" oder "Straßenjunge" "Sido")
         limit: Maximale Anzahl Ergebnisse pro Provider
         min_results: Minimale Anzahl Ergebnisse bevor Suche stoppt
         user_id: Benutzer-ID für OAuth-basierte Provider (Spotify)
+        include_recommendations: Wenn True, füge Spotify Recommendations hinzu wenn verfügbar (YouTube Recommendations wurden entfernt)
     
     Returns:
-        Liste von Suchergebnissen mit Provider-Label
+        Dictionary mit 'results' (Liste von Suchergebnissen) und optional 'recommendations' (Liste)
     """
     from app.models.music import MusicSettings
     from app.models.user import User
+    from app.utils.music_search_parser import parse_search_query
+    
+    # Parse Query
+    parsed_query = parse_search_query(query)
     
     # Hole aktivierte Provider und Reihenfolge
     enabled_providers = MusicSettings.get_enabled_providers()
@@ -629,10 +955,11 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
     active_providers = [p for p in provider_order if p in enabled_providers]
     
     if not active_providers:
-        return []
+        return {'results': [], 'recommendations': []}
     
     # Für Spotify benötigen wir einen Benutzer mit verbundenem Account
     spotify_user_id = user_id
+    spotify_client = None
     if 'spotify' in active_providers and not spotify_user_id:
         # Suche nach Admin mit verbundenem Spotify-Account
         from app.utils.music_oauth import is_provider_connected
@@ -644,6 +971,7 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
     
     all_results = []
     seen_tracks = set()  # Verhindere Duplikate (Titel + Künstler)
+    first_spotify_track_id = None  # Für Spotify Recommendations
     
     # Suche nacheinander über Provider
     for provider in active_providers:
@@ -654,6 +982,7 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
                     logger.warning("Spotify aktiviert, aber kein verbundener Account gefunden. Überspringe Spotify.")
                     continue
                 client = get_api_client(user_id=spotify_user_id, provider=provider, use_client_credentials=False)
+                spotify_client = client  # Speichere für später (Recommendations)
             # YouTube kann mit API-Key verwendet werden
             elif provider == 'youtube':
                 client = get_api_client(user_id=None, provider=provider, use_client_credentials=True)
@@ -661,7 +990,8 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
             else:
                 client = get_api_client(user_id=None, provider=provider, use_client_credentials=False)
             
-            results = client.search(query, limit=limit)
+            # Nutze geparste Query für bessere Ergebnisse
+            results = client.search(query, limit=limit, parsed_query=parsed_query)
             
             # Füge Ergebnisse hinzu, entferne Duplikate
             for result in results:
@@ -671,7 +1001,13 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
                 
                 if track_key not in seen_tracks and track_key[0]:  # Titel muss vorhanden sein
                     seen_tracks.add(track_key)
+                    # Berechne Relevanz-Score
+                    result['_relevance_score'] = _calculate_relevance_score(result, parsed_query)
                     all_results.append(result)
+                    
+                    # Speichere ersten Spotify-Track für Recommendations
+                    if provider == 'spotify' and not first_spotify_track_id:
+                        first_spotify_track_id = result.get('id')
             
             # Wenn genug Ergebnisse gefunden, stoppe Suche
             if len(all_results) >= min_results:
@@ -683,15 +1019,43 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None):
             # Weiter mit nächstem Provider
             continue
     
-    # Sortiere Ergebnisse nach Relevanz (einfache Sortierung)
-    # Priorisiere Ergebnisse mit vollständigen Informationen
+    # Sortiere Ergebnisse nach Relevanz-Score (höher = besser)
     all_results.sort(key=lambda x: (
-        not x.get('artist'),  # Ergebnisse ohne Künstler nach hinten
-        not x.get('image_url'),  # Ergebnisse ohne Bild nach hinten
+        -x.get('_relevance_score', 0),  # Negativ für absteigende Sortierung
+        not x.get('artist'),  # Tiebreaker: Ergebnisse ohne Künstler nach hinten
+        not x.get('image_url'),  # Tiebreaker: Ergebnisse ohne Bild nach hinten
         x.get('title', '').lower()
     ))
     
-    return all_results[:limit * 2]  # Gib mehr Ergebnisse zurück, da aus mehreren Providern
+    # Entferne internen Score vor Rückgabe
+    for result in all_results:
+        result.pop('_relevance_score', None)
+    
+    # Bereite Ergebnis vor
+    final_results = all_results[:limit * 2]  # Gib mehr Ergebnisse zurück, da aus mehreren Providern
+    recommendations = []
+    seen_recommendations = set()  # Verhindere Duplikate in Recommendations
+    
+    # Hole Spotify Recommendations wenn gewünscht und möglich
+    if include_recommendations and spotify_client and first_spotify_track_id:
+        try:
+            spotify_recs = spotify_client.get_recommendations(first_spotify_track_id, limit=5)
+            for rec in spotify_recs:
+                track_key = (rec.get('title', '').lower().strip(), 
+                           rec.get('artist', '').lower().strip())
+                if track_key not in seen_recommendations and track_key[0]:
+                    seen_recommendations.add(track_key)
+                    recommendations.append(rec)
+            logger.info(f"Spotify Recommendations geholt: {len(spotify_recs)} Ergebnisse")
+        except Exception as e:
+            logger.warning(f"Fehler beim Abrufen von Spotify Recommendations: {e}")
+    
+    # YouTube Recommendations wurden entfernt, da die API (relatedToVideoId) nicht mehr unterstützt wird
+    
+    return {
+        'results': final_results,
+        'recommendations': recommendations
+    }
 
 
 def get_track(user_id, provider, track_id):

@@ -92,6 +92,7 @@
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     min-height: 400px;
+    position: relative;
 }
 
 .calendar-day {
@@ -102,6 +103,8 @@
     position: relative;
     cursor: pointer;
     transition: background-color 0.15s ease-in-out;
+    display: flex;
+    flex-direction: column;
 }
 
 .calendar-day:hover {
@@ -136,9 +139,90 @@
     transition: all 0.2s ease;
 }
 
+/* Multi-day events in month view */
+.calendar-day {
+    position: relative;
+    overflow: visible;
+}
+
+.calendar-body {
+    position: relative;
+    overflow: visible;
+}
+
+.calendar-event.multi-day {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    position: relative;
+    margin: 0.25rem 0;
+    box-sizing: border-box;
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    font-weight: 500;
+    transition: box-shadow 0.3s ease, opacity 0.2s ease;
+    pointer-events: auto;
+    overflow: visible;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    /* Visual distinction for multi-day events */
+    border-left: 4px solid;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Multi-day event status styling with better visibility */
+.calendar-event.multi-day.accepted {
+    background: linear-gradient(90deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    border-left: 4px solid #28a745;
+    border-color: rgba(40, 167, 69, 0.3);
+}
+
+.calendar-event.multi-day.declined {
+    background: linear-gradient(90deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+    border-color: rgba(220, 53, 69, 0.3);
+}
+
+.calendar-event.multi-day.removed {
+    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #6c757d;
+    border-left: 4px solid #6c757d;
+    border-color: rgba(108, 117, 125, 0.3);
+    opacity: 0.7;
+}
+
+.calendar-event.multi-day.pending {
+    background: linear-gradient(90deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+    border-left: 4px solid #ffc107;
+    border-color: rgba(255, 193, 7, 0.3);
+}
+
+/* Default multi-day event styling */
+.calendar-event.multi-day:not(.accepted):not(.declined):not(.removed):not(.pending) {
+    background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+    color: #1976d2;
+    border-left: 4px solid #2196f3;
+    border-color: rgba(33, 150, 243, 0.3);
+}
+
 .calendar-event:hover {
     transform: scale(1.02);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Multi-day events should not scale on hover */
+.calendar-event.multi-day:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 10;
+    opacity: 0.95;
+    /* Slight brightness increase on hover */
+    filter: brightness(1.05);
 }
 
 /* Event status styling */
@@ -441,6 +525,14 @@
     white-space: nowrap;
 }
 
+/* Multi-day events in week view */
+.time-slot .calendar-event.multi-day {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-height: 40px;
+}
+
 .time-slot .calendar-event:hover,
 .day-time-slot .calendar-event:hover {
     z-index: 2;
@@ -451,6 +543,12 @@
 .calendar-day.today .calendar-event {
     background-color: rgba(255, 255, 255, 0.2);
     color: white;
+}
+
+.calendar-day.today .calendar-event.multi-day {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.2) 100%);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Darkmode Calendar */

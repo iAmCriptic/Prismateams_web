@@ -53,13 +53,18 @@ def public_wishlist():
             # Status bleibt unverändert (played bleibt played, pending bleibt pending, etc.)
             db.session.commit()
             
-            # WebSocket-Update senden
-            socketio.emit('music:wish_added', {
-                'wish_id': existing.id,
-                'title': existing.title,
-                'artist': existing.artist,
-                'provider': existing.provider,
-                'wish_count': existing.wish_count
+            # WebSocket-Update senden mit vollständigen Daten
+            socketio.emit('music:wish_updated', {
+                'wish': {
+                    'id': existing.id,
+                    'title': existing.title,
+                    'artist': existing.artist or '',
+                    'provider': existing.provider,
+                    'image_url': existing.image_url or '',
+                    'wish_count': existing.wish_count,
+                    'status': existing.status,
+                    'created_at': existing.created_at.isoformat() if existing.created_at else None
+                }
             }, namespace='/')
             
             return jsonify({'success': True, 'message': f'Wunschzähler erhöht ({existing.wish_count}x gewünscht)'})
@@ -81,13 +86,18 @@ def public_wishlist():
         db.session.add(wish)
         db.session.commit()
         
-        # WebSocket-Update senden
+        # WebSocket-Update senden mit vollständigen Daten
         socketio.emit('music:wish_added', {
-            'wish_id': wish.id,
-            'title': wish.title,
-            'artist': wish.artist,
-            'provider': wish.provider,
-            'wish_count': wish.wish_count
+            'wish': {
+                'id': wish.id,
+                'title': wish.title,
+                'artist': wish.artist or '',
+                'provider': wish.provider,
+                'image_url': wish.image_url or '',
+                'wish_count': wish.wish_count,
+                'status': wish.status,
+                'created_at': wish.created_at.isoformat() if wish.created_at else None
+            }
         }, namespace='/')
         
         return jsonify({'success': True, 'message': 'Lied zur Wunschliste hinzugefügt'})
@@ -103,6 +113,7 @@ def public_search():
     """Öffentliche Suche nach Liedern über alle aktivierten Provider."""
     
     query = request.json.get('query', '').strip()
+    include_recommendations = request.json.get('recommendations', True)  # Default: True
     
     if not query:
         return jsonify({'error': 'Suchbegriff erforderlich'}), 400
@@ -111,8 +122,19 @@ def public_search():
         # Verwende Multi-Provider-Suche (automatisch über alle aktivierten Provider)
         # Übergebe user_id wenn Benutzer eingeloggt ist (für Spotify OAuth)
         user_id = current_user.id if current_user.is_authenticated else None
-        results = search_music_multi_provider(query, limit=10, min_results=5, user_id=user_id)
-        return jsonify({'results': results})
+        search_result = search_music_multi_provider(
+            query, 
+            limit=10, 
+            min_results=5, 
+            user_id=user_id,
+            include_recommendations=include_recommendations
+        )
+        
+        # search_result ist jetzt ein Dictionary mit 'results' und 'recommendations'
+        return jsonify({
+            'results': search_result.get('results', []),
+            'recommendations': search_result.get('recommendations', [])
+        })
     except Exception as e:
         logger.error(f"Fehler bei Multi-Provider-Suche: {e}", exc_info=True)
         return jsonify({'error': f'Fehler bei der Suche: {str(e)}'}), 500
@@ -124,23 +146,30 @@ def public_search():
 @check_module_access('module_music')
 def index():
     """Hauptseite für Musikmodul - Warteschlangen-Verwaltung."""
-    # Hole Wunschliste
-    wishes = MusicWish.query.filter_by(status='pending').order_by(MusicWish.created_at.desc()).all()
+    # Optimiertes Initial-Load: Nur Counts und erste Tab-Daten laden
+    # Nur Wunschliste für ersten Tab laden (maximal 50 Einträge)
+    wishes = MusicWish.query.filter_by(status='pending').order_by(
+        MusicWish.created_at.desc()
+    ).limit(50).all()
     
-    # Hole Warteschlange
+    # Hole Warteschlange (sollte normalerweise nicht zu groß sein)
     queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
     
     # Hole aktuell spielendes Lied
     playing = MusicQueue.query.filter_by(status='playing').first()
     
-    # Hole bereits gespielte Lieder
-    played_wishes = MusicWish.query.filter_by(status='played').order_by(MusicWish.updated_at.desc()).all()
+    # Counts für andere Tabs (werden per API geladen)
+    wish_count = MusicWish.query.filter_by(status='pending').count()
+    queue_count = MusicQueue.query.filter_by(status='pending').count()
+    played_count = MusicWish.query.filter_by(status='played').count()
     
     return render_template('music/index.html',
                          wishes=wishes,
                          queue=queue,
                          playing=playing,
-                         played_wishes=played_wishes)
+                         wish_count=wish_count,
+                         queue_count=queue_count,
+                         played_count=played_count)
 
 
 @music_bp.route('/wishlist/add-to-queue', methods=['POST'])
@@ -192,11 +221,41 @@ def add_to_queue():
     db.session.add(queue_entry)
     db.session.commit()
     
-    # WebSocket-Update senden
+    # Lade vollständige Queue-Daten für SocketIO-Update
+    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    # WebSocket-Update senden mit vollständigen Queue-Daten
     socketio.emit('music:queue_updated', {
         'action': 'added',
-        'queue_id': queue_entry.id,
-        'wish_id': wish_id
+        'queue': queue_data
+    }, namespace='/')
+    
+    # Sende auch Wish-Update (Status geändert)
+    socketio.emit('music:wish_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'status': wish.status,
+            'created_at': wish.created_at.isoformat() if wish.created_at else None
+        }
     }, namespace='/')
     
     return jsonify({'success': True})
@@ -244,11 +303,27 @@ def move_queue_item():
     queue_entry.position = new_position
     db.session.commit()
     
-    # WebSocket-Update senden
+    # Lade vollständige Queue-Daten für SocketIO-Update
+    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    # WebSocket-Update senden mit vollständigen Queue-Daten
     socketio.emit('music:queue_updated', {
         'action': 'moved',
-        'queue_id': queue_id,
-        'new_position': new_position
+        'queue': queue_data
     }, namespace='/')
     
     return jsonify({'success': True})
@@ -285,10 +360,41 @@ def remove_from_queue():
     
     db.session.commit()
     
-    # WebSocket-Update senden
+    # Lade vollständige Queue-Daten für SocketIO-Update
+    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    # WebSocket-Update senden mit vollständigen Queue-Daten
     socketio.emit('music:queue_updated', {
         'action': 'removed',
-        'queue_id': queue_id
+        'queue': queue_data
+    }, namespace='/')
+    
+    # Sende auch Wish-Update (Status geändert zu 'played')
+    socketio.emit('music:wish_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'status': wish.status,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        }
     }, namespace='/')
     
     return jsonify({'success': True})
@@ -310,9 +416,10 @@ def clear_queue():
     
     db.session.commit()
     
-    # WebSocket-Update senden
+    # WebSocket-Update senden mit leerer Queue
     socketio.emit('music:queue_updated', {
-        'action': 'cleared'
+        'action': 'cleared',
+        'queue': []
     }, namespace='/')
     
     return jsonify({'success': True})
@@ -355,9 +462,12 @@ def reset_all():
     
     # WebSocket-Updates senden
     socketio.emit('music:queue_updated', {
-        'action': 'cleared'
+        'action': 'cleared',
+        'queue': []
     }, namespace='/')
-    socketio.emit('music:wishlist_cleared', {}, namespace='/')
+    socketio.emit('music:wishlist_cleared', {
+        'wishes': []
+    }, namespace='/')
     
     return jsonify({'success': True})
 
@@ -559,4 +669,84 @@ def api_queue_list():
         })
     
     return jsonify({'queue': queue_data})
+
+
+@music_bp.route('/api/wishlist/list')
+@login_required
+@check_module_access('module_music')
+def api_wishlist_list():
+    """Gibt paginierte Wunschliste als JSON zurück."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    # Begrenze per_page auf maximal 100
+    per_page = min(per_page, 100)
+    
+    pagination = MusicWish.query.filter_by(status='pending').order_by(
+        MusicWish.created_at.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    wishes_data = []
+    for wish in pagination.items:
+        wishes_data.append({
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'created_at': wish.created_at.isoformat() if wish.created_at else None
+        })
+    
+    return jsonify({
+        'wishes': wishes_data,
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    })
+
+
+@music_bp.route('/api/played/list')
+@login_required
+@check_module_access('module_music')
+def api_played_list():
+    """Gibt paginierte Liste der bereits gespielten Lieder als JSON zurück."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    # Begrenze per_page auf maximal 100
+    per_page = min(per_page, 100)
+    
+    pagination = MusicWish.query.filter_by(status='played').order_by(
+        MusicWish.updated_at.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    played_data = []
+    for wish in pagination.items:
+        played_data.append({
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        })
+    
+    return jsonify({
+        'played': played_data,
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    })
 
