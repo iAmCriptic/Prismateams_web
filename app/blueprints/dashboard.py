@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from flask_socketio import join_room
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import ChatMessage, ChatMember
 from app.models.email import EmailMessage, EmailPermission
@@ -8,10 +9,13 @@ from app.models.canvas import Canvas
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
-from app import db
+from app import db, socketio
 from app.utils.common import is_module_enabled, check_for_updates
 from datetime import datetime, date
 from sqlalchemy import and_
+import logging
+
+logger = logging.getLogger(__name__)
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -19,132 +23,171 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/dashboard')
 @login_required
 def index():
-    """Main dashboard view."""
+    """Main dashboard view.
+    Optimiert für schnelle Ladezeiten, auch wenn E-Mail-Sync läuft."""
     
     # Sicherstelle, dass der aktuelle Benutzer E-Mail-Berechtigungen hat
-    if current_user.is_admin:
-        current_user.ensure_email_permissions()
+    # Nur wenn Admin, und nur einmal pro Session (nicht bei jedem Dashboard-Load)
+    if current_user.is_admin and not session.get('email_permissions_ensured'):
+        try:
+            current_user.ensure_email_permissions()
+            session['email_permissions_ensured'] = True
+        except Exception as e:
+            logger.warning(f"Fehler beim Sicherstellen der E-Mail-Berechtigungen: {e}")
     
     # Lade Dashboard-Konfiguration
     config = current_user.get_dashboard_config()
     enabled_widgets = config.get('enabled_widgets', [])
     
     # Widget-Daten nur laden, wenn Widget aktiviert ist UND Modul aktiviert ist
+    # Verwende optimierte Abfragen mit expliziten Limits und Indizes
     upcoming_events = []
     if 'termine' in enabled_widgets and is_module_enabled('module_calendar'):
-        upcoming_events = CalendarEvent.query.filter(
-            CalendarEvent.start_time >= datetime.utcnow()
-        ).order_by(CalendarEvent.start_time).limit(3).all()
+        try:
+            upcoming_events = CalendarEvent.query.filter(
+                CalendarEvent.start_time >= datetime.utcnow()
+            ).order_by(CalendarEvent.start_time).limit(3).all()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Termine: {e}")
     
     unread_messages = []
     if 'nachrichten' in enabled_widgets and is_module_enabled('module_chat'):
-        user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
-        for membership in user_chats:
-            messages = ChatMessage.query.filter(
-                and_(
-                    ChatMessage.chat_id == membership.chat_id,
-                    ChatMessage.created_at > membership.last_read_at,
-                    ChatMessage.sender_id != current_user.id,
-                    ChatMessage.is_deleted == False
-                )
-            ).order_by(ChatMessage.created_at.desc()).limit(5).all()
-            unread_messages.extend(messages)
-        # Sort by newest first and limit to 5
-        unread_messages = sorted(unread_messages, key=lambda x: x.created_at, reverse=True)[:5]
+        try:
+            user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
+            for membership in user_chats:
+                messages = ChatMessage.query.filter(
+                    and_(
+                        ChatMessage.chat_id == membership.chat_id,
+                        ChatMessage.created_at > membership.last_read_at,
+                        ChatMessage.sender_id != current_user.id,
+                        ChatMessage.is_deleted == False
+                    )
+                ).order_by(ChatMessage.created_at.desc()).limit(5).all()
+                unread_messages.extend(messages)
+            # Sort by newest first and limit to 5
+            unread_messages = sorted(unread_messages, key=lambda x: x.created_at, reverse=True)[:5]
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Nachrichten: {e}")
     
     recent_emails = []
     if 'emails' in enabled_widgets and is_module_enabled('module_email'):
-        email_perm = EmailPermission.query.filter_by(user_id=current_user.id).first()
-        if email_perm and email_perm.can_read:
-            recent_emails = EmailMessage.query.filter_by(
-                is_sent=False,
-                folder='INBOX'
-            ).order_by(EmailMessage.received_at.desc()).limit(5).all()
+        try:
+            email_perm = EmailPermission.query.filter_by(user_id=current_user.id).first()
+            if email_perm and email_perm.can_read:
+                recent_emails = EmailMessage.query.filter_by(
+                    is_sent=False,
+                    folder='INBOX'
+                ).order_by(EmailMessage.received_at.desc()).limit(5).all()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der E-Mails: {e}")
     
     recent_files = []
     if 'dateien' in enabled_widgets and is_module_enabled('module_files'):
-        recent_files = File.query.filter_by(
-            uploaded_by=current_user.id
-        ).order_by(File.updated_at.desc()).limit(3).all()
+        try:
+            recent_files = File.query.filter_by(
+                uploaded_by=current_user.id
+            ).order_by(File.updated_at.desc()).limit(3).all()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Dateien: {e}")
     
     recent_canvases = []
     if 'canvas' in enabled_widgets and is_module_enabled('module_canvas'):
-        recent_canvases = Canvas.query.filter_by(
-            created_by=current_user.id
-        ).order_by(Canvas.updated_at.desc()).limit(3).all()
+        try:
+            recent_canvases = Canvas.query.filter_by(
+                created_by=current_user.id
+            ).order_by(Canvas.updated_at.desc()).limit(3).all()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Canvas: {e}")
     
     # Neue Wikieinträge Widget
     recent_wiki_pages = []
     if 'neue_wikieintraege' in enabled_widgets and is_module_enabled('module_wiki'):
-        recent_wiki_pages = WikiPage.query.order_by(
-            WikiPage.updated_at.desc()
-        ).limit(3).all()
+        try:
+            recent_wiki_pages = WikiPage.query.order_by(
+                WikiPage.updated_at.desc()
+            ).limit(3).all()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Wiki-Seiten: {e}")
     
     # Meine Wikis Widget (Favoriten)
     my_wiki_favorites = []
     if 'meine_wikis' in enabled_widgets and is_module_enabled('module_wiki'):
-        favorites = WikiFavorite.query.filter_by(
-            user_id=current_user.id
-        ).order_by(WikiFavorite.created_at.desc()).limit(5).all()
-        my_wiki_favorites = [fav.wiki_page for fav in favorites]
+        try:
+            favorites = WikiFavorite.query.filter_by(
+                user_id=current_user.id
+            ).order_by(WikiFavorite.created_at.desc()).limit(5).all()
+            my_wiki_favorites = [fav.wiki_page for fav in favorites if fav.wiki_page]
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Wiki-Favoriten: {e}")
     
     # Meine Ausleihen Widget
     my_borrow_groups = []
     if 'meine_ausleihen' in enabled_widgets and is_module_enabled('module_inventory'):
-        borrows = BorrowTransaction.query.filter_by(
-            borrower_id=current_user.id,
-            status='active'
-        ).order_by(BorrowTransaction.borrow_date.desc()).all()
-        
-        # Gruppiere nach borrow_group_id (oder transaction_number für Einzelausleihen)
-        grouped = {}
-        for b in borrows:
-            group_key = b.borrow_group_id if b.borrow_group_id else b.transaction_number
+        try:
+            borrows = BorrowTransaction.query.filter_by(
+                borrower_id=current_user.id,
+                status='active'
+            ).order_by(BorrowTransaction.borrow_date.desc()).all()
             
-            if group_key not in grouped:
-                grouped[group_key] = {
-                    'borrow_group_id': b.borrow_group_id,
-                    'borrow_date': b.borrow_date,
-                    'expected_return_date': b.expected_return_date,
-                    'transactions': [],
-                    'product_count': 0,
-                    'is_overdue': False
-                }
+            # Gruppiere nach borrow_group_id (oder transaction_number für Einzelausleihen)
+            grouped = {}
+            for b in borrows:
+                group_key = b.borrow_group_id if b.borrow_group_id else b.transaction_number
+                
+                if group_key not in grouped:
+                    grouped[group_key] = {
+                        'borrow_group_id': b.borrow_group_id,
+                        'borrow_date': b.borrow_date,
+                        'expected_return_date': b.expected_return_date,
+                        'transactions': [],
+                        'product_count': 0,
+                        'is_overdue': False
+                    }
+                
+                grouped[group_key]['transactions'].append(b)
+                grouped[group_key]['product_count'] += 1
+                
+                # Aktualisiere erwartetes Rückgabedatum (spätestes Datum)
+                if b.expected_return_date and grouped[group_key]['expected_return_date']:
+                    if b.expected_return_date > grouped[group_key]['expected_return_date']:
+                        grouped[group_key]['expected_return_date'] = b.expected_return_date
+                
+                # Prüfe ob überfällig
+                if b.is_overdue:
+                    grouped[group_key]['is_overdue'] = True
             
-            grouped[group_key]['transactions'].append(b)
-            grouped[group_key]['product_count'] += 1
-            
-            # Aktualisiere erwartetes Rückgabedatum (spätestes Datum)
-            if b.expected_return_date > grouped[group_key]['expected_return_date']:
-                grouped[group_key]['expected_return_date'] = b.expected_return_date
-            
-            # Prüfe ob überfällig
-            if b.is_overdue:
-                grouped[group_key]['is_overdue'] = True
-        
-        # Konvertiere zu Liste und sortiere nach Ausleihdatum (neueste zuerst)
-        my_borrow_groups = sorted(grouped.values(), key=lambda x: x['borrow_date'], reverse=True)
+            # Konvertiere zu Liste und sortiere nach Ausleihdatum (neueste zuerst)
+            my_borrow_groups = sorted(grouped.values(), key=lambda x: x['borrow_date'], reverse=True)
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Ausleihen: {e}")
     
     # Buchungen Widget
     new_booking_requests = []
     total_pending_bookings = 0
     if 'buchungen' in enabled_widgets and is_module_enabled('module_booking'):
-        new_booking_requests = BookingRequest.query.filter_by(
-            status='pending'
-        ).order_by(BookingRequest.created_at.desc()).limit(3).all()
-        
-        # Gesamtanzahl für Indikator
-        total_pending_bookings = BookingRequest.query.filter_by(
-            status='pending'
-        ).count()
+        try:
+            new_booking_requests = BookingRequest.query.filter_by(
+                status='pending'
+            ).order_by(BookingRequest.created_at.desc()).limit(3).all()
+            
+            # Gesamtanzahl für Indikator (nur wenn Widget aktiviert)
+            total_pending_bookings = BookingRequest.query.filter_by(
+                status='pending'
+            ).count()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Buchungen: {e}")
     
     # Prüfe ob Setup gerade abgeschlossen wurde
     setup_completed = session.pop('setup_completed', False)
     
-    # Prüfe auf Updates (nur für Administratoren)
+    # Prüfe auf Updates (nur für Administratoren, aber nicht blockierend)
     update_info = None
     if current_user.is_admin and current_user.show_update_notifications:
-        update_info = check_for_updates()
+        try:
+            update_info = check_for_updates()
+        except Exception as e:
+            logger.warning(f"Fehler beim Prüfen auf Updates: {e}")
+            # Update-Info ist nicht kritisch, Dashboard kann ohne geladen werden
     
     return render_template(
         'dashboard/index.html',
@@ -192,7 +235,10 @@ def edit():
             'inventory': 'inventory',
             'wiki': 'wiki',
             'booking': 'booking',
-            'music': 'music'
+            'music': 'music',
+            'settings': 'settings',
+            'profile': 'profile',
+            'logout': 'logout'
         }
         for link_key, link_value in available_links.items():
             if request.form.get(f'link_{link_key}') == 'on':
@@ -254,4 +300,22 @@ def api_update_banner():
     
     return jsonify({'error': 'Ungültige Aktion.'}), 400
 
+
+@socketio.on('dashboard:join')
+def handle_dashboard_join(data):
+    """Register client connections for dashboard updates."""
+    user_id = None
+    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+        user_id = getattr(current_user, 'id', None)
+    
+    if not user_id:
+        return
+    
+    room = f'dashboard_user_{user_id}'
+    join_room(room)
+    if current_app:
+        try:
+            current_app.logger.debug(f"Dashboard: Benutzer {user_id} hat Raum {room} betreten.")
+        except Exception:
+            pass
 

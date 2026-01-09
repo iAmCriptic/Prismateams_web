@@ -43,7 +43,7 @@ class MusicProviderToken(db.Model):
 class MusicWish(db.Model):
     __tablename__ = 'music_wishes'
     id = db.Column(db.Integer, primary_key=True)
-    provider = db.Column(db.String(20), nullable=False)  # 'spotify' or 'youtube'
+    provider = db.Column(db.String(20), nullable=False)  # 'spotify', 'youtube', 'musicbrainz'
     track_id = db.Column(db.String(100), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     artist = db.Column(db.String(255), nullable=True)
@@ -90,4 +90,64 @@ class MusicSettings(db.Model):
 
     def __repr__(self):
         return f'<MusicSettings {self.key}={self.value}>'
+    
+    @staticmethod
+    def get_enabled_providers():
+        """Gibt die Liste der aktivierten Provider zurück."""
+        setting = MusicSettings.query.filter_by(key='enabled_providers').first()
+        if setting and setting.value:
+            try:
+                return json.loads(setting.value)
+            except:
+                return []
+        return []
+    
+    @staticmethod
+    def set_enabled_providers(providers):
+        """Setzt die Liste der aktivierten Provider."""
+        setting = MusicSettings.query.filter_by(key='enabled_providers').first()
+        if setting:
+            setting.value = json.dumps(providers)
+        else:
+            setting = MusicSettings(
+                key='enabled_providers',
+                value=json.dumps(providers),
+                description='Aktivierte Musik-Provider (JSON-Array)'
+            )
+            db.session.add(setting)
+        db.session.commit()
+    
+    @staticmethod
+    def get_provider_order():
+        """Gibt die Reihenfolge der Provider zurück."""
+        setting = MusicSettings.query.filter_by(key='provider_order').first()
+        if setting and setting.value:
+            try:
+                return json.loads(setting.value)
+            except:
+                # Fallback: Standard-Reihenfolge
+                return ['spotify', 'youtube', 'musicbrainz']
+        # Fallback: Standard-Reihenfolge
+        return ['spotify', 'youtube', 'musicbrainz']
+    
+    @staticmethod
+    def set_provider_order(order):
+        """Setzt die Reihenfolge der Provider."""
+        setting = MusicSettings.query.filter_by(key='provider_order').first()
+        if setting:
+            setting.value = json.dumps(order)
+        else:
+            setting = MusicSettings(
+                key='provider_order',
+                value=json.dumps(order),
+                description='Reihenfolge der Musik-Provider für Suche (JSON-Array)'
+            )
+            db.session.add(setting)
+        db.session.commit()
+    
+    @staticmethod
+    def is_provider_enabled(provider):
+        """Prüft ob ein Provider aktiviert ist."""
+        enabled = MusicSettings.get_enabled_providers()
+        return provider in enabled
 

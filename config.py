@@ -13,14 +13,14 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_recycle': 280,
-        'pool_pre_ping': True,
-        'pool_timeout': 20,
-        'pool_size': 10,
-        'max_overflow': 20,
+        'pool_pre_ping': True,  # Prüft Verbindungen vor Verwendung, verhindert "Connection lost" Fehler
+        'pool_timeout': 10,  # Reduziert von 20 auf 10 Sekunden für schnellere Fehlerbehandlung
+        'pool_size': 15,  # Erhöht von 10 auf 15 für bessere Parallelität (Musiktool + Dashboard + E-Mail-Sync)
+        'max_overflow': 25,  # Erhöht von 20 auf 25 für mehr gleichzeitige Verbindungen
         'connect_args': {
-            'connect_timeout': 10,
-            'read_timeout': 300,
-            'write_timeout': 300,
+            'connect_timeout': 5,  # Reduziert von 10 auf 5 Sekunden für schnellere Timeouts
+            'read_timeout': 30,  # Reduziert von 300 auf 30 Sekunden (ausreichend für normale Abfragen)
+            'write_timeout': 30,  # Reduziert von 300 auf 30 Sekunden
         }
     }
     

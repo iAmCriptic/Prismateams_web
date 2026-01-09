@@ -7,10 +7,13 @@ from app.utils.music_oauth import (
     handle_spotify_callback, handle_youtube_callback,
     is_provider_connected, disconnect_provider
 )
-from app.utils.music_api import search_music, get_track
+from app.utils.music_api import search_music, get_track, search_music_multi_provider
 from app.utils.access_control import check_module_access
 from datetime import datetime
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 music_bp = Blueprint('music', __name__, url_prefix='/music')
 
@@ -20,26 +23,9 @@ music_bp = Blueprint('music', __name__, url_prefix='/music')
 def public_wishlist():
     """Öffentliche Wunschliste - Suche und Hinzufügen von Liedern."""
     
-    # Für die Suche benötigen wir einen verbundenen Account
-    # Wir verwenden den ersten verfügbaren Admin-Account
-    admin_user = None
-    spotify_connected = False
-    youtube_connected = False
-    
-    if current_user.is_authenticated:
-        admin_user = current_user
-        spotify_connected = is_provider_connected(current_user.id, 'spotify')
-        youtube_connected = is_provider_connected(current_user.id, 'youtube')
-    else:
-        # Suche nach einem Admin mit verbundenem Account
-        from app.models.user import User
-        admins = User.query.filter_by(is_admin=True).all()
-        for admin in admins:
-            if is_provider_connected(admin.id, 'spotify') or is_provider_connected(admin.id, 'youtube'):
-                admin_user = admin
-                spotify_connected = is_provider_connected(admin.id, 'spotify')
-                youtube_connected = is_provider_connected(admin.id, 'youtube')
-                break
+    # Prüfe ob Provider aktiviert sind
+    enabled_providers = MusicSettings.get_enabled_providers()
+    has_providers = len(enabled_providers) > 0
     
     if request.method == 'POST':
         # Lied zur Wunschliste hinzufügen
@@ -108,41 +94,28 @@ def public_wishlist():
     
     # GET: Zeige Suchseite
     return render_template('music/public_wishlist.html', 
-                         admin_user=admin_user,
-                         spotify_connected=spotify_connected,
-                         youtube_connected=youtube_connected)
+                         has_providers=has_providers,
+                         enabled_providers=enabled_providers)
 
 
 @music_bp.route('/wishlist/search', methods=['POST'])
 def public_search():
-    """Öffentliche Suche nach Liedern."""
+    """Öffentliche Suche nach Liedern über alle aktivierten Provider."""
     
-    provider = request.json.get('provider', '').strip()
     query = request.json.get('query', '').strip()
     
-    if not provider or not query:
-        return jsonify({'error': 'Provider und Suchbegriff erforderlich'}), 400
-    
-    # Suche nach Admin mit verbundenem Account
-    admin_user = None
-    if current_user.is_authenticated and (is_provider_connected(current_user.id, provider) or current_user.is_admin):
-        admin_user = current_user
-    else:
-        from app.models.user import User
-        admins = User.query.filter_by(is_admin=True).all()
-        for admin in admins:
-            if is_provider_connected(admin.id, provider):
-                admin_user = admin
-                break
-    
-    if not admin_user:
-        return jsonify({'error': 'Kein verbundener Account für diesen Provider gefunden'}), 400
+    if not query:
+        return jsonify({'error': 'Suchbegriff erforderlich'}), 400
     
     try:
-        results = search_music(admin_user.id, provider, query, limit=10)
+        # Verwende Multi-Provider-Suche (automatisch über alle aktivierten Provider)
+        # Übergebe user_id wenn Benutzer eingeloggt ist (für Spotify OAuth)
+        user_id = current_user.id if current_user.is_authenticated else None
+        results = search_music_multi_provider(query, limit=10, min_results=5, user_id=user_id)
         return jsonify({'results': results})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Fehler bei Multi-Provider-Suche: {e}", exc_info=True)
+        return jsonify({'error': f'Fehler bei der Suche: {str(e)}'}), 500
 
 
 # Admin-Routen (Login erforderlich)
@@ -543,4 +516,47 @@ def download_public_link_pdf():
             'Content-Disposition': 'attachment; filename=musikwuensche.pdf'
         }
     )
+
+
+@music_bp.route('/api/wishlist/count')
+@login_required
+@check_module_access('module_music')
+def api_wishlist_count():
+    """Gibt die Anzahl der Wünsche zurück."""
+    count = MusicWish.query.filter_by(status='pending').count()
+    return jsonify({'count': count})
+
+
+@music_bp.route('/api/queue/count')
+@login_required
+@check_module_access('module_music')
+def api_queue_count():
+    """Gibt die Anzahl der Queue-Einträge zurück."""
+    count = MusicQueue.query.filter_by(status='pending').count()
+    return jsonify({'count': count})
+
+
+@music_bp.route('/api/queue/list')
+@login_required
+@check_module_access('module_music')
+def api_queue_list():
+    """Gibt die aktuelle Queue als JSON zurück."""
+    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist,
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url,
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    return jsonify({'queue': queue_data})
 

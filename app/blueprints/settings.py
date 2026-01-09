@@ -252,14 +252,19 @@ def appearance():
         accent_gradient = request.form.get('accent_gradient', '').strip()
         dark_mode = request.form.get('dark_mode') == 'on'
         oled_mode = request.form.get('oled_mode') == 'on'
+        preferred_layout = request.form.get('preferred_layout', 'auto')
 
         if selected_language and selected_language not in language_codes:
             flash(translate('settings.appearance.flash_invalid_language'), 'danger')
             return redirect(url_for('settings.appearance'))
 
+        if preferred_layout not in ['auto', 'mobile', 'desktop']:
+            preferred_layout = 'auto'
+
         current_user.accent_color = accent_color
         current_user.dark_mode = dark_mode
         current_user.oled_mode = oled_mode if dark_mode else False
+        current_user.preferred_layout = preferred_layout
 
         if color_type == 'gradient' and accent_gradient:
             current_user.accent_gradient = accent_gradient
@@ -1197,13 +1202,30 @@ def admin_music():
     from app.utils.music_oauth import is_provider_connected
     
     if request.method == 'POST':
-        # Speichere OAuth-Credentials
+        # Speichere Provider-Aktivierung
+        enabled_providers = []
+        available_providers = ['spotify', 'youtube', 'musicbrainz']
+        for provider in available_providers:
+            if request.form.get(f'provider_enabled_{provider}') == 'on':
+                enabled_providers.append(provider)
+        MusicSettings.set_enabled_providers(enabled_providers)
+        
+        # Speichere Provider-Reihenfolge
+        provider_order_json = request.form.get('provider_order', '')
+        if provider_order_json:
+            import json
+            try:
+                provider_order = json.loads(provider_order_json)
+                # Filtere nur aktivierte Provider
+                provider_order = [p for p in provider_order if p in enabled_providers]
+                MusicSettings.set_provider_order(provider_order)
+            except:
+                pass
+        
+        # Spotify Settings (OAuth Client ID/Secret für Benutzer-Login)
         spotify_client_id = request.form.get('spotify_client_id', '').strip()
         spotify_client_secret = request.form.get('spotify_client_secret', '').strip()
-        youtube_client_id = request.form.get('youtube_client_id', '').strip()
-        youtube_client_secret = request.form.get('youtube_client_secret', '').strip()
         
-        # Spotify Settings
         spotify_id_setting = MusicSettings.query.filter_by(key='spotify_client_id').first()
         if spotify_id_setting:
             spotify_id_setting.value = spotify_client_id
@@ -1215,22 +1237,33 @@ def admin_music():
         if spotify_secret_setting:
             spotify_secret_setting.value = spotify_client_secret
         else:
-            spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify OAuth Client Secret')
+            spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify Client Secret')
             db.session.add(spotify_secret_setting)
         
-        # YouTube Settings
+        # YouTube Settings (API-Key oder OAuth)
+        youtube_api_key = request.form.get('youtube_api_key', '').strip()
+        youtube_client_id = request.form.get('youtube_client_id', '').strip()
+        youtube_client_secret = request.form.get('youtube_client_secret', '').strip()
+        
+        youtube_api_key_setting = MusicSettings.query.filter_by(key='youtube_api_key').first()
+        if youtube_api_key_setting:
+            youtube_api_key_setting.value = youtube_api_key
+        else:
+            youtube_api_key_setting = MusicSettings(key='youtube_api_key', value=youtube_api_key, description='YouTube API-Key (vereinfacht, kein OAuth)')
+            db.session.add(youtube_api_key_setting)
+        
         youtube_id_setting = MusicSettings.query.filter_by(key='youtube_client_id').first()
         if youtube_id_setting:
             youtube_id_setting.value = youtube_client_id
         else:
-            youtube_id_setting = MusicSettings(key='youtube_client_id', value=youtube_client_id, description='YouTube OAuth Client ID')
+            youtube_id_setting = MusicSettings(key='youtube_client_id', value=youtube_client_id, description='YouTube OAuth Client ID (optional)')
             db.session.add(youtube_id_setting)
         
         youtube_secret_setting = MusicSettings.query.filter_by(key='youtube_client_secret').first()
         if youtube_secret_setting:
             youtube_secret_setting.value = youtube_client_secret
         else:
-            youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret')
+            youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret (optional)')
             db.session.add(youtube_secret_setting)
         
         db.session.commit()
@@ -1238,22 +1271,28 @@ def admin_music():
         return redirect(url_for('settings.admin_music'))
     
     # GET: Zeige Einstellungsseite
+    enabled_providers = MusicSettings.get_enabled_providers()
+    provider_order = MusicSettings.get_provider_order()
+    
     spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
     spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
+    youtube_api_key = MusicSettings.query.filter_by(key='youtube_api_key').first()
     youtube_client_id = MusicSettings.query.filter_by(key='youtube_client_id').first()
     youtube_client_secret = MusicSettings.query.filter_by(key='youtube_client_secret').first()
-    
-    # Prüfe Verbindungsstatus für aktuellen Benutzer
-    spotify_connected = is_provider_connected(current_user.id, 'spotify')
-    youtube_connected = is_provider_connected(current_user.id, 'youtube')
+    # Prüfe Verbindungsstatus (nur für OAuth-basierte Provider)
+    spotify_connected = is_provider_connected(current_user.id, 'spotify') if current_user.is_authenticated else False
+    youtube_connected = is_provider_connected(current_user.id, 'youtube') if current_user.is_authenticated else False
     
     # Redirect URIs
     spotify_redirect_uri = url_for('music.spotify_callback', _external=True)
     youtube_redirect_uri = url_for('music.youtube_callback', _external=True)
     
     return render_template('settings/admin_music.html',
+                         enabled_providers=enabled_providers,
+                         provider_order=provider_order,
                          spotify_client_id=spotify_client_id.value if spotify_client_id else '',
                          spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
+                         youtube_api_key=youtube_api_key.value if youtube_api_key else '',
                          youtube_client_id=youtube_client_id.value if youtube_client_id else '',
                          youtube_client_secret=youtube_client_secret.value if youtube_client_secret else '',
                          spotify_connected=spotify_connected,

@@ -5,8 +5,10 @@ from app.models.chat import Chat, ChatMessage, ChatMember
 from app.models.user import User
 from app.utils.notifications import send_chat_notification
 from app.utils.access_control import check_module_access
+from app.utils.dashboard_events import emit_dashboard_update_multiple
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from sqlalchemy import and_
 import os
 
 chat_bp = Blueprint('chat', __name__)
@@ -179,6 +181,33 @@ def send_message(chat_id):
         print(f"Push-Benachrichtigungen gesendet: {sent_count}")
     except Exception as e:
         print(f"Fehler beim Senden der Push-Benachrichtigungen: {e}")
+    
+    # Sende Dashboard-Updates an alle Chat-Mitglieder (außer dem Sender)
+    try:
+        chat_members = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
+        member_ids = [cm.user_id for cm in chat_members if cm.user_id != current_user.id]
+        
+        if member_ids:
+            # Berechne unread_count für jeden Benutzer
+            for user_id in member_ids:
+                user_memberships = ChatMember.query.filter_by(user_id=user_id).all()
+                unread_count = 0
+                for member in user_memberships:
+                    chat_unread = ChatMessage.query.filter(
+                        and_(
+                            ChatMessage.chat_id == member.chat_id,
+                            ChatMessage.sender_id != user_id,
+                            ChatMessage.created_at > member.last_read_at,
+                            ChatMessage.is_deleted == False
+                        )
+                    ).count()
+                    unread_count += chat_unread
+                
+                # Emittiere Dashboard-Update für jeden Benutzer
+                from app.utils.dashboard_events import emit_dashboard_update
+                emit_dashboard_update(user_id, 'chat_update', {'count': unread_count})
+    except Exception as e:
+        current_app.logger.error(f"Fehler beim Senden der Dashboard-Updates für Chat: {e}")
     
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         from app.utils import get_local_time

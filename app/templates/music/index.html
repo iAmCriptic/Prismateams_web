@@ -257,7 +257,23 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                location.reload();
+                // Aktualisiere Live-Updates statt Seite neu zu laden
+                if (typeof updateQueueDisplay === 'function') {
+                    updateQueueDisplay();
+                }
+                // Entferne Wunsch aus der Anzeige, wenn er zur Queue hinzugefügt wurde
+                const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
+                if (wishItem) {
+                    wishItem.remove();
+                    // Prüfe ob Liste jetzt leer ist
+                    const wishlistContainer = document.querySelector('#wishlist .list-group');
+                    if (wishlistContainer && wishlistContainer.children.length === 0) {
+                        wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+                    }
+                    if (typeof updateWishlistBadge === 'function') {
+                        updateWishlistBadge();
+                    }
+                }
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -294,7 +310,10 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                location.reload();
+                // Aktualisiere Live-Updates statt Seite neu zu laden
+                if (typeof updateQueueDisplay === 'function') {
+                    updateQueueDisplay();
+                }
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -328,7 +347,10 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                location.reload();
+                // Aktualisiere Live-Updates statt Seite neu zu laden
+                if (typeof updateQueueDisplay === 'function') {
+                    updateQueueDisplay();
+                }
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -362,7 +384,10 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                location.reload();
+                // Aktualisiere Live-Updates statt Seite neu zu laden
+                if (typeof clearWishlistDisplay === 'function') {
+                    clearWishlistDisplay();
+                }
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -401,7 +426,23 @@
         .then(data => {
             console.log('Response Data:', data);
             if (data.success) {
-                location.reload();
+                // Aktualisiere Live-Updates statt Seite neu zu laden
+                if (typeof updateQueueDisplay === 'function') {
+                    updateQueueDisplay();
+                }
+                // Entferne Wunsch aus der Anzeige, wenn er zur Queue hinzugefügt wurde
+                const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
+                if (wishItem) {
+                    wishItem.remove();
+                    // Prüfe ob Liste jetzt leer ist
+                    const wishlistContainer = document.querySelector('#wishlist .list-group');
+                    if (wishlistContainer && wishlistContainer.children.length === 0) {
+                        wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+                    }
+                    if (typeof updateWishlistBadge === 'function') {
+                        updateWishlistBadge();
+                    }
+                }
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);

@@ -57,27 +57,26 @@
             <div class="col-lg-8">
                 <div class="card">
                     <div class="card-body">
-                        <div class="mb-4">
-                            <label for="provider-select" class="form-label">Musikdienst auswählen</label>
-                            <select class="form-select" id="provider-select">
-                                {% if spotify_connected %}
-                                <option value="spotify">Spotify</option>
-                                {% endif %}
-                                {% if youtube_connected %}
-                                <option value="youtube">YouTube Music</option>
-                                {% endif %}
-                            </select>
+                        {% if not has_providers %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Keine Musik-Provider aktiviert. Bitte aktivieren Sie mindestens einen Provider in den Einstellungen.
                         </div>
-                        
+                        {% else %}
                         <div class="mb-4">
                             <label for="search-query" class="form-label">Lied suchen</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="search-query" placeholder="Titel, Künstler, Album...">
+                                <input type="text" class="form-control" id="search-query" placeholder="Titel, Künstler, Album... (z.B. 'sido straßenjunge')">
                                 <button class="btn btn-primary" type="button" id="search-btn">
                                     <i class="bi bi-search"></i> Suchen
                                 </button>
                             </div>
+                            <div class="form-text">Die Suche durchsucht automatisch alle aktivierten Provider: 
+                                {% for provider in enabled_providers %}
+                                    {% if provider == 'spotify' %}Spotify{% elif provider == 'youtube' %}YouTube{% elif provider == 'musicbrainz' %}MusicBrainz{% endif %}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </div>
                         </div>
+                        {% endif %}
                         
                         <div id="search-results" class="search-results" style="display: none;">
                             <h5 class="mb-3">Suchergebnisse</h5>
@@ -121,7 +120,6 @@
         });
         
         function performSearch(query) {
-            const provider = document.getElementById('provider-select').value;
             const loading = document.getElementById('loading');
             const resultsDiv = document.getElementById('search-results');
             const resultsList = document.getElementById('results-list');
@@ -137,7 +135,6 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    provider: provider,
                     query: query
                 })
             })
@@ -174,8 +171,13 @@
                         <img src="${track.image_url || '/static/img/logo.png'}" alt="Cover" class="track-image me-3">
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${escapeHtml(track.title)}</h6>
-                            <p class="text-muted mb-1 small">${escapeHtml(track.artist)}</p>
-                            <span class="badge bg-primary provider-badge">${track.provider}</span>
+                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || 'Unbekannter Künstler')}</p>
+                            ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
+                            <span class="badge bg-primary provider-badge">
+                                ${track.provider === 'spotify' ? 'Spotify' : 
+                                  track.provider === 'youtube' ? 'YouTube' : 
+                                  track.provider === 'musicbrainz' ? 'MusicBrainz' : track.provider}
+                            </span>
                         </div>
                         <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
                             <i class="bi bi-plus-circle"></i> Hinzufügen

@@ -5,6 +5,7 @@ from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarF
 from app.models.user import User
 from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
+from app.utils.dashboard_events import emit_dashboard_update_multiple
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import generate_ical_feed, import_events_from_ical
@@ -248,6 +249,26 @@ def create_event():
         
         db.session.commit()
         
+        # Sende Dashboard-Updates an alle aktiven Benutzer
+        try:
+            from app.utils.dashboard_events import emit_dashboard_update
+            from datetime import timedelta
+            
+            # Berechne upcoming_count für alle Benutzer
+            now = datetime.utcnow()
+            week_from_now = now + timedelta(days=7)
+            upcoming_count = CalendarEvent.query.filter(
+                CalendarEvent.start_time > now,
+                CalendarEvent.start_time <= week_from_now
+            ).count()
+            
+            # Emittiere Update für alle aktiven Benutzer
+            for user in active_users:
+                emit_dashboard_update(user.id, 'calendar_update', {'count': upcoming_count})
+        except Exception as e:
+            import logging
+            logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
+        
         flash(f'Termin "{title}" wurde erstellt.', 'success')
         return redirect(url_for('calendar.view_event', event_id=event.id))
     
@@ -318,6 +339,28 @@ def edit_event(event_id):
         event.recurrence_days = recurrence_days if recurrence_days else None
         
         db.session.commit()
+        
+        # Sende Dashboard-Updates an alle Event-Teilnehmer
+        try:
+            from app.utils.dashboard_events import emit_dashboard_update
+            from datetime import timedelta
+            
+            # Berechne upcoming_count
+            now = datetime.utcnow()
+            week_from_now = now + timedelta(days=7)
+            upcoming_count = CalendarEvent.query.filter(
+                CalendarEvent.start_time > now,
+                CalendarEvent.start_time <= week_from_now
+            ).count()
+            
+            # Emittiere Update für alle Event-Teilnehmer
+            participants = EventParticipant.query.filter_by(event_id=event_id).all()
+            for participant in participants:
+                emit_dashboard_update(participant.user_id, 'calendar_update', {'count': upcoming_count})
+        except Exception as e:
+            import logging
+            logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
+        
         flash('Termin wurde aktualisiert.', 'success')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
@@ -351,8 +394,31 @@ def delete_event(event_id):
                 booking_request.calendar_event_id = None
             db.session.delete(instance)
     
+    # Hole Teilnehmer-IDs vor dem Löschen
+    participant_ids = [p.user_id for p in EventParticipant.query.filter_by(event_id=event_id).all()]
+    
     db.session.delete(event)
     db.session.commit()
+    
+    # Sende Dashboard-Updates an alle Event-Teilnehmer
+    try:
+        from app.utils.dashboard_events import emit_dashboard_update
+        from datetime import timedelta
+        
+        # Berechne upcoming_count
+        now = datetime.utcnow()
+        week_from_now = now + timedelta(days=7)
+        upcoming_count = CalendarEvent.query.filter(
+            CalendarEvent.start_time > now,
+            CalendarEvent.start_time <= week_from_now
+        ).count()
+        
+        # Emittiere Update für alle ehemaligen Event-Teilnehmer
+        for user_id in participant_ids:
+            emit_dashboard_update(user_id, 'calendar_update', {'count': upcoming_count})
+    except Exception as e:
+        import logging
+        logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
     
     flash('Termin wurde gelöscht.', 'success')
     return redirect(url_for('calendar.index'))

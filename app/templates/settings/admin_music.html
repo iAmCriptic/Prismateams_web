@@ -18,72 +18,152 @@
                 <h4 class="mb-0"><i class="bi bi-music-note-beamed"></i> {{ _('music.admin.heading') }}</h4>
             </div>
             <div class="card-body">
-                <form method="POST">
-                    <h5 class="mb-3">{{ _('music.admin.spotify.title') }}</h5>
-                    
-                    <div class="mb-3">
-                        <label for="spotify_client_id" class="form-label">{{ _('music.admin.spotify.client_id') }}</label>
-                        <input type="text" class="form-control" id="spotify_client_id" name="spotify_client_id" 
-                               value="{{ spotify_client_id }}" placeholder="{{ _('music.admin.spotify.client_id_placeholder') }}">
-                        <div class="form-text">{{ _('music.admin.spotify.client_id_help', link='<a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer Dashboard</a>')|safe }}</div>
+                <form method="POST" id="musicSettingsForm">
+                    <!-- Provider-Aktivierung und Reihenfolge -->
+                    <h5 class="mb-3">Provider-Aktivierung und Reihenfolge</h5>
+                    <div class="mb-4">
+                        <p class="text-muted">Aktivieren Sie die gewünschten Musik-Provider und legen Sie die Suchreihenfolge fest.</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Aktivierte Provider:</label>
+                            <div class="list-group" id="providerList">
+                                {% set all_providers = [
+                                    {'id': 'spotify', 'name': 'Spotify', 'icon': 'bi-spotify'},
+                                    {'id': 'youtube', 'name': 'YouTube', 'icon': 'bi-youtube'},
+                                    {'id': 'musicbrainz', 'name': 'MusicBrainz', 'icon': 'bi-music-note-list'}
+                                ] %}
+                                
+                                {% for provider in provider_order if provider in ['spotify', 'youtube', 'musicbrainz'] %}
+                                    {% set provider_info = all_providers | selectattr('id', 'equalto', provider) | first %}
+                                    {% if provider_info %}
+                                    <div class="list-group-item d-flex align-items-center provider-item" data-provider="{{ provider }}">
+                                        <input type="checkbox" class="form-check-input me-3" 
+                                               id="provider_enabled_{{ provider }}" 
+                                               name="provider_enabled_{{ provider }}"
+                                               {% if provider in enabled_providers %}checked{% endif %}>
+                                        <i class="bi {{ provider_info.icon }} me-2"></i>
+                                        <label class="form-check-label flex-grow-1 mb-0" for="provider_enabled_{{ provider }}">
+                                            {{ provider_info.name }}
+                                        </label>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary move-up" title="Nach oben">
+                                                <i class="bi bi-arrow-up"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary move-down" title="Nach unten">
+                                                <i class="bi bi-arrow-down"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Füge nicht in Reihenfolge enthaltene Provider hinzu -->
+                                {% for provider_info in all_providers %}
+                                    {% if provider_info.id not in provider_order %}
+                                    <div class="list-group-item d-flex align-items-center provider-item" data-provider="{{ provider_info.id }}">
+                                        <input type="checkbox" class="form-check-input me-3" 
+                                               id="provider_enabled_{{ provider_info.id }}" 
+                                               name="provider_enabled_{{ provider_info.id }}"
+                                               {% if provider_info.id in enabled_providers %}checked{% endif %}>
+                                        <i class="bi {{ provider_info.icon }} me-2"></i>
+                                        <label class="form-check-label flex-grow-1 mb-0" for="provider_enabled_{{ provider_info.id }}">
+                                            {{ provider_info.name }}
+                                        </label>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary move-up" title="Nach oben">
+                                                <i class="bi bi-arrow-up"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary move-down" title="Nach unten">
+                                                <i class="bi bi-arrow-down"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="provider_order" id="provider_order" value="">
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="spotify_client_secret" class="form-label">{{ _('music.admin.spotify.client_secret') }}</label>
-                        <input type="password" class="form-control" id="spotify_client_secret" name="spotify_client_secret" 
-                               value="{{ spotify_client_secret }}" placeholder="{{ _('music.admin.spotify.client_secret_placeholder') }}">
+                    <hr class="my-4">
+                    
+                    <!-- Spotify Konfiguration -->
+                    <h5 class="mb-3">Spotify</h5>
+                    <div class="alert alert-info">
+                        <strong>Hinweis:</strong> Spotify verwendet einfache OAuth-Anmeldung. Benutzer können sich mit ihrem Spotify-Konto anmelden.
                     </div>
                     
                     <div class="alert alert-info alert-permanent" role="alert">
-                        <strong>{{ _('music.admin.spotify.redirect_uri') }}</strong> <code>{{ spotify_redirect_uri }}</code><br>
-                        <small>{{ _('music.admin.spotify.redirect_uri_help') }}</small>
+                        <strong>Redirect URI:</strong> <code>{{ spotify_redirect_uri }}</code><br>
+                        <small>Diese URI muss in Ihrem Spotify Developer Dashboard als Redirect URI eingetragen sein.</small>
                     </div>
                     
                     {% if spotify_connected %}
                     <div class="alert alert-success alert-permanent" role="alert">
-                        <i class="bi bi-check-circle"></i> {{ _('music.admin.spotify.connected') }}
-                        <a href="{{ url_for('music.disconnect', provider='spotify') }}" class="btn btn-sm btn-outline-danger ms-2">{{ _('music.admin.spotify.disconnect') }}</a>
+                        <i class="bi bi-check-circle"></i> Spotify verbunden
+                        <a href="{{ url_for('music.disconnect', provider='spotify') }}" class="btn btn-sm btn-outline-danger ms-2">Trennen</a>
                     </div>
                     {% else %}
                     <div class="alert alert-warning alert-permanent" role="alert">
-                        <i class="bi bi-exclamation-triangle"></i> {{ _('music.admin.spotify.not_connected') }}
-                        <a href="{{ url_for('music.connect_spotify') }}" class="btn btn-sm btn-outline-primary ms-2">{{ _('music.admin.spotify.connect') }}</a>
+                        <i class="bi bi-exclamation-triangle"></i> Spotify nicht verbunden
+                        <a href="{{ url_for('music.connect_spotify') }}" class="btn btn-sm btn-outline-primary ms-2">Mit Spotify verbinden</a>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="spotify_client_id" class="form-label">Client ID</label>
+                        <input type="text" class="form-control" id="spotify_client_id" name="spotify_client_id" 
+                               value="{{ spotify_client_id }}" placeholder="Spotify Client ID">
+                        <div class="form-text">Erhalten Sie Ihre Credentials im <a href="https://developer.spotify.com/dashboard" target="_blank">Spotify Developer Dashboard</a></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="spotify_client_secret" class="form-label">Client Secret</label>
+                        <input type="password" class="form-control" id="spotify_client_secret" name="spotify_client_secret" 
+                               value="{{ spotify_client_secret }}" placeholder="Spotify Client Secret">
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- YouTube Konfiguration -->
+                    <h5 class="mb-3">YouTube</h5>
+                    <div class="alert alert-info">
+                        <strong>Hinweis:</strong> YouTube kann jetzt mit einem einfachen API-Key verwendet werden. OAuth ist optional.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="youtube_api_key" class="form-label">API-Key (empfohlen)</label>
+                        <input type="text" class="form-control" id="youtube_api_key" name="youtube_api_key" 
+                               value="{{ youtube_api_key }}" placeholder="YouTube API-Key">
+                        <div class="form-text">Erhalten Sie einen API-Key in der <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="youtube_client_id" class="form-label">OAuth Client ID (optional)</label>
+                        <input type="text" class="form-control" id="youtube_client_id" name="youtube_client_id" 
+                               value="{{ youtube_client_id }}" placeholder="YouTube OAuth Client ID">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="youtube_client_secret" class="form-label">OAuth Client Secret (optional)</label>
+                        <input type="password" class="form-control" id="youtube_client_secret" name="youtube_client_secret" 
+                               value="{{ youtube_client_secret }}" placeholder="YouTube OAuth Client Secret">
+                    </div>
+                    
+                    {% if youtube_connected %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> YouTube OAuth verbunden
+                        <a href="{{ url_for('music.disconnect', provider='youtube') }}" class="btn btn-sm btn-outline-danger ms-2">Trennen</a>
                     </div>
                     {% endif %}
                     
                     <hr class="my-4">
                     
-                    <h5 class="mb-3">{{ _('music.admin.youtube.title') }}</h5>
-                    
-                    <div class="mb-3">
-                        <label for="youtube_client_id" class="form-label">{{ _('music.admin.youtube.client_id') }}</label>
-                        <input type="text" class="form-control" id="youtube_client_id" name="youtube_client_id" 
-                               value="{{ youtube_client_id }}" placeholder="{{ _('music.admin.youtube.client_id_placeholder') }}">
-                        <div class="form-text">{{ _('music.admin.youtube.client_id_help', link='<a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>')|safe }}</div>
+                    <!-- MusicBrainz -->
+                    <h5 class="mb-3">MusicBrainz</h5>
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> MusicBrainz benötigt keine Konfiguration. Es ist eine öffentliche API ohne Authentifizierung.
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="youtube_client_secret" class="form-label">{{ _('music.admin.youtube.client_secret') }}</label>
-                        <input type="password" class="form-control" id="youtube_client_secret" name="youtube_client_secret" 
-                               value="{{ youtube_client_secret }}" placeholder="{{ _('music.admin.youtube.client_secret_placeholder') }}">
-                    </div>
-                    
-                    <div class="alert alert-info alert-permanent" role="alert">
-                        <strong>{{ _('music.admin.youtube.redirect_uri') }}</strong> <code>{{ youtube_redirect_uri }}</code><br>
-                        <small>{{ _('music.admin.youtube.redirect_uri_help') }}</small>
-                    </div>
-                    
-                    {% if youtube_connected %}
-                    <div class="alert alert-success alert-permanent" role="alert">
-                        <i class="bi bi-check-circle"></i> {{ _('music.admin.youtube.connected') }}
-                        <a href="{{ url_for('music.disconnect', provider='youtube') }}" class="btn btn-sm btn-outline-danger ms-2">{{ _('music.admin.youtube.disconnect') }}</a>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-warning alert-permanent" role="alert">
-                        <i class="bi bi-exclamation-triangle"></i> {{ _('music.admin.youtube.not_connected') }}
-                        <a href="{{ url_for('music.connect_youtube') }}" class="btn btn-sm btn-outline-primary ms-2">{{ _('music.admin.youtube.connect') }}</a>
-                    </div>
-                    {% endif %}
                     
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">
@@ -96,5 +176,45 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const providerList = document.getElementById('providerList');
+    const providerOrderInput = document.getElementById('provider_order');
+    
+    // Initialisiere Reihenfolge
+    function updateProviderOrder() {
+        const providers = Array.from(providerList.querySelectorAll('.provider-item')).map(item => 
+            item.getAttribute('data-provider')
+        );
+        providerOrderInput.value = JSON.stringify(providers);
+    }
+    
+    // Up/Down Buttons
+    providerList.addEventListener('click', function(e) {
+        const btn = e.target.closest('.move-up, .move-down');
+        if (!btn) return;
+        
+        const item = btn.closest('.provider-item');
+        const isUp = btn.classList.contains('move-up');
+        
+        if (isUp) {
+            const prev = item.previousElementSibling;
+            if (prev) {
+                providerList.insertBefore(item, prev);
+            }
+        } else {
+            const next = item.nextElementSibling;
+            if (next) {
+                providerList.insertBefore(next, item);
+            }
+        }
+        
+        updateProviderOrder();
+    });
+    
+    // Initialisiere Reihenfolge beim Laden
+    updateProviderOrder();
+});
+</script>
+{% endblock %}

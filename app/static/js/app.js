@@ -37,12 +37,41 @@ if ('serviceWorker' in navigator) {
 
 // PWA Install Prompt
 let deferredPrompt;
+let promptTimeout = null;
+let promptShown = false;
+
 window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredPrompt = e;
     
     // Zeige Install-Button (optional)
     showInstallButton();
+    
+    // Rufe Prompt automatisch nach 30 Sekunden auf, wenn Benutzer nicht interagiert hat
+    // Dies verhindert die Browser-Warnung, dass prompt() aufgerufen werden muss
+    promptTimeout = setTimeout(function() {
+        if (deferredPrompt && !promptShown) {
+            try {
+                deferredPrompt.prompt();
+                promptShown = true;
+                deferredPrompt.userChoice.then(function(choiceResult) {
+                    deferredPrompt = null;
+                    promptShown = false;
+                });
+            } catch (err) {
+                // Prompt konnte nicht angezeigt werden (z.B. bereits angezeigt oder nicht mehr verfügbar)
+                console.debug('PWA Install Prompt konnte nicht angezeigt werden:', err);
+            }
+        }
+    }, 30000); // 30 Sekunden
+    
+    // Bereinige Timeout beim Verlassen der Seite
+    window.addEventListener('pagehide', function() {
+        if (promptTimeout) {
+            clearTimeout(promptTimeout);
+            promptTimeout = null;
+        }
+    }, { once: true });
 });
 
 function showInstallButton() {
@@ -64,10 +93,18 @@ function showInstallButton() {
 }
 
 function installPWA() {
-    if (deferredPrompt) {
+    if (deferredPrompt && !promptShown) {
+        // Lösche Timeout, da Benutzer manuell installiert
+        if (promptTimeout) {
+            clearTimeout(promptTimeout);
+            promptTimeout = null;
+        }
+        
+        promptShown = true;
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then(function(choiceResult) {
             deferredPrompt = null;
+            promptShown = false;
             
             // Verstecke Install-Button
             const installBtn = document.getElementById('pwa-install-btn');

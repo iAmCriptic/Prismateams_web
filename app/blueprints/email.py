@@ -22,6 +22,7 @@ import io
 from markupsafe import Markup
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy import func, cast, Integer
 import re
 
 from app.utils.email_sender import get_logo_base64, send_email_with_lock
@@ -482,88 +483,118 @@ def sync_emails_from_folder(folder_name):
                     is_archive_folder = folder_name in ['Archive', 'Archives']
                     if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg:
                         if is_archive_folder:
-                            logging.info(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
+                            logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
                         else:
-                            logging.warning(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
+                            logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
                         try:
                             mail_conn.logout()
                         except:
                             pass
                         return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
                     else:
-                        logging.warning(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
+                        logging.debug(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
                         try:
                             mail_conn.logout()
                         except:
                             pass
                         return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
         except Exception as e:
-            logging.warning(f"Exception while selecting folder '{folder_name}': {e}")
+            logging.debug(f"Exception while selecting folder '{folder_name}': {e}")
             try:
                 mail_conn.logout()
             except:
                 pass
             return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {str(e)}"
         
+        # Ermittle die höchste bereits synchronisierte UID für diesen Ordner
+        highest_uid = None
         try:
-            message_count = int(messages[0].decode().split()[1])
-            logging.info(f"Folder '{folder_name}' contains {message_count} messages")
-        except:
-            message_count = 0
+            highest_uid_result = db.session.query(
+                func.max(cast(EmailMessage.imap_uid, Integer))
+            ).filter_by(folder=folder_name).scalar()
+            if highest_uid_result:
+                highest_uid = int(highest_uid_result)
+                logging.debug(f"Highest UID for folder '{folder_name}': {highest_uid}")
+        except Exception as e:
+            logging.debug(f"Could not determine highest UID for folder '{folder_name}': {e}")
         
-        status, messages = mail_conn.search(None, 'ALL')
+        # Suche nur nach neuen E-Mails (UID-basiert)
+        if highest_uid:
+            search_criteria = f'UID {highest_uid + 1}:*'
+            logging.debug(f"Searching for new emails in folder '{folder_name}' with UID > {highest_uid}")
+        else:
+            # Erste Synchronisation: Hole alle E-Mails, aber verarbeite nur die letzten N
+            search_criteria = 'ALL'
+            logging.debug(f"First sync for folder '{folder_name}', fetching all emails")
+        
+        status, messages = mail_conn.search(None, search_criteria)
         if status != 'OK':
             logging.error(f"IMAP search failed for folder '{folder_name}': {messages}")
             return False, f"E-Mail-Suche in Ordner '{folder_name}' fehlgeschlagen: {messages[0].decode() if messages else 'Unbekannter Fehler'}"
         
         email_ids = messages[0].split()
-        logging.info(f"Found {len(email_ids)} email IDs in folder '{folder_name}'")
+        logging.debug(f"Found {len(email_ids)} new email IDs in folder '{folder_name}'")
         
         if len(email_ids) == 0:
-            logging.info(f"No emails found in folder '{folder_name}'")
+            logging.debug(f"No new emails found in folder '{folder_name}'")
             mail_conn.close()
             mail_conn.logout()
-            return True, f"Ordner '{folder_name}': Keine E-Mails vorhanden"
+            return True, f"Ordner '{folder_name}': Keine neuen E-Mails vorhanden"
         
-        synced_count = 0
-        moved_count = 0
-        deleted_count = 0
-        
+        # Für die Prüfung gelöschter E-Mails: Hole alle UIDs vom Server (nur wenn nicht erste Sync)
         current_imap_uids = set()
-        for email_id in email_ids:
-            current_imap_uids.add(email_id.decode())
+        if highest_uid:
+            # Nur wenn wir schon E-Mails haben, prüfen wir auf gelöschte
+            status_all, messages_all = mail_conn.search(None, 'ALL')
+            if status_all == 'OK':
+                all_email_ids = messages_all[0].split()
+                for email_id in all_email_ids:
+                    current_imap_uids.add(email_id.decode())
+                
+                # Optimierte Prüfung: Nur UIDs abfragen statt alle E-Mails
+                existing_uids = db.session.query(EmailMessage.imap_uid).filter_by(
+                    folder=folder_name
+                ).filter(EmailMessage.imap_uid.isnot(None)).all()
+                existing_uid_set = {uid[0] for uid in existing_uids if uid[0]}
+                
+                for existing_uid in existing_uid_set:
+                    if existing_uid not in current_imap_uids:
+                        # E-Mail existiert nicht mehr auf Server
+                        email_obj = EmailMessage.query.filter_by(
+                            imap_uid=existing_uid,
+                            folder=folder_name
+                        ).first()
+                        if email_obj:
+                            if email_obj.is_deleted_imap:
+                                db.session.delete(email_obj)
+                                stats['deleted_emails'] += 1
+                            else:
+                                other_folder_email = EmailMessage.query.filter_by(
+                                    message_id=email_obj.message_id
+                                ).filter(EmailMessage.folder != folder_name).first()
+                                
+                                if other_folder_email:
+                                    db.session.delete(email_obj)
+                                    stats['moved_emails'] += 1
+                                else:
+                                    email_obj.is_deleted_imap = True
+                                    email_obj.last_imap_sync = datetime.utcnow()
+                                    stats['deleted_emails'] += 1
         
-        existing_emails = EmailMessage.query.filter_by(folder=folder_name).all()
-        for email_obj in existing_emails:
-            if email_obj.imap_uid and email_obj.imap_uid not in current_imap_uids:
-                if email_obj.is_deleted_imap:
-                    db.session.delete(email_obj)
-                    stats['deleted_emails'] += 1
-                else:
-                    other_folder_email = EmailMessage.query.filter_by(
-                        message_id=email_obj.message_id
-                    ).filter(EmailMessage.folder != folder_name).first()
-                    
-                    if other_folder_email:
-                        db.session.delete(email_obj)
-                        stats['moved_emails'] += 1
-                    else:
-                        email_obj.is_deleted_imap = True
-                        email_obj.last_imap_sync = datetime.utcnow()
-                        stats['deleted_emails'] += 1
-        
-        max_emails = 100 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] else 30
-        emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
-        logging.info(f"Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
+        # Bei erster Synchronisation: Nur die letzten N E-Mails verarbeiten
+        if not highest_uid:
+            max_emails = 100 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] else 30
+            emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
+            logging.debug(f"First sync: Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
+        else:
+            emails_to_process = email_ids
+            logging.debug(f"Processing {len(emails_to_process)} new emails from folder '{folder_name}'")
         
         for idx, email_id in enumerate(emails_to_process, 1):
             try:
-                if idx % 10 == 0:
-                    logging.debug(f"Processing email {idx}/{len(emails_to_process)} from folder '{folder_name}'")
-                
                 status, msg_data = mail_conn.fetch(email_id, '(RFC822)')
                 if status != 'OK':
-                    logging.warning(f"Failed to fetch email {email_id.decode()} from folder '{folder_name}': {msg_data}")
+                    logging.debug(f"Failed to fetch email {email_id.decode()} from folder '{folder_name}': {msg_data}")
                     stats['errors'] += 1
                     continue
                 
@@ -626,7 +657,7 @@ def sync_emails_from_folder(folder_name):
                         continue
                     except Exception as update_error:
                         if "MySQL server has gone away" in str(update_error) or "ConnectionResetError" in str(update_error):
-                            logging.warning("Database connection lost during update, attempting to reconnect...")
+                            logging.debug("Database connection lost during update, attempting to reconnect...")
                             db.session.rollback()
                             db.session.close()
                             db.session = db.create_scoped_session()
@@ -639,7 +670,7 @@ def sync_emails_from_folder(folder_name):
                                 existing_in_folder.is_deleted_imap = False
                                 stats['updated_emails'] += 1
                                 db.session.commit()
-                                logging.info("Database reconnection successful for update")
+                                logging.debug("Database reconnection successful for update")
                             continue
                         else:
                             raise update_error
@@ -656,7 +687,7 @@ def sync_emails_from_folder(folder_name):
                             continue
                         except Exception as update_error:
                             if "MySQL server has gone away" in str(update_error) or "ConnectionResetError" in str(update_error):
-                                logging.warning("Database connection lost during update, attempting to reconnect...")
+                                logging.debug("Database connection lost during update, attempting to reconnect...")
                                 db.session.rollback()
                                 db.session.close()
                                 db.session = db.create_scoped_session()
@@ -667,7 +698,7 @@ def sync_emails_from_folder(folder_name):
                                     existing_by_message_id.imap_uid = imap_uid_str
                                     stats['updated_emails'] += 1
                                     db.session.commit()
-                                    logging.info("Database reconnection successful for update")
+                                    logging.debug("Database reconnection successful for update")
                                 continue
                             else:
                                 raise update_error
@@ -682,7 +713,7 @@ def sync_emails_from_folder(folder_name):
                             continue
                         except Exception as move_error:
                             if "MySQL server has gone away" in str(move_error) or "ConnectionResetError" in str(move_error):
-                                logging.warning("Database connection lost during move, attempting to reconnect...")
+                                logging.debug("Database connection lost during move, attempting to reconnect...")
                                 db.session.rollback()
                                 db.session.close()
                                 db.session = db.create_scoped_session()
@@ -694,7 +725,7 @@ def sync_emails_from_folder(folder_name):
                                     existing_by_message_id.is_deleted_imap = False
                                     stats['moved_emails'] += 1
                                     db.session.commit()
-                                    logging.info("Database reconnection successful for move")
+                                    logging.debug("Database reconnection successful for move")
                                 continue
                             else:
                                 raise move_error
@@ -742,14 +773,7 @@ def sync_emails_from_folder(folder_name):
                                     if payload:
                                         attachment_size = len(payload)
                                         
-                                        if attachment_size > 1 * 1024 * 1024:
-                                            logging.info(f"Processing large attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - saving to disk")
-                                        else:
-                                            logging.debug(f"Processing attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - saving to database")
-                                        
                                         max_db_size = 1 * 1024 * 1024
-                                        
-                                        logging.info(f"Attachment '{filename}': {attachment_size / (1024*1024):.2f} MB, max_db_size: {max_db_size / (1024*1024):.2f} MB, will store on: {'disk' if attachment_size > max_db_size else 'database'}")
                                         
                                         if attachment_size > max_db_size:
                                             import os
@@ -764,7 +788,7 @@ def sync_emails_from_folder(folder_name):
                                             try:
                                                 with open(file_path, 'wb') as f:
                                                     f.write(payload)
-                                                logging.info(f"Large attachment saved to disk: {file_path}")
+                                                logging.debug(f"Large attachment saved to disk: {file_path}")
                                                 
                                                 attachments_data.append({
                                                     'filename': filename,
@@ -928,9 +952,9 @@ def sync_emails_from_folder(folder_name):
                         if attachment_size > 1 * 1024 * 1024:
                             try:
                                 db.session.flush()
-                                logging.info(f"Successfully flushed attachment '{filename}' ({attachment_size / (1024*1024):.2f} MB) to database")
+                                logging.debug(f"Successfully flushed attachment '{filename}' ({attachment_size / (1024*1024):.2f} MB) to database")
                             except Exception as flush_error:
-                                logging.warning(f"Flush failed for '{filename}', will commit with email: {flush_error}")
+                                logging.debug(f"Flush failed for '{filename}', will commit with email: {flush_error}")
                     except Exception as e:
                         logging.error(f"Error saving attachment '{attachment_data['filename']}' ({attachment_data['size'] / (1024*1024):.2f} MB): {e}")
                         import traceback
@@ -947,7 +971,7 @@ def sync_emails_from_folder(folder_name):
                         db.session.rollback()
                         continue
                     if "MySQL server has gone away" in str(commit_error) or "ConnectionResetError" in str(commit_error):
-                        logging.warning("Database connection lost, attempting to reconnect...")
+                        logging.debug("Database connection lost, attempting to reconnect...")
                         db.session.rollback()
                         db.session.close()
                         db.session = db.create_scoped_session()
@@ -972,7 +996,7 @@ def sync_emails_from_folder(folder_name):
                                 continue
                         db.session.commit()
                         stats['new_emails'] += 1
-                        logging.info("Database reconnection successful")
+                        logging.debug("Database reconnection successful")
                     else:
                         raise commit_error
             except Exception as e:
@@ -1000,15 +1024,27 @@ def sync_emails_from_folder(folder_name):
         mail_conn.close()
         mail_conn.logout()
         
-        print(f"\n--- E-Mail Synchronisation ---")
-        print(f"Ordner: {folder_name}")
-        print(f"Neue E-Mails: {stats['new_emails']}")
-        print(f"Übersprungene E-Mails: {stats['updated_emails']}")
-        print(f"Geänderte E-Mails: {stats['moved_emails']}")
-        print(f"Gelöschte E-Mails: {stats['deleted_emails']}")
-        if stats['errors'] > 0:
-            print(f"Fehler: {stats['errors']}")
-        print(f"--- --- ---\n")
+        # Sende Dashboard-Updates an alle Benutzer mit E-Mail-Berechtigungen (nur wenn neue E-Mails)
+        if stats['new_emails'] > 0:
+            try:
+                from app.utils.dashboard_events import emit_dashboard_update
+                from app.models.user import User
+                
+                # Hole alle Benutzer mit E-Mail-Leseberechtigung
+                users_with_email_access = db.session.query(User.id).join(
+                    EmailPermission, User.id == EmailPermission.user_id
+                ).filter(EmailPermission.can_read == True).all()
+                
+                for (user_id,) in users_with_email_access:
+                    # Berechne unread_count für diesen Benutzer
+                    unread_count = EmailMessage.query.filter_by(
+                        is_read=False
+                    ).count()
+                    
+                    # Emittiere Dashboard-Update
+                    emit_dashboard_update(user_id, 'email_update', {'count': unread_count})
+            except Exception as e:
+                logging.error(f"Fehler beim Senden der Dashboard-Updates für E-Mails: {e}")
         
         sync_details = []
         if stats['new_emails'] > 0:
@@ -1081,37 +1117,55 @@ def cleanup_old_emails():
 
 def sync_emails_from_server():
     """Sync emails from IMAP server to database with folder support."""
-    folder_success, folder_message = sync_imap_folders()
-    if not folder_success:
-        logging.warning(f"Ordner-Sync-Warnung: {folder_message}")
+    print("E-Mail-Synchronisation wird gestartet")
+    logging.info("E-Mail-Synchronisation wird gestartet")
     
-    folder_rows = db.session.query(EmailFolder.name, EmailFolder.display_name).all()
-    if not folder_rows:
-        folder_rows = [('INBOX', 'Posteingang')]
-    
-    logging.info(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
-    
-    total_synced = 0
-    folder_results = []
-    
-    for (folder_name, display_name) in folder_rows:
-        logging.info(f"Syncing folder: '{folder_name}' ({display_name})")
-        success, message = sync_emails_from_folder(folder_name)
-        if success:
-            import re
-            match = re.search(r'(\d+) E-Mails', message)
-            if match:
-                count = int(match.group(1))
-                total_synced += count
-            folder_results.append(f"{display_name}: {message}")
+    try:
+        folder_success, folder_message = sync_imap_folders()
+        if not folder_success:
+            logging.debug(f"Ordner-Sync-Warnung: {folder_message}")
+        
+        folder_rows = db.session.query(EmailFolder.name, EmailFolder.display_name).all()
+        if not folder_rows:
+            folder_rows = [('INBOX', 'Posteingang')]
+        
+        logging.debug(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
+        
+        total_synced = 0
+        folder_results = []
+        
+        for (folder_name, display_name) in folder_rows:
+            try:
+                logging.debug(f"Syncing folder: '{folder_name}' ({display_name})")
+                success, message = sync_emails_from_folder(folder_name)
+                if success:
+                    import re
+                    match = re.search(r'(\d+) E-Mails', message)
+                    if match:
+                        count = int(match.group(1))
+                        total_synced += count
+                    folder_results.append(f"{display_name}: {message}")
+                else:
+                    logging.debug(f"Failed to sync folder '{folder_name}': {message}")
+                    folder_results.append(f"{display_name}: Fehler - {message}")
+            except Exception as folder_error:
+                logging.error(f"Fehler beim Synchronisieren des Ordners '{folder_name}': {folder_error}")
+                folder_results.append(f"{display_name}: Fehler - {str(folder_error)}")
+                continue
+        
+        print("E-Mail-Synchronisation wurde beendet")
+        logging.info("E-Mail-Synchronisation wurde beendet")
+        
+        if total_synced > 0:
+            return True, f"{total_synced} E-Mails aus {len(folder_rows)} Ordnern synchronisiert"
         else:
-            logging.warning(f"Failed to sync folder '{folder_name}': {message}")
-            folder_results.append(f"{display_name}: Fehler - {message}")
-    
-    if total_synced > 0:
-        return True, f"{total_synced} E-Mails aus {len(folder_rows)} Ordnern synchronisiert"
-    else:
-        return True, "Keine E-Mails synchronisiert"
+            return True, "Keine E-Mails synchronisiert"
+    except Exception as e:
+        logging.error(f"Kritischer Fehler in sync_emails_from_server: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        print(f"E-Mail-Synchronisation Fehler: {e}")
+        return False, f"Fehler: {str(e)}"
 
 
 def check_email_permission(permission_type='read'):
@@ -1964,8 +2018,11 @@ def sync_emails():
                 with acquire_email_sync_lock(timeout=60) as acquired:
                     if acquired:
                         if current_folder:
+                            print(f"E-Mail-Synchronisation wird gestartet (Ordner: {folder_label or current_folder})")
                             success, message = sync_emails_from_folder(current_folder)
+                            print(f"E-Mail-Synchronisation wurde beendet (Ordner: {folder_label or current_folder})")
                         else:
+                            # sync_emails_from_server() gibt bereits die Meldungen aus
                             success, message = sync_emails_from_server()
                         
                         if success:
@@ -1973,8 +2030,10 @@ def sync_emails():
                         else:
                             emit_status('error', message, 'danger', shouldRefresh=False)
                     else:
+                        print("E-Mail-Synchronisation: Bereits in einem anderen Worker aktiv")
                         emit_status('warning', 'Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.', 'warning', shouldRefresh=False)
             except Exception as exc:
+                print(f"E-Mail-Synchronisation Fehler: {exc}")
                 app_instance.logger.error(f"E-Mail-Synchronisation Fehler: {exc}", exc_info=True)
                 emit_status('error', str(exc), 'danger', shouldRefresh=False)
     
@@ -2136,26 +2195,94 @@ def handle_email_sync_join(data):
 
 def email_sync_scheduler(app):
     """Background thread for automatic email synchronization every 15 minutes."""
+    print("E-Mail-Sync-Scheduler Thread gestartet, warte 30 Sekunden vor erster Synchronisation...")
+    # Warte 30 Sekunden nach App-Start, bevor die erste Synchronisation startet
+    time.sleep(30)
+    
     while True:
+        lock_acquired = False
         try:
             with app.app_context():
-                success, message = sync_emails_from_server()
-                if success:
-                    logging.info(f"Auto-sync: {message}")
-                else:
-                    logging.error(f"Auto-sync failed: {message}")
+                # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
+                from app.utils.lock_manager import acquire_email_sync_lock
+                with acquire_email_sync_lock(timeout=10) as acquired:  # Reduziertes Timeout, damit nicht so lange gewartet wird
+                    lock_acquired = acquired
+                    if acquired:
+                        # sync_emails_from_server() gibt bereits die Start/End-Meldungen aus
+                        try:
+                            success, message = sync_emails_from_server()
+                            if success:
+                                logging.debug(f"Auto-sync: {message}")
+                            else:
+                                logging.error(f"Auto-sync failed: {message}")
+                        except Exception as sync_error:
+                            logging.error(f"Fehler während der Synchronisation: {sync_error}")
+                            import traceback
+                            logging.error(f"Traceback: {traceback.format_exc()}")
+                            print(f"E-Mail-Synchronisation Fehler: {sync_error}")
+                    else:
+                        logging.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
         except Exception as e:
             logging.error(f"Auto-sync error: {e}")
+            import traceback
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            print(f"E-Mail-Sync-Scheduler Fehler: {e}")
+        finally:
+            # Stelle sicher, dass wir nach der Synchronisation immer warten
+            if lock_acquired:
+                print("E-Mail-Synchronisation abgeschlossen, warte 15 Minuten bis zur nächsten...")
         
+        # Nach jeder Synchronisation 15 Minuten warten
         time.sleep(900)
 
 
 sync_thread = None
+_sync_started = False
+_sync_lock = threading.Lock()
 
 def start_email_sync(app):
     """Start the background email synchronization thread."""
-    global sync_thread
-    if sync_thread is None or not sync_thread.is_alive():
-        sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True)
+    global sync_thread, _sync_started
+    
+    # Prüfe zuerst, ob bereits ein Thread mit diesem Namen läuft (auch nach Reload)
+    existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
+    if existing_threads:
+        print(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
+        logging.debug(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
+        return
+    
+    # Prüfe auch, ob bereits eine Lock-Datei existiert (zusätzliche Sicherheit)
+    try:
+        from pathlib import Path
+        instance_path = app.instance_path
+        lock_file_path = Path(instance_path) / 'locks' / 'email_sync.lock'
+        if lock_file_path.exists():
+            # Prüfe, ob Lock-Datei noch aktiv ist (jünger als 5 Minuten)
+            file_age = time.time() - lock_file_path.stat().st_mtime
+            if file_age < 300:  # 5 Minuten
+                print("E-Mail-Sync-Lock-Datei existiert bereits, überspringe Neustart")
+                logging.debug("E-Mail-Sync-Lock-Datei existiert bereits, überspringe Neustart")
+                return
+    except Exception as e:
+        logging.debug(f"Konnte Lock-Datei nicht prüfen: {e}")
+    
+    # Verwende Lock, um Thread-Erstellung zu synchronisieren
+    with _sync_lock:
+        # Doppelte Prüfung innerhalb des Locks
+        existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
+        if existing_threads:
+            print(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
+            logging.debug(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
+            return
+        
+        # Prüfe auch das Flag (für den Fall, dass Thread noch nicht vollständig gestartet ist)
+        if _sync_started:
+            print("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
+            logging.debug("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
+            return
+        
+        _sync_started = True
+        sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True, name="email-sync-scheduler")
         sync_thread.start()
-        logging.info("E-Mail Auto-Sync gestartet (alle 15 Minuten)")
+        print("E-Mail Auto-Sync Thread gestartet")
+        logging.debug("E-Mail Auto-Sync gestartet (alle 15 Minuten)")

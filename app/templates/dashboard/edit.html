@@ -237,6 +237,32 @@
                         </label>
                     </div>
                     {% endif %}
+                    
+                    <hr class="my-3">
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="link_settings" id="link_settings" {% if 'settings' in quick_access_links %}checked{% endif %}>
+                        <label class="form-check-label" for="link_settings">
+                            <i class="bi bi-gear me-2"></i>
+                            <strong>{{ _('layout.nav.settings') }}</strong>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="link_profile" id="link_profile" {% if 'profile' in quick_access_links %}checked{% endif %}>
+                        <label class="form-check-label" for="link_profile">
+                            <i class="bi bi-person me-2"></i>
+                            <strong>{{ _('settings.profile.title') }}</strong>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="link_logout" id="link_logout" {% if 'logout' in quick_access_links %}checked{% endif %}>
+                        <label class="form-check-label" for="link_logout">
+                            <i class="bi bi-box-arrow-right me-2"></i>
+                            <strong>{{ _('layout.nav.logout') }}</strong>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>

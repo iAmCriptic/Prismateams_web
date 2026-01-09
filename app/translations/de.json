@@ -19,6 +19,7 @@
       "profile": "Profil",
       "logout": "Abmelden",
       "more": "Mehr",
+      "module": "Module",
       "back": "Zurück"
     }
   },
@@ -212,7 +213,10 @@
           "inventory": "Lagerverwaltung",
           "wiki": "Wiki",
           "booking": "Buchungen",
-          "music": "Musik"
+          "music": "Musik",
+          "settings": "Einstellungen",
+          "profile": "Profil",
+          "logout": "Abmelden"
         }
       }
     }
@@ -295,6 +299,7 @@
       }
     },
     "profile": {
+      "title": "Profil",
       "page_title": "Profil - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_profile": "Profil",

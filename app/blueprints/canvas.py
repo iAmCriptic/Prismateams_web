@@ -5,6 +5,7 @@ from app import db
 from app.models.canvas import Canvas
 from app.models.user import User
 from app.utils.access_control import check_module_access
+from app.utils.dashboard_events import emit_dashboard_update
 from datetime import datetime
 import uuid
 
@@ -68,6 +69,23 @@ def create():
         db.session.add(canvas)
         db.session.commit()
         
+        # Sende Dashboard-Update an den Benutzer
+        try:
+            recent_canvases = Canvas.query.filter_by(
+                created_by=current_user.id
+            ).order_by(Canvas.updated_at.desc()).limit(3).all()
+            
+            canvases_data = [{
+                'id': canvas_item.id,
+                'name': canvas_item.name,
+                'updated_at': canvas_item.updated_at.isoformat(),
+                'url': flask_url_for('canvas.edit', canvas_id=canvas_item.id)
+            } for canvas_item in recent_canvases]
+            
+            emit_dashboard_update(current_user.id, 'canvas_update', {'canvases': canvases_data})
+        except Exception as e:
+            current_app.logger.error(f"Fehler beim Senden der Dashboard-Updates für Canvas: {e}")
+        
         flash(_('canvas.flash.created', name=name, default=f'Canvas "{name}" wurde erfolgreich erstellt.'), 'success')
         return redirect(url_for('canvas.edit', canvas_id=canvas.id))
     
@@ -112,14 +130,26 @@ def edit(canvas_id):
     # Generiere absolute URLs für Load und Save
     # Verwende EXCALIDRAW_PUBLIC_URL wenn gesetzt, sonst _external=True
     try:
-        if public_url:
+        if public_url and public_url.strip():
             # Entferne führendes / von public_url falls vorhanden, da url_for bereits / hinzufügt
             public_url_clean = public_url.rstrip('/')
-            document_url = f"{public_url_clean}{flask_url_for('canvas.load', canvas_id=canvas_id)}"
-            save_url = f"{public_url_clean}{flask_url_for('canvas.save', canvas_id=canvas_id)}"
+            load_path = flask_url_for('canvas.load', canvas_id=canvas_id)
+            save_path = flask_url_for('canvas.save', canvas_id=canvas_id)
+            document_url = f"{public_url_clean}{load_path}"
+            save_url = f"{public_url_clean}{save_path}"
         else:
-            document_url = flask_url_for('canvas.load', canvas_id=canvas_id, _external=True)
-            save_url = flask_url_for('canvas.save', canvas_id=canvas_id, _external=True)
+            # Versuche, absolute URL zu generieren
+            try:
+                document_url = flask_url_for('canvas.load', canvas_id=canvas_id, _external=True)
+                save_url = flask_url_for('canvas.save', canvas_id=canvas_id, _external=True)
+            except Exception:
+                # Fallback: Verwende request.url_root für absolute URLs
+                from flask import request
+                base_url = request.url_root.rstrip('/')
+                load_path = flask_url_for('canvas.load', canvas_id=canvas_id)
+                save_path = flask_url_for('canvas.save', canvas_id=canvas_id)
+                document_url = f"{base_url}{load_path}"
+                save_url = f"{base_url}{save_path}"
     except Exception as e:
         # Fallback auf relative URLs bei Fehler
         current_app.logger.error(f"Fehler bei URL-Generierung: {e}", exc_info=True)
@@ -157,6 +187,8 @@ def delete(canvas_id):
     return redirect(url_for('canvas.index'))
 
 
+# WICHTIG: Diese Routen müssen NACH den spezifischen Routen wie /edit/ und /delete/ kommen,
+# damit Flask die spezifischen Routen zuerst matched
 @canvas_bp.route('/<int:canvas_id>/load', methods=['GET', 'OPTIONS'])
 @login_required
 @check_module_access('module_canvas')
@@ -261,6 +293,23 @@ def save(canvas_id):
             canvas_obj.set_excalidraw_data(data)
             canvas_obj.updated_at = datetime.utcnow()
             db.session.commit()
+            
+            # Sende Dashboard-Update an den Benutzer
+            try:
+                recent_canvases = Canvas.query.filter_by(
+                    created_by=current_user.id
+                ).order_by(Canvas.updated_at.desc()).limit(3).all()
+                
+                canvases_data = [{
+                    'id': canvas_item.id,
+                    'name': canvas_item.name,
+                    'updated_at': canvas_item.updated_at.isoformat(),
+                    'url': flask_url_for('canvas.edit', canvas_id=canvas_item.id)
+                } for canvas_item in recent_canvases]
+                
+                emit_dashboard_update(current_user.id, 'canvas_update', {'canvases': canvases_data})
+            except Exception as e:
+                current_app.logger.error(f"Fehler beim Senden der Dashboard-Updates für Canvas: {e}")
             
             response = jsonify({'success': True})
             

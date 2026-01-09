@@ -519,290 +519,300 @@ def create_app(config_name='default'):
     def service_worker():
         return app.send_static_file('sw.js')
     
-    with app.app_context():
-        try:
-            db.create_all()
-            print("[OK] Datenbank-Tabellen erfolgreich erstellt/aktualisiert")
-            
-            try:
-                from sqlalchemy import inspect
-                inspector = inspect(db.engine)
-                if 'folders' in inspector.get_table_names():
-                    columns = {col['name']: col for col in inspector.get_columns('folders')}
-                    if 'is_dropbox' not in columns or 'dropbox_token' not in columns or 'dropbox_password_hash' not in columns:
-                        print("[INFO] Führe Migration zu Version 1.5.2 aus...")
-                        # Führe Migration direkt aus (ohne Import, da Python-Module mit Punkten nicht importierbar sind)
-                        migrations_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations', 'Migrate_to_1.5.2.py')
-                        if os.path.exists(migrations_path):
-                            try:
-                                result = subprocess.run([sys.executable, migrations_path], 
-                                                       capture_output=True, text=True, timeout=30)
-                                if result.returncode == 0:
-                                    print("[OK] Migration erfolgreich ausgeführt")
-                                else:
-                                    print(f"[WARNUNG] Migration gab Fehler zurück: {result.stderr}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-                            except subprocess.TimeoutExpired:
-                                print("[WARNUNG] Migration dauerte zu lange. Bitte manuell ausführen.")
-                            except Exception as e:
-                                print(f"[WARNUNG] Migration konnte nicht ausgeführt werden: {e}")
-                                print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-                        else:
-                            print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/Migrate_to_1.5.2.py")
-
-                if ('users' in inspector.get_table_names() and
-                        'language' not in {col['name'] for col in inspector.get_columns('users')} and
-                        not os.getenv('RUNNING_LANGUAGE_MIGRATION')):
-                    print("[INFO] Führe Sprachmigration aus...")
-                    migrations_path = os.path.join(
-                        os.path.dirname(os.path.dirname(__file__)),
-                        'migrations',
-                        'migrate_languages.py'
-                    )
-                    if os.path.exists(migrations_path):
-                        env = os.environ.copy()
-                        env.setdefault('RUNNING_LANGUAGE_MIGRATION', '1')
-                        env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
-                        try:
-                            result = subprocess.run(
-                                [sys.executable, migrations_path],
-                                capture_output=True,
-                                text=True,
-                                timeout=60,
-                                env=env
-                            )
-                            if result.returncode == 0:
-                                print("[OK] Sprachmigration erfolgreich ausgeführt")
-                            else:
-                                print(f"[WARNUNG] Sprachmigration gab Fehler zurück: {result.stderr}")
-                                print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
-                        except subprocess.TimeoutExpired:
-                            print("[WARNUNG] Sprachmigration dauerte zu lange. Bitte manuell ausführen.")
-                        except Exception as exc:
-                            print(f"[WARNUNG] Sprachmigration konnte nicht ausgeführt werden: {exc}")
-                            print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
-                    else:
-                        print("[WARNUNG] Sprach-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_languages.py")
-            except Exception as migration_error:
-                print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-            
-            from app.models.email import EmailFolder
-            
-            standard_folders = [
-                {'name': 'INBOX', 'display_name': 'Posteingang', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Sent', 'display_name': 'Gesendet', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Drafts', 'display_name': 'Entwürfe', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Trash', 'display_name': 'Papierkorb', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Spam', 'display_name': 'Spam', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Archive', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True},
-                {'name': 'Archives', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True}
-            ]
-            
-            for folder_data in standard_folders:
-                existing_folder = EmailFolder.query.filter_by(name=folder_data['name']).first()
-                if not existing_folder:
-                    folder = EmailFolder(**folder_data)
-                    db.session.add(folder)
-                    print(f"Created standard folder: {folder_data['display_name']}")
-            
-            db.session.commit()
-            print("[OK] Standard email folders ensured")
-            
-        except Exception as e:
-            print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
-        
-        from app.models.settings import SystemSettings
-        from app.models.chat import Chat
-        from app.models.user import User
-        from sqlalchemy import inspect, text
-        
-        if not SystemSettings.query.filter_by(key='email_footer_text').first():
-            footer = SystemSettings(
-                key='email_footer_text',
-                value='Mit freundlichen Grüßen\nIhr Team',
-                description='Standard-Footer für E-Mails'
-            )
-            db.session.add(footer)
-        
-        if not SystemSettings.query.filter_by(key='email_footer_image').first():
-            footer_img = SystemSettings(
-                key='email_footer_image',
-                value='',
-                description='Footer-Bild URL für E-Mails'
-            )
-            db.session.add(footer_img)
-
-        if not SystemSettings.query.filter_by(key='default_language').first():
-            db.session.add(SystemSettings(
-                key='default_language',
-                value='de',
-                description='Standardsprache für die Benutzeroberfläche'
-            ))
-
-        if not SystemSettings.query.filter_by(key='email_language').first():
-            db.session.add(SystemSettings(
-                key='email_language',
-                value='de',
-                description='Standardsprache für System-E-Mails'
-            ))
-
-        if not SystemSettings.query.filter_by(key='available_languages').first():
-            db.session.add(SystemSettings(
-                key='available_languages',
-                value='["de","en","pt","es","ru"]',
-                description='Liste der aktivierten Sprachen'
-            ))
-        
-        language_settings = {
-            'default_language': (
-                'de',
-                'Standardsprache der Benutzeroberfläche für neue Benutzer.'
-            ),
-            'email_language': (
-                'de',
-                'Sprache für automatisch versendete System-E-Mails.'
-            ),
-            'available_languages': (
-                json.dumps(['de', 'en', 'pt', 'es', 'ru']),
-                'Aktivierte Sprachen im Portal (JSON-Liste).'
-            )
-        }
-        
-        for key, (value, description) in language_settings.items():
-            setting = SystemSettings.query.filter_by(key=key).first()
-            if not setting:
-                db.session.add(SystemSettings(key=key, value=value, description=description))
-            else:
-                if not setting.value:
-                    setting.value = value
-                if description and not setting.description:
-                    setting.description = description
-        
-        try:
-            inspector = inspect(db.engine)
-            if 'users' in inspector.get_table_names():
-                columns = {col['name'] for col in inspector.get_columns('users')}
-                if 'language' in columns:
-                    with db.engine.begin() as connection:
-                        connection.execute(
-                            text("""
-                                UPDATE users
-                                SET language = :default_lang
-                                WHERE language IS NULL OR TRIM(language) = ''
-                            """),
-                            {'default_lang': 'de'}
-                        )
-        except Exception as e:
-            app.logger.warning("Konnte Benutzersprachen nicht aktualisieren: %s", e)
-
-        main_chat = Chat.query.filter_by(is_main_chat=True).first()
-        if not main_chat:
-            main_chat = Chat(
-                name='Team Chat',
-                is_main_chat=True,
-                is_direct_message=False
-            )
-            db.session.add(main_chat)
-            db.session.flush()
-            
-            from app.models.chat import ChatMember
-            # Prüfe ob has_full_access Spalte existiert
-            try:
-                from sqlalchemy import inspect
-                inspector = inspect(db.engine)
-                if 'users' in inspector.get_table_names():
-                    columns = {col['name'] for col in inspector.get_columns('users')}
-                    if 'has_full_access' in columns:
-                        from app.utils.access_control import has_module_access
-                        active_users = User.query.filter_by(is_active=True).all()
-                        for user in active_users:
-                            if has_module_access(user, 'module_chat'):
-                                member = ChatMember(
-                                    chat_id=main_chat.id,
-                                    user_id=user.id
-                                )
-                                db.session.add(member)
-                    else:
-                        # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
-                        active_users = User.query.filter_by(is_active=True).all()
-                        for user in active_users:
-                            member = ChatMember(
-                                chat_id=main_chat.id,
-                                user_id=user.id
-                            )
-                            db.session.add(member)
-            except Exception as e:
-                print(f"WARNING: Could not check has_full_access column: {e}")
-                # Fallback: Füge alle aktiven Benutzer hinzu
-                from app.models.chat import ChatMember
-                active_users = User.query.filter_by(is_active=True).all()
-                for user in active_users:
-                    member = ChatMember(
-                        chat_id=main_chat.id,
-                        user_id=user.id
-                    )
-                    db.session.add(member)
-        else:
-            from app.models.chat import ChatMember
-            try:
-                # Prüfe ob has_full_access Spalte existiert
-                from sqlalchemy import inspect
-                inspector = inspect(db.engine)
-                if 'users' in inspector.get_table_names():
-                    columns = {col['name'] for col in inspector.get_columns('users')}
-                    if 'has_full_access' in columns:
-                        from app.utils.access_control import has_module_access
-                        active_users = User.query.filter_by(is_active=True).all()
-                        existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
-                        existing_user_ids = [member.user_id for member in existing_members]
-                        
-                        for user in active_users:
-                            if user.id not in existing_user_ids and has_module_access(user, 'module_chat'):
-                                member = ChatMember(
-                                    chat_id=main_chat.id,
-                                    user_id=user.id
-                                )
-                                db.session.add(member)
-                    else:
-                        # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
-                        active_users = User.query.filter_by(is_active=True).all()
-                        existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
-                        existing_user_ids = [member.user_id for member in existing_members]
-                        
-                        for user in active_users:
-                            if user.id not in existing_user_ids:
-                                member = ChatMember(
-                                    chat_id=main_chat.id,
-                                    user_id=user.id
-                                )
-                                db.session.add(member)
-                else:
-                    # Fallback: Füge alle aktiven Benutzer hinzu
-                    active_users = User.query.filter_by(is_active=True).all()
-                    existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
-                    existing_user_ids = [member.user_id for member in existing_members]
-                    
-                    for user in active_users:
-                        if user.id not in existing_user_ids:
-                            member = ChatMember(
-                                chat_id=main_chat.id,
-                                user_id=user.id
-                            )
-                            db.session.add(member)
-            except Exception as e:
-                print(f"WARNING: Could not update main chat members: {e}")
-        
-        db.session.commit()
+    # Initialisierung nur im Hauptprozess ausführen (verhindert doppelte Ausführung durch Flask Reloader)
+    # WERKZEUG_RUN_MAIN ist nur im Hauptprozess gesetzt (nach "Restarting with stat"), nicht im Reloader-Prozess
+    # Im Debug-Modus: Nur initialisieren wenn WERKZEUG_RUN_MAIN='true' (Hauptprozess)
+    # Ohne Debug-Modus: Immer initialisieren (kein Reloader)
+    werkzeug_run_main = os.environ.get('WERKZEUG_RUN_MAIN')
+    is_debug = app.config.get('DEBUG', False)
+    # Initialisierung nur wenn: (Hauptprozess nach Reload) ODER (kein Debug-Modus)
+    is_main_process = (werkzeug_run_main == 'true') or (not is_debug)
     
-    if not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):
+    with app.app_context():
+        if is_main_process:
+            try:
+                db.create_all()
+                print("[OK] Datenbank-Tabellen erfolgreich erstellt/aktualisiert")
+                
+                try:
+                    from sqlalchemy import inspect
+                    inspector = inspect(db.engine)
+                    if 'folders' in inspector.get_table_names():
+                        columns = {col['name']: col for col in inspector.get_columns('folders')}
+                        if 'is_dropbox' not in columns or 'dropbox_token' not in columns or 'dropbox_password_hash' not in columns:
+                            print("[INFO] Führe Migration zu Version 1.5.2 aus...")
+                            # Führe Migration direkt aus (ohne Import, da Python-Module mit Punkten nicht importierbar sind)
+                            migrations_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations', 'Migrate_to_1.5.2.py')
+                            if os.path.exists(migrations_path):
+                                try:
+                                    result = subprocess.run([sys.executable, migrations_path], 
+                                                           capture_output=True, text=True, timeout=30)
+                                    if result.returncode == 0:
+                                        print("[OK] Migration erfolgreich ausgeführt")
+                                    else:
+                                        print(f"[WARNUNG] Migration gab Fehler zurück: {result.stderr}")
+                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
+                                except subprocess.TimeoutExpired:
+                                    print("[WARNUNG] Migration dauerte zu lange. Bitte manuell ausführen.")
+                                except Exception as e:
+                                    print(f"[WARNUNG] Migration konnte nicht ausgeführt werden: {e}")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
+                            else:
+                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/Migrate_to_1.5.2.py")
+
+                    if ('users' in inspector.get_table_names() and
+                            'language' not in {col['name'] for col in inspector.get_columns('users')} and
+                            not os.getenv('RUNNING_LANGUAGE_MIGRATION')):
+                        print("[INFO] Führe Sprachmigration aus...")
+                        migrations_path = os.path.join(
+                            os.path.dirname(os.path.dirname(__file__)),
+                            'migrations',
+                            'migrate_languages.py'
+                        )
+                        if os.path.exists(migrations_path):
+                            env = os.environ.copy()
+                            env.setdefault('RUNNING_LANGUAGE_MIGRATION', '1')
+                            env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
+                            try:
+                                result = subprocess.run(
+                                    [sys.executable, migrations_path],
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=60,
+                                    env=env
+                                )
+                                if result.returncode == 0:
+                                    print("[OK] Sprachmigration erfolgreich ausgeführt")
+                                else:
+                                    print(f"[WARNUNG] Sprachmigration gab Fehler zurück: {result.stderr}")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
+                            except subprocess.TimeoutExpired:
+                                print("[WARNUNG] Sprachmigration dauerte zu lange. Bitte manuell ausführen.")
+                            except Exception as exc:
+                                print(f"[WARNUNG] Sprachmigration konnte nicht ausgeführt werden: {exc}")
+                                print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
+                        else:
+                            print("[WARNUNG] Sprach-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_languages.py")
+                except Exception as migration_error:
+                    print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
+                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
+                
+                from app.models.email import EmailFolder
+                
+                standard_folders = [
+                    {'name': 'INBOX', 'display_name': 'Posteingang', 'folder_type': 'standard', 'is_system': True},
+                    {'name': 'Sent', 'display_name': 'Gesendet', 'folder_type': 'standard', 'is_system': True},
+                    {'name': 'Drafts', 'display_name': 'Entwürfe', 'folder_type': 'standard', 'is_system': True},
+                    {'name': 'Trash', 'display_name': 'Papierkorb', 'folder_type': 'standard', 'is_system': True},
+                    {'name': 'Spam', 'display_name': 'Spam', 'folder_type': 'standard', 'is_system': True},
+                    {'name': 'Archive', 'display_name': 'Archiv', 'folder_type': 'standard', 'is_system': True}
+                ]
+                
+                for folder_data in standard_folders:
+                    existing_folder = EmailFolder.query.filter_by(name=folder_data['name']).first()
+                    if not existing_folder:
+                        folder = EmailFolder(**folder_data)
+                        db.session.add(folder)
+                        print(f"Created standard folder: {folder_data['display_name']}")
+                
+                db.session.commit()
+                print("[OK] Standard email folders ensured")
+                
+                from app.models.settings import SystemSettings
+                from app.models.chat import Chat
+                from app.models.user import User
+                from sqlalchemy import inspect, text
+                
+                if not SystemSettings.query.filter_by(key='email_footer_text').first():
+                    footer = SystemSettings(
+                        key='email_footer_text',
+                        value='Mit freundlichen Grüßen\nIhr Team',
+                        description='Standard-Footer für E-Mails'
+                    )
+                    db.session.add(footer)
+                
+                if not SystemSettings.query.filter_by(key='email_footer_image').first():
+                    footer_img = SystemSettings(
+                        key='email_footer_image',
+                        value='',
+                        description='Footer-Bild URL für E-Mails'
+                    )
+                    db.session.add(footer_img)
+
+                if not SystemSettings.query.filter_by(key='default_language').first():
+                    db.session.add(SystemSettings(
+                        key='default_language',
+                        value='de',
+                        description='Standardsprache für die Benutzeroberfläche'
+                    ))
+
+                if not SystemSettings.query.filter_by(key='email_language').first():
+                    db.session.add(SystemSettings(
+                        key='email_language',
+                        value='de',
+                        description='Standardsprache für System-E-Mails'
+                    ))
+
+                if not SystemSettings.query.filter_by(key='available_languages').first():
+                    db.session.add(SystemSettings(
+                        key='available_languages',
+                        value='["de","en","pt","es","ru"]',
+                        description='Liste der aktivierten Sprachen'
+                    ))
+                
+                language_settings = {
+                    'default_language': (
+                        'de',
+                        'Standardsprache der Benutzeroberfläche für neue Benutzer.'
+                    ),
+                    'email_language': (
+                        'de',
+                        'Sprache für automatisch versendete System-E-Mails.'
+                    ),
+                    'available_languages': (
+                        json.dumps(['de', 'en', 'pt', 'es', 'ru']),
+                        'Aktivierte Sprachen im Portal (JSON-Liste).'
+                    )
+                }
+                
+                for key, (value, description) in language_settings.items():
+                    setting = SystemSettings.query.filter_by(key=key).first()
+                    if not setting:
+                        db.session.add(SystemSettings(key=key, value=value, description=description))
+                    else:
+                        if not setting.value:
+                            setting.value = value
+                        if description and not setting.description:
+                            setting.description = description
+                
+                try:
+                    inspector = inspect(db.engine)
+                    if 'users' in inspector.get_table_names():
+                        columns = {col['name'] for col in inspector.get_columns('users')}
+                        if 'language' in columns:
+                            with db.engine.begin() as connection:
+                                connection.execute(
+                                    text("""
+                                        UPDATE users
+                                        SET language = :default_lang
+                                        WHERE language IS NULL OR TRIM(language) = ''
+                                    """),
+                                    {'default_lang': 'de'}
+                                )
+                except Exception as e:
+                    app.logger.warning("Konnte Benutzersprachen nicht aktualisieren: %s", e)
+
+                main_chat = Chat.query.filter_by(is_main_chat=True).first()
+                main_chat = Chat.query.filter_by(is_main_chat=True).first()
+                if not main_chat:
+                    main_chat = Chat(
+                        name='Team Chat',
+                        is_main_chat=True,
+                        is_direct_message=False
+                    )
+                    db.session.add(main_chat)
+                    db.session.flush()
+                    
+                    from app.models.chat import ChatMember
+                    # Prüfe ob has_full_access Spalte existiert
+                    try:
+                        from sqlalchemy import inspect
+                        inspector = inspect(db.engine)
+                        if 'users' in inspector.get_table_names():
+                            columns = {col['name'] for col in inspector.get_columns('users')}
+                            if 'has_full_access' in columns:
+                                from app.utils.access_control import has_module_access
+                                active_users = User.query.filter_by(is_active=True).all()
+                                for user in active_users:
+                                    if has_module_access(user, 'module_chat'):
+                                        member = ChatMember(
+                                            chat_id=main_chat.id,
+                                            user_id=user.id
+                                        )
+                                        db.session.add(member)
+                            else:
+                                # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
+                                active_users = User.query.filter_by(is_active=True).all()
+                                for user in active_users:
+                                    member = ChatMember(
+                                        chat_id=main_chat.id,
+                                        user_id=user.id
+                                    )
+                                    db.session.add(member)
+                    except Exception as e:
+                        print(f"WARNING: Could not check has_full_access column: {e}")
+                        # Fallback: Füge alle aktiven Benutzer hinzu
+                        from app.models.chat import ChatMember
+                        active_users = User.query.filter_by(is_active=True).all()
+                        for user in active_users:
+                            member = ChatMember(
+                                chat_id=main_chat.id,
+                                user_id=user.id
+                            )
+                            db.session.add(member)
+                else:
+                    from app.models.chat import ChatMember
+                    try:
+                        # Prüfe ob has_full_access Spalte existiert
+                        from sqlalchemy import inspect
+                        inspector = inspect(db.engine)
+                        if 'users' in inspector.get_table_names():
+                            columns = {col['name'] for col in inspector.get_columns('users')}
+                            if 'has_full_access' in columns:
+                                from app.utils.access_control import has_module_access
+                                active_users = User.query.filter_by(is_active=True).all()
+                                existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                                existing_user_ids = [member.user_id for member in existing_members]
+                                
+                                for user in active_users:
+                                    if user.id not in existing_user_ids and has_module_access(user, 'module_chat'):
+                                        member = ChatMember(
+                                            chat_id=main_chat.id,
+                                            user_id=user.id
+                                        )
+                                        db.session.add(member)
+                            else:
+                                # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
+                                active_users = User.query.filter_by(is_active=True).all()
+                                existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                                existing_user_ids = [member.user_id for member in existing_members]
+                                
+                                for user in active_users:
+                                    if user.id not in existing_user_ids:
+                                        member = ChatMember(
+                                            chat_id=main_chat.id,
+                                            user_id=user.id
+                                        )
+                                        db.session.add(member)
+                        else:
+                            # Fallback: Füge alle aktiven Benutzer hinzu
+                            active_users = User.query.filter_by(is_active=True).all()
+                            existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
+                            existing_user_ids = [member.user_id for member in existing_members]
+                            
+                            for user in active_users:
+                                if user.id not in existing_user_ids:
+                                    member = ChatMember(
+                                        chat_id=main_chat.id,
+                                        user_id=user.id
+                                    )
+                                    db.session.add(member)
+                    except Exception as e:
+                        print(f"WARNING: Could not update main chat members: {e}")
+                
+                db.session.commit()
+                
+            except Exception as e:
+                print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
+    
+    # Background-Jobs nur im Hauptprozess starten
+    if is_main_process and not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):
         start_email_sync(app)
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
-        
-        from app.tasks.email_sync_scheduler import start_email_sync_scheduler
-        start_email_sync_scheduler(app)
+    
+    from app.blueprints import canvas
     
     return app
 
