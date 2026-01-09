@@ -113,56 +113,6 @@
 </div>
 
 <div class="mb-5">
-    <h3 class="mb-3"><i class="bi bi-box-seam-fill text-info"></i> {{ _('settings.admin.sections.inventory.title') }}</h3>
-    <div class="row g-3">
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-tags text-info"></i>
-                        {{ _('settings.admin.cards.inventory_categories.title') }}
-                    </h5>
-                    <p class="card-text">{{ _('settings.admin.cards.inventory_categories.description') }}</p>
-                    <a href="{{ url_for('settings.admin_inventory_categories') }}" class="btn btn-outline-primary">
-                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-shield-check text-warning"></i>
-                        {{ _('settings.admin.cards.inventory_permissions.title') }}
-                    </h5>
-                    <p class="card-text">{{ _('settings.admin.cards.inventory_permissions.description') }}</p>
-                    <a href="{{ url_for('settings.admin_inventory_permissions') }}" class="btn btn-outline-primary">
-                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-gear text-info"></i>
-                        Lagerverwaltung
-                    </h5>
-                    <p class="card-text">Einstellungen für öffentliche Produktseiten und QR-Codes</p>
-                    <a href="{{ url_for('settings.admin_inventory_settings') }}" class="btn btn-outline-primary">
-                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="mb-5">
     <h3 class="mb-3"><i class="bi bi-grid-3x3-gap-fill text-secondary"></i> Moduleinstellungen</h3>
     <div class="row g-3">
         {% if is_module_enabled('module_booking') %}
@@ -208,6 +158,22 @@
                     <p class="card-text">E-Mail-Test, Footer und System-Einstellungen für das E-Mail-Modul konfigurieren.</p>
                     <a href="{{ url_for('settings.admin_email_module') }}" class="btn btn-outline-primary">
                         Öffnen <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if is_module_enabled('module_inventory') %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-gear text-info"></i>
+                        Lagerverwaltung
+                    </h5>
+                    <p class="card-text">Einstellungen für öffentliche Produktseiten und QR-Codes</p>
+                    <a href="{{ url_for('settings.admin_inventory_settings') }}" class="btn btn-outline-primary">
+                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
             </div>

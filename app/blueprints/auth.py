@@ -315,7 +315,7 @@ def show_confirmation_codes():
     return render_template('auth/admin_confirmation_codes.html', users=valid_users)
 
 
-@auth_bp.route('/admin/test-email')
+@auth_bp.route('/admin/test-email', methods=['GET', 'POST'])
 @login_required
 def test_email():
     """Testet die E-Mail-Konfiguration (Admin only)."""

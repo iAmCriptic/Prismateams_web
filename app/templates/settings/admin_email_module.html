@@ -7,68 +7,211 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
         <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}#modules">Moduleinstellungen</a></li>
         <li class="breadcrumb-item active">E-Mail-Einstellungen</li>
     </ol>
 </nav>
 
 <h2 class="mb-4"><i class="bi bi-envelope-gear"></i> E-Mail-Moduleinstellungen</h2>
 
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="emailSettingsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="test-tab" data-bs-toggle="tab" data-bs-target="#test" type="button" role="tab" aria-controls="test" aria-selected="true">
+            <i class="bi bi-envelope"></i> E-Mail-Test
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="footer-tab" data-bs-toggle="tab" data-bs-target="#footer" type="button" role="tab" aria-controls="footer" aria-selected="false">
+            <i class="bi bi-envelope-paper"></i> E-Mail-Footer
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab" aria-controls="system" aria-selected="false">
+            <i class="bi bi-gear"></i> System-Einstellungen
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="emailSettingsTabsContent">
+    <!-- E-Mail-Test Tab -->
+    <div class="tab-pane fade show active" id="test" role="tabpanel" aria-labelledby="test-tab">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-envelope"></i> E-Mail-Konfiguration testen</h5>
+            </div>
             <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-envelope text-warning"></i>
-                    E-Mail-Test
-                </h5>
-                <p class="card-text">E-Mail-Konfiguration testen und prüfen</p>
-                <a href="{{ url_for('auth.test_email') }}" class="btn btn-outline-primary">
-                    Testen <i class="bi bi-arrow-right"></i>
-                </a>
+                <p class="text-muted mb-4">
+                    Testen Sie die E-Mail-Konfiguration, indem Sie eine Test-E-Mail an Ihre E-Mail-Adresse senden.
+                </p>
+                
+                <form method="POST" action="{{ url_for('auth.test_email') }}">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Hinweis:</strong> Die Test-E-Mail wird an Ihre E-Mail-Adresse <strong>{{ current_user.email }}</strong> gesendet. Nach dem Klicken auf "Test-E-Mail senden" werden Sie zur Ergebnis-Seite weitergeleitet.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send"></i> Test-E-Mail senden
+                    </button>
+                </form>
             </div>
         </div>
     </div>
     
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
+    <!-- E-Mail-Footer Tab -->
+    <div class="tab-pane fade" id="footer" role="tabpanel" aria-labelledby="footer-tab">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-envelope-paper"></i> E-Mail-Footer konfigurieren</h5>
+            </div>
             <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-envelope-paper text-primary"></i>
-                    E-Mail-Footer
-                </h5>
-                <p class="card-text">E-Mail-Footer-Template mit Variablen konfigurieren</p>
-                <a href="{{ url_for('settings.admin_email_footer') }}" class="btn btn-outline-primary">
-                    Konfigurieren <i class="bi bi-arrow-right"></i>
-                </a>
+                <div class="border rounded p-3 mb-4" style="background-color: #d1ecf1; border-color: #bee5eb !important;">
+                    <div class="d-flex align-items-start">
+                        <i class="bi bi-info-circle me-2" style="color: #0c5460; font-size: 1.2em; margin-top: 0.1em;"></i>
+                        <div>
+                            <strong style="color: #0c5460;">Verfügbare Variablen:</strong>
+                            <ul class="mb-0 mt-2" style="color: #0c5460;">
+                                <li><code>&lt;user&gt;</code> - Vollständiger Name des Benutzers</li>
+                                <li><code>&lt;email&gt;</code> - E-Mail-Adresse des Benutzers</li>
+                                <li><code>&lt;app_name&gt;</code> - Name der Anwendung</li>
+                                <li><code>&lt;date&gt;</code> - Aktuelles Datum (DD.MM.YYYY)</li>
+                                <li><code>&lt;time&gt;</code> - Aktuelle Uhrzeit (HH:MM)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('settings.admin_email_footer') }}">
+                    <div class="mb-3">
+                        <label for="footer_template" class="form-label">
+                            <strong>Footer-Template</strong>
+                        </label>
+                        <textarea 
+                            class="form-control" 
+                            id="footer_template" 
+                            name="footer_template" 
+                            rows="8" 
+                            placeholder="Geben Sie hier Ihren E-Mail-Footer ein. Verwenden Sie die Variablen oben für dynamische Inhalte."
+                        >{{ footer_template }}</textarea>
+                        <div class="form-text">
+                            Der Footer wird automatisch an jede gesendete E-Mail angehängt. Verwenden Sie Zeilenumbrüche für mehrzeilige Footer.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Vorschau:</h6>
+                        <div class="border rounded p-3 bg-light">
+                            <pre id="footerPreview" style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ footer_template.replace('<user>', 'Max Mustermann').replace('<email>', 'max@example.com').replace('<app_name>', 'Prismateams').replace('<date>', '29.10.2025').replace('<time>', '19:15') }}</pre>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
     
-    <div class="col-12 col-md-6 col-lg-4">
-        <div class="card h-100">
+    <!-- System-Einstellungen Tab -->
+    <div class="tab-pane fade" id="system" role="tabpanel" aria-labelledby="system-tab">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> E-Mail-System-Einstellungen</h5>
+            </div>
             <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-envelope-gear text-info"></i>
-                    System-Einstellungen
-                </h5>
-                <p class="card-text">Speicherdauer und Synchronisationsintervall für das E-Mail-System konfigurieren</p>
-                <a href="{{ url_for('settings.admin_email_settings') }}" class="btn btn-outline-primary">
-                    Öffnen <i class="bi bi-arrow-right"></i>
-                </a>
+                <form method="POST" action="{{ url_for('settings.admin_email_settings') }}">
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="bi bi-database"></i> Speicherverwaltung</h6>
+                        
+                        <div class="mb-3">
+                            <label for="storage_days" class="form-label">
+                                <strong>Speicherdauer für E-Mails (in Tagen)</strong>
+                            </label>
+                            <input 
+                                type="number" 
+                                class="form-control" 
+                                id="storage_days" 
+                                name="storage_days" 
+                                value="{{ storage_days }}" 
+                                min="0" 
+                                step="1"
+                                placeholder="0 für unbegrenzt"
+                            >
+                            <div class="form-text">
+                                Legen Sie fest, wie lange E-Mails im System gespeichert werden sollen. 
+                                E-Mails, die älter als die angegebene Anzahl von Tagen sind, werden automatisch gelöscht. 
+                                Setzen Sie <strong>0</strong> für unbegrenzte Speicherung.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="bi bi-arrow-repeat"></i> Synchronisation</h6>
+                        
+                        <div class="mb-3">
+                            <label for="sync_interval" class="form-label">
+                                <strong>Synchronisationsintervall (in Minuten)</strong>
+                            </label>
+                            <select class="form-select" id="sync_interval" name="sync_interval">
+                                <option value="15" {% if sync_interval == 15 %}selected{% endif %}>15 Minuten</option>
+                                <option value="30" {% if sync_interval == 30 %}selected{% endif %}>30 Minuten</option>
+                                <option value="60" {% if sync_interval == 60 %}selected{% endif %}>60 Minuten (1 Stunde)</option>
+                            </select>
+                            <div class="form-text">
+                                Legen Sie fest, wie oft das System automatisch E-Mails vom IMAP-Server synchronisieren soll. 
+                                Die manuelle Synchronisation bleibt weiterhin möglich.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Hinweis:</strong> Änderungen an diesen Einstellungen werden sofort wirksam. 
+                        Die automatische Synchronisation startet beim nächsten Neustart der Anwendung.
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Speichern
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<div class="d-flex gap-2">
+<div class="mt-4">
     <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Zurück zur Administration
     </a>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Footer Preview Update
+    const footerTextarea = document.getElementById('footer_template');
+    const footerPreview = document.getElementById('footerPreview');
+    
+    if (footerTextarea && footerPreview) {
+        function updateFooterPreview() {
+            let content = footerTextarea.value;
+            // Replace variables with sample data for preview
+            content = content.replace(/<user>/g, 'Max Mustermann');
+            content = content.replace(/<email>/g, 'max@example.com');
+            content = content.replace(/<app_name>/g, 'Prismateams');
+            content = content.replace(/<date>/g, '29.10.2025');
+            content = content.replace(/<time>/g, '19:15');
+            footerPreview.textContent = content;
+        }
+        
+        footerTextarea.addEventListener('input', updateFooterPreview);
+        updateFooterPreview(); // Initial preview
+    }
+});
+</script>
 {% endblock %}
-
-
-
-
-

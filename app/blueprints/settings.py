@@ -1000,53 +1000,6 @@ def delete_whitelist_entry(entry_id):
     return redirect(url_for('settings.admin_whitelist'))
 
 
-
-@settings_bp.route('/admin/inventory-categories', methods=['GET', 'POST'])
-@login_required
-def admin_inventory_categories():
-    """Manage inventory categories (admin only)."""
-    if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
-        return redirect(url_for('settings.index'))
-    
-    # Lade Kategorien aus SystemSettings
-    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
-    categories = []
-    if categories_setting and categories_setting.value:
-        import json
-        try:
-            categories = json.loads(categories_setting.value)
-        except:
-            categories = []
-    
-    if request.method == 'POST':
-        category_name = request.form.get('category_name', '').strip()
-        if category_name:
-            if category_name not in categories:
-                categories.append(category_name)
-                categories.sort()
-                
-                # Speichere in SystemSettings
-                import json
-                if categories_setting:
-                    categories_setting.value = json.dumps(categories)
-                else:
-                    categories_setting = SystemSettings(
-                        key='inventory_categories',
-                        value=json.dumps(categories),
-                        description='Verfügbare Kategorien für Produkte'
-                    )
-                    db.session.add(categories_setting)
-                db.session.commit()
-                flash(f'Kategorie "{category_name}" wurde hinzugefügt.', 'success')
-            else:
-                flash(f'Kategorie "{category_name}" existiert bereits.', 'warning')
-        
-        return redirect(url_for('settings.admin_inventory_categories'))
-    
-    return render_template('settings/admin_inventory_categories.html', categories=categories)
-
-
 @settings_bp.route('/admin/inventory-settings', methods=['GET', 'POST'])
 @login_required
 def admin_inventory_settings():
@@ -1084,12 +1037,33 @@ def admin_inventory_settings():
 @settings_bp.route('/admin/email-module')
 @login_required
 def admin_email_module():
-    """E-Mail-Moduleinstellungen Übersicht (admin only)."""
+    """E-Mail-Moduleinstellungen Übersicht mit Tabs (admin only)."""
     if not current_user.is_admin:
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    return render_template('settings/admin_email_module.html')
+    # Lade Footer-Template
+    footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
+    current_footer = footer_template.value if footer_template else ''
+    if not current_footer:
+        current_footer = """Mit freundlichen Grüßen
+Ihr Team
+
+---
+Gesendet von <user> (<email>)
+<app_name> - <date> um <time>"""
+    
+    # Lade E-Mail-System-Einstellungen
+    storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()
+    storage_days = int(storage_setting.value) if storage_setting and storage_setting.value else 0
+    
+    sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
+    sync_interval = int(sync_setting.value) if sync_setting and sync_setting.value else 30
+    
+    return render_template('settings/admin_email_module.html', 
+                         footer_template=current_footer,
+                         storage_days=storage_days,
+                         sync_interval=sync_interval)
 
 
 @settings_bp.route('/admin/email-settings', methods=['GET', 'POST'])
@@ -1156,63 +1130,6 @@ def admin_email_settings():
     return render_template('settings/admin_email_settings.html', 
                          storage_days=storage_days, 
                          sync_interval=sync_interval)
-
-
-@settings_bp.route('/admin/inventory-categories/<category_name>/delete', methods=['POST'])
-@login_required
-def admin_delete_inventory_category(category_name):
-    """Delete an inventory category (admin only)."""
-    if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
-        return redirect(url_for('settings.index'))
-    
-    # Lade Kategorien aus SystemSettings
-    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
-    if categories_setting and categories_setting.value:
-        import json
-        try:
-            categories = json.loads(categories_setting.value)
-            if category_name in categories:
-                categories.remove(category_name)
-                categories_setting.value = json.dumps(categories)
-                db.session.commit()
-                flash(f'Kategorie "{category_name}" wurde gelöscht.', 'success')
-            else:
-                flash(f'Kategorie "{category_name}" wurde nicht gefunden.', 'warning')
-        except:
-            flash('Fehler beim Löschen der Kategorie.', 'danger')
-    
-    return redirect(url_for('settings.admin_inventory_categories'))
-
-
-@settings_bp.route('/admin/inventory-permissions')
-@login_required
-def admin_inventory_permissions():
-    """Manage inventory borrow permissions (admin only)."""
-    if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
-        return redirect(url_for('settings.index'))
-    
-    users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
-    
-    return render_template('settings/admin_inventory_permissions.html', users=users)
-
-
-@settings_bp.route('/admin/inventory-permissions/<int:user_id>/toggle', methods=['POST'])
-@login_required
-def admin_toggle_borrow_permission(user_id):
-    """Toggle borrow permission for a user (admin only)."""
-    if not current_user.is_admin:
-        return redirect(url_for('settings.index'))
-    
-    user = User.query.get_or_404(user_id)
-    user.can_borrow = not user.can_borrow
-    db.session.commit()
-    
-    status = "erlaubt" if user.can_borrow else "gesperrt"
-    flash(f'Ausleihe-Berechtigung für {user.full_name} wurde {status}.', 'success')
-    
-    return redirect(url_for('settings.admin_inventory_permissions'))
 
 
 @settings_bp.route('/admin/music', methods=['GET', 'POST'])
@@ -1389,7 +1306,8 @@ def admin_roles_user(user_id):
             'has_full_access': user.has_full_access,
             'module_roles': module_roles,
             'booking_roles': booking_roles,
-            'email_permissions': email_permissions
+            'email_permissions': email_permissions,
+            'can_borrow': user.can_borrow
         })
     
     # HTML-Ansicht (falls benötigt)
@@ -1459,6 +1377,9 @@ def admin_roles_user_update(user_id):
             # Wenn beide deaktiviert sind, lösche die Berechtigung
             if email_perm:
                 db.session.delete(email_perm)
+        
+        # Aktualisiere Leihrechte
+        user.can_borrow = request.form.get('can_borrow') == 'on'
         
         # Aktualisiere Buchungsrollen
         # Lösche alle bestehenden Buchungsrollen-Zuordnungen
