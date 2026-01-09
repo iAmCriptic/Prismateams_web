@@ -58,6 +58,13 @@ class MusicWish(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     queue_entry = db.relationship('MusicQueue', back_populates='wish', uselist=False, cascade='all, delete-orphan')
+    
+    __table_args__ = (
+        db.Index('idx_wish_status', 'status'),
+        db.Index('idx_wish_provider_track', 'provider', 'track_id'),
+        db.Index('idx_wish_created', 'created_at'),
+        db.Index('idx_wish_updated', 'updated_at'),
+    )
 
     def __repr__(self):
         return f'<MusicWish {self.title} by {self.artist}>'
@@ -75,9 +82,15 @@ class MusicQueue(db.Model):
 
     wish = db.relationship('MusicWish', back_populates='queue_entry')
     adder = db.relationship('User', backref='music_queue_entries')
+    
+    __table_args__ = (
+        db.Index('idx_queue_status', 'status'),
+        db.Index('idx_queue_status_position', 'status', 'position'),
+        db.Index('idx_queue_wish_id', 'wish_id'),
+    )
 
     def __repr__(self):
-        return f'<MusicQueue {self.wish.title} (Pos: {self.position})>'
+        return f'<MusicQueue {self.wish.title if self.wish else "Unknown"} (Pos: {self.position})>'
 
 
 class MusicSettings(db.Model):

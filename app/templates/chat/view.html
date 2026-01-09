@@ -1041,7 +1041,24 @@ function showMemberModal(element) {
         phoneContainer.style.display = 'none';
     }
     
-    // Show modal
+    // Close all members modal if it's open
+    const allMembersModalElement = document.getElementById('allMembersModal');
+    if (allMembersModalElement) {
+        const allMembersModal = bootstrap.Modal.getInstance(allMembersModalElement);
+        if (allMembersModal) {
+            allMembersModal.hide();
+            // Wait for the modal to close before opening the member modal
+            allMembersModalElement.addEventListener('hidden.bs.modal', function showMemberModalAfterClose() {
+                const memberModal = new bootstrap.Modal(document.getElementById('memberModal'));
+                memberModal.show();
+                // Remove event listener to avoid memory leaks
+                allMembersModalElement.removeEventListener('hidden.bs.modal', showMemberModalAfterClose);
+            }, { once: true });
+            return;
+        }
+    }
+    
+    // Show modal (if all members modal wasn't open)
     const modal = new bootstrap.Modal(document.getElementById('memberModal'));
     modal.show();
 }

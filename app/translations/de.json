@@ -196,6 +196,10 @@
           "meine_ausleihen": {
             "label": "Meine Ausleihen",
             "description": "Zeigt Ihre aktiven Ausleihen aus der Lagerverwaltung mit Fälligkeitsstatus."
+          },
+          "buchungen": {
+            "label": "Buchungen",
+            "description": "Zeigt ausstehende Buchungsanfragen."
           }
         }
       },

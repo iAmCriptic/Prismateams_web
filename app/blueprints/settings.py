@@ -319,7 +319,6 @@ def admin_users():
         ('module_email', 'E-Mail'),
         ('module_credentials', 'Zugangsdaten'),
         ('module_manuals', 'Anleitungen'),
-        ('module_canvas', 'Canvas'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
@@ -752,10 +751,6 @@ def admin_modules():
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    # Prüfe Excalidraw-Verfügbarkeit
-    from app.utils.excalidraw import is_excalidraw_enabled
-    excalidraw_available = is_excalidraw_enabled()
-    
     if request.method == 'POST':
         # Module-Einstellungen speichern
         modules = {
@@ -765,17 +760,11 @@ def admin_modules():
             'module_email': request.form.get('module_email') == 'on',
             'module_credentials': request.form.get('module_credentials') == 'on',
             'module_manuals': request.form.get('module_manuals') == 'on',
-            'module_canvas': request.form.get('module_canvas') == 'on' if excalidraw_available else False,
             'module_inventory': request.form.get('module_inventory') == 'on',
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
             'module_music': request.form.get('module_music') == 'on'
         }
-        
-        # Canvas kann nur aktiviert werden wenn Excalidraw verfügbar ist
-        if modules['module_canvas'] and not excalidraw_available:
-            flash('Canvas-Modul kann nur aktiviert werden, wenn Excalidraw verfügbar ist.', 'warning')
-            modules['module_canvas'] = False
         
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
@@ -796,7 +785,6 @@ def admin_modules():
     module_email_enabled = is_module_enabled('module_email')
     module_credentials_enabled = is_module_enabled('module_credentials')
     module_manuals_enabled = is_module_enabled('module_manuals')
-    module_canvas_enabled = is_module_enabled('module_canvas') and excalidraw_available
     module_inventory_enabled = is_module_enabled('module_inventory')
     module_wiki_enabled = is_module_enabled('module_wiki')
     module_booking_enabled = is_module_enabled('module_booking')
@@ -809,12 +797,10 @@ def admin_modules():
                            module_email_enabled=module_email_enabled,
                            module_credentials_enabled=module_credentials_enabled,
                            module_manuals_enabled=module_manuals_enabled,
-                           module_canvas_enabled=module_canvas_enabled,
                            module_inventory_enabled=module_inventory_enabled,
                            module_wiki_enabled=module_wiki_enabled,
                            module_booking_enabled=module_booking_enabled,
-                           module_music_enabled=module_music_enabled,
-                           excalidraw_available=excalidraw_available)
+                           module_music_enabled=module_music_enabled)
 
 
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])
@@ -1435,7 +1421,7 @@ def admin_roles_user_update(user_id):
         # Liste aller Module
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals', 'module_canvas',
+            'module_credentials', 'module_manuals',
             'module_inventory', 'module_wiki', 'module_booking', 'module_music'
         ]
         
@@ -1519,7 +1505,6 @@ def admin_roles_default():
         ('module_email', 'E-Mail'),
         ('module_credentials', 'Zugangsdaten'),
         ('module_manuals', 'Anleitungen'),
-        ('module_canvas', 'Canvas'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
@@ -1702,11 +1687,7 @@ def about():
     from app.utils.onlyoffice import is_onlyoffice_enabled
     onlyoffice_enabled = is_onlyoffice_enabled()
     
-    # Excalidraw Status prüfen
-    from app.utils.excalidraw import is_excalidraw_enabled
-    excalidraw_enabled = is_excalidraw_enabled()
-    
-    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled, excalidraw_enabled=excalidraw_enabled)
+    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled)
 
 
 LANGUAGE_FALLBACK_NAMES = {

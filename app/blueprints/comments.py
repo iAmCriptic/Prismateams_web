@@ -72,8 +72,6 @@ def send_mention_notifications(comment, mentions):
         content_name = comment_obj.name if comment_obj else "Datei"
     elif comment.content_type == 'wiki':
         content_name = comment_obj.title if comment_obj else "Wiki-Seite"
-    elif comment.content_type == 'canvas':
-        content_name = comment_obj.name if comment_obj else "Canvas"
     
     for user, mention in mentions:
         # Sende Push-Benachrichtigung
@@ -98,7 +96,7 @@ def send_mention_notifications(comment, mentions):
 @login_required
 def get_comments(content_type, content_id):
     """Holt alle Kommentare für ein Objekt."""
-    if content_type not in ['file', 'wiki', 'canvas']:
+    if content_type not in ['file', 'wiki']:
         return jsonify({'error': 'Ungültiger content_type'}), 400
     
     # Lade alle Kommentare (nur Top-Level, ohne Replies)
@@ -158,7 +156,7 @@ def get_replies(parent_id):
 @login_required
 def create_comment(content_type, content_id):
     """Erstellt einen neuen Kommentar."""
-    if content_type not in ['file', 'wiki', 'canvas']:
+    if content_type not in ['file', 'wiki']:
         return jsonify({'error': 'Ungültiger content_type'}), 400
     
     # Prüfe ob Kommentare für .md Dateien deaktiviert sind

@@ -1414,7 +1414,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Mobile Optimierungen
     if (window.innerWidth <= 768) {
         // Größere Touch-Targets für mobile Geräte
-        const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+        const dropdownToggles = document.querySelectorAll('button[data-bs-toggle="dropdown"], .dropdown-toggle');
         dropdownToggles.forEach(toggle => {
             toggle.style.minWidth = '44px';
             toggle.style.minHeight = '44px';
@@ -1431,7 +1431,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mobile Dropdown - Komplett Custom Implementation
         const dropdowns = document.querySelectorAll('.dropdown');
         dropdowns.forEach(dropdown => {
-            const toggle = dropdown.querySelector('.dropdown-toggle');
+            // Suche nach Button mit data-bs-toggle="dropdown" ODER .dropdown-toggle
+            const toggle = dropdown.querySelector('button[data-bs-toggle="dropdown"], .dropdown-toggle');
             const menu = dropdown.querySelector('.dropdown-menu');
             
             if (toggle && menu) {
@@ -1453,6 +1454,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                 }, { passive: false });
                 
+                // Speichere ursprüngliches Parent-Element
+                let originalParent = null;
+                
+                // Funktion zum Verschieben des Menüs an den Body (außerhalb des Stacking Contexts)
+                function moveMenuToBody() {
+                    if (menu.parentNode !== document.body) {
+                        // Speichere die ursprüngliche Position für später
+                        originalParent = menu.parentNode;
+                        // Verschiebe das Menü an den Body
+                        document.body.appendChild(menu);
+                    }
+                }
+                
+                // Funktion zum Zurückverschieben des Menüs
+                function restoreMenuPosition() {
+                    if (originalParent && menu.parentNode === document.body && !menu.classList.contains('show')) {
+                        // Verschiebe das Menü zurück zum ursprünglichen Parent
+                        originalParent.appendChild(menu);
+                        originalParent = null;
+                    }
+                }
+                
                 // Touch End
                 toggle.addEventListener('touchend', function(e) {
                     const touchEndTime = Date.now();
@@ -1472,6 +1495,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Toggle Menu
                         if (menu.classList.contains('show')) {
                             menu.classList.remove('show');
+                            setTimeout(restoreMenuPosition, 300); // Warte auf Animation
                         } else {
                             // Schließe andere Dropdowns
                             document.querySelectorAll('.dropdown-menu.show').forEach(otherMenu => {
@@ -1480,6 +1504,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 }
                             });
                             
+                            // Verschiebe Menü an Body vor dem Öffnen
+                            moveMenuToBody();
                             // Öffne dieses Dropdown
                             menu.classList.add('show');
                         }
@@ -1494,6 +1520,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Toggle Menu
                     if (menu.classList.contains('show')) {
                         menu.classList.remove('show');
+                        setTimeout(restoreMenuPosition, 300); // Warte auf Animation
                     } else {
                         // Schließe andere Dropdowns
                         document.querySelectorAll('.dropdown-menu.show').forEach(otherMenu => {
@@ -1502,27 +1529,38 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         });
                         
+                        // Verschiebe Menü an Body vor dem Öffnen
+                        moveMenuToBody();
                         // Öffne dieses Dropdown
                         menu.classList.add('show');
                     }
                 });
                 
-                // Verhindere dass Menu schließt beim Klicken
+                // Verhindere dass Menu schließt beim Klicken auf Items
                 menu.addEventListener('click', function(e) {
                     e.stopPropagation();
+                    // Wenn ein Dropdown-Item geklickt wird, Menü nach kurzer Verzögerung zurücksetzen
+                    if (e.target.closest('.dropdown-item')) {
+                        setTimeout(function() {
+                            menu.classList.remove('show');
+                            setTimeout(restoreMenuPosition, 300);
+                        }, 100);
+                    }
                 });
                 
                 // Schließe beim Klicken außerhalb
                 document.addEventListener('click', function(e) {
-                    if (!dropdown.contains(e.target)) {
+                    if (!dropdown.contains(e.target) && !menu.contains(e.target)) {
                         menu.classList.remove('show');
+                        setTimeout(restoreMenuPosition, 300); // Warte auf Animation
                     }
                 });
                 
                 // Schließe beim Touch außerhalb
                 document.addEventListener('touchstart', function(e) {
-                    if (!dropdown.contains(e.target)) {
+                    if (!dropdown.contains(e.target) && !menu.contains(e.target)) {
                         menu.classList.remove('show');
+                        setTimeout(restoreMenuPosition, 300); // Warte auf Animation
                     }
                 });
             }

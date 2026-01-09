@@ -61,15 +61,6 @@
                         </label>
                     </div>
                     
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_canvas" id="widget_canvas" {% if 'canvas' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_canvas">
-                            <i class="bi bi-palette text-danger me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.canvas.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.canvas.description') }}</small>
-                        </label>
-                    </div>
-                    
                     {% if is_module_enabled('module_wiki') %}
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="widget_neue_wikieintraege" id="widget_neue_wikieintraege" {% if 'neue_wikieintraege' in enabled_widgets %}checked{% endif %}>
@@ -184,16 +175,6 @@
                         <label class="form-check-label" for="link_manuals">
                             <i class="bi bi-book me-2"></i>
                             <strong>{{ _('dashboard.edit.quick_access.items.manuals') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_canvas') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_canvas" id="link_canvas" {% if 'canvas' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_canvas">
-                            <i class="bi bi-palette me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.canvas') }}</strong>
                         </label>
                     </div>
                     {% endif %}

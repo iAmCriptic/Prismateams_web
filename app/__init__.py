@@ -176,9 +176,6 @@ def create_app(config_name='default'):
         from app.utils.onlyoffice import is_onlyoffice_enabled
         onlyoffice_available = is_onlyoffice_enabled()
         
-        from app.utils.excalidraw import is_excalidraw_enabled
-        excalidraw_available = is_excalidraw_enabled()
-        
         from app.utils.common import is_module_enabled
         
         def get_chat_display_name(chat):
@@ -263,9 +260,6 @@ def create_app(config_name='default'):
                 'wiki.view': 'wiki.index',
                 'wiki.edit': 'wiki.index',
                 'wiki.create': 'wiki.index',
-                'canvas.view': 'canvas.index',
-                'canvas.edit': 'canvas.index',
-                'canvas.create': 'canvas.index',
                 'credentials.view': 'credentials.index',
                 'credentials.edit': 'credentials.index',
                 'credentials.create': 'credentials.index',
@@ -297,7 +291,6 @@ def create_app(config_name='default'):
                 'calendar': 'calendar.index',
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
-                'canvas': 'canvas.index',
                 'wiki': 'wiki.index',
                 'settings': 'settings.index'
             }
@@ -316,7 +309,6 @@ def create_app(config_name='default'):
             'color_gradient': color_gradient,
             'portal_logo_filename': portal_logo_filename,
             'onlyoffice_available': onlyoffice_available,
-            'excalidraw_available': excalidraw_available,
             'is_module_enabled': is_module_enabled,
             'has_module_access': has_module_access,
             'get_back_url': get_back_url,
@@ -503,7 +495,6 @@ def create_app(config_name='default'):
     from app.blueprints.email import email_bp, start_email_sync
     from app.blueprints.credentials import credentials_bp
     from app.blueprints.manuals import manuals_bp
-    from app.blueprints.canvas import canvas_bp
     from app.blueprints.settings import settings_bp
     from app.blueprints.api import api_bp
     from app.blueprints.errors import errors_bp
@@ -522,7 +513,6 @@ def create_app(config_name='default'):
     app.register_blueprint(email_bp, url_prefix='/email')
     app.register_blueprint(credentials_bp, url_prefix='/credentials')
     app.register_blueprint(manuals_bp, url_prefix='/manuals')
-    app.register_blueprint(canvas_bp, url_prefix='/canvas')
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(errors_bp, url_prefix='/test')
@@ -848,8 +838,6 @@ def create_app(config_name='default'):
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
-    
-    from app.blueprints import canvas
     
     return app
 

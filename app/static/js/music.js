@@ -12,14 +12,15 @@ let cachedCounts = {
     played: 0
 };
 
-// Cache für API-Responses (TTL: 5 Sekunden)
+// Cache für API-Responses (TTL: optimiert für Performance)
 let apiCache = {};
-const CACHE_TTL = 5000; // 5 Sekunden
+const CACHE_TTL = 5000; // 5 Sekunden für Listen
+const CACHE_TTL_COUNT = 10000; // 10 Sekunden für Counts (weniger häufig geändert)
 
 // Cache-Helper
-function getCached(key) {
+function getCached(key, ttl = CACHE_TTL) {
     const cached = apiCache[key];
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < ttl) {
         return cached.data;
     }
     delete apiCache[key];
@@ -461,7 +462,7 @@ function updatePlayedBadgeDirect(count) {
 // Fallback: Lade Counts per Fetch (für Initial-Load)
 function updateWishlistBadge() {
     const cacheKey = 'wishlist_count';
-    const cached = getCached(cacheKey);
+    const cached = getCached(cacheKey, CACHE_TTL_COUNT);
     if (cached !== null) {
         updateWishlistBadgeDirect(cached);
         return;
@@ -481,7 +482,7 @@ function updateWishlistBadge() {
 
 function updateQueueBadge() {
     const cacheKey = 'queue_count';
-    const cached = getCached(cacheKey);
+    const cached = getCached(cacheKey, CACHE_TTL_COUNT);
     if (cached !== null) {
         updateQueueBadgeDirect(cached);
         return;
@@ -1049,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Fallback: Lade Played-Count per Fetch (für Initial-Load)
 function updatePlayedBadge() {
     const cacheKey = 'played_count';
-    const cached = getCached(cacheKey);
+    const cached = getCached(cacheKey, CACHE_TTL_COUNT);
     if (cached !== null) {
         updatePlayedBadgeDirect(cached);
         return;

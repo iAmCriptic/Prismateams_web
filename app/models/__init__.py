@@ -5,7 +5,6 @@ from .calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
 from .email import EmailMessage, EmailPermission, EmailAttachment
 from .credential import Credential
 from .manual import Manual
-from .canvas import Canvas
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
 from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
@@ -23,7 +22,6 @@ __all__ = [
     'EmailMessage', 'EmailPermission', 'EmailAttachment',
     'Credential',
     'Manual',
-    'Canvas',
     'SystemSettings',
     'WhitelistEntry',
     'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog',

@@ -3,7 +3,7 @@
 {% block title %}{{ _('auth.register.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }}; background-attachment: fixed; background-size: cover;"{% endif %}>
+<div class="auth-container">
     <div class="auth-card">
         <div class="card">
             <div class="card-body p-4">
@@ -22,11 +22,11 @@
                 
                 <form method="POST">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-12 col-md-6 mb-3">
                             <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
                             <input type="text" class="form-control" id="first_name" name="first_name" required>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-12 col-md-6 mb-3">
                             <label for="last_name" class="form-label">{{ _('auth.register.last_name') }}</label>
                             <input type="text" class="form-control" id="last_name" name="last_name" required>
                         </div>
@@ -83,24 +83,35 @@
 document.addEventListener('DOMContentLoaded', function() {
     const body = document.body;
     const container = document.querySelector('.auth-container');
+    const isMobile = window.innerWidth <= 768;
     
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    container.style.background = '{{ color_gradient }}';
-    container.style.backgroundAttachment = 'fixed';
-    container.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    container.style.backgroundAttachment = 'fixed';
-    container.style.backgroundSize = 'cover';
-    {% endif %}
+    // Auf mobilen Geräten keinen Farbverlauf - einfacher Hintergrund
+    if (isMobile) {
+        // Kein Farbverlauf auf mobilen Geräten - einfacher Hintergrund
+        body.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
+        body.style.backgroundAttachment = 'scroll';
+        container.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
+        container.style.backgroundAttachment = 'scroll';
+        container.style.backgroundSize = 'auto';
+    } else {
+        // Vollständiger Farbverlauf für Desktop
+        {% if color_gradient %}
+        body.style.background = '{{ color_gradient }}';
+        body.style.backgroundAttachment = 'fixed';
+        body.style.backgroundSize = 'cover';
+        container.style.background = '{{ color_gradient }}';
+        container.style.backgroundAttachment = 'fixed';
+        container.style.backgroundSize = 'cover';
+        {% else %}
+        // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+        body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        body.style.backgroundAttachment = 'fixed';
+        body.style.backgroundSize = 'cover';
+        container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        container.style.backgroundAttachment = 'fixed';
+        container.style.backgroundSize = 'cover';
+        {% endif %}
+    }
 });
 </script>
 {% endblock %}

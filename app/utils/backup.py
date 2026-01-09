@@ -19,7 +19,7 @@ from app.models import (
     Comment, CommentMention,
     Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem,
     ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem,
-    Manual, Chat, ChatMessage, ChatMember, Canvas
+    Manual, Chat, ChatMessage, ChatMember
 )
 from app.blueprints.credentials import get_encryption_key
 from app.utils.lengths import normalize_length_input, parse_length_to_meters, format_length_from_meters
@@ -37,8 +37,7 @@ SUPPORTED_CATEGORIES = {
     'comments': 'Kommentare',
     'inventory': 'Inventar',
     'manuals': 'Handbücher',
-    'chats': 'Chats',
-    'canvas': 'Canvas'
+    'chats': 'Chats'
 }
 
 
@@ -94,12 +93,6 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['chats'] = export_chats()
         backup_data['data']['chat_members'] = export_chat_members()
         backup_data['data']['chat_messages'] = export_chat_messages()
-    
-    # Canvas exportieren
-    if 'canvas' in categories or 'all' in categories:
-        backup_data['data']['canvases'] = export_canvases()
-        backup_data['data']['canvas_text_fields'] = export_canvas_text_fields()
-        backup_data['data']['canvas_elements'] = export_canvas_elements()
     
     # Dateien exportieren
     if 'files' in categories or 'all' in categories:
@@ -504,30 +497,6 @@ def export_chat_messages() -> List[Dict]:
     return result
 
 
-def export_canvases() -> List[Dict]:
-    """Exportiert Canvas."""
-    canvases = Canvas.query.all()
-    return [{
-        'name': c.name,
-        'description': c.description,
-        'created_by_email': User.query.get(c.created_by).email if User.query.get(c.created_by) else None,
-        'created_at': c.created_at.isoformat() if c.created_at else None,
-        'updated_at': c.updated_at.isoformat() if c.updated_at else None
-    } for c in canvases]
-
-
-def export_canvas_text_fields() -> List[Dict]:
-    """Exportiert Canvas-Textfelder. (Veraltet - wird nicht mehr unterstützt)"""
-    # Alte Canvas-Daten werden nicht mehr exportiert (Excalidraw-Integration)
-    return []
-
-
-def export_canvas_elements() -> List[Dict]:
-    """Exportiert Canvas-Elemente. (Veraltet - wird nicht mehr unterstützt)"""
-    # Alte Canvas-Daten werden nicht mehr exportiert (Excalidraw-Integration)
-    return []
-
-
 def export_folders() -> List[Dict]:
     """Exportiert Ordner."""
     folders = Folder.query.all()
@@ -711,11 +680,6 @@ def export_comments() -> List[Dict]:
             wiki_obj = WikiPage.query.get(c.content_id)
             if wiki_obj:
                 comment_data['content_reference'] = f"wiki:{wiki_obj.slug}"
-        elif c.content_type == 'canvas':
-            from app.models.canvas import Canvas
-            canvas_obj = Canvas.query.get(c.content_id)
-            if canvas_obj:
-                comment_data['content_reference'] = f"canvas:{canvas_obj.id}"
         
         result.append(comment_data)
     return result
@@ -1068,22 +1032,6 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'chat_messages' in backup_data.get('data', {}):
                 import_chat_messages(backup_data['data']['chat_messages'], chat_map, user_map, current_user_id)
                 results['imported'].append('chat_messages')
-        
-        # Canvas importieren
-        if 'canvas' in categories or 'all' in categories:
-            if 'canvases' in backup_data.get('data', {}):
-                canvas_map = import_canvases(backup_data['data']['canvases'], user_map, current_user_id)
-                results['imported'].append('canvases')
-            else:
-                canvas_map = {}
-            
-            if 'canvas_text_fields' in backup_data.get('data', {}):
-                import_canvas_text_fields(backup_data['data']['canvas_text_fields'], canvas_map, user_map, current_user_id)
-                results['imported'].append('canvas_text_fields')
-            
-            if 'canvas_elements' in backup_data.get('data', {}):
-                import_canvas_elements(backup_data['data']['canvas_elements'], canvas_map, user_map, current_user_id)
-                results['imported'].append('canvas_elements')
         
         # Dateien importieren
         if 'files' in categories or 'all' in categories:
@@ -1986,59 +1934,6 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
         db.session.add(message)
 
 
-def import_canvases(canvases_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
-    """Importiert Canvas und gibt ein Mapping von Canvas-Name zu neuer ID zurück."""
-    canvas_map = {}  # canvas_name -> neue_id
-    
-    for c_data in canvases_data:
-        created_by_email = c_data.get('created_by_email')
-        if not created_by_email:
-            created_by_id = current_user_id
-        elif created_by_email not in user_map:
-            if current_user_id:
-                created_by_id = current_user_id
-            else:
-                continue
-        else:
-            created_by_id = user_map[created_by_email]
-        
-        # Prüfe ob Canvas bereits existiert (nach Name)
-        existing = Canvas.query.filter_by(name=c_data.get('name')).first()
-        if existing:
-            canvas_map[c_data['name']] = existing.id
-        else:
-            canvas = Canvas(
-                name=c_data['name'],
-                description=c_data.get('description'),
-                created_by=created_by_id
-            )
-            
-            if c_data.get('created_at'):
-                canvas.created_at = datetime.fromisoformat(c_data['created_at'])
-            if c_data.get('updated_at'):
-                canvas.updated_at = datetime.fromisoformat(c_data['updated_at'])
-            
-            db.session.add(canvas)
-            db.session.flush()
-            canvas_map[c_data['name']] = canvas.id
-    
-    return canvas_map
-
-
-def import_canvas_text_fields(text_fields_data: List[Dict], canvas_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
-    """Importiert Canvas-Textfelder. (Veraltet - wird nicht mehr unterstützt)"""
-    # Alte Canvas-Daten werden nicht mehr importiert (Excalidraw-Integration)
-    # Keine Migration von alten Canvas-Textfeldern
-    pass
-
-
-def import_canvas_elements(elements_data: List[Dict], canvas_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
-    """Importiert Canvas-Elemente. (Veraltet - wird nicht mehr unterstützt)"""
-    # Alte Canvas-Daten werden nicht mehr importiert (Excalidraw-Integration)
-    # Keine Migration von alten Canvas-Elementen
-    pass
-
-
 def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
     """Importiert Zugangsdaten (verschlüsselt neu)."""
     key = get_encryption_key()
@@ -2506,16 +2401,6 @@ def import_comments(comments_data: List[Dict], user_map: Dict[str, int], current
             wiki_obj = WikiPage.query.filter_by(slug=wiki_slug).first()
             if wiki_obj:
                 content_id = wiki_obj.id
-        elif c_data['content_type'] == 'canvas' and content_ref.startswith('canvas:'):
-            canvas_id_str = content_ref.split(':', 1)[1]
-            try:
-                canvas_id = int(canvas_id_str)
-                from app.models.canvas import Canvas
-                canvas_obj = Canvas.query.get(canvas_id)
-                if canvas_obj:
-                    content_id = canvas_obj.id
-            except ValueError:
-                pass
         
         # Fallback: Verwende content_id aus Backup falls vorhanden
         if not content_id and c_data.get('content_id'):
@@ -2528,11 +2413,6 @@ def import_comments(comments_data: List[Dict], user_map: Dict[str, int], current
                 wiki_obj = WikiPage.query.get(c_data['content_id'])
                 if wiki_obj:
                     content_id = wiki_obj.id
-            elif c_data['content_type'] == 'canvas':
-                from app.models.canvas import Canvas
-                canvas_obj = Canvas.query.get(c_data['content_id'])
-                if canvas_obj:
-                    content_id = canvas_obj.id
         
         if not content_id:
             continue

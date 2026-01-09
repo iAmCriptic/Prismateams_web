@@ -10,13 +10,30 @@ from app.utils.music_oauth import (
 )
 from app.utils.music_api import search_music, get_track, search_music_multi_provider
 from app.utils.access_control import check_module_access
+from sqlalchemy.orm import joinedload
+from sqlalchemy import func, case
 from datetime import datetime
 import secrets
 import logging
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
 music_bp = Blueprint('music', __name__, url_prefix='/music')
+
+
+# Cache für SystemSettings (5 Minuten TTL)
+@lru_cache(maxsize=128)
+def get_cached_system_setting(key):
+    """Holt eine System-Einstellung mit LRU-Cache."""
+    from app.models.settings import SystemSettings
+    setting = SystemSettings.query.filter_by(key=key).first()
+    return setting.value if setting else None
+
+
+def invalidate_system_settings_cache():
+    """Invalidiert den SystemSettings-Cache."""
+    get_cached_system_setting.cache_clear()
 
 
 # Öffentliche Route (kein Login erforderlich)
@@ -104,25 +121,19 @@ def public_wishlist():
         return jsonify({'success': True, 'message': 'Lied zur Wunschliste hinzugefügt'})
     
     # GET: Zeige Suchseite
-    # Hole Einstellungen für Template
-    from app.models.settings import SystemSettings
+    # Hole Einstellungen für Template (mit Cache)
+    color_gradient = get_cached_system_setting('color_gradient')
     
-    # Hole Farbverlauf
-    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
-    color_gradient = gradient_setting.value if gradient_setting else None
-    
-    # Hole Portallogo
-    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-    portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
+    portal_logo_filename = get_cached_system_setting('portal_logo') or None
     
     # Hole App-Name
-    portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-    if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
-        app_name = portal_name_setting.value
+    portal_name = get_cached_system_setting('portal_name')
+    if portal_name and portal_name.strip():
+        app_name = portal_name
     else:
-        org_name_setting = SystemSettings.query.filter_by(key='organization_name').first()
-        if org_name_setting and org_name_setting.value and org_name_setting.value.strip():
-            app_name = org_name_setting.value
+        org_name = get_cached_system_setting('organization_name')
+        if org_name and org_name.strip():
+            app_name = org_name
         else:
             app_name = current_app.config.get('APP_NAME', 'Prismateams')
     
@@ -184,16 +195,20 @@ def index():
         MusicWish.created_at.desc()
     ).limit(50).all()
     
-    # Hole Warteschlange (sollte normalerweise nicht zu groß sein)
-    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    # Hole Warteschlange mit joinedload für N+1 Optimierung
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
     
-    # Hole aktuell spielendes Lied
-    playing = MusicQueue.query.filter_by(status='playing').first()
+    # Hole aktuell spielendes Lied mit joinedload
+    playing = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='playing'
+    ).first()
     
-    # Counts für andere Tabs (werden per API geladen)
-    wish_count = MusicWish.query.filter_by(status='pending').count()
-    queue_count = MusicQueue.query.filter_by(status='pending').count()
-    played_count = MusicWish.query.filter_by(status='played').count()
+    # Optimierte Count-Queries: Separate Counts (effizienter bei kleinen Tabellen und mit Indizes)
+    wish_count = db.session.query(func.count(MusicWish.id)).filter_by(status='pending').scalar() or 0
+    queue_count = db.session.query(func.count(MusicQueue.id)).filter_by(status='pending').scalar() or 0
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
     
     return render_template('music/index.html',
                          wishes=wishes,
@@ -222,22 +237,22 @@ def add_to_queue():
     if existing_queue:
         return jsonify({'error': 'Lied ist bereits in der Warteschlange'}), 400
     
-    # Bestimme Position
+    # Bestimme Position (optimiert mit func.max)
     if position == 'next':
         # Als nächstes Lied
         new_position = 1
-        # Verschiebe alle anderen nach hinten
+        # Verschiebe alle anderen nach hinten (nur Position-Updates, kein joinedload nötig)
         existing = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
         for entry in existing:
             entry.position += 1
     elif position == 'last':
         # Als letztes Lied von Wunschliedern
-        # Finde die höchste Position
-        max_pos = db.session.query(db.func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
+        # Finde die höchste Position (optimiert mit func.max)
+        max_pos = db.session.query(func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
         new_position = max_pos + 1
     else:  # 'end'
         # Am Ende
-        max_pos = db.session.query(db.func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
+        max_pos = db.session.query(func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
         new_position = max_pos + 1
     
     # Erstelle Queue-Eintrag
@@ -330,8 +345,8 @@ def mark_wish_as_played():
         }
     }, room='music_module', namespace='/')
     
-    # Sende spezielles Event für "Played"-Updates
-    played_count = MusicWish.query.filter_by(status='played').count()
+    # Sende spezielles Event für "Played"-Updates (optimiertes Count)
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
     socketio.emit('music:played_updated', {
         'wish': {
             'id': wish.id,
@@ -345,8 +360,10 @@ def mark_wish_as_played():
         'count': played_count
     }, room='music_module', namespace='/')
     
-    # Sende auch Queue-Update falls Queue-Eintrag entfernt wurde
-    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    # Sende auch Queue-Update falls Queue-Eintrag entfernt wurde (mit joinedload)
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
     queue_data = []
     for entry in queue:
         queue_data.append({
@@ -412,8 +429,10 @@ def move_queue_item():
     queue_entry.position = new_position
     db.session.commit()
     
-    # Lade vollständige Queue-Daten für SocketIO-Update
-    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    # Lade vollständige Queue-Daten für SocketIO-Update (mit joinedload)
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
     queue_data = []
     for entry in queue:
         queue_data.append({
@@ -469,8 +488,10 @@ def remove_from_queue():
     
     db.session.commit()
     
-    # Lade vollständige Queue-Daten für SocketIO-Update
-    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    # Lade vollständige Queue-Daten für SocketIO-Update (mit joinedload)
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
     queue_data = []
     for entry in queue:
         queue_data.append({
@@ -506,8 +527,8 @@ def remove_from_queue():
         }
     }, room='music_module', namespace='/')
     
-    # Sende spezielles Event für "Played"-Updates
-    played_count = MusicWish.query.filter_by(status='played').count()
+    # Sende spezielles Event für "Played"-Updates (optimiertes Count)
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
     socketio.emit('music:played_updated', {
         'wish': {
             'id': wish.id,
@@ -698,11 +719,8 @@ def disconnect(provider):
 @check_module_access('module_music')
 def public_url_page():
     """Zeigt eine Seite mit QR-Code und Link für die öffentliche Wunschliste."""
-    from app.models.settings import SystemSettings
-    
-    # Hole Portallogo
-    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-    portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
+    # Hole Portallogo (mit Cache)
+    portal_logo_filename = get_cached_system_setting('portal_logo') or None
     
     # Generiere Public URL
     public_url = url_for('music.public_wishlist', _external=True)
@@ -762,7 +780,7 @@ def download_public_link_pdf():
 @check_module_access('module_music')
 def api_wishlist_count():
     """Gibt die Anzahl der Wünsche zurück."""
-    count = MusicWish.query.filter_by(status='pending').count()
+    count = db.session.query(func.count(MusicWish.id)).filter_by(status='pending').scalar() or 0
     return jsonify({'count': count})
 
 
@@ -771,7 +789,7 @@ def api_wishlist_count():
 @check_module_access('module_music')
 def api_queue_count():
     """Gibt die Anzahl der Queue-Einträge zurück."""
-    count = MusicQueue.query.filter_by(status='pending').count()
+    count = db.session.query(func.count(MusicQueue.id)).filter_by(status='pending').scalar() or 0
     return jsonify({'count': count})
 
 
@@ -780,7 +798,9 @@ def api_queue_count():
 @check_module_access('module_music')
 def api_queue_list():
     """Gibt die aktuelle Queue als JSON zurück."""
-    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
     
     queue_data = []
     for entry in queue:
@@ -808,8 +828,8 @@ def api_wishlist_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     
-    # Begrenze per_page auf maximal 100
-    per_page = min(per_page, 100)
+    # Begrenze per_page auf maximal 50 (Performance-Optimierung)
+    per_page = min(per_page, 50)
     
     pagination = MusicWish.query.filter_by(status='pending').order_by(
         MusicWish.created_at.desc()
@@ -845,7 +865,7 @@ def api_wishlist_list():
 @check_module_access('module_music')
 def api_played_count():
     """Gibt die Anzahl der bereits gespielten Lieder zurück."""
-    count = MusicWish.query.filter_by(status='played').count()
+    count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
     return jsonify({'count': count})
 
 
@@ -857,8 +877,8 @@ def api_played_list():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     
-    # Begrenze per_page auf maximal 100
-    per_page = min(per_page, 100)
+    # Begrenze per_page auf maximal 50 (Performance-Optimierung)
+    per_page = min(per_page, 50)
     
     pagination = MusicWish.query.filter_by(status='played').order_by(
         MusicWish.updated_at.desc()

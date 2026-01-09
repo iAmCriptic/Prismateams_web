@@ -8,6 +8,16 @@
     cursor: pointer;
 }
 
+/* Mobile: Sicherstellen dass Cards keinen hohen z-index haben */
+@media (max-width: 768px) {
+    .card.file-item, .card.folder-item {
+        z-index: 1 !important;
+        transform: none !important;
+        opacity: 1 !important;
+        will-change: auto !important;
+    }
+}
+
 /* Grid View für Dateien - IMMER sichtbar, außer wenn d-none Klasse vorhanden */
 #gridView.row {
     display: flex !important;
@@ -84,11 +94,14 @@ h5.mb-3 {
     /* Dropdown komplett deaktivieren und durch Custom ersetzen */
     .dropdown {
         position: relative !important;
-        z-index: 1055 !important;
+        z-index: 99999 !important;
+        isolation: auto !important;
     }
     
-    /* Custom 3-Punkte-Button für mobile */
-    .dropdown-toggle {
+    /* Custom 3-Punkte-Button für mobile - gilt für alle Dropdown-Buttons */
+    .dropdown-toggle,
+    .dropdown button[data-bs-toggle="dropdown"],
+    .dropdown .btn-link[data-bs-toggle="dropdown"] {
         width: 80px !important;
         height: 80px !important;
         padding: 0 !important;
@@ -99,48 +112,53 @@ h5.mb-3 {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        z-index: 1055 !important;
+        z-index: 99999 !important;
         cursor: pointer !important;
         touch-action: manipulation !important;
         -webkit-tap-highlight-color: transparent !important;
         user-select: none !important;
+        isolation: auto !important;
     }
     
     /* Größerer unsichtbarer Touch-Bereich */
-    .dropdown-toggle::after {
+    .dropdown-toggle::after,
+    .dropdown button[data-bs-toggle="dropdown"]::after {
         content: '';
         position: absolute;
         top: -20px;
         left: -20px;
         right: -20px;
         bottom: -20px;
-        z-index: 1056;
+        z-index: 10000;
         background: transparent;
     }
     
     /* 3-Punkte-Icon vergrößern */
-    .dropdown-toggle i {
+    .dropdown-toggle i,
+    .dropdown button[data-bs-toggle="dropdown"] i {
         font-size: 24px !important;
         color: #6c757d !important;
         pointer-events: none !important;
     }
     
     /* Hover-Effekt */
-    .dropdown-toggle:hover i {
+    .dropdown-toggle:hover i,
+    .dropdown button[data-bs-toggle="dropdown"]:hover i {
         color: var(--accent-color) !important;
     }
     
     /* Active-Effekt */
-    .dropdown-toggle:active {
+    .dropdown-toggle:active,
+    .dropdown button[data-bs-toggle="dropdown"]:active {
         transform: scale(0.9) !important;
         transition: transform 0.1s ease !important;
     }
     
-    /* Größere Buttons für mobile */
+    /* Kompaktere Buttons für mobile */
     .dropdown-item {
-        padding: 16px 20px !important;
-        font-size: 18px !important;
-        min-height: 60px !important;
+        padding: 12px 16px !important;
+        font-size: 15px !important;
+        min-height: 48px !important;
         display: flex !important;
         align-items: center !important;
         border-bottom: 1px solid rgba(0,0,0,0.1) !important;
@@ -151,9 +169,9 @@ h5.mb-3 {
     }
     
     .dropdown-item i {
-        margin-right: 16px !important;
-        width: 24px !important;
-        font-size: 20px !important;
+        margin-right: 12px !important;
+        width: 20px !important;
+        font-size: 18px !important;
         text-align: center !important;
     }
     
@@ -163,16 +181,36 @@ h5.mb-3 {
         z-index: 1 !important;
     }
     
-    /* Mobile Dropdown Positionierung */
-    .dropdown-menu {
+    /* Container für Dateien/Ordner haben niedrigen z-index und erzeugen KEINEN Stacking Context */
+    .card.file-item, .card.folder-item,
+    .card-body,
+    #gridView, #listView, #foldersGridView, #foldersListView,
+    #gridView .row, #listView .list-group,
+    #gridView .col, #listView .list-group-item {
+        position: relative !important;
+        z-index: 1 !important;
+        transform: none !important;
+        opacity: 1 !important;
+        filter: none !important;
+        will-change: auto !important;
+    }
+    
+    /* Mobile Dropdown Positionierung - muss über allem liegen */
+    .dropdown-menu,
+    .dropdown .dropdown-menu,
+    .card .dropdown-menu,
+    .file-item .dropdown-menu,
+    .folder-item .dropdown-menu {
         position: fixed !important;
         top: auto !important;
         left: 10px !important;
         right: 10px !important;
-        bottom: 20px !important;
+        bottom: 80px !important;
         width: auto !important;
         max-width: none !important;
-        z-index: 1060 !important;
+        max-height: calc(100vh - 160px) !important;
+        overflow-y: auto !important;
+        z-index: 99999 !important;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
         border-radius: 16px !important;
         border: none !important;
@@ -181,7 +219,16 @@ h5.mb-3 {
         animation: slideUpIn 0.3s ease-out;
         pointer-events: auto !important;
         background: var(--bs-body-bg) !important;
-        padding: 8px 0 !important;
+        padding: 6px 0 !important;
+        isolation: auto !important;
+    }
+    
+    /* Wenn Dropdown geöffnet ist, sicherstellen dass es sichtbar ist */
+    .dropdown-menu.show,
+    .dropdown.show .dropdown-menu {
+        position: fixed !important;
+        z-index: 99999 !important;
+        display: block !important;
     }
     
     .dropdown-menu.show {
@@ -201,11 +248,13 @@ h5.mb-3 {
     }
     
     /* Dark Mode Anpassungen */
-    [data-bs-theme="dark"] .dropdown-toggle i {
+    [data-bs-theme="dark"] .dropdown-toggle i,
+    [data-bs-theme="dark"] .dropdown button[data-bs-toggle="dropdown"] i {
         color: #adb5bd !important;
     }
     
-    [data-bs-theme="dark"] .dropdown-toggle:hover i {
+    [data-bs-theme="dark"] .dropdown-toggle:hover i,
+    [data-bs-theme="dark"] .dropdown button[data-bs-toggle="dropdown"]:hover i {
         color: var(--accent-color) !important;
     }
     

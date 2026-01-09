@@ -44,9 +44,6 @@ class Comment(db.Model):
         elif self.content_type == 'wiki':
             from app.models.wiki import WikiPage
             return WikiPage.query.get(self.content_id)
-        elif self.content_type == 'canvas':
-            from app.models.canvas import Canvas
-            return Canvas.query.get(self.content_id)
         return None
     
     def get_content_url(self):
@@ -58,8 +55,6 @@ class Comment(db.Model):
             if page:
                 return f"/wiki/view/{page.slug}"
             return "/wiki"
-        elif self.content_type == 'canvas':
-            return f"/canvas/edit/{self.content_id}"
         return "/"
     
     def soft_delete(self):

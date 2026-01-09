@@ -41,8 +41,6 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
         {% elif 'email' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
-        {% elif 'canvas' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/canvas.css') }}">
         {% elif 'auth' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
         {% elif 'errors' in request.endpoint %}
@@ -321,14 +319,6 @@
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_canvas') and (not current_user.is_authenticated or has_module_access(current_user, 'module_canvas')) %}
-            <li class="nav-item sidebar-nav-item" data-nav-id="canvas" data-nav-priority="7">
-                <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
-                    <i class="bi bi-palette me-2"></i>
-                    {{ _('layout.nav.canvas') }}
-                </a>
-            </li>
-            {% endif %}
             {% if is_module_enabled('module_inventory') and (not current_user.is_authenticated or has_module_access(current_user, 'module_inventory')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="inventory" data-nav-priority="8">
                 <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
@@ -448,14 +438,6 @@
                     </a>
                 </li>
                 {% endif %}
-                {% if is_module_enabled('module_canvas') %}
-                <li>
-                    <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-palette me-2"></i>
-                        {{ _('layout.nav.canvas') }}
-                    </a>
-                </li>
-                {% endif %}
                 {% if is_module_enabled('module_inventory') %}
                 <li>
                     <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
@@ -517,7 +499,7 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'canvas.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">

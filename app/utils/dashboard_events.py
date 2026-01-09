@@ -15,7 +15,7 @@ def emit_dashboard_update(user_id, event_type, data):
     
     Args:
         user_id: ID des Benutzers, der das Update erhalten soll
-        event_type: Typ des Events ('chat_update', 'email_update', 'calendar_update', 'files_update', 'canvas_update')
+        event_type: Typ des Events ('chat_update', 'email_update', 'calendar_update', 'files_update')
         data: Daten, die mit dem Event gesendet werden sollen
     """
     if not user_id:
@@ -41,7 +41,7 @@ def emit_dashboard_update_multiple(user_ids, event_type, data):
     
     Args:
         user_ids: Liste von Benutzer-IDs, die das Update erhalten sollen
-        event_type: Typ des Events ('chat_update', 'email_update', 'calendar_update', 'files_update', 'canvas_update')
+        event_type: Typ des Events ('chat_update', 'email_update', 'calendar_update', 'files_update')
         data: Daten, die mit dem Event gesendet werden sollen
     """
     if not user_ids:

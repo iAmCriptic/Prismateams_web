@@ -196,6 +196,10 @@
           "meine_ausleihen": {
             "label": "My Loans",
             "description": "Shows your active loans from inventory with due status."
+          },
+          "buchungen": {
+            "label": "Bookings",
+            "description": "Shows pending booking requests."
           }
         }
       },
@@ -213,7 +217,10 @@
           "inventory": "Inventory",
           "wiki": "Wiki",
           "booking": "Bookings",
-          "music": "Music"
+          "music": "Music",
+          "settings": "Settings",
+          "profile": "Profile",
+          "logout": "Log out"
         }
       }
     }

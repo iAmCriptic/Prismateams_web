@@ -5,7 +5,6 @@ from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import ChatMessage, ChatMember
 from app.models.email import EmailMessage, EmailPermission
 from app.models.file import File
-from app.models.canvas import Canvas
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
@@ -89,15 +88,6 @@ def index():
             ).order_by(File.updated_at.desc()).limit(3).all()
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Dateien: {e}")
-    
-    recent_canvases = []
-    if 'canvas' in enabled_widgets and is_module_enabled('module_canvas'):
-        try:
-            recent_canvases = Canvas.query.filter_by(
-                created_by=current_user.id
-            ).order_by(Canvas.updated_at.desc()).limit(3).all()
-        except Exception as e:
-            logger.warning(f"Fehler beim Laden der Canvas: {e}")
     
     # Neue Wikieinträge Widget
     recent_wiki_pages = []
@@ -195,7 +185,6 @@ def index():
         unread_messages=unread_messages,
         recent_emails=recent_emails,
         recent_files=recent_files,
-        recent_canvases=recent_canvases,
         recent_wiki_pages=recent_wiki_pages,
         my_wiki_favorites=my_wiki_favorites,
         my_borrow_groups=my_borrow_groups,
@@ -217,7 +206,7 @@ def edit():
         
         # Widgets aus Formular
         enabled_widgets = []
-        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'canvas', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen']
+        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen']
         for widget in available_widgets:
             if request.form.get(f'widget_{widget}') == 'on':
                 enabled_widgets.append(widget)
@@ -228,7 +217,6 @@ def edit():
             'files': 'files',
             'credentials': 'credentials',
             'manuals': 'manuals',
-            'canvas': 'canvas',
             'chat': 'chat',
             'calendar': 'calendar',
             'email': 'email',
