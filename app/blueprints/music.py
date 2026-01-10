@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from flask_socketio import join_room, leave_room
-from app import db, socketio
+from app import db
 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
+from app.blueprints.sse import emit_music_update
 from app.utils.music_oauth import (
     get_spotify_oauth_url, get_youtube_oauth_url,
     handle_spotify_callback, handle_youtube_callback,
@@ -71,8 +71,8 @@ def public_wishlist():
             # Status bleibt unverändert (played bleibt played, pending bleibt pending, etc.)
             db.session.commit()
             
-            # WebSocket-Update senden mit vollständigen Daten (nur an Clients im Musikmodul)
-            socketio.emit('music:wish_updated', {
+            # SSE-Update senden (funktioniert mit mehreren Gunicorn-Workern)
+            emit_music_update('wish_updated', {
                 'wish': {
                     'id': existing.id,
                     'title': existing.title,
@@ -83,7 +83,7 @@ def public_wishlist():
                     'status': existing.status,
                     'created_at': existing.created_at.isoformat() if existing.created_at else None
                 }
-            }, room='music_module', namespace='/')
+            })
             
             return jsonify({'success': True, 'message': f'Wunschzähler erhöht ({existing.wish_count}x gewünscht)'})
         
@@ -104,8 +104,8 @@ def public_wishlist():
         db.session.add(wish)
         db.session.commit()
         
-        # WebSocket-Update senden mit vollständigen Daten (nur an Clients im Musikmodul)
-        socketio.emit('music:wish_added', {
+        # SSE-Update senden (funktioniert mit mehreren Gunicorn-Workern)
+        emit_music_update('wish_added', {
             'wish': {
                 'id': wish.id,
                 'title': wish.title,
@@ -116,7 +116,7 @@ def public_wishlist():
                 'status': wish.status,
                 'created_at': wish.created_at.isoformat() if wish.created_at else None
             }
-        }, room='music_module', namespace='/')
+        })
         
         return jsonify({'success': True, 'message': 'Lied zur Wunschliste hinzugefügt'})
     
@@ -285,14 +285,14 @@ def add_to_queue():
             }
         })
     
-    # WebSocket-Update senden mit vollständigen Queue-Daten (nur an Clients im Musikmodul)
-    socketio.emit('music:queue_updated', {
+    # SSE-Update senden (funktioniert mit mehreren Gunicorn-Workern)
+    emit_music_update('queue_updated', {
         'action': 'added',
         'queue': queue_data
-    }, room='music_module', namespace='/')
+    })
     
     # Sende auch Wish-Update (Status geändert)
-    socketio.emit('music:wish_updated', {
+    emit_music_update('wish_updated', {
         'wish': {
             'id': wish.id,
             'title': wish.title,
@@ -303,7 +303,7 @@ def add_to_queue():
             'status': wish.status,
             'created_at': wish.created_at.isoformat() if wish.created_at else None
         }
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -330,8 +330,8 @@ def mark_wish_as_played():
     
     db.session.commit()
     
-    # WebSocket-Update senden (nur an Clients im Musikmodul)
-    socketio.emit('music:wish_updated', {
+    # SSE-Update senden (funktioniert mit mehreren Gunicorn-Workern)
+    emit_music_update('wish_updated', {
         'wish': {
             'id': wish.id,
             'title': wish.title,
@@ -343,11 +343,11 @@ def mark_wish_as_played():
             'created_at': wish.created_at.isoformat() if wish.created_at else None,
             'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
         }
-    }, room='music_module', namespace='/')
+    })
     
     # Sende spezielles Event für "Played"-Updates (optimiertes Count)
     played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
-    socketio.emit('music:played_updated', {
+    emit_music_update('played_updated', {
         'wish': {
             'id': wish.id,
             'title': wish.title,
@@ -358,7 +358,7 @@ def mark_wish_as_played():
             'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
         },
         'count': played_count
-    }, room='music_module', namespace='/')
+    })
     
     # Sende auch Queue-Update falls Queue-Eintrag entfernt wurde (mit joinedload)
     queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
@@ -379,10 +379,10 @@ def mark_wish_as_played():
             }
         })
     
-    socketio.emit('music:queue_updated', {
+    emit_music_update('queue_updated', {
         'action': 'removed',
         'queue': queue_data
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -449,10 +449,10 @@ def move_queue_item():
         })
     
     # WebSocket-Update senden mit vollständigen Queue-Daten (nur an Clients im Musikmodul)
-    socketio.emit('music:queue_updated', {
+    emit_music_update('queue_updated', {
         'action': 'moved',
         'queue': queue_data
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -508,13 +508,13 @@ def remove_from_queue():
         })
     
     # WebSocket-Update senden mit vollständigen Queue-Daten (nur an Clients im Musikmodul)
-    socketio.emit('music:queue_updated', {
+    emit_music_update('queue_updated', {
         'action': 'removed',
         'queue': queue_data
-    }, room='music_module', namespace='/')
+    })
     
-    # Sende auch Wish-Update (Status geändert zu 'played')
-    socketio.emit('music:wish_updated', {
+    # SSE-Update senden (Status geändert zu 'played')
+    emit_music_update('wish_updated', {
         'wish': {
             'id': wish.id,
             'title': wish.title,
@@ -525,11 +525,11 @@ def remove_from_queue():
             'status': wish.status,
             'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
         }
-    }, room='music_module', namespace='/')
+    })
     
     # Sende spezielles Event für "Played"-Updates (optimiertes Count)
     played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
-    socketio.emit('music:played_updated', {
+    emit_music_update('played_updated', {
         'wish': {
             'id': wish.id,
             'title': wish.title,
@@ -540,7 +540,7 @@ def remove_from_queue():
             'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
         },
         'count': played_count
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -562,10 +562,10 @@ def clear_queue():
     db.session.commit()
     
     # WebSocket-Update senden mit leerer Queue (nur an Clients im Musikmodul)
-    socketio.emit('music:queue_updated', {
+    emit_music_update('queue_updated', {
         'action': 'cleared',
         'queue': []
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -584,10 +584,10 @@ def clear_wishlist():
     
     # WebSocket-Update senden (nur an Clients im Musikmodul)
     # Sende explizite Anweisung zum Neuladen der Wishlist
-    socketio.emit('music:wishlist_cleared', {
+    emit_music_update('wishlist_cleared', {
         'force_reload': True,
         'wish_count': 0
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -610,14 +610,14 @@ def reset_all():
     db.session.commit()
     
     # WebSocket-Updates senden (nur an Clients im Musikmodul)
-    socketio.emit('music:queue_updated', {
+    emit_music_update('queue_updated', {
         'action': 'cleared',
         'queue': []
-    }, room='music_module', namespace='/')
-    socketio.emit('music:wishlist_cleared', {
+    })
+    emit_music_update('wishlist_cleared', {
         'force_reload': True,
         'wish_count': 0
-    }, room='music_module', namespace='/')
+    })
     
     return jsonify({'success': True})
 
@@ -909,87 +909,6 @@ def api_played_list():
     })
 
 
-# SocketIO Event Handlers für Musikmodul
-@socketio.on('music:join')
-def handle_music_join(data):
-    """Registriert Client-Verbindungen für Musikmodul-Updates."""
-    # WICHTIG: Dieser Handler muss IMMER erfolgreich sein, sonst bekommt der Client 400 Bad Request
-    # Keine Exceptions werfen, auch wenn Session nicht verfügbar ist
-    try:
-        # Alle Clients, die im Musikmodul sind, treten dem gemeinsamen Room bei
-        room = 'music_module'
-        try:
-            join_room(room)
-        except Exception as join_error:
-            # Wenn join_room fehlschlägt, logge es, aber wirf keine Exception
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Musik join_room Fehler (trotzdem akzeptiert): {join_error}")
-        
-        # Logging nur wenn möglich, aber nicht kritisch
-        try:
-            if current_app:
-                user_id = None
-                try:
-                    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                        user_id = getattr(current_user, 'id', None)
-                except Exception:
-                    # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
-                    try:
-                        from flask import session
-                        user_id = session.get('_user_id')
-                    except Exception:
-                        pass
-                current_app.logger.debug(f"Musikmodul: Client hat Raum {room} betreten (User: {user_id})")
-        except Exception:
-            # Logging-Fehler sind nicht kritisch
-            pass
-    except Exception as e:
-        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
-        # WICHTIG: Keine Exception weiterwerfen!
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Musik join handler Fehler (trotzdem akzeptiert): {e}")
-        # Handler muss erfolgreich sein, daher keine Exception werfen
-
-
-@socketio.on('music:leave')
-def handle_music_leave(data):
-    """Entfernt Client-Verbindungen aus dem Musikmodul-Room."""
-    # WICHTIG: Dieser Handler muss IMMER erfolgreich sein, sonst bekommt der Client 400 Bad Request
-    try:
-        room = 'music_module'
-        try:
-            leave_room(room)
-        except Exception as leave_error:
-            # Wenn leave_room fehlschlägt, logge es, aber wirf keine Exception
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Musik leave_room Fehler (trotzdem akzeptiert): {leave_error}")
-        
-        # Logging nur wenn möglich, aber nicht kritisch
-        try:
-            if current_app:
-                user_id = None
-                try:
-                    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                        user_id = getattr(current_user, 'id', None)
-                except Exception:
-                    # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
-                    try:
-                        from flask import session
-                        user_id = session.get('_user_id')
-                    except Exception:
-                        pass
-                current_app.logger.debug(f"Musikmodul: Client hat Raum {room} verlassen (User: {user_id})")
-        except Exception:
-            # Logging-Fehler sind nicht kritisch
-            pass
-    except Exception as e:
-        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
-        # WICHTIG: Keine Exception weiterwerfen!
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Musik leave handler Fehler (trotzdem akzeptiert): {e}")
-        # Handler muss erfolgreich sein, daher keine Exception werfen
+# SSE-basierte Live-Updates (siehe app/blueprints/sse.py)
+# Socket.IO wurde durch Server-Sent Events ersetzt für bessere Multi-Worker-Kompatibilität
 

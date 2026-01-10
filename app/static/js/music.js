@@ -1,5 +1,6 @@
-// WebSocket-Verbindung für Live-Updates
-let socket = null;
+// Server-Sent Events (SSE) für Live-Updates
+// SSE funktioniert perfekt mit mehreren Gunicorn-Workern - KEINE Session-Probleme!
+let eventSource = null;
 
 // Debouncing für Updates
 let updateQueueTimeout = null;
@@ -43,189 +44,107 @@ function invalidateCache(pattern) {
     });
 }
 
-// Socket.IO für Live-Updates - ESSENTIELL für die Anwendung
-// Schnelle Verbindung mit robuster Fehlerbehandlung
-if (typeof io !== 'undefined') {
-    // Socket.IO-Verbindung mit optimierter Konfiguration
-    // Polling-only ist stabiler bei Multi-Worker-Setups
-    socket = io({
-        withCredentials: true,
-        transports: ['polling'],  // Nur Polling - stabiler bei Multi-Worker
-        upgrade: false,  // KEINE Upgrades zu WebSocket
-        reconnection: true,
-        reconnectionDelay: 500,  // Schneller Reconnect (0.5 Sekunden)
-        reconnectionDelayMax: 3000,  // Max 3 Sekunden zwischen Versuchen
-        reconnectionAttempts: 10,  // 10 Versuche, dann kurze Pause
-        timeout: 10000,  // 10 Sekunden Timeout
-        forceNew: true,  // Neue Verbindung erzwingen (verhindert Session-Konflikte)
-        autoConnect: true  // Sofort verbinden
-    });
+// SSE-Verbindung initialisieren
+function initSSE() {
+    if (eventSource) {
+        eventSource.close();
+    }
     
-    let reconnectAttempts = 0;
-    
-    // Fehlerbehandlung mit automatischem Recovery
-    socket.on('connect_error', function(error) {
-        reconnectAttempts++;
-        // Nur alle 5 Versuche loggen
-        if (reconnectAttempts % 5 === 0) {
-            console.warn(`Socket.IO Verbindungsfehler (Versuch ${reconnectAttempts}):`, error.message);
-        }
+    try {
+        eventSource = new EventSource('/sse/events/music');
         
-        // Nach 10 Fehlern: Kurze Pause, dann mit neuer Verbindung versuchen
-        if (reconnectAttempts >= 10) {
-            console.log('Socket.IO: Neustart der Verbindung...');
-            reconnectAttempts = 0;
-            // Kurze Pause, dann mit forceNew reconnecten
-            setTimeout(function() {
-                if (socket) {
-                    socket.disconnect();
-                    socket.connect();
+        eventSource.onopen = function() {
+            console.log('SSE verbunden - Live-Updates aktiv');
+        };
+        
+        eventSource.onerror = function(error) {
+            console.warn('SSE Fehler - versuche Reconnect...');
+            // EventSource reconnected automatisch
+        };
+        
+        // Event-Handler für Musik-Updates
+        eventSource.addEventListener('music:wish_added', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Wish hinzugefügt:', data);
+            invalidateCache('wishlist');
+            if (data.wish) {
+                addWishToDisplayDirect(data.wish);
+                // Aktualisiere Badge basierend auf tatsächlicher Anzahl im DOM
+                const wishlistContainer = document.querySelector('#wishlist-list');
+                if (wishlistContainer) {
+                    const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                    cachedCounts.wishlist = wishItems.length;
+                    updateWishlistBadgeDirect(wishItems.length);
                 }
-            }, 2000);
-        }
-    });
-    
-    socket.on('connect', function() {
-        reconnectAttempts = 0;  // Reset bei erfolgreicher Verbindung
-        console.log('SocketIO verbunden');
-    });
-    
-    socket.on('disconnect', function(reason) {
-        if (reason !== 'io client disconnect') {
-            console.log('Socket.IO getrennt:', reason);
-            // Bei transport error: Sofort reconnecten
-            if (reason === 'transport error' || reason === 'transport close') {
-                setTimeout(function() {
-                    if (socket && !socket.connected) {
-                        socket.connect();
-                    }
-                }, 500);
             }
-        }
-    });
+        });
+        
+        eventSource.addEventListener('music:wish_updated', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Wish aktualisiert:', data);
+            invalidateCache('wishlist');
+            if (data.wish) {
+                updateWishInDisplay(data.wish);
+                // Aktualisiere Badge basierend auf tatsächlicher Anzahl im DOM
+                const wishlistContainer = document.querySelector('#wishlist-list');
+                if (wishlistContainer) {
+                    const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                    cachedCounts.wishlist = wishItems.length;
+                    updateWishlistBadgeDirect(wishItems.length);
+                }
+            }
+        });
+        
+        eventSource.addEventListener('music:queue_updated', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Queue-Update:', data);
+            invalidateCache('queue');
+            if (data.queue !== undefined) {
+                updateQueueDisplayDirect(data.queue);
+            }
+        });
+        
+        eventSource.addEventListener('music:played_updated', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Played-Update:', data);
+            invalidateCache('played');
+            if (data.count !== undefined) {
+                updatePlayedBadgeDirect(data.count);
+            }
+            if (data.wish) {
+                addToPlayedDisplayDirect(data.wish);
+            }
+        });
+        
+        eventSource.addEventListener('music:wishlist_cleared', function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Wishlist geleert:', data);
+            invalidateCache('wishlist');
+            if (data.force_reload) {
+                loadWishlist();
+            }
+        });
+        
+        eventSource.addEventListener('heartbeat', function(e) {
+            // Heartbeat empfangen - Verbindung ist aktiv
+        });
+        
+    } catch (e) {
+        console.warn('SSE Initialisierung fehlgeschlagen:', e.message);
+    }
 }
-    
-    socket.on('music:queue_updated', function(data) {
-        console.log('Queue-Update empfangen:', data);
-        // Invalidiere Cache
-        invalidateCache('queue');
-        // Verwende vollständige Queue-Daten aus Event
-        if (data.queue !== undefined) {
-            updateQueueDisplayDirect(data.queue);
-        } else {
-            // Fallback: Lade Daten falls nicht vorhanden
-            updateQueueDisplay();
-        }
-    });
-    
-    socket.on('music:wish_added', function(data) {
-        console.log('Wunsch hinzugefügt:', data);
-        // Invalidiere Cache
-        invalidateCache('wishlist');
-        if (data.wish) {
-            addWishToDisplayDirect(data.wish);
-            // Aktualisiere Badge basierend auf tatsächlicher Anzahl im DOM
-            const wishlistContainer = document.querySelector('#wishlist-list');
-            if (wishlistContainer) {
-                const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
-                cachedCounts.wishlist = wishItems.length;
-                updateWishlistBadgeDirect(wishItems.length);
-            } else {
-                cachedCounts.wishlist += 1;
-                updateWishlistBadgeDirect(cachedCounts.wishlist);
-            }
-        }
-    });
-    
-    socket.on('music:wish_updated', function(data) {
-        console.log('Wunsch aktualisiert:', data);
-        // Invalidiere Cache
-        invalidateCache('wishlist');
-        if (data.wish) {
-            updateWishInDisplay(data.wish);
-            // Aktualisiere Badge basierend auf tatsächlicher Anzahl im DOM
-            const wishlistContainer = document.querySelector('#wishlist-list');
-            if (wishlistContainer) {
-                const wishItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
-                cachedCounts.wishlist = wishItems.length;
-                updateWishlistBadgeDirect(wishItems.length);
-            }
-        }
-    });
-    
-    socket.on('music:wishlist_cleared', function(data) {
-        console.log('Wunschliste geleert', data);
-        // Invalidiere Cache
-        invalidateCache('wishlist');
-        
-        // Wenn force_reload gesetzt ist, lade die Seite komplett neu
-        if (data && data.force_reload) {
-            // Kurze Verzögerung, damit SocketIO-Event verarbeitet wird
-            setTimeout(function() {
-                window.location.reload();
-            }, 100);
-            return;
-        }
-        
-        // Ansonsten normale DOM-Update
-        clearWishlistDisplay();
-        cachedCounts.wishlist = 0;
-        updateWishlistBadgeDirect(0);
-    });
-    
-    socket.on('music:played_updated', function(data) {
-        console.log('Played-Update empfangen:', data);
-        // Invalidiere Cache für Played-Liste
-        invalidateCache('played');
-        
-        // Aktualisiere Badge
-        if (data.count !== undefined) {
-            updatePlayedBadgeDirect(data.count);
-        }
-        
-        // Wenn Wish-Daten vorhanden sind, füge zur Played-Liste hinzu
-        if (data.wish) {
-            addToPlayedDisplayDirect(data.wish);
-        }
-    });
-    
-    // Zusätzlicher connect-Handler für Room-Join (wird nach dem ersten ausgeführt)
-    socket.on('connect', function() {
-        // Trete dem Musikmodul-Room bei
-        try {
-            if (socket && socket.connected) {
-                socket.emit('music:join', {});
-                console.log('Musikmodul: Room beigetreten');
-            }
-        } catch (error) {
-            console.warn('Fehler beim Beitreten des Musikmodul-Rooms:', error);
-        }
-        
-        // Initialisiere Badges nach Verbindung (nicht blockierend)
-        setTimeout(initializeBadges, 500);
-    });
-    
-    // Verlasse den Room beim Schließen der Seite
-    window.addEventListener('beforeunload', function() {
-        if (socket && socket.connected) {
-            try {
-                socket.emit('music:leave', {});
-            } catch (e) {
-                // Ignorieren - Seite wird geschlossen
-            }
-        }
-    });
-    
-    // Verlasse den Room auch bei Visibility Change (Tab-Wechsel) - optional für weitere Optimierung
-    // Kommentiert aus, da es bei Tab-Wechseln zu aggressiv sein könnte
-    // document.addEventListener('visibilitychange', function() {
-    //     if (document.hidden && socket && socket.connected) {
-    //         socket.emit('music:leave', {});
-    //     } else if (!document.hidden && socket && socket.connected) {
-    //         socket.emit('music:join', {});
-    //     }
-    // });
-}
+
+// SSE beim Laden der Seite initialisieren
+document.addEventListener('DOMContentLoaded', function() {
+    initSSE();
+});
+
+// SSE beim Verlassen der Seite schließen
+window.addEventListener('beforeunload', function() {
+    if (eventSource) {
+        eventSource.close();
+    }
+});
 
 // Direktes DOM-Update für Queue ohne Fetch-Request
 function updateQueueDisplayDirect(queueData) {

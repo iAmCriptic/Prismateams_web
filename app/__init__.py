@@ -73,24 +73,22 @@ def create_app(config_name='default'):
             async_mode = 'threading'
             
             # Socket.IO mit Redis Message Queue initialisieren
-            # WICHTIG: Robuste Konfiguration für Multi-Worker-Setups
-            # - Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
-            # - manage_session=False = akzeptiert alle Sessions, auch wenn Worker sie nicht kennt
-            # - Längere Timeouts für stabile Verbindungen
+            # WICHTIG: WebSocket-First-Strategie für Multi-Worker-Setups
+            # - WebSocket hat KEINE Session-Probleme (persistente Verbindung)
+            # - Fallback auf Polling nur wenn WebSocket nicht verfügbar
             init_kwargs = {
                 'message_queue': redis_url,
                 'async_mode': async_mode,
                 'cors_allowed_origins': "*",
                 'logger': False,
                 'engineio_logger': False,
-                'ping_timeout': 60,  # 60 Sekunden - Zeit für Reconnect
-                'ping_interval': 25,  # 25 Sekunden zwischen Pings
-                'cookie': False,  # KEINE Cookies - verhindert Session-Konflikte bei Multi-Worker
-                'allow_upgrades': False,  # KEINE WebSocket-Upgrades - nur Polling = stabiler
-                'transports': ['polling'],  # Nur Polling - kein WebSocket für bessere Multi-Worker-Stabilität
-                'max_http_buffer_size': 1e6,  # 1MB max
-                'manage_session': False,  # KEINE Session-Validierung - akzeptiert alle Sessions
-                'always_connect': True  # Verbindungen immer akzeptieren
+                'ping_timeout': 60,
+                'ping_interval': 25,
+                'cookie': False,  # KEINE Cookies
+                'allow_upgrades': True,  # WebSocket-Upgrades erlauben
+                'transports': ['websocket', 'polling'],  # WebSocket bevorzugt, Polling als Fallback
+                'max_http_buffer_size': 1e6,
+                'manage_session': False
             }
             
             socketio.init_app(app, **init_kwargs)
@@ -110,12 +108,11 @@ def create_app(config_name='default'):
                 engineio_logger=False,
                 ping_timeout=60,
                 ping_interval=25,
-                cookie=False,  # KEINE Cookies - verhindert Session-Konflikte
-                allow_upgrades=False,  # KEINE WebSocket-Upgrades
-                transports=['polling'],  # Nur Polling
+                cookie=False,
+                allow_upgrades=True,
+                transports=['websocket', 'polling'],
                 max_http_buffer_size=1e6,
-                manage_session=False,  # KEINE Session-Validierung
-                always_connect=True
+                manage_session=False
             )
     else:
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
@@ -126,11 +123,11 @@ def create_app(config_name='default'):
             engineio_logger=False,
             ping_timeout=60,
             ping_interval=25,
-            cookie=False,  # KEINE Cookies - verhindert Session-Konflikte
+            cookie=False,
             allow_upgrades=True,
-            transports=['polling', 'websocket'],
-            manage_session=False,  # KEINE Session-Validierung
-            always_connect=True
+            transports=['websocket', 'polling'],
+            max_http_buffer_size=1e6,
+            manage_session=False
         )
         if config_name == 'production':
             import logging
@@ -617,6 +614,7 @@ def create_app(config_name='default'):
     from app.blueprints.comments import comments_bp
     from app.blueprints.booking import booking_bp
     from app.blueprints.music import music_bp
+    from app.blueprints.sse import sse_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -635,6 +633,7 @@ def create_app(config_name='default'):
     app.register_blueprint(comments_bp)
     app.register_blueprint(booking_bp, url_prefix='/booking')
     app.register_blueprint(music_bp)
+    app.register_blueprint(sse_bp, url_prefix='/sse')
     
     @app.route('/manifest.json')
     def manifest():
