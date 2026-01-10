@@ -465,6 +465,35 @@ sudo supervisorctl restart teamportal
 sudo nano /etc/nginx/sites-available/teamportal
 ```
 
+**WICHTIG für WebSocket-Support:** Bevor Sie die Site-Konfiguration erstellen, müssen Sie die Connection-Header-Map in der Haupt-Nginx-Konfiguration definieren:
+
+```bash
+sudo nano /etc/nginx/nginx.conf
+```
+
+Fügen Sie im `http`-Block (vor den `include`-Zeilen) folgendes hinzu:
+
+```nginx
+http {
+    # ... bestehende Konfiguration ...
+    
+    # WebSocket Connection Header Map (MUSS im http-Block sein!)
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+    
+    # ... rest der Konfiguration ...
+    include /etc/nginx/sites-enabled/*;
+}
+```
+
+Dann erstellen Sie die Site-Konfiguration:
+
+```bash
+sudo nano /etc/nginx/sites-available/teamportal
+```
+
 **Vollständige Nginx-Konfiguration mit optionalen Services:**
 
 ```nginx
@@ -616,16 +645,18 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         
-        # WebSocket support
+        # WebSocket support - WICHTIG: Connection Header dynamisch setzen
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        # Connection Header dynamisch setzen für WebSocket-Upgrades (wss://)
+        # Verwendet die Map aus nginx.conf: $connection_upgrade
+        proxy_set_header Connection $connection_upgrade;
         
         # WICHTIG: Buffering für Socket.IO deaktivieren (verhindert 400-Fehler)
         proxy_buffering off;
         proxy_request_buffering off;
         
-        # Längere Timeouts für Socket.IO Polling
+        # Längere Timeouts für Socket.IO Polling und WebSocket
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
@@ -1111,6 +1142,43 @@ sudo tail -f /var/log/teamportal/out.log | grep -i socket
    - Oder verwenden Sie einen Inkognito-Modus für Tests
 
 **Wichtig:** Nach Änderungen an der Socket.IO-Konfiguration müssen Sie die Anwendung **immer neu starten**, damit die Änderungen wirksam werden!
+
+### WebSocket-Verbindungsfehler (wss:// fehlgeschlagen)
+
+Wenn Sie Fehler wie "WebSocket connection to 'wss://...' failed" sehen:
+
+1. **Nginx Connection-Header-Map prüfen:**
+```bash
+# Prüfen Sie ob die Map in nginx.conf definiert ist
+sudo grep -A 3 "map \$http_upgrade" /etc/nginx/nginx.conf
+
+# Sollte zeigen:
+# map $http_upgrade $connection_upgrade {
+#     default upgrade;
+#     '' close;
+# }
+
+# Falls nicht vorhanden, fügen Sie es hinzu (siehe Nginx-Konfiguration oben)
+```
+
+2. **Nginx-Konfiguration testen:**
+```bash
+sudo nginx -t
+```
+
+3. **Nginx neu starten:**
+```bash
+sudo systemctl restart nginx
+```
+
+4. **Socket.IO verwendet Polling als Fallback:**
+   - Wenn WebSocket fehlschlägt, sollte Socket.IO automatisch auf Polling zurückfallen
+   - Das ist normalerweise kein kritisches Problem, aber weniger effizient
+   - Prüfen Sie die Browser-Console - Sie sollten sehen: "SocketIO verbunden" trotz des WebSocket-Fehlers
+
+5. **Firewall/Proxy prüfen:**
+   - Stellen Sie sicher, dass WebSocket-Upgrades nicht blockiert werden
+   - Bei Cloudflare oder anderen Proxies: Prüfen Sie die WebSocket-Einstellungen
 
 ### Optionalen Service deaktivieren
 
