@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from flask_socketio import join_room
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import ChatMessage, ChatMember
 from app.models.email import EmailMessage, EmailPermission
@@ -8,7 +7,7 @@ from app.models.file import File
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
-from app import db, socketio
+from app import db
 from app.utils.common import is_module_enabled, check_for_updates
 from datetime import datetime, date
 from sqlalchemy import and_
@@ -289,39 +288,6 @@ def api_update_banner():
     return jsonify({'error': 'Ungültige Aktion.'}), 400
 
 
-@socketio.on('dashboard:join')
-def handle_dashboard_join(data):
-    """Register client connections for dashboard updates."""
-    try:
-        user_id = None
-        # Versuche current_user zu laden, auch wenn Session nicht vollständig initialisiert ist
-        try:
-            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                user_id = getattr(current_user, 'id', None)
-        except Exception:
-            # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
-            try:
-                from flask import session
-                user_id = session.get('_user_id')
-            except Exception:
-                pass
-        
-        if not user_id:
-            # Wenn keine user_id verfügbar ist, akzeptiere die Verbindung trotzdem
-            # (für öffentliche Routen wie Musikwunschliste)
-            return
-        
-        room = f'dashboard_user_{user_id}'
-        join_room(room)
-        if current_app:
-            try:
-                current_app.logger.debug(f"Dashboard: Benutzer {user_id} hat Raum {room} betreten.")
-            except Exception:
-                pass
-    except Exception as e:
-        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Dashboard join handler Fehler: {e}")
-        pass
+# SSE-basierte Live-Updates (siehe app/blueprints/sse.py)
+# Socket.IO wurde durch Server-Sent Events ersetzt für bessere Multi-Worker-Kompatibilität
 

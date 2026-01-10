@@ -463,7 +463,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
 // Dashboard Live-Updates
 class DashboardUpdater {
@@ -474,100 +473,55 @@ class DashboardUpdater {
     
     init() {
         // Initialisiere Socket.IO-Verbindung
-        this.initSocketIO();
+        this.initSSE();
         
         // Kein Polling mehr - Updates kommen nur über Socket.IO Push
     }
     
-    initSocketIO() {
-        // Socket.IO für Live-Updates - ESSENTIELL für die Anwendung
-        let retryCount = 0;
-        
+    initSSE() {
+        // Server-Sent Events (SSE) für Live-Updates
+        // SSE funktioniert perfekt mit mehreren Gunicorn-Workern - KEINE Session-Probleme!
         try {
-            // Socket.IO mit optimierter Konfiguration für schnelle Verbindung
-            this.socket = io({
-                withCredentials: true,
-                transports: ['polling'],  // Nur Polling - stabiler bei Multi-Worker
-                upgrade: false,  // KEINE Upgrades zu WebSocket
-                reconnection: true,
-                reconnectionDelay: 500,  // Schneller Reconnect (0.5 Sekunden)
-                reconnectionDelayMax: 3000,  // Max 3 Sekunden zwischen Versuchen
-                reconnectionAttempts: 10,  // 10 Versuche, dann Pause
-                timeout: 10000,  // 10 Sekunden Timeout
-                forceNew: true,  // Neue Verbindung erzwingen (verhindert Session-Konflikte)
-                autoConnect: true  // Sofort verbinden
-            });
+            this.eventSource = new EventSource('/sse/events/dashboard');
             
-            // Fehlerbehandlung mit automatischem Recovery
-            this.socket.on('connect_error', (error) => {
-                retryCount++;
-                // Nur alle 5 Versuche loggen
-                if (retryCount % 5 === 0) {
-                    console.warn(`Dashboard Socket.IO Fehler (Versuch ${retryCount}):`, error.message);
-                }
-                
-                // Nach 10 Fehlern: Kurze Pause, dann mit neuer Verbindung versuchen
-                if (retryCount >= 10) {
-                    console.log('Dashboard: Socket.IO Neustart...');
-                    retryCount = 0;
-                    setTimeout(() => {
-                        if (this.socket) {
-                            this.socket.disconnect();
-                            this.socket.connect();
-                        }
-                    }, 2000);
-                }
-            });
+            this.eventSource.onopen = () => {
+                console.log('Dashboard: SSE verbunden - Live-Updates aktiv');
+            };
             
-            this.socket.on('disconnect', (reason) => {
-                if (reason !== 'io client disconnect') {
-                    console.log('Dashboard: Socket.IO getrennt:', reason);
-                    // Bei transport error: Sofort reconnecten
-                    if (reason === 'transport error' || reason === 'transport close') {
-                        setTimeout(() => {
-                            if (this.socket && !this.socket.connected) {
-                                this.socket.connect();
-                            }
-                        }, 500);
-                    }
-                }
-            });
-            
-            // Verbinde mit Dashboard-Room
-            this.socket.on('connect', () => {
-                retryCount = 0;  // Reset bei erfolgreicher Verbindung
-                console.log('Dashboard: Socket.IO verbunden');
-                try {
-                    if (this.socket && this.socket.connected) {
-                        this.socket.emit('dashboard:join', {});
-                    }
-                } catch (error) {
-                    console.warn('Fehler beim Beitreten des Dashboard-Rooms:', error);
-                }
-            });
+            this.eventSource.onerror = (error) => {
+                console.warn('Dashboard: SSE Fehler - Reconnect wird versucht...');
+            };
             
             // Event-Listener für Dashboard-Updates
-            this.socket.on('dashboard:chat_update', (data) => {
+            this.eventSource.addEventListener('dashboard:chat_update', (e) => {
+                const data = JSON.parse(e.data);
                 this.updateBadge('#chat-count-badge', data.count);
             });
             
-            this.socket.on('dashboard:email_update', (data) => {
+            this.eventSource.addEventListener('dashboard:email_update', (e) => {
+                const data = JSON.parse(e.data);
                 this.updateBadge('.email-badge', data.count);
             });
             
-            this.socket.on('dashboard:calendar_update', (data) => {
+            this.eventSource.addEventListener('dashboard:calendar_update', (e) => {
+                const data = JSON.parse(e.data);
                 this.updateBadge('.calendar-badge', data.count);
             });
             
-            this.socket.on('dashboard:files_update', (data) => {
+            this.eventSource.addEventListener('dashboard:files_update', (e) => {
+                const data = JSON.parse(e.data);
                 const badge = document.querySelector('.files-badge');
                 if (badge && data.files) {
                     badge.textContent = data.files.length;
                 }
             });
             
+            this.eventSource.addEventListener('heartbeat', (e) => {
+                // Heartbeat empfangen - Verbindung ist aktiv
+            });
+            
         } catch (error) {
-            console.error('Dashboard: Fehler bei Socket.IO-Initialisierung:', error);
+            console.error('Dashboard: Fehler bei SSE-Initialisierung:', error);
         }
     }
     
@@ -580,9 +534,9 @@ class DashboardUpdater {
     }
     
     stopUpdates() {
-        if (this.socket) {
-            this.socket.disconnect();
-            this.socket = null;
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
         }
     }
 }

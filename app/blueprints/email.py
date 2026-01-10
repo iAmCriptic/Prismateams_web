@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, Response
 from flask_login import login_required, current_user
-from flask_socketio import join_room
 from uuid import uuid4
-from app import db, mail, socketio
+from app import db, mail
+from app.blueprints.sse import emit_email_sync_status
 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_email_notification
@@ -2370,7 +2370,6 @@ def sync_emails():
     
     user_id = current_user.id
     job_id = f"{user_id}-{uuid4().hex}"
-    room = f'email_user_{user_id}'
     app_instance = current_app._get_current_object()
     
     def emit_status(status: str, message: str, level: str = 'info', **extras):
@@ -2384,7 +2383,8 @@ def sync_emails():
         }
         if extras:
             payload.update(extras)
-        socketio.emit('email:sync_status', payload, room=room)
+        # SSE-Update senden (funktioniert mit mehreren Gunicorn-Workern)
+        emit_email_sync_status(user_id, 'sync_status', payload)
     
     def sync_in_background():
         with app_instance.app_context():
@@ -2554,40 +2554,8 @@ def move_email_in_imap(email_id, from_folder, to_folder):
         return False, f"Verschieb-Fehler: {str(e)}"
 
 
-@socketio.on('email:join')
-def handle_email_sync_join(data):
-    """Register client connections for email sync status updates."""
-    try:
-        user_id = None
-        # Versuche current_user zu laden, auch wenn Session nicht vollständig initialisiert ist
-        try:
-            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                user_id = getattr(current_user, 'id', None)
-        except Exception:
-            # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
-            try:
-                from flask import session
-                user_id = session.get('_user_id')
-            except Exception:
-                pass
-        
-        if not user_id:
-            # Wenn keine user_id verfügbar ist, akzeptiere die Verbindung trotzdem
-            return
-        
-        room = f'email_user_{user_id}'
-        join_room(room)
-        if current_app:
-            try:
-                current_app.logger.debug(f"E-Mail-Sync: Benutzer {user_id} hat Raum {room} betreten.")
-            except Exception:
-                pass
-    except Exception as e:
-        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Email join handler Fehler: {e}")
-        pass
+# SSE-basierte Live-Updates (siehe app/blueprints/sse.py)
+# Socket.IO wurde durch Server-Sent Events ersetzt für bessere Multi-Worker-Kompatibilität
 
 
 def email_sync_scheduler(app):
