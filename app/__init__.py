@@ -39,20 +39,31 @@ def create_app(config_name='default'):
     redis_enabled = app.config.get('REDIS_ENABLED', False)
     redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
     
-    # Automatische Redis-Aktivierung in Production, wenn Redis verfügbar ist
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Automatische Redis-Aktivierung wenn Redis verfügbar ist
     # (außer wenn explizit REDIS_ENABLED=False gesetzt wurde)
-    if not redis_enabled and config_name == 'production':
+    if not redis_enabled:
         try:
             import redis
-            r = redis.Redis.from_url(redis_url, socket_connect_timeout=2)
+            r = redis.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
             if r.ping():
                 redis_enabled = True
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.info(f"Redis automatisch aktiviert (verfügbar und Production-Modus): {redis_url}")
-        except Exception:
-            # Redis nicht verfügbar - wird ohne Message Queue fortgesetzt
-            pass
+                logger.info(f"Redis automatisch aktiviert (verfügbar): {redis_url}")
+            else:
+                logger.warning(f"Redis-Ping fehlgeschlagen: {redis_url}")
+        except ImportError:
+            logger.warning("Redis-Python-Package nicht verfügbar. Installiere mit: pip install redis")
+        except Exception as e:
+            logger.warning(f"Redis-Verbindung fehlgeschlagen: {e} - SocketIO läuft ohne Message Queue")
+    
+    # Logge Redis-Status
+    if redis_enabled:
+        logger.info(f"Redis aktiviert: {redis_url}")
+    else:
+        logger.warning(f"Redis NICHT aktiviert - Multi-Worker-Setups funktionieren nicht korrekt!")
+        logger.warning(f"Setze REDIS_ENABLED=True in der .env oder stelle sicher, dass Redis läuft")
     
     if redis_enabled:
         try:
@@ -76,9 +87,9 @@ def create_app(config_name='default'):
                 max_http_buffer_size=1e6,  # Erhöhte Buffer-Größe für größere Nachrichten
                 always_connect=True  # Erlaubt Verbindungen auch bei Fehlern im connect-Handler
             )
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
+            # WICHTIG: Logge auf INFO-Level, damit es in systemd-Logs sichtbar ist
+            logger.info(f"✅ SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
+            print(f"✅ SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
