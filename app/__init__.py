@@ -72,20 +72,23 @@ def create_app(config_name='default'):
             # Threading funktioniert zuverlässig mit Redis und Gunicorn
             async_mode = 'threading'
             
+            # Socket.IO mit Redis Message Queue initialisieren
+            # client_manager=None wird automatisch verwendet mit Redis
             socketio.init_app(
                 app,
                 message_queue=redis_url,
                 async_mode=async_mode,
                 cors_allowed_origins="*",
-                logger=False,
-                engineio_logger=False,
+                logger=True,  # Aktiviert für Debugging - zeigt Socket.IO-Fehler
+                engineio_logger=True,  # Aktiviert für Debugging - zeigt Engine.IO-Details
                 ping_timeout=60,
                 ping_interval=25,
                 cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
                 allow_upgrades=True,
                 transports=['polling', 'websocket'],
                 max_http_buffer_size=1e6,  # Erhöhte Buffer-Größe für größere Nachrichten
-                always_connect=True  # Erlaubt Verbindungen auch bei Fehlern im connect-Handler
+                always_connect=True,  # Erlaubt Verbindungen auch bei Fehlern im connect-Handler
+                manage_session=True  # Verwaltet Sessions über Redis für Multi-Worker
             )
             # WICHTIG: Logge auf INFO-Level, damit es in systemd-Logs sichtbar ist
             logger.info(f"✅ SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
