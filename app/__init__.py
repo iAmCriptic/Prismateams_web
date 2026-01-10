@@ -72,7 +72,9 @@ def create_app(config_name='default'):
                 ping_interval=25,
                 cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
                 allow_upgrades=True,
-                transports=['polling', 'websocket']
+                transports=['polling', 'websocket'],
+                max_http_buffer_size=1e6,  # Erhöhte Buffer-Größe für größere Nachrichten
+                always_connect=True  # Erlaubt Verbindungen auch bei Fehlern im connect-Handler
             )
             import logging
             logger = logging.getLogger(__name__)
@@ -136,35 +138,39 @@ def create_app(config_name='default'):
     @socketio.on('connect')
     def handle_connect(auth):
         """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients."""
-        from flask import request
-        from flask_login import current_user
         import logging
         logger = logging.getLogger(__name__)
         
+        # Verbindung IMMER akzeptieren (auch ohne Authentifizierung)
+        # Dies ermöglicht öffentliche Routen wie die Musikwunschliste
+        # Robuste Fehlerbehandlung, um 400-Fehler zu vermeiden
         try:
-            # Socket.IO stellt automatisch einen Request-Context bereit
-            # Versuche, die Session zu laden und den Benutzer zu identifizieren
-            # Flask-Login lädt den Benutzer automatisch aus der Session
+            # Versuche, den Request-Context zu verwenden (kann bei threading fehlschlagen)
             try:
+                from flask import request
+                from flask_login import current_user
+                
                 # Prüfe ob current_user geladen werden kann
-                user_id = None
-                if hasattr(current_user, 'is_authenticated'):
-                    if current_user.is_authenticated:
+                try:
+                    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
                         user_id = getattr(current_user, 'id', None)
                         logger.debug(f"Socket.IO: Authentifizierte Verbindung von User {user_id}")
                     else:
                         logger.debug("Socket.IO: Nicht-authentifizierte Verbindung (öffentliche Route erlaubt)")
-                else:
-                    logger.debug("Socket.IO: Verbindung ohne Authentifizierung (öffentliche Route erlaubt)")
-            except Exception as user_error:
-                logger.debug(f"Socket.IO: Konnte Benutzer nicht laden (normal für öffentliche Routen): {user_error}")
+                except (AttributeError, RuntimeError, KeyError):
+                    # Session-Kontext nicht verfügbar - normal bei Socket.IO
+                    logger.debug("Socket.IO: Verbindung ohne Session-Kontext (normal)")
+            except (RuntimeError, AttributeError, ImportError) as ctx_error:
+                # Request-Context nicht verfügbar - das ist OK für Socket.IO
+                logger.debug(f"Socket.IO: Request-Context nicht verfügbar (normal): {ctx_error}")
             
             # Verbindung IMMER akzeptieren (auch ohne Authentifizierung)
             # Dies ermöglicht öffentliche Routen wie die Musikwunschliste
             return True
         except Exception as e:
-            logger.warning(f"Socket.IO: Fehler bei Verbindung: {e}", exc_info=True)
-            # Verbindung trotzdem akzeptieren, damit öffentliche Routen funktionieren
+            # Alle anderen Fehler abfangen und Verbindung trotzdem akzeptieren
+            # WICHTIG: Nie False zurückgeben, sonst bekommt der Client 400 Bad Request
+            logger.warning(f"Socket.IO: Fehler bei Verbindung (aber akzeptiert): {e}", exc_info=False)
             return True
     
     @socketio.on('disconnect')
