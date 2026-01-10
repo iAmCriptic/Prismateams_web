@@ -481,16 +481,16 @@ class DashboardUpdater {
     
     initSocketIO() {
         try {
-            // Initialisiere Socket.IO-Client mit optimierten Einstellungen
+            // Initialisiere Socket.IO-Client mit robuster Konfiguration für Multi-Worker-Setups
+            // Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
             this.socket = io({
                 withCredentials: true,
-                transports: ['polling', 'websocket'],
-                upgrade: true,
-                rememberUpgrade: true,
+                transports: ['polling'],  // Nur Polling - kein WebSocket
+                upgrade: false,  // KEINE Upgrades zu WebSocket
                 reconnection: true,
-                reconnectionDelay: 2000,  // Erhöht für weniger Reconnect-Versuche
-                reconnectionDelayMax: 10000,
-                reconnectionAttempts: 10,  // Begrenzt auf 10 Versuche
+                reconnectionDelay: 1000,  // Schnelleres Reconnecting
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: Infinity,  // Nie aufgeben
                 timeout: 20000,
                 forceNew: false,
                 autoConnect: true

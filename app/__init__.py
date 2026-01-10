@@ -72,37 +72,26 @@ def create_app(config_name='default'):
             # Threading funktioniert zuverlässig mit Redis und Gunicorn
             async_mode = 'threading'
             
-            # WICHTIG: Expliziter Redis Client Manager für Session-Synchronisation zwischen Workern
-            try:
-                from socketio import RedisManager
-                redis_manager = RedisManager(redis_url)
-                logger.info(f"Redis Client Manager erstellt: {redis_url}")
-                use_redis_manager = True
-            except Exception as manager_error:
-                logger.warning(f"Redis Manager konnte nicht erstellt werden: {manager_error}")
-                redis_manager = None
-                use_redis_manager = False
-            
             # Socket.IO mit Redis Message Queue initialisieren
+            # WICHTIG: Robuste Konfiguration für Multi-Worker-Setups
+            # - Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
+            # - manage_session=False = akzeptiert alle Sessions, auch wenn Worker sie nicht kennt
+            # - Längere Timeouts = weniger Fehler bei langsamen Verbindungen
             init_kwargs = {
                 'message_queue': redis_url,
                 'async_mode': async_mode,
                 'cors_allowed_origins': "*",
                 'logger': False,
                 'engineio_logger': False,
-                'ping_timeout': 60,
-                'ping_interval': 25,
+                'ping_timeout': 120,  # Erhöht für langsamere Verbindungen
+                'ping_interval': 50,  # Weniger Ping-Requests = weniger Fehlerquellen
                 'cookie': None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
-                'allow_upgrades': True,
-                'transports': ['polling', 'websocket'],
-                'max_http_buffer_size': 1e6,
-                'always_connect': True,
-                'manage_session': True
+                'allow_upgrades': False,  # KEINE WebSocket-Upgrades - nur Polling = stabiler
+                'transports': ['polling'],  # Nur Polling - kein WebSocket für bessere Multi-Worker-Stabilität
+                'max_http_buffer_size': 2e6,  # Erhöht für größere Nachrichten
+                'always_connect': True,  # Akzeptiert Verbindungen immer
+                'manage_session': False  # KEINE Session-Validierung - akzeptiert alle Sessions
             }
-            
-            # Verwende expliziten Redis Manager wenn verfügbar
-            if use_redis_manager and redis_manager:
-                init_kwargs['client_manager'] = redis_manager
             
             socketio.init_app(app, **init_kwargs)
             # WICHTIG: Logge auf INFO-Level, damit es in systemd-Logs sichtbar ist
@@ -119,9 +108,14 @@ def create_app(config_name='default'):
                 cors_allowed_origins="*",
                 logger=False,
                 engineio_logger=False,
-                ping_timeout=60,
-                ping_interval=25,
+                ping_timeout=120,
+                ping_interval=50,
                 cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+                allow_upgrades=False,  # KEINE WebSocket-Upgrades
+                transports=['polling'],  # Nur Polling
+                max_http_buffer_size=2e6,
+                always_connect=True,
+                manage_session=False  # KEINE Session-Validierung
                 allow_upgrades=True,
                 transports=['polling', 'websocket']
             )
@@ -169,54 +163,10 @@ def create_app(config_name='default'):
         """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients.
         
         WICHTIG: Diese Funktion muss IMMER True zurückgeben, sonst bekommt der Client 400 Bad Request.
+        Mit manage_session=False akzeptiert Socket.IO alle Sessions, auch wenn der Worker sie nicht kennt.
         """
-        # #region agent log
-        import json
-        import os
-        import time
-        from flask import request as flask_request
-        # Versuche mehrere Log-Pfade (lokal UND auf Server)
-        possible_log_paths = [
-            os.path.join(os.path.dirname(__file__), '..', '.cursor', 'debug.log'),
-            os.path.join('/tmp', 'teamportal_socketio_debug.log'),
-            os.path.join(os.path.expanduser('~'), 'teamportal_socketio_debug.log')
-        ]
-        debug_log_path = None
-        for path in possible_log_paths:
-            try:
-                # Versuche, ein Verzeichnis zu erstellen, falls nötig
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-                # Test-Schreibzugriff
-                with open(path, 'a') as test:
-                    test.write('')
-                debug_log_path = path
-                break
-            except: pass
-        if debug_log_path:
-            try:
-                session_id = getattr(flask_request, 'sid', None) if hasattr(flask_request, 'sid') else None
-                remote_addr = flask_request.remote_addr if flask_request else None
-                with open(debug_log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H1,H2,H3","location":"app/__init__.py:167","message":"SocketIO connect handler ENTRY","data":{"auth":str(auth) if auth else None,"session_id":str(session_id),"remote_addr":str(remote_addr),"worker_pid":os.getpid()},"timestamp":int(time.time()*1000)}) + '\n')
-            except Exception as e: pass
-        # #endregion
-        
-        # KRITISCH: Keine Logging-Imports hier, da diese bei threading Fehler verursachen können
-        # KRITISCH: Keine Flask-Requests hier, da der Context bei threading nicht verfügbar sein kann
-        # KRITISCH: IMMER True zurückgeben, nie False oder Exception werfen
-        
-        # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception
-        # Dies verhindert 400 Bad Request Fehler
-        
-        # #region agent log
-        if 'debug_log_path' in locals() and debug_log_path:
-            try:
-                import time
-                with open(debug_log_path, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H1,H2,H3","location":"app/__init__.py:185","message":"SocketIO connect handler RETURN True","data":{"return_value":True},"timestamp":int(time.time()*1000)}) + '\n')
-            except: pass
-        # #endregion
-        
+        # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception, kein Logging
+        # Dies verhindert 400 Bad Request Fehler bei Session-Konflikten zwischen Workern
         return True
     
     @socketio.on('disconnect')
