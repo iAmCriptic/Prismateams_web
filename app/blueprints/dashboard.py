@@ -292,18 +292,36 @@ def api_update_banner():
 @socketio.on('dashboard:join')
 def handle_dashboard_join(data):
     """Register client connections for dashboard updates."""
-    user_id = None
-    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-        user_id = getattr(current_user, 'id', None)
-    
-    if not user_id:
-        return
-    
-    room = f'dashboard_user_{user_id}'
-    join_room(room)
-    if current_app:
+    try:
+        user_id = None
+        # Versuche current_user zu laden, auch wenn Session nicht vollständig initialisiert ist
         try:
-            current_app.logger.debug(f"Dashboard: Benutzer {user_id} hat Raum {room} betreten.")
+            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                user_id = getattr(current_user, 'id', None)
         except Exception:
-            pass
+            # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
+            try:
+                from flask import session
+                user_id = session.get('_user_id')
+            except Exception:
+                pass
+        
+        if not user_id:
+            # Wenn keine user_id verfügbar ist, akzeptiere die Verbindung trotzdem
+            # (für öffentliche Routen wie Musikwunschliste)
+            return
+        
+        room = f'dashboard_user_{user_id}'
+        join_room(room)
+        if current_app:
+            try:
+                current_app.logger.debug(f"Dashboard: Benutzer {user_id} hat Raum {room} betreten.")
+            except Exception:
+                pass
+    except Exception as e:
+        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Dashboard join handler Fehler: {e}")
+        pass
 

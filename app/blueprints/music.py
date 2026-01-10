@@ -913,26 +913,60 @@ def api_played_list():
 @socketio.on('music:join')
 def handle_music_join(data):
     """Registriert Client-Verbindungen für Musikmodul-Updates."""
-    # Alle Clients, die im Musikmodul sind, treten dem gemeinsamen Room bei
-    room = 'music_module'
-    join_room(room)
-    if current_app:
-        try:
-            user_id = getattr(current_user, 'id', None) if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
-            current_app.logger.debug(f"Musikmodul: Client hat Raum {room} betreten (User: {user_id})")
-        except Exception:
-            pass
+    try:
+        # Alle Clients, die im Musikmodul sind, treten dem gemeinsamen Room bei
+        room = 'music_module'
+        join_room(room)
+        if current_app:
+            try:
+                user_id = None
+                try:
+                    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                        user_id = getattr(current_user, 'id', None)
+                except Exception:
+                    # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
+                    try:
+                        from flask import session
+                        user_id = session.get('_user_id')
+                    except Exception:
+                        pass
+                current_app.logger.debug(f"Musikmodul: Client hat Raum {room} betreten (User: {user_id})")
+            except Exception:
+                pass
+    except Exception as e:
+        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Musik join handler Fehler: {e}")
+        pass
 
 
 @socketio.on('music:leave')
 def handle_music_leave(data):
     """Entfernt Client-Verbindungen aus dem Musikmodul-Room."""
-    room = 'music_module'
-    leave_room(room)
-    if current_app:
-        try:
-            user_id = getattr(current_user, 'id', None) if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
-            current_app.logger.debug(f"Musikmodul: Client hat Raum {room} verlassen (User: {user_id})")
-        except Exception:
-            pass
+    try:
+        room = 'music_module'
+        leave_room(room)
+        if current_app:
+            try:
+                user_id = None
+                try:
+                    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                        user_id = getattr(current_user, 'id', None)
+                except Exception:
+                    # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
+                    try:
+                        from flask import session
+                        user_id = session.get('_user_id')
+                    except Exception:
+                        pass
+                current_app.logger.debug(f"Musikmodul: Client hat Raum {room} verlassen (User: {user_id})")
+            except Exception:
+                pass
+    except Exception as e:
+        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Musik leave handler Fehler: {e}")
+        pass
 

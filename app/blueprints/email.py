@@ -2557,20 +2557,37 @@ def move_email_in_imap(email_id, from_folder, to_folder):
 @socketio.on('email:join')
 def handle_email_sync_join(data):
     """Register client connections for email sync status updates."""
-    user_id = None
-    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-        user_id = getattr(current_user, 'id', None)
-    
-    if not user_id:
-        return
-    
-    room = f'email_user_{user_id}'
-    join_room(room)
-    if current_app:
+    try:
+        user_id = None
+        # Versuche current_user zu laden, auch wenn Session nicht vollständig initialisiert ist
         try:
-            current_app.logger.debug(f"E-Mail-Sync: Benutzer {user_id} hat Raum {room} betreten.")
+            if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+                user_id = getattr(current_user, 'id', None)
         except Exception:
-            pass
+            # Wenn current_user nicht verfügbar ist, versuche user_id aus der Session zu holen
+            try:
+                from flask import session
+                user_id = session.get('_user_id')
+            except Exception:
+                pass
+        
+        if not user_id:
+            # Wenn keine user_id verfügbar ist, akzeptiere die Verbindung trotzdem
+            return
+        
+        room = f'email_user_{user_id}'
+        join_room(room)
+        if current_app:
+            try:
+                current_app.logger.debug(f"E-Mail-Sync: Benutzer {user_id} hat Raum {room} betreten.")
+            except Exception:
+                pass
+    except Exception as e:
+        # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Email join handler Fehler: {e}")
+        pass
 
 
 def email_sync_scheduler(app):
