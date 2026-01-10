@@ -822,7 +822,34 @@ sudo docker restart excalidraw-room
 
 ### Updates einspielen
 
-**Option 1: Mit lokalen Änderungen (empfohlen für Produktion)**
+**⚠️ WICHTIG:** Erstellen Sie vor jedem Update ein Backup der Datenbank und des Upload-Verzeichnisses! (siehe Backup erstellen)
+
+**Option 1: Force Update (empfohlen, überschreibt lokale Änderungen)**
+
+Diese Variante ist die **empfohlene Update-Methode**, da alle Daten in der Datenbank gespeichert sind und lokale Code-Änderungen überschrieben werden können. Lokale Änderungen werden komplett verworfen.
+
+```bash
+cd /var/www/teamportal
+
+# Aktuelle Änderungen vom Remote-Repository abrufen
+sudo -u www-data git fetch origin
+
+# Lokale Änderungen verwerfen und auf den neuesten Stand bringen
+# Ersetzen Sie "main" durch "master", falls Sie den master-Branch verwenden
+sudo -u www-data git reset --hard origin/main
+
+# Dependencies aktualisieren
+sudo ./venv/bin/pip install -r requirements.txt
+
+# Anwendung neu starten
+sudo supervisorctl restart teamportal
+```
+
+**Hinweis:** Wenn Sie den `master`-Branch statt `main` verwenden, ersetzen Sie `origin/main` durch `origin/master` im `git reset`-Befehl.
+
+**Option 2: Mit lokalen Änderungen (git stash)**
+
+Diese Variante behält lokale Änderungen und versucht sie nach dem Update wieder anzuwenden. Verwenden Sie diese Variante nur, wenn Sie lokale Code-Änderungen beibehalten möchten.
 
 ```bash
 cd /var/www/teamportal
@@ -843,7 +870,9 @@ sudo ./venv/bin/pip install -r requirements.txt
 sudo supervisorctl restart teamportal
 ```
 
-**Option 2: Ohne lokale Änderungen**
+**Option 3: Ohne lokale Änderungen (einfacher git pull)**
+
+Diese Variante funktioniert nur, wenn keine lokalen Änderungen vorhanden sind.
 
 ```bash
 cd /var/www/teamportal
