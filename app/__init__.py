@@ -41,24 +41,51 @@ def create_app(config_name='default'):
         try:
             redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
             # Verwende Redis als Message Queue für Multi-Worker-Setups
+            # eventlet ist besser für Redis-Message-Queues als threading
+            # Falls eventlet nicht verfügbar ist, fällt es auf threading zurück
+            try:
+                import eventlet
+                async_mode = 'eventlet'
+            except ImportError:
+                async_mode = 'threading'
+            
             socketio.init_app(
                 app,
                 message_queue=redis_url,
-                async_mode='threading'
+                async_mode=async_mode,
+                cors_allowed_origins="*",
+                logger=False,
+                engineio_logger=False,
+                ping_timeout=60,
+                ping_interval=25
             )
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f"SocketIO mit Redis Message Queue konfiguriert: {redis_url}")
+            logger.info(f"SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning(f"Redis nicht verfügbar, verwende SocketIO ohne Message Queue: {e}")
+            logger.error(f"Redis-Fehler, verwende SocketIO ohne Message Queue: {e}", exc_info=True)
             logger.warning("Hinweis: Multi-Worker-Setups funktionieren nur mit Redis!")
             # Fallback: SocketIO ohne Message Queue (nur für Single-Worker)
-            socketio.init_app(app)
+            socketio.init_app(
+                app,
+                cors_allowed_origins="*",
+                logger=False,
+                engineio_logger=False,
+                ping_timeout=60,
+                ping_interval=25
+            )
     else:
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
-        socketio.init_app(app)
+        socketio.init_app(
+            app,
+            cors_allowed_origins="*",
+            logger=False,
+            engineio_logger=False,
+            ping_timeout=60,
+            ping_interval=25
+        )
         if config_name == 'production':
             import logging
             logger = logging.getLogger(__name__)

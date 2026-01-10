@@ -9,6 +9,7 @@ from app.utils.dashboard_events import emit_dashboard_update_multiple
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import generate_ical_feed, import_events_from_ical
+from sqlalchemy import or_
 import secrets
 import calendar
 
@@ -521,10 +522,17 @@ def get_events_for_month(year, month):
     ).order_by(CalendarEvent.start_time).all()
     
     # Get all master events that might have instances in this month
+    # Master events should be included if:
+    # - They start before end_date AND
+    # - They either have no recurrence_end_date (infinite) OR recurrence_end_date is after start_date
     master_events = CalendarEvent.query.filter(
         CalendarEvent.recurrence_type != 'none',
         CalendarEvent.is_recurring_instance == False,
-        CalendarEvent.start_time < end_date
+        CalendarEvent.start_time < end_date,
+        or_(
+            CalendarEvent.recurrence_end_date.is_(None),
+            CalendarEvent.recurrence_end_date >= start_date
+        )
     ).all()
     
     # Get user's participation status for each event
@@ -557,35 +565,35 @@ def get_events_for_month(year, month):
             'url': url_for('calendar.view_event', event_id=event.id)
         })
     
-        # Generate recurring instances
-        for master_event in master_events:
-            instances = generate_recurring_instances(master_event, start_date, end_date)
-            for instance in instances:
-                participation = EventParticipant.query.filter_by(
-                    event_id=master_event.id,
-                    user_id=current_user.id
-                ).first()
-                
-                # Calculate duration in days (inclusive of start and end date)
-                duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
-                
-                events_data.append({
-                    'id': master_event.id,
-                    'title': instance['title'],
-                    'start_time': instance['start_time'].isoformat(),
-                    'end_time': instance['end_time'].isoformat(),
-                    'start_date': instance['start_time'].date().isoformat(),
-                    'end_date': instance['end_time'].date().isoformat(),
-                    'duration_days': duration,
-                    'location': instance['location'],
-                    'description': instance['description'],
-                    'day': instance['start_time'].day,
-                    'time': instance['start_time'].strftime('%H:%M'),
-                    'participation_status': participation.status if participation else None,
-                    'is_recurring': True,
-                    'parent_event_id': master_event.id,
-                    'url': url_for('calendar.view_event', event_id=master_event.id)
-                })
+    # Generate recurring instances
+    for master_event in master_events:
+        instances = generate_recurring_instances(master_event, start_date, end_date)
+        for instance in instances:
+            participation = EventParticipant.query.filter_by(
+                event_id=master_event.id,
+                user_id=current_user.id
+            ).first()
+            
+            # Calculate duration in days (inclusive of start and end date)
+            duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
+            
+            events_data.append({
+                'id': master_event.id,
+                'title': instance['title'],
+                'start_time': instance['start_time'].isoformat(),
+                'end_time': instance['end_time'].isoformat(),
+                'start_date': instance['start_time'].date().isoformat(),
+                'end_date': instance['end_time'].date().isoformat(),
+                'duration_days': duration,
+                'location': instance['location'],
+                'description': instance['description'],
+                'day': instance['start_time'].day,
+                'time': instance['start_time'].strftime('%H:%M'),
+                'participation_status': participation.status if participation else None,
+                'is_recurring': True,
+                'parent_event_id': master_event.id,
+                'url': url_for('calendar.view_event', event_id=master_event.id)
+            })
     
     # Sortiere nach Startzeit
     events_data.sort(key=lambda x: x['start_time'])
@@ -613,10 +621,17 @@ def get_events_for_range(start_date, end_date):
         ).order_by(CalendarEvent.start_time).all()
         
         # Get all master events that might have instances in this range
+        # Master events should be included if:
+        # - They start before or at end_datetime AND
+        # - They either have no recurrence_end_date (infinite) OR recurrence_end_date is after start_datetime
         master_events = CalendarEvent.query.filter(
             CalendarEvent.recurrence_type != 'none',
             CalendarEvent.is_recurring_instance == False,
-            CalendarEvent.start_time <= end_datetime
+            CalendarEvent.start_time <= end_datetime,
+            or_(
+                CalendarEvent.recurrence_end_date.is_(None),
+                CalendarEvent.recurrence_end_date >= start_datetime
+            )
         ).all()
         
         events_data = []
