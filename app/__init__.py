@@ -57,7 +57,10 @@ def create_app(config_name='default'):
                 logger=False,
                 engineio_logger=False,
                 ping_timeout=60,
-                ping_interval=25
+                ping_interval=25,
+                cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+                allow_upgrades=True,
+                transports=['polling', 'websocket']
             )
             import logging
             logger = logging.getLogger(__name__)
@@ -74,7 +77,10 @@ def create_app(config_name='default'):
                 logger=False,
                 engineio_logger=False,
                 ping_timeout=60,
-                ping_interval=25
+                ping_interval=25,
+                cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+                allow_upgrades=True,
+                transports=['polling', 'websocket']
             )
     else:
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
@@ -84,7 +90,10 @@ def create_app(config_name='default'):
             logger=False,
             engineio_logger=False,
             ping_timeout=60,
-            ping_interval=25
+            ping_interval=25,
+            cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+            allow_upgrades=True,
+            transports=['polling', 'websocket']
         )
         if config_name == 'production':
             import logging
@@ -100,16 +109,73 @@ def create_app(config_name='default'):
     
     @login_manager.unauthorized_handler
     def unauthorized():
+        # WICHTIG: Socket.IO-Requests nicht blockieren
+        if request.path.startswith('/socket.io/'):
+            return None  # Erlaube Socket.IO-Requests, Authentifizierung wird im on_connect Handler geprüft
+        
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Authentication required'}), 401
         from flask import redirect, url_for
         return redirect(url_for('auth.login'))
+    
+    # Socket.IO Authentifizierungs-Handler
+    # Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Verbindungen
+    # (für öffentliche Routen wie Musikwunschliste)
+    @socketio.on('connect')
+    def handle_connect(auth):
+        """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients."""
+        from flask import request
+        from flask_login import current_user
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Socket.IO stellt automatisch einen Request-Context bereit
+            # Versuche, die Session zu laden und den Benutzer zu identifizieren
+            # Flask-Login lädt den Benutzer automatisch aus der Session
+            try:
+                # Prüfe ob current_user geladen werden kann
+                user_id = None
+                if hasattr(current_user, 'is_authenticated'):
+                    if current_user.is_authenticated:
+                        user_id = getattr(current_user, 'id', None)
+                        logger.debug(f"Socket.IO: Authentifizierte Verbindung von User {user_id}")
+                    else:
+                        logger.debug("Socket.IO: Nicht-authentifizierte Verbindung (öffentliche Route erlaubt)")
+                else:
+                    logger.debug("Socket.IO: Verbindung ohne Authentifizierung (öffentliche Route erlaubt)")
+            except Exception as user_error:
+                logger.debug(f"Socket.IO: Konnte Benutzer nicht laden (normal für öffentliche Routen): {user_error}")
+            
+            # Verbindung IMMER akzeptieren (auch ohne Authentifizierung)
+            # Dies ermöglicht öffentliche Routen wie die Musikwunschliste
+            return True
+        except Exception as e:
+            logger.warning(f"Socket.IO: Fehler bei Verbindung: {e}", exc_info=True)
+            # Verbindung trotzdem akzeptieren, damit öffentliche Routen funktionieren
+            return True
+    
+    @socketio.on('disconnect')
+    def handle_disconnect():
+        """Handle Socket.IO-Trennung."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug("Socket.IO: Client getrennt")
     
     @app.before_request
     def check_email_confirmation():
         """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
         from flask import request, redirect, url_for, flash
         from flask_login import current_user
+        
+        # WICHTIG: Socket.IO-Requests ausschließen (verhindert 401-Fehler)
+        # Socket.IO verwendet /socket.io/ als Pfad und hat keinen normalen Endpoint
+        if request.path.startswith('/socket.io/'):
+            return
+        
+        # Öffentliche Musikwunschliste-Route ausschließen (keine Authentifizierung erforderlich)
+        if request.path.startswith('/music/wishlist'):
+            return
         
         if (request.endpoint and 
             (request.endpoint.startswith('auth.') or 
@@ -124,7 +190,9 @@ def create_app(config_name='default'):
              request.endpoint == 'booking.public_form' or
              request.endpoint == 'booking.public_view' or
              request.endpoint == 'manifest' or
-             request.endpoint == 'settings.portal_logo')):
+             request.endpoint == 'settings.portal_logo' or
+             request.endpoint == 'music.public_wishlist' or
+             request.endpoint == 'music.public_search')):
             return
         
         if not current_user.is_authenticated:

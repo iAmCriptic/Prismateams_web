@@ -44,7 +44,17 @@ function invalidateCache(pattern) {
 }
 
 if (typeof io !== 'undefined') {
-    socket = io();
+    // Socket.IO-Verbindung mit Cookies für Session-Authentifizierung
+    socket = io({
+        withCredentials: true,
+        transports: ['polling', 'websocket'],
+        upgrade: true,
+        rememberUpgrade: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: Infinity
+    });
     
     socket.on('music:queue_updated', function(data) {
         console.log('Queue-Update empfangen:', data);
