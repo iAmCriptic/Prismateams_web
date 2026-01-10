@@ -607,6 +607,37 @@ server {
         expires 7d;
     }
 
+    # Socket.IO spezifische Konfiguration (MUSS VOR / kommen!)
+    # Socket.IO verwendet /socket.io/ für Polling und WebSocket-Verbindungen
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # WICHTIG: Buffering für Socket.IO deaktivieren (verhindert 400-Fehler)
+        proxy_buffering off;
+        proxy_request_buffering off;
+        
+        # Längere Timeouts für Socket.IO Polling
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        send_timeout 60s;
+        
+        # CORS für Socket.IO (falls nötig)
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type" always;
+        add_header Access-Control-Allow-Credentials true always;
+    }
+
     # Hauptanwendung (MUSS ZULETZT kommen!)
     location / {
         proxy_pass http://127.0.0.1:5000;
@@ -619,6 +650,11 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
 }
 ```
@@ -997,6 +1033,55 @@ sudo journalctl -u redis-server -n 50
 - **SocketIO funktioniert nicht mit mehreren Workern:** Stellen Sie sicher, dass Redis installiert ist und `REDIS_ENABLED=True` in `.env` gesetzt ist
 - **Redis startet nicht:** Prüfen Sie die Logs mit `sudo journalctl -u redis-server -n 50`
 - **Verbindungsfehler:** Stellen Sie sicher, dass `REDIS_URL=redis://localhost:6379/0` in `.env` korrekt ist
+
+### Socket.IO 400-Fehler (Bad Request) bei mehreren Workern
+
+Wenn Sie viele 400-Fehler in der Browser-Konsole sehen (z.B. bei `/socket.io/?EIO=4&transport=polling`), kann das folgende Ursachen haben:
+
+1. **Redis nicht korrekt konfiguriert:**
+```bash
+# Prüfen Sie die .env-Datei
+sudo cat /var/www/teamportal/.env | grep REDIS
+
+# Sollte zeigen:
+# REDIS_ENABLED=True
+# REDIS_URL=redis://localhost:6379/0
+
+# Redis-Verbindung testen
+redis-cli ping
+# Sollte "PONG" zurückgeben
+```
+
+2. **Nginx-Konfiguration fehlt Socket.IO Location:**
+   - Stellen Sie sicher, dass die Nginx-Konfiguration den `/socket.io/` Location-Block enthält (siehe Schritt 11)
+   - Nginx neu starten: `sudo systemctl restart nginx`
+
+3. **Eventlet nicht installiert:**
+```bash
+cd /var/www/teamportal
+source venv/bin/activate
+pip install eventlet
+# Oder alle Dependencies neu installieren:
+pip install -r requirements.txt
+```
+
+4. **Application neu starten:**
+```bash
+# Supervisor neu laden und Anwendung neu starten
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl restart teamportal
+
+# Prüfen Sie die Logs auf Socket.IO-Initialisierung
+sudo tail -f /var/log/teamportal/out.log | grep -i socket
+# Sollte zeigen: "SocketIO mit Redis Message Queue konfiguriert: redis://..."
+```
+
+5. **Browser-Cache leeren:**
+   - Leeren Sie den Browser-Cache und versuchen Sie es erneut
+   - Oder verwenden Sie einen Inkognito-Modus für Tests
+
+**Wichtig:** Nach Änderungen an der Socket.IO-Konfiguration müssen Sie die Anwendung **immer neu starten**, damit die Änderungen wirksam werden!
 
 ### Optionalen Service deaktivieren
 
