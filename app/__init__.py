@@ -148,41 +148,17 @@ def create_app(config_name='default'):
     # (für öffentliche Routen wie Musikwunschliste)
     @socketio.on('connect')
     def handle_connect(auth):
-        """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients."""
-        import logging
-        logger = logging.getLogger(__name__)
+        """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients.
         
-        # Verbindung IMMER akzeptieren (auch ohne Authentifizierung)
-        # Dies ermöglicht öffentliche Routen wie die Musikwunschliste
-        # Robuste Fehlerbehandlung, um 400-Fehler zu vermeiden
-        try:
-            # Versuche, den Request-Context zu verwenden (kann bei threading fehlschlagen)
-            try:
-                from flask import request
-                from flask_login import current_user
-                
-                # Prüfe ob current_user geladen werden kann
-                try:
-                    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
-                        user_id = getattr(current_user, 'id', None)
-                        logger.debug(f"Socket.IO: Authentifizierte Verbindung von User {user_id}")
-                    else:
-                        logger.debug("Socket.IO: Nicht-authentifizierte Verbindung (öffentliche Route erlaubt)")
-                except (AttributeError, RuntimeError, KeyError):
-                    # Session-Kontext nicht verfügbar - normal bei Socket.IO
-                    logger.debug("Socket.IO: Verbindung ohne Session-Kontext (normal)")
-            except (RuntimeError, AttributeError, ImportError) as ctx_error:
-                # Request-Context nicht verfügbar - das ist OK für Socket.IO
-                logger.debug(f"Socket.IO: Request-Context nicht verfügbar (normal): {ctx_error}")
-            
-            # Verbindung IMMER akzeptieren (auch ohne Authentifizierung)
-            # Dies ermöglicht öffentliche Routen wie die Musikwunschliste
-            return True
-        except Exception as e:
-            # Alle anderen Fehler abfangen und Verbindung trotzdem akzeptieren
-            # WICHTIG: Nie False zurückgeben, sonst bekommt der Client 400 Bad Request
-            logger.warning(f"Socket.IO: Fehler bei Verbindung (aber akzeptiert): {e}", exc_info=False)
-            return True
+        WICHTIG: Diese Funktion muss IMMER True zurückgeben, sonst bekommt der Client 400 Bad Request.
+        """
+        # KRITISCH: Keine Logging-Imports hier, da diese bei threading Fehler verursachen können
+        # KRITISCH: Keine Flask-Requests hier, da der Context bei threading nicht verfügbar sein kann
+        # KRITISCH: IMMER True zurückgeben, nie False oder Exception werfen
+        
+        # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception
+        # Dies verhindert 400 Bad Request Fehler
+        return True
     
     @socketio.on('disconnect')
     def handle_disconnect():
