@@ -126,7 +126,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Notwendige Pakete installieren
 sudo apt install -y python3 python3-pip python3-venv \
-    nginx mariadb-server git supervisor \
+    nginx mariadb-server git \
     curl wget ufw certbot python3-certbot-nginx \
     apt-transport-https ca-certificates gnupg lsb-release
 ```
@@ -382,46 +382,59 @@ REDIS_URL=redis://localhost:6379/0
 
 **Hinweis:** Wenn Sie nur einen Worker verwenden (`-w 1`), können Sie Redis deaktiviert lassen (`REDIS_ENABLED=False`). Für Production mit mehreren Workern ist Redis jedoch dringend empfohlen.
 
-### Schritt 10: Supervisor konfigurieren
+### Schritt 10: Systemd-Service konfigurieren
 
 ```bash
-sudo nano /etc/supervisor/conf.d/teamportal.conf
+sudo nano /etc/systemd/system/teamportal.service
 ```
 
-**WICHTIG:** Für den ersten Start verwenden wir `-w 1` (nur 1 Worker), damit die Datenbank automatisch initialisiert wird!
+**WICHTIG:** Für den ersten Start verwenden wir `--workers 1` (nur 1 Worker), damit die Datenbank automatisch initialisiert wird!
 
 Inhalt für den ersten Start:
 ```ini
-[program:teamportal]
-directory=/var/www/teamportal
-command=/var/www/teamportal/venv/bin/gunicorn -w 1 -b 127.0.0.1:5000 --timeout 600 wsgi:app
-user=www-data
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-stderr_logfile=/var/log/teamportal/err.log
-stdout_logfile=/var/log/teamportal/out.log
-environment=PATH="/var/www/teamportal/venv/bin",FLASK_ENV="production"
+[Unit]
+Description=Team Portal Gunicorn Application Server
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/teamportal
+Environment="PATH=/var/www/teamportal/venv/bin"
+Environment="FLASK_ENV=production"
+ExecStart=/var/www/teamportal/venv/bin/gunicorn \
+    --workers 1 \
+    --bind 127.0.0.1:5000 \
+    --timeout 600 \
+    --access-logfile - \
+    --error-logfile - \
+    wsgi:app
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ```bash
-# Log-Verzeichnis erstellen
-sudo mkdir -p /var/log/teamportal
-sudo chown www-data:www-data /var/log/teamportal
+# Gunicorn installieren (falls noch nicht installiert)
+cd /var/www/teamportal
+source venv/bin/activate
+pip install gunicorn
 
-# Supervisor neu laden
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl start teamportal
-sudo supervisorctl status teamportal
+# Systemd-Service aktivieren und starten
+sudo systemctl daemon-reload
+sudo systemctl enable teamportal
+sudo systemctl start teamportal
+sudo systemctl status teamportal
 ```
 
 **Wichtig:** Beim ersten Start wird die Datenbank **automatisch** initialisiert und alle Tabellen werden erstellt. Warten Sie etwa 1 Minute, dann prüfen Sie die Logs:
 
 ```bash
 # Prüfen Sie die Logs, ob die Datenbank erfolgreich erstellt wurde
-sudo tail -f /var/log/teamportal/out.log
+sudo journalctl -u teamportal -n 50 -f
 ```
 
 **Nach dem ersten erfolgreichen Start** (wenn die Datenbank erstellt wurde) können Sie auf mehrere Worker umstellen:
@@ -429,30 +442,42 @@ sudo tail -f /var/log/teamportal/out.log
 **WICHTIG:** Wenn Sie mehrere Worker verwenden möchten, stellen Sie sicher, dass Redis installiert und konfiguriert ist (siehe Schritt 9)!
 
 ```bash
-sudo nano /etc/supervisor/conf.d/teamportal.conf
+sudo nano /etc/systemd/system/teamportal.service
 ```
 
-Ändern Sie die `command`-Zeile von `-w 1` zu `-w 4` (oder mehr, siehe Performance-Optimierung):
+Ändern Sie die `--workers 1` Zeile zu `--workers 4` (oder mehr, siehe Performance-Optimierung):
 
 ```ini
-[program:teamportal]
-directory=/var/www/teamportal
-command=/var/www/teamportal/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 --timeout 600 wsgi:app
-user=www-data
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-stderr_logfile=/var/log/teamportal/err.log
-stdout_logfile=/var/log/teamportal/out.log
-environment=PATH="/var/www/teamportal/venv/bin",FLASK_ENV="production"
+[Unit]
+Description=Team Portal Gunicorn Application Server
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/teamportal
+Environment="PATH=/var/www/teamportal/venv/bin"
+Environment="FLASK_ENV=production"
+ExecStart=/var/www/teamportal/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 127.0.0.1:5000 \
+    --timeout 600 \
+    --access-logfile - \
+    --error-logfile - \
+    wsgi:app
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ```bash
-# Supervisor neu laden und neu starten
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart teamportal
+# Systemd neu laden und Service neu starten
+sudo systemctl daemon-reload
+sudo systemctl restart teamportal
+sudo systemctl status teamportal
 ```
 
 **Hinweis zu Multi-Worker-Setups:**
@@ -734,7 +759,7 @@ sudo ufw status
 
 ### Schritt 14: Datenbank-Migrationen ausführen (falls erforderlich)
 
-**Wichtig:** Die Datenbank und alle Tabellen werden **automatisch** beim ersten Start der Anwendung (Schritt 9) angelegt. Sie müssen **KEINE** Tabellen manuell erstellen!
+**Wichtig:** Die Datenbank und alle Tabellen werden **automatisch** beim ersten Start der Anwendung (Schritt 10) angelegt. Sie müssen **KEINE** Tabellen manuell erstellen!
 
 Falls Sie von einer älteren Version aktualisieren, müssen Sie nach dem ersten Start die entsprechende Migrationsdatei ausführen:
 
@@ -760,11 +785,11 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_
 
 ### Schritt 16: Datenbank-Initialisierung prüfen
 
-**Wichtig:** Die Datenbank wurde beim ersten Start in Schritt 9 automatisch erstellt. Prüfen Sie die Logs, um sicherzustellen, dass alles erfolgreich war:
+**Wichtig:** Die Datenbank wurde beim ersten Start in Schritt 10 automatisch erstellt. Prüfen Sie die Logs, um sicherzustellen, dass alles erfolgreich war:
 
 ```bash
 # Prüfen Sie die Logs auf Erfolg
-sudo tail -50 /var/log/teamportal/out.log | grep -i "database\|table\|create"
+sudo journalctl -u teamportal -n 100 | grep -i "database\|table\|create"
 
 # Oder prüfen Sie direkt in der Datenbank
 mysql -u teamportal -p teamportal -e "SHOW TABLES;"
@@ -817,9 +842,9 @@ curl http://localhost:5000/
 
 ### Logs überprüfen
 ```bash
-# Supervisor Logs
-sudo tail -f /var/log/teamportal/out.log
-sudo tail -f /var/log/teamportal/err.log
+# Team Portal Service Logs (Systemd)
+sudo journalctl -u teamportal -f
+sudo journalctl -u teamportal -n 100
 
 # Nginx Logs
 sudo tail -f /var/log/nginx/access.log
@@ -838,7 +863,8 @@ sudo docker logs -f excalidraw-room
 
 ### Anwendung neu starten
 ```bash
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
+sudo systemctl status teamportal
 ```
 
 ### Docker-Container neu starten (falls installiert)
@@ -873,7 +899,7 @@ sudo -u www-data git reset --hard origin/main
 sudo ./venv/bin/pip install -r requirements.txt
 
 # Anwendung neu starten
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
 ```
 
 **Hinweis:** Wenn Sie den `master`-Branch statt `main` verwenden, ersetzen Sie `origin/main` durch `origin/master` im `git reset`-Befehl.
@@ -898,7 +924,7 @@ sudo -u www-data git stash pop
 sudo ./venv/bin/pip install -r requirements.txt
 
 # Anwendung neu starten
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
 ```
 
 **Option 3: Ohne lokale Änderungen (einfacher git pull)**
@@ -915,7 +941,7 @@ sudo -u www-data git pull
 sudo ./venv/bin/pip install -r requirements.txt
 
 # Anwendung neu starten
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
 ```
 
 ### Docker-Container aktualisieren (falls installiert)
@@ -963,7 +989,11 @@ sudo tar -czf onlyoffice_backup_$(date +%Y%m%d).tar.gz /var/lib/onlyoffice/
 ### Anwendung startet nicht
 ```bash
 # Logs prüfen
-sudo supervisorctl tail teamportal stderr
+sudo journalctl -u teamportal -n 100
+sudo journalctl -u teamportal -f
+
+# Service-Status prüfen
+sudo systemctl status teamportal
 
 # Manuell starten zum Testen
 cd /var/www/teamportal
@@ -995,13 +1025,13 @@ sudo chmod -R 775 /var/www/teamportal/uploads
 ### Nginx zeigt 502 Bad Gateway
 ```bash
 # Prüfen ob Gunicorn läuft
-sudo supervisorctl status teamportal
+sudo systemctl status teamportal
 
 # Neu starten
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
 
 # Prüfe die Logs
-sudo tail -50 /var/log/teamportal/err.log
+sudo journalctl -u teamportal -n 100
 ```
 
 ### OnlyOffice nicht erreichbar (falls installiert)
@@ -1067,7 +1097,7 @@ sudo docker restart excalidraw-room
 ### Canvas-Modul kann nicht aktiviert werden (falls Excalidraw installiert)
 - Prüfen Sie ob `EXCALIDRAW_ENABLED=True` in `.env` gesetzt ist
 - Prüfen Sie ob Excalidraw unter `/excalidraw` erreichbar ist
-- Starten Sie die Anwendung neu: `sudo supervisorctl restart teamportal`
+- Starten Sie die Anwendung neu: `sudo systemctl restart teamportal`
 - Führen Sie die entsprechende Migrationsdatei aus (z.B. `migrate_to_2.2.0.py`): `sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.2.0.py"`
 
 ### Redis-Probleme
@@ -1127,13 +1157,12 @@ pip install -r requirements.txt
 
 4. **Application neu starten:**
 ```bash
-# Supervisor neu laden und Anwendung neu starten
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart teamportal
+# Systemd-Service neu starten
+sudo systemctl daemon-reload
+sudo systemctl restart teamportal
 
 # Prüfen Sie die Logs auf Socket.IO-Initialisierung
-sudo tail -f /var/log/teamportal/out.log | grep -i socket
+sudo journalctl -u teamportal -f | grep -i socket
 # Sollte zeigen: "SocketIO mit Redis Message Queue konfiguriert: redis://..."
 ```
 
@@ -1200,7 +1229,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 # 5. Anwendung neu starten
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
 ```
 
 #### Excalidraw deaktivieren
@@ -1221,17 +1250,20 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 # 5. Anwendung neu starten
-sudo supervisorctl restart teamportal
+sudo systemctl restart teamportal
 ```
 
 ## Performance-Optimierung
 
 ### Gunicorn-Worker anpassen
 ```bash
-# In /etc/supervisor/conf.d/teamportal.conf
+# In /etc/systemd/system/teamportal.service
 # Faustregel: (2 x CPU-Kerne) + 1
-# Für 4 CPU-Kerne: -w 9
-command=/var/www/teamportal/venv/bin/gunicorn -w 9 -b 127.0.0.1:5000 --timeout 600 wsgi:app
+# Für 4 CPU-Kerne: --workers 9
+sudo nano /etc/systemd/system/teamportal.service
+# Ändern Sie die Zeile: --workers 1 zu --workers 9
+sudo systemctl daemon-reload
+sudo systemctl restart teamportal
 ```
 
 ### Nginx Caching
@@ -1300,7 +1332,7 @@ sudo docker stats excalidraw excalidraw-room
 4. ✅ Konfiguration (.env-Datei)
 5. ✅ Berechtigungen setzen
 6. ✅ Redis installieren (erforderlich für Multi-Worker-Setups)
-7. ✅ Supervisor konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
+7. ✅ Systemd-Service konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
 8. ✅ Nginx konfigurieren
 9. ✅ SSL mit Let's Encrypt (empfohlen)
 10. ✅ Firewall konfigurieren
@@ -1332,8 +1364,8 @@ sudo docker stats excalidraw excalidraw-room
    - Die Datenbank wird **automatisch** beim ersten Start erstellt
    - Sie müssen **KEINE** Tabellen manuell anlegen
    - Erstellen Sie nur die leere Datenbank in MariaDB
-   - Beim ersten Start mit Supervisor wird alles automatisch initialisiert
-   - Verwenden Sie `-w 1` (1 Worker) für den ersten Start
+   - Beim ersten Start mit Systemd-Service wird alles automatisch initialisiert
+   - Verwenden Sie `--workers 1` (1 Worker) für den ersten Start
    - Nach erfolgreichem Start können Sie auf mehrere Worker umstellen
 
 5. **Redis-Konfiguration:**
