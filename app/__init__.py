@@ -116,8 +116,6 @@ def create_app(config_name='default'):
                 max_http_buffer_size=2e6,
                 always_connect=True,
                 manage_session=False  # KEINE Session-Validierung
-                allow_upgrades=True,
-                transports=['polling', 'websocket']
             )
     else:
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
