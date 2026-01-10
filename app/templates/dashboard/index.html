@@ -501,6 +501,14 @@ class DashboardUpdater {
             // Fehlerbehandlung - verhindert ständige Fehlermeldungen
             this.socket.on('connect_error', (error) => {
                 reconnectAttempts++;
+                // #region agent log
+                console.error('[DEBUG] SocketIO connect_error:', {
+                    error: error.message,
+                    attempts: reconnectAttempts,
+                    socket_id: this.socket?.id,
+                    timestamp: new Date().toISOString()
+                });
+                // #endregion
                 // Nur alle 5 Versuche loggen, um Spam zu vermeiden
                 if (reconnectAttempts % 5 === 0) {
                     console.warn(`Dashboard: Socket.IO Verbindungsfehler (Versuch ${reconnectAttempts})`);
@@ -524,6 +532,13 @@ class DashboardUpdater {
             // Verbinde mit Dashboard-Room
             this.socket.on('connect', () => {
                 reconnectAttempts = 0;  // Reset bei erfolgreicher Verbindung
+                // #region agent log
+                console.log('[DEBUG] SocketIO connect success:', {
+                    socket_id: this.socket?.id,
+                    transport: this.socket?.io?.engine?.transport?.name,
+                    timestamp: new Date().toISOString()
+                });
+                // #endregion
                 console.log('Dashboard: Socket.IO verbunden');
                 try {
                     this.socket.emit('dashboard:join', {});

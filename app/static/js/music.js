@@ -65,11 +65,30 @@ if (typeof io !== 'undefined') {
     
     socket.on('connect_error', function(error) {
         reconnectAttempts++;
+        // #region agent log
+        console.error('[DEBUG] SocketIO connect_error:', {
+            error: error.message,
+            attempts: reconnectAttempts,
+            socket_id: socket?.id,
+            timestamp: new Date().toISOString()
+        });
+        // #endregion
         // Nur alle 5 Versuche loggen, um Spam zu vermeiden
         if (reconnectAttempts % 5 === 0) {
             console.warn(`Socket.IO Verbindungsfehler (Versuch ${reconnectAttempts}):`, error.message);
         }
         isConnecting = false;
+    });
+    
+    socket.on('connect', function() {
+        reconnectAttempts = 0;
+        // #region agent log
+        console.log('[DEBUG] SocketIO connect success:', {
+            socket_id: socket?.id,
+            transport: socket?.io?.engine?.transport?.name,
+            timestamp: new Date().toISOString()
+        });
+        // #endregion
     });
     
     socket.on('disconnect', function(reason) {
