@@ -44,18 +44,18 @@ function invalidateCache(pattern) {
 }
 
 if (typeof io !== 'undefined') {
-    // Socket.IO-Verbindung mit Cookies für Session-Authentifizierung
+    // Socket.IO-Verbindung mit robuster Konfiguration für Multi-Worker-Setups
+    // Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
     socket = io({
         withCredentials: true,
-        transports: ['polling', 'websocket'],
-        upgrade: true,
-        rememberUpgrade: true,
+        transports: ['polling'],  // Nur Polling - kein WebSocket
+        upgrade: false,  // KEINE Upgrades zu WebSocket
         reconnection: true,
-        reconnectionDelay: 2000,  // Erhöht von 1000 auf 2000ms
-        reconnectionDelayMax: 10000,  // Erhöht von 5000 auf 10000ms
-        reconnectionAttempts: 10,  // Begrenzt auf 10 Versuche statt Infinity
-        timeout: 20000,  // Timeout für Verbindungsversuche
-        forceNew: false,  // Verwende bestehende Verbindung wenn möglich
+        reconnectionDelay: 1000,  // Schnelleres Reconnecting
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: Infinity,  // Nie aufgeben
+        timeout: 20000,
+        forceNew: false,
         autoConnect: true
     });
     
