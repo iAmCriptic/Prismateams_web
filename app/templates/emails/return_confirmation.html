@@ -99,9 +99,9 @@
                         <td align="center" class="header" style="padding: 30px 20px 20px 20px; text-align: center;">
                             <!-- Das Logo wird als Base64-Inline-Bild eingebunden -->
                             {% if logo_base64 %}
-                            <img src="{{ logo_base64 }}" alt="{{ app_name or 'Prismateams' }} Logo" width="150" style="display: block; margin: 0 auto; max-width: 150px; height: auto;">
+                            <img src="{{ logo_base64 }}" alt="{{ app_name or 'Prismateams' }} Logo" width="150" height="150" style="display: block; margin: 0 auto; max-width: 150px; max-height: 150px; width: 150px; height: auto; border: 0; outline: none; text-decoration: none;">
                             {% else %}
-                            <img src="/static/img/logo.png" alt="{{ app_name or 'Prismateams' }} Logo" width="150" style="display: block; margin: 0 auto; max-width: 150px; height: auto;">
+                            <img src="/static/img/logo.png" alt="{{ app_name or 'Prismateams' }} Logo" width="150" height="150" style="display: block; margin: 0 auto; max-width: 150px; max-height: 150px; width: 150px; height: auto; border: 0; outline: none; text-decoration: none;">
                             {% endif %}
                             <h1 style="color: #198754; margin: 15px 0 0 0; font-size: 24px; font-weight: 700;">
                                 {{ app_name or 'Prismateams' }}

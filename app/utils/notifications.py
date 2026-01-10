@@ -582,27 +582,37 @@ def schedule_calendar_reminders():
     Plant Kalender-Erinnerungen basierend auf den Benutzereinstellungen.
     Diese Funktion sollte regelmäßig (z.B. alle 5 Minuten) aufgerufen werden.
     """
-    now = datetime.utcnow()
-    
-    future_events = CalendarEvent.query.filter(
-        CalendarEvent.start_time > now,
-        CalendarEvent.start_time <= now + timedelta(days=7)
-    ).all()
-    
-    for event in future_events:
-        users = User.query.join(NotificationSettings).filter(
-            NotificationSettings.calendar_notifications_enabled == True
+    try:
+        # Prüfe ob die Tabelle existiert
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        if 'calendar_events' not in inspector.get_table_names():
+            logging.warning("Tabelle 'calendar_events' existiert nicht. Kalender-Erinnerungen werden übersprungen.")
+            return
+        
+        now = datetime.utcnow()
+        
+        future_events = CalendarEvent.query.filter(
+            CalendarEvent.start_time > now,
+            CalendarEvent.start_time <= now + timedelta(days=7)
         ).all()
         
-        for user in users:
-            settings = get_or_create_notification_settings(user.id)
-            reminder_times = settings.get_reminder_times()
+        for event in future_events:
+            users = User.query.join(NotificationSettings).filter(
+                NotificationSettings.calendar_notifications_enabled == True
+            ).all()
             
-            for reminder_minutes in reminder_times:
-                reminder_time = event.start_time - timedelta(minutes=reminder_minutes)
+            for user in users:
+                settings = get_or_create_notification_settings(user.id)
+                reminder_times = settings.get_reminder_times()
                 
-                if abs((reminder_time - now).total_seconds()) <= 300:  # 5 Minuten
-                    send_calendar_notification(event.id, reminder_minutes)
+                for reminder_minutes in reminder_times:
+                    reminder_time = event.start_time - timedelta(minutes=reminder_minutes)
+                    
+                    if abs((reminder_time - now).total_seconds()) <= 300:  # 5 Minuten
+                        send_calendar_notification(event.id, reminder_minutes)
+    except Exception as e:
+        logging.error(f"Fehler beim Planen von Kalender-Erinnerungen: {e}", exc_info=True)
 
 
 def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:

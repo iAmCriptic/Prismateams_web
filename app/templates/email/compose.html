@@ -242,6 +242,25 @@
         border-radius: 0 0 0.375rem 0.375rem;
     }
     
+    /* Button Loading State */
+    #sendEmailButton {
+        transition: opacity 0.3s ease, background-color 0.3s ease;
+    }
+    
+    #sendEmailButton:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+        /* Helle, deaktivierte Version - behält die Button-Farbe bei, aber heller */
+        filter: brightness(0.85);
+    }
+    
+    #sendEmailButton .button-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
 </style>
 {% endblock %}
 
@@ -323,8 +342,10 @@
                         </div>
                         <div class="form-text mb-3">{{ _('email.compose.attachments.footer_note') }}</div>
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-accent">
-                                <i class="bi bi-send me-1"></i> {{ _('email.compose.buttons.send') }}
+                            <button type="submit" id="sendEmailButton" class="btn btn-accent">
+                                <span class="button-text">
+                                    <i class="bi bi-send me-1"></i> {{ _('email.compose.buttons.send') }}
+                                </span>
                             </button>
                             <a href="{{ url_for('email.index') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x me-1"></i> {{ _('email.compose.buttons.cancel') }}
@@ -593,20 +614,81 @@ document.addEventListener('DOMContentLoaded', function() {
     })();
     {% endif %}
     
-    // Update hidden field before form submission
-    document.getElementById('emailComposeForm').addEventListener('submit', function(e) {
+    // AJAX form submission with loading state
+    var sendButton = document.getElementById('sendEmailButton');
+    var form = document.getElementById('emailComposeForm');
+    var isSubmitting = false;
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Prevent double submission
+        if (isSubmitting) {
+            return false;
+        }
+        
         var htmlContent = quill.root.innerHTML;
         var textContent = quill.getText();
         
         // If only whitespace, show error
         if (!textContent.trim()) {
-            e.preventDefault();
-            alert(COMPOSE_MESSAGES.validation_error || '');
+            alert(COMPOSE_MESSAGES.validation_error || 'Bitte geben Sie eine Nachricht ein.');
             return false;
         }
         
         // Set HTML content to hidden field
         document.getElementById('bodyHtml').value = htmlContent;
+        
+        // Disable button (Text bleibt sichtbar, Button wird heller)
+        isSubmitting = true;
+        sendButton.disabled = true;
+        
+        // Prepare FormData
+        var formData = new FormData(form);
+        
+        // Send AJAX request
+        fetch(form.action || window.location.pathname, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok) {
+                    throw new Error(data.message || 'Fehler beim Senden der E-Mail');
+                }
+                return data;
+            });
+        })
+        .then(function(data) {
+            if (data.success) {
+                // Success: Show message and redirect
+                if (data.message) {
+                    // You could show a toast notification here
+                    console.log('Success:', data.message);
+                }
+                // Redirect after short delay
+                setTimeout(function() {
+                    window.location.href = data.redirect_url || '{{ url_for("email.index") }}';
+                }, 1000);
+            } else {
+                throw new Error(data.message || 'Fehler beim Senden der E-Mail');
+            }
+        })
+        .catch(function(error) {
+            // Error: Re-enable button and show error
+            isSubmitting = false;
+            sendButton.disabled = false;
+            
+            // Show error message
+            alert(error.message || 'Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.');
+            console.error('E-Mail-Versand Fehler:', error);
+        });
+        
+        return false;
     });
     
     quill.on('text-change', schedulePreview);

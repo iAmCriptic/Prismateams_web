@@ -98,7 +98,7 @@
                                             </div>
                                         </div>
                                         <div class="text-end ms-2 flex-shrink-0">
-                                            {% if not email.is_read %}
+                                            {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
                                             <span class="badge bg-accent mb-1 d-block">{{ _('email.index.labels.new_badge') }}</span>
                                             {% endif %}
                                             <small class="text-muted">{{ email.received_at.strftime('%d.%m %H:%M') if email.received_at else '' }}</small>
@@ -276,7 +276,7 @@
                                     </div>
                                 </div>
                                 <div class="text-end ms-2">
-                                    {% if not email.is_read %}
+                                    {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
                                     <span class="badge bg-accent mb-1 d-block">{{ _('email.index.labels.new_badge') }}</span>
                                     {% endif %}
                                     <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
@@ -314,7 +314,7 @@
                             {% endif %}
                             </div>
                         </div>
-                        {% if not email.is_read %}
+                        {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
                         <span class="badge bg-accent ms-2">{{ _('email.index.labels.new_badge') }}</span>
                         {% endif %}
                     </div>
@@ -490,7 +490,7 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                {% if not email.is_read %}
+                                {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
                                 <span class="badge bg-accent ms-2">{{ _('email.index.labels.new_badge') }}</span>
                                 {% endif %}
                             </div>

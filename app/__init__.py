@@ -603,8 +603,108 @@ def create_app(config_name='default'):
     with app.app_context():
         if is_main_process:
             try:
-                db.create_all()
-                print("[OK] Datenbank-Tabellen erfolgreich erstellt/aktualisiert")
+                # Stelle sicher, dass alle Modelle importiert sind, bevor db.create_all() aufgerufen wird
+                # Dies ist notwendig, damit SQLAlchemy alle Tabellen erstellt
+                from app.models.user import User
+                from app.models.chat import Chat, ChatMessage, ChatMember
+                from app.models.file import File, FileVersion, Folder
+                from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
+                from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
+                from app.models.credential import Credential
+                from app.models.manual import Manual
+                from app.models.settings import SystemSettings
+                from app.models.whitelist import WhitelistEntry
+                from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
+                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+                from app.models.api_token import ApiToken
+                from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
+                from app.models.comment import Comment, CommentMention
+                from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
+                from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
+                
+                # Prüfe welche Tabellen bereits existieren
+                from sqlalchemy import inspect, text
+                inspector = inspect(db.engine)
+                existing_tables = set(inspector.get_table_names())
+                
+                # Erstelle fehlende Tabellen mit Fehlerbehandlung
+                try:
+                    db.create_all()
+                    
+                    # Prüfe ob neue Tabellen erstellt wurden
+                    current_tables = set(inspector.get_table_names())
+                    new_tables = current_tables - existing_tables
+                    if new_tables:
+                        print(f"[OK] {len(new_tables)} neue Tabellen erstellt: {', '.join(sorted(new_tables))}")
+                    else:
+                        print("[OK] Alle Tabellen sind bereits vorhanden")
+                except Exception as create_error:
+                    # Bei Tablespace-Fehlern (MySQL Error 1813) prüfe, ob die Tabellen trotzdem existieren
+                    error_code = None
+                    error_message = str(create_error)
+                    if hasattr(create_error, 'orig'):
+                        if hasattr(create_error.orig, 'args') and len(create_error.orig.args) > 0:
+                            error_code = create_error.orig.args[0]
+                        elif hasattr(create_error.orig, 'msg'):
+                            error_message = str(create_error.orig.msg)
+                    
+                    if error_code == 1813 or 'Tablespace' in error_message or '1813' in error_message:  # MySQL Tablespace-Fehler
+                        print("[WARNUNG] Tablespace-Fehler erkannt. Prüfe vorhandene Tabellen...")
+                        # Prüfe ob Tabellen in INFORMATION_SCHEMA existieren
+                        try:
+                            with db.engine.connect() as connection:
+                                result = connection.execute(text("""
+                                    SELECT TABLE_NAME 
+                                    FROM INFORMATION_SCHEMA.TABLES 
+                                    WHERE TABLE_SCHEMA = DATABASE()
+                                """))
+                                db_tables = {row[0] for row in result}
+                            if db_tables:
+                                print(f"[INFO] {len(db_tables)} Tabellen in Datenbank gefunden")
+                                
+                                # Erstelle nur fehlende Tabellen einzeln
+                                all_models = [
+                                    CalendarEvent, EventParticipant, PublicCalendarFeed,
+                                    BookingRequest, BookingForm, BookingFormField, BookingFormImage,
+                                    BookingRequestField, BookingRequestFile, BookingFormRole,
+                                    BookingFormRoleUser, BookingRequestApproval
+                                ]
+                                
+                                created_count = 0
+                                for model_class in all_models:
+                                    table_name = model_class.__tablename__
+                                    if table_name not in db_tables:
+                                        try:
+                                            model_class.__table__.create(db.engine, checkfirst=True)
+                                            print(f"[OK] Tabelle '{table_name}' erstellt")
+                                            created_count += 1
+                                        except Exception as e:
+                                            # Ignoriere Fehler wenn Tabelle bereits existiert
+                                            if 'already exists' not in str(e).lower() and '1813' not in str(e):
+                                                print(f"[WARNUNG] Konnte Tabelle '{table_name}' nicht erstellen: {e}")
+                                
+                                if created_count == 0:
+                                    print("[OK] Alle benötigten Tabellen sind bereits vorhanden")
+                            else:
+                                print("[WARNUNG] Keine Tabellen in Datenbank gefunden, aber Tablespace-Fehler aufgetreten")
+                        except Exception as check_error:
+                            print(f"[WARNUNG] Fehler beim Prüfen der Tabellen: {check_error}")
+                            print(f"[INFO] Original-Fehler: {create_error}")
+                    else:
+                        # Andere Fehler: prüfe ob Tabellen trotzdem existieren
+                        print(f"[WARNUNG] Fehler beim Erstellen der Tabellen: {create_error}")
+                        current_tables = set(inspector.get_table_names())
+                        if current_tables:
+                            print(f"[INFO] {len(current_tables)} Tabellen sind trotzdem vorhanden")
+                            # Versuche fehlende Tabellen trotzdem zu erstellen
+                            print("[INFO] Versuche fehlende Tabellen zu erstellen...")
+                            try:
+                                db.create_all()
+                                print("[OK] Tabellenerstellung erfolgreich wiederholt")
+                            except:
+                                pass
+                        else:
+                            print("[FEHLER] Keine Tabellen gefunden und Erstellung fehlgeschlagen")
                 
                 try:
                     from sqlalchemy import inspect
