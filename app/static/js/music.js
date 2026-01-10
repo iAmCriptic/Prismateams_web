@@ -120,9 +120,14 @@ function initSSE() {
             const data = JSON.parse(e.data);
             console.log('Wishlist geleert:', data);
             invalidateCache('wishlist');
-            if (data.force_reload) {
-                loadWishlist();
+            // Leere Wishlist-Anzeige
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
+                wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
             }
+            // Aktualisiere Badge
+            updateWishlistBadgeDirect(0);
+            cachedCounts.wishlist = 0;
         });
         
         eventSource.addEventListener('heartbeat', function(e) {
@@ -982,8 +987,20 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // SocketIO-Event wird automatisch die Queue aktualisieren
-                // Kein location.reload() mehr nötig!
+                // Invalidiere Cache für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('queue');
+                }
+                
+                // SSE-Event wird automatisch die Queue mit korrekten Positionen aktualisieren
+                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
+                setTimeout(() => {
+                    if (typeof updateQueueDisplay === 'function') {
+                        updateQueueDisplay();
+                    }
+                }, 2000);
+                
+                console.log('Queue-Position geändert - SSE-Update wird kommen');
             } else {
                 alert('Fehler beim Verschieben: ' + (data.error || 'Unbekannter Fehler'));
                 // Lade Queue neu bei Fehler
@@ -1001,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialisiere Lazy Loading für Bilder
     loadLazyImages();
     
-    // Lade Lazy Images auch nach DOM-Updates (z.B. nach SocketIO-Events)
+    // Lade Lazy Images auch nach DOM-Updates (z.B. nach SSE-Events)
     const observer = new MutationObserver(function(mutations) {
         loadLazyImages();
     });
