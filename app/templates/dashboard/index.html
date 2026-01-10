@@ -48,8 +48,30 @@
 
 <div class="row mb-4">
     <div class="col">
-        <h1>{{ _('dashboard.welcome', name=current_user.first_name) }}</h1>
-        <p class="text-muted">{{ _('dashboard.overview_subtitle') }}</p>
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="d-flex align-items-center">
+                <!-- Mobile Logo (neben Text) -->
+                <div class="d-lg-none me-3">
+                    <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center text-decoration-none">
+                        {% if portal_logo_filename %}
+                        <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48">
+                        {% elif app_logo %}
+                        <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48">
+                        {% endif %}
+                    </a>
+                </div>
+                <div>
+                    <h1>{{ _('dashboard.welcome', name=current_user.first_name) }}</h1>
+                    <p class="text-muted">{{ _('dashboard.overview_subtitle') }}</p>
+                </div>
+            </div>
+            <!-- Desktop Uhrzeit (oben rechts) -->
+            <div class="d-none d-lg-block">
+                <div class="text-end">
+                    <div id="current-time" class="fs-5 fw-bold text-muted"></div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -204,42 +226,6 @@
                 {% else %}
                     <div class="d-flex align-items-center" style="min-height: 100px;">
                         <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.files.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Recent Canvases Widget -->
-    {% if 'canvas' in enabled_widgets and is_module_enabled('module_canvas') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('canvas.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-palette widget-icon text-danger"></i>
-                        {{ _('dashboard.widgets.canvas.title') }}
-                    </h5>
-                    <span class="badge bg-primary canvas-badge">{{ recent_canvases|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if recent_canvases %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for canvas in recent_canvases %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('canvas.edit', canvas_id=canvas.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ canvas.name }}</h6>
-                                <small class="text-muted">{{ canvas.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ canvas.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.canvas.empty') }}</p>
                     </div>
                 {% endif %}
             </div>
@@ -436,21 +422,23 @@
                         'files': {'url': url_for('files.index'), 'icon': 'bi-folder', 'label_key': 'layout.nav.files', 'module': 'module_files'},
                         'credentials': {'url': url_for('credentials.index'), 'icon': 'bi-key', 'label_key': 'layout.nav.credentials', 'module': 'module_credentials'},
                         'manuals': {'url': url_for('manuals.index'), 'icon': 'bi-book', 'label_key': 'layout.nav.manuals', 'module': 'module_manuals'},
-                        'canvas': {'url': url_for('canvas.index'), 'icon': 'bi-palette', 'label_key': 'layout.nav.canvas', 'module': 'module_canvas'},
                         'chat': {'url': url_for('chat.index'), 'icon': 'bi-chat-dots', 'label_key': 'layout.nav.chats', 'module': 'module_chat'},
                         'calendar': {'url': url_for('calendar.index'), 'icon': 'bi-calendar-event', 'label_key': 'layout.nav.calendar', 'module': 'module_calendar'},
                         'email': {'url': url_for('email.index'), 'icon': 'bi-envelope', 'label_key': 'layout.nav.email', 'module': 'module_email'},
                         'inventory': {'url': url_for('inventory.dashboard'), 'icon': 'bi-box-seam', 'label_key': 'layout.nav.inventory', 'module': 'module_inventory'},
                         'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'},
                         'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'},
-                        'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'}
+                        'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'},
+                        'settings': {'url': url_for('settings.index'), 'icon': 'bi-gear', 'label_key': 'layout.nav.settings', 'module': None},
+                        'profile': {'url': url_for('settings.profile'), 'icon': 'bi-person', 'label_key': 'settings.profile.title', 'module': None},
+                        'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None}
                     } %}
                     {% for link_key in quick_access_links %}
                         {% if link_key in link_map %}
                             {% set link = link_map[link_key] %}
-                            {% if is_module_enabled(link.module) %}
+                            {% if link.module is none or is_module_enabled(link.module) %}
                             <div class="col-6 col-md-3">
-                                <a href="{{ link.url }}" class="btn btn-outline-primary w-100">
+                                <a href="{{ link.url }}" class="btn {% if link_key == 'logout' %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
                                     <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
                                     {{ _(link.label_key) }}
                                 </a>
@@ -475,143 +463,68 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
 // Dashboard Live-Updates
 class DashboardUpdater {
     constructor() {
-        this.updateInterval = null;
-        this.lastUpdate = null;
+        this.socket = null;
         this.init();
     }
     
     init() {
-        // Starte Live-Updates mit unterschiedlichen Intervallen
-        this.startUpdates();
+        // Initialisiere Socket.IO-Verbindung
+        this.initSocketIO();
         
-        // Update auch beim Fokus der Seite
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                this.updateDashboard();
-            }
-        });
+        // Kein Polling mehr - Updates kommen nur über Socket.IO Push
     }
     
-    startUpdates() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-        }
-        
-        // Chat-Nachrichten alle 10 Sekunden
-        setInterval(() => {
-            this.updateChatMessages();
-        }, 10000);
-        
-        // Andere Updates alle 30 Sekunden
-        this.updateInterval = setInterval(() => {
-            this.updateEmails();
-            this.updateCalendar();
-            // Dateien und Canvas seltener aktualisieren (alle 60 Sekunden)
-            if (Math.random() < 0.5) {
-                this.updateFiles();
-                this.updateCanvases();
-            }
-        }, 30000);
-        
-        // Erste Aktualisierung nach 5 Sekunden
-        setTimeout(() => {
-            this.updateDashboard();
-        }, 5000);
-    }
-    
-    async updateDashboard() {
+    initSocketIO() {
         try {
-            // Aktualisiere Chat-Nachrichten
-            await this.updateChatMessages();
+            // Initialisiere Socket.IO-Client
+            this.socket = io();
             
-            // Aktualisiere E-Mails
-            await this.updateEmails();
+            // Verbinde mit Dashboard-Room
+            this.socket.on('connect', () => {
+                console.log('Dashboard: Socket.IO verbunden');
+                this.socket.emit('dashboard:join', {});
+            });
             
-            // Aktualisiere Termine
-            await this.updateCalendar();
-            
-            // Aktualisiere Dateien (optional, niedrigere Priorität)
-            await this.updateFiles();
-            
-            // Aktualisiere Canvas (optional, niedrigere Priorität)
-            await this.updateCanvases();
-            
-            this.lastUpdate = new Date();
-        } catch (error) {
-            console.log('Fehler beim Aktualisieren des Dashboards:', error);
-        }
-    }
-    
-    async updateChatMessages() {
-        try {
-            const response = await fetch('/api/chat/unread-count');
-            if (response.ok) {
-                const data = await response.json();
+            // Event-Listener für Dashboard-Updates
+            this.socket.on('dashboard:chat_update', (data) => {
+                console.log('Dashboard: Chat-Update empfangen', data);
                 this.updateBadge('#chat-count-badge', data.count);
-                console.log(`Dashboard: ${data.count} neue Chat-Nachrichten`);
-            }
-        } catch (error) {
-            console.log('Fehler beim Aktualisieren der Chat-Nachrichten:', error);
-        }
-    }
-    
-    async updateEmails() {
-        try {
-            const response = await fetch('/api/email/unread-count');
-            if (response.ok) {
-                const data = await response.json();
+            });
+            
+            this.socket.on('dashboard:email_update', (data) => {
+                console.log('Dashboard: E-Mail-Update empfangen', data);
                 this.updateBadge('.email-badge', data.count);
-            }
-        } catch (error) {
-            console.log('Fehler beim Aktualisieren der E-Mails:', error);
-        }
-    }
-    
-    async updateCalendar() {
-        try {
-            const response = await fetch('/api/calendar/upcoming-count');
-            if (response.ok) {
-                const data = await response.json();
+            });
+            
+            this.socket.on('dashboard:calendar_update', (data) => {
+                console.log('Dashboard: Kalender-Update empfangen', data);
                 this.updateBadge('.calendar-badge', data.count);
-            }
-        } catch (error) {
-            console.log('Fehler beim Aktualisieren der Termine:', error);
-        }
-    }
-    
-    async updateFiles() {
-        try {
-            const response = await fetch('/api/files/recent');
-            if (response.ok) {
-                const data = await response.json();
-                // Optional: Aktualisiere Badge für Dateien-Widget
+            });
+            
+            this.socket.on('dashboard:files_update', (data) => {
+                console.log('Dashboard: Dateien-Update empfangen', data);
                 const badge = document.querySelector('.files-badge');
-                if (badge) {
-                    badge.textContent = data.length;
+                if (badge && data.files) {
+                    badge.textContent = data.files.length;
                 }
-            }
+            });
+            
+            this.socket.on('disconnect', () => {
+                console.log('Dashboard: Socket.IO-Verbindung getrennt');
+            });
+            
+            this.socket.on('connect_error', (error) => {
+                console.error('Dashboard: Socket.IO-Verbindungsfehler', error);
+                // Kein Polling-Fallback mehr - Updates kommen nur über Push
+            });
         } catch (error) {
-            console.log('Fehler beim Aktualisieren der Dateien:', error);
-        }
-    }
-    
-    async updateCanvases() {
-        try {
-            const response = await fetch('/api/canvas/recent');
-            if (response.ok) {
-                const data = await response.json();
-                // Optional: Aktualisiere Badge für Canvas-Widget
-                const badge = document.querySelector('.canvas-badge');
-                if (badge) {
-                    badge.textContent = data.length;
-                }
-            }
-        } catch (error) {
-            console.log('Fehler beim Aktualisieren der Canvas:', error);
+            console.error('Dashboard: Fehler bei Socket.IO-Initialisierung', error);
+            // Kein Polling-Fallback mehr - Updates kommen nur über Push
         }
     }
     
@@ -624,15 +537,31 @@ class DashboardUpdater {
     }
     
     stopUpdates() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
         }
     }
 }
 
 // Initialisiere Dashboard-Updater
 const dashboardUpdater = new DashboardUpdater();
+
+// Uhrzeit-Anzeige aktualisieren
+function updateClock() {
+    const timeElement = document.getElementById('current-time');
+    if (timeElement) {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        timeElement.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+}
+
+// Uhrzeit sofort aktualisieren und dann jede Sekunde
+updateClock();
+setInterval(updateClock, 1000);
 
 // Update-Banner Funktionen
 function dismissUpdateBanner() {

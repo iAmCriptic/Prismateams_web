@@ -239,6 +239,7 @@ setup_system() {
         supervisor \
         mysql-server \
         mysql-client \
+        redis-server \
         openssl \
         certbot \
         python3-certbot-nginx; then
@@ -334,6 +335,40 @@ EOF
     log_success "MySQL konfiguriert"
     log_info "Datenbank: ${DB_NAME}"
     log_info "Benutzer: ${DB_USER}"
+}
+
+# Redis Setup
+setup_redis() {
+    log_info "=== Redis Setup ==="
+    
+    # Prüfe ob Redis bereits läuft
+    if systemctl is-active --quiet redis-server; then
+        log_info "Redis läuft bereits"
+    else
+        # Redis starten und aktivieren
+        log_info "Starte Redis..."
+        systemctl start redis-server || error_exit "Redis konnte nicht gestartet werden"
+        systemctl enable redis-server || error_exit "Redis konnte nicht aktiviert werden"
+    fi
+    
+    # Warte auf Redis
+    log_info "Warte auf Redis-Service..."
+    REDIS_READY=0
+    for i in {1..10}; do
+        if redis-cli ping > /dev/null 2>&1; then
+            REDIS_READY=1
+            break
+        fi
+        sleep 1
+    done
+    
+    if [ $REDIS_READY -eq 0 ]; then
+        log_warning "Redis antwortet nicht, aber fahre fort..."
+    else
+        log_success "Redis ist bereit"
+    fi
+    
+    log_success "Redis konfiguriert"
 }
 
 # Docker Installation
@@ -601,8 +636,11 @@ print('VAPID_PUBLIC=' + keys['public_key_b64'])
         log_error "Python Output: $VAPID_OUTPUT"
         exit 1
     fi
-    VAPID_PRIVATE=$(echo "$VAPID_OUTPUT" | grep "VAPID_PRIVATE=" | cut -d'=' -f2)
-    VAPID_PUBLIC=$(echo "$VAPID_OUTPUT" | grep "VAPID_PUBLIC=" | cut -d'=' -f2)
+    # Extrahiere alles nach dem ersten '=' (damit auch Keys mit '=' Zeichen korrekt übernommen werden)
+    # Verwende head -n1, um sicherzustellen, dass nur die erste gefundene Zeile verwendet wird
+    # Entferne führende/abschließende Leerzeichen und Zeilenumbrüche
+    VAPID_PRIVATE=$(echo "$VAPID_OUTPUT" | grep "VAPID_PRIVATE=" | head -n1 | sed 's/^VAPID_PRIVATE=//' | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    VAPID_PUBLIC=$(echo "$VAPID_OUTPUT" | grep "VAPID_PUBLIC=" | head -n1 | sed 's/^VAPID_PUBLIC=//' | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     # Encryption Keys - Rufe Python-Skript direkt auf
     log_info "Generiere Encryption Keys..."
@@ -627,8 +665,11 @@ print('MUSIC_KEY=' + music_key)
         log_error "Python Output: $ENCRYPT_OUTPUT"
         exit 1
     fi
-    CREDENTIAL_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "CREDENTIAL_KEY=" | cut -d'=' -f2)
-    MUSIC_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "MUSIC_KEY=" | cut -d'=' -f2)
+    # Extrahiere alles nach dem ersten '=' (damit auch Keys mit '=' Zeichen korrekt übernommen werden)
+    # Verwende head -n1, um sicherzustellen, dass nur die erste gefundene Zeile verwendet wird
+    # Entferne führende/abschließende Leerzeichen und Zeilenumbrüche
+    CREDENTIAL_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "CREDENTIAL_KEY=" | head -n1 | sed 's/^CREDENTIAL_KEY=//' | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    MUSIC_KEY=$(echo "$ENCRYPT_OUTPUT" | grep "MUSIC_KEY=" | head -n1 | sed 's/^MUSIC_KEY=//' | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     # OnlyOffice Secret (bereits generiert)
     # ONLYOFFICE_SECRET ist bereits in install_onlyoffice() gesetzt
@@ -637,16 +678,42 @@ print('MUSIC_KEY=' + music_key)
     if [ -z "$VAPID_PRIVATE" ] || [ -z "$VAPID_PUBLIC" ]; then
         log_error "VAPID Key-Generierung fehlgeschlagen!"
         log_error "VAPID_OUTPUT war: $VAPID_OUTPUT"
+        log_error "VAPID_PRIVATE extrahiert: '$VAPID_PRIVATE'"
+        log_error "VAPID_PUBLIC extrahiert: '$VAPID_PUBLIC'"
+        exit 1
+    fi
+    
+    # Prüfe VAPID Key-Länge (sollte mindestens 40 Zeichen sein für base64url)
+    if [ ${#VAPID_PRIVATE} -lt 40 ] || [ ${#VAPID_PUBLIC} -lt 40 ]; then
+        log_error "VAPID Keys scheinen unvollständig zu sein (zu kurz)!"
+        log_error "VAPID_PRIVATE Länge: ${#VAPID_PRIVATE}"
+        log_error "VAPID_PUBLIC Länge: ${#VAPID_PUBLIC}"
+        log_error "VAPID_OUTPUT war: $VAPID_OUTPUT"
         exit 1
     fi
     
     if [ -z "$CREDENTIAL_KEY" ] || [ -z "$MUSIC_KEY" ]; then
         log_error "Encryption Key-Generierung fehlgeschlagen!"
         log_error "ENCRYPT_OUTPUT war: $ENCRYPT_OUTPUT"
+        log_error "CREDENTIAL_KEY extrahiert: '$CREDENTIAL_KEY'"
+        log_error "MUSIC_KEY extrahiert: '$MUSIC_KEY'"
+        exit 1
+    fi
+    
+    # Prüfe Encryption Key-Länge (Fernet-Keys sollten 44 Zeichen lang sein)
+    if [ ${#CREDENTIAL_KEY} -lt 40 ] || [ ${#MUSIC_KEY} -lt 40 ]; then
+        log_error "Encryption Keys scheinen unvollständig zu sein (zu kurz)!"
+        log_error "CREDENTIAL_KEY Länge: ${#CREDENTIAL_KEY}"
+        log_error "MUSIC_KEY Länge: ${#MUSIC_KEY}"
+        log_error "ENCRYPT_OUTPUT war: $ENCRYPT_OUTPUT"
         exit 1
     fi
     
     log_success "Alle Keys generiert"
+    log_info "VAPID_PRIVATE Länge: ${#VAPID_PRIVATE} Zeichen"
+    log_info "VAPID_PUBLIC Länge: ${#VAPID_PUBLIC} Zeichen"
+    log_info "CREDENTIAL_KEY Länge: ${#CREDENTIAL_KEY} Zeichen"
+    log_info "MUSIC_KEY Länge: ${#MUSIC_KEY} Zeichen"
 }
 
 # .env-Konfiguration
@@ -674,13 +741,17 @@ configure_env() {
     DATABASE_URI_ESC=$(echo "$DATABASE_URI" | sed 's/|/\\|/g')
     sed -i "s|DATABASE_URI=.*|DATABASE_URI=${DATABASE_URI_ESC}|" .env
     
-    # VAPID Keys
-    sed -i "s|VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${VAPID_PUBLIC}|" .env
-    sed -i "s|VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVATE}|" .env
+    # VAPID Keys - Escape Pipe-Zeichen für sed (falls vorhanden, sehr unwahrscheinlich bei Base64)
+    VAPID_PUBLIC_ESC=$(echo "$VAPID_PUBLIC" | sed 's/|/\\|/g')
+    VAPID_PRIVATE_ESC=$(echo "$VAPID_PRIVATE" | sed 's/|/\\|/g')
+    sed -i "s|VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${VAPID_PUBLIC_ESC}|" .env
+    sed -i "s|VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${VAPID_PRIVATE_ESC}|" .env
     
-    # Encryption Keys
-    sed -i "s|CREDENTIAL_ENCRYPTION_KEY=.*|CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_KEY}|" .env
-    sed -i "s|MUSIC_ENCRYPTION_KEY=.*|MUSIC_ENCRYPTION_KEY=${MUSIC_KEY}|" .env
+    # Encryption Keys - Escape Pipe-Zeichen für sed (falls vorhanden, sehr unwahrscheinlich bei Base64)
+    CREDENTIAL_KEY_ESC=$(echo "$CREDENTIAL_KEY" | sed 's/|/\\|/g')
+    MUSIC_KEY_ESC=$(echo "$MUSIC_KEY" | sed 's/|/\\|/g')
+    sed -i "s|CREDENTIAL_ENCRYPTION_KEY=.*|CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_KEY_ESC}|" .env
+    sed -i "s|MUSIC_ENCRYPTION_KEY=.*|MUSIC_ENCRYPTION_KEY=${MUSIC_KEY_ESC}|" .env
     
     # OnlyOffice - Entferne Kommentare (#) am Zeilenanfang und setze Werte
     # Entferne # am Anfang und Kommentare am Ende, dann setze Werte
@@ -737,6 +808,22 @@ configure_env() {
     
     # Production Settings
     sed -i "s|FLASK_ENV=.*|FLASK_ENV=production|" .env
+    
+    # Redis-Konfiguration (für SocketIO Message Queue)
+    # Entferne Kommentare (#) am Zeilenanfang und setze Werte
+    sed -i "s|^#.*REDIS_ENABLED=.*|REDIS_ENABLED=True|" .env
+    sed -i "s|^REDIS_ENABLED=.*|REDIS_ENABLED=True|" .env
+    # Entferne Kommentare am Ende der Zeile für REDIS_URL
+    sed -i "s|^#.*REDIS_URL=\([^#]*\).*|REDIS_URL=\1|" .env
+    sed -i "s|^REDIS_URL=\([^#]*\).*|REDIS_URL=\1|" .env
+    sed -i "s|^REDIS_URL=.*|REDIS_URL=redis://localhost:6379/0|" .env
+    # Stelle sicher, dass Redis-Einstellungen gesetzt sind (falls nicht in env.example vorhanden)
+    if ! grep -q "^REDIS_ENABLED=" .env; then
+        echo "REDIS_ENABLED=True" >> .env
+    fi
+    if ! grep -q "^REDIS_URL=" .env; then
+        echo "REDIS_URL=redis://localhost:6379/0" >> .env
+    fi
     
     # E-Mail-Konfiguration
     if [ -n "$MAIL_SERVER" ]; then
@@ -1183,6 +1270,9 @@ print_summary() {
     echo "  sudo systemctl daemon-reload"
     echo "  sudo systemctl restart teamportal"
     echo
+    echo "Hinweis: Redis wurde installiert und konfiguriert für SocketIO Message Queue."
+    echo "         Dies ermöglicht Multi-Worker-Setups mit korrekten Echtzeit-Updates."
+    echo
     echo "Service-Status prüfen:"
     echo "  systemctl status teamportal"
     echo "  systemctl status nginx"
@@ -1216,6 +1306,7 @@ main() {
     
     setup_system
     setup_mysql
+    setup_redis
     install_docker
     install_onlyoffice
     install_excalidraw

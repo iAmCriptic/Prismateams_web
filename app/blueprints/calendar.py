@@ -5,6 +5,7 @@ from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarF
 from app.models.user import User
 from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
+from app.utils.dashboard_events import emit_dashboard_update_multiple
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import generate_ical_feed, import_events_from_ical
@@ -191,11 +192,17 @@ def create_event():
         recurrence_interval = int(request.form.get('recurrence_interval', 1))
         recurrence_days = request.form.get('recurrence_days', '')  # Komma-getrennte Liste von Wochentagen
         
-        if not all([title, start_date, start_time, end_date, end_time]):
+        if not all([title, start_date, end_date]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
             return render_template('calendar/create.html')
         
         try:
+            # Handle all-day events: if no time is provided, set to 00:00-23:59
+            if not start_time:
+                start_time = '00:00'
+            if not end_time:
+                end_time = '23:59'
+            
             # Kombiniere Datum und Zeit zu datetime-Objekten
             start_dt = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
             end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
@@ -248,6 +255,26 @@ def create_event():
         
         db.session.commit()
         
+        # Sende Dashboard-Updates an alle aktiven Benutzer
+        try:
+            from app.utils.dashboard_events import emit_dashboard_update
+            from datetime import timedelta
+            
+            # Berechne upcoming_count für alle Benutzer
+            now = datetime.utcnow()
+            week_from_now = now + timedelta(days=7)
+            upcoming_count = CalendarEvent.query.filter(
+                CalendarEvent.start_time > now,
+                CalendarEvent.start_time <= week_from_now
+            ).count()
+            
+            # Emittiere Update für alle aktiven Benutzer
+            for user in active_users:
+                emit_dashboard_update(user.id, 'calendar_update', {'count': upcoming_count})
+        except Exception as e:
+            import logging
+            logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
+        
         flash(f'Termin "{title}" wurde erstellt.', 'success')
         return redirect(url_for('calendar.view_event', event_id=event.id))
     
@@ -283,11 +310,17 @@ def edit_event(event_id):
         recurrence_interval = int(request.form.get('recurrence_interval', 1))
         recurrence_days = request.form.get('recurrence_days', '')
         
-        if not all([start_date, start_time, end_date, end_time]):
+        if not all([start_date, end_date]):
             flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
             return render_template('calendar/edit.html', event=event)
         
         try:
+            # Handle all-day events: if no time is provided, set to 00:00-23:59
+            if not start_time:
+                start_time = '00:00'
+            if not end_time:
+                end_time = '23:59'
+            
             # Kombiniere Datum und Zeit zu datetime-Objekten
             event.start_time = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
             event.end_time = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
@@ -318,6 +351,28 @@ def edit_event(event_id):
         event.recurrence_days = recurrence_days if recurrence_days else None
         
         db.session.commit()
+        
+        # Sende Dashboard-Updates an alle Event-Teilnehmer
+        try:
+            from app.utils.dashboard_events import emit_dashboard_update
+            from datetime import timedelta
+            
+            # Berechne upcoming_count
+            now = datetime.utcnow()
+            week_from_now = now + timedelta(days=7)
+            upcoming_count = CalendarEvent.query.filter(
+                CalendarEvent.start_time > now,
+                CalendarEvent.start_time <= week_from_now
+            ).count()
+            
+            # Emittiere Update für alle Event-Teilnehmer
+            participants = EventParticipant.query.filter_by(event_id=event_id).all()
+            for participant in participants:
+                emit_dashboard_update(participant.user_id, 'calendar_update', {'count': upcoming_count})
+        except Exception as e:
+            import logging
+            logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
+        
         flash('Termin wurde aktualisiert.', 'success')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
@@ -351,8 +406,31 @@ def delete_event(event_id):
                 booking_request.calendar_event_id = None
             db.session.delete(instance)
     
+    # Hole Teilnehmer-IDs vor dem Löschen
+    participant_ids = [p.user_id for p in EventParticipant.query.filter_by(event_id=event_id).all()]
+    
     db.session.delete(event)
     db.session.commit()
+    
+    # Sende Dashboard-Updates an alle Event-Teilnehmer
+    try:
+        from app.utils.dashboard_events import emit_dashboard_update
+        from datetime import timedelta
+        
+        # Berechne upcoming_count
+        now = datetime.utcnow()
+        week_from_now = now + timedelta(days=7)
+        upcoming_count = CalendarEvent.query.filter(
+            CalendarEvent.start_time > now,
+            CalendarEvent.start_time <= week_from_now
+        ).count()
+        
+        # Emittiere Update für alle ehemaligen Event-Teilnehmer
+        for user_id in participant_ids:
+            emit_dashboard_update(user_id, 'calendar_update', {'count': upcoming_count})
+    except Exception as e:
+        import logging
+        logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
     
     flash('Termin wurde gelöscht.', 'success')
     return redirect(url_for('calendar.index'))
@@ -434,10 +512,11 @@ def get_events_for_month(year, month):
     else:
         end_date = datetime(year, month + 1, 1)
     
-    # Get all regular events in this month
+    # Get all regular events that overlap with this month
+    # Events that start before end_date and end after start_date
     events = CalendarEvent.query.filter(
-        CalendarEvent.start_time >= start_date,
         CalendarEvent.start_time < end_date,
+        CalendarEvent.end_time > start_date,
         CalendarEvent.is_recurring_instance == False
     ).order_by(CalendarEvent.start_time).all()
     
@@ -458,11 +537,17 @@ def get_events_for_month(year, month):
             user_id=current_user.id
         ).first()
         
+        # Calculate duration in days (inclusive of start and end date)
+        duration = (event.end_time.date() - event.start_time.date()).days + 1
+        
         events_data.append({
             'id': event.id,
             'title': event.title,
             'start_time': event.start_time.isoformat(),
             'end_time': event.end_time.isoformat(),
+            'start_date': event.start_time.date().isoformat(),
+            'end_date': event.end_time.date().isoformat(),
+            'duration_days': duration,
             'location': event.location,
             'description': event.description,
             'day': event.start_time.day,
@@ -472,29 +557,35 @@ def get_events_for_month(year, month):
             'url': url_for('calendar.view_event', event_id=event.id)
         })
     
-    # Generate recurring instances
-    for master_event in master_events:
-        instances = generate_recurring_instances(master_event, start_date, end_date)
-        for instance in instances:
-            participation = EventParticipant.query.filter_by(
-                event_id=master_event.id,
-                user_id=current_user.id
-            ).first()
-            
-            events_data.append({
-                'id': master_event.id,
-                'title': instance['title'],
-                'start_time': instance['start_time'].isoformat(),
-                'end_time': instance['end_time'].isoformat(),
-                'location': instance['location'],
-                'description': instance['description'],
-                'day': instance['start_time'].day,
-                'time': instance['start_time'].strftime('%H:%M'),
-                'participation_status': participation.status if participation else None,
-                'is_recurring': True,
-                'parent_event_id': master_event.id,
-                'url': url_for('calendar.view_event', event_id=master_event.id)
-            })
+        # Generate recurring instances
+        for master_event in master_events:
+            instances = generate_recurring_instances(master_event, start_date, end_date)
+            for instance in instances:
+                participation = EventParticipant.query.filter_by(
+                    event_id=master_event.id,
+                    user_id=current_user.id
+                ).first()
+                
+                # Calculate duration in days (inclusive of start and end date)
+                duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
+                
+                events_data.append({
+                    'id': master_event.id,
+                    'title': instance['title'],
+                    'start_time': instance['start_time'].isoformat(),
+                    'end_time': instance['end_time'].isoformat(),
+                    'start_date': instance['start_time'].date().isoformat(),
+                    'end_date': instance['end_time'].date().isoformat(),
+                    'duration_days': duration,
+                    'location': instance['location'],
+                    'description': instance['description'],
+                    'day': instance['start_time'].day,
+                    'time': instance['start_time'].strftime('%H:%M'),
+                    'participation_status': participation.status if participation else None,
+                    'is_recurring': True,
+                    'parent_event_id': master_event.id,
+                    'url': url_for('calendar.view_event', event_id=master_event.id)
+                })
     
     # Sortiere nach Startzeit
     events_data.sort(key=lambda x: x['start_time'])
@@ -513,10 +604,11 @@ def get_events_for_range(start_date, end_date):
         # Include the entire end date
         end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
         
-        # Get all regular events in this range
+        # Get all regular events that overlap with this range
+        # Events that start before end_datetime and end after start_datetime
         events = CalendarEvent.query.filter(
-            CalendarEvent.start_time >= start_datetime,
             CalendarEvent.start_time <= end_datetime,
+            CalendarEvent.end_time >= start_datetime,
             CalendarEvent.is_recurring_instance == False
         ).order_by(CalendarEvent.start_time).all()
         
@@ -536,11 +628,19 @@ def get_events_for_range(start_date, end_date):
                 user_id=current_user.id
             ).first()
             
+            # Calculate duration in days
+            duration = (event.end_time - event.start_time).days + 1
+            if (event.end_time - event.start_time).total_seconds() % 86400 > 0:
+                duration = (event.end_time.date() - event.start_time.date()).days + 1
+            
             events_data.append({
                 'id': event.id,
                 'title': event.title,
                 'start_time': event.start_time.isoformat(),
                 'end_time': event.end_time.isoformat(),
+                'start_date': event.start_time.date().isoformat(),
+                'end_date': event.end_time.date().isoformat(),
+                'duration_days': duration,
                 'location': event.location,
                 'description': event.description,
                 'day': event.start_time.day,
@@ -559,11 +659,17 @@ def get_events_for_range(start_date, end_date):
                     user_id=current_user.id
                 ).first()
                 
+                # Calculate duration in days (inclusive of start and end date)
+                duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
+                
                 events_data.append({
                     'id': master_event.id,
                     'title': instance['title'],
                     'start_time': instance['start_time'].isoformat(),
                     'end_time': instance['end_time'].isoformat(),
+                    'start_date': instance['start_time'].date().isoformat(),
+                    'end_date': instance['end_time'].date().isoformat(),
+                    'duration_days': duration,
                     'location': instance['location'],
                     'description': instance['description'],
                     'day': instance['start_time'].day,

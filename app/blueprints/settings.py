@@ -252,14 +252,19 @@ def appearance():
         accent_gradient = request.form.get('accent_gradient', '').strip()
         dark_mode = request.form.get('dark_mode') == 'on'
         oled_mode = request.form.get('oled_mode') == 'on'
+        preferred_layout = request.form.get('preferred_layout', 'auto')
 
         if selected_language and selected_language not in language_codes:
             flash(translate('settings.appearance.flash_invalid_language'), 'danger')
             return redirect(url_for('settings.appearance'))
 
+        if preferred_layout not in ['auto', 'mobile', 'desktop']:
+            preferred_layout = 'auto'
+
         current_user.accent_color = accent_color
         current_user.dark_mode = dark_mode
         current_user.oled_mode = oled_mode if dark_mode else False
+        current_user.preferred_layout = preferred_layout
 
         if color_type == 'gradient' and accent_gradient:
             current_user.accent_gradient = accent_gradient
@@ -314,7 +319,6 @@ def admin_users():
         ('module_email', 'E-Mail'),
         ('module_credentials', 'Zugangsdaten'),
         ('module_manuals', 'Anleitungen'),
-        ('module_canvas', 'Canvas'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
@@ -645,6 +649,37 @@ def admin_system():
                     flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
                     return redirect(url_for('settings.admin_system'))
         
+        # Update default accent color
+        default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
+        accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+        if accent_color_setting:
+            accent_color_setting.value = default_accent_color
+        else:
+            accent_color_setting = SystemSettings(
+                key='default_accent_color',
+                value=default_accent_color,
+                description='Standard-Akzentfarbe für neue Benutzer'
+            )
+            db.session.add(accent_color_setting)
+        
+        # Update color gradient
+        color_gradient = request.form.get('color_gradient', '').strip()
+        gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+        if color_gradient:
+            if gradient_setting:
+                gradient_setting.value = color_gradient
+            else:
+                gradient_setting = SystemSettings(
+                    key='color_gradient',
+                    value=color_gradient,
+                    description='Farbverlauf für Login/Register-Seiten'
+                )
+                db.session.add(gradient_setting)
+        else:
+            # If empty, remove existing gradient setting (use default)
+            if gradient_setting:
+                db.session.delete(gradient_setting)
+        
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
         return redirect(url_for('settings.admin_system'))
@@ -652,11 +687,19 @@ def admin_system():
     # Get current settings
     portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+    accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+    gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     
     portal_name = portal_name_setting.value if portal_name_setting else ''
     portal_logo = portal_logo_setting.value if portal_logo_setting else None
+    default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
+    color_gradient = gradient_setting.value if gradient_setting else ''
     
-    return render_template('settings/admin_system.html', portal_name=portal_name, portal_logo=portal_logo)
+    return render_template('settings/admin_system.html', 
+                         portal_name=portal_name, 
+                         portal_logo=portal_logo,
+                         default_accent_color=default_accent_color,
+                         color_gradient=color_gradient)
 
 
 @settings_bp.route('/admin/file-settings', methods=['GET', 'POST'])
@@ -708,10 +751,6 @@ def admin_modules():
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    # Prüfe Excalidraw-Verfügbarkeit
-    from app.utils.excalidraw import is_excalidraw_enabled
-    excalidraw_available = is_excalidraw_enabled()
-    
     if request.method == 'POST':
         # Module-Einstellungen speichern
         modules = {
@@ -721,17 +760,11 @@ def admin_modules():
             'module_email': request.form.get('module_email') == 'on',
             'module_credentials': request.form.get('module_credentials') == 'on',
             'module_manuals': request.form.get('module_manuals') == 'on',
-            'module_canvas': request.form.get('module_canvas') == 'on' if excalidraw_available else False,
             'module_inventory': request.form.get('module_inventory') == 'on',
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
             'module_music': request.form.get('module_music') == 'on'
         }
-        
-        # Canvas kann nur aktiviert werden wenn Excalidraw verfügbar ist
-        if modules['module_canvas'] and not excalidraw_available:
-            flash('Canvas-Modul kann nur aktiviert werden, wenn Excalidraw verfügbar ist.', 'warning')
-            modules['module_canvas'] = False
         
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
@@ -752,7 +785,6 @@ def admin_modules():
     module_email_enabled = is_module_enabled('module_email')
     module_credentials_enabled = is_module_enabled('module_credentials')
     module_manuals_enabled = is_module_enabled('module_manuals')
-    module_canvas_enabled = is_module_enabled('module_canvas') and excalidraw_available
     module_inventory_enabled = is_module_enabled('module_inventory')
     module_wiki_enabled = is_module_enabled('module_wiki')
     module_booking_enabled = is_module_enabled('module_booking')
@@ -765,12 +797,10 @@ def admin_modules():
                            module_email_enabled=module_email_enabled,
                            module_credentials_enabled=module_credentials_enabled,
                            module_manuals_enabled=module_manuals_enabled,
-                           module_canvas_enabled=module_canvas_enabled,
                            module_inventory_enabled=module_inventory_enabled,
                            module_wiki_enabled=module_wiki_enabled,
                            module_booking_enabled=module_booking_enabled,
-                           module_music_enabled=module_music_enabled,
-                           excalidraw_available=excalidraw_available)
+                           module_music_enabled=module_music_enabled)
 
 
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])
@@ -970,53 +1000,6 @@ def delete_whitelist_entry(entry_id):
     return redirect(url_for('settings.admin_whitelist'))
 
 
-
-@settings_bp.route('/admin/inventory-categories', methods=['GET', 'POST'])
-@login_required
-def admin_inventory_categories():
-    """Manage inventory categories (admin only)."""
-    if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
-        return redirect(url_for('settings.index'))
-    
-    # Lade Kategorien aus SystemSettings
-    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
-    categories = []
-    if categories_setting and categories_setting.value:
-        import json
-        try:
-            categories = json.loads(categories_setting.value)
-        except:
-            categories = []
-    
-    if request.method == 'POST':
-        category_name = request.form.get('category_name', '').strip()
-        if category_name:
-            if category_name not in categories:
-                categories.append(category_name)
-                categories.sort()
-                
-                # Speichere in SystemSettings
-                import json
-                if categories_setting:
-                    categories_setting.value = json.dumps(categories)
-                else:
-                    categories_setting = SystemSettings(
-                        key='inventory_categories',
-                        value=json.dumps(categories),
-                        description='Verfügbare Kategorien für Produkte'
-                    )
-                    db.session.add(categories_setting)
-                db.session.commit()
-                flash(f'Kategorie "{category_name}" wurde hinzugefügt.', 'success')
-            else:
-                flash(f'Kategorie "{category_name}" existiert bereits.', 'warning')
-        
-        return redirect(url_for('settings.admin_inventory_categories'))
-    
-    return render_template('settings/admin_inventory_categories.html', categories=categories)
-
-
 @settings_bp.route('/admin/inventory-settings', methods=['GET', 'POST'])
 @login_required
 def admin_inventory_settings():
@@ -1054,12 +1037,33 @@ def admin_inventory_settings():
 @settings_bp.route('/admin/email-module')
 @login_required
 def admin_email_module():
-    """E-Mail-Moduleinstellungen Übersicht (admin only)."""
+    """E-Mail-Moduleinstellungen Übersicht mit Tabs (admin only)."""
     if not current_user.is_admin:
         flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
         return redirect(url_for('settings.index'))
     
-    return render_template('settings/admin_email_module.html')
+    # Lade Footer-Template
+    footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
+    current_footer = footer_template.value if footer_template else ''
+    if not current_footer:
+        current_footer = """Mit freundlichen Grüßen
+Ihr Team
+
+---
+Gesendet von <user> (<email>)
+<app_name> - <date> um <time>"""
+    
+    # Lade E-Mail-System-Einstellungen
+    storage_setting = SystemSettings.query.filter_by(key='email_storage_days').first()
+    storage_days = int(storage_setting.value) if storage_setting and storage_setting.value else 0
+    
+    sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
+    sync_interval = int(sync_setting.value) if sync_setting and sync_setting.value else 30
+    
+    return render_template('settings/admin_email_module.html', 
+                         footer_template=current_footer,
+                         storage_days=storage_days,
+                         sync_interval=sync_interval)
 
 
 @settings_bp.route('/admin/email-settings', methods=['GET', 'POST'])
@@ -1128,63 +1132,6 @@ def admin_email_settings():
                          sync_interval=sync_interval)
 
 
-@settings_bp.route('/admin/inventory-categories/<category_name>/delete', methods=['POST'])
-@login_required
-def admin_delete_inventory_category(category_name):
-    """Delete an inventory category (admin only)."""
-    if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
-        return redirect(url_for('settings.index'))
-    
-    # Lade Kategorien aus SystemSettings
-    categories_setting = SystemSettings.query.filter_by(key='inventory_categories').first()
-    if categories_setting and categories_setting.value:
-        import json
-        try:
-            categories = json.loads(categories_setting.value)
-            if category_name in categories:
-                categories.remove(category_name)
-                categories_setting.value = json.dumps(categories)
-                db.session.commit()
-                flash(f'Kategorie "{category_name}" wurde gelöscht.', 'success')
-            else:
-                flash(f'Kategorie "{category_name}" wurde nicht gefunden.', 'warning')
-        except:
-            flash('Fehler beim Löschen der Kategorie.', 'danger')
-    
-    return redirect(url_for('settings.admin_inventory_categories'))
-
-
-@settings_bp.route('/admin/inventory-permissions')
-@login_required
-def admin_inventory_permissions():
-    """Manage inventory borrow permissions (admin only)."""
-    if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
-        return redirect(url_for('settings.index'))
-    
-    users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
-    
-    return render_template('settings/admin_inventory_permissions.html', users=users)
-
-
-@settings_bp.route('/admin/inventory-permissions/<int:user_id>/toggle', methods=['POST'])
-@login_required
-def admin_toggle_borrow_permission(user_id):
-    """Toggle borrow permission for a user (admin only)."""
-    if not current_user.is_admin:
-        return redirect(url_for('settings.index'))
-    
-    user = User.query.get_or_404(user_id)
-    user.can_borrow = not user.can_borrow
-    db.session.commit()
-    
-    status = "erlaubt" if user.can_borrow else "gesperrt"
-    flash(f'Ausleihe-Berechtigung für {user.full_name} wurde {status}.', 'success')
-    
-    return redirect(url_for('settings.admin_inventory_permissions'))
-
-
 @settings_bp.route('/admin/music', methods=['GET', 'POST'])
 @login_required
 def admin_music():
@@ -1197,13 +1144,30 @@ def admin_music():
     from app.utils.music_oauth import is_provider_connected
     
     if request.method == 'POST':
-        # Speichere OAuth-Credentials
+        # Speichere Provider-Aktivierung
+        enabled_providers = []
+        available_providers = ['spotify', 'youtube', 'musicbrainz']
+        for provider in available_providers:
+            if request.form.get(f'provider_enabled_{provider}') == 'on':
+                enabled_providers.append(provider)
+        MusicSettings.set_enabled_providers(enabled_providers)
+        
+        # Speichere Provider-Reihenfolge
+        provider_order_json = request.form.get('provider_order', '')
+        if provider_order_json:
+            import json
+            try:
+                provider_order = json.loads(provider_order_json)
+                # Filtere nur aktivierte Provider
+                provider_order = [p for p in provider_order if p in enabled_providers]
+                MusicSettings.set_provider_order(provider_order)
+            except:
+                pass
+        
+        # Spotify Settings (OAuth Client ID/Secret für Benutzer-Login)
         spotify_client_id = request.form.get('spotify_client_id', '').strip()
         spotify_client_secret = request.form.get('spotify_client_secret', '').strip()
-        youtube_client_id = request.form.get('youtube_client_id', '').strip()
-        youtube_client_secret = request.form.get('youtube_client_secret', '').strip()
         
-        # Spotify Settings
         spotify_id_setting = MusicSettings.query.filter_by(key='spotify_client_id').first()
         if spotify_id_setting:
             spotify_id_setting.value = spotify_client_id
@@ -1215,22 +1179,33 @@ def admin_music():
         if spotify_secret_setting:
             spotify_secret_setting.value = spotify_client_secret
         else:
-            spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify OAuth Client Secret')
+            spotify_secret_setting = MusicSettings(key='spotify_client_secret', value=spotify_client_secret, description='Spotify Client Secret')
             db.session.add(spotify_secret_setting)
         
-        # YouTube Settings
+        # YouTube Settings (API-Key oder OAuth)
+        youtube_api_key = request.form.get('youtube_api_key', '').strip()
+        youtube_client_id = request.form.get('youtube_client_id', '').strip()
+        youtube_client_secret = request.form.get('youtube_client_secret', '').strip()
+        
+        youtube_api_key_setting = MusicSettings.query.filter_by(key='youtube_api_key').first()
+        if youtube_api_key_setting:
+            youtube_api_key_setting.value = youtube_api_key
+        else:
+            youtube_api_key_setting = MusicSettings(key='youtube_api_key', value=youtube_api_key, description='YouTube API-Key (vereinfacht, kein OAuth)')
+            db.session.add(youtube_api_key_setting)
+        
         youtube_id_setting = MusicSettings.query.filter_by(key='youtube_client_id').first()
         if youtube_id_setting:
             youtube_id_setting.value = youtube_client_id
         else:
-            youtube_id_setting = MusicSettings(key='youtube_client_id', value=youtube_client_id, description='YouTube OAuth Client ID')
+            youtube_id_setting = MusicSettings(key='youtube_client_id', value=youtube_client_id, description='YouTube OAuth Client ID (optional)')
             db.session.add(youtube_id_setting)
         
         youtube_secret_setting = MusicSettings.query.filter_by(key='youtube_client_secret').first()
         if youtube_secret_setting:
             youtube_secret_setting.value = youtube_client_secret
         else:
-            youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret')
+            youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret (optional)')
             db.session.add(youtube_secret_setting)
         
         db.session.commit()
@@ -1238,22 +1213,28 @@ def admin_music():
         return redirect(url_for('settings.admin_music'))
     
     # GET: Zeige Einstellungsseite
+    enabled_providers = MusicSettings.get_enabled_providers()
+    provider_order = MusicSettings.get_provider_order()
+    
     spotify_client_id = MusicSettings.query.filter_by(key='spotify_client_id').first()
     spotify_client_secret = MusicSettings.query.filter_by(key='spotify_client_secret').first()
+    youtube_api_key = MusicSettings.query.filter_by(key='youtube_api_key').first()
     youtube_client_id = MusicSettings.query.filter_by(key='youtube_client_id').first()
     youtube_client_secret = MusicSettings.query.filter_by(key='youtube_client_secret').first()
-    
-    # Prüfe Verbindungsstatus für aktuellen Benutzer
-    spotify_connected = is_provider_connected(current_user.id, 'spotify')
-    youtube_connected = is_provider_connected(current_user.id, 'youtube')
+    # Prüfe Verbindungsstatus (nur für OAuth-basierte Provider)
+    spotify_connected = is_provider_connected(current_user.id, 'spotify') if current_user.is_authenticated else False
+    youtube_connected = is_provider_connected(current_user.id, 'youtube') if current_user.is_authenticated else False
     
     # Redirect URIs
     spotify_redirect_uri = url_for('music.spotify_callback', _external=True)
     youtube_redirect_uri = url_for('music.youtube_callback', _external=True)
     
     return render_template('settings/admin_music.html',
+                         enabled_providers=enabled_providers,
+                         provider_order=provider_order,
                          spotify_client_id=spotify_client_id.value if spotify_client_id else '',
                          spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
+                         youtube_api_key=youtube_api_key.value if youtube_api_key else '',
                          youtube_client_id=youtube_client_id.value if youtube_client_id else '',
                          youtube_client_secret=youtube_client_secret.value if youtube_client_secret else '',
                          spotify_connected=spotify_connected,
@@ -1325,7 +1306,8 @@ def admin_roles_user(user_id):
             'has_full_access': user.has_full_access,
             'module_roles': module_roles,
             'booking_roles': booking_roles,
-            'email_permissions': email_permissions
+            'email_permissions': email_permissions,
+            'can_borrow': user.can_borrow
         })
     
     # HTML-Ansicht (falls benötigt)
@@ -1357,7 +1339,7 @@ def admin_roles_user_update(user_id):
         # Liste aller Module
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals', 'module_canvas',
+            'module_credentials', 'module_manuals',
             'module_inventory', 'module_wiki', 'module_booking', 'module_music'
         ]
         
@@ -1395,6 +1377,9 @@ def admin_roles_user_update(user_id):
             # Wenn beide deaktiviert sind, lösche die Berechtigung
             if email_perm:
                 db.session.delete(email_perm)
+        
+        # Aktualisiere Leihrechte
+        user.can_borrow = request.form.get('can_borrow') == 'on'
         
         # Aktualisiere Buchungsrollen
         # Lösche alle bestehenden Buchungsrollen-Zuordnungen
@@ -1441,7 +1426,6 @@ def admin_roles_default():
         ('module_email', 'E-Mail'),
         ('module_credentials', 'Zugangsdaten'),
         ('module_manuals', 'Anleitungen'),
-        ('module_canvas', 'Canvas'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
@@ -1624,11 +1608,7 @@ def about():
     from app.utils.onlyoffice import is_onlyoffice_enabled
     onlyoffice_enabled = is_onlyoffice_enabled()
     
-    # Excalidraw Status prüfen
-    from app.utils.excalidraw import is_excalidraw_enabled
-    excalidraw_enabled = is_excalidraw_enabled()
-    
-    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled, excalidraw_enabled=excalidraw_enabled)
+    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled)
 
 
 LANGUAGE_FALLBACK_NAMES = {

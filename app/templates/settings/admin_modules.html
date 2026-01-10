@@ -74,17 +74,6 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="module_canvas" name="module_canvas" {% if module_canvas_enabled %}checked{% endif %} {% if not excalidraw_available %}disabled{% endif %}>
-                                <label class="form-check-label" for="module_canvas">
-                                    <i class="bi bi-palette me-2"></i>Canvas
-                                    {% if not excalidraw_available %}
-                                        <small class="text-muted d-block">(Excalidraw nicht verfügbar)</small>
-                                    {% endif %}
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="module_inventory" name="module_inventory" {% if module_inventory_enabled %}checked{% endif %}>
                                 <label class="form-check-label" for="module_inventory">
                                     <i class="bi bi-box-seam me-2"></i>Lagerverwaltung

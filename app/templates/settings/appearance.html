@@ -147,6 +147,19 @@
                         </div>
                     </div>
                     
+                    <div class="mb-4">
+                        <label for="preferred_layout" class="form-label">Layout-Präferenz</label>
+                        <select class="form-select" id="preferred_layout" name="preferred_layout">
+                            <option value="auto" {% if (user.preferred_layout or 'auto') == 'auto' %}selected{% endif %}>Automatisch (empfohlen)</option>
+                            <option value="mobile" {% if user.preferred_layout == 'mobile' %}selected{% endif %}>Mobile-Layout</option>
+                            <option value="desktop" {% if user.preferred_layout == 'desktop' %}selected{% endif %}>Desktop-Layout</option>
+                        </select>
+                        <div class="form-text">
+                            Wählen Sie Ihr bevorzugtes Layout. "Automatisch" passt das Layout an die Bildschirmgröße an. 
+                            "Desktop-Layout" ist besonders für Tablets nützlich, wenn Sie die Sidebar-Navigation bevorzugen.
+                        </div>
+                    </div>
+                    
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-accent">{{ _('settings.appearance.save_button') }}</button>
                         <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>

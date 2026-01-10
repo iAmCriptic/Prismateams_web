@@ -122,7 +122,7 @@ def register():
                     # Modulspezifische Rollen zuweisen
                     all_modules = [
                         'module_chat', 'module_files', 'module_calendar', 'module_email',
-                        'module_credentials', 'module_manuals', 'module_canvas',
+                        'module_credentials', 'module_manuals',
                         'module_inventory', 'module_wiki', 'module_booking', 'module_music'
                     ]
                     
@@ -315,7 +315,7 @@ def show_confirmation_codes():
     return render_template('auth/admin_confirmation_codes.html', users=valid_users)
 
 
-@auth_bp.route('/admin/test-email')
+@auth_bp.route('/admin/test-email', methods=['GET', 'POST'])
 @login_required
 def test_email():
     """Testet die E-Mail-Konfiguration (Admin only)."""

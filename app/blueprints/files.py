@@ -7,9 +7,11 @@ from app.models.user import User
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
 from app.utils.access_control import check_module_access
+from app.utils.dashboard_events import emit_dashboard_update
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from flask import url_for as flask_url_for
 import os
 import shutil
 import logging
@@ -247,6 +249,25 @@ def create_file():
     db.session.add(new_file)
     db.session.commit()
     
+    # Sende Dashboard-Update an den Benutzer
+    try:
+        recent_files = File.query.filter_by(
+            uploaded_by=current_user.id
+        ).order_by(File.updated_at.desc()).limit(3).all()
+        
+        files_data = [{
+            'id': file.id,
+            'name': file.name,
+            'original_name': file.original_name,
+            'updated_at': file.updated_at.isoformat(),
+            'mime_type': file.mime_type,
+            'url': flask_url_for('files.view_file', file_id=file.id)
+        } for file in recent_files]
+        
+        emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+    except Exception as e:
+        logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
+    
     flash(f'Datei "{filename}" wurde erstellt.', 'success')
     
     if folder_id:
@@ -336,6 +357,25 @@ def create_office_file():
     )
     db.session.add(new_file)
     db.session.commit()
+    
+    # Sende Dashboard-Update an den Benutzer
+    try:
+        recent_files = File.query.filter_by(
+            uploaded_by=current_user.id
+        ).order_by(File.updated_at.desc()).limit(3).all()
+        
+        files_data = [{
+            'id': file.id,
+            'name': file.name,
+            'original_name': file.original_name,
+            'updated_at': file.updated_at.isoformat(),
+            'mime_type': file.mime_type,
+            'url': flask_url_for('files.view_file', file_id=file.id)
+        } for file in recent_files]
+        
+        emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+    except Exception as e:
+        logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
     
     flash(f'Datei "{filename}" wurde erstellt.', 'success')
     
@@ -534,6 +574,25 @@ def upload_file():
         except Exception as e:
             logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
         
+        # Sende Dashboard-Update an den Benutzer
+        try:
+            recent_files = File.query.filter_by(
+                uploaded_by=current_user.id
+            ).order_by(File.updated_at.desc()).limit(3).all()
+            
+            files_data = [{
+                'id': file.id,
+                'name': file.name,
+                'original_name': file.original_name,
+                'updated_at': file.updated_at.isoformat(),
+                'mime_type': file.mime_type,
+                'url': flask_url_for('files.view_file', file_id=file.id)
+            } for file in recent_files]
+            
+            emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+        except Exception as e:
+            logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
+        
         flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
     else:
         # Create new file
@@ -552,6 +611,25 @@ def upload_file():
                 send_file_notification(new_file.id, 'new')
             except Exception as e:
                 logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+            
+            # Sende Dashboard-Update an den Benutzer
+            try:
+                recent_files = File.query.filter_by(
+                    uploaded_by=current_user.id
+                ).order_by(File.updated_at.desc()).limit(3).all()
+                
+                files_data = [{
+                    'id': file.id,
+                    'name': file.name,
+                    'original_name': file.original_name,
+                    'updated_at': file.updated_at.isoformat(),
+                    'mime_type': file.mime_type,
+                    'url': flask_url_for('files.view_file', file_id=file.id)
+                } for file in recent_files]
+                
+                emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+            except Exception as e:
+                logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
         
         flash(f'Datei "{original_name}" wurde hochgeladen.', 'success')
     

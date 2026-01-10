@@ -190,17 +190,25 @@ class LockManager:
                     if HAS_FCNTL:
                         fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
                     lock_file.close()
+                    lock_file = None
                     
                     # Lösche Lock-Datei (nur wenn wir sie erstellt haben)
                     try:
                         if lock_file_path.exists():
                             lock_file_path.unlink()
+                            logger.debug(f"Lock-Datei '{lock_file_path}' gelöscht")
                     except Exception as e:
                         logger.warning(f"Konnte Lock-Datei '{lock_file_path}' nicht löschen: {e}")
                     
-                    logger.info(f"Lock '{lock_name}' freigegeben")
+                    logger.debug(f"Lock '{lock_name}' freigegeben")
                 except Exception as e:
                     logger.error(f"Fehler beim Freigeben des Locks '{lock_name}': {e}")
+                    # Versuche Lock-Datei trotzdem zu löschen
+                    try:
+                        if lock_file_path.exists():
+                            lock_file_path.unlink()
+                    except:
+                        pass
     
     def is_locked(self, lock_name):
         """

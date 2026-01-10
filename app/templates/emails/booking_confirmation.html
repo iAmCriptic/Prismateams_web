@@ -45,7 +45,7 @@
 <body>
     <div class="header">
         {% if logo_base64 %}
-        <img src="{{ logo_base64 }}" alt="{{ app_name }}" class="logo">
+        <img src="{{ logo_base64 }}" alt="{{ app_name }}" class="logo" width="200" height="200" style="max-width: 200px; max-height: 200px; width: 200px; height: auto; display: block; margin: 0 auto 20px auto; border: 0; outline: none; text-decoration: none;">
         {% endif %}
         <h1>{{ app_name }}</h1>
     </div>

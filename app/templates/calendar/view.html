@@ -21,14 +21,31 @@
                 <p>{{ event.description }}</p>
                 {% endif %}
                 
+                {% set is_multi_day = event.start_time.date() != event.end_time.date() %}
+                {% set is_all_day = event.start_time.strftime('%H:%M') == '00:00' and event.end_time.strftime('%H:%M') == '23:59' %}
+                {% if is_multi_day %}
+                <div class="mb-3">
+                    <span class="badge bg-info mb-2"><i class="bi bi-calendar-range"></i> Mehrtägiger Termin</span>
+                </div>
+                {% endif %}
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <strong><i class="bi bi-calendar"></i> {{ _('calendar.view.date_label') }}</strong><br>
-                        {{ event.start_time.strftime('%d.%m.%Y') }}
+                        {% if is_multi_day %}
+                            Vom {{ event.start_time.strftime('%d.%m.%Y') }} bis {{ event.end_time.strftime('%d.%m.%Y') }}
+                            {% set duration_days = (event.end_time.date() - event.start_time.date()).days + 1 %}
+                            <br><small class="text-muted">({{ duration_days }} Tag{% if duration_days > 1 %}e{% endif %})</small>
+                        {% else %}
+                            {{ event.start_time.strftime('%d.%m.%Y') }}
+                        {% endif %}
                     </div>
                     <div class="col-md-6">
                         <strong><i class="bi bi-clock"></i> {{ _('calendar.view.time_label') }}</strong><br>
-                        {{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}{% set time_suffix = _('calendar.view.time_suffix') %}{% if time_suffix %} {{ time_suffix }}{% endif %}
+                        {% if is_all_day %}
+                            <span class="badge bg-secondary">Ganztägig</span>
+                        {% else %}
+                            {{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}{% set time_suffix = _('calendar.view.time_suffix') %}{% if time_suffix %} {{ time_suffix }}{% endif %}
+                        {% endif %}
                     </div>
                 </div>
                 

@@ -3,7 +3,7 @@
 {% block title %}{{ _('auth.login.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container" {% if color_gradient %}style="background: {{ color_gradient }}; background-attachment: fixed; background-size: cover;"{% endif %}>
+<div class="auth-container auth-login">
     <div class="auth-card">
         <div class="card">
             <div class="card-body p-4">
@@ -62,24 +62,35 @@
 document.addEventListener('DOMContentLoaded', function() {
     const body = document.body;
     const container = document.querySelector('.auth-container');
+    const isMobile = window.innerWidth <= 768;
     
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    container.style.background = '{{ color_gradient }}';
-    container.style.backgroundAttachment = 'fixed';
-    container.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    container.style.backgroundAttachment = 'fixed';
-    container.style.backgroundSize = 'cover';
-    {% endif %}
+    // Auf mobilen Geräten keinen Farbverlauf - einfacher Hintergrund
+    if (isMobile) {
+        // Kein Farbverlauf auf mobilen Geräten - einfacher Hintergrund
+        body.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
+        body.style.backgroundAttachment = 'scroll';
+        container.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
+        container.style.backgroundAttachment = 'scroll';
+        container.style.backgroundSize = 'auto';
+    } else {
+        // Vollständiger Farbverlauf für Desktop
+        {% if color_gradient %}
+        body.style.background = '{{ color_gradient }}';
+        body.style.backgroundAttachment = 'fixed';
+        body.style.backgroundSize = 'cover';
+        container.style.background = '{{ color_gradient }}';
+        container.style.backgroundAttachment = 'fixed';
+        container.style.backgroundSize = 'cover';
+        {% else %}
+        // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
+        body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        body.style.backgroundAttachment = 'fixed';
+        body.style.backgroundSize = 'cover';
+        container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        container.style.backgroundAttachment = 'fixed';
+        container.style.backgroundSize = 'cover';
+        {% endif %}
+    }
 });
 </script>
 {% endblock %}

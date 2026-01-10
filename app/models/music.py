@@ -43,7 +43,7 @@ class MusicProviderToken(db.Model):
 class MusicWish(db.Model):
     __tablename__ = 'music_wishes'
     id = db.Column(db.Integer, primary_key=True)
-    provider = db.Column(db.String(20), nullable=False)  # 'spotify' or 'youtube'
+    provider = db.Column(db.String(20), nullable=False)  # 'spotify', 'youtube', 'musicbrainz'
     track_id = db.Column(db.String(100), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     artist = db.Column(db.String(255), nullable=True)
@@ -58,6 +58,13 @@ class MusicWish(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     queue_entry = db.relationship('MusicQueue', back_populates='wish', uselist=False, cascade='all, delete-orphan')
+    
+    __table_args__ = (
+        db.Index('idx_wish_status', 'status'),
+        db.Index('idx_wish_provider_track', 'provider', 'track_id'),
+        db.Index('idx_wish_created', 'created_at'),
+        db.Index('idx_wish_updated', 'updated_at'),
+    )
 
     def __repr__(self):
         return f'<MusicWish {self.title} by {self.artist}>'
@@ -75,9 +82,15 @@ class MusicQueue(db.Model):
 
     wish = db.relationship('MusicWish', back_populates='queue_entry')
     adder = db.relationship('User', backref='music_queue_entries')
+    
+    __table_args__ = (
+        db.Index('idx_queue_status', 'status'),
+        db.Index('idx_queue_status_position', 'status', 'position'),
+        db.Index('idx_queue_wish_id', 'wish_id'),
+    )
 
     def __repr__(self):
-        return f'<MusicQueue {self.wish.title} (Pos: {self.position})>'
+        return f'<MusicQueue {self.wish.title if self.wish else "Unknown"} (Pos: {self.position})>'
 
 
 class MusicSettings(db.Model):
@@ -90,4 +103,64 @@ class MusicSettings(db.Model):
 
     def __repr__(self):
         return f'<MusicSettings {self.key}={self.value}>'
+    
+    @staticmethod
+    def get_enabled_providers():
+        """Gibt die Liste der aktivierten Provider zurück."""
+        setting = MusicSettings.query.filter_by(key='enabled_providers').first()
+        if setting and setting.value:
+            try:
+                return json.loads(setting.value)
+            except:
+                return []
+        return []
+    
+    @staticmethod
+    def set_enabled_providers(providers):
+        """Setzt die Liste der aktivierten Provider."""
+        setting = MusicSettings.query.filter_by(key='enabled_providers').first()
+        if setting:
+            setting.value = json.dumps(providers)
+        else:
+            setting = MusicSettings(
+                key='enabled_providers',
+                value=json.dumps(providers),
+                description='Aktivierte Musik-Provider (JSON-Array)'
+            )
+            db.session.add(setting)
+        db.session.commit()
+    
+    @staticmethod
+    def get_provider_order():
+        """Gibt die Reihenfolge der Provider zurück."""
+        setting = MusicSettings.query.filter_by(key='provider_order').first()
+        if setting and setting.value:
+            try:
+                return json.loads(setting.value)
+            except:
+                # Fallback: Standard-Reihenfolge
+                return ['spotify', 'youtube', 'musicbrainz']
+        # Fallback: Standard-Reihenfolge
+        return ['spotify', 'youtube', 'musicbrainz']
+    
+    @staticmethod
+    def set_provider_order(order):
+        """Setzt die Reihenfolge der Provider."""
+        setting = MusicSettings.query.filter_by(key='provider_order').first()
+        if setting:
+            setting.value = json.dumps(order)
+        else:
+            setting = MusicSettings(
+                key='provider_order',
+                value=json.dumps(order),
+                description='Reihenfolge der Musik-Provider für Suche (JSON-Array)'
+            )
+            db.session.add(setting)
+        db.session.commit()
+    
+    @staticmethod
+    def is_provider_enabled(provider):
+        """Prüft ob ein Provider aktiviert ist."""
+        enabled = MusicSettings.get_enabled_providers()
+        return provider in enabled
 

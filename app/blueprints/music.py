@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from flask_socketio import join_room, leave_room
 from app import db, socketio
 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from app.utils.music_oauth import (
@@ -7,12 +8,32 @@ from app.utils.music_oauth import (
     handle_spotify_callback, handle_youtube_callback,
     is_provider_connected, disconnect_provider
 )
-from app.utils.music_api import search_music, get_track
+from app.utils.music_api import search_music, get_track, search_music_multi_provider
 from app.utils.access_control import check_module_access
+from sqlalchemy.orm import joinedload
+from sqlalchemy import func, case
 from datetime import datetime
 import secrets
+import logging
+from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 music_bp = Blueprint('music', __name__, url_prefix='/music')
+
+
+# Cache für SystemSettings (5 Minuten TTL)
+@lru_cache(maxsize=128)
+def get_cached_system_setting(key):
+    """Holt eine System-Einstellung mit LRU-Cache."""
+    from app.models.settings import SystemSettings
+    setting = SystemSettings.query.filter_by(key=key).first()
+    return setting.value if setting else None
+
+
+def invalidate_system_settings_cache():
+    """Invalidiert den SystemSettings-Cache."""
+    get_cached_system_setting.cache_clear()
 
 
 # Öffentliche Route (kein Login erforderlich)
@@ -20,26 +41,9 @@ music_bp = Blueprint('music', __name__, url_prefix='/music')
 def public_wishlist():
     """Öffentliche Wunschliste - Suche und Hinzufügen von Liedern."""
     
-    # Für die Suche benötigen wir einen verbundenen Account
-    # Wir verwenden den ersten verfügbaren Admin-Account
-    admin_user = None
-    spotify_connected = False
-    youtube_connected = False
-    
-    if current_user.is_authenticated:
-        admin_user = current_user
-        spotify_connected = is_provider_connected(current_user.id, 'spotify')
-        youtube_connected = is_provider_connected(current_user.id, 'youtube')
-    else:
-        # Suche nach einem Admin mit verbundenem Account
-        from app.models.user import User
-        admins = User.query.filter_by(is_admin=True).all()
-        for admin in admins:
-            if is_provider_connected(admin.id, 'spotify') or is_provider_connected(admin.id, 'youtube'):
-                admin_user = admin
-                spotify_connected = is_provider_connected(admin.id, 'spotify')
-                youtube_connected = is_provider_connected(admin.id, 'youtube')
-                break
+    # Prüfe ob Provider aktiviert sind
+    enabled_providers = MusicSettings.get_enabled_providers()
+    has_providers = len(enabled_providers) > 0
     
     if request.method == 'POST':
         # Lied zur Wunschliste hinzufügen
@@ -67,14 +71,19 @@ def public_wishlist():
             # Status bleibt unverändert (played bleibt played, pending bleibt pending, etc.)
             db.session.commit()
             
-            # WebSocket-Update senden
-            socketio.emit('music:wish_added', {
-                'wish_id': existing.id,
-                'title': existing.title,
-                'artist': existing.artist,
-                'provider': existing.provider,
-                'wish_count': existing.wish_count
-            }, namespace='/')
+            # WebSocket-Update senden mit vollständigen Daten (nur an Clients im Musikmodul)
+            socketio.emit('music:wish_updated', {
+                'wish': {
+                    'id': existing.id,
+                    'title': existing.title,
+                    'artist': existing.artist or '',
+                    'provider': existing.provider,
+                    'image_url': existing.image_url or '',
+                    'wish_count': existing.wish_count,
+                    'status': existing.status,
+                    'created_at': existing.created_at.isoformat() if existing.created_at else None
+                }
+            }, room='music_module', namespace='/')
             
             return jsonify({'success': True, 'message': f'Wunschzähler erhöht ({existing.wish_count}x gewünscht)'})
         
@@ -95,54 +104,83 @@ def public_wishlist():
         db.session.add(wish)
         db.session.commit()
         
-        # WebSocket-Update senden
+        # WebSocket-Update senden mit vollständigen Daten (nur an Clients im Musikmodul)
         socketio.emit('music:wish_added', {
-            'wish_id': wish.id,
-            'title': wish.title,
-            'artist': wish.artist,
-            'provider': wish.provider,
-            'wish_count': wish.wish_count
-        }, namespace='/')
+            'wish': {
+                'id': wish.id,
+                'title': wish.title,
+                'artist': wish.artist or '',
+                'provider': wish.provider,
+                'image_url': wish.image_url or '',
+                'wish_count': wish.wish_count,
+                'status': wish.status,
+                'created_at': wish.created_at.isoformat() if wish.created_at else None
+            }
+        }, room='music_module', namespace='/')
         
         return jsonify({'success': True, 'message': 'Lied zur Wunschliste hinzugefügt'})
     
     # GET: Zeige Suchseite
+    # Hole Einstellungen für Template (mit Cache)
+    color_gradient = get_cached_system_setting('color_gradient')
+    
+    portal_logo_filename = get_cached_system_setting('portal_logo') or None
+    
+    # Hole App-Name
+    portal_name = get_cached_system_setting('portal_name')
+    if portal_name and portal_name.strip():
+        app_name = portal_name
+    else:
+        org_name = get_cached_system_setting('organization_name')
+        if org_name and org_name.strip():
+            app_name = org_name
+        else:
+            app_name = current_app.config.get('APP_NAME', 'Prismateams')
+    
+    # Hole App-Logo
+    app_logo = current_app.config.get('APP_LOGO')
+    if portal_logo_filename:
+        app_logo = None
+    
     return render_template('music/public_wishlist.html', 
-                         admin_user=admin_user,
-                         spotify_connected=spotify_connected,
-                         youtube_connected=youtube_connected)
+                         has_providers=has_providers,
+                         enabled_providers=enabled_providers,
+                         color_gradient=color_gradient,
+                         portal_logo_filename=portal_logo_filename,
+                         app_name=app_name,
+                         app_logo=app_logo)
 
 
 @music_bp.route('/wishlist/search', methods=['POST'])
 def public_search():
-    """Öffentliche Suche nach Liedern."""
+    """Öffentliche Suche nach Liedern über alle aktivierten Provider."""
     
-    provider = request.json.get('provider', '').strip()
     query = request.json.get('query', '').strip()
+    include_recommendations = request.json.get('recommendations', True)  # Default: True
     
-    if not provider or not query:
-        return jsonify({'error': 'Provider und Suchbegriff erforderlich'}), 400
-    
-    # Suche nach Admin mit verbundenem Account
-    admin_user = None
-    if current_user.is_authenticated and (is_provider_connected(current_user.id, provider) or current_user.is_admin):
-        admin_user = current_user
-    else:
-        from app.models.user import User
-        admins = User.query.filter_by(is_admin=True).all()
-        for admin in admins:
-            if is_provider_connected(admin.id, provider):
-                admin_user = admin
-                break
-    
-    if not admin_user:
-        return jsonify({'error': 'Kein verbundener Account für diesen Provider gefunden'}), 400
+    if not query:
+        return jsonify({'error': 'Suchbegriff erforderlich'}), 400
     
     try:
-        results = search_music(admin_user.id, provider, query, limit=10)
-        return jsonify({'results': results})
+        # Verwende Multi-Provider-Suche (automatisch über alle aktivierten Provider)
+        # Übergebe user_id wenn Benutzer eingeloggt ist (für Spotify OAuth)
+        user_id = current_user.id if current_user.is_authenticated else None
+        search_result = search_music_multi_provider(
+            query, 
+            limit=10, 
+            min_results=5, 
+            user_id=user_id,
+            include_recommendations=include_recommendations
+        )
+        
+        # search_result ist jetzt ein Dictionary mit 'results' und 'recommendations'
+        return jsonify({
+            'results': search_result.get('results', []),
+            'recommendations': search_result.get('recommendations', [])
+        })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Fehler bei Multi-Provider-Suche: {e}", exc_info=True)
+        return jsonify({'error': f'Fehler bei der Suche: {str(e)}'}), 500
 
 
 # Admin-Routen (Login erforderlich)
@@ -151,23 +189,34 @@ def public_search():
 @check_module_access('module_music')
 def index():
     """Hauptseite für Musikmodul - Warteschlangen-Verwaltung."""
-    # Hole Wunschliste
-    wishes = MusicWish.query.filter_by(status='pending').order_by(MusicWish.created_at.desc()).all()
+    # Optimiertes Initial-Load: Nur Counts und erste Tab-Daten laden
+    # Nur Wunschliste für ersten Tab laden (maximal 50 Einträge)
+    wishes = MusicWish.query.filter_by(status='pending').order_by(
+        MusicWish.created_at.desc()
+    ).limit(50).all()
     
-    # Hole Warteschlange
-    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    # Hole Warteschlange mit joinedload für N+1 Optimierung
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
     
-    # Hole aktuell spielendes Lied
-    playing = MusicQueue.query.filter_by(status='playing').first()
+    # Hole aktuell spielendes Lied mit joinedload
+    playing = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='playing'
+    ).first()
     
-    # Hole bereits gespielte Lieder
-    played_wishes = MusicWish.query.filter_by(status='played').order_by(MusicWish.updated_at.desc()).all()
+    # Optimierte Count-Queries: Separate Counts (effizienter bei kleinen Tabellen und mit Indizes)
+    wish_count = db.session.query(func.count(MusicWish.id)).filter_by(status='pending').scalar() or 0
+    queue_count = db.session.query(func.count(MusicQueue.id)).filter_by(status='pending').scalar() or 0
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
     
     return render_template('music/index.html',
                          wishes=wishes,
                          queue=queue,
                          playing=playing,
-                         played_wishes=played_wishes)
+                         wish_count=wish_count,
+                         queue_count=queue_count,
+                         played_count=played_count)
 
 
 @music_bp.route('/wishlist/add-to-queue', methods=['POST'])
@@ -188,22 +237,22 @@ def add_to_queue():
     if existing_queue:
         return jsonify({'error': 'Lied ist bereits in der Warteschlange'}), 400
     
-    # Bestimme Position
+    # Bestimme Position (optimiert mit func.max)
     if position == 'next':
         # Als nächstes Lied
         new_position = 1
-        # Verschiebe alle anderen nach hinten
+        # Verschiebe alle anderen nach hinten (nur Position-Updates, kein joinedload nötig)
         existing = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
         for entry in existing:
             entry.position += 1
     elif position == 'last':
         # Als letztes Lied von Wunschliedern
-        # Finde die höchste Position
-        max_pos = db.session.query(db.func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
+        # Finde die höchste Position (optimiert mit func.max)
+        max_pos = db.session.query(func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
         new_position = max_pos + 1
     else:  # 'end'
         # Am Ende
-        max_pos = db.session.query(db.func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
+        max_pos = db.session.query(func.max(MusicQueue.position)).filter_by(status='pending').scalar() or 0
         new_position = max_pos + 1
     
     # Erstelle Queue-Eintrag
@@ -219,12 +268,121 @@ def add_to_queue():
     db.session.add(queue_entry)
     db.session.commit()
     
-    # WebSocket-Update senden
+    # Lade vollständige Queue-Daten für SocketIO-Update
+    queue = MusicQueue.query.filter_by(status='pending').order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    # WebSocket-Update senden mit vollständigen Queue-Daten (nur an Clients im Musikmodul)
     socketio.emit('music:queue_updated', {
         'action': 'added',
-        'queue_id': queue_entry.id,
-        'wish_id': wish_id
-    }, namespace='/')
+        'queue': queue_data
+    }, room='music_module', namespace='/')
+    
+    # Sende auch Wish-Update (Status geändert)
+    socketio.emit('music:wish_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'status': wish.status,
+            'created_at': wish.created_at.isoformat() if wish.created_at else None
+        }
+    }, room='music_module', namespace='/')
+    
+    return jsonify({'success': True})
+
+
+@music_bp.route('/wishlist/mark-as-played', methods=['POST'])
+@login_required
+@check_module_access('module_music')
+def mark_wish_as_played():
+    """Markiert einen Wunsch direkt als bereits gespielt, ohne zur Queue hinzuzufügen."""
+    wish_id = request.json.get('wish_id')
+    
+    wish = MusicWish.query.get_or_404(wish_id)
+    
+    if wish.status == 'played':
+        return jsonify({'error': 'Lied ist bereits als gespielt markiert'}), 400
+    
+    # Setze Status auf 'played'
+    wish.status = 'played'
+    wish.updated_at = datetime.utcnow()
+    
+    # Entferne aus Queue falls vorhanden
+    if wish.queue_entry:
+        db.session.delete(wish.queue_entry)
+    
+    db.session.commit()
+    
+    # WebSocket-Update senden (nur an Clients im Musikmodul)
+    socketio.emit('music:wish_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'status': wish.status,
+            'created_at': wish.created_at.isoformat() if wish.created_at else None,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        }
+    }, room='music_module', namespace='/')
+    
+    # Sende spezielles Event für "Played"-Updates (optimiertes Count)
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
+    socketio.emit('music:played_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        },
+        'count': played_count
+    }, room='music_module', namespace='/')
+    
+    # Sende auch Queue-Update falls Queue-Eintrag entfernt wurde (mit joinedload)
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    socketio.emit('music:queue_updated', {
+        'action': 'removed',
+        'queue': queue_data
+    }, room='music_module', namespace='/')
     
     return jsonify({'success': True})
 
@@ -271,12 +429,30 @@ def move_queue_item():
     queue_entry.position = new_position
     db.session.commit()
     
-    # WebSocket-Update senden
+    # Lade vollständige Queue-Daten für SocketIO-Update (mit joinedload)
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    # WebSocket-Update senden mit vollständigen Queue-Daten (nur an Clients im Musikmodul)
     socketio.emit('music:queue_updated', {
         'action': 'moved',
-        'queue_id': queue_id,
-        'new_position': new_position
-    }, namespace='/')
+        'queue': queue_data
+    }, room='music_module', namespace='/')
     
     return jsonify({'success': True})
 
@@ -312,11 +488,59 @@ def remove_from_queue():
     
     db.session.commit()
     
-    # WebSocket-Update senden
+    # Lade vollständige Queue-Daten für SocketIO-Update (mit joinedload)
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist or '',
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url or '',
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    # WebSocket-Update senden mit vollständigen Queue-Daten (nur an Clients im Musikmodul)
     socketio.emit('music:queue_updated', {
         'action': 'removed',
-        'queue_id': queue_id
-    }, namespace='/')
+        'queue': queue_data
+    }, room='music_module', namespace='/')
+    
+    # Sende auch Wish-Update (Status geändert zu 'played')
+    socketio.emit('music:wish_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'status': wish.status,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        }
+    }, room='music_module', namespace='/')
+    
+    # Sende spezielles Event für "Played"-Updates (optimiertes Count)
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
+    socketio.emit('music:played_updated', {
+        'wish': {
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        },
+        'count': played_count
+    }, room='music_module', namespace='/')
     
     return jsonify({'success': True})
 
@@ -337,10 +561,11 @@ def clear_queue():
     
     db.session.commit()
     
-    # WebSocket-Update senden
+    # WebSocket-Update senden mit leerer Queue (nur an Clients im Musikmodul)
     socketio.emit('music:queue_updated', {
-        'action': 'cleared'
-    }, namespace='/')
+        'action': 'cleared',
+        'queue': []
+    }, room='music_module', namespace='/')
     
     return jsonify({'success': True})
 
@@ -357,8 +582,12 @@ def clear_wishlist():
     
     db.session.commit()
     
-    # WebSocket-Update senden
-    socketio.emit('music:wishlist_cleared', {}, namespace='/')
+    # WebSocket-Update senden (nur an Clients im Musikmodul)
+    # Sende explizite Anweisung zum Neuladen der Wishlist
+    socketio.emit('music:wishlist_cleared', {
+        'force_reload': True,
+        'wish_count': 0
+    }, room='music_module', namespace='/')
     
     return jsonify({'success': True})
 
@@ -380,11 +609,15 @@ def reset_all():
     
     db.session.commit()
     
-    # WebSocket-Updates senden
+    # WebSocket-Updates senden (nur an Clients im Musikmodul)
     socketio.emit('music:queue_updated', {
-        'action': 'cleared'
-    }, namespace='/')
-    socketio.emit('music:wishlist_cleared', {}, namespace='/')
+        'action': 'cleared',
+        'queue': []
+    }, room='music_module', namespace='/')
+    socketio.emit('music:wishlist_cleared', {
+        'force_reload': True,
+        'wish_count': 0
+    }, room='music_module', namespace='/')
     
     return jsonify({'success': True})
 
@@ -486,11 +719,8 @@ def disconnect(provider):
 @check_module_access('module_music')
 def public_url_page():
     """Zeigt eine Seite mit QR-Code und Link für die öffentliche Wunschliste."""
-    from app.models.settings import SystemSettings
-    
-    # Hole Portallogo
-    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-    portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
+    # Hole Portallogo (mit Cache)
+    portal_logo_filename = get_cached_system_setting('portal_logo') or None
     
     # Generiere Public URL
     public_url = url_for('music.public_wishlist', _external=True)
@@ -543,4 +773,166 @@ def download_public_link_pdf():
             'Content-Disposition': 'attachment; filename=musikwuensche.pdf'
         }
     )
+
+
+@music_bp.route('/api/wishlist/count')
+@login_required
+@check_module_access('module_music')
+def api_wishlist_count():
+    """Gibt die Anzahl der Wünsche zurück."""
+    count = db.session.query(func.count(MusicWish.id)).filter_by(status='pending').scalar() or 0
+    return jsonify({'count': count})
+
+
+@music_bp.route('/api/queue/count')
+@login_required
+@check_module_access('module_music')
+def api_queue_count():
+    """Gibt die Anzahl der Queue-Einträge zurück."""
+    count = db.session.query(func.count(MusicQueue.id)).filter_by(status='pending').scalar() or 0
+    return jsonify({'count': count})
+
+
+@music_bp.route('/api/queue/list')
+@login_required
+@check_module_access('module_music')
+def api_queue_list():
+    """Gibt die aktuelle Queue als JSON zurück."""
+    queue = MusicQueue.query.options(joinedload(MusicQueue.wish)).filter_by(
+        status='pending'
+    ).order_by(MusicQueue.position.asc()).all()
+    
+    queue_data = []
+    for entry in queue:
+        queue_data.append({
+            'id': entry.id,
+            'position': entry.position,
+            'wish': {
+                'id': entry.wish.id,
+                'title': entry.wish.title,
+                'artist': entry.wish.artist,
+                'provider': entry.wish.provider,
+                'image_url': entry.wish.image_url,
+                'wish_count': entry.wish.wish_count
+            }
+        })
+    
+    return jsonify({'queue': queue_data})
+
+
+@music_bp.route('/api/wishlist/list')
+@login_required
+@check_module_access('module_music')
+def api_wishlist_list():
+    """Gibt paginierte Wunschliste als JSON zurück."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    # Begrenze per_page auf maximal 50 (Performance-Optimierung)
+    per_page = min(per_page, 50)
+    
+    pagination = MusicWish.query.filter_by(status='pending').order_by(
+        MusicWish.created_at.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    wishes_data = []
+    for wish in pagination.items:
+        wishes_data.append({
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'created_at': wish.created_at.isoformat() if wish.created_at else None
+        })
+    
+    return jsonify({
+        'wishes': wishes_data,
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    })
+
+
+@music_bp.route('/api/played/count')
+@login_required
+@check_module_access('module_music')
+def api_played_count():
+    """Gibt die Anzahl der bereits gespielten Lieder zurück."""
+    count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
+    return jsonify({'count': count})
+
+
+@music_bp.route('/api/played/list')
+@login_required
+@check_module_access('module_music')
+def api_played_list():
+    """Gibt paginierte Liste der bereits gespielten Lieder als JSON zurück."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    # Begrenze per_page auf maximal 50 (Performance-Optimierung)
+    per_page = min(per_page, 50)
+    
+    pagination = MusicWish.query.filter_by(status='played').order_by(
+        MusicWish.updated_at.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    played_data = []
+    for wish in pagination.items:
+        played_data.append({
+            'id': wish.id,
+            'title': wish.title,
+            'artist': wish.artist or '',
+            'provider': wish.provider,
+            'image_url': wish.image_url or '',
+            'wish_count': wish.wish_count,
+            'updated_at': wish.updated_at.isoformat() if wish.updated_at else None
+        })
+    
+    return jsonify({
+        'played': played_data,
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    })
+
+
+# SocketIO Event Handlers für Musikmodul
+@socketio.on('music:join')
+def handle_music_join(data):
+    """Registriert Client-Verbindungen für Musikmodul-Updates."""
+    # Alle Clients, die im Musikmodul sind, treten dem gemeinsamen Room bei
+    room = 'music_module'
+    join_room(room)
+    if current_app:
+        try:
+            user_id = getattr(current_user, 'id', None) if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+            current_app.logger.debug(f"Musikmodul: Client hat Raum {room} betreten (User: {user_id})")
+        except Exception:
+            pass
+
+
+@socketio.on('music:leave')
+def handle_music_leave(data):
+    """Entfernt Client-Verbindungen aus dem Musikmodul-Room."""
+    room = 'music_module'
+    leave_room(room)
+    if current_app:
+        try:
+            user_id = getattr(current_user, 'id', None) if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated else None
+            current_app.logger.debug(f"Musikmodul: Client hat Raum {room} verlassen (User: {user_id})")
+        except Exception:
+            pass
 

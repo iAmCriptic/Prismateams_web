@@ -19,12 +19,14 @@ import threading
 import time
 import logging
 import io
+import hashlib
 from markupsafe import Markup
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy import func, cast, Integer
 import re
 
-from app.utils.email_sender import get_logo_base64, send_email_with_lock
+from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
 from app.utils.lock_manager import acquire_email_sync_lock
 
 email_bp = Blueprint('email', __name__)
@@ -83,7 +85,7 @@ def build_footer_html():
     return ''.join(f'<p>{line}</p>' for line in lines if line and line.strip())
 
 
-def render_custom_email(subject: str, body_html: str):
+def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_preview: bool = False):
     body_html = body_html or ''
     footer_html = build_footer_html()
     
@@ -96,10 +98,15 @@ def render_custom_email(subject: str, body_html: str):
     logo_base64 = get_logo_base64()
     current_year = datetime.utcnow().year
 
+    # In der Vorschau Base64 verwenden (CID funktioniert nicht ohne echte E-Mail)
+    # Beim Versenden CID verwenden (funktioniert mit Anhang)
+    use_base64_for_preview = is_preview or logo_cid is None
+
     rendered_html = render_template(
         'emails/custom_mail.html',
         app_name=app_name,
-        logo_base64=logo_base64,
+        logo_base64=logo_base64 if use_base64_for_preview else None,
+        logo_cid=logo_cid if not use_base64_for_preview else None,
         subject=subject,
         body_html=Markup(combined_html),
         current_year=current_year
@@ -482,88 +489,137 @@ def sync_emails_from_folder(folder_name):
                     is_archive_folder = folder_name in ['Archive', 'Archives']
                     if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg:
                         if is_archive_folder:
-                            logging.info(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
+                            logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
                         else:
-                            logging.warning(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
+                            logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
                         try:
                             mail_conn.logout()
                         except:
                             pass
                         return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
                     else:
-                        logging.warning(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
+                        logging.debug(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
                         try:
                             mail_conn.logout()
                         except:
                             pass
                         return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
         except Exception as e:
-            logging.warning(f"Exception while selecting folder '{folder_name}': {e}")
+            logging.debug(f"Exception while selecting folder '{folder_name}': {e}")
             try:
                 mail_conn.logout()
             except:
                 pass
             return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {str(e)}"
         
+        # Ermittle die höchste bereits synchronisierte UID für diesen Ordner
+        highest_uid = None
         try:
-            message_count = int(messages[0].decode().split()[1])
-            logging.info(f"Folder '{folder_name}' contains {message_count} messages")
-        except:
-            message_count = 0
+            highest_uid_result = db.session.query(
+                func.max(cast(EmailMessage.imap_uid, Integer))
+            ).filter_by(folder=folder_name).scalar()
+            if highest_uid_result:
+                highest_uid = int(highest_uid_result)
+                logging.debug(f"Highest UID for folder '{folder_name}': {highest_uid}")
+        except Exception as e:
+            logging.debug(f"Could not determine highest UID for folder '{folder_name}': {e}")
         
-        status, messages = mail_conn.search(None, 'ALL')
+        # Suche nur nach neuen E-Mails (UID-basiert)
+        if highest_uid:
+            search_criteria = f'UID {highest_uid + 1}:*'
+            logging.debug(f"Searching for new emails in folder '{folder_name}' with UID > {highest_uid}")
+        else:
+            # Erste Synchronisation: Hole alle E-Mails, aber verarbeite nur die letzten N
+            search_criteria = 'ALL'
+            logging.debug(f"First sync for folder '{folder_name}', fetching all emails")
+        
+        status, messages = mail_conn.search(None, search_criteria)
         if status != 'OK':
             logging.error(f"IMAP search failed for folder '{folder_name}': {messages}")
             return False, f"E-Mail-Suche in Ordner '{folder_name}' fehlgeschlagen: {messages[0].decode() if messages else 'Unbekannter Fehler'}"
         
         email_ids = messages[0].split()
-        logging.info(f"Found {len(email_ids)} email IDs in folder '{folder_name}'")
+        logging.debug(f"Found {len(email_ids)} new email IDs in folder '{folder_name}'")
         
         if len(email_ids) == 0:
-            logging.info(f"No emails found in folder '{folder_name}'")
+            logging.debug(f"No new emails found in folder '{folder_name}'")
             mail_conn.close()
             mail_conn.logout()
-            return True, f"Ordner '{folder_name}': Keine E-Mails vorhanden"
+            return True, f"Ordner '{folder_name}': Keine neuen E-Mails vorhanden"
         
-        synced_count = 0
-        moved_count = 0
-        deleted_count = 0
-        
+        # Für die Prüfung gelöschter E-Mails: Hole alle UIDs vom Server (nur wenn nicht erste Sync)
         current_imap_uids = set()
-        for email_id in email_ids:
-            current_imap_uids.add(email_id.decode())
+        if highest_uid:
+            # Nur wenn wir schon E-Mails haben, prüfen wir auf gelöschte
+            status_all, messages_all = mail_conn.search(None, 'ALL')
+            if status_all == 'OK':
+                all_email_ids = messages_all[0].split()
+                for email_id in all_email_ids:
+                    current_imap_uids.add(email_id.decode())
+                
+                # Optimierte Prüfung: Nur UIDs abfragen statt alle E-Mails
+                existing_uids = db.session.query(EmailMessage.imap_uid).filter_by(
+                    folder=folder_name
+                ).filter(EmailMessage.imap_uid.isnot(None)).all()
+                existing_uid_set = {uid[0] for uid in existing_uids if uid[0]}
+                
+                for existing_uid in existing_uid_set:
+                    if existing_uid not in current_imap_uids:
+                        # E-Mail existiert nicht mehr auf Server
+                        email_obj = EmailMessage.query.filter_by(
+                            imap_uid=existing_uid,
+                            folder=folder_name
+                        ).first()
+                        if email_obj:
+                            if email_obj.is_deleted_imap:
+                                db.session.delete(email_obj)
+                                stats['deleted_emails'] += 1
+                            else:
+                                other_folder_email = EmailMessage.query.filter_by(
+                                    message_id=email_obj.message_id
+                                ).filter(EmailMessage.folder != folder_name).first()
+                                
+                                if other_folder_email:
+                                    db.session.delete(email_obj)
+                                    stats['moved_emails'] += 1
+                                else:
+                                    email_obj.is_deleted_imap = True
+                                    email_obj.last_imap_sync = datetime.utcnow()
+                                    stats['deleted_emails'] += 1
         
-        existing_emails = EmailMessage.query.filter_by(folder=folder_name).all()
-        for email_obj in existing_emails:
-            if email_obj.imap_uid and email_obj.imap_uid not in current_imap_uids:
-                if email_obj.is_deleted_imap:
-                    db.session.delete(email_obj)
-                    stats['deleted_emails'] += 1
-                else:
-                    other_folder_email = EmailMessage.query.filter_by(
-                        message_id=email_obj.message_id
-                    ).filter(EmailMessage.folder != folder_name).first()
-                    
-                    if other_folder_email:
-                        db.session.delete(email_obj)
-                        stats['moved_emails'] += 1
-                    else:
-                        email_obj.is_deleted_imap = True
-                        email_obj.last_imap_sync = datetime.utcnow()
-                        stats['deleted_emails'] += 1
-        
-        max_emails = 100 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] else 30
-        emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
-        logging.info(f"Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
+        # Bei erster Synchronisation: Nur die letzten N E-Mails verarbeiten
+        if not highest_uid:
+            max_emails = 100 if folder_name not in ['INBOX', 'Sent', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] else 30
+            emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
+            logging.debug(f"First sync: Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
+        else:
+            emails_to_process = email_ids
+            logging.debug(f"Processing {len(emails_to_process)} new emails from folder '{folder_name}'")
         
         for idx, email_id in enumerate(emails_to_process, 1):
             try:
-                if idx % 10 == 0:
-                    logging.debug(f"Processing email {idx}/{len(emails_to_process)} from folder '{folder_name}'")
+                # FLAGS abrufen um Gelesen-Status zu bestimmen
+                is_read_imap = False
+                try:
+                    flags_status, flags_result = mail_conn.fetch(email_id, '(FLAGS)')
+                    if flags_status == 'OK' and flags_result and len(flags_result) > 0:
+                        flags_entry = flags_result[0]
+                        # FLAGS können als Tuple oder Bytes kommen
+                        if isinstance(flags_entry, tuple):
+                            flags_str = flags_entry[0].decode('utf-8', errors='ignore') if isinstance(flags_entry[0], bytes) else str(flags_entry[0])
+                        else:
+                            flags_str = flags_entry.decode('utf-8', errors='ignore') if isinstance(flags_entry, bytes) else str(flags_entry)
+                        
+                        # Prüfe ob \Seen Flag vorhanden ist
+                        is_read_imap = '\\Seen' in flags_str or '\\SEEN' in flags_str
+                except Exception as flags_error:
+                    logging.debug(f"Failed to fetch FLAGS for email {email_id.decode()} from folder '{folder_name}': {flags_error}")
+                    # Weiter mit is_read_imap = False
                 
+                # RFC822 (E-Mail-Inhalt) abrufen
                 status, msg_data = mail_conn.fetch(email_id, '(RFC822)')
                 if status != 'OK':
-                    logging.warning(f"Failed to fetch email {email_id.decode()} from folder '{folder_name}': {msg_data}")
+                    logging.debug(f"Failed to fetch email {email_id.decode()} from folder '{folder_name}': {msg_data}")
                     stats['errors'] += 1
                     continue
                 
@@ -612,6 +668,15 @@ def sync_emails_from_folder(folder_name):
                 except:
                     pass
                 
+                # Bestimme is_read Status für Updates:
+                # 1. E-Mails im "Sent"-Ordner sind immer als gelesen markiert
+                # 2. Andere Ordner: basierend auf IMAP FLAGS (\Seen)
+                is_sent_folder = folder_name in ['Sent', 'Sent Messages']
+                if is_sent_folder:
+                    is_read_status = True
+                else:
+                    is_read_status = is_read_imap
+                
                 existing_in_folder = EmailMessage.query.filter_by(
                     imap_uid=imap_uid_str,
                     folder=folder_name
@@ -621,12 +686,14 @@ def sync_emails_from_folder(folder_name):
                     try:
                         existing_in_folder.last_imap_sync = datetime.utcnow()
                         existing_in_folder.is_deleted_imap = False
+                        existing_in_folder.is_read = is_read_status  # Synchronisiere Gelesen-Status von IMAP
+                        existing_in_folder.is_sent = is_sent_folder  # Aktualisiere is_sent Status
                         stats['updated_emails'] += 1
                         db.session.commit()
                         continue
                     except Exception as update_error:
                         if "MySQL server has gone away" in str(update_error) or "ConnectionResetError" in str(update_error):
-                            logging.warning("Database connection lost during update, attempting to reconnect...")
+                            logging.debug("Database connection lost during update, attempting to reconnect...")
                             db.session.rollback()
                             db.session.close()
                             db.session = db.create_scoped_session()
@@ -637,9 +704,11 @@ def sync_emails_from_folder(folder_name):
                             if existing_in_folder:
                                 existing_in_folder.last_imap_sync = datetime.utcnow()
                                 existing_in_folder.is_deleted_imap = False
+                                existing_in_folder.is_read = is_read_status  # Synchronisiere Gelesen-Status von IMAP
+                                existing_in_folder.is_sent = is_sent_folder  # Aktualisiere is_sent Status
                                 stats['updated_emails'] += 1
                                 db.session.commit()
-                                logging.info("Database reconnection successful for update")
+                                logging.debug("Database reconnection successful for update")
                             continue
                         else:
                             raise update_error
@@ -651,12 +720,14 @@ def sync_emails_from_folder(folder_name):
                             existing_by_message_id.last_imap_sync = datetime.utcnow()
                             existing_by_message_id.is_deleted_imap = False
                             existing_by_message_id.imap_uid = imap_uid_str
+                            existing_by_message_id.is_read = is_read_status  # Synchronisiere Gelesen-Status von IMAP
+                            existing_by_message_id.is_sent = is_sent_folder  # Aktualisiere is_sent Status
                             stats['updated_emails'] += 1
                             db.session.commit()
                             continue
                         except Exception as update_error:
                             if "MySQL server has gone away" in str(update_error) or "ConnectionResetError" in str(update_error):
-                                logging.warning("Database connection lost during update, attempting to reconnect...")
+                                logging.debug("Database connection lost during update, attempting to reconnect...")
                                 db.session.rollback()
                                 db.session.close()
                                 db.session = db.create_scoped_session()
@@ -665,9 +736,11 @@ def sync_emails_from_folder(folder_name):
                                     existing_by_message_id.last_imap_sync = datetime.utcnow()
                                     existing_by_message_id.is_deleted_imap = False
                                     existing_by_message_id.imap_uid = imap_uid_str
+                                    existing_by_message_id.is_read = is_read_status  # Synchronisiere Gelesen-Status von IMAP
+                                    existing_by_message_id.is_sent = is_sent_folder  # Aktualisiere is_sent Status
                                     stats['updated_emails'] += 1
                                     db.session.commit()
-                                    logging.info("Database reconnection successful for update")
+                                    logging.debug("Database reconnection successful for update")
                                 continue
                             else:
                                 raise update_error
@@ -677,12 +750,14 @@ def sync_emails_from_folder(folder_name):
                             existing_by_message_id.imap_uid = imap_uid_str
                             existing_by_message_id.last_imap_sync = datetime.utcnow()
                             existing_by_message_id.is_deleted_imap = False
+                            existing_by_message_id.is_read = is_read_status  # Synchronisiere Gelesen-Status von IMAP beim Ordnerwechsel
+                            existing_by_message_id.is_sent = is_sent_folder  # Aktualisiere is_sent Status
                             stats['moved_emails'] += 1
                             db.session.commit()
                             continue
                         except Exception as move_error:
                             if "MySQL server has gone away" in str(move_error) or "ConnectionResetError" in str(move_error):
-                                logging.warning("Database connection lost during move, attempting to reconnect...")
+                                logging.debug("Database connection lost during move, attempting to reconnect...")
                                 db.session.rollback()
                                 db.session.close()
                                 db.session = db.create_scoped_session()
@@ -692,9 +767,11 @@ def sync_emails_from_folder(folder_name):
                                     existing_by_message_id.imap_uid = imap_uid_str
                                     existing_by_message_id.last_imap_sync = datetime.utcnow()
                                     existing_by_message_id.is_deleted_imap = False
+                                    existing_by_message_id.is_read = is_read_status  # Synchronisiere Gelesen-Status von IMAP beim Ordnerwechsel
+                                    existing_by_message_id.is_sent = is_sent_folder  # Aktualisiere is_sent Status
                                     stats['moved_emails'] += 1
                                     db.session.commit()
-                                    logging.info("Database reconnection successful for move")
+                                    logging.debug("Database reconnection successful for move")
                                 continue
                             else:
                                 raise move_error
@@ -742,14 +819,7 @@ def sync_emails_from_folder(folder_name):
                                     if payload:
                                         attachment_size = len(payload)
                                         
-                                        if attachment_size > 1 * 1024 * 1024:
-                                            logging.info(f"Processing large attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - saving to disk")
-                                        else:
-                                            logging.debug(f"Processing attachment: '{filename}' ({attachment_size / (1024*1024):.2f} MB) - saving to database")
-                                        
                                         max_db_size = 1 * 1024 * 1024
-                                        
-                                        logging.info(f"Attachment '{filename}': {attachment_size / (1024*1024):.2f} MB, max_db_size: {max_db_size / (1024*1024):.2f} MB, will store on: {'disk' if attachment_size > max_db_size else 'database'}")
                                         
                                         if attachment_size > max_db_size:
                                             import os
@@ -764,7 +834,7 @@ def sync_emails_from_folder(folder_name):
                                             try:
                                                 with open(file_path, 'wb') as f:
                                                     f.write(payload)
-                                                logging.info(f"Large attachment saved to disk: {file_path}")
+                                                logging.debug(f"Large attachment saved to disk: {file_path}")
                                                 
                                                 attachments_data.append({
                                                     'filename': filename,
@@ -872,6 +942,15 @@ def sync_emails_from_folder(folder_name):
                 if text_max_length > 0 and body_text and len(body_text) > text_max_length:
                     body_text = body_text[:text_max_length]
                 
+                # Bestimme is_read Status:
+                # 1. E-Mails im "Sent"-Ordner sind immer als gelesen markiert (man hat sie selbst versendet)
+                # 2. Andere Ordner: basierend auf IMAP FLAGS (\Seen)
+                is_sent_folder = folder_name in ['Sent', 'Sent Messages']
+                if is_sent_folder:
+                    is_read_status = True
+                else:
+                    is_read_status = is_read_imap
+                
                 email_entry = EmailMessage(
                     message_id=message_id,
                     sender=sender,
@@ -887,8 +966,8 @@ def sync_emails_from_folder(folder_name):
                     last_imap_sync=datetime.utcnow(),
                     is_deleted_imap=False,
                     received_at=received_at,
-                    is_read=False,
-                    is_sent=False
+                    is_read=is_read_status,
+                    is_sent=is_sent_folder
                 )
                 
                 try:
@@ -928,9 +1007,9 @@ def sync_emails_from_folder(folder_name):
                         if attachment_size > 1 * 1024 * 1024:
                             try:
                                 db.session.flush()
-                                logging.info(f"Successfully flushed attachment '{filename}' ({attachment_size / (1024*1024):.2f} MB) to database")
+                                logging.debug(f"Successfully flushed attachment '{filename}' ({attachment_size / (1024*1024):.2f} MB) to database")
                             except Exception as flush_error:
-                                logging.warning(f"Flush failed for '{filename}', will commit with email: {flush_error}")
+                                logging.debug(f"Flush failed for '{filename}', will commit with email: {flush_error}")
                     except Exception as e:
                         logging.error(f"Error saving attachment '{attachment_data['filename']}' ({attachment_data['size'] / (1024*1024):.2f} MB): {e}")
                         import traceback
@@ -947,7 +1026,7 @@ def sync_emails_from_folder(folder_name):
                         db.session.rollback()
                         continue
                     if "MySQL server has gone away" in str(commit_error) or "ConnectionResetError" in str(commit_error):
-                        logging.warning("Database connection lost, attempting to reconnect...")
+                        logging.debug("Database connection lost, attempting to reconnect...")
                         db.session.rollback()
                         db.session.close()
                         db.session = db.create_scoped_session()
@@ -972,7 +1051,7 @@ def sync_emails_from_folder(folder_name):
                                 continue
                         db.session.commit()
                         stats['new_emails'] += 1
-                        logging.info("Database reconnection successful")
+                        logging.debug("Database reconnection successful")
                     else:
                         raise commit_error
             except Exception as e:
@@ -1000,15 +1079,27 @@ def sync_emails_from_folder(folder_name):
         mail_conn.close()
         mail_conn.logout()
         
-        print(f"\n--- E-Mail Synchronisation ---")
-        print(f"Ordner: {folder_name}")
-        print(f"Neue E-Mails: {stats['new_emails']}")
-        print(f"Übersprungene E-Mails: {stats['updated_emails']}")
-        print(f"Geänderte E-Mails: {stats['moved_emails']}")
-        print(f"Gelöschte E-Mails: {stats['deleted_emails']}")
-        if stats['errors'] > 0:
-            print(f"Fehler: {stats['errors']}")
-        print(f"--- --- ---\n")
+        # Sende Dashboard-Updates an alle Benutzer mit E-Mail-Berechtigungen (nur wenn neue E-Mails)
+        if stats['new_emails'] > 0:
+            try:
+                from app.utils.dashboard_events import emit_dashboard_update
+                from app.models.user import User
+                
+                # Hole alle Benutzer mit E-Mail-Leseberechtigung
+                users_with_email_access = db.session.query(User.id).join(
+                    EmailPermission, User.id == EmailPermission.user_id
+                ).filter(EmailPermission.can_read == True).all()
+                
+                for (user_id,) in users_with_email_access:
+                    # Berechne unread_count für diesen Benutzer
+                    unread_count = EmailMessage.query.filter_by(
+                        is_read=False
+                    ).count()
+                    
+                    # Emittiere Dashboard-Update
+                    emit_dashboard_update(user_id, 'email_update', {'count': unread_count})
+            except Exception as e:
+                logging.error(f"Fehler beim Senden der Dashboard-Updates für E-Mails: {e}")
         
         sync_details = []
         if stats['new_emails'] > 0:
@@ -1081,37 +1172,55 @@ def cleanup_old_emails():
 
 def sync_emails_from_server():
     """Sync emails from IMAP server to database with folder support."""
-    folder_success, folder_message = sync_imap_folders()
-    if not folder_success:
-        logging.warning(f"Ordner-Sync-Warnung: {folder_message}")
+    print("E-Mail-Synchronisation wird gestartet")
+    logging.info("E-Mail-Synchronisation wird gestartet")
     
-    folder_rows = db.session.query(EmailFolder.name, EmailFolder.display_name).all()
-    if not folder_rows:
-        folder_rows = [('INBOX', 'Posteingang')]
-    
-    logging.info(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
-    
-    total_synced = 0
-    folder_results = []
-    
-    for (folder_name, display_name) in folder_rows:
-        logging.info(f"Syncing folder: '{folder_name}' ({display_name})")
-        success, message = sync_emails_from_folder(folder_name)
-        if success:
-            import re
-            match = re.search(r'(\d+) E-Mails', message)
-            if match:
-                count = int(match.group(1))
-                total_synced += count
-            folder_results.append(f"{display_name}: {message}")
+    try:
+        folder_success, folder_message = sync_imap_folders()
+        if not folder_success:
+            logging.debug(f"Ordner-Sync-Warnung: {folder_message}")
+        
+        folder_rows = db.session.query(EmailFolder.name, EmailFolder.display_name).all()
+        if not folder_rows:
+            folder_rows = [('INBOX', 'Posteingang')]
+        
+        logging.debug(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
+        
+        total_synced = 0
+        folder_results = []
+        
+        for (folder_name, display_name) in folder_rows:
+            try:
+                logging.debug(f"Syncing folder: '{folder_name}' ({display_name})")
+                success, message = sync_emails_from_folder(folder_name)
+                if success:
+                    import re
+                    match = re.search(r'(\d+) E-Mails', message)
+                    if match:
+                        count = int(match.group(1))
+                        total_synced += count
+                    folder_results.append(f"{display_name}: {message}")
+                else:
+                    logging.debug(f"Failed to sync folder '{folder_name}': {message}")
+                    folder_results.append(f"{display_name}: Fehler - {message}")
+            except Exception as folder_error:
+                logging.error(f"Fehler beim Synchronisieren des Ordners '{folder_name}': {folder_error}")
+                folder_results.append(f"{display_name}: Fehler - {str(folder_error)}")
+                continue
+        
+        print("E-Mail-Synchronisation wurde beendet")
+        logging.info("E-Mail-Synchronisation wurde beendet")
+        
+        if total_synced > 0:
+            return True, f"{total_synced} E-Mails aus {len(folder_rows)} Ordnern synchronisiert"
         else:
-            logging.warning(f"Failed to sync folder '{folder_name}': {message}")
-            folder_results.append(f"{display_name}: Fehler - {message}")
-    
-    if total_synced > 0:
-        return True, f"{total_synced} E-Mails aus {len(folder_rows)} Ordnern synchronisiert"
-    else:
-        return True, "Keine E-Mails synchronisiert"
+            return True, "Keine E-Mails synchronisiert"
+    except Exception as e:
+        logging.error(f"Kritischer Fehler in sync_emails_from_server: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        print(f"E-Mail-Synchronisation Fehler: {e}")
+        return False, f"Fehler: {str(e)}"
 
 
 def check_email_permission(permission_type='read'):
@@ -1120,6 +1229,74 @@ def check_email_permission(permission_type='read'):
     if not perm:
         return False
     return perm.can_read if permission_type == 'read' else perm.can_send
+
+
+def generate_email_idempotency_key(user_id, subject, recipients, body_hash, timestamp_second):
+    """
+    Generiere einen eindeutigen Idempotenz-Key für eine E-Mail.
+    
+    Args:
+        user_id: ID des Benutzers
+        subject: Betreff der E-Mail
+        recipients: Empfänger (normalisiert)
+        body_hash: Hash des E-Mail-Bodys
+        timestamp_second: Timestamp auf Sekunde gerundet
+    
+    Returns:
+        Idempotenz-Key als Hex-String
+    """
+    key_string = f"{user_id}:{subject}:{recipients}:{body_hash}:{timestamp_second}"
+    return hashlib.sha256(key_string.encode('utf-8')).hexdigest()[:32]
+
+
+def check_duplicate_email(user_id, subject, recipients, body_hash, time_window_seconds=60):
+    """
+    Prüfe, ob eine identische E-Mail in den letzten time_window_seconds Sekunden
+    vom gleichen Benutzer versendet wurde.
+    
+    Args:
+        user_id: ID des Benutzers
+        subject: Betreff der E-Mail
+        recipients: Empfänger (normalisiert, sortiert)
+        body_hash: Hash des E-Mail-Bodys (MD5)
+        time_window_seconds: Zeitfenster in Sekunden (Standard: 60)
+    
+    Returns:
+        True wenn Duplikat gefunden wurde, False sonst
+    """
+    try:
+        # Normalisiere Empfänger: sortiere und lowerc
+        normalized_recipients = ','.join(sorted([r.strip().lower() for r in recipients.split(',') if r.strip()]))
+        
+        # Zeitfenster berechnen
+        now = datetime.utcnow()
+        time_threshold = now - timedelta(seconds=time_window_seconds)
+        
+        # Prüfe in der Datenbank nach identischen E-Mails
+        # Wir prüfen auf: gleicher User, gleicher Betreff, gleiche Empfänger, innerhalb des Zeitfensters
+        duplicate_query = EmailMessage.query.filter(
+            EmailMessage.sent_by_user_id == user_id,
+            EmailMessage.subject == subject,
+            EmailMessage.recipients == normalized_recipients,
+            EmailMessage.sent_at >= time_threshold,
+            EmailMessage.is_sent == True
+        )
+        
+        # Prüfe Body-Ähnlichkeit durch Vergleich des Body-Hash
+        for email in duplicate_query.all():
+            if email.body_html:
+                # Generiere Hash des gespeicherten Body-Inhalts
+                email_body_hash = hashlib.md5(email.body_html.encode('utf-8')).hexdigest()
+                # Vergleiche mit dem aktuellen Body-Hash
+                if email_body_hash == body_hash:
+                    return True
+        
+        return False
+        
+    except Exception as e:
+        logging.error(f"Fehler bei Idempotenz-Prüfung: {e}")
+        # Bei Fehler: erlaube Versand (Fail-Open), aber logge Warnung
+        return False
 
 
 @email_bp.route('/')
@@ -1733,6 +1910,12 @@ def compose():
         return redirect(url_for('email.index'))
     
     if request.method == 'POST':
+        # Prüfe ob AJAX-Request
+        is_ajax_request = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.headers.get('Accept', '').startswith('application/json')
+        )
+        
         to = request.form.get('to', '').strip()
         cc = request.form.get('cc', '').strip()
         subject = request.form.get('subject', '').strip()
@@ -1743,19 +1926,76 @@ def compose():
         original_attachment_ids = request.form.get('original_attachment_ids', '').strip()
         
         if not all([to, subject, body_html]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            error_msg = 'Bitte füllen Sie alle Pflichtfelder aus.'
+            if is_ajax_request:
+                return jsonify({'success': False, 'message': error_msg}), 400
+            flash(error_msg, 'danger')
             return render_template('email/compose.html')
         
-        full_body_html, full_body_plain = render_custom_email(subject, body_html)
+        # Generiere Body-Hash für Idempotenz-Prüfung
+        body_hash = hashlib.md5(body_html.encode('utf-8')).hexdigest()
+        
+        # Prüfe auf Duplikat (Idempotenz)
+        if check_duplicate_email(current_user.id, subject, to, body_hash, time_window_seconds=60):
+            error_msg = 'Diese E-Mail wurde bereits vor kurzem versendet. Bitte warten Sie einen Moment oder ändern Sie den Inhalt.'
+            logging.warning(f"Doppelversendung verhindert: User {current_user.id}, Betreff: {subject}")
+            if is_ajax_request:
+                return jsonify({'success': False, 'message': error_msg}), 409
+            flash(error_msg, 'warning')
+            return render_template('email/compose.html')
+        
+        # Logo als CID-Anhang vorbereiten
+        logo_data, logo_mime_type, logo_filename = get_logo_data()
+        # #region agent log
+        try:
+            import json
+            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"location":"email.py:1948","message":"Logo-Daten geholt","data":{"has_data":logo_data is not None,"data_size":len(logo_data) if logo_data else 0,"mime_type":logo_mime_type,"filename":logo_filename},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
+        except: pass
+        # #endregion
+        logo_cid = None
+        if logo_data and logo_mime_type:
+            logo_cid = "portal_logo"
+            # #region agent log
+            try:
+                import json
+                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({"location":"email.py:1951","message":"Logo-CID gesetzt","data":{"logo_cid":logo_cid},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
+            except: pass
+            # #endregion
+            # Logo-Bytes werden später als CID-Anhang hinzugefügt
+        else:
+            # #region agent log
+            try:
+                import json
+                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                    f.write(json.dumps({"location":"email.py:1953","message":"BEDINGUNG FEHLGESCHLAGEN - Logo wird NICHT hinzugefügt","data":{"logo_data":logo_data is not None,"logo_mime_type":logo_mime_type},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
+            except: pass
+            # #endregion
+        
+        full_body_html, full_body_plain = render_custom_email(subject, body_html, logo_cid=logo_cid)
+        
+        # #region agent log
+        # Prüfe, ob die CID-Referenz im HTML vorhanden ist
+        try:
+            import json
+            has_cid_ref = f'cid:{logo_cid}' in full_body_html if logo_cid else False
+            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"location":"email.py:1976","message":"HTML gerendert mit CID-Referenz","data":{"logo_cid":logo_cid,"has_cid_ref":has_cid_ref,"cid_ref_pattern":f'cid:{logo_cid}' if logo_cid else None},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}) + '\n')
+        except: pass
+        # #endregion
         
         try:
             from config import get_formatted_sender
             sender = get_formatted_sender()
             if not sender:
-                flash('E-Mail-Absender ist nicht konfiguriert. Bitte kontaktieren Sie den Administrator.', 'danger')
+                error_msg = 'E-Mail-Absender ist nicht konfiguriert. Bitte kontaktieren Sie den Administrator.'
+                if is_ajax_request:
+                    return jsonify({'success': False, 'message': error_msg}), 500
+                flash(error_msg, 'danger')
                 return render_template('email/compose.html')
             
-            # Create multipart message with HTML and plain text
+            # Erstelle normale Flask-Mail Message (Flask-Mail erstellt automatisch multipart)
             msg = Message(
                 subject=subject,
                 recipients=to.split(','),
@@ -1763,22 +2003,116 @@ def compose():
                 html=full_body_html,
                 sender=sender
             )
-
-            thread_headers = {}
+            
+            # Thread-Header setzen
             if in_reply_to:
-                thread_headers['In-Reply-To'] = in_reply_to
+                if not hasattr(msg, 'extra_headers') or msg.extra_headers is None:
+                    msg.extra_headers = {}
+                msg.extra_headers['In-Reply-To'] = in_reply_to
             if references:
-                thread_headers['References'] = references
-            if thread_headers:
-                existing = getattr(msg, 'extra_headers', None)
-                if existing and isinstance(existing, dict):
-                    existing.update(thread_headers)
-                    msg.extra_headers = existing
-                else:
-                    msg.extra_headers = thread_headers
+                if not hasattr(msg, 'extra_headers') or msg.extra_headers is None:
+                    msg.extra_headers = {}
+                msg.extra_headers['References'] = references
             
             if cc:
                 msg.cc = cc.split(',')
+            
+            # Füge Logo als ANHANG hinzu (wie andere Anhänge) - WICHTIG: Vor anderen Anhängen
+            if logo_data and logo_mime_type and logo_cid:
+                image_type = logo_mime_type.split('/')[1] if '/' in logo_mime_type else 'png'
+                if image_type == 'jpeg' or image_type == 'jpg':
+                    attachment_filename = 'logo.jpg'
+                elif image_type == 'png':
+                    attachment_filename = 'logo.png'
+                elif image_type == 'gif':
+                    attachment_filename = 'logo.gif'
+                else:
+                    attachment_filename = 'logo.png'
+                
+                # KRITISCH: Verwende msg.attach() - dies stellt sicher, dass das Logo in der Struktur bleibt
+                # Die Manipulation mit CID und inline erfolgt später in send_email_with_lock()
+                msg.attach(attachment_filename, logo_mime_type, logo_data)
+                
+                # #region agent log
+                try:
+                    import json
+                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location":"email.py:2000","message":"Logo über msg.attach() hinzugefügt","data":{"filename":attachment_filename,"mime_type":logo_mime_type,"size":len(logo_data)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}) + '\n')
+                except: pass
+                # #endregion
+                
+                # KRITISCH: Manipuliere die Message-Struktur direkt, um CID und inline zu setzen
+                # Flask-Mail erstellt die Struktur beim ersten Zugriff auf msg.msg
+                # Wir müssen nach msg.attach() die Struktur manipulieren
+                if hasattr(msg, 'msg') and msg.msg:
+                    # Flask-Mail erstellt möglicherweise msg.msg erst beim ersten Zugriff
+                    # Wir müssen es jetzt erzeugen, damit wir es manipulieren können
+                    try:
+                        _ = msg.msg.get_content_type()
+                    except:
+                        pass
+                
+                # Setze CID und inline disposition auf dem Logo-Attachment
+                if hasattr(msg, 'msg') and hasattr(msg.msg, 'get_payload'):
+                    # #region agent log
+                    try:
+                        import json
+                        msg_ct = msg.msg.get_content_type() if hasattr(msg.msg, 'get_content_type') else 'N/A'
+                        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                            f.write(json.dumps({"location":"email.py:2044","message":"VOR Logo-Manipulation - Message-Struktur","data":{"content_type":msg_ct,"has_msg":hasattr(msg, 'msg'),"msg_is_none":msg.msg is None if hasattr(msg, 'msg') else True},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
+                    except: pass
+                    # #endregion
+                    parts = msg.msg.get_payload()
+                    if isinstance(parts, list):
+                        # #region agent log
+                        try:
+                            import json
+                            part_info = []
+                            for i, p in enumerate(parts):
+                                if hasattr(p, 'get_content_type'):
+                                    ct = p.get_content_type()
+                                    disp = p.get('Content-Disposition', '')
+                                    cid = p.get('Content-ID', '')
+                                    part_info.append({"index":i,"content_type":ct,"disposition":disp,"content_id":cid})
+                            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                                f.write(json.dumps({"location":"email.py:2050","message":"Teile VOR Logo-Suche","data":{"total_parts":len(parts),"parts":part_info,"looking_for":{"mime_type":logo_mime_type,"filename":attachment_filename}},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}) + '\n')
+                        except: pass
+                        # #endregion
+                        logo_found = False
+                        for part in parts:
+                            if (hasattr(part, 'get_content_type') and 
+                                part.get_content_type() == logo_mime_type and
+                                hasattr(part, 'get') and 
+                                part.get('Content-Disposition', '').find(attachment_filename) != -1):
+                                logo_found = True
+                                # Setze Content-ID und inline disposition
+                                part.add_header('Content-ID', f'<{logo_cid}>')
+                                # Entferne alte Content-Disposition und setze neue
+                                old_disp = part.get('Content-Disposition', '')
+                                if old_disp:
+                                    part.replace_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
+                                else:
+                                    part.add_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
+                                
+                                # #region agent log
+                                try:
+                                    import json
+                                    new_cid = part.get('Content-ID', '')
+                                    new_disp = part.get('Content-Disposition', '')
+                                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                                        f.write(json.dumps({"location":"email.py:2065","message":"Logo-Attachment mit CID markiert","data":{"cid":new_cid,"old_disposition":old_disp,"new_disposition":new_disp,"filename":attachment_filename},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}) + '\n')
+                                except: pass
+                                # #endregion
+                                logging.info(f"Logo als inline attachment mit CID markiert: {attachment_filename}")
+                                break
+                        # #region agent log
+                        if not logo_found:
+                            try:
+                                import json
+                                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                                    f.write(json.dumps({"location":"email.py:2070","message":"LOGO NICHT GEFUNDEN in Teilen","data":{"looking_for_mime":logo_mime_type,"looking_for_filename":attachment_filename},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}) + '\n')
+                            except: pass
+                        # #endregion
             
             if 'attachments' in request.files:
                 attachments = request.files.getlist('attachments')
@@ -1829,6 +2163,90 @@ def compose():
                     except Exception as _:
                         continue
             
+            # Stelle sicher, dass Logo-Attachment nach allen anderen Anhängen mit CID markiert ist
+            # (wird auch in send_email_with_lock() nochmal geprüft, aber hier sicherstellen)
+            if logo_data and logo_mime_type and logo_cid:
+                # Warte, bis msg.msg erstellt wurde (nach allen anderen attach()-Aufrufen)
+                if hasattr(msg, 'msg') and msg.msg:
+                    try:
+                        _ = msg.msg.get_content_type()
+                    except:
+                        pass
+                    
+                    # Setze CID und inline disposition auf dem Logo-Attachment
+                    if hasattr(msg.msg, 'get_payload'):
+                        parts = msg.msg.get_payload()
+                        if isinstance(parts, list):
+                            image_type = logo_mime_type.split('/')[1] if '/' in logo_mime_type else 'png'
+                            if image_type == 'jpeg' or image_type == 'jpg':
+                                attachment_filename = 'logo.jpg'
+                            elif image_type == 'png':
+                                attachment_filename = 'logo.png'
+                            elif image_type == 'gif':
+                                attachment_filename = 'logo.gif'
+                            else:
+                                attachment_filename = 'logo.png'
+                            
+                            for part in parts:
+                                if (hasattr(part, 'get_content_type') and 
+                                    part.get_content_type() == logo_mime_type and
+                                    hasattr(part, 'get') and 
+                                    part.get('Content-Disposition', '').find(attachment_filename) != -1):
+                                    # Setze Content-ID, falls noch nicht gesetzt
+                                    if not part.get('Content-ID'):
+                                        part.add_header('Content-ID', f'<{logo_cid}>')
+                                    # Stelle sicher, dass es inline ist
+                                    disp = part.get('Content-Disposition', '')
+                                    if 'attachment' in disp and 'inline' not in disp:
+                                        try:
+                                            part.replace_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
+                                        except:
+                                            part.add_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
+                                    elif not disp:
+                                        part.add_header('Content-Disposition', f'inline; filename="{attachment_filename}"')
+                                    
+                                    # #region agent log
+                                    try:
+                                        import json
+                                        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                                            f.write(json.dumps({"location":"email.py:2075","message":"Logo-Attachment NACH allen Anhängen mit CID markiert","data":{"cid":logo_cid,"filename":attachment_filename},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}) + '\n')
+                                    except: pass
+                                    # #endregion
+                                    logging.info(f"Logo-Attachment nach allen Anhängen mit CID markiert: {attachment_filename}")
+                                    break
+            
+            # #region agent log
+            try:
+                import json
+                if hasattr(msg, 'msg') and msg.msg:
+                    msg_ct = msg.msg.get_content_type() if hasattr(msg.msg, 'get_content_type') else 'N/A'
+                    parts_count = 0
+                    logo_cid_found = None
+                    logo_disp_found = None
+                    if hasattr(msg.msg, 'get_payload'):
+                        parts = msg.msg.get_payload()
+                        if isinstance(parts, list):
+                            parts_count = len(parts)
+                            for p in parts:
+                                if hasattr(p, 'get_content_type') and p.get_content_type().startswith('image/'):
+                                    disp = p.get('Content-Disposition', '')
+                                    if 'logo' in disp.lower():
+                                        logo_cid_found = p.get('Content-ID', '')
+                                        logo_disp_found = disp
+                                        break
+                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location":"email.py:2172","message":"VOR send_email_with_lock() - Finale Message-Struktur","data":{"content_type":msg_ct,"parts_count":parts_count,"logo_cid":logo_cid_found,"logo_disposition":logo_disp_found},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
+                else:
+                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location":"email.py:2172","message":"VOR send_email_with_lock() - msg.msg existiert NICHT","data":{},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
+            except Exception as e:
+                try:
+                    import json
+                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
+                        f.write(json.dumps({"location":"email.py:2172","message":"FEHLER beim Loggen vor send_email_with_lock()","data":{"error":str(e)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
+                except: pass
+            # #endregion
+            
             send_email_with_lock(msg)
             
             # E-Mail im IMAP Sent-Ordner speichern
@@ -1847,6 +2265,7 @@ def compose():
                 body_html=full_body_html,
                 folder='Sent',
                 is_sent=True,
+                is_read=True,  # E-Mails im "Sent"-Ordner sind immer als gelesen markiert
                 sent_by_user_id=current_user.id,
                 sent_at=datetime.utcnow(),
                 has_attachments=bool(request.files.getlist('attachments')) or bool(forward_attachment_ids) or bool(original_attachment_ids)
@@ -1854,11 +2273,25 @@ def compose():
             db.session.add(email_record)
             db.session.commit()
             
-            flash('E-Mail wurde erfolgreich gesendet.', 'success')
-            return redirect(url_for('email.index'))
+            success_msg = 'E-Mail wurde erfolgreich gesendet.'
+            redirect_url = url_for('email.index')
+            
+            if is_ajax_request:
+                return jsonify({
+                    'success': True,
+                    'message': success_msg,
+                    'redirect_url': redirect_url
+                }), 200
+            
+            flash(success_msg, 'success')
+            return redirect(redirect_url)
         
         except Exception as e:
-            flash(f'Fehler beim Senden der E-Mail: {str(e)}', 'danger')
+            error_msg = f'Fehler beim Senden der E-Mail: {str(e)}'
+            logging.error(f"E-Mail-Versand Fehler: {e}", exc_info=True)
+            if is_ajax_request:
+                return jsonify({'success': False, 'message': error_msg}), 500
+            flash(error_msg, 'danger')
             return render_template('email/compose.html')
     
     return render_template('email/compose.html')
@@ -1882,7 +2315,8 @@ def preview_custom_email():
         return jsonify({'error': 'Nachricht fehlt'}), 400
     
     try:
-        rendered_html, _ = render_custom_email(subject, body_html)
+        # In der Vorschau Base64 verwenden, damit das Logo im Browser angezeigt wird
+        rendered_html, _ = render_custom_email(subject, body_html, logo_cid=None, is_preview=True)
         return jsonify({'html': rendered_html})
     except Exception as exc:
         current_app.logger.error(f"E-Mail Vorschau Fehler: {exc}")
@@ -1964,8 +2398,11 @@ def sync_emails():
                 with acquire_email_sync_lock(timeout=60) as acquired:
                     if acquired:
                         if current_folder:
+                            print(f"E-Mail-Synchronisation wird gestartet (Ordner: {folder_label or current_folder})")
                             success, message = sync_emails_from_folder(current_folder)
+                            print(f"E-Mail-Synchronisation wurde beendet (Ordner: {folder_label or current_folder})")
                         else:
+                            # sync_emails_from_server() gibt bereits die Meldungen aus
                             success, message = sync_emails_from_server()
                         
                         if success:
@@ -1973,8 +2410,10 @@ def sync_emails():
                         else:
                             emit_status('error', message, 'danger', shouldRefresh=False)
                     else:
+                        print("E-Mail-Synchronisation: Bereits in einem anderen Worker aktiv")
                         emit_status('warning', 'Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.', 'warning', shouldRefresh=False)
             except Exception as exc:
+                print(f"E-Mail-Synchronisation Fehler: {exc}")
                 app_instance.logger.error(f"E-Mail-Synchronisation Fehler: {exc}", exc_info=True)
                 emit_status('error', str(exc), 'danger', shouldRefresh=False)
     
@@ -2136,26 +2575,94 @@ def handle_email_sync_join(data):
 
 def email_sync_scheduler(app):
     """Background thread for automatic email synchronization every 15 minutes."""
+    print("E-Mail-Sync-Scheduler Thread gestartet, warte 30 Sekunden vor erster Synchronisation...")
+    # Warte 30 Sekunden nach App-Start, bevor die erste Synchronisation startet
+    time.sleep(30)
+    
     while True:
+        lock_acquired = False
         try:
             with app.app_context():
-                success, message = sync_emails_from_server()
-                if success:
-                    logging.info(f"Auto-sync: {message}")
-                else:
-                    logging.error(f"Auto-sync failed: {message}")
+                # Verwende Lock, um sicherzustellen, dass nur ein Worker synchronisiert
+                from app.utils.lock_manager import acquire_email_sync_lock
+                with acquire_email_sync_lock(timeout=10) as acquired:  # Reduziertes Timeout, damit nicht so lange gewartet wird
+                    lock_acquired = acquired
+                    if acquired:
+                        # sync_emails_from_server() gibt bereits die Start/End-Meldungen aus
+                        try:
+                            success, message = sync_emails_from_server()
+                            if success:
+                                logging.debug(f"Auto-sync: {message}")
+                            else:
+                                logging.error(f"Auto-sync failed: {message}")
+                        except Exception as sync_error:
+                            logging.error(f"Fehler während der Synchronisation: {sync_error}")
+                            import traceback
+                            logging.error(f"Traceback: {traceback.format_exc()}")
+                            print(f"E-Mail-Synchronisation Fehler: {sync_error}")
+                    else:
+                        logging.debug("E-Mail-Synchronisation wird bereits von anderem Worker durchgeführt, überspringe...")
         except Exception as e:
             logging.error(f"Auto-sync error: {e}")
+            import traceback
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            print(f"E-Mail-Sync-Scheduler Fehler: {e}")
+        finally:
+            # Stelle sicher, dass wir nach der Synchronisation immer warten
+            if lock_acquired:
+                print("E-Mail-Synchronisation abgeschlossen, warte 15 Minuten bis zur nächsten...")
         
+        # Nach jeder Synchronisation 15 Minuten warten
         time.sleep(900)
 
 
 sync_thread = None
+_sync_started = False
+_sync_lock = threading.Lock()
 
 def start_email_sync(app):
     """Start the background email synchronization thread."""
-    global sync_thread
-    if sync_thread is None or not sync_thread.is_alive():
-        sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True)
+    global sync_thread, _sync_started
+    
+    # Prüfe zuerst, ob bereits ein Thread mit diesem Namen läuft (auch nach Reload)
+    existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
+    if existing_threads:
+        print(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
+        logging.debug(f"E-Mail-Sync-Thread läuft bereits (gefunden {len(existing_threads)} Thread(s)), überspringe Neustart")
+        return
+    
+    # Prüfe auch, ob bereits eine Lock-Datei existiert (zusätzliche Sicherheit)
+    try:
+        from pathlib import Path
+        instance_path = app.instance_path
+        lock_file_path = Path(instance_path) / 'locks' / 'email_sync.lock'
+        if lock_file_path.exists():
+            # Prüfe, ob Lock-Datei noch aktiv ist (jünger als 5 Minuten)
+            file_age = time.time() - lock_file_path.stat().st_mtime
+            if file_age < 300:  # 5 Minuten
+                print("E-Mail-Sync-Lock-Datei existiert bereits, überspringe Neustart")
+                logging.debug("E-Mail-Sync-Lock-Datei existiert bereits, überspringe Neustart")
+                return
+    except Exception as e:
+        logging.debug(f"Konnte Lock-Datei nicht prüfen: {e}")
+    
+    # Verwende Lock, um Thread-Erstellung zu synchronisieren
+    with _sync_lock:
+        # Doppelte Prüfung innerhalb des Locks
+        existing_threads = [t for t in threading.enumerate() if t.name == "email-sync-scheduler" and t.is_alive()]
+        if existing_threads:
+            print(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
+            logging.debug(f"E-Mail-Sync-Thread läuft bereits (zweite Prüfung, {len(existing_threads)} Thread(s)), überspringe Neustart")
+            return
+        
+        # Prüfe auch das Flag (für den Fall, dass Thread noch nicht vollständig gestartet ist)
+        if _sync_started:
+            print("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
+            logging.debug("E-Mail-Sync-Thread wird bereits gestartet, überspringe Neustart")
+            return
+        
+        _sync_started = True
+        sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True, name="email-sync-scheduler")
         sync_thread.start()
-        logging.info("E-Mail Auto-Sync gestartet (alle 15 Minuten)")
+        print("E-Mail Auto-Sync Thread gestartet")
+        logging.debug("E-Mail Auto-Sync gestartet (alle 15 Minuten)")

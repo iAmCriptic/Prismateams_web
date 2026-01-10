@@ -13,14 +13,14 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_recycle': 280,
-        'pool_pre_ping': True,
-        'pool_timeout': 20,
-        'pool_size': 10,
-        'max_overflow': 20,
+        'pool_pre_ping': True,  # Prüft Verbindungen vor Verwendung, verhindert "Connection lost" Fehler
+        'pool_timeout': 10,  # Reduziert von 20 auf 10 Sekunden für schnellere Fehlerbehandlung
+        'pool_size': 15,  # Erhöht von 10 auf 15 für bessere Parallelität (Musiktool + Dashboard + E-Mail-Sync)
+        'max_overflow': 25,  # Erhöht von 20 auf 25 für mehr gleichzeitige Verbindungen
         'connect_args': {
-            'connect_timeout': 10,
-            'read_timeout': 300,
-            'write_timeout': 300,
+            'connect_timeout': 5,  # Reduziert von 10 auf 5 Sekunden für schnellere Timeouts
+            'read_timeout': 30,  # Reduziert von 300 auf 30 Sekunden (ausreichend für normale Abfragen)
+            'write_timeout': 30,  # Reduziert von 300 auf 30 Sekunden
         }
     }
     
@@ -69,6 +69,10 @@ class Config:
     EXCALIDRAW_URL = os.environ.get('EXCALIDRAW_URL', '/excalidraw')
     EXCALIDRAW_ROOM_URL = os.environ.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
     EXCALIDRAW_PUBLIC_URL = os.environ.get('EXCALIDRAW_PUBLIC_URL', '')
+
+    # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
 
 
 class DevelopmentConfig(Config):

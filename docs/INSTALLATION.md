@@ -346,7 +346,43 @@ sudo chmod -R 755 /var/www/teamportal
 sudo chmod -R 775 /var/www/teamportal/uploads
 ```
 
-### Schritt 9: Supervisor konfigurieren
+### Schritt 9: Redis installieren (für Multi-Worker-Setups)
+
+**⚠️ WICHTIG:** Redis ist **erforderlich**, wenn Sie mehrere Gunicorn-Worker verwenden möchten (z.B. `-w 4`). Ohne Redis funktionieren SocketIO-Events (Echtzeit-Updates im Musikmodul, Chat) nur mit einem Worker.
+
+**Redis Installation:**
+
+```bash
+# Redis installieren
+sudo apt-get update
+sudo apt-get install -y redis-server
+
+# Redis starten und aktivieren
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+
+# Redis-Status prüfen
+sudo systemctl status redis-server
+```
+
+**Redis in .env konfigurieren:**
+
+```bash
+cd /var/www/teamportal
+sudo nano .env
+```
+
+Fügen Sie folgende Zeilen hinzu oder aktualisieren Sie sie:
+
+```env
+# Redis für SocketIO Message Queue (erforderlich für Multi-Worker)
+REDIS_ENABLED=True
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Hinweis:** Wenn Sie nur einen Worker verwenden (`-w 1`), können Sie Redis deaktiviert lassen (`REDIS_ENABLED=False`). Für Production mit mehreren Workern ist Redis jedoch dringend empfohlen.
+
+### Schritt 10: Supervisor konfigurieren
 
 ```bash
 sudo nano /etc/supervisor/conf.d/teamportal.conf
@@ -390,6 +426,8 @@ sudo tail -f /var/log/teamportal/out.log
 
 **Nach dem ersten erfolgreichen Start** (wenn die Datenbank erstellt wurde) können Sie auf mehrere Worker umstellen:
 
+**WICHTIG:** Wenn Sie mehrere Worker verwenden möchten, stellen Sie sicher, dass Redis installiert und konfiguriert ist (siehe Schritt 9)!
+
 ```bash
 sudo nano /etc/supervisor/conf.d/teamportal.conf
 ```
@@ -417,7 +455,11 @@ sudo supervisorctl update
 sudo supervisorctl restart teamportal
 ```
 
-### Schritt 10: Nginx konfigurieren
+**Hinweis zu Multi-Worker-Setups:**
+- **Mit Redis:** SocketIO funktioniert korrekt mit mehreren Workern. Echtzeit-Updates (Musikmodul, Chat) funktionieren für alle Benutzer.
+- **Ohne Redis:** SocketIO funktioniert nur mit einem Worker (`-w 1`). Für Development ausreichend, für Production mit mehreren Workern ist Redis erforderlich.
+
+### Schritt 11: Nginx konfigurieren
 
 ```bash
 sudo nano /etc/nginx/sites-available/teamportal
@@ -601,7 +643,7 @@ sudo systemctl restart nginx
 sudo systemctl enable nginx
 ```
 
-### Schritt 11: SSL mit Let's Encrypt
+### Schritt 12: SSL mit Let's Encrypt
 
 ```bash
 # SSL-Zertifikat erstellen
@@ -613,7 +655,7 @@ sudo certbot renew --dry-run
 
 **Hinweis:** Diese Phase ist optional, aber dringend empfohlen für Produktionsumgebungen.
 
-### Schritt 12: Firewall konfigurieren
+### Schritt 13: Firewall konfigurieren
 
 ```bash
 # Firewall-Regeln setzen
@@ -623,7 +665,7 @@ sudo ufw enable
 sudo ufw status
 ```
 
-### Schritt 13: Datenbank-Migrationen ausführen (falls erforderlich)
+### Schritt 14: Datenbank-Migrationen ausführen (falls erforderlich)
 
 **Wichtig:** Die Datenbank und alle Tabellen werden **automatisch** beim ersten Start der Anwendung (Schritt 9) angelegt. Sie müssen **KEINE** Tabellen manuell erstellen!
 
@@ -637,7 +679,7 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_
 
 **Hinweis:** Prüfen Sie die verfügbaren Migrationsdateien im `migrations/` Verzeichnis und führen Sie die entsprechende Migration für Ihre Zielversion aus (z.B. `migrate_to_2.2.0.py`).
 
-### Schritt 14: Ersten Admin erstellen
+### Schritt 15: Ersten Admin erstellen
 
 **Wichtig:** Der erste Admin wird **per Browser** eingerichtet, nicht über die Shell!
 
@@ -649,7 +691,7 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_
 
 **Hinweis:** Falls der Setup-Assistent nicht automatisch erscheint, können Sie direkt zur Registrierungsseite navigieren und sich dort registrieren. Der erste registrierte Benutzer wird automatisch als Admin eingerichtet.
 
-### Schritt 15: Datenbank-Initialisierung prüfen
+### Schritt 16: Datenbank-Initialisierung prüfen
 
 **Wichtig:** Die Datenbank wurde beim ersten Start in Schritt 9 automatisch erstellt. Prüfen Sie die Logs, um sicherzustellen, dass alles erfolgreich war:
 
@@ -670,7 +712,7 @@ sudo -u www-data bash -c "source venv/bin/activate && python app.py"
 
 **Warten Sie etwa 1 Minute**, damit die Datenbank vollständig initialisiert wird, dann stoppen Sie die Anwendung mit `Ctrl+C`. Die Datenbank ist jetzt vollständig eingerichtet.
 
-### Schritt 16: Verifizierung und Tests
+### Schritt 17: Verifizierung und Tests
 
 #### 16.1 Container-Status prüfen (falls Docker-Services installiert)
 
@@ -715,6 +757,9 @@ sudo tail -f /var/log/teamportal/err.log
 # Nginx Logs
 sudo tail -f /var/log/nginx/access.log
 sudo tail -f /var/log/nginx/error.log
+
+# Redis Logs
+sudo journalctl -u redis-server -f
 
 # OnlyOffice Logs (falls installiert)
 sudo docker logs -f onlyoffice-documentserver
@@ -929,6 +974,30 @@ sudo docker restart excalidraw-room
 - Starten Sie die Anwendung neu: `sudo supervisorctl restart teamportal`
 - Führen Sie die entsprechende Migrationsdatei aus (z.B. `migrate_to_2.2.0.py`): `sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.2.0.py"`
 
+### Redis-Probleme
+```bash
+# Prüfe ob Redis läuft
+sudo systemctl status redis-server
+
+# Redis neu starten
+sudo systemctl restart redis-server
+
+# Redis-Verbindung testen
+redis-cli ping
+# Sollte "PONG" zurückgeben
+
+# Prüfe Redis-Konfiguration in .env
+sudo cat /var/www/teamportal/.env | grep REDIS
+
+# Redis-Logs prüfen
+sudo journalctl -u redis-server -n 50
+```
+
+**Häufige Probleme:**
+- **SocketIO funktioniert nicht mit mehreren Workern:** Stellen Sie sicher, dass Redis installiert ist und `REDIS_ENABLED=True` in `.env` gesetzt ist
+- **Redis startet nicht:** Prüfen Sie die Logs mit `sudo journalctl -u redis-server -n 50`
+- **Verbindungsfehler:** Stellen Sie sicher, dass `REDIS_URL=redis://localhost:6379/0` in `.env` korrekt ist
+
 ### Optionalen Service deaktivieren
 
 #### OnlyOffice deaktivieren
@@ -1048,12 +1117,13 @@ sudo docker stats excalidraw excalidraw-room
 3. ✅ Anwendung von GitHub installieren
 4. ✅ Konfiguration (.env-Datei)
 5. ✅ Berechtigungen setzen
-6. ✅ Supervisor konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
-7. ✅ Nginx konfigurieren
-8. ✅ SSL mit Let's Encrypt (empfohlen)
-9. ✅ Firewall konfigurieren
-10. ✅ Datenbank-Initialisierung prüfen
-11. ✅ Ersten Admin erstellen
+6. ✅ Redis installieren (erforderlich für Multi-Worker-Setups)
+7. ✅ Supervisor konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
+8. ✅ Nginx konfigurieren
+9. ✅ SSL mit Let's Encrypt (empfohlen)
+10. ✅ Firewall konfigurieren
+11. ✅ Datenbank-Initialisierung prüfen
+12. ✅ Ersten Admin erstellen
 
 ### Optionale Schritte (nur bei Bedarf)
 - **Docker installieren:** Nur erforderlich für OnlyOffice oder Excalidraw
@@ -1083,6 +1153,12 @@ sudo docker stats excalidraw excalidraw-room
    - Beim ersten Start mit Supervisor wird alles automatisch initialisiert
    - Verwenden Sie `-w 1` (1 Worker) für den ersten Start
    - Nach erfolgreichem Start können Sie auf mehrere Worker umstellen
+
+5. **Redis-Konfiguration:**
+   - Redis wird automatisch installiert und konfiguriert
+   - Erforderlich für Multi-Worker-Setups mit SocketIO (Echtzeit-Updates)
+   - Ohne Redis funktionieren SocketIO-Events nur mit einem Worker
+   - Redis wird automatisch in `.env` konfiguriert (`REDIS_ENABLED=True`, `REDIS_URL=redis://localhost:6379/0`)
 
 ## Support
 

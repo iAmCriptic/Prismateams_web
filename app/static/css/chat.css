@@ -216,6 +216,44 @@
         border-color: #4a5568 !important;
     }
     
+    /* DARK MODE - MOBILE MESSAGE BUBBLES */
+    [data-bs-theme="dark"] body .message-content {
+        background-color: #2d3748 !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #4a5568 !important;
+    }
+    
+    [data-bs-theme="dark"] body .chat-message.other .message-content {
+        background-color: #2d3748 !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #4a5568 !important;
+    }
+    
+    [data-bs-theme="dark"] body .messages-area .message-content {
+        background-color: #2d3748 !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #4a5568 !important;
+    }
+    
+    /* OLED Mode - noch dunkler für mobile */
+    [data-oled-mode="true"] body .message-content {
+        background-color: #1a1a1a !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #404040 !important;
+    }
+    
+    [data-oled-mode="true"] body .chat-message.other .message-content {
+        background-color: #1a1a1a !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #404040 !important;
+    }
+    
+    [data-oled-mode="true"] body .messages-area .message-content {
+        background-color: #1a1a1a !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #404040 !important;
+    }
+    
     /* MESSAGE TIME */
     body .message-time {
         font-size: 0.7rem !important;
@@ -242,6 +280,10 @@
     
     /* DARK MODE ADJUSTMENTS */
     [data-bs-theme="dark"] .chat-message.other .message-header {
+        color: #adb5bd !important;
+    }
+    
+    [data-bs-theme="dark"] body .message-time {
         color: #adb5bd !important;
     }
     
@@ -272,6 +314,15 @@
         opacity: 1 !important;
         visibility: visible !important;
         display: block !important;
+    }
+    
+    /* DARK MODE TEXT COLOR OVERRIDE */
+    [data-bs-theme="dark"] body .messages-area .message-content {
+        color: #e2e8f0 !important;
+    }
+    
+    [data-bs-theme="dark"] body .messages-area .chat-message.other .message-content {
+        color: #e2e8f0 !important;
     }
     
     .chat-message.own .message-content {
@@ -510,6 +561,20 @@
     .messages-area .chat-message.other .message-content {
         background-color: white !important;
         border: 1px solid #e9ecef !important;
+    }
+    
+    /* DARK MODE - Override white backgrounds in messages area */
+    [data-bs-theme="dark"] .messages-area .chat-message.other .message-content {
+        background-color: #2d3748 !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #4a5568 !important;
+    }
+    
+    /* OLED Mode - darker backgrounds in messages area */
+    [data-oled-mode="true"] .messages-area .chat-message.other .message-content {
+        background-color: #1a1a1a !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #404040 !important;
     }
     
     [data-bs-theme="dark"] .messages-area {
@@ -1491,6 +1556,18 @@
 
 [data-bs-theme="dark"] .member-card-arrow {
     color: #adb5bd;
+}
+
+/* Mobile Modal z-index adjustments */
+@media (max-width: 767.98px) {
+    /* Ensure member profile modal appears above all members modal when both are open */
+    #memberModal.modal.show {
+        z-index: 1060 !important;
+    }
+    
+    #allMembersModal.modal.show {
+        z-index: 1055 !important;
+    }
 }
 
 /* Mobile responsive adjustments */

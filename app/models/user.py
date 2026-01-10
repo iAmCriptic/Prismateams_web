@@ -34,6 +34,7 @@ class User(UserMixin, db.Model):
     dark_mode = db.Column(db.Boolean, default=False)
     oled_mode = db.Column(db.Boolean, default=False)  # OLED Dark Mode mit echtem Schwarz
     language = db.Column(db.String(10), default='de', nullable=False)
+    preferred_layout = db.Column(db.String(20), default='auto', nullable=False)  # 'auto', 'mobile', 'desktop'
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -124,7 +125,7 @@ class User(UserMixin, db.Model):
         # Standard-Konfiguration - nur die wichtigsten Widgets aktiv
         return {
             "enabled_widgets": ["termine", "nachrichten", "emails"],
-            "quick_access_links": ["files", "credentials", "manuals", "canvas"]
+            "quick_access_links": ["files", "credentials", "manuals"]
         }
     
     def set_dashboard_config(self, config):

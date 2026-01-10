@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ current_language or 'de' }}" data-bs-theme="{{ 'dark' if current_user.is_authenticated and current_user.dark_mode else 'light' }}" {% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}data-oled-mode="true"{% endif %}>
+<html lang="{{ current_language or 'de' }}" data-bs-theme="{{ 'dark' if current_user.is_authenticated and current_user.dark_mode else 'light' }}" {% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}data-oled-mode="true"{% endif %} {% if current_user.is_authenticated %}data-preferred-layout="{{ current_user.preferred_layout or 'auto' }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,7 @@
     <!-- PWA Meta Tags -->
     <meta name="description" content="{{ _('layout.meta.description') }}">
     <meta name="theme-color" content="#0d6efd">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ app_name or 'Prismateams' }}">
@@ -15,11 +16,19 @@
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     
     <!-- Favicon -->
+    {% if portal_logo_filename %}
+    <link rel="icon" type="image/png" href="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}">
+    <link rel="apple-touch-icon" href="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}">
+    {% elif app_logo %}
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename=app_logo) }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename=app_logo) }}">
+    {% else %}
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo.png') }}">
+    {% endif %}
     
     <!-- Web App Manifest -->
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="manifest" href="{{ url_for('manifest') }}">
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -40,8 +49,6 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
         {% elif 'email' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
-        {% elif 'canvas' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/canvas.css') }}">
         {% elif 'auth' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
         {% elif 'errors' in request.endpoint %}
@@ -216,43 +223,35 @@
 <body>
     {% if current_user.is_authenticated %}
     <!-- Mobile Bottom Navigation -->
-    <nav class="navbar navbar-light bg-light fixed-bottom d-md-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}">
+    <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
         <div class="container-fluid">
-            <div class="row w-100 text-center">
-                <div class="col">
+            <div class="row w-100 text-center" id="mobileNavRow">
+                <div class="col mobile-nav-item">
                     <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">
                         <i class="bi bi-house-door fs-4"></i>
                         <div class="small">{{ _('layout.nav.dashboard') }}</div>
                     </a>
                 </div>
                 {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
-                <div class="col">
+                <div class="col mobile-nav-item">
                     <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-chat-dots fs-4"></i>
                         <div class="small">{{ _('layout.nav.chats') }}</div>
                     </a>
                 </div>
                 {% endif %}
-                {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
-                <div class="col">
-                    <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-folder fs-4"></i>
-                        <div class="small">{{ _('layout.nav.files') }}</div>
-                    </a>
-                </div>
-                {% endif %}
                 {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
-                <div class="col">
+                <div class="col mobile-nav-item">
                     <a href="{{ url_for('calendar.index') }}" class="nav-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-calendar-event fs-4"></i>
                         <div class="small">{{ _('layout.nav.calendar') }}</div>
                     </a>
                 </div>
                 {% endif %}
-                <div class="col">
+                <div class="col mobile-nav-item">
                     <a href="javascript:void(0)" role="button" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#moreMenu">
-                        <i class="bi bi-three-dots fs-4"></i>
-                        <div class="small">{{ _('layout.nav.more') }}</div>
+                        <i class="bi bi-grid-3x3-gap fs-4"></i>
+                        <div class="small">{{ _('layout.nav.module') }}</div>
                     </a>
                 </div>
             </div>
@@ -260,25 +259,28 @@
     </nav>
 
     <!-- Desktop Sidebar -->
-    <div class="d-none d-md-flex flex-column flex-shrink-0 p-3 bg-light sidebar">
-        <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
-            {% if portal_logo_filename %}
-            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
-            {% elif app_logo %}
-            <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
-            {% endif %}
-            <span class="fs-4">{{ app_name or 'Prismateams' }}</span>
-        </a>
-        <hr>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
+    <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 bg-light sidebar" id="desktopSidebar">
+        <div class="sidebar-header flex-shrink-0">
+            <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
+                {% endif %}
+                <span class="fs-4">{{ app_name or 'Prismateams' }}</span>
+            </a>
+            <hr>
+        </div>
+        <div class="sidebar-nav flex-grow-1 overflow-y-auto" id="sidebarNavList">
+            <ul class="nav nav-pills flex-column mb-auto" id="sidebarNavItems">
+            <li class="nav-item sidebar-nav-item" data-nav-id="dashboard" data-nav-priority="always-visible">
                 <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">
                     <i class="bi bi-house-door me-2"></i>
                     {{ _('layout.nav.dashboard') }}
                 </a>
             </li>
             {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="chats" data-nav-priority="1">
                 <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-chat-dots me-2"></i>
                     {{ _('layout.nav.chats') }}
@@ -286,7 +288,7 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="files" data-nav-priority="2">
                 <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-folder me-2"></i>
                     {{ _('layout.nav.files') }}
@@ -294,7 +296,7 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="calendar" data-nav-priority="3">
                 <a href="{{ url_for('calendar.index') }}" class="nav-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-calendar-event me-2"></i>
                     {{ _('layout.nav.calendar') }}
@@ -302,7 +304,7 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="email" data-nav-priority="4">
                 <a href="{{ url_for('email.index') }}" class="nav-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-envelope me-2"></i>
                     {{ _('layout.nav.email') }}
@@ -310,7 +312,7 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_credentials') and (not current_user.is_authenticated or has_module_access(current_user, 'module_credentials')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="credentials" data-nav-priority="5">
                 <a href="{{ url_for('credentials.index') }}" class="nav-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-key me-2"></i>
                     {{ _('layout.nav.credentials') }}
@@ -318,23 +320,15 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_manuals') and (not current_user.is_authenticated or has_module_access(current_user, 'module_manuals')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="manuals" data-nav-priority="6">
                 <a href="{{ url_for('manuals.index') }}" class="nav-link {% if request.endpoint and 'manuals' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-book me-2"></i>
                     {{ _('layout.nav.manuals') }}
                 </a>
             </li>
             {% endif %}
-            {% if is_module_enabled('module_canvas') and (not current_user.is_authenticated or has_module_access(current_user, 'module_canvas')) %}
-            <li>
-                <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
-                    <i class="bi bi-palette me-2"></i>
-                    {{ _('layout.nav.canvas') }}
-                </a>
-            </li>
-            {% endif %}
             {% if is_module_enabled('module_inventory') and (not current_user.is_authenticated or has_module_access(current_user, 'module_inventory')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="inventory" data-nav-priority="8">
                 <a href="{{ url_for('inventory.dashboard') }}" class="nav-link {% if request.endpoint and 'inventory' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-box-seam me-2"></i>
                     {{ _('layout.nav.inventory') }}
@@ -342,7 +336,7 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_wiki') and (not current_user.is_authenticated or has_module_access(current_user, 'module_wiki')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="wiki" data-nav-priority="9">
                 <a href="{{ url_for('wiki.index') }}" class="nav-link {% if request.endpoint and 'wiki' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-journal-text me-2"></i>
                     {{ _('layout.nav.wiki') }}
@@ -350,7 +344,7 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="booking" data-nav-priority="10">
                 <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
                     <i class="bi bi-calendar-check me-2"></i>
                     Buchungen
@@ -358,34 +352,56 @@
             </li>
             {% endif %}
             {% if is_module_enabled('module_music') and (not current_user.is_authenticated or has_module_access(current_user, 'module_music')) %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="music" data-nav-priority="11">
                 <a href="{{ url_for('music.index') }}" class="nav-link {% if request.endpoint and 'music' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
                     <i class="bi bi-music-note-beamed me-2"></i>
                     {{ _('layout.nav.music') }}
                 </a>
             </li>
             {% endif %}
-            <li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="settings" data-nav-priority="12">
                 <a href="{{ url_for('settings.index') }}" class="nav-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-gear me-2"></i>
                     {{ _('layout.nav.settings') }}
                 </a>
             </li>
-        </ul>
-        <hr>
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-                {% if current_user.profile_picture %}
-                <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" width="32" height="32" class="rounded-circle me-2">
-                {% else %}
-                <i class="bi bi-person-circle fs-4 me-2"></i>
-                {% endif %}
-                <strong>{{ current_user.full_name }}</strong>
-            </a>
-            <ul class="dropdown-menu text-small shadow">
-                <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('layout.nav.logout') }}</a></li>
+            <li class="nav-item sidebar-nav-item d-none" id="sidebarMoreButton" data-nav-id="more" data-nav-priority="always-visible">
+                <a href="javascript:void(0)" role="button" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#desktopMoreMenu">
+                    <i class="bi bi-three-dots me-2"></i>
+                    {{ _('layout.nav.more') }}
+                </a>
+            </li>
+            </ul>
+        </div>
+        <div class="sidebar-footer flex-shrink-0">
+            <hr>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                    {% if current_user.profile_picture %}
+                    <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" width="32" height="32" class="rounded-circle me-2">
+                    {% else %}
+                    <i class="bi bi-person-circle fs-4 me-2"></i>
+                    {% endif %}
+                    <strong>{{ current_user.full_name }}</strong>
+                </a>
+                <ul class="dropdown-menu text-small shadow">
+                    <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('layout.nav.logout') }}</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- More Menu Offcanvas (Desktop) -->
+    <div class="offcanvas offcanvas-end offcanvas-accent d-none d-lg-block" tabindex="-1" id="desktopMoreMenu" style="width: 300px; left: 280px; right: auto;">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">{{ _('layout.nav.more') }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="nav nav-pills flex-column" id="desktopMoreMenuItems">
+                <!-- Wird dynamisch mit JavaScript gefüllt -->
             </ul>
         </div>
     </div>
@@ -398,6 +414,14 @@
         </div>
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column">
+                {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-folder me-2"></i>
+                        {{ _('layout.nav.files') }}
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_email') %}
                 <li class="nav-item">
                     <a href="{{ url_for('email.index') }}" class="nav-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
@@ -419,14 +443,6 @@
                     <a href="{{ url_for('manuals.index') }}" class="nav-link {% if request.endpoint and 'manuals' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-book me-2"></i>
                         {{ _('layout.nav.manuals') }}
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_canvas') %}
-                <li>
-                    <a href="{{ url_for('canvas.index') }}" class="nav-link {% if request.endpoint and 'canvas' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-palette me-2"></i>
-                        {{ _('layout.nav.canvas') }}
                     </a>
                 </li>
                 {% endif %}
@@ -491,7 +507,7 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'canvas.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
