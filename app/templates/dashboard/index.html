@@ -452,6 +452,7 @@
     </div>
 </div>
 
+{% if not current_user.is_guest %}
 <div class="row mt-4">
     <div class="col-12 text-center">
         <a href="{{ url_for('dashboard.edit') }}" class="btn btn-outline-secondary">
@@ -460,6 +461,7 @@
         </a>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

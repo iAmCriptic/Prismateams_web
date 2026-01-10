@@ -1225,6 +1225,10 @@ def sync_emails_from_server():
 
 def check_email_permission(permission_type='read'):
     """Check if current user has email permissions."""
+    # Gast-Accounts haben keinen Zugriff auf E-Mail-Modul
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return False
+    
     perm = EmailPermission.query.filter_by(user_id=current_user.id).first()
     if not perm:
         return False

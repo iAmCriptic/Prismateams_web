@@ -17,8 +17,12 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/users', methods=['GET'])
 @login_required
 def get_users():
-    """Get all active users."""
-    users = User.query.filter_by(is_active=True).all()
+    """Get all active users, excluding guest accounts."""
+    users = User.query.filter(
+        User.is_active == True,
+        ~User.is_guest,
+        User.email != 'anonymous@system.local'
+    ).all()
     return jsonify([{
         'id': user.id,
         'email': user.email,
@@ -75,8 +79,11 @@ def get_chats():
         # Get display name (for private chats, show only other person's name)
         display_name = chat.name
         if chat.is_direct_message and not chat.is_main_chat:
-            # Get the other member (not the current user)
-            members = ChatMember.query.filter_by(chat_id=chat.id).all()
+            # Get the other member (not the current user), excluding guest accounts
+            members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
+                ~User.is_guest,
+                User.email != 'anonymous@system.local'
+            ).all()
             for member in members:
                 if member.user_id != current_user.id:
                     display_name = member.user.full_name
@@ -175,9 +182,17 @@ def get_chat_members(chat_id):
         return jsonify({'error': 'Nicht autorisiert'}), 403
     
     # Get all chat members - use ChatMember as base to ensure all members are included
+    # Filter out guest accounts (system accounts that should not be visible)
     chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
-    members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
+    if member_ids:
+        members = User.query.filter(
+            User.id.in_(member_ids),
+            ~User.is_guest,
+            User.email != 'anonymous@system.local'
+        ).all()
+    else:
+        members = []
     
     chat = Chat.query.get_or_404(chat_id)
     

@@ -36,38 +36,70 @@ def index():
 @check_module_access('module_files')
 def browse_folder(folder_id):
     """Browse a specific folder."""
-    current_folder = None
-    if folder_id:
-        current_folder = Folder.query.get_or_404(folder_id)
-    
-    # Get subfolders
-    if folder_id:
-        subfolders = Folder.query.filter_by(parent_id=folder_id).order_by(Folder.name).all()
-    else:
-        # Wenn kein Ordner, zeige Ordner ohne Parent (parent_id IS NULL)
-        subfolders = Folder.query.filter(Folder.parent_id.is_(None)).order_by(Folder.name).all()
-    
-    # Get files in current folder
-    if folder_id:
-        files = File.query.filter_by(
-            folder_id=folder_id,
-            is_current=True
-        ).order_by(File.name).all()
-    else:
-        # Wenn kein Ordner, zeige Dateien ohne Ordner (folder_id IS NULL)
-        # Verwende explizit filter() mit is_(None) für korrekte NULL-Prüfung
-        files = File.query.filter(
-            File.folder_id.is_(None),
-            File.is_current == True
-        ).order_by(File.name).all()
+    # Gast-Accounts: Nur Freigabelinks anzeigen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import get_guest_accessible_items
+        accessible_files, accessible_folders = get_guest_accessible_items(current_user)
         
-        # Stelle sicher, dass files eine Liste ist (nicht None)
+        # Filtere nach aktuell angezeigtem Ordner
+        current_folder = None
+        if folder_id:
+            # Prüfe ob Gast Zugriff auf diesen Ordner hat
+            folder_with_access = next((f for f in accessible_folders if f.id == folder_id), None)
+            if not folder_with_access:
+                flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
+                return redirect(url_for('files.index'))
+            current_folder = folder_with_access
+        
+        # Zeige nur zugängliche Unterordner des aktuellen Ordners
+        if folder_id:
+            subfolders = [f for f in accessible_folders if f.parent_id == folder_id]
+        else:
+            subfolders = [f for f in accessible_folders if f.parent_id is None]
+        
+        # Zeige nur zugängliche Dateien im aktuellen Ordner
+        if folder_id:
+            files = [f for f in accessible_files if f.folder_id == folder_id]
+        else:
+            files = [f for f in accessible_files if f.folder_id is None]
+        
+        # Sortiere
+        subfolders = sorted(subfolders, key=lambda x: x.name)
+        files = sorted(files, key=lambda x: x.name)
+    else:
+        # Normale Benutzer: Alle Dateien/Ordner
+        current_folder = None
+        if folder_id:
+            current_folder = Folder.query.get_or_404(folder_id)
+        
+        # Get subfolders
+        if folder_id:
+            subfolders = Folder.query.filter_by(parent_id=folder_id).order_by(Folder.name).all()
+        else:
+            # Wenn kein Ordner, zeige Ordner ohne Parent (parent_id IS NULL)
+            subfolders = Folder.query.filter(Folder.parent_id.is_(None)).order_by(Folder.name).all()
+        
+        # Get files in current folder
+        if folder_id:
+            files = File.query.filter_by(
+                folder_id=folder_id,
+                is_current=True
+            ).order_by(File.name).all()
+        else:
+            # Wenn kein Ordner, zeige Dateien ohne Ordner (folder_id IS NULL)
+            # Verwende explizit filter() mit is_(None) für korrekte NULL-Prüfung
+            files = File.query.filter(
+                File.folder_id.is_(None),
+                File.is_current == True
+            ).order_by(File.name).all()
+            
+            # Stelle sicher, dass files eine Liste ist (nicht None)
+            if files is None:
+                files = []
+        
+        # Stelle sicher, dass files immer eine Liste ist
         if files is None:
             files = []
-    
-    # Stelle sicher, dass files immer eine Liste ist
-    if files is None:
-        files = []
     
     # Build breadcrumbs starting from root to current folder
     breadcrumb_folders = []
@@ -114,6 +146,11 @@ def browse_folder(folder_id):
 @check_module_access('module_files')
 def create_folder():
     """Create a new folder."""
+    # Gast-Accounts können keine Ordner erstellen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Ordner erstellen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     folder_name = request.form.get('folder_name', '').strip()
     parent_id = request.form.get('parent_id')
     
@@ -143,6 +180,11 @@ def create_folder():
 @check_module_access('module_files')
 def rename_file(file_id):
     """Benennt eine Datei um."""
+    # Gast-Accounts können keine Dateien umbenennen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Dateien umbenennen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     file = File.query.get_or_404(file_id)
     new_name = request.form.get('new_name', '').strip()
     
@@ -169,6 +211,11 @@ def rename_file(file_id):
 @check_module_access('module_files')
 def rename_folder(folder_id):
     """Benennt einen Ordner um."""
+    # Gast-Accounts können keine Ordner umbenennen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Ordner umbenennen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     folder = Folder.query.get_or_404(folder_id)
     new_name = request.form.get('new_name', '').strip()
     
@@ -193,6 +240,11 @@ def rename_folder(folder_id):
 @check_module_access('module_files')
 def create_file():
     """Create a new text or markdown file."""
+    # Gast-Accounts können keine Dateien erstellen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Dateien erstellen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     filename = request.form.get('filename', '').strip()
     content = request.form.get('content', '')
     file_type = request.form.get('file_type', 'txt')
@@ -280,6 +332,11 @@ def create_file():
 @check_module_access('module_files')
 def create_office_file():
     """Create a new empty Office file (DOCX, XLSX, PPTX)."""
+    # Gast-Accounts können keine Office-Dateien erstellen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Dateien erstellen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     filename = request.form.get('filename', '').strip()
     file_type = request.form.get('file_type', 'docx')  # docx, xlsx, pptx
     folder_id = request.form.get('folder_id')
@@ -389,6 +446,11 @@ def create_office_file():
 @check_module_access('module_files')
 def upload_file():
     """Upload a file or folder."""
+    # Gast-Accounts können keine Dateien hochladen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Dateien hochladen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
     
@@ -666,6 +728,33 @@ def _process_file_upload(file, original_name, folder_id, user_id):
     db.session.add(new_file)
 
 
+@files_bp.route('/serve-pdf/<int:file_id>')
+@login_required
+@check_module_access('module_files')
+def serve_pdf(file_id):
+    """Serve a PDF file for inline viewing (without forcing download)."""
+    file = File.query.get_or_404(file_id)
+    
+    # Ensure we have an absolute path
+    if not os.path.isabs(file.file_path):
+        file_path = os.path.join(os.getcwd(), file.file_path)
+    else:
+        file_path = file.file_path
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+        return redirect(url_for('files.index'))
+    
+    # Only serve PDFs
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext != '.pdf':
+        flash('Diese Route ist nur für PDF-Dateien.', 'danger')
+        return redirect(url_for('files.index'))
+    
+    return send_file(file_path, mimetype='application/pdf')
+
+
 @files_bp.route('/download/<int:file_id>')
 @login_required
 @check_module_access('module_files')
@@ -767,7 +856,19 @@ def download_version(version_id):
 @check_module_access('module_files')
 def edit_file(file_id):
     """Edit a text file online."""
+    # Gast-Accounts können keine Dateien bearbeiten
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Dateien bearbeiten.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     file = File.query.get_or_404(file_id)
+    
+    # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import has_guest_share_access
+        if not has_guest_share_access(current_user, file.share_token or '', 'file'):
+            flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+            return redirect(url_for('files.index'))
     
     # Check if file is editable (text file)
     editable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
@@ -883,12 +984,32 @@ def preview_file(file_id):
 @login_required
 @check_module_access('module_files')
 def view_file(file_id):
-    """View a file in fullscreen mode (for markdown/text files)."""
+    """View a file in fullscreen mode (for markdown/text/PDF files)."""
     file = File.query.get_or_404(file_id)
     
-    # Check if file is viewable
-    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     file_ext = os.path.splitext(file.original_name)[1].lower()
+    
+    # Handle PDF files - display in browser
+    if file_ext == '.pdf':
+        # Ensure we have an absolute path
+        if not os.path.isabs(file.file_path):
+            file_path = os.path.join(os.getcwd(), file.file_path)
+        else:
+            file_path = file.file_path
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+            if file.folder_id:
+                return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
+            else:
+                return redirect(url_for('files.index'))
+        
+        # Return PDF for inline viewing (similar to manuals)
+        return render_template('files/view.html', file=file, is_pdf=True)
+    
+    # Handle text/markdown files (existing logic)
+    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     
     if file_ext not in viewable_extensions:
         flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
@@ -926,7 +1047,7 @@ def view_file(file_id):
     else:
         processed_content = content
     
-    return render_template('files/view.html', file=file, content=content, processed_content=processed_content)
+    return render_template('files/view.html', file=file, content=content, processed_content=processed_content, is_pdf=False)
 
 
 @files_bp.route('/delete/<int:file_id>', methods=['POST'])
@@ -934,6 +1055,11 @@ def view_file(file_id):
 @check_module_access('module_files')
 def delete_file(file_id):
     """Delete a file."""
+    # Gast-Accounts können keine Dateien löschen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Dateien löschen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     file = File.query.get_or_404(file_id)
     folder_id = file.folder_id
     
@@ -970,6 +1096,11 @@ def delete_file(file_id):
 @check_module_access('module_files')
 def delete_folder(folder_id):
     """Delete a folder and all its contents."""
+    # Gast-Accounts können keine Ordner löschen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Ordner löschen.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     folder = Folder.query.get_or_404(folder_id)
     parent_id = folder.parent_id
     

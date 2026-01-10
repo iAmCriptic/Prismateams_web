@@ -37,6 +37,24 @@ def index():
     config = current_user.get_dashboard_config()
     enabled_widgets = config.get('enabled_widgets', [])
     
+    # Für Gast-Accounts: Filtere Widgets nach erlaubten Modulen
+    widget_module_map = {
+        'termine': 'module_calendar',
+        'nachrichten': 'module_chat',
+        'emails': 'module_email',
+        'dateien': 'module_files',
+        'neue_wikieintraege': 'module_wiki',
+        'meine_wikis': 'module_wiki',
+        'meine_ausleihen': 'module_inventory',
+        'buchungen': 'module_booking'
+    }
+    
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import get_accessible_modules
+        accessible_modules = get_accessible_modules(current_user)
+        # Filtere enabled_widgets nach Modulzugriff
+        enabled_widgets = [w for w in enabled_widgets if widget_module_map.get(w) in accessible_modules]
+    
     # Widget-Daten nur laden, wenn Widget aktiviert ist UND Modul aktiviert ist
     # Verwende optimierte Abfragen mit expliziten Limits und Indizes
     upcoming_events = []
@@ -68,7 +86,8 @@ def index():
             logger.warning(f"Fehler beim Laden der Nachrichten: {e}")
     
     recent_emails = []
-    if 'emails' in enabled_widgets and is_module_enabled('module_email'):
+    # Gast-Accounts haben keinen Zugriff auf E-Mails
+    if 'emails' in enabled_widgets and is_module_enabled('module_email') and not (hasattr(current_user, 'is_guest') and current_user.is_guest):
         try:
             email_perm = EmailPermission.query.filter_by(user_id=current_user.id).first()
             if email_perm and email_perm.can_read:
@@ -109,9 +128,9 @@ def index():
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Wiki-Favoriten: {e}")
     
-    # Meine Ausleihen Widget
+    # Meine Ausleihen Widget - Gast-Accounts können nicht ausleihen
     my_borrow_groups = []
-    if 'meine_ausleihen' in enabled_widgets and is_module_enabled('module_inventory'):
+    if 'meine_ausleihen' in enabled_widgets and is_module_enabled('module_inventory') and not (hasattr(current_user, 'is_guest') and current_user.is_guest):
         try:
             borrows = BorrowTransaction.query.filter_by(
                 borrower_id=current_user.id,
@@ -150,10 +169,10 @@ def index():
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Ausleihen: {e}")
     
-    # Buchungen Widget
+    # Buchungen Widget - Gast-Accounts haben keinen Zugriff
     new_booking_requests = []
     total_pending_bookings = 0
-    if 'buchungen' in enabled_widgets and is_module_enabled('module_booking'):
+    if 'buchungen' in enabled_widgets and is_module_enabled('module_booking') and not (hasattr(current_user, 'is_guest') and current_user.is_guest):
         try:
             new_booking_requests = BookingRequest.query.filter_by(
                 status='pending'
@@ -199,6 +218,11 @@ def index():
 @login_required
 def edit():
     """Dashboard-Bearbeitungsseite."""
+    # Gast-Accounts können Dashboard nicht bearbeiten
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können das Dashboard nicht bearbeiten.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    
     if request.method == 'POST':
         # Lade aktuelle Konfiguration
         config = current_user.get_dashboard_config()
@@ -248,6 +272,10 @@ def edit():
 @login_required
 def api_config():
     """API-Endpunkt für Dashboard-Konfiguration."""
+    # Gast-Accounts können Dashboard nicht bearbeiten
+    if hasattr(current_user, 'is_guest') and current_user.is_guest and request.method == 'POST':
+        return jsonify({'error': 'Gast-Accounts können das Dashboard nicht bearbeiten.'}), 403
+    
     if request.method == 'GET':
         config = current_user.get_dashboard_config()
         return jsonify(config)

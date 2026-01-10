@@ -85,9 +85,17 @@ def view_chat(chat_id):
     db.session.commit()
     
     # Get chat members - use ChatMember as base to ensure all members are included
+    # Filter out guest accounts (system accounts that should not be visible)
     chat_memberships = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
-    members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
+    if member_ids:
+        members = User.query.filter(
+            User.id.in_(member_ids),
+            ~User.is_guest,
+            User.email != 'anonymous@system.local'
+        ).all()
+    else:
+        members = []
     
     return render_template(
         'chat/view.html',
@@ -248,7 +256,12 @@ def create_chat():
                 return redirect(url_for('chat.create_chat'))
             
             # Prüfe ob bereits ein privater Chat mit dieser Person existiert
-            other_user = User.query.get_or_404(member_id)
+            # Verhindere private Chats mit Gast-Accounts
+            other_user = User.query.filter(
+                User.id == member_id,
+                ~User.is_guest,
+                User.email != 'anonymous@system.local'
+            ).first_or_404()
             existing_dm = Chat.query.filter_by(is_direct_message=True).join(ChatMember).filter(
                 ChatMember.user_id.in_([current_user.id, member_id])
             ).group_by(Chat.id).having(db.func.count(ChatMember.id) == 2).first()
@@ -309,22 +322,33 @@ def create_chat():
             )
             db.session.add(creator_member)
             
-            # Add selected members
+            # Add selected members (excluding guest accounts)
             for member_id in member_ids:
                 if int(member_id) != current_user.id:
-                    member = ChatMember(
-                        chat_id=new_chat.id,
-                        user_id=int(member_id)
-                    )
-                    db.session.add(member)
+                    # Verify user is not a guest account
+                    user = User.query.filter(
+                        User.id == int(member_id),
+                        ~User.is_guest,
+                        User.email != 'anonymous@system.local'
+                    ).first()
+                    if user:
+                        member = ChatMember(
+                            chat_id=new_chat.id,
+                            user_id=int(member_id)
+                        )
+                        db.session.add(member)
             
             db.session.commit()
             
             flash(f'Gruppen-Chat "{name}" wurde erstellt.', 'success')
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
     
-    # Get all active users
-    users = User.query.filter_by(is_active=True).all()
+    # Get all active users, excluding guest accounts
+    users = User.query.filter(
+        User.is_active == True,
+        ~User.is_guest,
+        User.email != 'anonymous@system.local'
+    ).all()
     return render_template('chat/create.html', users=users)
 
 
@@ -333,7 +357,12 @@ def create_chat():
 @check_module_access('module_chat')
 def direct_message(user_id):
     """Start or continue a direct message with a user."""
-    other_user = User.query.get_or_404(user_id)
+    # Verhindere direkte Nachrichten mit Gast-Accounts
+    other_user = User.query.filter(
+        User.id == user_id,
+        ~User.is_guest,
+        User.email != 'anonymous@system.local'
+    ).first_or_404()
     
     if user_id == current_user.id:
         flash('Sie können keinen Chat mit sich selbst starten.', 'warning')
@@ -417,9 +446,19 @@ def update_chat(chat_id):
     if not membership:
         return jsonify({'error': 'Nicht autorisiert'}), 403
     
-    # Check if user is creator or admin (only they can update)
-    if chat.created_by != current_user.id and not current_user.is_admin:
-        return jsonify({'error': 'Nur der Ersteller oder ein Administrator kann den Chat bearbeiten'}), 403
+    # Only allow updating group chats (not main chat, not direct messages)
+    if chat.is_main_chat:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': 'Der Haupt-Chat kann nicht bearbeitet werden'}), 400
+        flash('Der Haupt-Chat kann nicht bearbeitet werden', 'danger')
+        return redirect(url_for('chat.view_chat', chat_id=1))
+    if chat.is_direct_message:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': 'Private Chats können nicht bearbeitet werden'}), 400
+        flash('Private Chats können nicht bearbeitet werden', 'danger')
+        return redirect(url_for('chat.view_chat', chat_id=chat_id))
+    
+    # Alle Mitglieder können den Chat bearbeiten (Mitgliedschaft wurde bereits geprüft)
     
     # Update name
     if 'name' in request.form:
@@ -526,13 +565,19 @@ def delete_chat(chat_id):
         flash('Der Haupt-Chat kann nicht gelöscht werden', 'danger')
         return redirect(url_for('chat.view_chat', chat_id=1))
     
-    # Check if user is creator or admin
-    if chat.created_by != current_user.id and not current_user.is_admin:
+    # Check if user is a member (Mitgliedschaft wurde bereits geprüft in view_chat, aber hier sicherstellen)
+    membership = ChatMember.query.filter_by(
+        chat_id=actual_chat_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not membership:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Nur der Ersteller oder ein Administrator kann den Chat löschen'}), 403
-        flash('Nur der Ersteller oder ein Administrator kann den Chat löschen', 'danger')
-        redirect_chat_id = 1 if chat.is_main_chat else chat_id
-        return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
+            return jsonify({'error': 'Sie sind kein Mitglied dieses Chats'}), 403
+        flash('Sie sind kein Mitglied dieses Chats', 'danger')
+        return redirect(url_for('chat.index'))
+    
+    # Alle Mitglieder können den Chat löschen (Mitgliedschaft wurde bereits geprüft)
     
     # Delete chat (cascade will handle messages and members)
     db.session.delete(chat)
@@ -573,19 +618,30 @@ def chat_settings(chat_id):
         flash('Sie sind kein Mitglied dieses Chats.', 'danger')
         return redirect(url_for('chat.index'))
     
-    # Check if user is creator or admin (only they can access settings)
-    if chat.created_by != current_user.id and not current_user.is_admin:
-        flash('Nur der Ersteller oder ein Administrator kann die Chat-Einstellungen bearbeiten', 'danger')
-        redirect_chat_id = 1 if chat.is_main_chat else chat_id
-        return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
+    # Only allow editing group chats (not main chat, not direct messages)
+    if chat.is_main_chat:
+        flash('Der Haupt-Chat kann nicht bearbeitet werden', 'danger')
+        return redirect(url_for('chat.view_chat', chat_id=1))
+    if chat.is_direct_message:
+        flash('Private Chats können nicht bearbeitet werden', 'danger')
+        return redirect(url_for('chat.view_chat', chat_id=chat_id))
+    
+    # Alle Mitglieder können die Chat-Einstellungen bearbeiten (Mitgliedschaft wurde bereits geprüft)
     
     if request.method == 'POST':
         return update_chat(chat_id)
     
-    # Get chat members
+    # Get chat members, excluding guest accounts
     chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
-    members = User.query.filter(User.id.in_(member_ids)).all() if member_ids else []
+    if member_ids:
+        members = User.query.filter(
+            User.id.in_(member_ids),
+            ~User.is_guest,
+            User.email != 'anonymous@system.local'
+        ).all()
+    else:
+        members = []
     
     return render_template(
         'chat/settings.html',

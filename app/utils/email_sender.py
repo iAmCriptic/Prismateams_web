@@ -1385,3 +1385,107 @@ def send_booking_rejected_email(booking_request):
     except Exception as e:
         logging.error(f"Failed to send booking rejected email: {str(e)}")
         return False
+
+
+def generate_random_password(length=8):
+    """Generiert ein sicheres zufälliges Passwort.
+    
+    Args:
+        length: Länge des Passworts (Standard: 8)
+    
+    Returns:
+        String mit zufälligem Passwort
+    """
+    # Verwende alphanumerische Zeichen (Groß- und Kleinbuchstaben, Ziffern)
+    # Ausgeschlossen: I, l, 1, 0, O (verwechslungsanfällig)
+    alphabet = string.ascii_letters + string.digits
+    # Entferne verwechslungsanfällige Zeichen
+    excluded_chars = 'Il1O0'
+    alphabet = ''.join(c for c in alphabet if c not in excluded_chars)
+    
+    # Generiere Passwort mit secrets.choice für kryptografische Sicherheit
+    password = ''.join(secrets.choice(alphabet) for _ in range(length))
+    return password
+
+
+def send_account_creation_email(user, password):
+    """Sendet eine E-Mail mit Zugangsdaten nach Account-Erstellung durch Administrator.
+    
+    Args:
+        user: User-Objekt
+        password: Das generierte Passwort (im Klartext, wird in E-Mail gesendet)
+    
+    Returns:
+        True wenn erfolgreich gesendet, False sonst
+    """
+    try:
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Zugangsdaten für {user.email}: Benutzername: {user.email}, Passwort: {password}")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # Login-URL erstellen
+        login_url = url_for('auth.login', _external=True)
+        
+        # HTML-Template rendern
+        html_content = render_template(
+            'emails/account_created.html',
+            user=user,
+            password=password,
+            login_url=login_url,
+            app_name=portal_name,
+            current_year=datetime.utcnow().year,
+            logo_cid='portal_logo'
+        )
+        
+        # Plain text Version
+        plain_text = f"""Willkommen bei {portal_name}!
+
+Ihr Account wurde erfolgreich erstellt.
+
+Zugangsdaten:
+Benutzername/E-Mail: {user.email}
+Passwort: {password}
+
+Bitte melden Sie sich unter folgender Adresse an:
+{login_url}
+
+Nach dem ersten Login sollten Sie Ihr Passwort ändern.
+
+Bei Fragen wenden Sie sich bitte an den Administrator.
+
+Mit freundlichen Grüßen
+Ihr {portal_name} Team"""
+        
+        # Erstelle Message mit Logo als CID-Anhang
+        msg = create_message_with_logo(
+            subject=f'Zugangsdaten für {portal_name}',
+            recipients=[user.email],
+            html_content=html_content,
+            body_text=plain_text
+        )
+        
+        # E-Mail senden
+        try:
+            send_email_with_lock(msg)
+            logging.info(f"Account creation email sent to {user.email}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send account creation email to {user.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send account creation email to {user.email}: {str(e)}")
+        return False

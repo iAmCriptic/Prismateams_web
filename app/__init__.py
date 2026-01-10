@@ -164,8 +164,8 @@ def create_app(config_name='default'):
         Dies ist wichtig für Multi-Worker-Setups mit Redis, wo Sessions zwischen Workern geteilt werden.
         """
         try:
-            # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception, kein Logging
-            # Dies verhindert 400 Bad Request Fehler bei Session-Konflikten zwischen Workern
+        # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception, kein Logging
+        # Dies verhindert 400 Bad Request Fehler bei Session-Konflikten zwischen Workern
             # Mit manage_session=False werden Sessions nicht validiert, was für Multi-Worker wichtig ist
             return True
         except Exception as e:
@@ -173,7 +173,7 @@ def create_app(config_name='default'):
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Socket.IO connect handler Fehler (trotzdem akzeptiert): {e}")
-            return True
+        return True
     
     @socketio.on('disconnect')
     def handle_disconnect():
@@ -298,7 +298,12 @@ def create_app(config_name='default'):
             from flask_login import current_user
             if chat.is_direct_message and not chat.is_main_chat:
                 from app.models.chat import ChatMember
-                members = ChatMember.query.filter_by(chat_id=chat.id).all()
+                from app.models.user import User
+                # Filter out guest accounts when getting members
+                members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
+                    ~User.is_guest,
+                    User.email != 'anonymous@system.local'
+                ).all()
                 for member in members:
                     if member.user_id != current_user.id:
                         return member.user.full_name
@@ -306,6 +311,26 @@ def create_app(config_name='default'):
             if chat.is_main_chat:
                 return translate('chat.common.main_chat_name')
             return chat.name
+        
+        def get_other_chat_user(chat):
+            """Returns the other user in a private chat (excluding guest accounts). Returns None if not a private chat or if other user is a guest account."""
+            from flask_login import current_user
+            from app.models.chat import ChatMember
+            from app.models.user import User
+            
+            if not chat or not chat.is_direct_message or chat.is_main_chat:
+                return None
+            
+            # Filter out guest accounts when getting members
+            members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
+                ~User.is_guest,
+                User.email != 'anonymous@system.local'
+            ).all()
+            
+            for member in members:
+                if member.user_id != current_user.id:
+                    return member.user
+            return None
         
         def get_back_url():
             """Bestimmt die logische Zurück-URL basierend auf dem aktuellen Endpoint."""
@@ -423,7 +448,8 @@ def create_app(config_name='default'):
             'is_module_enabled': is_module_enabled,
             'has_module_access': has_module_access,
             'get_back_url': get_back_url,
-            'get_chat_display_name': get_chat_display_name
+            'get_chat_display_name': get_chat_display_name,
+            'get_other_chat_user': get_other_chat_user
         }
     
     @app.template_filter('decode_email_header')

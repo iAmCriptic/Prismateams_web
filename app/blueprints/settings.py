@@ -325,9 +325,22 @@ def admin_users():
         ('module_music', 'Musik')
     ]
     
-    # Get all users
-    active_users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
-    pending_users = User.query.filter_by(is_active=False).order_by(User.created_at.desc()).all()
+    # Get all users, excluding guest accounts (system accounts)
+    active_users = User.query.filter(
+        User.is_active == True,
+        ~User.is_guest,
+        User.email != 'anonymous@system.local'
+    ).order_by(User.last_name, User.first_name).all()
+    pending_users = User.query.filter(
+        User.is_active == False,
+        ~User.is_guest,
+        User.email != 'anonymous@system.local'
+    ).order_by(User.created_at.desc()).all()
+    
+    # Get all guest accounts
+    guest_users = User.query.filter(
+        User.is_guest == True
+    ).order_by(User.created_at.desc()).all()
     
     # Erstelle Liste mit Benutzer-Rollen-Informationen für aktive Benutzer
     users_with_roles = []
@@ -344,11 +357,448 @@ def admin_users():
             'module_roles': module_roles
         })
     
+    # Erstelle Liste mit Gast-Account-Rollen-Informationen
+    guest_users_with_roles = []
+    for guest in guest_users:
+        # Hole Modul-Rollen für diesen Gast
+        module_roles = {}
+        user_module_roles = UserModuleRole.query.filter_by(user_id=guest.id).all()
+        for role in user_module_roles:
+            module_roles[role.module_key] = role.has_access
+        
+        # Hole Freigabelink-Zugriffe
+        from app.models.guest import GuestShareAccess
+        share_accesses = GuestShareAccess.query.filter_by(user_id=guest.id).all()
+        
+        guest_users_with_roles.append({
+            'user': guest,
+            'module_roles': module_roles,
+            'share_count': len(share_accesses)
+        })
+    
+    from datetime import datetime
+    now = datetime.utcnow()
+    
     return render_template('settings/admin_users.html', 
                          active_users=active_users, 
                          pending_users=pending_users,
                          users_with_roles=users_with_roles,
-                         all_modules=all_modules)
+                         guest_users_with_roles=guest_users_with_roles,
+                         all_modules=all_modules,
+                         now=now)
+
+
+@settings_bp.route('/admin/users/create', methods=['GET', 'POST'])
+@login_required
+def create_user():
+    """Create a new user account (admin only)."""
+    if not current_user.is_admin:
+        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.role import UserModuleRole
+    from app.models.chat import Chat, ChatMember
+    from app.models.guest import GuestShareAccess
+    from app.models.file import File, Folder
+    from app.models.email import EmailPermission
+    from app.utils.email_sender import send_account_creation_email, generate_random_password
+    from app.utils.access_control import has_module_access
+    from app.utils.common import is_module_enabled
+    from datetime import datetime
+    import json
+    
+    # Prüfe ob AJAX-Request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    if request.method == 'POST':
+        account_type = request.form.get('account_type', 'full')  # 'full' oder 'guest'
+        
+        if account_type == 'full':
+            # Vollwertiger Account
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            phone = request.form.get('phone', '').strip() or None
+            
+            # Validierung
+            if not all([first_name, last_name, email]):
+                error_msg = 'Bitte füllen Sie alle Pflichtfelder aus.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            # Prüfe ob E-Mail bereits existiert
+            if User.query.filter_by(email=email).first():
+                error_msg = 'Diese E-Mail-Adresse ist bereits registriert.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            # Generiere zufälliges Passwort
+            password = generate_random_password(8)
+            
+            # Erstelle Benutzer
+            new_user = User(
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+                is_active=True,
+                is_email_confirmed=True,  # Admin erstellt - E-Mail ist bestätigt
+                is_guest=False
+            )
+            new_user.set_password(password)
+            
+            db.session.add(new_user)
+            db.session.flush()  # Flush um ID zu bekommen
+            
+            # Wähle Standardrollen aus SystemSettings
+            default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+            if default_roles_setting:
+                try:
+                    default_roles = json.loads(default_roles_setting.value)
+                    
+                    if default_roles.get('full_access', False):
+                        new_user.has_full_access = True
+                    else:
+                        # Modulspezifische Rollen zuweisen
+                        all_modules = [
+                            'module_chat', 'module_files', 'module_calendar', 'module_email',
+                            'module_credentials', 'module_manuals',
+                            'module_inventory', 'module_wiki', 'module_booking', 'module_music'
+                        ]
+                        
+                        for module_key in all_modules:
+                            if default_roles.get(module_key, False) and is_module_enabled(module_key):
+                                role = UserModuleRole(
+                                    user_id=new_user.id,
+                                    module_key=module_key,
+                                    has_access=True
+                                )
+                                db.session.add(role)
+                except:
+                    pass  # Bei Fehler: Standard-Rollen verwenden
+            
+            # Erstelle E-Mail-Berechtigungen
+            email_perm = EmailPermission(
+                user_id=new_user.id,
+                can_read=True,
+                can_send=True
+            )
+            db.session.add(email_perm)
+            
+            # Commit rollen first, so has_module_access works correctly
+            db.session.commit()
+            
+            # Füge zum Haupt-Chat hinzu (alle vollwertigen Accounts werden hinzugefügt)
+            from app.models.chat import Chat, ChatMember
+            if new_user.is_active and not new_user.is_guest:
+                main_chat = Chat.query.filter_by(is_main_chat=True).first()
+                if main_chat:
+                    # Prüfe ob Benutzer bereits Mitglied ist
+                    existing_member = ChatMember.query.filter_by(
+                        chat_id=main_chat.id,
+                        user_id=new_user.id
+                    ).first()
+                    if not existing_member:
+                        member = ChatMember(
+                            chat_id=main_chat.id,
+                            user_id=new_user.id
+                        )
+                        db.session.add(member)
+                        db.session.commit()
+            
+            # Sende E-Mail mit Zugangsdaten
+            email_sent = send_account_creation_email(new_user, password)
+            
+            # Bei AJAX-Request: JSON mit Zugangsdaten zurückgeben
+            if is_ajax:
+                from flask import jsonify
+                if email_sent:
+                    return jsonify({
+                        'success': True,
+                        'message': f'Account für {new_user.full_name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.',
+                        'credentials': {
+                            'username': email,
+                            'password': password,
+                            'full_name': new_user.full_name,
+                            'email_sent': True
+                        }
+                    })
+                else:
+                    return jsonify({
+                        'success': True,
+                        'message': f'Account für {new_user.full_name} wurde erstellt, aber E-Mail konnte nicht gesendet werden.',
+                        'credentials': {
+                            'username': email,
+                            'password': password,
+                            'full_name': new_user.full_name,
+                            'email_sent': False
+                        }
+                    })
+            
+            # Normale Weiterleitung mit Flash (Fallback)
+            if email_sent:
+                flash(f'Account für {new_user.full_name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.', 'success')
+            else:
+                flash(f'Account für {new_user.full_name} wurde erstellt, aber E-Mail konnte nicht gesendet werden. Zugangsdaten: Benutzername: {email}, Passwort: {password}', 'warning')
+            
+            return redirect(url_for('settings.admin_users'))
+        
+        elif account_type == 'guest':
+            # Gast-Account
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            guest_username_raw = request.form.get('guest_username', '').strip()
+            guest_expires_at_str = request.form.get('guest_expires_at', '').strip()
+            guest_expires_at = None
+            
+            # Validierung: Prüfe ob alle Pflichtfelder ausgefüllt sind
+            if not first_name:
+                error_msg = 'Bitte geben Sie einen Vornamen ein.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            if not last_name:
+                error_msg = 'Bitte geben Sie einen Nachnamen ein.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            if not guest_username_raw:
+                error_msg = 'Bitte geben Sie einen Gast-Benutzernamen ein.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            # Validiere Gast-Benutzername Format (Groß-/Kleinbuchstaben, Zahlen, Punkt, Unterstrich, Bindestrich)
+            import re
+            if not re.match(r'^[a-zA-Z0-9._\-]+$', guest_username_raw):
+                error_msg = 'Der Gast-Benutzername darf nur Buchstaben (Groß- und Kleinbuchstaben), Zahlen, Punkte, Unterstriche und Bindestriche enthalten.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            # Konvertiere zu lowercase für die Speicherung
+            guest_username = guest_username_raw.lower()
+            
+            # Parse Ablaufzeit
+            if guest_expires_at_str:
+                try:
+                    guest_expires_at = datetime.fromisoformat(guest_expires_at_str.replace('T', ' '))
+                except:
+                    error_msg = 'Ungültiges Datumsformat für Ablaufzeit.'
+                    if is_ajax:
+                        from flask import jsonify
+                        return jsonify({'success': False, 'message': error_msg}), 400
+                    flash(error_msg, 'danger')
+                    return redirect(url_for('settings.create_user'))
+            
+            # Email-Format: {guest_username}@gast.system.local
+            email = f"{guest_username}@gast.system.local"
+            
+            # Prüfe ob Benutzername bereits existiert
+            if User.query.filter_by(guest_username=guest_username, is_guest=True).first():
+                error_msg = 'Dieser Gast-Benutzername ist bereits vergeben.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            # Prüfe ob E-Mail bereits existiert
+            if User.query.filter_by(email=email).first():
+                error_msg = 'Dieser Gast-Account existiert bereits.'
+                if is_ajax:
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': error_msg}), 400
+                flash(error_msg, 'danger')
+                return redirect(url_for('settings.create_user'))
+            
+            # Generiere zufälliges Passwort
+            password = generate_random_password(8)
+            
+            # Erstelle Gast-Benutzer
+            new_user = User(
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                guest_username=guest_username,
+                is_active=True,
+                is_guest=True,
+                guest_expires_at=guest_expires_at,
+                has_full_access=False,
+                can_borrow=False,
+                is_email_confirmed=True  # Gast-Accounts haben keine E-Mail-Bestätigung
+            )
+            new_user.set_password(password)
+            
+            db.session.add(new_user)
+            db.session.flush()  # Flush um ID zu bekommen
+            
+            # Freigabelink-Zuweisungen - aktiviert automatisch Dateien-Modul
+            share_tokens = request.form.getlist('share_tokens')
+            has_file_access = False
+            for share_token in share_tokens:
+                # Prüfe ob es ein File oder Folder ist
+                file_item = File.query.filter_by(share_token=share_token, share_enabled=True).first()
+                folder_item = Folder.query.filter_by(share_token=share_token, share_enabled=True).first()
+                
+                if file_item:
+                    share_access = GuestShareAccess(
+                        user_id=new_user.id,
+                        share_token=share_token,
+                        share_type='file'
+                    )
+                    db.session.add(share_access)
+                    has_file_access = True
+                elif folder_item:
+                    share_access = GuestShareAccess(
+                        user_id=new_user.id,
+                        share_token=share_token,
+                        share_type='folder'
+                    )
+                    db.session.add(share_access)
+                    has_file_access = True
+            
+            # Automatisch Dateien-Modul aktivieren, wenn Freigabelinks zugewiesen wurden
+            if has_file_access and is_module_enabled('module_files'):
+                role = UserModuleRole(
+                    user_id=new_user.id,
+                    module_key='module_files',
+                    has_access=True
+                )
+                db.session.add(role)
+            
+            # Chat-Zuweisungen - aktiviert automatisch Chat-Modul
+            chat_ids = request.form.getlist('chat_ids')
+            has_chat_access = False
+            for chat_id_str in chat_ids:
+                try:
+                    chat_id = int(chat_id_str)
+                    chat = Chat.query.get(chat_id)
+                    if chat:
+                        member = ChatMember(
+                            chat_id=chat_id,
+                            user_id=new_user.id
+                        )
+                        db.session.add(member)
+                        has_chat_access = True
+                except (ValueError, TypeError):
+                    pass
+            
+            # Automatisch Chat-Modul aktivieren, wenn Chats zugewiesen wurden
+            if has_chat_access and is_module_enabled('module_chat'):
+                role = UserModuleRole(
+                    user_id=new_user.id,
+                    module_key='module_chat',
+                    has_access=True
+                )
+                db.session.add(role)
+            
+            # Modulspezifische Rollen zuweisen (ohne E-Mail, Credentials, Chats und Dateien)
+            # Diese werden automatisch über Freigabelinks/Chats gesteuert
+            allowed_modules = [
+                'module_calendar',
+                'module_manuals', 'module_inventory', 'module_wiki', 'module_music'
+            ]
+            
+            selected_modules = request.form.getlist('allowed_modules')
+            for module_key in selected_modules:
+                if module_key in allowed_modules and is_module_enabled(module_key):
+                    role = UserModuleRole(
+                        user_id=new_user.id,
+                        module_key=module_key,
+                        has_access=True
+                    )
+                    db.session.add(role)
+            
+            # KEINE EmailPermission für Gäste
+            # KEINE Haupt-Chat-Mitgliedschaft automatisch
+            
+            db.session.commit()
+            
+            # Bei AJAX-Request: JSON mit Zugangsdaten zurückgeben
+            if is_ajax:
+                from flask import jsonify
+                return jsonify({
+                    'success': True,
+                    'message': f'Gast-Account für {new_user.full_name} wurde erstellt.',
+                    'credentials': {
+                        'username': email,
+                        'password': password,
+                        'full_name': new_user.full_name,
+                        'guest_username': guest_username
+                    }
+                })
+            
+            # Normale Weiterleitung mit Flash (Fallback)
+            flash(f'Gast-Account für {new_user.full_name} wurde erstellt. Zugangsdaten: Benutzername: {email}, Passwort: {password}', 'success')
+            return redirect(url_for('settings.admin_users'))
+        else:
+            error_msg = 'Ungültiger Account-Typ.'
+            if is_ajax:
+                from flask import jsonify
+                return jsonify({'success': False, 'message': error_msg}), 400
+            flash(error_msg, 'danger')
+            return redirect(url_for('settings.create_user'))
+    
+    # GET: Zeige Formular
+    # Hole alle verfügbaren Module (ohne E-Mail, Credentials, Chats und Dateien für Gäste)
+    # Chats und Dateien werden über spezifische Zuweisungen gesteuert
+    guest_modules = [
+        ('module_calendar', 'Kalender'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_inventory', 'Lagerverwaltung'),
+        ('module_wiki', 'Wiki'),
+        ('module_music', 'Musik')
+    ]
+    
+    # Hole alle verfügbaren Freigabelinks
+    shared_files = File.query.filter_by(share_enabled=True).all()
+    shared_folders = Folder.query.filter_by(share_enabled=True).all()
+    
+    # Hole alle verfügbaren Chats (ohne Duplikate)
+    # Nur einen Haupt-Chat zeigen (auch wenn mehrere existieren, zeige nur den ersten/ältesten)
+    # Hole alle Chats und filtere nach is_main_chat
+    all_chats_list = Chat.query.order_by(Chat.created_at).all()
+    
+    # Erstelle Liste ohne Duplikate: Haupt-Chat zuerst (nur einer), dann andere
+    all_chats = []
+    main_chat_added = False
+    main_chat_ids = set()
+    
+    # Zuerst: Füge nur den ersten Haupt-Chat hinzu
+    for chat in all_chats_list:
+        if chat.is_main_chat and not main_chat_added:
+            all_chats.append(chat)
+            main_chat_added = True
+            main_chat_ids.add(chat.id)
+        elif chat.is_main_chat:
+            # Weitere Haupt-Chats: Markiere sie, aber füge sie nicht hinzu
+            main_chat_ids.add(chat.id)
+        elif not chat.is_main_chat:
+            # Normale Chats: Füge sie hinzu
+            all_chats.append(chat)
+    
+    return render_template('settings/admin_create_user.html',
+                         guest_modules=guest_modules,
+                         shared_files=shared_files,
+                         shared_folders=shared_folders,
+                         all_chats=all_chats)
 
 
 @settings_bp.route('/admin/users/<int:user_id>/activate', methods=['POST'])
@@ -361,23 +811,24 @@ def activate_user(user_id):
     user = User.query.get_or_404(user_id)
     user.is_active = True
     
-    # Ensure user is added to main chat when activated
+    # Ensure user is added to main chat when activated (only for full accounts, not guest accounts)
     from app.models.chat import Chat, ChatMember
-    main_chat = Chat.query.filter_by(is_main_chat=True).first()
-    if main_chat:
-        # Check if user is already a member
-        existing_membership = ChatMember.query.filter_by(
-            chat_id=main_chat.id,
-            user_id=user.id
-        ).first()
-        
-        if not existing_membership:
-            # Add user to main chat
-            member = ChatMember(
+    if not user.is_guest and user.email != 'anonymous@system.local':
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            # Check if user is already a member
+            existing_membership = ChatMember.query.filter_by(
                 chat_id=main_chat.id,
                 user_id=user.id
-            )
-            db.session.add(member)
+            ).first()
+            
+            if not existing_membership:
+                # Add user to main chat
+                member = ChatMember(
+                    chat_id=main_chat.id,
+                    user_id=user.id
+                )
+                db.session.add(member)
     
     db.session.commit()
     
@@ -418,6 +869,12 @@ def make_admin(user_id):
         return redirect(url_for('settings.index'))
     
     user = User.query.get_or_404(user_id)
+    
+    # Gast-Accounts können keine Admins werden
+    if hasattr(user, 'is_guest') and user.is_guest:
+        flash('Gast-Accounts können keine Administratoren werden.', 'danger')
+        return redirect(url_for('settings.admin_users'))
+    
     user.is_admin = True
     db.session.commit()
     
@@ -1146,7 +1603,7 @@ def admin_music():
     if request.method == 'POST':
         # Speichere Provider-Aktivierung
         enabled_providers = []
-        available_providers = ['spotify', 'youtube', 'musicbrainz']
+        available_providers = ['spotify', 'youtube', 'deezer', 'musicbrainz']
         for provider in available_providers:
             if request.form.get(f'provider_enabled_{provider}') == 'on':
                 enabled_providers.append(provider)
@@ -1208,6 +1665,16 @@ def admin_music():
             youtube_secret_setting = MusicSettings(key='youtube_client_secret', value=youtube_client_secret, description='YouTube OAuth Client Secret (optional)')
             db.session.add(youtube_secret_setting)
         
+        # Deezer Settings (App-ID optional, aber empfohlen für Rate Limits)
+        deezer_app_id = request.form.get('deezer_app_id', '').strip()
+        
+        deezer_app_id_setting = MusicSettings.query.filter_by(key='deezer_app_id').first()
+        if deezer_app_id_setting:
+            deezer_app_id_setting.value = deezer_app_id
+        else:
+            deezer_app_id_setting = MusicSettings(key='deezer_app_id', value=deezer_app_id, description='Deezer App-ID (optional, aber empfohlen für höhere Rate Limits)')
+            db.session.add(deezer_app_id_setting)
+        
         db.session.commit()
         flash('Musikmodul-Einstellungen wurden gespeichert.', 'success')
         return redirect(url_for('settings.admin_music'))
@@ -1221,6 +1688,7 @@ def admin_music():
     youtube_api_key = MusicSettings.query.filter_by(key='youtube_api_key').first()
     youtube_client_id = MusicSettings.query.filter_by(key='youtube_client_id').first()
     youtube_client_secret = MusicSettings.query.filter_by(key='youtube_client_secret').first()
+    deezer_app_id = MusicSettings.query.filter_by(key='deezer_app_id').first()
     # Prüfe Verbindungsstatus (nur für OAuth-basierte Provider)
     spotify_connected = is_provider_connected(current_user.id, 'spotify') if current_user.is_authenticated else False
     youtube_connected = is_provider_connected(current_user.id, 'youtube') if current_user.is_authenticated else False
@@ -1237,6 +1705,7 @@ def admin_music():
                          youtube_api_key=youtube_api_key.value if youtube_api_key else '',
                          youtube_client_id=youtube_client_id.value if youtube_client_id else '',
                          youtube_client_secret=youtube_client_secret.value if youtube_client_secret else '',
+                         deezer_app_id=deezer_app_id.value if deezer_app_id else '',
                          spotify_connected=spotify_connected,
                          youtube_connected=youtube_connected,
                          spotify_redirect_uri=spotify_redirect_uri,

@@ -137,18 +137,27 @@ def register():
             except:
                 pass  # Bei Fehler: Keine Standardrollen zuweisen
         
-        # Add user to main chat if it exists and user has chat access
+        # Commit rollen first, so has_module_access works correctly
+        db.session.commit()
+        
+        # Add user to main chat if it exists
+        # Alle aktiven Benutzer werden zum Haupt-Chat hinzugefügt (vollwertige Accounts)
         from app.models.chat import Chat, ChatMember
-        if has_module_access(new_user, 'module_chat'):
+        if new_user.is_active and not new_user.is_guest:
             main_chat = Chat.query.filter_by(is_main_chat=True).first()
             if main_chat:
-                member = ChatMember(
+                # Prüfe ob Benutzer bereits Mitglied ist
+                existing_member = ChatMember.query.filter_by(
                     chat_id=main_chat.id,
                     user_id=new_user.id
-                )
-                db.session.add(member)
-        
-        db.session.commit()
+                ).first()
+                if not existing_member:
+                    member = ChatMember(
+                        chat_id=main_chat.id,
+                        user_id=new_user.id
+                    )
+                    db.session.add(member)
+                    db.session.commit()
         
         if is_whitelisted:
             # Benutzer ist whitelisted - direkt einloggen und zur E-Mail-Bestätigung weiterleiten
@@ -189,18 +198,36 @@ def login():
             flash('Bitte geben Sie E-Mail und Passwort ein.', 'danger')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
-        user = User.query.filter_by(email=email).first()
+        # Unterstütze @gast.system.local Format für Gast-Accounts
+        user = None
+        if email.endswith('@gast.system.local'):
+            # Extrahiere Gast-Benutzernamen
+            guest_username = email.replace('@gast.system.local', '')
+            user = User.query.filter_by(guest_username=guest_username, is_guest=True).first()
+        else:
+            # Standard-Login für normale Accounts
+            user = User.query.filter_by(email=email).first()
         
         if not user or not user.check_password(password):
             flash('Ungültige E-Mail oder Passwort.', 'danger')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
+        # Prüfe Ablaufzeit für Gast-Accounts
+        if user.is_guest and user.guest_expires_at:
+            if datetime.utcnow() > user.guest_expires_at:
+                # Account ist abgelaufen - lösche ihn
+                db.session.delete(user)
+                db.session.commit()
+                flash('Ihr Gast-Account ist abgelaufen und wurde entfernt.', 'danger')
+                return render_template('auth/login.html', color_gradient=get_color_gradient())
+        
         if not user.is_active:
             flash('Ihr Konto wurde noch nicht aktiviert. Bitte warten Sie auf die Freischaltung durch einen Administrator.', 'warning')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
-        # Check if email confirmation is required (nicht für Admins)
-        if not user.is_email_confirmed and not user.is_admin:
+        # Gast-Accounts benötigen keine E-Mail-Bestätigung
+        # Normale Accounts: Check if email confirmation is required (nicht für Admins)
+        if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
             login_user(user, remember=remember)
             flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
             return redirect(url_for('auth.confirm_email'))
@@ -297,7 +324,6 @@ def show_confirmation_codes():
         return redirect(url_for('dashboard.index'))
     
     from app.models.user import User
-    from datetime import datetime
     
     # Hole alle Benutzer mit ausstehenden Bestätigungen
     pending_users = User.query.filter(

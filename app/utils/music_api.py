@@ -813,13 +813,169 @@ class MusicBrainzAPI:
         raise Exception(f"MusicBrainz API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
 
 
+class DeezerAPI:
+    """Deezer API Client (öffentliche API, optional App-ID für Rate Limits)."""
+    
+    BASE_URL = 'https://api.deezer.com'
+    
+    def __init__(self, app_id=None):
+        """
+        Initialisiert den Deezer API Client.
+        
+        Args:
+            app_id: Optional App-ID für höhere Rate Limits (empfohlen)
+        """
+        self.app_id = app_id
+        self.headers = {
+            'Accept': 'application/json'
+        }
+    
+    def search(self, query, limit=10, parsed_query=None):
+        """
+        Sucht nach Liedern.
+        
+        Args:
+            query: Rohe Query-String (für Fallback)
+            limit: Maximale Anzahl Ergebnisse
+            parsed_query: Optionales Dictionary mit 'title', 'artist', 'album' für erweiterte Suche
+        """
+        from app.utils.music_search_parser import build_search_query_for_provider
+        
+        # Wenn geparste Query vorhanden, baue optimierte Query
+        if parsed_query:
+            search_query = build_search_query_for_provider(parsed_query, 'deezer')
+        else:
+            search_query = query
+        
+        last_exception = None
+        
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                params = {
+                    'q': search_query,
+                    'limit': limit
+                }
+                
+                # Deezer öffentliche API benötigt keine Authentifizierung für Suchen
+                # App-ID wird gespeichert für mögliche zukünftige Verwendung
+                
+                response = requests.get(
+                    f'{self.BASE_URL}/search',
+                    headers=self.headers,
+                    params=params,
+                    timeout=MUSIC_API_TIMEOUT
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                results = []
+                for track in data.get('data', []):
+                    # Deezer gibt Dauer in Sekunden zurück, konvertiere zu ms
+                    duration_ms = track.get('duration') * 1000 if track.get('duration') else None
+                    
+                    results.append({
+                        'id': str(track['id']),
+                        'title': track.get('title', 'Unbekannt'),
+                        'artist': track.get('artist', {}).get('name', 'Unbekannter Künstler'),
+                        'album': track.get('album', {}).get('title', None),
+                        'image_url': track.get('album', {}).get('cover_medium', None),
+                        'url': track.get('link', f"https://www.deezer.com/track/{track['id']}"),
+                        'duration_ms': duration_ms,
+                        'provider': 'deezer'
+                    })
+                
+                return results
+            except Timeout as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"Deezer API Timeout (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Deezer API Timeout: Die Anfrage dauerte zu lange.")
+            except ConnectionError as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"Deezer API Verbindungsfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Deezer API Verbindungsfehler: {str(e)}")
+            except RequestException as e:
+                last_exception = e
+                if attempt < MAX_RETRIES and e.response and e.response.status_code >= 500:
+                    logger.warning(f"Deezer API Serverfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Deezer API Fehler: {str(e)}")
+            except Exception as e:
+                raise Exception(f"Deezer API Fehler: {str(e)}")
+        
+        raise Exception(f"Deezer API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
+    
+    def get_track(self, track_id):
+        """Holt Details zu einem Track."""
+        last_exception = None
+        
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                params = {}
+                # Deezer öffentliche API benötigt keine Authentifizierung
+                
+                response = requests.get(
+                    f'{self.BASE_URL}/track/{track_id}',
+                    headers=self.headers,
+                    params=params,
+                    timeout=MUSIC_API_TIMEOUT
+                )
+                response.raise_for_status()
+                track = response.json()
+                
+                # Deezer gibt Dauer in Sekunden zurück, konvertiere zu ms
+                duration_ms = track.get('duration') * 1000 if track.get('duration') else None
+                
+                return {
+                    'id': str(track['id']),
+                    'title': track.get('title', 'Unbekannt'),
+                    'artist': track.get('artist', {}).get('name', 'Unbekannter Künstler'),
+                    'album': track.get('album', {}).get('title', None),
+                    'image_url': track.get('album', {}).get('cover_medium', None),
+                    'url': track.get('link', f"https://www.deezer.com/track/{track['id']}"),
+                    'duration_ms': duration_ms,
+                    'provider': 'deezer'
+                }
+            except Timeout as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"Deezer API Timeout (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Deezer API Timeout: Die Anfrage dauerte zu lange.")
+            except ConnectionError as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    logger.warning(f"Deezer API Verbindungsfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Deezer API Verbindungsfehler: {str(e)}")
+            except RequestException as e:
+                last_exception = e
+                if attempt < MAX_RETRIES and e.response and e.response.status_code >= 500:
+                    logger.warning(f"Deezer API Serverfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                raise Exception(f"Deezer API Fehler: {str(e)}")
+            except Exception as e:
+                raise Exception(f"Deezer API Fehler: {str(e)}")
+        
+        raise Exception(f"Deezer API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
+
+
 def get_api_client(user_id=None, provider=None, use_client_credentials=False):
     """
     Holt einen API-Client für den angegebenen Provider.
     
     Args:
         user_id: Benutzer-ID (erforderlich für Spotify OAuth, optional für YouTube API-Key)
-        provider: Provider-Name ('spotify', 'youtube', 'musicbrainz')
+        provider: Provider-Name ('spotify', 'youtube', 'musicbrainz', 'deezer')
         use_client_credentials: Wenn True, verwendet API-Key für YouTube (Spotify verwendet immer OAuth)
     """
     from app.utils.music_oauth import get_music_setting
@@ -856,6 +1012,11 @@ def get_api_client(user_id=None, provider=None, use_client_credentials=False):
     elif provider == 'musicbrainz':
         # MusicBrainz benötigt keine Authentifizierung
         return MusicBrainzAPI()
+    
+    elif provider == 'deezer':
+        # Deezer benötigt keine Authentifizierung, aber App-ID ist optional (empfohlen für Rate Limits)
+        app_id = get_music_setting('deezer_app_id')
+        return DeezerAPI(app_id=app_id if app_id else None)
     
     else:
         raise Exception(f"Unbekannter Provider: {provider}")
@@ -921,6 +1082,10 @@ def _calculate_relevance_score(result, parsed_query):
     # Bonus für Spotify (bessere Qualität)
     if result.get('provider') == 'spotify':
         score += 20
+    
+    # Bonus für Deezer (gute Qualität)
+    if result.get('provider') == 'deezer':
+        score += 15
     
     return score
 
