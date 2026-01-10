@@ -982,8 +982,34 @@ EOF
 setup_nginx() {
     log_info "=== Nginx Konfiguration ==="
     
+    # Connection-Upgrade Map in nginx.conf hinzufügen (für WebSocket-Support)
+    log_info "Füge WebSocket-Connection-Map zu nginx.conf hinzu..."
+    if ! grep -q "map \$http_upgrade \$connection_upgrade" /etc/nginx/nginx.conf; then
+        # Backup erstellen
+        cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup.$(date +%Y%m%d_%H%M%S)
+        
+        # Prüfe ob http-Block existiert
+        if grep -q "^\s*http\s*{" /etc/nginx/nginx.conf; then
+            # Füge Map vor den include-Zeilen im http-Block ein
+            sed -i '/^\s*http\s*{/a\    # WebSocket Connection Header Map (MUSS im http-Block sein!)\n    map $http_upgrade $connection_upgrade {\n        default upgrade;\n        '\'''\'' close;\n    }' /etc/nginx/nginx.conf
+            log_success "Connection-Upgrade Map zu nginx.conf hinzugefügt"
+        else
+            log_warning "http-Block nicht gefunden in nginx.conf - Map muss manuell hinzugefügt werden"
+        fi
+    else
+        log_info "Connection-Upgrade Map bereits vorhanden in nginx.conf"
+    fi
+    
     # Nginx Site-Konfiguration erstellen
     cat > /etc/nginx/sites-available/teamportal <<EOF
+# Upstream-Block für Session-Stickiness (MUSS VOR server-Block sein!)
+# WICHTIG: ip_hash sorgt dafür, dass alle Requests eines Clients an denselben Worker gehen
+# Dies ist erforderlich für Socket.IO mit Multi-Worker-Setups
+upstream teamportal_backend {
+    ip_hash;  # Session-Stickiness für Socket.IO Multi-Worker
+    server 127.0.0.1:5000;
+}
+
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -1120,9 +1146,43 @@ server {
         expires 7d;
     }
 
+    # Socket.IO spezifische Konfiguration (MUSS VOR / kommen!)
+    # Socket.IO verwendet /socket.io/ für Polling und WebSocket-Verbindungen
+    # WICHTIG: Session-Stickiness für Multi-Worker (ip_hash im upstream-Block)
+    location /socket.io/ {
+        proxy_pass http://teamportal_backend;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # WebSocket support - WICHTIG: Connection Header dynamisch setzen
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        # Connection Header dynamisch setzen für WebSocket-Upgrades (wss://)
+        # Verwendet die Map aus nginx.conf: $connection_upgrade
+        proxy_set_header Connection \$connection_upgrade;
+        
+        # WICHTIG: Buffering für Socket.IO deaktivieren (verhindert 400-Fehler)
+        proxy_buffering off;
+        proxy_request_buffering off;
+        
+        # Längere Timeouts für Socket.IO Polling und WebSocket
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        send_timeout 60s;
+        
+        # CORS für Socket.IO (falls nötig)
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type" always;
+        add_header Access-Control-Allow-Credentials true always;
+    }
+
     # Hauptanwendung (MUSS ZULETZT kommen!)
     location / {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://teamportal_backend;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;

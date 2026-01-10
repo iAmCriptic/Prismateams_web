@@ -522,6 +522,12 @@ sudo nano /etc/nginx/sites-available/teamportal
 **Vollständige Nginx-Konfiguration mit optionalen Services:**
 
 ```nginx
+# Upstream-Block für Session-Stickiness (MUSS VOR server-Block sein!)
+upstream teamportal_backend {
+    ip_hash;  # WICHTIG: Session-Stickiness für Socket.IO Multi-Worker
+    server 127.0.0.1:5000;
+}
+
 server {
     listen 80;
     server_name ihre-domain.de www.ihre-domain.de;
@@ -663,8 +669,9 @@ server {
 
     # Socket.IO spezifische Konfiguration (MUSS VOR / kommen!)
     # Socket.IO verwendet /socket.io/ für Polling und WebSocket-Verbindungen
+    # WICHTIG: Session-Stickiness für Multi-Worker (ip_hash im upstream-Block)
     location /socket.io/ {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://teamportal_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -696,7 +703,7 @@ server {
 
     # Hauptanwendung (MUSS ZULETZT kommen!)
     location / {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://teamportal_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
