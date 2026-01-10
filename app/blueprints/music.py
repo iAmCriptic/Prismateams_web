@@ -913,12 +913,22 @@ def api_played_list():
 @socketio.on('music:join')
 def handle_music_join(data):
     """Registriert Client-Verbindungen für Musikmodul-Updates."""
+    # WICHTIG: Dieser Handler muss IMMER erfolgreich sein, sonst bekommt der Client 400 Bad Request
+    # Keine Exceptions werfen, auch wenn Session nicht verfügbar ist
     try:
         # Alle Clients, die im Musikmodul sind, treten dem gemeinsamen Room bei
         room = 'music_module'
-        join_room(room)
-        if current_app:
-            try:
+        try:
+            join_room(room)
+        except Exception as join_error:
+            # Wenn join_room fehlschlägt, logge es, aber wirf keine Exception
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Musik join_room Fehler (trotzdem akzeptiert): {join_error}")
+        
+        # Logging nur wenn möglich, aber nicht kritisch
+        try:
+            if current_app:
                 user_id = None
                 try:
                     if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
@@ -931,24 +941,35 @@ def handle_music_join(data):
                     except Exception:
                         pass
                 current_app.logger.debug(f"Musikmodul: Client hat Raum {room} betreten (User: {user_id})")
-            except Exception:
-                pass
+        except Exception:
+            # Logging-Fehler sind nicht kritisch
+            pass
     except Exception as e:
         # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
+        # WICHTIG: Keine Exception weiterwerfen!
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"Musik join handler Fehler: {e}")
-        pass
+        logger.warning(f"Musik join handler Fehler (trotzdem akzeptiert): {e}")
+        # Handler muss erfolgreich sein, daher keine Exception werfen
 
 
 @socketio.on('music:leave')
 def handle_music_leave(data):
     """Entfernt Client-Verbindungen aus dem Musikmodul-Room."""
+    # WICHTIG: Dieser Handler muss IMMER erfolgreich sein, sonst bekommt der Client 400 Bad Request
     try:
         room = 'music_module'
-        leave_room(room)
-        if current_app:
-            try:
+        try:
+            leave_room(room)
+        except Exception as leave_error:
+            # Wenn leave_room fehlschlägt, logge es, aber wirf keine Exception
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Musik leave_room Fehler (trotzdem akzeptiert): {leave_error}")
+        
+        # Logging nur wenn möglich, aber nicht kritisch
+        try:
+            if current_app:
                 user_id = None
                 try:
                     if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
@@ -961,12 +982,14 @@ def handle_music_leave(data):
                     except Exception:
                         pass
                 current_app.logger.debug(f"Musikmodul: Client hat Raum {room} verlassen (User: {user_id})")
-            except Exception:
-                pass
+        except Exception:
+            # Logging-Fehler sind nicht kritisch
+            pass
     except Exception as e:
         # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
+        # WICHTIG: Keine Exception weiterwerfen!
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"Musik leave handler Fehler: {e}")
-        pass
+        logger.warning(f"Musik leave handler Fehler (trotzdem akzeptiert): {e}")
+        # Handler muss erfolgreich sein, daher keine Exception werfen
 

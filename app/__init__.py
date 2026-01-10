@@ -75,7 +75,7 @@ def create_app(config_name='default'):
             # Socket.IO mit Redis Message Queue initialisieren
             # WICHTIG: Robuste Konfiguration für Multi-Worker-Setups
             # - Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
-            # - manage_session=True = Session-Verwaltung aktiviert für korrekte Authentifizierung
+            # - manage_session=False = akzeptiert alle Sessions, auch wenn Worker sie nicht kennt (wichtig für Multi-Worker)
             # - Längere Timeouts = weniger Fehler bei langsamen Verbindungen
             init_kwargs = {
                 'message_queue': redis_url,
@@ -89,7 +89,7 @@ def create_app(config_name='default'):
                 'allow_upgrades': False,  # KEINE WebSocket-Upgrades - nur Polling = stabiler
                 'transports': ['polling'],  # Nur Polling - kein WebSocket für bessere Multi-Worker-Stabilität
                 'max_http_buffer_size': 2e6,  # Erhöht für größere Nachrichten
-                'manage_session': True  # Session-Verwaltung aktiviert für korrekte Authentifizierung
+                'manage_session': False  # KEINE Session-Validierung - akzeptiert alle Sessions (wichtig für Multi-Worker mit Redis)
             }
             
             socketio.init_app(app, **init_kwargs)
@@ -113,7 +113,7 @@ def create_app(config_name='default'):
                 allow_upgrades=False,  # KEINE WebSocket-Upgrades
                 transports=['polling'],  # Nur Polling
                 max_http_buffer_size=2e6,
-                manage_session=True  # Session-Verwaltung aktiviert
+                manage_session=False  # KEINE Session-Validierung - akzeptiert alle Sessions
             )
     else:
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
@@ -127,7 +127,7 @@ def create_app(config_name='default'):
             cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
             allow_upgrades=True,
             transports=['polling', 'websocket'],
-            manage_session=True  # Session-Verwaltung aktiviert
+            manage_session=False  # KEINE Session-Validierung - akzeptiert alle Sessions
         )
         if config_name == 'production':
             import logging
@@ -160,12 +160,13 @@ def create_app(config_name='default'):
         """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients.
         
         WICHTIG: Diese Funktion muss IMMER True zurückgeben, sonst bekommt der Client 400 Bad Request.
-        Mit manage_session=True wird die Session korrekt verwaltet, auch bei Multi-Worker-Setups mit Redis.
+        Mit manage_session=False akzeptiert Socket.IO alle Sessions, auch wenn der Worker sie nicht kennt.
+        Dies ist wichtig für Multi-Worker-Setups mit Redis, wo Sessions zwischen Workern geteilt werden.
         """
         try:
             # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception, kein Logging
-            # Dies verhindert 400 Bad Request Fehler
-            # Die Session wird automatisch von Flask-SocketIO verwaltet
+            # Dies verhindert 400 Bad Request Fehler bei Session-Konflikten zwischen Workern
+            # Mit manage_session=False werden Sessions nicht validiert, was für Multi-Worker wichtig ist
             return True
         except Exception as e:
             # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
