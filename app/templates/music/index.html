@@ -203,6 +203,14 @@
             return;
         }
         
+        // Button deaktivieren während Request läuft
+        const button = event?.target?.closest('button');
+        const originalHTML = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        }
+        
         fetch('/music/wishlist/mark-as-played', {
             method: 'POST',
             headers: {
@@ -213,43 +221,54 @@
             })
         })
         .then(response => {
-            console.log('Response Status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response Data:', data);
             if (data.success) {
-                // Entferne Wunsch sofort aus der Anzeige
-                const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
+                // Invalidiere Cache für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('wishlist');
+                    invalidateCache('played');
+                    invalidateCache('queue');
+                }
+                
+                // Optimistisches Update: Entferne Wunsch sofort aus der Anzeige
+                const wishItem = document.querySelector(`#wishlist-list [data-wish-id="${wishId}"]`);
                 if (wishItem) {
-                    wishItem.remove();
+                    wishItem.style.transition = 'opacity 0.3s';
+                    wishItem.style.opacity = '0.5';
+                    setTimeout(() => wishItem.remove(), 300);
                 }
                 
                 // Prüfe ob Liste jetzt leer ist
                 const wishlistContainer = document.querySelector('#wishlist-list');
                 if (wishlistContainer) {
-                    if (wishlistContainer.children.length === 0) {
-                        wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
-                    }
-                    // Aktualisiere Badge
-                    const badge = document.querySelector('#wishlist-tab .badge');
-                    if (badge) {
-                        const currentCount = parseInt(badge.textContent) || 0;
-                        badge.textContent = Math.max(0, currentCount - 1);
+                    const remainingItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                    if (remainingItems.length <= 1) {  // <= 1 weil current item noch da ist
+                        setTimeout(() => {
+                            const finalItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                            if (finalItems.length === 0) {
+                                wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+                            }
+                        }, 350);
                     }
                 }
                 
-                // Aktualisiere Played-Badge (SocketIO-Event wird die genaue Zahl senden)
-                const playedBadge = document.querySelector('#played-tab .badge');
-                if (playedBadge) {
-                    const currentPlayedCount = parseInt(playedBadge.textContent) || 0;
-                    playedBadge.textContent = currentPlayedCount + 1;
-                }
+                // SSE-Event wird die korrekten Updates senden (inkl. genauer Badge-Zahlen)
+                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Daten neu
+                setTimeout(() => {
+                    if (typeof updateWishlistBadge === 'function') {
+                        updateWishlistBadge();
+                    }
+                    if (typeof updatePlayedBadge === 'function') {
+                        updatePlayedBadge();
+                    }
+                }, 2000);
                 
-                // SocketIO-Event wird die Updates senden
+                console.log('Lied als gespielt markiert - SSE-Update wird kommen');
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -258,11 +277,29 @@
         .catch(error => {
             console.error('Fehler beim Markieren als gespielt:', error);
             alert('Fehler beim Markieren als gespielt: ' + error.message);
+        })
+        .finally(() => {
+            // Button wieder aktivieren
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) {
+                    button.innerHTML = originalHTML;
+                }
+            }
         });
     }
     
     function addToQueue(wishId, position) {
         console.log('addToQueue aufgerufen:', wishId, position);
+        
+        // Button deaktivieren während Request läuft
+        const button = event?.target?.closest('button');
+        const originalHTML = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        }
+        
         fetch('/music/wishlist/add-to-queue', {
             method: 'POST',
             headers: {
@@ -274,36 +311,53 @@
             })
         })
         .then(response => {
-            console.log('Response Status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response Data:', data);
             if (data.success) {
-                // Entferne Wunsch sofort aus der Anzeige
-                const wishItem = document.querySelector(`[data-wish-id="${wishId}"]`);
-                if (wishItem) {
-                    wishItem.remove();
+                // Invalidiere Cache für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('wishlist');
+                    invalidateCache('queue');
                 }
                 
-                // Prüfe ob Liste jetzt leer ist
+                // Optimistisches Update: Entferne Wunsch sofort aus der Wishlist-Anzeige
+                const wishItem = document.querySelector(`#wishlist-list [data-wish-id="${wishId}"]`);
+                if (wishItem) {
+                    wishItem.style.transition = 'opacity 0.3s';
+                    wishItem.style.opacity = '0.5';
+                    setTimeout(() => wishItem.remove(), 300);
+                }
+                
+                // Prüfe ob Wishlist jetzt leer ist
                 const wishlistContainer = document.querySelector('#wishlist-list');
                 if (wishlistContainer) {
-                    if (wishlistContainer.children.length === 0) {
-                        wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
-                    }
-                    // Aktualisiere Badge
-                    const badge = document.querySelector('#wishlist-tab .badge');
-                    if (badge) {
-                        const currentCount = parseInt(badge.textContent) || 0;
-                        badge.textContent = Math.max(0, currentCount - 1);
+                    const remainingItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                    if (remainingItems.length <= 1) {
+                        setTimeout(() => {
+                            const finalItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
+                            if (finalItems.length === 0) {
+                                wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
+                            }
+                        }, 350);
                     }
                 }
                 
-                // SocketIO-Event wird die Queue aktualisieren
+                // SSE-Event wird die Queue vollständig aktualisieren (inkl. korrekter Positionen)
+                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
+                setTimeout(() => {
+                    if (typeof updateQueueDisplay === 'function') {
+                        updateQueueDisplay();
+                    }
+                    if (typeof updateWishlistBadge === 'function') {
+                        updateWishlistBadge();
+                    }
+                }, 2000);
+                
+                console.log('Lied zur Queue hinzugefügt - SSE-Update wird kommen');
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -312,6 +366,15 @@
         .catch(error => {
             console.error('Fehler beim Hinzufügen zur Warteschlange:', error);
             alert('Fehler beim Hinzufügen zur Warteschlange: ' + error.message);
+        })
+        .finally(() => {
+            // Button wieder aktivieren
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) {
+                    button.innerHTML = originalHTML;
+                }
+            }
         });
     }
     
@@ -319,6 +382,14 @@
         console.log('removeFromQueue aufgerufen:', queueId);
         if (!confirm('Möchten Sie dieses Lied aus der Warteschlange entfernen?')) {
             return;
+        }
+        
+        // Button deaktivieren während Request läuft
+        const button = event?.target?.closest('button');
+        const originalHTML = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
         
         fetch('/music/queue/remove', {
@@ -331,35 +402,49 @@
             })
         })
         .then(response => {
-            console.log('Response Status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response Data:', data);
             if (data.success) {
-                // Entferne Queue-Item sofort aus der Anzeige
-                const queueItem = document.querySelector(`[data-queue-id="${queueId}"]`);
+                // Invalidiere Cache für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('queue');
+                }
+                
+                // Optimistisches Update: Entferne Queue-Item sofort
+                const queueItem = document.querySelector(`#queue-list [data-queue-id="${queueId}"]`);
                 if (queueItem) {
-                    queueItem.remove();
+                    queueItem.style.transition = 'opacity 0.3s';
+                    queueItem.style.opacity = '0.5';
+                    setTimeout(() => queueItem.remove(), 300);
                 }
                 
                 // Prüfe ob Queue jetzt leer ist
                 const queueContainer = document.querySelector('#queue-list');
-                if (queueContainer && queueContainer.children.length === 0) {
-                    queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
+                if (queueContainer) {
+                    const remainingItems = queueContainer.querySelectorAll('.queue-item[data-queue-id]');
+                    if (remainingItems.length <= 1) {
+                        setTimeout(() => {
+                            const finalItems = queueContainer.querySelectorAll('.queue-item[data-queue-id]');
+                            if (finalItems.length === 0) {
+                                queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
+                            }
+                        }, 350);
+                    }
                 }
                 
-                // Aktualisiere Badge
-                const badge = document.querySelector('#queue-tab .badge');
-                if (badge) {
-                    const currentCount = parseInt(badge.textContent) || 0;
-                    badge.textContent = Math.max(0, currentCount - 1);
-                }
+                // SSE-Event wird die Queue vollständig aktualisieren (inkl. korrekter Positionen)
+                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
+                setTimeout(() => {
+                    if (typeof updateQueueDisplay === 'function') {
+                        updateQueueDisplay();
+                    }
+                }, 2000);
                 
-                // SocketIO-Event wird die Queue vollständig aktualisieren
+                console.log('Lied aus Queue entfernt - SSE-Update wird kommen');
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -368,6 +453,15 @@
         .catch(error => {
             console.error('Fehler beim Entfernen aus der Warteschlange:', error);
             alert('Fehler beim Entfernen aus der Warteschlange: ' + error.message);
+        })
+        .finally(() => {
+            // Button wieder aktivieren
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) {
+                    button.innerHTML = originalHTML;
+                }
+            }
         });
     }
     
@@ -377,6 +471,14 @@
             return;
         }
         
+        // Button deaktivieren während Request läuft
+        const button = event?.target?.closest('button');
+        const originalHTML = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        }
+        
         fetch('/music/queue/clear', {
             method: 'POST',
             headers: {
@@ -384,28 +486,39 @@
             }
         })
         .then(response => {
-            console.log('Response Status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response Data:', data);
             if (data.success) {
-                // Leere Queue sofort
+                // Invalidiere Cache für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('queue');
+                }
+                
+                // Optimistisches Update: Leere Queue sofort
                 const queueContainer = document.querySelector('#queue-list');
                 if (queueContainer) {
                     queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
                 }
                 
-                // Aktualisiere Badge
+                // Badge sofort aktualisieren
                 const badge = document.querySelector('#queue-tab .badge');
                 if (badge) {
                     badge.textContent = '0';
                 }
                 
-                // SocketIO-Event wird die Queue vollständig aktualisieren
+                // SSE-Event wird die Queue vollständig aktualisieren
+                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
+                setTimeout(() => {
+                    if (typeof updateQueueDisplay === 'function') {
+                        updateQueueDisplay();
+                    }
+                }, 2000);
+                
+                console.log('Queue geleert - SSE-Update wird kommen');
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -414,6 +527,15 @@
         .catch(error => {
             console.error('Fehler beim Leeren der Warteschlange:', error);
             alert('Fehler beim Leeren der Warteschlange: ' + error.message);
+        })
+        .finally(() => {
+            // Button wieder aktivieren
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) {
+                    button.innerHTML = originalHTML;
+                }
+            }
         });
     }
     
@@ -423,6 +545,14 @@
             return;
         }
         
+        // Button deaktivieren während Request läuft
+        const button = event?.target?.closest('button');
+        const originalHTML = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        }
+        
         fetch('/music/wishlist/clear', {
             method: 'POST',
             headers: {
@@ -430,28 +560,41 @@
             }
         })
         .then(response => {
-            console.log('Response Status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response Data:', data);
             if (data.success) {
-                // Leere Wishlist sofort
+                // Invalidiere Cache für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('wishlist');
+                }
+                
+                // Optimistisches Update: Leere Wishlist sofort
                 const wishlistContainer = document.querySelector('#wishlist-list');
                 if (wishlistContainer) {
                     wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
                 }
                 
-                // Aktualisiere Badge
+                // Badge sofort aktualisieren
                 const badge = document.querySelector('#wishlist-tab .badge');
                 if (badge) {
                     badge.textContent = '0';
                 }
                 
-                // SocketIO-Event wird die Wishlist vollständig aktualisieren
+                // SSE-Event wird die Wishlist vollständig aktualisieren
+                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Wishlist neu
+                setTimeout(() => {
+                    if (typeof loadWishlist === 'function') {
+                        loadWishlist();
+                    } else if (typeof updateWishlistBadge === 'function') {
+                        updateWishlistBadge();
+                    }
+                }, 2000);
+                
+                console.log('Wishlist geleert - SSE-Update wird kommen');
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -460,6 +603,15 @@
         .catch(error => {
             console.error('Fehler beim Leeren der Wunschliste:', error);
             alert('Fehler beim Leeren der Wunschliste: ' + error.message);
+        })
+        .finally(() => {
+            // Button wieder aktivieren
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) {
+                    button.innerHTML = originalHTML;
+                }
+            }
         });
     }
     
@@ -474,6 +626,14 @@
             return;
         }
         
+        // Button deaktivieren während Request läuft
+        const button = event?.target?.closest('button');
+        const originalHTML = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i> Zurücksetzen...';
+        }
+        
         fetch('/music/reset-all', {
             method: 'POST',
             headers: {
@@ -481,16 +641,21 @@
             }
         })
         .then(response => {
-            console.log('Response Status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Response Data:', data);
             if (data.success) {
-                // Leere alles sofort
+                // Invalidiere alle Caches für SSE-Updates
+                if (typeof invalidateCache === 'function') {
+                    invalidateCache('wishlist');
+                    invalidateCache('queue');
+                    invalidateCache('played');
+                }
+                
+                // Optimistisches Update: Leere alles sofort
                 const wishlistContainer = document.querySelector('#wishlist-list');
                 if (wishlistContainer) {
                     wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">Keine Wünsche vorhanden</p>';
@@ -501,7 +666,7 @@
                     queueContainer.innerHTML = '<p class="text-muted text-center py-4">Warteschlange ist leer</p>';
                 }
                 
-                // Aktualisiere Badges
+                // Badges sofort aktualisieren
                 const wishlistBadge = document.querySelector('#wishlist-tab .badge');
                 if (wishlistBadge) {
                     wishlistBadge.textContent = '0';
@@ -512,7 +677,26 @@
                     queueBadge.textContent = '0';
                 }
                 
-                // SocketIO-Events werden alles vollständig aktualisieren
+                const playedBadge = document.querySelector('#played-tab .badge');
+                if (playedBadge) {
+                    playedBadge.textContent = '0';
+                }
+                
+                // SSE-Events werden alles vollständig aktualisieren
+                // Falls SSE-Events nicht innerhalb von 2 Sekunden kommen, lade Daten neu
+                setTimeout(() => {
+                    if (typeof loadWishlist === 'function') {
+                        loadWishlist();
+                    }
+                    if (typeof updateQueueDisplay === 'function') {
+                        updateQueueDisplay();
+                    }
+                    if (typeof loadPlayedTab === 'function') {
+                        loadPlayedTab(1);
+                    }
+                }, 2000);
+                
+                console.log('Alles zurückgesetzt - SSE-Updates werden kommen');
             } else {
                 const errorMsg = data.error || 'Unbekannter Fehler';
                 alert('Fehler: ' + errorMsg);
@@ -521,6 +705,15 @@
         .catch(error => {
             console.error('Fehler beim Zurücksetzen:', error);
             alert('Fehler beim Zurücksetzen: ' + error.message);
+        })
+        .finally(() => {
+            // Button wieder aktivieren
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) {
+                    button.innerHTML = originalHTML;
+                }
+            }
         });
     }
     

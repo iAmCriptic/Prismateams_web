@@ -19,6 +19,11 @@ def has_module_access(user, module_key):
     Returns:
         True wenn Zugriff vorhanden, False sonst
     """
+    # Gast-Accounts haben keinen Zugriff auf E-Mail und Credentials
+    if hasattr(user, 'is_guest') and user.is_guest:
+        if module_key in ['module_email', 'module_credentials']:
+            return False
+    
     # Hauptadministrator und Administrator haben immer Zugriff
     if user.is_super_admin or user.is_admin:
         return True
@@ -33,6 +38,10 @@ def has_module_access(user, module_key):
     except:
         # Falls Spalte noch nicht existiert, Standard: Vollzugriff (Rückwärtskompatibilität)
         has_full_access = True
+    
+    # Gast-Accounts haben nie Vollzugriff
+    if hasattr(user, 'is_guest') and user.is_guest:
+        has_full_access = False
     
     # Vollzugriff-Benutzer haben Zugriff auf alle Module
     if has_full_access:
@@ -93,14 +102,17 @@ def get_accessible_modules(user):
         ]
         return [m for m in all_modules if is_module_enabled(m)]
     
-    # Vollzugriff-Benutzer haben Zugriff auf alle aktivierten Module
+    # Gast-Accounts haben nie Vollzugriff und keinen Zugriff auf E-Mail und Credentials
+    is_guest = hasattr(user, 'is_guest') and user.is_guest
+    
+    # Vollzugriff-Benutzer haben Zugriff auf alle aktivierten Module (außer Gäste)
     try:
         has_full_access = getattr(user, 'has_full_access', False)
     except:
         # Falls Spalte noch nicht existiert, Standard: Vollzugriff (Rückwärtskompatibilität)
         has_full_access = True
     
-    if has_full_access:
+    if has_full_access and not is_guest:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_credentials', 'module_manuals',
@@ -110,11 +122,18 @@ def get_accessible_modules(user):
     
     # Prüfe modulspezifische Rollen
     accessible_modules = []
-    all_modules = [
-        'module_chat', 'module_files', 'module_calendar', 'module_email',
-        'module_credentials', 'module_manuals',
-        'module_inventory', 'module_wiki', 'module_booking'
-    ]
+    # Gast-Accounts haben keinen Zugriff auf E-Mail und Credentials
+    if is_guest:
+        all_modules = [
+            'module_chat', 'module_files', 'module_calendar',
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music'
+        ]
+    else:
+        all_modules = [
+            'module_chat', 'module_files', 'module_calendar', 'module_email',
+            'module_credentials', 'module_manuals',
+            'module_inventory', 'module_wiki', 'module_booking'
+        ]
     
     for module_key in all_modules:
         if is_module_enabled(module_key):
@@ -127,4 +146,87 @@ def get_accessible_modules(user):
                 accessible_modules.append(module_key)
     
     return accessible_modules
+
+
+def has_guest_share_access(user, share_token, share_type):
+    """
+    Prüft ob ein Gast-Account Zugriff auf einen Freigabelink hat.
+    
+    Args:
+        user: User-Objekt (muss Gast-Account sein)
+        share_token: Share-Token des Freigabelinks
+        share_type: 'file' oder 'folder'
+        
+    Returns:
+        True wenn Zugriff vorhanden, False sonst
+    """
+    if not hasattr(user, 'is_guest') or not user.is_guest:
+        return False
+    
+    from app.models.guest import GuestShareAccess
+    
+    access = GuestShareAccess.query.filter_by(
+        user_id=user.id,
+        share_token=share_token,
+        share_type=share_type
+    ).first()
+    
+    return access is not None
+
+
+def get_guest_accessible_items(user):
+    """
+    Gibt alle für einen Gast-Account zugänglichen Dateien und Ordner zurück.
+    
+    Args:
+        user: User-Objekt (muss Gast-Account sein)
+        
+    Returns:
+        Tuple (files, folders) mit Listen von File- und Folder-Objekten
+    """
+    if not hasattr(user, 'is_guest') or not user.is_guest:
+        return [], []
+    
+    from app.models.guest import GuestShareAccess
+    from app.models.file import File, Folder
+    
+    # Hole alle Share-Tokens für diesen Gast
+    guest_accesses = GuestShareAccess.query.filter_by(user_id=user.id).all()
+    
+    files = []
+    folders = []
+    
+    for access in guest_accesses:
+        if access.share_type == 'file':
+            file_item = File.query.filter_by(share_token=access.share_token, share_enabled=True).first()
+            if file_item:
+                files.append(file_item)
+        elif access.share_type == 'folder':
+            folder_item = Folder.query.filter_by(share_token=access.share_token, share_enabled=True).first()
+            if folder_item:
+                folders.append(folder_item)
+    
+    return files, folders
+
+
+def is_guest_allowed_module(guest_user, module_key):
+    """
+    Prüft ob ein Gast-Account Zugriff auf ein Modul hat.
+    
+    Args:
+        guest_user: User-Objekt (muss Gast-Account sein)
+        module_key: Modul-Schlüssel
+        
+    Returns:
+        True wenn Zugriff vorhanden, False sonst
+    """
+    if not hasattr(guest_user, 'is_guest') or not guest_user.is_guest:
+        return False
+    
+    # Gast-Accounts haben nie Zugriff auf E-Mail und Credentials
+    if module_key in ['module_email', 'module_credentials']:
+        return False
+    
+    # Verwende die normale Modul-Zugriffsprüfung
+    return has_module_access(guest_user, module_key)
 

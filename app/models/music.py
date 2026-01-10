@@ -139,9 +139,9 @@ class MusicSettings(db.Model):
                 return json.loads(setting.value)
             except:
                 # Fallback: Standard-Reihenfolge
-                return ['spotify', 'youtube', 'musicbrainz']
+                return ['spotify', 'youtube', 'deezer', 'musicbrainz']
         # Fallback: Standard-Reihenfolge
-        return ['spotify', 'youtube', 'musicbrainz']
+        return ['spotify', 'youtube', 'deezer', 'musicbrainz']
     
     @staticmethod
     def set_provider_order(order):

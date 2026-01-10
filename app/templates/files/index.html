@@ -246,6 +246,8 @@
                  onclick="location.href='{{ url_for('files.edit_onlyoffice', file_id=file.id) }}'" style="cursor: pointer;"
                  {% elif file.name.endswith('.txt') %}
                  onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
+                 {% elif file.name.endswith('.pdf') %}
+                 onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% else %}
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% endif %}>
@@ -318,6 +320,11 @@
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                     {% endif %}
+                                {% endif %}
+                                {% if file.name.endswith('.pdf') %}
+                                <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">
+                                    <i class="bi bi-eye"></i> {{ _('files.index.file_actions.view') }}
+                                </a></li>
                                 {% endif %}
                                 {% if file.name.endswith(('.txt', '.md')) %}
                                 <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">
@@ -533,6 +540,8 @@
                  onclick="location.href='{{ url_for('files.edit_onlyoffice', file_id=file.id) }}'" style="cursor: pointer;"
                  {% elif file.name.endswith('.txt') %}
                  onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
+                 {% elif file.name.endswith('.pdf') %}
+                 onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% else %}
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% endif %}>
@@ -591,6 +600,11 @@
                     </a></li>
                     <li><hr class="dropdown-divider"></li>
                         {% endif %}
+                    {% endif %}
+                    {% if file.name.endswith('.pdf') %}
+                    <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">
+                        <i class="bi bi-eye"></i> {{ _('files.index.file_actions.view') }}
+                    </a></li>
                     {% endif %}
                     {% if file.name.endswith(('.txt', '.md')) %}
                     <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">

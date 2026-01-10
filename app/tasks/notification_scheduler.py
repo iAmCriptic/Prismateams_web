@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timedelta
 from app import create_app
 from app.utils.notifications import schedule_calendar_reminders, cleanup_inactive_subscriptions
+from app.tasks.guest_cleanup import cleanup_expired_guests
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,10 @@ class NotificationScheduler:
                     now = datetime.utcnow()
                     if now.hour == 2 and now.minute < 5:  # Zwischen 2:00 und 2:05
                         cleanup_inactive_subscriptions()
+                    
+                    # Bereinige abgelaufene Gast-Accounts (einmal täglich, z.B. um 3:00)
+                    if now.hour == 3 and now.minute < 5:  # Zwischen 3:00 und 3:05
+                        cleanup_expired_guests()
                 
                 # Warte 5 Minuten bis zur nächsten Ausführung
                 time.sleep(300)

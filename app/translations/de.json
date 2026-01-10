@@ -501,7 +501,14 @@
         "breadcrumb_users": "Benutzerverwaltung",
         "heading": "Benutzerverwaltung",
         "configure_default_roles": "Standardrollen konfigurieren",
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+        "create_user": "Neuen Benutzer erstellen",
+        "guest_account": "Gast-Account",
+        "guest_expires_at": "Läuft ab",
+        "guest_no_expiry": "Kein Ablaufdatum",
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
+        "flash_user_created": "Account für {name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.",
+        "flash_guest_created": "Gast-Account für {name} wurde erstellt. Zugangsdaten: Benutzername: {email}, Passwort: {password}",
+        "flash_email_failed": "Account für {name} wurde erstellt, aber E-Mail konnte nicht gesendet werden. Zugangsdaten: Benutzername: {email}, Passwort: {password}"
       },
       "sections": {
         "users": {

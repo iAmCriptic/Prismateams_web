@@ -30,10 +30,11 @@
                                 {% set all_providers = [
                                     {'id': 'spotify', 'name': 'Spotify', 'icon': 'bi-spotify'},
                                     {'id': 'youtube', 'name': 'YouTube', 'icon': 'bi-youtube'},
+                                    {'id': 'deezer', 'name': 'Deezer', 'icon': 'bi-music-note-list'},
                                     {'id': 'musicbrainz', 'name': 'MusicBrainz', 'icon': 'bi-music-note-list'}
                                 ] %}
                                 
-                                {% for provider in provider_order if provider in ['spotify', 'youtube', 'musicbrainz'] %}
+                                {% for provider in provider_order if provider in ['spotify', 'youtube', 'deezer', 'musicbrainz'] %}
                                     {% set provider_info = all_providers | selectattr('id', 'equalto', provider) | first %}
                                     {% if provider_info %}
                                     <div class="list-group-item d-flex align-items-center provider-item" data-provider="{{ provider }}">
@@ -156,6 +157,21 @@
                         <a href="{{ url_for('music.disconnect', provider='youtube') }}" class="btn btn-sm btn-outline-danger ms-2">Trennen</a>
                     </div>
                     {% endif %}
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Deezer Konfiguration -->
+                    <h5 class="mb-3">Deezer</h5>
+                    <div class="alert alert-info">
+                        <strong>Hinweis:</strong> Deezer verwendet eine öffentliche API. Eine App-ID ist optional, aber empfohlen für höhere Rate Limits.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="deezer_app_id" class="form-label">App-ID (optional)</label>
+                        <input type="text" class="form-control" id="deezer_app_id" name="deezer_app_id" 
+                               value="{{ deezer_app_id }}" placeholder="Deezer App-ID">
+                        <div class="form-text">Erhalten Sie eine App-ID im <a href="https://developers.deezer.com/myapps" target="_blank">Deezer Developer Portal</a> (optional, aber empfohlen für höhere Rate Limits)</div>
+                    </div>
                     
                     <hr class="my-4">
                     

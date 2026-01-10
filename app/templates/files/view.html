@@ -60,6 +60,20 @@
         hyphens: auto;
     }
     
+    .file-viewer-content iframe {
+        width: 100%;
+        height: calc(100vh - 200px);
+        min-height: 600px;
+        border: none;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background: white;
+    }
+    
+    [data-bs-theme="dark"] .file-viewer-content iframe {
+        background: #212529;
+    }
+    
     .markdown-content {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.6;
@@ -297,6 +311,11 @@
             max-width: 100vw;
         }
         
+        .file-viewer-content iframe {
+            height: calc(100vh - 150px);
+            min-height: 400px;
+        }
+        
         .file-viewer-header {
             padding: 0.75rem;
         }
@@ -431,7 +450,14 @@
     </div>
     
     <div class="file-viewer-content">
-        {% if file.name.endswith('.md') %}
+        {% if is_pdf|default(False) %}
+            <iframe src="{{ url_for('files.serve_pdf', file_id=file.id) }}" 
+                    title="PDF Viewer">
+                <p>Ihr Browser unterstützt keine PDF-Anzeige. 
+                   <a href="{{ url_for('files.download_file', file_id=file.id) }}">Klicken Sie hier, um die PDF herunterzuladen.</a>
+                </p>
+            </iframe>
+        {% elif file.name.endswith('.md') %}
             <div class="markdown-content">
                 {{ processed_content | safe }}
             </div>
@@ -439,7 +465,7 @@
             <div class="text-content">{{ content }}</div>
         {% endif %}
         
-        {% if not file.name.endswith('.md') %}
+        {% if not is_pdf and not file.name.endswith('.md') %}
             {% set content_type='file' %}{% set content_id=file.id %}{% include 'comments/_comments.html' %}
         {% endif %}
     </div>

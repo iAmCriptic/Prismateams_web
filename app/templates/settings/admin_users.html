@@ -13,9 +13,14 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">{{ _('settings.admin.users.heading') }}</h2>
-    <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-gear"></i> {{ _('settings.admin.users.configure_default_roles') }}
-    </a>
+    <div class="btn-group">
+        <a href="{{ url_for('settings.create_user') }}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Neuen Benutzer erstellen
+        </a>
+        <a href="{{ url_for('settings.admin_roles_default') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-gear"></i> {{ _('settings.admin.users.configure_default_roles') }}
+        </a>
+    </div>
 </div>
 
 <!-- Pending Users -->
@@ -55,7 +60,7 @@
 {% endif %}
 
 <!-- Active Users -->
-<div class="card">
+<div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0"><i class="bi bi-people"></i> Aktive Benutzer ({{ active_users|length }})</h5>
     </div>
@@ -66,9 +71,10 @@
                     <tr>
                         <th>Name</th>
                         <th>E-Mail</th>
-                        <th>Rolle</th>
+                        <th>Typ / Rolle</th>
                         <th>Rollenstatus</th>
                         <th>Letzter Login</th>
+                        <th>Info</th>
                         <th>Aktionen</th>
                     </tr>
                 </thead>
@@ -111,6 +117,9 @@
                         </td>
                         <td>{{ user.last_login.strftime('%d.%m.%Y') if user.last_login else 'Nie' }}</td>
                         <td>
+                            <small class="text-muted">-</small>
+                        </td>
+                        <td>
                             <div class="btn-group btn-group-sm">
                                 <button type="button" class="btn btn-outline-primary" title="Rollen verwalten" data-bs-toggle="modal" data-bs-target="#rolesModal" data-user-id="{{ user.id }}" data-user-name="{{ user.full_name }}" {% if user.is_super_admin %}disabled{% endif %}>
                                     <i class="bi bi-person-badge"></i>
@@ -142,6 +151,117 @@
                         </td>
                     </tr>
                     {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Accounts -->
+<div class="card">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-person-dash"></i> Gast-Accounts ({{ guest_users_with_roles|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Gast-Benutzername</th>
+                        <th>Modulzugriff</th>
+                        <th>Freigabelinks</th>
+                        <th>Ablaufdatum</th>
+                        <th>Status</th>
+                        <th>Erstellt am</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if guest_users_with_roles %}
+                    {% for item in guest_users_with_roles %}
+                    {% set guest = item.user %}
+                    {% set is_expired = guest.guest_expires_at and guest.guest_expires_at < now %}
+                    <tr {% if is_expired %}class="table-warning"{% elif not guest.is_active %}class="table-secondary"{% endif %}>
+                        <td>
+                            <strong>{{ guest.full_name }}</strong>
+                            <span class="badge bg-info ms-2">Gast</span>
+                        </td>
+                        <td>
+                            <code class="text-primary">{{ guest.guest_username or guest.email }}</code>
+                        </td>
+                        <td>
+                            {% if item.module_roles %}
+                                <div class="small">
+                                    {% for module_key, has_access in item.module_roles.items() %}
+                                        {% if has_access %}
+                                            {% for key, name in all_modules %}
+                                                {% if key == module_key %}
+                                                    <span class="badge bg-secondary me-1">{{ name }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <small class="text-muted">Keine Module</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.share_count > 0 %}
+                            <span class="badge bg-success">{{ item.share_count }} Freigabelink(s)</span>
+                            {% else %}
+                            <small class="text-muted">Keine</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if guest.guest_expires_at %}
+                                {% if is_expired %}
+                                <span class="text-danger"><strong>Abgelaufen</strong><br>{{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                                {% else %}
+                                <small>{{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                {% endif %}
+                            {% else %}
+                            <small class="text-muted">Unbegrenzt</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if guest.is_active %}
+                                {% if is_expired %}
+                                <span class="badge bg-danger">Abgelaufen</span>
+                                {% else %}
+                                <span class="badge bg-success">Aktiv</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="badge bg-secondary">Inaktiv</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ guest.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <form method="POST" action="{{ url_for('settings.deactivate_user', user_id=guest.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-warning" title="{% if guest.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}">
+                                        <i class="bi bi-{% if guest.is_active %}pause{% else %}play{% endif %}-circle"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('settings.delete_user', user_id=guest.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger" data-confirm-delete="Gast-Account wirklich löschen?" title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i> Keine Gast-Accounts vorhanden
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>

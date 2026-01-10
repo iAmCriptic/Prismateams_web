@@ -96,7 +96,7 @@ def build_search_query_for_provider(parsed: Dict[str, Optional[str]], provider: 
     
     Args:
         parsed: Ergebnis von parse_search_query()
-        provider: 'spotify', 'youtube', oder 'musicbrainz'
+        provider: 'spotify', 'youtube', 'musicbrainz', oder 'deezer'
         
     Returns:
         Optimierte Query-String für den Provider
@@ -151,6 +151,20 @@ def build_search_query_for_provider(parsed: Dict[str, Optional[str]], provider: 
         if conditions:
             query = ' AND '.join(conditions)
             return query
+        return raw
+    
+    elif provider == 'deezer':
+        # Deezer: Konstruiere natürliche Query (ähnlich YouTube)
+        parts = []
+        if title:
+            parts.append(title)
+        if artist:
+            parts.append(artist)
+        if album:
+            parts.append(album)
+        
+        if parts:
+            return ' '.join(parts)
         return raw
     
     # Fallback: verwende raw query

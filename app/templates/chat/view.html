@@ -25,10 +25,31 @@
                          class="chat-avatar" 
                          alt="{{ _('chat.view.team_logo_alt') }}">
                     {% endif %}
+                {% elif chat.is_direct_message %}
+                    {% set other_user = get_other_chat_user(chat) %}
+                    {% if other_user and other_user.profile_picture %}
+                    <img src="{{ url_for('settings.profile_picture', filename=other_user.profile_picture) }}" 
+                         class="chat-avatar rounded-circle" 
+                         alt="{{ get_chat_display_name(chat) }}">
+                    {% elif other_user %}
+                    <div class="chat-avatar chat-avatar-initial rounded-circle">
+                        {{ other_user.full_name[0].upper() }}
+                    </div>
+                    {% else %}
+                    <div class="chat-avatar chat-avatar-group">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    {% endif %}
                 {% else %}
+                    {% if chat.group_avatar %}
+                    <img src="{{ url_for('chat.serve_media', filename='avatars/' + chat.group_avatar) }}" 
+                         class="chat-avatar rounded-circle" 
+                         alt="{{ chat.name }}">
+                    {% else %}
                     <div class="chat-avatar chat-avatar-group">
                         <i class="bi bi-people-fill"></i>
                     </div>
+                    {% endif %}
                 {% endif %}
             </div>
             
@@ -79,11 +100,11 @@
                     <span id="notification-text">{{ _('chat.view.dropdown.mute') }}</span>
                 </a></li>
                 <li><a class="dropdown-item" href="#" onclick="showChatInfoModal(); return false;"><i class="bi bi-info-circle me-2"></i>{{ _('chat.view.dropdown.info') }}</a></li>
-                {% if chat.created_by == current_user.id or current_user.is_admin %}
-                <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=1 if chat.is_main_chat else chat.id) }}"><i class="bi bi-gear me-2"></i>{{ _('chat.view.dropdown.settings') }}</a></li>
-                {% endif %}
-                {% if not chat.is_main_chat and (chat.created_by == current_user.id or current_user.is_admin) %}
+                {% if not chat.is_main_chat and not chat.is_direct_message %}
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=chat.id) }}"><i class="bi bi-gear me-2"></i>{{ _('chat.view.dropdown.settings') }}</a></li>
+                {% endif %}
+                {% if not chat.is_main_chat %}
                 <li><a class="dropdown-item text-danger" href="#" onclick="deleteChat({{ chat.id }}); return false;"><i class="bi bi-trash me-2"></i>Chat löschen</a></li>
                 {% endif %}
             </ul>
@@ -111,11 +132,36 @@
                  style="width: 32px; height: 32px; object-fit: cover;" 
                  alt="{{ _('chat.view.team_logo_alt') }}">
             {% endif %}
+        {% elif chat.is_direct_message %}
+            {% set other_user = get_other_chat_user(chat) %}
+            {% if other_user and other_user.profile_picture %}
+            <img src="{{ url_for('settings.profile_picture', filename=other_user.profile_picture) }}" 
+                 class="rounded-circle me-2" 
+                 style="width: 32px; height: 32px; object-fit: cover;" 
+                 alt="{{ get_chat_display_name(chat) }}">
+            {% elif other_user %}
+            <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
+                 style="width: 32px; height: 32px;">
+                <span class="text-white fw-bold">{{ other_user.full_name[0].upper() }}</span>
+            </div>
+            {% else %}
+            <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
+                 style="width: 32px; height: 32px;">
+                <i class="bi bi-person-circle text-white fs-6"></i>
+            </div>
+            {% endif %}
         {% else %}
+            {% if chat.group_avatar %}
+            <img src="{{ url_for('chat.serve_media', filename='avatars/' + chat.group_avatar) }}" 
+                 class="rounded-circle me-2" 
+                 style="width: 32px; height: 32px; object-fit: cover;" 
+                 alt="{{ chat.name }}">
+            {% else %}
             <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
                  style="width: 32px; height: 32px;">
                 <i class="bi bi-people-fill text-white fs-6"></i>
             </div>
+            {% endif %}
         {% endif %}
         
         <div>
@@ -130,10 +176,32 @@
             <i class="bi bi-three-dots-vertical fs-5"></i>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#" onclick="toggleNotifications()">
+                <i class="bi bi-bell me-2" id="notification-icon-mobile"></i>
+                <span id="notification-text-mobile">{{ _('chat.view.dropdown.mute') }}</span>
+            </a></li>
+            <li><a class="dropdown-item" href="#" onclick="showChatInfoModal(); return false;">
+                <i class="bi bi-info-circle me-2"></i>
+                <span>{{ _('chat.view.dropdown.info') }}</span>
+            </a></li>
             <li><a class="dropdown-item" href="#" onclick="showAllMembersModal()">
                 <i class="bi bi-people me-2"></i>
                 <span>{{ _('chat.view.mobile_members') }}</span>
             </a></li>
+            {% if not chat.is_main_chat and not chat.is_direct_message %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=chat.id) }}">
+                <i class="bi bi-gear me-2"></i>
+                <span>{{ _('chat.view.dropdown.settings') }}</span>
+            </a></li>
+            {% endif %}
+            {% if not chat.is_main_chat %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="#" onclick="deleteChat({{ chat.id }}); return false;">
+                <i class="bi bi-trash me-2"></i>
+                <span>Chat löschen</span>
+            </a></li>
+            {% endif %}
         </ul>
     </div>
 </div>
@@ -788,13 +856,19 @@
         notificationsMuted = !notificationsMuted;
         const icon = document.getElementById('notification-icon');
         const text = document.getElementById('notification-text');
+        const iconMobile = document.getElementById('notification-icon-mobile');
+        const textMobile = document.getElementById('notification-text-mobile');
         
         if (notificationsMuted) {
-            icon.className = 'bi bi-bell-slash';
-            text.textContent = CHAT_I18N.unmute;
+            if (icon) icon.className = 'bi bi-bell-slash me-2';
+            if (text) text.textContent = CHAT_I18N.unmute;
+            if (iconMobile) iconMobile.className = 'bi bi-bell-slash me-2';
+            if (textMobile) textMobile.textContent = CHAT_I18N.unmute;
         } else {
-            icon.className = 'bi bi-bell';
-            text.textContent = CHAT_I18N.mute;
+            if (icon) icon.className = 'bi bi-bell me-2';
+            if (text) text.textContent = CHAT_I18N.mute;
+            if (iconMobile) iconMobile.className = 'bi bi-bell me-2';
+            if (textMobile) textMobile.textContent = CHAT_I18N.mute;
         }
         
         // Store preference in localStorage

@@ -72,6 +72,9 @@ def check_borrow_permission():
     """Prüft ob der aktuelle User ausleihen darf."""
     if not current_user.is_authenticated:
         return False
+    # Gast-Accounts können nicht ausleihen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return False
     if current_user.is_admin:
         return True
     return current_user.can_borrow
@@ -156,6 +159,11 @@ def stock(folder_id=None):
 @check_module_access('module_inventory')
 def product_new():
     """Neues Produkt erstellen."""
+    # Gast-Accounts können keine Produkte erstellen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Produkte erstellen.', 'danger')
+        return redirect(url_for('inventory.stock'))
+    
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         if not name:
@@ -277,6 +285,11 @@ def product_new():
 @check_module_access('module_inventory')
 def product_edit(product_id):
     """Produkt bearbeiten."""
+    # Gast-Accounts können keine Produkte bearbeiten
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Produkte bearbeiten.', 'danger')
+        return redirect(url_for('inventory.stock'))
+    
     product = Product.query.get_or_404(product_id)
     
     if request.method == 'POST':
@@ -468,6 +481,11 @@ def product_update_status(product_id):
 @login_required
 def product_delete(product_id):
     """Produkt löschen."""
+    # Gast-Accounts können keine Produkte löschen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Produkte löschen.', 'danger')
+        return redirect(url_for('inventory.stock'))
+    
     product = Product.query.get_or_404(product_id)
     
     active_borrow = BorrowTransaction.query.filter_by(
@@ -1670,6 +1688,10 @@ def api_product_get(product_id):
 @login_required
 def api_product_create():
     """API: Neues Produkt erstellen."""
+    # Gast-Accounts können keine Produkte erstellen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'error': 'Gast-Accounts können keine Produkte erstellen.'}), 403
+    
     data = request.get_json()
     
     if not data or not data.get('name'):
@@ -1716,6 +1738,10 @@ def api_product_create():
 @login_required
 def api_product_update(product_id):
     """API: Produkt aktualisieren."""
+    # Gast-Accounts können keine Produkte aktualisieren
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'error': 'Gast-Accounts können keine Produkte aktualisieren.'}), 403
+    
     product = Product.query.get_or_404(product_id)
     data = request.get_json()
     
@@ -1758,6 +1784,10 @@ def api_product_update(product_id):
 @login_required
 def api_product_delete(product_id):
     """API: Produkt löschen."""
+    # Gast-Accounts können keine Produkte löschen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'error': 'Gast-Accounts können keine Produkte löschen.'}), 403
+    
     product = Product.query.get_or_404(product_id)
     
     active_borrow = BorrowTransaction.query.filter_by(
@@ -1778,6 +1808,10 @@ def api_product_delete(product_id):
 @login_required
 def api_products_bulk_update():
     """API: Mehrere Produkte gleichzeitig aktualisieren."""
+    # Gast-Accounts können keine Produkte aktualisieren
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'error': 'Gast-Accounts können keine Produkte aktualisieren.'}), 403
+    
     data = request.get_json()
     
     if not data:
@@ -1898,6 +1932,10 @@ def api_products_bulk_update():
 @login_required
 def api_products_bulk_delete():
     """API: Mehrere Produkte gleichzeitig löschen."""
+    # Gast-Accounts können keine Produkte löschen
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'error': 'Gast-Accounts können keine Produkte löschen.'}), 403
+    
     data = request.get_json()
     
     if not data:

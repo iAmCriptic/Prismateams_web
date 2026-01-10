@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Benutzer erstellen{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin_users') }}">Benutzerverwaltung</a></li>
+        <li class="breadcrumb-item active">Benutzer erstellen</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Neuen Benutzer erstellen</h2>
+    <a href="{{ url_for('settings.admin_users') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="accountTypeTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button" role="tab" aria-controls="full" aria-selected="true">
+                    <i class="bi bi-person-check"></i> Vollwertiger Account
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="guest-tab" data-bs-toggle="tab" data-bs-target="#guest" type="button" role="tab" aria-controls="guest" aria-selected="false">
+                    <i class="bi bi-person-dash"></i> Gast-Account
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('settings.create_user') }}">
+            <div class="tab-content" id="accountTypeTabsContent">
+                <!-- Vollwertiger Account Tab -->
+                <div class="tab-pane fade show active" id="full" role="tabpanel" aria-labelledby="full-tab">
+                    <input type="hidden" name="account_type" value="full">
+                    
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">Vorname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" data-required-for="full">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Nachname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" data-required-for="full">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail-Adresse <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" data-required-for="full">
+                        <small class="form-text text-muted">Der Benutzer erhält eine E-Mail mit Zugangsdaten.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefonnummer (optional)</label>
+                        <input type="text" class="form-control" id="phone" name="phone">
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Der Benutzer erhält automatisch die Standardrollen und eine E-Mail mit einem zufällig generierten 8-stelligen Passwort.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-person-plus"></i> Account erstellen und E-Mail senden
+                    </button>
+                </div>
+                
+                <!-- Gast-Account Tab -->
+                <div class="tab-pane fade" id="guest" role="tabpanel" aria-labelledby="guest-tab">
+                    <input type="hidden" name="account_type" value="guest">
+                    
+                    <div class="mb-3">
+                        <label for="guest_first_name" class="form-label">Vorname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="guest_first_name" name="first_name" data-required-for="guest" autocomplete="off">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="guest_last_name" class="form-label">Nachname <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="guest_last_name" name="last_name" data-required-for="guest" autocomplete="off">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="guest_username" class="form-label">Gast-Benutzername <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="guest_username" name="guest_username" data-required-for="guest" pattern="[a-zA-Z0-9._\-]+" title="Buchstaben (Groß- und Kleinbuchstaben), Zahlen, Punkte, Unterstriche und Bindestriche erlaubt" autocomplete="off">
+                            <span class="input-group-text">@gast.system.local</span>
+                        </div>
+                        <small class="form-text text-muted">Der Gast meldet sich mit "{benutzername}@gast.system.local" an.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="guest_expires_at" class="form-label">Ablaufzeit (optional)</label>
+                        <input type="datetime-local" class="form-control" id="guest_expires_at" name="guest_expires_at">
+                        <small class="form-text text-muted">Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5 class="mb-3">Freigabelink-Zugriff</h5>
+                    <div class="mb-3">
+                        <small class="text-muted">Wählen Sie die Freigabelinks, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Freigabeordnern wird automatisch Zugriff auf das Dateien-Modul gewährt.</small>
+                    </div>
+                    
+                    {% if shared_files %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Dateien:</label>
+                        {% for file in shared_files %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ file.share_token }}" id="share_file_{{ file.id }}">
+                            <label class="form-check-label" for="share_file_{{ file.id }}">
+                                {{ file.original_name }} ({{ file.share_token[:8] }}...)
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if shared_folders %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ordner:</label>
+                        {% for folder in shared_folders %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ folder.share_token }}" id="share_folder_{{ folder.id }}">
+                            <label class="form-check-label" for="share_folder_{{ folder.id }}">
+                                {{ folder.name }} ({{ folder.share_token[:8] }}...)
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if not shared_files and not shared_folders %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Keine Freigabelinks verfügbar. Erstellen Sie zuerst Freigabelinks für Dateien oder Ordner.
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <h5 class="mb-3">Chat-Zugriff</h5>
+                    <div class="mb-3">
+                        <small class="text-muted">Wählen Sie die Chats, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Chats wird automatisch Zugriff auf das Chat-Modul gewährt.</small>
+                    </div>
+                    
+                    {% if all_chats %}
+                    {% for chat in all_chats %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="chat_ids" value="{{ chat.id }}" id="chat_{{ chat.id }}">
+                        <label class="form-check-label" for="chat_{{ chat.id }}">
+                            <strong>{{ chat.name }}</strong>
+                            {% if chat.is_main_chat %}<span class="badge bg-primary ms-2">Haupt-Chat</span>{% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Keine Chats verfügbar.
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <h5 class="mb-3">Modul-Zugriff</h5>
+                    <div class="mb-3">
+                        <small class="text-muted">Wählen Sie zusätzliche Module, auf die der Gast-Account Zugriff haben soll. E-Mail, Passwort, Chats und Dateien werden automatisch über die obigen Zuweisungen gesteuert.</small>
+                    </div>
+                    {% for module_key, module_name in guest_modules %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="allowed_modules" value="{{ module_key }}" id="module_{{ module_key }}">
+                        <label class="form-check-label" for="module_{{ module_key }}">
+                            <strong>{{ module_name }}</strong>
+                        </label>
+                    </div>
+                    {% endfor %}
+                    
+                    <hr>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Gast-Accounts haben keinen Zugriff auf E-Mail & Passwort-Modul. Sie können im Inventar nur anzeigen (keine Ausleihen). Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="guest-submit-btn">
+                        <i class="bi bi-person-dash"></i> Gast-Account erstellen
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal für Gast-Account-Zugangsdaten -->
+<div class="modal fade" id="guestCredentialsModal" tabindex="-1" aria-labelledby="guestCredentialsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="guestCredentialsModalLabel">
+                    <i class="bi bi-check-circle-fill me-2"></i> Gast-Account erfolgreich erstellt!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Bitte notieren Sie sich die Zugangsdaten. Sie können sie später nicht mehr abrufen.
+                </div>
+                
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3">
+                            <i class="bi bi-person-badge me-2"></i> Zugangsdaten für <span id="guest-full-name"></span>
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Benutzername / E-Mail:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" id="guest-username-display" readonly value="">
+                                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('guest-username-display')">
+                                    <i class="bi bi-clipboard"></i> Kopieren
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Passwort:</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace fw-bold text-primary" id="guest-password-display" readonly value="">
+                                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('guest-password-display')">
+                                    <i class="bi bi-clipboard"></i> Kopieren
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning" id="guest-login-hint">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Wichtig:</strong> Der Gast-Account meldet sich mit dem oben angegebenen Benutzernamen an.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="redirectToUserManagement()">
+                    <i class="bi bi-check-lg me-2"></i> Verstanden, weiter zur Benutzerverwaltung
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM geladen, initialisiere Event-Listener...');
+    
+    // Funktion zum Aktualisieren der required-Attribute basierend auf aktivem Tab
+    function updateRequiredFields(accountType) {
+        // Entferne required von allen Feldern
+        document.querySelectorAll('[data-required-for]').forEach(field => {
+            field.removeAttribute('required');
+        });
+        
+        // Füge required nur für den aktiven Tab hinzu
+        document.querySelectorAll(`[data-required-for="${accountType}"]`).forEach(field => {
+            field.setAttribute('required', 'required');
+        });
+    }
+    
+    // Synchronisiere Tab-Wechsel mit verstecktem Input und required-Attributen
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            const targetId = event.target.getAttribute('data-bs-target');
+            const accountTypeInputs = document.querySelectorAll('input[name="account_type"]');
+            let accountType = 'full';
+            
+            accountTypeInputs.forEach(input => {
+                if (targetId === '#full') {
+                    input.value = 'full';
+                    accountType = 'full';
+                } else if (targetId === '#guest') {
+                    input.value = 'guest';
+                    accountType = 'guest';
+                }
+            });
+            
+            // Aktualisiere required-Attribute
+            updateRequiredFields(accountType);
+        });
+    });
+    
+    // Initialisiere required-Felder basierend auf aktivem Tab
+    const activeTab = document.querySelector('.tab-pane.active');
+    if (activeTab) {
+        const accountTypeInput = activeTab.querySelector('input[name="account_type"]');
+        if (accountTypeInput) {
+            updateRequiredFields(accountTypeInput.value);
+        }
+    }
+
+    // Formular per AJAX absenden für Gast-Accounts
+    const form = document.querySelector('form[method="POST"]');
+    if (!form) {
+        console.error('Formular nicht gefunden!');
+        return;
+    }
+    
+    console.log('Formular gefunden:', form);
+    
+    form.addEventListener('submit', function(e) {
+        console.log('Formular-Submit-Event ausgelöst');
+        
+        const activeTab = document.querySelector('.tab-pane.active');
+        if (!activeTab) {
+            console.error('Aktiver Tab nicht gefunden!');
+            return;
+        }
+        
+        const accountTypeInput = activeTab.querySelector('input[name="account_type"]');
+        console.log('Account-Type-Input:', accountTypeInput, accountTypeInput ? accountTypeInput.value : 'nicht gefunden');
+        
+        // Aktualisiere required-Attribute basierend auf aktivem Tab (BEVOR Validierung)
+        const accountType = accountTypeInput ? accountTypeInput.value : 'full';
+        updateRequiredFields(accountType);
+        
+        // Entferne required von versteckten Feldern im anderen Tab
+        const hiddenTab = accountType === 'guest' ? document.getElementById('full') : document.getElementById('guest');
+        if (hiddenTab) {
+            hiddenTab.querySelectorAll('[data-required-for]').forEach(field => {
+                field.removeAttribute('required');
+                field.removeAttribute('pattern'); // Entferne auch Pattern-Validierung
+            });
+        }
+        
+        // Für Gast-Accounts: Validiere manuell und sende per AJAX
+        if (accountType === 'guest') {
+            const guestFields = activeTab.querySelectorAll('[data-required-for="guest"]');
+            let isValid = true;
+            let firstInvalidField = null;
+            let validationErrors = [];
+            
+            guestFields.forEach(field => {
+                const value = field.value ? field.value.trim() : '';
+                field.classList.remove('is-invalid');
+                
+                console.log('Validiere Feld:', field.name || field.id, 'Wert:', value);
+                
+                // Prüfe ob Feld leer ist
+                if (!value) {
+                    isValid = false;
+                    field.classList.add('is-invalid');
+                    const fieldLabel = field.previousElementSibling?.textContent?.trim() || field.id || field.name;
+                    validationErrors.push(fieldLabel);
+                    if (!firstInvalidField) {
+                        firstInvalidField = field;
+                    }
+                } else {
+                    // Prüfe Pattern-Validierung (nur wenn Pattern vorhanden)
+                    const pattern = field.getAttribute('pattern');
+                    if (pattern) {
+                        try {
+                            const regex = new RegExp('^' + pattern + '$');
+                            if (!regex.test(value)) {
+                                isValid = false;
+                                field.classList.add('is-invalid');
+                                validationErrors.push('Ungültiges Format für: ' + (field.previousElementSibling?.textContent?.trim() || field.id || field.name));
+                                if (!firstInvalidField) {
+                                    firstInvalidField = field;
+                                }
+                            }
+                        } catch (regexError) {
+                            console.error('Regex-Fehler:', regexError, 'Pattern:', pattern);
+                        }
+                    }
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (firstInvalidField) {
+                    firstInvalidField.focus();
+                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
+                const errorMsg = validationErrors.length > 0 
+                    ? 'Bitte korrigieren Sie folgende Felder:\n- ' + validationErrors.join('\n- ')
+                    : 'Bitte füllen Sie alle erforderlichen Felder korrekt aus.';
+                alert(errorMsg);
+                return;
+            }
+            
+            // Validierung erfolgreich - fahre mit AJAX fort
+            console.log('Validierung erfolgreich, sende Daten...');
+        }
+        
+        // Nur für Gast-Accounts per AJAX absenden
+        if (accountType === 'guest') {
+            console.log('Gast-Account erkannt, verhindere Standard-Submit und sende per AJAX...');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Erstelle FormData nur mit Feldern des aktiven Tabs
+            const formData = new FormData();
+            
+            // Füge account_type hinzu
+            formData.append('account_type', 'guest');
+            
+            // Füge nur Felder aus dem Gast-Tab hinzu
+            const guestTab = document.getElementById('guest');
+            if (guestTab) {
+                const guestInputs = guestTab.querySelectorAll('input, select, textarea');
+                guestInputs.forEach(input => {
+                    if (!input.name || input.type === 'hidden' && input.name === 'account_type') {
+                        return; // Überspringe account_type (wird bereits hinzugefügt)
+                    }
+                    
+                    if (input.type === 'checkbox') {
+                        if (input.checked) {
+                            // Für Checkboxen: Füge jeden ausgewählten Wert hinzu (für getlist)
+                            formData.append(input.name, input.value);
+                        }
+                    } else if (input.type === 'radio') {
+                        if (input.checked) {
+                            formData.append(input.name, input.value);
+                        }
+                    } else if (input.tagName === 'SELECT' && input.multiple) {
+                        // Multiple-Select: Füge alle ausgewählten Optionen hinzu
+                        Array.from(input.selectedOptions).forEach(option => {
+                            formData.append(input.name, option.value);
+                        });
+                    } else if (input.type === 'file') {
+                        if (input.files && input.files.length > 0) {
+                            for (let i = 0; i < input.files.length; i++) {
+                                formData.append(input.name, input.files[i]);
+                            }
+                        }
+                    } else {
+                        // Normale Text/Number/Email/etc. Inputs
+                        // Immer senden, auch wenn leer (für Validierung auf Server-Seite wichtig)
+                        formData.append(input.name, input.value || '');
+                    }
+                });
+                
+                // Debug: Zeige alle Form-Daten
+                console.log('Form-Daten (nur Gast-Tab) vor dem Senden:');
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
+            } else {
+                console.error('Gast-Tab nicht gefunden!');
+                alert('Fehler: Gast-Tab nicht gefunden.');
+                return;
+            }
+            
+            const submitBtn = activeTab.querySelector('button[type="submit"]');
+            if (!submitBtn) {
+                console.error('Submit-Button nicht gefunden!');
+                alert('Fehler: Submit-Button nicht gefunden.');
+                return;
+            }
+            
+            const originalText = submitBtn.innerHTML;
+            
+            // Button deaktivieren und Loading-State anzeigen
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Wird erstellt...';
+            
+            console.log('Sende AJAX-Request an:', this.action);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('Response erhalten:', response.status, response.statusText);
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Unbekannter Fehler');
+                    }).catch(err => {
+                        if (err.message) throw err;
+                        throw new Error(`Server-Fehler: ${response.status} ${response.statusText}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Daten erhalten:', data);
+                if (data.success) {
+                    // Zeige Modal mit Zugangsdaten
+                    const fullNameEl = document.getElementById('guest-full-name');
+                    const usernameEl = document.getElementById('guest-username-display');
+                    const passwordEl = document.getElementById('guest-password-display');
+                    
+                    if (!fullNameEl || !usernameEl || !passwordEl) {
+                        console.error('Modal-Elemente nicht gefunden!');
+                        alert('Fehler: Modal-Elemente nicht gefunden. Zugangsdaten: ' + data.credentials.username + ' / ' + data.credentials.password);
+                        window.location.href = "{{ url_for('settings.admin_users') }}";
+                        return;
+                    }
+                    
+                    fullNameEl.textContent = data.credentials.full_name;
+                    usernameEl.value = data.credentials.username;
+                    passwordEl.value = data.credentials.password;
+                    
+                    // Aktualisiere Hinweistext mit tatsächlichem Benutzernamen
+                    const warningAlert = document.querySelector('#guestCredentialsModal .alert-warning');
+                    if (warningAlert && data.credentials.guest_username) {
+                        warningAlert.innerHTML = `<i class="bi bi-exclamation-triangle"></i> <strong>Wichtig:</strong> Der Gast-Account meldet sich mit "${data.credentials.guest_username}@gast.system.local" an.`;
+                    }
+                    
+                    const modalElement = document.getElementById('guestCredentialsModal');
+                    if (!modalElement) {
+                        console.error('Modal-Element nicht gefunden!');
+                        alert('Fehler: Modal nicht gefunden. Zugangsdaten: ' + data.credentials.username + ' / ' + data.credentials.password);
+                        window.location.href = "{{ url_for('settings.admin_users') }}";
+                        return;
+                    }
+                    
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                    console.log('Modal angezeigt');
+                    
+                    // Bei Schließen zur Benutzerverwaltung weiterleiten
+                    const handleModalHidden = function() {
+                        console.log('Modal geschlossen, weiterleiten...');
+                        window.location.href = "{{ url_for('settings.admin_users') }}";
+                        modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+                    };
+                    modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+                } else {
+                    alert('Fehler beim Erstellen des Gast-Accounts: ' + (data.message || 'Unbekannter Fehler'));
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Fehler beim AJAX-Request:', error);
+                alert('Fehler beim Erstellen des Gast-Accounts: ' + (error.message || 'Bitte versuchen Sie es erneut.'));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        } else {
+            console.log('Vollwertiger Account oder kein Gast-Account, normaler Submit...');
+            // Für vollwertige Accounts: Normal submit (weiterleiten)
+        }
+    });
+    
+    console.log('Event-Listener erfolgreich angehängt');
+});
+
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        alert('Element nicht gefunden');
+        return;
+    }
+    
+    element.select();
+    element.setSelectionRange(0, 99999); // Für Mobile-Geräte
+    
+    try {
+        document.execCommand('copy');
+        
+        // Feedback anzeigen
+        const btn = event.target.closest('button');
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Kopiert!';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-outline-secondary');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-secondary');
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Fehler beim Kopieren:', err);
+        alert('Fehler beim Kopieren. Bitte kopieren Sie den Text manuell.');
+    }
+}
+
+function redirectToUserManagement() {
+    window.location.href = "{{ url_for('settings.admin_users') }}";
+}
+</script>
+{% endblock %}

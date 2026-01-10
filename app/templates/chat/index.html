@@ -3,21 +3,17 @@
 {% block title %}{{ _('chat.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="chats-page-header">
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="chats-title">
-                <i class="bi bi-chat-dots me-2"></i> 
-                {{ _('chat.index.heading') }}
-            </h1>
-            <p class="chats-subtitle text-muted">{{ _('chat.index.subtitle') }}</p>
-        </div>
-        <div class="col-auto">
-            <a href="{{ url_for('chat.create_chat') }}" class="btn btn-accent btn-lg">
-                <i class="bi bi-plus-circle me-2"></i> 
-                {{ _('chat.index.new_chat') }}
-            </a>
-        </div>
+<div class="chat-index-page">
+<div class="row mb-4 align-items-center g-3">
+    <div class="col">
+        <h1 class="mb-3"><i class="bi bi-chat-dots me-2"></i> {{ _('chat.index.heading') }}</h1>
+        <p class="text-muted mb-0">{{ _('chat.index.subtitle') }}</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('chat.create_chat') }}" class="btn btn-accent btn-lg">
+            <i class="bi bi-plus-circle me-2"></i> 
+            {{ _('chat.index.new_chat') }}
+        </a>
     </div>
 </div>
 
@@ -66,9 +62,15 @@
             <div class="chat-card group-chat-card">
                 <div class="chat-card-header">
                     <div class="chat-card-avatar">
+                        {% if chat.group_avatar %}
+                        <img src="{{ url_for('chat.serve_media', filename='avatars/' + chat.group_avatar) }}" 
+                             alt="{{ chat.name }}" 
+                             class="chat-card-avatar-img">
+                        {% else %}
                         <div class="chat-card-avatar-group">
                             <i class="bi bi-people-fill"></i>
                         </div>
+                        {% endif %}
                     </div>
                     <div class="chat-card-info">
                         <h5 class="chat-card-title">{{ chat.name }}</h5>
@@ -97,9 +99,22 @@
     </h4>
     <div class="direct-messages-list">
         {% for chat in direct_chats %}
+        {% set other_user = get_other_chat_user(chat) %}
         <a href="{{ url_for('chat.view_chat', chat_id=chat.id) }}" class="direct-message-item">
             <div class="direct-message-avatar">
-                <i class="bi bi-person-circle"></i>
+                {% if other_user and other_user.profile_picture %}
+                <img src="{{ url_for('settings.profile_picture', filename=other_user.profile_picture) }}" 
+                     alt="{{ get_chat_display_name(chat) }}" 
+                     class="rounded-circle" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                <div class="direct-message-avatar-initial">
+                    {% if other_user %}
+                    {{ other_user.full_name[0].upper() }}
+                    {% else %}
+                    <i class="bi bi-person-circle"></i>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             <div class="direct-message-info">
                 <h6 class="direct-message-name">{{ get_chat_display_name(chat) }}</h6>
@@ -120,6 +135,7 @@
     {{ _('chat.index.empty') }} {{ _('chat.index.empty_cta') }}
 </div>
 {% endif %}
+</div>
 {% endblock %}
 
 
