@@ -51,9 +51,45 @@ if (typeof io !== 'undefined') {
         upgrade: true,
         rememberUpgrade: true,
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: Infinity
+        reconnectionDelay: 2000,  // Erhöht von 1000 auf 2000ms
+        reconnectionDelayMax: 10000,  // Erhöht von 5000 auf 10000ms
+        reconnectionAttempts: 10,  // Begrenzt auf 10 Versuche statt Infinity
+        timeout: 20000,  // Timeout für Verbindungsversuche
+        forceNew: false,  // Verwende bestehende Verbindung wenn möglich
+        autoConnect: true
+    });
+    
+    // Fehlerbehandlung - verhindert ständige Fehlermeldungen
+    let reconnectAttempts = 0;
+    let isConnecting = false;
+    
+    socket.on('connect_error', function(error) {
+        reconnectAttempts++;
+        // Nur alle 5 Versuche loggen, um Spam zu vermeiden
+        if (reconnectAttempts % 5 === 0) {
+            console.warn(`Socket.IO Verbindungsfehler (Versuch ${reconnectAttempts}):`, error.message);
+        }
+        isConnecting = false;
+    });
+    
+    socket.on('disconnect', function(reason) {
+        isConnecting = false;
+        // Nur bei unerwarteten Disconnects loggen
+        if (reason !== 'io client disconnect') {
+            console.log('Socket.IO getrennt:', reason);
+        }
+    });
+    
+    socket.on('reconnect_attempt', function(attemptNumber) {
+        // Nur alle 3 Versuche loggen
+        if (attemptNumber % 3 === 0) {
+            console.log(`Socket.IO Reconnect-Versuch ${attemptNumber}...`);
+        }
+    });
+    
+    socket.on('reconnect_failed', function() {
+        console.error('Socket.IO: Reconnect fehlgeschlagen nach mehreren Versuchen');
+        reconnectAttempts = 0;  // Reset für manuellen Retry
     });
     
     socket.on('music:queue_updated', function(data) {
@@ -142,9 +178,17 @@ if (typeof io !== 'undefined') {
     
     socket.on('connect', function() {
         console.log('SocketIO verbunden');
+        reconnectAttempts = 0;  // Reset bei erfolgreicher Verbindung
+        isConnecting = false;
+        
         // Trete dem Musikmodul-Room bei
-        socket.emit('music:join', {});
-        console.log('Musikmodul: Room beigetreten');
+        try {
+            socket.emit('music:join', {});
+            console.log('Musikmodul: Room beigetreten');
+        } catch (error) {
+            console.error('Fehler beim Beitreten des Musikmodul-Rooms:', error);
+        }
+        
         // Initialisiere Badges nach Verbindung
         setTimeout(initializeBadges, 500);
     });
