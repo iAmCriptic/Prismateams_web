@@ -57,13 +57,9 @@ def create_app(config_name='default'):
     if redis_enabled:
         try:
             # Verwende Redis als Message Queue für Multi-Worker-Setups
-            # eventlet ist besser für Redis-Message-Queues als threading
-            # Falls eventlet nicht verfügbar ist, fällt es auf threading zurück
-            try:
-                import eventlet
-                async_mode = 'eventlet'
-            except ImportError:
-                async_mode = 'threading'
+            # Threading wird verwendet (kein eventlet), da eventlet Monkey Patching benötigt
+            # Threading funktioniert zuverlässig mit Redis und Gunicorn
+            async_mode = 'threading'
             
             socketio.init_app(
                 app,
