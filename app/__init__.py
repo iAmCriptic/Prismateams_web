@@ -79,8 +79,8 @@ def create_app(config_name='default'):
                 message_queue=redis_url,
                 async_mode=async_mode,
                 cors_allowed_origins="*",
-                logger=True,  # Aktiviert für Debugging - zeigt Socket.IO-Fehler
-                engineio_logger=True,  # Aktiviert für Debugging - zeigt Engine.IO-Details
+                logger=False,  # Deaktiviert - zu verbose
+                engineio_logger=False,  # Deaktiviert - zu verbose
                 ping_timeout=60,
                 ping_interval=25,
                 cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
@@ -155,12 +155,30 @@ def create_app(config_name='default'):
         
         WICHTIG: Diese Funktion muss IMMER True zurückgeben, sonst bekommt der Client 400 Bad Request.
         """
+        # #region agent log
+        import json
+        import os
+        debug_log_path = os.path.join(os.path.dirname(__file__), '..', '.cursor', 'debug.log')
+        try:
+            with open(debug_log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H1","location":"app/__init__.py:152","message":"SocketIO connect handler called","data":{"auth":str(auth) if auth else None},"timestamp":int(os.path.getmtime(__file__)*1000)}) + '\n')
+        except: pass
+        # #endregion
+        
         # KRITISCH: Keine Logging-Imports hier, da diese bei threading Fehler verursachen können
         # KRITISCH: Keine Flask-Requests hier, da der Context bei threading nicht verfügbar sein kann
         # KRITISCH: IMMER True zurückgeben, nie False oder Exception werfen
         
         # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception
         # Dies verhindert 400 Bad Request Fehler
+        
+        # #region agent log
+        try:
+            with open(debug_log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"H1","location":"app/__init__.py:164","message":"SocketIO connect handler returning True","data":{},"timestamp":int(os.path.getmtime(__file__)*1000)}) + '\n')
+        except: pass
+        # #endregion
+        
         return True
     
     @socketio.on('disconnect')
