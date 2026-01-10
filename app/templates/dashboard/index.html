@@ -480,70 +480,69 @@ class DashboardUpdater {
     }
     
     initSocketIO() {
+        // Socket.IO für Live-Updates - ESSENTIELL für die Anwendung
+        let retryCount = 0;
+        
         try {
-            // Initialisiere Socket.IO-Client mit robuster Konfiguration für Multi-Worker-Setups
-            // Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
+            // Socket.IO mit optimierter Konfiguration für schnelle Verbindung
             this.socket = io({
                 withCredentials: true,
-                transports: ['polling'],  // Nur Polling - kein WebSocket
+                transports: ['polling'],  // Nur Polling - stabiler bei Multi-Worker
                 upgrade: false,  // KEINE Upgrades zu WebSocket
                 reconnection: true,
-                reconnectionDelay: 1000,  // Schnelleres Reconnecting
-                reconnectionDelayMax: 5000,
-                reconnectionAttempts: Infinity,  // Nie aufgeben
-                timeout: 20000,
-                forceNew: false,
-                autoConnect: true
+                reconnectionDelay: 500,  // Schneller Reconnect (0.5 Sekunden)
+                reconnectionDelayMax: 3000,  // Max 3 Sekunden zwischen Versuchen
+                reconnectionAttempts: 10,  // 10 Versuche, dann Pause
+                timeout: 10000,  // 10 Sekunden Timeout
+                forceNew: true,  // Neue Verbindung erzwingen (verhindert Session-Konflikte)
+                autoConnect: true  // Sofort verbinden
             });
             
-            let reconnectAttempts = 0;
-            
-            // Fehlerbehandlung - verhindert ständige Fehlermeldungen
+            // Fehlerbehandlung mit automatischem Recovery
             this.socket.on('connect_error', (error) => {
-                reconnectAttempts++;
-                // #region agent log
-                console.error('[DEBUG] SocketIO connect_error:', {
-                    error: error.message,
-                    attempts: reconnectAttempts,
-                    socket_id: this.socket?.id,
-                    timestamp: new Date().toISOString()
-                });
-                // #endregion
-                // Nur alle 5 Versuche loggen, um Spam zu vermeiden
-                if (reconnectAttempts % 5 === 0) {
-                    console.warn(`Dashboard: Socket.IO Verbindungsfehler (Versuch ${reconnectAttempts})`);
+                retryCount++;
+                // Nur alle 5 Versuche loggen
+                if (retryCount % 5 === 0) {
+                    console.warn(`Dashboard Socket.IO Fehler (Versuch ${retryCount}):`, error.message);
+                }
+                
+                // Nach 10 Fehlern: Kurze Pause, dann mit neuer Verbindung versuchen
+                if (retryCount >= 10) {
+                    console.log('Dashboard: Socket.IO Neustart...');
+                    retryCount = 0;
+                    setTimeout(() => {
+                        if (this.socket) {
+                            this.socket.disconnect();
+                            this.socket.connect();
+                        }
+                    }, 2000);
                 }
             });
             
             this.socket.on('disconnect', (reason) => {
-                // Nur bei unerwarteten Disconnects loggen
                 if (reason !== 'io client disconnect') {
-                    // Stumm - keine Logs für normale Disconnects
-                }
-            });
-            
-            this.socket.on('reconnect_attempt', (attemptNumber) => {
-                // Nur alle 3 Versuche loggen
-                if (attemptNumber % 3 === 0) {
-                    // Stumm - keine Logs für Reconnect-Versuche
+                    console.log('Dashboard: Socket.IO getrennt:', reason);
+                    // Bei transport error: Sofort reconnecten
+                    if (reason === 'transport error' || reason === 'transport close') {
+                        setTimeout(() => {
+                            if (this.socket && !this.socket.connected) {
+                                this.socket.connect();
+                            }
+                        }, 500);
+                    }
                 }
             });
             
             // Verbinde mit Dashboard-Room
             this.socket.on('connect', () => {
-                reconnectAttempts = 0;  // Reset bei erfolgreicher Verbindung
-                // #region agent log
-                console.log('[DEBUG] SocketIO connect success:', {
-                    socket_id: this.socket?.id,
-                    transport: this.socket?.io?.engine?.transport?.name,
-                    timestamp: new Date().toISOString()
-                });
-                // #endregion
+                retryCount = 0;  // Reset bei erfolgreicher Verbindung
                 console.log('Dashboard: Socket.IO verbunden');
                 try {
-                    this.socket.emit('dashboard:join', {});
+                    if (this.socket && this.socket.connected) {
+                        this.socket.emit('dashboard:join', {});
+                    }
                 } catch (error) {
-                    console.error('Fehler beim Beitreten des Dashboard-Rooms:', error);
+                    console.warn('Fehler beim Beitreten des Dashboard-Rooms:', error);
                 }
             });
             
@@ -566,8 +565,9 @@ class DashboardUpdater {
                     badge.textContent = data.files.length;
                 }
             });
+            
         } catch (error) {
-            console.error('Dashboard: Fehler bei Socket.IO-Initialisierung', error);
+            console.error('Dashboard: Fehler bei Socket.IO-Initialisierung:', error);
         }
     }
     

@@ -75,21 +75,22 @@ def create_app(config_name='default'):
             # Socket.IO mit Redis Message Queue initialisieren
             # WICHTIG: Robuste Konfiguration für Multi-Worker-Setups
             # - Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
-            # - manage_session=False = akzeptiert alle Sessions, auch wenn Worker sie nicht kennt (wichtig für Multi-Worker)
-            # - Längere Timeouts = weniger Fehler bei langsamen Verbindungen
+            # - manage_session=False = akzeptiert alle Sessions, auch wenn Worker sie nicht kennt
+            # - Längere Timeouts für stabile Verbindungen
             init_kwargs = {
                 'message_queue': redis_url,
                 'async_mode': async_mode,
                 'cors_allowed_origins': "*",
                 'logger': False,
                 'engineio_logger': False,
-                'ping_timeout': 120,  # Erhöht für langsamere Verbindungen
-                'ping_interval': 50,  # Weniger Ping-Requests = weniger Fehlerquellen
-                'cookie': None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+                'ping_timeout': 60,  # 60 Sekunden - Zeit für Reconnect
+                'ping_interval': 25,  # 25 Sekunden zwischen Pings
+                'cookie': False,  # KEINE Cookies - verhindert Session-Konflikte bei Multi-Worker
                 'allow_upgrades': False,  # KEINE WebSocket-Upgrades - nur Polling = stabiler
                 'transports': ['polling'],  # Nur Polling - kein WebSocket für bessere Multi-Worker-Stabilität
-                'max_http_buffer_size': 2e6,  # Erhöht für größere Nachrichten
-                'manage_session': False  # KEINE Session-Validierung - akzeptiert alle Sessions (wichtig für Multi-Worker mit Redis)
+                'max_http_buffer_size': 1e6,  # 1MB max
+                'manage_session': False,  # KEINE Session-Validierung - akzeptiert alle Sessions
+                'always_connect': True  # Verbindungen immer akzeptieren
             }
             
             socketio.init_app(app, **init_kwargs)
@@ -107,13 +108,14 @@ def create_app(config_name='default'):
                 cors_allowed_origins="*",
                 logger=False,
                 engineio_logger=False,
-                ping_timeout=120,
-                ping_interval=50,
-                cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+                ping_timeout=60,
+                ping_interval=25,
+                cookie=False,  # KEINE Cookies - verhindert Session-Konflikte
                 allow_upgrades=False,  # KEINE WebSocket-Upgrades
                 transports=['polling'],  # Nur Polling
-                max_http_buffer_size=2e6,
-                manage_session=False  # KEINE Session-Validierung - akzeptiert alle Sessions
+                max_http_buffer_size=1e6,
+                manage_session=False,  # KEINE Session-Validierung
+                always_connect=True
             )
     else:
         # Kein Redis konfiguriert - nur für Single-Worker oder Development
@@ -124,10 +126,11 @@ def create_app(config_name='default'):
             engineio_logger=False,
             ping_timeout=60,
             ping_interval=25,
-            cookie=None,  # Verwende Flask-Session-Cookies (nicht separate Socket.IO-Cookies)
+            cookie=False,  # KEINE Cookies - verhindert Session-Konflikte
             allow_upgrades=True,
             transports=['polling', 'websocket'],
-            manage_session=False  # KEINE Session-Validierung - akzeptiert alle Sessions
+            manage_session=False,  # KEINE Session-Validierung
+            always_connect=True
         )
         if config_name == 'production':
             import logging

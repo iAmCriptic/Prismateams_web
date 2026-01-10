@@ -43,73 +43,67 @@ function invalidateCache(pattern) {
     });
 }
 
+// Socket.IO für Live-Updates - ESSENTIELL für die Anwendung
+// Schnelle Verbindung mit robuster Fehlerbehandlung
 if (typeof io !== 'undefined') {
-    // Socket.IO-Verbindung mit robuster Konfiguration für Multi-Worker-Setups
-    // Nur Polling (kein WebSocket) = stabiler bei Session-Stickiness-Problemen
+    // Socket.IO-Verbindung mit optimierter Konfiguration
+    // Polling-only ist stabiler bei Multi-Worker-Setups
     socket = io({
         withCredentials: true,
-        transports: ['polling'],  // Nur Polling - kein WebSocket
+        transports: ['polling'],  // Nur Polling - stabiler bei Multi-Worker
         upgrade: false,  // KEINE Upgrades zu WebSocket
         reconnection: true,
-        reconnectionDelay: 1000,  // Schnelleres Reconnecting
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: Infinity,  // Nie aufgeben
-        timeout: 20000,
-        forceNew: false,
-        autoConnect: true
+        reconnectionDelay: 500,  // Schneller Reconnect (0.5 Sekunden)
+        reconnectionDelayMax: 3000,  // Max 3 Sekunden zwischen Versuchen
+        reconnectionAttempts: 10,  // 10 Versuche, dann kurze Pause
+        timeout: 10000,  // 10 Sekunden Timeout
+        forceNew: true,  // Neue Verbindung erzwingen (verhindert Session-Konflikte)
+        autoConnect: true  // Sofort verbinden
     });
     
-    // Fehlerbehandlung - verhindert ständige Fehlermeldungen
     let reconnectAttempts = 0;
-    let isConnecting = false;
     
+    // Fehlerbehandlung mit automatischem Recovery
     socket.on('connect_error', function(error) {
         reconnectAttempts++;
-        // #region agent log
-        console.error('[DEBUG] SocketIO connect_error:', {
-            error: error.message,
-            attempts: reconnectAttempts,
-            socket_id: socket?.id,
-            timestamp: new Date().toISOString()
-        });
-        // #endregion
-        // Nur alle 5 Versuche loggen, um Spam zu vermeiden
+        // Nur alle 5 Versuche loggen
         if (reconnectAttempts % 5 === 0) {
             console.warn(`Socket.IO Verbindungsfehler (Versuch ${reconnectAttempts}):`, error.message);
         }
-        isConnecting = false;
+        
+        // Nach 10 Fehlern: Kurze Pause, dann mit neuer Verbindung versuchen
+        if (reconnectAttempts >= 10) {
+            console.log('Socket.IO: Neustart der Verbindung...');
+            reconnectAttempts = 0;
+            // Kurze Pause, dann mit forceNew reconnecten
+            setTimeout(function() {
+                if (socket) {
+                    socket.disconnect();
+                    socket.connect();
+                }
+            }, 2000);
+        }
     });
     
     socket.on('connect', function() {
-        reconnectAttempts = 0;
-        // #region agent log
-        console.log('[DEBUG] SocketIO connect success:', {
-            socket_id: socket?.id,
-            transport: socket?.io?.engine?.transport?.name,
-            timestamp: new Date().toISOString()
-        });
-        // #endregion
+        reconnectAttempts = 0;  // Reset bei erfolgreicher Verbindung
+        console.log('SocketIO verbunden');
     });
     
     socket.on('disconnect', function(reason) {
-        isConnecting = false;
-        // Nur bei unerwarteten Disconnects loggen
         if (reason !== 'io client disconnect') {
             console.log('Socket.IO getrennt:', reason);
+            // Bei transport error: Sofort reconnecten
+            if (reason === 'transport error' || reason === 'transport close') {
+                setTimeout(function() {
+                    if (socket && !socket.connected) {
+                        socket.connect();
+                    }
+                }, 500);
+            }
         }
     });
-    
-    socket.on('reconnect_attempt', function(attemptNumber) {
-        // Nur alle 3 Versuche loggen
-        if (attemptNumber % 3 === 0) {
-            console.log(`Socket.IO Reconnect-Versuch ${attemptNumber}...`);
-        }
-    });
-    
-    socket.on('reconnect_failed', function() {
-        console.error('Socket.IO: Reconnect fehlgeschlagen nach mehreren Versuchen');
-        reconnectAttempts = 0;  // Reset für manuellen Retry
-    });
+}
     
     socket.on('music:queue_updated', function(data) {
         console.log('Queue-Update empfangen:', data);
@@ -195,27 +189,30 @@ if (typeof io !== 'undefined') {
         }
     });
     
+    // Zusätzlicher connect-Handler für Room-Join (wird nach dem ersten ausgeführt)
     socket.on('connect', function() {
-        console.log('SocketIO verbunden');
-        reconnectAttempts = 0;  // Reset bei erfolgreicher Verbindung
-        isConnecting = false;
-        
         // Trete dem Musikmodul-Room bei
         try {
-            socket.emit('music:join', {});
-            console.log('Musikmodul: Room beigetreten');
+            if (socket && socket.connected) {
+                socket.emit('music:join', {});
+                console.log('Musikmodul: Room beigetreten');
+            }
         } catch (error) {
-            console.error('Fehler beim Beitreten des Musikmodul-Rooms:', error);
+            console.warn('Fehler beim Beitreten des Musikmodul-Rooms:', error);
         }
         
-        // Initialisiere Badges nach Verbindung
+        // Initialisiere Badges nach Verbindung (nicht blockierend)
         setTimeout(initializeBadges, 500);
     });
     
-    // Verlasse den Room beim Schließen der Seite oder Wechseln zu anderer Seite
+    // Verlasse den Room beim Schließen der Seite
     window.addEventListener('beforeunload', function() {
         if (socket && socket.connected) {
-            socket.emit('music:leave', {});
+            try {
+                socket.emit('music:leave', {});
+            } catch (e) {
+                // Ignorieren - Seite wird geschlossen
+            }
         }
     });
     
