@@ -37,9 +37,25 @@ def create_app(config_name='default'):
     
     # Konfiguriere SocketIO mit optionaler Redis Message Queue
     redis_enabled = app.config.get('REDIS_ENABLED', False)
+    redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
+    
+    # Automatische Redis-Aktivierung in Production, wenn Redis verfügbar ist
+    # (außer wenn explizit REDIS_ENABLED=False gesetzt wurde)
+    if not redis_enabled and config_name == 'production':
+        try:
+            import redis
+            r = redis.Redis.from_url(redis_url, socket_connect_timeout=2)
+            if r.ping():
+                redis_enabled = True
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Redis automatisch aktiviert (verfügbar und Production-Modus): {redis_url}")
+        except Exception:
+            # Redis nicht verfügbar - wird ohne Message Queue fortgesetzt
+            pass
+    
     if redis_enabled:
         try:
-            redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
             # Verwende Redis als Message Queue für Multi-Worker-Setups
             # eventlet ist besser für Redis-Message-Queues als threading
             # Falls eventlet nicht verfügbar ist, fällt es auf threading zurück
