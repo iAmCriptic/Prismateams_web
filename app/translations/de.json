@@ -38,12 +38,13 @@
     "loading": "Laden...",
     "actions": "Aktionen",
     "status": "Status",
-    "active": "Aktiv",
-    "inactive": "Inaktiv",
+    "active": "aktiviert",
+    "inactive": "deaktiviert",
     "optional": "Optional",
     "required": "Erforderlich",
     "language": "Sprache",
-    "select_language": "Sprache auswählen"
+    "select_language": "Sprache auswählen",
+    "unknown_error": "Unbekannter Fehler"
   },
   "auth": {
     "login": {
@@ -84,11 +85,54 @@
       "resend_button": "Code erneut senden",
       "warning_title": "Wichtig",
       "warning_message": "Ohne bestätigte E-Mail-Adresse stehen nur eingeschränkte Funktionen zur Verfügung."
+    },
+    "flash": {
+      "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
+      "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
+      "password_too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+      "email_already_registered": "Diese E-Mail-Adresse ist bereits registriert.",
+      "register_success_whitelisted": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Bitte bestätigen Sie Ihre E-Mail-Adresse.",
+      "register_success_whitelisted_no_email": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.",
+      "register_pending_admin": "Dein Konto muss vom Administrator aktiviert werden. Eine Bestätigungs-E-Mail wurde an Sie gesendet.",
+      "register_pending_admin_no_email": "Dein Konto muss vom Administrator aktiviert werden. E-Mail-Bestätigung konnte nicht gesendet werden.",
+      "enter_email_password": "Bitte geben Sie E-Mail und Passwort ein.",
+      "invalid_credentials": "Ungültige E-Mail oder Passwort.",
+      "guest_account_expired": "Ihr Gast-Account ist abgelaufen und wurde entfernt.",
+      "account_not_activated": "Ihr Konto wurde noch nicht aktiviert. Bitte warten Sie auf die Freischaltung durch einen Administrator.",
+      "confirm_email_required": "Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.",
+      "email_already_confirmed": "Ihre E-Mail-Adresse wurde bereits bestätigt.",
+      "enter_confirmation_code": "Bitte geben Sie den Bestätigungscode ein.",
+      "email_confirmed_success": "E-Mail-Adresse erfolgreich bestätigt!",
+      "invalid_confirmation_code": "Ungültiger oder abgelaufener Bestätigungscode.",
+      "confirmation_email_resent": "Bestätigungs-E-Mail wurde erneut gesendet.",
+      "confirmation_email_failed": "Bestätigungs-E-Mail konnte nicht gesendet werden. Der Code wurde in der Konsole ausgegeben.",
+      "admin_only": "Nur Administratoren haben Zugriff auf diese Seite.",
+      "test_email_sent": "Test-E-Mail erfolgreich gesendet!",
+      "test_email_success_message": "E-Mail wurde erfolgreich gesendet.",
+      "test_email_error": "Fehler beim Senden der Test-E-Mail: {error}",
+      "logout_success": "Sie wurden erfolgreich abgemeldet."
     }
   },
   "dashboard": {
+    "flash": {
+      "guests_cannot_edit": "Gast-Accounts können das Dashboard nicht bearbeiten.",
+      "saved": "Dashboard-Konfiguration erfolgreich gespeichert!"
+    },
     "page_title": "Dashboard",
     "setup": {
+      "flash": {
+        "select_backup_file": "Bitte wählen Sie eine Backup-Datei aus.",
+        "invalid_file_extension": "Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.",
+        "invalid_file_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.",
+        "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
+        "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
+        "password_too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+        "completed": "Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
+        "enter_portal_name": "Bitte geben Sie einen Portalsnamen ein.",
+        "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
+        "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
+        "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
+      },
       "success_title": "🎉 Setup erfolgreich abgeschlossen!",
       "success_body": "Willkommen in Ihrem Team-Portal! Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
     },
@@ -343,7 +387,11 @@
       "flash_picture_too_large": "Profilbild ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
       "flash_picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF Dateien sind erlaubt.",
       "flash_picture_uploaded": "Profilbild wurde erfolgreich hochgeladen.",
+      "flash_picture_removed": "Profilbild wurde entfernt.",
       "flash_profile_updated": "Profil wurde aktualisiert."
+    },
+    "notifications": {
+      "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert."
     },
     "notifications": {
       "page_title": "Benachrichtigungen - Einstellungen",
@@ -508,7 +556,72 @@
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_user_created": "Account für {name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.",
         "flash_guest_created": "Gast-Account für {name} wurde erstellt. Zugangsdaten: Benutzername: {email}, Passwort: {password}",
-        "flash_email_failed": "Account für {name} wurde erstellt, aber E-Mail konnte nicht gesendet werden. Zugangsdaten: Benutzername: {email}, Passwort: {password}"
+        "flash_email_failed": "Account für {name} wurde erstellt, aber E-Mail konnte nicht gesendet werden. Zugangsdaten: Benutzername: {email}, Passwort: {password}",
+        "flash_user_activated": "Benutzer {name} wurde aktiviert.",
+        "flash_user_deactivated": "Benutzer {name} wurde deaktiviert.",
+        "flash_cannot_deactivate_self": "Sie können sich nicht selbst deaktivieren.",
+        "flash_cannot_deactivate_super_admin": "Der Hauptadministrator kann nicht deaktiviert werden.",
+        "flash_user_made_admin": "{name} ist jetzt Administrator.",
+        "flash_admin_removed": "{name} ist kein Administrator mehr.",
+        "flash_cannot_remove_admin_self": "Sie können sich nicht selbst die Admin-Rechte entziehen.",
+        "flash_cannot_remove_super_admin": "Die Admin-Rechte des Hauptadministrators können nicht entzogen werden.",
+        "flash_guest_cannot_be_admin": "Gast-Accounts können keine Administratoren werden.",
+        "flash_user_deleted": "Benutzer {name} wurde gelöscht.",
+        "flash_cannot_delete_self": "Sie können sich nicht selbst löschen.",
+        "flash_cannot_delete_super_admin": "Der Hauptadministrator kann nicht gelöscht werden."
+      },
+      "email_footer": {
+        "flash_saved": "E-Mail-Footer wurde erfolgreich gespeichert."
+      },
+      "email_permissions": {
+        "flash_moved_to_roles": "E-Mail-Berechtigungen werden jetzt in der Benutzerverwaltung unter Rollen verwaltet.",
+        "flash_read_toggled": "E-Mail-Leseberechtigung für {name} wurde {status}.",
+        "flash_send_toggled": "E-Mail-Sendeberechtigung für {name} wurde {status}."
+      },
+      "system": {
+        "flash_logo_too_large": "Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
+        "flash_logo_uploaded": "Portalslogo wurde erfolgreich hochgeladen.",
+        "flash_logo_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt."
+      },
+      "music": {
+        "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
+      },
+      "roles": {
+        "flash_default_saved": "Standardrollen wurden erfolgreich gespeichert."
+      },
+      "inventory": {
+        "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert."
+      },
+      "email_settings": {
+        "flash_saved": "E-Mail-Einstellungen wurden gespeichert."
+      },
+      "backup": {
+        "flash_no_export_categories": "Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.",
+        "flash_export_error": "Fehler beim Erstellen des Backups.",
+        "flash_export_error_detail": "Fehler beim Erstellen des Backups: {error}",
+        "flash_no_file": "Bitte wählen Sie eine Backup-Datei aus.",
+        "flash_invalid_extension": "Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.",
+        "flash_no_import_categories": "Bitte wählen Sie mindestens eine Kategorie zum Importieren aus.",
+        "flash_import_success": "Backup erfolgreich importiert! Importierte Kategorien: {categories}",
+        "flash_import_error": "Fehler beim Importieren des Backups: {error}"
+      },
+      "whitelist": {
+        "flash_invalid_entry": "Bitte geben Sie einen gültigen Eintrag und Typ an.",
+        "flash_invalid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        "flash_entry_added": "Whitelist-Eintrag \"{entry}\" wurde hinzugefügt.",
+        "flash_entry_add_error": "Fehler beim Hinzufügen des Whitelist-Eintrags. Möglicherweise existiert er bereits.",
+        "flash_entry_toggled": "Whitelist-Eintrag \"{entry}\" wurde {status}.",
+        "flash_entry_toggle_error": "Fehler beim Ändern des Whitelist-Eintrags.",
+        "flash_entry_not_found": "Whitelist-Eintrag nicht gefunden.",
+        "flash_entry_deleted": "Whitelist-Eintrag \"{entry}\" wurde gelöscht.",
+        "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags."
+      },
+      "booking_forms": {
+        "flash_title_required": "Bitte geben Sie einen Titel ein.",
+        "flash_form_created": "Formular \"{title}\" wurde erstellt.",
+        "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
+        "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
+        "flash_status_updated": "Status wurde aktualisiert."
       },
       "sections": {
         "users": {
@@ -624,6 +737,30 @@
     }
   },
   "chat": {
+    "flash": {
+      "main_chat_not_found": "Haupt-Chat nicht gefunden.",
+      "not_member": "Sie sind kein Mitglied dieses Chats.",
+      "select_person": "Bitte wählen Sie eine Person für den privaten Chat aus.",
+      "no_self_chat": "Sie können keinen privaten Chat mit sich selbst erstellen.",
+      "enter_name": "Bitte geben Sie einen Namen ein.",
+      "select_member": "Bitte wählen Sie mindestens ein Mitglied aus.",
+      "private_chat_exists": "Ein privater Chat mit {name} existiert bereits.",
+      "private_chat_created": "Privater Chat mit {name} wurde erstellt.",
+      "group_chat_created": "Gruppen-Chat \"{name}\" wurde erstellt.",
+      "main_chat_cannot_edit": "Der Haupt-Chat kann nicht bearbeitet werden",
+      "private_chat_cannot_edit": "Private Chats können nicht bearbeitet werden",
+      "updated": "Chat erfolgreich aktualisiert",
+      "deleted": "Chat erfolgreich gelöscht"
+    },
+    "errors": {
+      "main_chat_not_found": "Haupt-Chat nicht gefunden",
+      "unauthorized": "Nicht autorisiert",
+      "message_empty": "Nachricht darf nicht leer sein",
+      "main_chat_cannot_edit": "Der Haupt-Chat kann nicht bearbeitet werden",
+      "private_chat_cannot_edit": "Private Chats können nicht bearbeitet werden",
+      "main_chat_cannot_delete": "Der Haupt-Chat kann nicht gelöscht werden",
+      "not_member": "Sie sind kein Mitglied dieses Chats"
+    },
     "common": {
       "main_chat_name": "Haupt-Chat"
     },
@@ -729,6 +866,9 @@
     }
   },
   "files": {
+    "errors": {
+      "file_type_not_supported": "Dateityp nicht unterstützt"
+    },
     "index": {
       "page_title": "Dateien - Team Portal",
       "heading": "Dateien",
@@ -882,6 +1022,9 @@
         "delete_file": "Datei wirklich löschen?",
         "dropbox_disable": "Briefkasten wirklich deaktivieren?"
       },
+      "errors": {
+        "file_type_not_supported": "Dateityp nicht unterstützt"
+      },
       "messages": {
         "upload_error": "Fehler beim Hochladen der Dateien.",
         "upload_folder_error": "Fehler beim Hochladen des Ordners.",
@@ -897,6 +1040,17 @@
     }
   },
   "email": {
+    "flash": {
+      "no_read_permission": "Sie haben keine Berechtigung, E-Mails zu lesen.",
+      "no_send_permission": "Sie haben keine Berechtigung, E-Mails zu senden.",
+      "invalid_folder_name": "Ungültiger Ordnername.",
+      "attachment_not_found": "Anhang nicht gefunden.",
+      "attachment_file_not_found": "Anhang-Datei nicht gefunden.",
+      "attachment_corrupted": "Anhang nicht gefunden oder beschädigt.",
+      "sync_already_running": "⚠️ Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.",
+      "deleted": "E-Mail wurde erfolgreich gelöscht.",
+      "target_folder_not_specified": "Zielordner nicht angegeben."
+    },
     "index": {
       "page_title": "E-Mail - Team Portal",
       "heading": "E-Mail",
@@ -1033,6 +1187,15 @@
     }
   },
   "credentials": {
+    "flash": {
+      "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
+      "saved": "Zugangsdaten für \"{website_name}\" wurden gespeichert.",
+      "updated": "Zugangsdaten für \"{website_name}\" wurden aktualisiert.",
+      "deleted": "Zugangsdaten für \"{website_name}\" wurden gelöscht."
+    },
+    "errors": {
+      "decrypt_error": "Fehler beim Entschlüsseln des Passworts"
+    },
     "index": {
       "page_title": "Zugangsdaten - Team Portal",
       "heading": "Zugangsdaten",
@@ -1319,6 +1482,15 @@
       "empty": "Keine Versionshistorie vorhanden."
     },
     "api": {
+      "errors": {
+        "unauthorized": "Nicht autorisiert",
+        "subscription_data_missing": "Subscription-Daten fehlen",
+        "registration_error": "Fehler bei der Registrierung",
+        "vapid_key_format_error": "VAPID Key Formatfehler",
+        "vapid_keys_load_error": "Fehler beim Laden der VAPID Keys",
+        "test_notification_error": "Interner Server-Fehler beim Senden der Test-Benachrichtigung",
+        "notification_not_found": "Benachrichtigung nicht gefunden"
+      },
       "module_disabled": "Wiki-Modul nicht aktiviert",
       "favorite": {
         "already": "Bereits favorisiert",
@@ -1338,6 +1510,15 @@
     }
   },
   "comments": {
+    "errors": {
+      "invalid_content_type": "Ungültiger content_type",
+      "comments_disabled_markdown": "Kommentare sind für Markdown-Dateien deaktiviert",
+      "comment_content_empty": "Kommentar-Inhalt darf nicht leer sein",
+      "invalid_parent_comment": "Ungültiger parent-Kommentar",
+      "parent_comment_mismatch": "Parent-Kommentar gehört nicht zu diesem Objekt",
+      "no_permission": "Keine Berechtigung",
+      "comment_deleted": "Kommentar wurde gelöscht"
+    },
     "locale": "de-DE",
     "header": {
       "title": "Kommentare",
@@ -1393,6 +1574,27 @@
     }
   },
   "calendar": {
+    "flash": {
+      "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
+      "end_after_start": "Das Enddatum muss nach dem Startdatum liegen.",
+      "recurrence_end_after_start": "Das Wiederholungs-Enddatum muss nach dem Startdatum liegen.",
+      "invalid_recurrence_end": "Ungültiges Wiederholungs-Enddatum.",
+      "invalid_datetime_format": "Ungültiges Datums-/Zeitformat.",
+      "instance_edit_warning": "Dies ist eine Instanz eines wiederkehrenden Termins. Bearbeiten Sie das Master-Event.",
+      "updated": "Termin wurde aktualisiert.",
+      "admin_only_delete": "Nur Administratoren können Termine löschen.",
+      "deleted": "Termin wurde gelöscht.",
+      "removed_from_event": "Sie wurden von diesem Termin entfernt und können nicht mehr teilnehmen.",
+      "admin_cannot_remove": "Administratoren können nicht aus Abstimmungen entfernt werden.",
+      "participant_removed": "Teilnehmer wurde entfernt.",
+      "not_recurring": "Dies ist kein wiederkehrender Termin.",
+      "recurring_deleted": "Wiederkehrender Termin und alle Instanzen wurden gelöscht.",
+      "feed_created": "Öffentlicher Kalender wurde erstellt.",
+      "no_permission_delete_feed": "Sie haben keine Berechtigung, diesen Feed zu löschen.",
+      "feed_deleted": "Feed wurde gelöscht.",
+      "select_file": "Bitte wählen Sie eine Datei aus.",
+      "select_ics_file": "Bitte wählen Sie eine .ics-Datei aus."
+    },
     "index": {
       "page_title": "Termine - Team Portal",
       "heading": "Termine",
@@ -1552,6 +1754,15 @@
     }
   },
   "manuals": {
+    "flash": {
+      "upload_admin_only": "Nur Administratoren können Anleitungen hochladen.",
+      "no_file_selected": "Keine Datei ausgewählt.",
+      "only_pdf": "Nur PDF-Dateien sind erlaubt.",
+      "uploaded": "Anleitung \"{title}\" wurde hochgeladen.",
+      "file_not_found": "Die Anleitung-Datei konnte nicht gefunden werden.",
+      "delete_admin_only": "Nur Administratoren können Anleitungen löschen.",
+      "deleted": "Anleitung \"{title}\" wurde gelöscht."
+    },
     "index": {
       "page_title": "Bedienungsanleitungen - Team Portal",
       "heading": "Bedienungsanleitungen",
@@ -1585,6 +1796,71 @@
     }
   },
   "inventory": {
+    "errors": {
+      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
+      "no_action_specified": "Keine Aktion angegeben.",
+      "product_or_set_not_found": "Produkt oder Set nicht gefunden.",
+      "inventory_not_active": "Inventur ist nicht aktiv.",
+      "product_not_in_inventory": "Produkt nicht in dieser Inventur gefunden.",
+      "qr_data_required": "QR-Code-Daten erforderlich.",
+      "invalid_qr_code": "Ungültiger QR-Code.",
+      "product_not_found": "Produkt nicht gefunden.",
+      "only_product_qr_supported": "Nur Produkt-QR-Codes werden unterstützt.",
+      "guests_cannot_create": "Gast-Accounts können keine Produkte erstellen.",
+      "product_name_required": "Der Produktname ist verpflichtend.",
+      "invalid_length_format": "Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).",
+      "guests_cannot_update": "Gast-Accounts können keine Produkte aktualisieren.",
+      "no_data_submitted": "Keine Daten übermittelt.",
+      "guests_cannot_delete": "Gast-Accounts können keine Produkte löschen.",
+      "product_borrowed_cannot_delete": "Produkt kann nicht gelöscht werden, da es ausgeliehen ist.",
+      "invalid_product_ids_array": "Ungültige Produkt-IDs. Erwartet Array von IDs.",
+      "no_product_ids": "Keine Produkt-IDs übermittelt.",
+      "invalid_product_ids_numeric": "Ungültige Produkt-IDs. Alle IDs müssen Zahlen sein.",
+      "some_product_ids_not_found": "Einige Produkt-IDs wurden nicht gefunden.",
+      "validation_error": "Validierungsfehler",
+      "no_update_data": "Keine Update-Daten übermittelt.",
+      "update_error": "Fehler beim Aktualisieren",
+      "delete_error": "Fehler beim Löschen",
+      "folder_name_required": "Der Ordnername ist verpflichtend.",
+      "folder_name_exists": "Ein Ordner mit diesem Namen existiert bereits.",
+      "product_id_return_date_required": "Produkt-ID und erwartetes Rückgabedatum sind erforderlich.",
+      "product_not_available": "Produkt ist nicht verfügbar.",
+      "invalid_date_format": "Ungültiges Datumsformat.",
+      "invalid_date_format_iso": "Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.",
+      "user_not_found": "Benutzer nicht gefunden.",
+      "no_active_borrow": "Keine aktive Ausleihe gefunden.",
+      "no_valid_products": "Keine gültigen Produkte gefunden.",
+      "print_sheet_error": "Fehler beim Generieren des Druckbogens.",
+      "search_term_required": "Suchbegriff erforderlich.",
+      "filter_name_required": "Filtername erforderlich.",
+      "filter_name_exists": "Ein Filter mit diesem Namen existiert bereits.",
+      "no_permission": "Keine Berechtigung.",
+      "product_not_favorite": "Produkt ist kein Favorit.",
+      "invalid_or_expired_token": "Ungültiger oder abgelaufener Token.",
+      "transaction_id_required": "Transaktions-ID erforderlich.",
+      "already_returned": "Ausleihe wurde bereits zurückgegeben.",
+      "borrow_transaction_not_found": "Ausleihtransaktion nicht gefunden.",
+      "product_set_not_found": "Produktset nicht gefunden.",
+      "category_name_required": "Der Kategoriename ist verpflichtend.",
+      "category_name_exists": "Eine Kategorie mit diesem Namen existiert bereits.",
+      "invalid_category_name": "Ungültiger Kategoriename.",
+      "category_not_found": "Kategorie nicht gefunden.",
+      "new_category_name_required": "Der neue Kategoriename ist verpflichtend."
+    },
+    "flash": {
+      "guests_cannot_create": "Gast-Accounts können keine Produkte erstellen.",
+      "product_name_required": "Der Produktname ist verpflichtend.",
+      "guests_cannot_edit": "Gast-Accounts können keine Produkte bearbeiten.",
+      "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
+      "guests_cannot_delete": "Gast-Accounts können keine Produkte löschen.",
+      "no_products_selected": "Keine Produkte ausgewählt.",
+      "invalid_product_ids": "Ungültige Produkt-IDs.",
+      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
+      "enter_set_name": "Bitte geben Sie einen Namen für das Set ein.",
+      "select_at_least_one_product": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "no_permission_delete_set": "Sie haben keine Berechtigung, dieses Set zu löschen.",
+      "invalid_request": "Ungültige Anfrage."
+    },
     "dashboard": {
       "page_title": "Lagerverwaltung - Team Portal",
       "heading": "Lagerverwaltung",
@@ -1959,7 +2235,12 @@
         "unknown_artist": "Unbekannter Künstler",
         "add_next": "Als nächstes",
         "add_last": "Als letztes von Wunschliedern",
-        "add_end": "Am Ende"
+        "add_end": "Am Ende",
+        "mark_played": "Zu bereits gespielt verschieben"
+      },
+      "public_url_button": "Public URL Abrufen",
+      "played": {
+        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden"
       },
       "queue": {
         "title": "Warteschlange",
@@ -1974,6 +2255,8 @@
         "played_at": "Gespielt:"
       },
       "confirmations": {
+        "mark_as_played": "Möchten Sie dieses Lied als bereits gespielt markieren?",
+        "remove_from_queue": "Möchten Sie dieses Lied aus der Warteschlange entfernen?",
         "clear_queue": "Möchten Sie die Warteschlange wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
         "clear_wishlist": "Möchten Sie die Wunschliste wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
         "reset_all": "Möchten Sie wirklich ALLES zurücksetzen?\n\nDies löscht:\n- Die gesamte Wunschliste\n- Die gesamte Warteschlange\n- Alle bereits gespielten Lieder\n\nDiese Aktion kann nicht rückgängig gemacht werden!",
@@ -1986,19 +2269,26 @@
     },
     "public_wishlist": {
       "page_title": "Musikwunschliste",
-      "title": "Musikwunschliste",
-      "subtitle": "Suchen Sie nach Liedern und fügen Sie sie zur Wunschliste hinzu",
+      "title": "Dein Musikwunsch",
+      "subtitle": "Teile uns hier deinen Musikwunsch mit",
+      "no_providers": "Keine Musik-Provider aktiviert. Bitte aktivieren Sie mindestens einen Provider in den Einstellungen.",
       "provider_select": "Musikdienst auswählen",
       "search_label": "Lied suchen",
-      "search_placeholder": "Titel, Künstler, Album...",
+      "search_placeholder": "\"Titel\" \"Künstler\" oder frei",
       "search_button": "Suchen",
+      "search_help_format": "Format",
+      "search_help_text": "Mit Anführungszeichen: <code>\"Titel\" \"Künstler\"</code> oder frei: <code>Titel Künstler</code>",
+      "search_help_providers": "Die Suche durchsucht automatisch alle aktivierten Provider",
       "search_results": "Suchergebnisse",
       "loading": "Laden...",
       "no_results": "Keine Ergebnisse gefunden.",
       "add_button": "Hinzufügen",
       "success_message": "Lied erfolgreich zur Wunschliste hinzugefügt!",
       "error_message": "Fehler bei der Suche: {error}",
-      "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)"
+      "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)",
+      "recommendations": "Empfehlungen",
+      "recommendation_badge": "Empfehlung",
+      "no_recommendations": "Keine Empfehlungen verfügbar."
     },
     "admin": {
       "page_title": "Musikmodul-Einstellungen - Administration",
@@ -2006,33 +2296,58 @@
       "breadcrumb_admin": "Administration",
       "breadcrumb_music": "Musikmodul-Einstellungen",
       "heading": "Musikmodul-Einstellungen",
+      "provider_activation": {
+        "title": "Provider-Aktivierung und Reihenfolge",
+        "description": "Aktivieren Sie die gewünschten Musik-Provider und legen Sie die Suchreihenfolge fest.",
+        "enabled_label": "Aktivierte Provider",
+        "move_up": "Nach oben",
+        "move_down": "Nach unten"
+      },
       "spotify": {
-        "title": "Spotify OAuth-Konfiguration",
-        "client_id": "Spotify Client ID",
-        "client_id_placeholder": "Ihre Spotify Client ID",
-        "client_id_help": "Erhalten Sie diese von {link}",
-        "client_secret": "Spotify Client Secret",
-        "client_secret_placeholder": "Ihr Spotify Client Secret",
+        "title": "Spotify",
+        "hint_title": "Hinweis",
+        "hint": "Spotify verwendet einfache OAuth-Anmeldung. Benutzer können sich mit ihrem Spotify-Konto anmelden.",
+        "client_id": "Client ID",
+        "client_id_placeholder": "Spotify Client ID",
+        "client_id_help": "Erhalten Sie Ihre Credentials im <a href=\"{link}\" target=\"_blank\">Spotify Developer Dashboard</a>",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "Spotify Client Secret",
         "redirect_uri": "Redirect URI:",
-        "redirect_uri_help": "Fügen Sie diese URL in Ihrem Spotify Developer Dashboard als Redirect URI hinzu.",
-        "connected": "Spotify ist mit Ihrem Account verbunden.",
+        "redirect_uri_help": "Diese URI muss in Ihrem Spotify Developer Dashboard als Redirect URI eingetragen sein.",
+        "connected": "Spotify verbunden",
         "disconnect": "Trennen",
-        "not_connected": "Spotify ist nicht verbunden.",
-        "connect": "Verbinden"
+        "not_connected": "Spotify nicht verbunden",
+        "connect": "Mit Spotify verbinden"
       },
       "youtube": {
-        "title": "YouTube Music OAuth-Konfiguration",
-        "client_id": "YouTube Client ID",
-        "client_id_placeholder": "Ihre YouTube Client ID",
-        "client_id_help": "Erhalten Sie diese von {link}",
-        "client_secret": "YouTube Client Secret",
-        "client_secret_placeholder": "Ihr YouTube Client Secret",
+        "title": "YouTube",
+        "hint_title": "Hinweis",
+        "hint": "YouTube kann jetzt mit einem einfachen API-Key verwendet werden. OAuth ist optional.",
+        "api_key_label": "API-Key (empfohlen)",
+        "api_key_placeholder": "YouTube API-Key",
+        "api_key_help": "Erhalten Sie einen API-Key in der <a href=\"{link}\" target=\"_blank\">Google Cloud Console</a>",
+        "client_id": "OAuth Client ID (optional)",
+        "client_id_placeholder": "YouTube OAuth Client ID",
+        "client_secret": "OAuth Client Secret (optional)",
+        "client_secret_placeholder": "YouTube OAuth Client Secret",
         "redirect_uri": "Redirect URI:",
         "redirect_uri_help": "Fügen Sie diese URL in Ihrer Google Cloud Console als autorisierte Redirect URI hinzu.",
-        "connected": "YouTube Music ist mit Ihrem Account verbunden.",
+        "connected": "YouTube OAuth verbunden",
         "disconnect": "Trennen",
         "not_connected": "YouTube Music ist nicht verbunden.",
         "connect": "Verbinden"
+      },
+      "deezer": {
+        "title": "Deezer",
+        "hint_title": "Hinweis",
+        "hint": "Deezer verwendet eine öffentliche API. Eine App-ID ist optional, aber empfohlen für höhere Rate Limits.",
+        "app_id_label": "App-ID (optional)",
+        "app_id_placeholder": "Deezer App-ID",
+        "app_id_help": "Erhalten Sie eine App-ID im <a href=\"{link}\" target=\"_blank\">Deezer Developer Portal</a> (optional, aber empfohlen für höhere Rate Limits)"
+      },
+      "musicbrainz": {
+        "title": "MusicBrainz",
+        "description": "MusicBrainz benötigt keine Konfiguration. Es ist eine öffentliche API ohne Authentifizierung."
       },
       "save": "Einstellungen speichern",
       "cancel": "Abbrechen"
@@ -2040,13 +2355,47 @@
     "flash": {
       "spotify_connected": "Spotify erfolgreich verbunden!",
       "youtube_connected": "YouTube Music erfolgreich verbunden!",
-      "connect_error": "Fehler beim Verbinden: {error}",
+      "connect_error": "Fehler beim Verbinden mit {provider}: {error}",
       "oauth_error": "{provider} OAuth Fehler: {error}",
       "no_auth_code": "Kein Auth-Code erhalten",
-      "invalid_provider": "Ungültiger Provider"
+      "invalid_provider": "Ungültiger Provider",
+      "missing_data": "Fehlende Daten",
+      "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)",
+      "wish_added": "Lied zur Wunschliste hinzugefügt",
+      "query_required": "Suchbegriff erforderlich",
+      "search_error": "Fehler bei der Suche: {error}",
+      "already_processed": "Lied ist bereits verarbeitet",
+      "already_in_queue": "Lied ist bereits in der Warteschlange",
+      "already_played": "Lied ist bereits als gespielt markiert",
+      "queue_id_required": "queue_id und position erforderlich"
     }
   },
   "booking": {
+    "flash": {
+      "form_not_active": "Dieses Buchungsformular ist nicht mehr aktiv.",
+      "enter_name": "Bitte geben Sie Ihren Namen ein.",
+      "enter_event_name": "Bitte geben Sie einen Namen für die Veranstaltung ein.",
+      "enter_valid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+      "field_required": "Das Feld \"{field_label}\" ist ein Pflichtfeld.",
+      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
+      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt.",
+      "no_file_selected": "Keine Datei ausgewählt.",
+      "no_files_uploaded": "Keine Dateien wurden hochgeladen.",
+      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
+      "enter_event_date": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
+      "accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
+      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
+      "enter_rejection_reason": "Bitte geben Sie einen Ablehnungsgrund ein.",
+      "rejected": "Buchung wurde abgelehnt.",
+      "fill_subject_message": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "email_sent": "E-Mail wurde gesendet.",
+      "email_error": "Fehler beim Senden der E-Mail.",
+      "not_assigned_to_role": "Sie sind dieser Rolle nicht zugewiesen.",
+      "file_too_large": "Datei \"{filename}\" ist zu groß (max. 50MB).",
+      "files_uploaded": "{count} Datei(en) wurden erfolgreich hochgeladen.",
+      "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
+      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert."
+    },
     "requests": {
       "page_title": "Buchungsanfragen - Team Portal",
       "breadcrumb_dashboard": "Dashboard",

@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update_multiple
+from app.utils.i18n import translate
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import generate_ical_feed, import_events_from_ical
@@ -194,7 +195,7 @@ def create_event():
         recurrence_days = request.form.get('recurrence_days', '')  # Komma-getrennte Liste von Wochentagen
         
         if not all([title, start_date, end_date]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            flash(translate('calendar.flash.fill_all_fields'), 'danger')
             return render_template('calendar/create.html')
         
         try:
@@ -209,7 +210,7 @@ def create_event():
             end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
             
             if end_dt <= start_dt:
-                flash('Das Enddatum muss nach dem Startdatum liegen.', 'danger')
+                flash(translate('calendar.flash.end_after_start'), 'danger')
                 return render_template('calendar/create.html')
             
             # Wiederholungs-Enddatum parsen
@@ -218,13 +219,13 @@ def create_event():
                 try:
                     recurrence_end_date = datetime.fromisoformat(recurrence_end_date_str)
                     if recurrence_end_date < start_dt:
-                        flash('Das Wiederholungs-Enddatum muss nach dem Startdatum liegen.', 'danger')
+                        flash(translate('calendar.flash.recurrence_end_after_start'), 'danger')
                         return render_template('calendar/create.html')
                 except ValueError:
-                    flash('Ungültiges Wiederholungs-Enddatum.', 'danger')
+                    flash(translate('calendar.flash.invalid_recurrence_end'), 'danger')
                     return render_template('calendar/create.html')
         except ValueError as e:
-            flash('Ungültiges Datums-/Zeitformat.', 'danger')
+            flash(translate('calendar.flash.invalid_datetime_format'), 'danger')
             return render_template('calendar/create.html')
         
         # Create event
@@ -291,7 +292,7 @@ def edit_event(event_id):
     
     # Prüfe ob es eine Instanz eines wiederkehrenden Termins ist
     if event.is_recurring_instance and event.parent_event_id:
-        flash('Dies ist eine Instanz eines wiederkehrenden Termins. Bearbeiten Sie das Master-Event.', 'warning')
+        flash(translate('calendar.flash.instance_edit_warning'), 'warning')
         return redirect(url_for('calendar.view_event', event_id=event.parent_event_id))
     
     if request.method == 'POST':
@@ -312,7 +313,7 @@ def edit_event(event_id):
         recurrence_days = request.form.get('recurrence_days', '')
         
         if not all([start_date, end_date]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            flash(translate('calendar.flash.fill_all_fields'), 'danger')
             return render_template('calendar/edit.html', event=event)
         
         try:
@@ -327,7 +328,7 @@ def edit_event(event_id):
             event.end_time = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
             
             if event.end_time <= event.start_time:
-                flash('Das Enddatum muss nach dem Startdatum liegen.', 'danger')
+                flash(translate('calendar.flash.end_after_start'), 'danger')
                 return render_template('calendar/edit.html', event=event)
             
             # Wiederholungs-Enddatum parsen
@@ -336,13 +337,13 @@ def edit_event(event_id):
                 try:
                     recurrence_end_date = datetime.fromisoformat(recurrence_end_date_str)
                     if recurrence_end_date < event.start_time:
-                        flash('Das Wiederholungs-Enddatum muss nach dem Startdatum liegen.', 'danger')
+                        flash(translate('calendar.flash.recurrence_end_after_start'), 'danger')
                         return render_template('calendar/edit.html', event=event)
                 except ValueError:
-                    flash('Ungültiges Wiederholungs-Enddatum.', 'danger')
+                    flash(translate('calendar.flash.invalid_recurrence_end'), 'danger')
                     return render_template('calendar/edit.html', event=event)
         except ValueError:
-            flash('Ungültiges Datums-/Zeitformat.', 'danger')
+            flash(translate('calendar.flash.invalid_datetime_format'), 'danger')
             return render_template('calendar/edit.html', event=event)
         
         # Aktualisiere Wiederholungsoptionen
@@ -374,7 +375,7 @@ def edit_event(event_id):
             import logging
             logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
         
-        flash('Termin wurde aktualisiert.', 'success')
+        flash(translate('calendar.flash.updated'), 'success')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
     return render_template('calendar/edit.html', event=event)
@@ -386,7 +387,7 @@ def edit_event(event_id):
 def delete_event(event_id):
     """Delete an event (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren können Termine löschen.', 'danger')
+        flash(translate('calendar.flash.admin_only_delete'), 'danger')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
     event = CalendarEvent.query.get_or_404(event_id)
@@ -433,7 +434,7 @@ def delete_event(event_id):
         import logging
         logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
     
-    flash('Termin wurde gelöscht.', 'success')
+    flash(translate('calendar.flash.deleted'), 'success')
     return redirect(url_for('calendar.index'))
 
 
@@ -443,7 +444,7 @@ def delete_event(event_id):
 def set_participation(event_id, status):
     """Set user's participation status for an event."""
     if status not in ['accepted', 'declined']:
-        return jsonify({'error': 'Ungültiger Status'}), 400
+        return jsonify({'error': translate('calendar.errors.invalid_status')}), 400
     
     event = CalendarEvent.query.get_or_404(event_id)
     
@@ -462,7 +463,7 @@ def set_participation(event_id, status):
         db.session.add(participation)
     else:
         if participation.status == 'removed':
-            flash('Sie wurden von diesem Termin entfernt und können nicht mehr teilnehmen.', 'warning')
+            flash(translate('calendar.flash.removed_from_event'), 'warning')
             return redirect(url_for('calendar.view_event', event_id=event_id))
         
         participation.status = status
@@ -470,8 +471,8 @@ def set_participation(event_id, status):
     
     db.session.commit()
     
-    status_text = 'zugesagt' if status == 'accepted' else 'abgesagt'
-    flash(f'Sie haben für "{event.title}" {status_text}.', 'success')
+    status_text = translate('calendar.flash.accepted') if status == 'accepted' else translate('calendar.flash.declined')
+    flash(translate('calendar.flash.participation_status', event_title=event.title, status=status_text), 'success')
     return redirect(url_for('calendar.view_event', event_id=event_id))
 
 
@@ -481,12 +482,12 @@ def set_participation(event_id, status):
 def remove_participant(event_id, user_id):
     """Remove a user from an event (admin only)."""
     if not current_user.is_admin:
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('calendar.errors.unauthorized')}), 403
     
     # Prüfe ob der zu entfernende Benutzer ein Administrator ist
     user_to_remove = User.query.get_or_404(user_id)
     if user_to_remove.is_admin:
-        flash('Administratoren können nicht aus Abstimmungen entfernt werden.', 'danger')
+        flash(translate('calendar.flash.admin_cannot_remove'), 'danger')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
     participation = EventParticipant.query.filter_by(
@@ -497,7 +498,7 @@ def remove_participant(event_id, user_id):
     participation.status = 'removed'
     db.session.commit()
     
-    flash('Teilnehmer wurde entfernt.', 'success')
+    flash(translate('calendar.flash.participant_removed'), 'success')
     return redirect(url_for('calendar.view_event', event_id=event_id))
 
 
@@ -709,13 +710,13 @@ def get_events_for_range(start_date, end_date):
 def delete_recurring_event_all(event_id):
     """Delete master event and all instances (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren können Termine löschen.', 'danger')
+        flash(translate('calendar.flash.admin_only_delete'), 'danger')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
     event = CalendarEvent.query.get_or_404(event_id)
     
     if not event.is_master_event:
-        flash('Dies ist kein wiederkehrender Termin.', 'warning')
+        flash(translate('calendar.flash.not_recurring'), 'warning')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
     # Lösche alle Instanzen (falls welche gespeichert wurden)
@@ -726,7 +727,7 @@ def delete_recurring_event_all(event_id):
     db.session.delete(event)
     db.session.commit()
     
-    flash('Wiederkehrender Termin und alle Instanzen wurden gelöscht.', 'success')
+    flash(translate('calendar.flash.recurring_deleted'), 'success')
     return redirect(url_for('calendar.index'))
 
 
@@ -738,7 +739,7 @@ def view_recurring_instances(event_id):
     event = CalendarEvent.query.get_or_404(event_id)
     
     if not event.is_master_event:
-        flash('Dies ist kein wiederkehrender Termin.', 'warning')
+        flash(translate('calendar.flash.not_recurring'), 'warning')
         return redirect(url_for('calendar.view_event', event_id=event_id))
     
     # Generiere Instanzen für die nächsten 2 Jahre
@@ -814,7 +815,7 @@ def create_feed():
         db.session.add(feed)
         db.session.commit()
         
-        flash('Öffentlicher Kalender wurde erstellt.', 'success')
+        flash(translate('calendar.flash.feed_created'), 'success')
         return redirect(url_for('calendar.manage_feeds'))
     
     return render_template('calendar/feed_create.html')
@@ -848,13 +849,13 @@ def delete_feed(feed_id):
     
     # Prüfe ob Benutzer der Ersteller ist
     if feed.created_by != current_user.id and not current_user.is_admin:
-        flash('Sie haben keine Berechtigung, diesen Feed zu löschen.', 'danger')
+        flash(translate('calendar.flash.no_permission_delete_feed'), 'danger')
         return redirect(url_for('calendar.manage_feeds'))
     
     db.session.delete(feed)
     db.session.commit()
     
-    flash('Feed wurde gelöscht.', 'success')
+    flash(translate('calendar.flash.feed_deleted'), 'success')
     return redirect(url_for('calendar.manage_feeds'))
 
 
@@ -887,16 +888,16 @@ def import_calendar():
     """Importiert Events aus einer iCal-Datei."""
     if request.method == 'POST':
         if 'ical_file' not in request.files:
-            flash('Bitte wählen Sie eine Datei aus.', 'danger')
+            flash(translate('calendar.flash.select_file'), 'danger')
             return render_template('calendar/import.html')
         
         file = request.files['ical_file']
         if file.filename == '':
-            flash('Bitte wählen Sie eine Datei aus.', 'danger')
+            flash(translate('calendar.flash.select_file'), 'danger')
             return render_template('calendar/import.html')
         
         if not file.filename.endswith('.ics'):
-            flash('Bitte wählen Sie eine .ics-Datei aus.', 'danger')
+            flash(translate('calendar.flash.select_ics_file'), 'danger')
             return render_template('calendar/import.html')
         
         try:

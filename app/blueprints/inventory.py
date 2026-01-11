@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app, session, send_from_directory
 from flask_login import login_required, current_user
 from app import db
-from app.utils.i18n import _
+from app.utils.i18n import _, translate
 from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 from app.models.api_token import ApiToken
 from app.models.user import User
@@ -161,13 +161,13 @@ def product_new():
     """Neues Produkt erstellen."""
     # Gast-Accounts können keine Produkte erstellen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash('Gast-Accounts können keine Produkte erstellen.', 'danger')
+        flash(translate('inventory.flash.guests_cannot_create'), 'danger')
         return redirect(url_for('inventory.stock'))
     
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         if not name:
-            flash('Der Produktname ist verpflichtend.', 'danger')
+            flash(translate('inventory.flash.product_name_required'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
             return render_template('inventory/product_form.html', categories=categories, folders=folders)
@@ -287,7 +287,7 @@ def product_edit(product_id):
     """Produkt bearbeiten."""
     # Gast-Accounts können keine Produkte bearbeiten
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash('Gast-Accounts können keine Produkte bearbeiten.', 'danger')
+        flash(translate('inventory.flash.guests_cannot_edit'), 'danger')
         return redirect(url_for('inventory.stock'))
     
     product = Product.query.get_or_404(product_id)
@@ -295,7 +295,7 @@ def product_edit(product_id):
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         if not name:
-            flash('Der Produktname ist verpflichtend.', 'danger')
+            flash(translate('inventory.flash.product_name_required'), 'danger')
             categories = get_inventory_categories()
             folders = get_product_folders()
             return render_template('inventory/product_form.html', product=product, categories=categories, folders=folders)
@@ -311,7 +311,7 @@ def product_edit(product_id):
         if length_input:
             normalized_length, _ = normalize_length_input(length_input)
             if normalized_length is None:
-                flash('Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).', 'danger')
+                flash(translate('inventory.flash.invalid_length'), 'danger')
                 categories = get_inventory_categories()
                 folders = get_product_folders()
                 purchase_date_formatted = product.purchase_date.strftime('%Y-%m-%d') if product.purchase_date else ''
@@ -483,7 +483,7 @@ def product_delete(product_id):
     """Produkt löschen."""
     # Gast-Accounts können keine Produkte löschen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash('Gast-Accounts können keine Produkte löschen.', 'danger')
+        flash(translate('inventory.flash.guests_cannot_delete'), 'danger')
         return redirect(url_for('inventory.stock'))
     
     product = Product.query.get_or_404(product_id)
@@ -548,13 +548,13 @@ def borrow_multiple():
     if request.method == 'POST':
         product_ids_str = request.form.get('product_ids', '')
         if not product_ids_str:
-            flash('Keine Produkte ausgewählt.', 'danger')
+            flash(translate('inventory.flash.no_products_selected'), 'danger')
             return redirect(url_for('inventory.stock'))
         
         try:
             product_ids = [int(pid) for pid in product_ids_str.split(',')]
         except ValueError:
-            flash('Ungültige Produkt-IDs.', 'danger')
+            flash(translate('inventory.flash.invalid_product_ids'), 'danger')
             return redirect(url_for('inventory.stock'))
         
         expected_return_date_str = request.form.get('expected_return_date', '').strip()
@@ -775,8 +775,8 @@ def borrow_scanner():
     """Ausleihen geben - Scanner-Seite mit Warenkorb."""
     if not check_borrow_permission():
         if request.method == 'POST':
-            return jsonify({'error': 'Sie haben keine Berechtigung, Artikel auszuleihen.'}), 403
-        flash('Sie haben keine Berechtigung, Artikel auszuleihen.', 'danger')
+            return jsonify({'error': translate('inventory.errors.no_borrow_permission')}), 403
+        flash(translate('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.dashboard'))
     
     if request.method == 'POST':
@@ -785,7 +785,7 @@ def borrow_scanner():
         current_app.logger.debug(f'borrow_scanner POST: action={action}, qr_code={request.form.get("qr_code", "")[:50]}')
         
         if not action:
-            return jsonify({'error': 'Keine Aktion angegeben.'}), 400
+            return jsonify({'error': translate('inventory.errors.no_action_specified')}), 400
         
         if action == 'add_to_cart':
             qr_code = request.form.get('qr_code', '').strip()
@@ -880,7 +880,7 @@ def borrow_scanner():
             
             if not product:
                 current_app.logger.warning(f'Produkt nicht gefunden für QR-Code: {qr_code}')
-                return jsonify({'error': 'Produkt oder Set nicht gefunden.'}), 404
+                return jsonify({'error': translate('inventory.errors.product_or_set_not_found')}), 404
             
             current_app.logger.debug(f'Produkt Status: {product.status}, ID: {product.id}, Name: {product.name}')
             if product.status != 'available':
@@ -1224,7 +1224,7 @@ def api_inventory_item_update(inventory_id, product_id):
     inventory = Inventory.query.get_or_404(inventory_id)
     
     if inventory.status != 'active':
-        return jsonify({'error': 'Inventur ist nicht aktiv.'}), 400
+        return jsonify({'error': translate('inventory.errors.inventory_not_active')}), 400
     
     item = InventoryItem.query.filter_by(
         inventory_id=inventory_id,
@@ -1232,7 +1232,7 @@ def api_inventory_item_update(inventory_id, product_id):
     ).first()
     
     if not item:
-        return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.product_not_in_inventory')}), 404
     
     data = request.get_json()
     
@@ -1281,7 +1281,7 @@ def api_inventory_item_check(inventory_id, product_id):
     inventory = Inventory.query.get_or_404(inventory_id)
     
     if inventory.status != 'active':
-        return jsonify({'error': 'Inventur ist nicht aktiv.'}), 400
+        return jsonify({'error': translate('inventory.errors.inventory_not_active')}), 400
     
     item = InventoryItem.query.filter_by(
         inventory_id=inventory_id,
@@ -1289,7 +1289,7 @@ def api_inventory_item_check(inventory_id, product_id):
     ).first()
     
     if not item:
-        return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.product_not_in_inventory')}), 404
     
     data = request.get_json()
     checked = data.get('checked', True)
@@ -1319,25 +1319,25 @@ def api_inventory_scan(inventory_id):
     inventory = Inventory.query.get_or_404(inventory_id)
     
     if inventory.status != 'active':
-        return jsonify({'error': 'Inventur ist nicht aktiv.'}), 400
+        return jsonify({'error': translate('inventory.errors.inventory_not_active')}), 400
     
     data = request.get_json()
     qr_data = data.get('qr_data', '').strip()
     
     if not qr_data:
-        return jsonify({'error': 'QR-Code-Daten erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.qr_data_required')}), 400
     
     # QR-Code parsen
     parsed = parse_qr_code(qr_data)
     if not parsed:
-        return jsonify({'error': 'Ungültiger QR-Code.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
     
     qr_type, qr_id = parsed
     
     if qr_type == 'product':
         product = Product.query.get(qr_id)
         if not product:
-            return jsonify({'error': 'Produkt nicht gefunden.'}), 404
+            return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
         
         item = InventoryItem.query.filter_by(
             inventory_id=inventory_id,
@@ -1345,7 +1345,7 @@ def api_inventory_scan(inventory_id):
         ).first()
         
         if not item:
-            return jsonify({'error': 'Produkt nicht in dieser Inventur gefunden.'}), 404
+            return jsonify({'error': translate('inventory.errors.product_not_in_inventory')}), 404
         
         item.checked = True
         item.checked_by = current_user.id
@@ -1372,7 +1372,7 @@ def api_inventory_scan(inventory_id):
             }
         })
     else:
-        return jsonify({'error': 'Nur Produkt-QR-Codes werden unterstützt.'}), 400
+        return jsonify({'error': translate('inventory.errors.only_product_qr_supported')}), 400
 
 
 @inventory_bp.route('/folders', methods=['GET', 'POST'])
@@ -1690,19 +1690,19 @@ def api_product_create():
     """API: Neues Produkt erstellen."""
     # Gast-Accounts können keine Produkte erstellen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        return jsonify({'error': 'Gast-Accounts können keine Produkte erstellen.'}), 403
+        return jsonify({'error': translate('inventory.errors.guests_cannot_create')}), 403
     
     data = request.get_json()
     
     if not data or not data.get('name'):
-        return jsonify({'error': 'Der Produktname ist verpflichtend.'}), 400
+        return jsonify({'error': translate('inventory.errors.product_name_required')}), 400
 
     length_raw = data.get('length')
     normalized_length = None
     if length_raw not in (None, ''):
         normalized_length, _ = normalize_length_input(str(length_raw))
         if normalized_length is None:
-            return jsonify({'error': 'Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).'}), 400
+            return jsonify({'error': translate('inventory.errors.invalid_length_format')}), 400
     
     product = Product(
         name=data['name'],
@@ -1740,13 +1740,13 @@ def api_product_update(product_id):
     """API: Produkt aktualisieren."""
     # Gast-Accounts können keine Produkte aktualisieren
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        return jsonify({'error': 'Gast-Accounts können keine Produkte aktualisieren.'}), 403
+        return jsonify({'error': translate('inventory.errors.guests_cannot_update')}), 403
     
     product = Product.query.get_or_404(product_id)
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'Keine Daten übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_data_submitted')}), 400
     
     if 'name' in data:
         product.name = data['name']
@@ -1767,7 +1767,7 @@ def api_product_update(product_id):
         else:
             normalized_length, _ = normalize_length_input(str(length_raw))
             if normalized_length is None:
-                return jsonify({'error': 'Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).'}), 400
+                return jsonify({'error': translate('inventory.errors.invalid_length_format')}), 400
             product.length = normalized_length
     if 'purchase_date' in data:
         if data['purchase_date']:
@@ -1786,7 +1786,7 @@ def api_product_delete(product_id):
     """API: Produkt löschen."""
     # Gast-Accounts können keine Produkte löschen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        return jsonify({'error': 'Gast-Accounts können keine Produkte löschen.'}), 403
+        return jsonify({'error': translate('inventory.errors.guests_cannot_delete')}), 403
     
     product = Product.query.get_or_404(product_id)
     
@@ -1796,7 +1796,7 @@ def api_product_delete(product_id):
     ).first()
     
     if active_borrow:
-        return jsonify({'error': 'Produkt kann nicht gelöscht werden, da es ausgeliehen ist.'}), 400
+        return jsonify({'error': translate('inventory.errors.product_borrowed_cannot_delete')}), 400
     
     db.session.delete(product)
     db.session.commit()
@@ -1810,29 +1810,29 @@ def api_products_bulk_update():
     """API: Mehrere Produkte gleichzeitig aktualisieren."""
     # Gast-Accounts können keine Produkte aktualisieren
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        return jsonify({'error': 'Gast-Accounts können keine Produkte aktualisieren.'}), 403
+        return jsonify({'error': translate('inventory.errors.guests_cannot_update')}), 403
     
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'Keine Daten übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_data_submitted')}), 400
     
     product_ids = data.get('product_ids', [])
     if not product_ids or not isinstance(product_ids, list):
-        return jsonify({'error': 'Ungültige Produkt-IDs. Erwartet Array von IDs.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_product_ids_array')}), 400
     
     if len(product_ids) == 0:
-        return jsonify({'error': 'Keine Produkt-IDs übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_product_ids')}), 400
     
     try:
         product_ids_int = [int(pid) for pid in product_ids]
     except (ValueError, TypeError):
-        return jsonify({'error': 'Ungültige Produkt-IDs. Alle IDs müssen Zahlen sein.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_product_ids_numeric')}), 400
     
     products = Product.query.filter(Product.id.in_(product_ids_int)).all()
     
     if len(products) != len(product_ids_int):
-        return jsonify({'error': 'Einige Produkt-IDs wurden nicht gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.some_product_ids_not_found')}), 404
     
     updates = {}
     errors = []
@@ -1882,10 +1882,10 @@ def api_products_bulk_update():
         updates['remove_image'] = True
     
     if errors:
-        return jsonify({'error': 'Validierungsfehler', 'details': errors}), 400
+        return jsonify({'error': translate('inventory.errors.validation_error'), 'details': errors}), 400
     
     if not updates:
-        return jsonify({'error': 'Keine Update-Daten übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_update_data')}), 400
     
     # Batch-Update durchführen
     updated_count = 0
@@ -1918,7 +1918,7 @@ def api_products_bulk_update():
     
     if errors:
         db.session.rollback()
-        return jsonify({'error': 'Fehler beim Aktualisieren', 'details': errors}), 500
+        return jsonify({'error': translate('inventory.errors.update_error'), 'details': errors}), 500
     
     db.session.commit()
     
@@ -1934,29 +1934,29 @@ def api_products_bulk_delete():
     """API: Mehrere Produkte gleichzeitig löschen."""
     # Gast-Accounts können keine Produkte löschen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        return jsonify({'error': 'Gast-Accounts können keine Produkte löschen.'}), 403
+        return jsonify({'error': translate('inventory.errors.guests_cannot_delete')}), 403
     
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'Keine Daten übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_data_submitted')}), 400
     
     product_ids = data.get('product_ids', [])
     if not product_ids or not isinstance(product_ids, list):
-        return jsonify({'error': 'Ungültige Produkt-IDs. Erwartet Array von IDs.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_product_ids_array')}), 400
     
     if len(product_ids) == 0:
-        return jsonify({'error': 'Keine Produkt-IDs übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_product_ids')}), 400
     
     try:
         product_ids_int = [int(pid) for pid in product_ids]
     except (ValueError, TypeError):
-        return jsonify({'error': 'Ungültige Produkt-IDs. Alle IDs müssen Zahlen sein.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_product_ids_numeric')}), 400
     
     products = Product.query.filter(Product.id.in_(product_ids_int)).all()
     
     if len(products) != len(product_ids_int):
-        return jsonify({'error': 'Einige Produkt-IDs wurden nicht gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.some_product_ids_not_found')}), 404
     
     active_borrows = BorrowTransaction.query.filter(
         BorrowTransaction.product_id.in_(product_ids_int),
@@ -2002,7 +2002,7 @@ def api_products_bulk_delete():
     
     if errors:
         db.session.rollback()
-        return jsonify({'error': 'Fehler beim Löschen', 'details': errors}), 500
+        return jsonify({'error': translate('inventory.errors.delete_error'), 'details': errors}), 500
     
     db.session.commit()
     
@@ -2022,10 +2022,10 @@ def api_folders():
         description = (data.get('description') or '').strip() or None
         color = (data.get('color') or '').strip() or None
         if not name:
-            return jsonify({'error': 'Der Ordnername ist verpflichtend.'}), 400
+            return jsonify({'error': translate('inventory.errors.folder_name_required')}), 400
         existing = ProductFolder.query.filter_by(name=name).first()
         if existing:
-            return jsonify({'error': 'Ein Ordner mit diesem Namen existiert bereits.'}), 400
+            return jsonify({'error': translate('inventory.errors.folder_name_exists')}), 400
         folder = ProductFolder(
             name=name,
             description=description,
@@ -2230,35 +2230,35 @@ def api_filter_options():
 def api_borrow():
     """API: Ausleihvorgang registrieren."""
     if not check_borrow_permission():
-        return jsonify({'error': 'Sie haben keine Berechtigung, Artikel auszuleihen.'}), 403
+        return jsonify({'error': translate('inventory.errors.no_borrow_permission')}), 403
     
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'Keine Daten übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_data_submitted')}), 400
     
     product_id = data.get('product_id')
     borrower_id = data.get('borrower_id', current_user.id)
     expected_return_date_str = data.get('expected_return_date')
     
     if not product_id or not expected_return_date_str:
-        return jsonify({'error': 'Produkt-ID und erwartetes Rückgabedatum sind erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.product_id_return_date_required')}), 400
     
     product = Product.query.get(product_id)
     if not product:
-        return jsonify({'error': 'Produkt nicht gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
     
     if product.status != 'available':
-        return jsonify({'error': 'Produkt ist nicht verfügbar.'}), 400
+        return jsonify({'error': translate('inventory.errors.product_not_available')}), 400
     
     try:
         expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
     except ValueError:
-        return jsonify({'error': 'Ungültiges Datumsformat.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_date_format')}), 400
     
     borrower = User.query.get(borrower_id)
     if not borrower:
-        return jsonify({'error': 'Benutzer nicht gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.user_not_found')}), 404
     
     transaction_number = generate_transaction_number()
     
@@ -2431,7 +2431,7 @@ def api_return():
         ).first()
     
     if not borrow_transaction:
-        return jsonify({'error': 'Keine aktive Ausleihe gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
     
     borrow_transaction.mark_as_returned()
     db.session.commit()
@@ -2474,14 +2474,14 @@ def api_print_qr_codes():
     data = request.get_json()
     
     if not data or not data.get('product_ids'):
-        return jsonify({'error': 'Keine Produkt-IDs übermittelt.'}), 400
+        return jsonify({'error': translate('inventory.errors.no_product_ids')}), 400
     
     try:
         product_ids = [int(pid) for pid in data['product_ids']]
         products = Product.query.filter(Product.id.in_(product_ids)).all()
         
         if not products:
-            return jsonify({'error': 'Keine gültigen Produkte gefunden.'}), 404
+            return jsonify({'error': translate('inventory.errors.no_valid_products')}), 404
         
         pdf_buffer = BytesIO()
         generate_qr_code_sheet_pdf(products, pdf_buffer)
@@ -2495,7 +2495,7 @@ def api_print_qr_codes():
         )
     except Exception as e:
         current_app.logger.error(f"Fehler beim Generieren des QR-Code-Druckbogens: {e}")
-        return jsonify({'error': 'Fehler beim Generieren des Druckbogens.'}), 500
+        return jsonify({'error': translate('inventory.errors.print_sheet_error')}), 500
 
 
 # ========== Produktsets ==========
@@ -2517,7 +2517,7 @@ def set_new():
         description = request.form.get('description', '').strip() or None
         
         if not name:
-            flash('Bitte geben Sie einen Namen für das Set ein.', 'danger')
+            flash(translate('inventory.flash.enter_set_name'), 'danger')
             products = Product.query.order_by(Product.name).all()
             products_data = [{'id': p.id, 'name': p.name} for p in products]
             return render_template('inventory/set_form.html', products=products, products_data=products_data)
@@ -2526,7 +2526,7 @@ def set_new():
         quantities = request.form.getlist('quantities')
         
         if not product_ids:
-            flash('Bitte wählen Sie mindestens ein Produkt aus.', 'danger')
+            flash(translate('inventory.flash.select_at_least_one_product'), 'danger')
             products = Product.query.order_by(Product.name).all()
             products_data = [{'id': p.id, 'name': p.name} for p in products]
             return render_template('inventory/set_form.html', products=products, products_data=products_data)
@@ -2655,7 +2655,7 @@ def set_delete(set_id):
     
     # Nur Admin oder Ersteller kann löschen
     if not current_user.is_admin and product_set.created_by != current_user.id:
-        flash('Sie haben keine Berechtigung, dieses Set zu löschen.', 'danger')
+        flash(translate('inventory.flash.no_permission_delete_set'), 'danger')
         return redirect(url_for('inventory.sets'))
     
     name = product_set.name
@@ -2841,7 +2841,7 @@ def product_document_delete(product_id, document_id):
     document = ProductDocument.query.get_or_404(document_id)
     
     if document.product_id != product_id:
-        flash('Ungültige Anfrage.', 'danger')
+        flash(translate('inventory.flash.invalid_request'), 'danger')
         return redirect(url_for('inventory.product_documents', product_id=product_id))
     
     # Datei löschen
@@ -2907,7 +2907,7 @@ def api_search():
     search_query = request.args.get('q', '').strip()
     
     if not search_query:
-        return jsonify({'error': 'Suchbegriff erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.search_term_required')}), 400
     
     # Volltextsuche über alle relevanten Felder
     search_pattern = f'%{search_query}%'
@@ -2970,11 +2970,11 @@ def api_filter_save():
     filter_data = data.get('filter_data', {})
     
     if not name:
-        return jsonify({'error': 'Filtername erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.filter_name_required')}), 400
     
     existing = SavedFilter.query.filter_by(user_id=current_user.id, name=name).first()
     if existing:
-        return jsonify({'error': 'Ein Filter mit diesem Namen existiert bereits.'}), 400
+        return jsonify({'error': translate('inventory.errors.filter_name_exists')}), 400
     
     saved_filter = SavedFilter(
         user_id=current_user.id,
@@ -2999,7 +2999,7 @@ def api_filter_delete(filter_id):
     saved_filter = SavedFilter.query.get_or_404(filter_id)
     
     if saved_filter.user_id != current_user.id:
-        return jsonify({'error': 'Keine Berechtigung.'}), 403
+        return jsonify({'error': translate('inventory.errors.no_permission')}), 403
     
     db.session.delete(saved_filter)
     db.session.commit()
@@ -3060,7 +3060,7 @@ def api_favorite_toggle(product_id):
         ).first()
         
         if not favorite:
-            return jsonify({'error': 'Produkt ist kein Favorit.'}), 404
+            return jsonify({'error': translate('inventory.errors.product_not_favorite')}), 404
         
         db.session.delete(favorite)
         db.session.commit()
@@ -3286,7 +3286,7 @@ def api_mobile_delete_token(token_id):
     token = ApiToken.query.get_or_404(token_id)
     
     if token.user_id != current_user.id:
-        return jsonify({'error': 'Keine Berechtigung.'}), 403
+        return jsonify({'error': translate('inventory.errors.no_permission')}), 403
     
     db.session.delete(token)
     db.session.commit()
@@ -3299,7 +3299,7 @@ def api_mobile_products():
     """Mobile API: Liste aller Produkte."""
     user = verify_api_token()
     if not user:
-        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+        return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     products = Product.query.order_by(Product.name).all()
     result = []
@@ -3323,7 +3323,7 @@ def api_mobile_product_detail(product_id):
     """Mobile API: Produktdetails."""
     user = verify_api_token()
     if not user:
-        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+        return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     product = Product.query.get_or_404(product_id)
     
@@ -3347,7 +3347,7 @@ def api_mobile_borrow():
     """Mobile API: Ausleihe erstellen."""
     user = verify_api_token()
     if not user:
-        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+        return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     data = request.get_json()
     product_id = data.get('product_id', type=int)
@@ -3355,17 +3355,17 @@ def api_mobile_borrow():
     expected_return_date_str = data.get('expected_return_date')
     
     if not product_id or not expected_return_date_str:
-        return jsonify({'error': 'Produkt-ID und Rückgabedatum erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.product_id_return_date_required')}), 400
     
     try:
         expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
     except ValueError:
-        return jsonify({'error': 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_date_format_iso')}), 400
     
     product = Product.query.get_or_404(product_id)
     
     if product.status != 'available':
-        return jsonify({'error': 'Produkt ist nicht verfügbar.'}), 400
+        return jsonify({'error': translate('inventory.errors.product_not_available')}), 400
     
     borrower = User.query.get_or_404(borrower_id)
     transaction_number = generate_transaction_number()
@@ -3395,18 +3395,18 @@ def api_mobile_return():
     """Mobile API: Rückgabe."""
     user = verify_api_token()
     if not user:
-        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+        return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     data = request.get_json()
     transaction_id = data.get('transaction_id', type=int)
     
     if not transaction_id:
-        return jsonify({'error': 'Transaktions-ID erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
     
     borrow_transaction = BorrowTransaction.query.get_or_404(transaction_id)
     
     if borrow_transaction.status == 'returned':
-        return jsonify({'error': 'Ausleihe wurde bereits zurückgegeben.'}), 400
+        return jsonify({'error': translate('inventory.errors.already_returned')}), 400
     
     borrow_transaction.mark_as_returned()
     db.session.commit()
@@ -3422,18 +3422,18 @@ def api_mobile_scan():
     """Mobile API: QR-Code-Scanning."""
     user = verify_api_token()
     if not user:
-        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+        return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     data = request.get_json()
     qr_data = data.get('qr_data', '').strip()
     
     if not qr_data:
-        return jsonify({'error': 'QR-Code-Daten erforderlich.'}), 400
+        return jsonify({'error': translate('inventory.errors.qr_data_required')}), 400
     
     # QR-Code parsen
     parsed = parse_qr_code(qr_data)
     if not parsed:
-        return jsonify({'error': 'Ungültiger QR-Code.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
     
     qr_type, qr_id = parsed
     
@@ -3450,7 +3450,7 @@ def api_mobile_scan():
                 }
             })
         else:
-            return jsonify({'error': 'Produkt nicht gefunden.'}), 404
+            return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
     
     elif qr_type == 'borrow':
         # Ausleihtransaktion gefunden
@@ -3468,7 +3468,7 @@ def api_mobile_scan():
                 }
             })
         else:
-            return jsonify({'error': 'Ausleihtransaktion nicht gefunden.'}), 404
+            return jsonify({'error': translate('inventory.errors.borrow_transaction_not_found')}), 404
     
     elif qr_type == 'set':
         product_set = ProductSet.query.get(qr_id)
@@ -3489,10 +3489,10 @@ def api_mobile_scan():
                 }
             })
         else:
-            return jsonify({'error': 'Produktset nicht gefunden.'}), 404
+            return jsonify({'error': translate('inventory.errors.product_set_not_found')}), 404
     
     else:
-        return jsonify({'error': 'Ungültiger QR-Code.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
 
 
 @inventory_bp.route('/api/mobile/statistics', methods=['GET'])
@@ -3500,7 +3500,7 @@ def api_mobile_statistics():
     """Mobile API: Basis-Statistiken."""
     user = verify_api_token()
     if not user:
-        return jsonify({'error': 'Ungültiger oder abgelaufener Token.'}), 401
+        return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
     total_products = Product.query.count()
     borrowed_count = Product.query.filter_by(status='borrowed').count()
@@ -3523,10 +3523,10 @@ def api_folder_update_delete(folder_id):
         description = (data.get('description') or '').strip() or None
         color = (data.get('color') or '').strip() or None
         if not new_name:
-            return jsonify({'error': 'Der Ordnername ist verpflichtend.'}), 400
+            return jsonify({'error': translate('inventory.errors.folder_name_required')}), 400
         existing = ProductFolder.query.filter(ProductFolder.id != folder_id, ProductFolder.name == new_name).first()
         if existing:
-            return jsonify({'error': 'Ein Ordner mit diesem Namen existiert bereits.'}), 400
+            return jsonify({'error': translate('inventory.errors.folder_name_exists')}), 400
         folder.name = new_name
         folder.description = description
         folder.color = color
@@ -3555,10 +3555,10 @@ def api_categories():
         data = request.get_json() or {}
         name = (data.get('name') or '').strip()
         if not name:
-            return jsonify({'error': 'Der Kategoriename ist verpflichtend.'}), 400
+            return jsonify({'error': translate('inventory.errors.category_name_required')}), 400
         categories = get_inventory_categories()
         if name in categories:
-            return jsonify({'error': 'Eine Kategorie mit diesem Namen existiert bereits.'}), 400
+            return jsonify({'error': translate('inventory.errors.category_name_exists')}), 400
         categories.append(name)
         save_inventory_categories(categories)
         return jsonify({'name': name}), 201
@@ -3571,17 +3571,17 @@ def api_categories():
 def api_category_update_delete(category_name):
     original_name = unquote(category_name).strip()
     if not original_name:
-        return jsonify({'error': 'Ungültiger Kategoriename.'}), 400
+        return jsonify({'error': translate('inventory.errors.invalid_category_name')}), 400
     categories = get_inventory_categories()
     if original_name not in categories:
-        return jsonify({'error': 'Kategorie nicht gefunden.'}), 404
+        return jsonify({'error': translate('inventory.errors.category_not_found')}), 404
     if request.method == 'PUT':
         data = request.get_json() or {}
         new_name = (data.get('name') or '').strip()
         if not new_name:
-            return jsonify({'error': 'Der neue Kategoriename ist verpflichtend.'}), 400
+            return jsonify({'error': translate('inventory.errors.new_category_name_required')}), 400
         if new_name != original_name and new_name in categories:
-            return jsonify({'error': 'Eine Kategorie mit diesem Namen existiert bereits.'}), 400
+            return jsonify({'error': translate('inventory.errors.category_name_exists')}), 400
         updated_categories = [new_name if c == original_name else c for c in categories]
         save_inventory_categories(updated_categories)
         Product.query.filter_by(category=original_name).update({'category': new_name}, synchronize_session=False)

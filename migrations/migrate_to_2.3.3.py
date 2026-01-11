@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """
-Datenbank-Migration: Version 2.3.0
-Konsolidierte Migration für alle Versionen bis 2.3.0
+Datenbank-Migration: Version 2.3.3
+Konsolidierte Migration für alle Versionen bis 2.3.3
 
 Diese Migration fasst sämtliche bisherigen Einzelskripte zusammen:
-- migrate_to_2.2.1.py (Basis-Migration)
-- add_music_indexes.py (Music-Modul Performance-Indizes)
-- add_preferred_layout.py (preferred_layout Spalte)
-- fix_email_attachments_filename.py (filename-Feld Erweiterung)
-- mark_sent_emails_as_read.py (Sent-E-Mails als gelesen markieren)
+- migrate_to_2.3.0.py (Rollensystem, Musikmodul, preferred_layout, email_attachments, Excalidraw, etc.)
+- add_guest_accounts.py (Gast-Account-Felder und GuestShareAccess-Tabelle)
 
 WICHTIG: Die Felder und Tabellen sind in den SQLAlchemy-Modellen bereits
 definiert. Bei Neuinstallationen genügt weiterhin `db.create_all()`.
@@ -24,6 +21,7 @@ from app import create_app, db
 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from app.models.role import UserModuleRole
 from app.models.email import EmailMessage
+from app.models.guest import GuestShareAccess
 from sqlalchemy import text, inspect
 
 
@@ -463,59 +461,142 @@ def migrate_excalidraw():
     return True
 
 
+def migrate_guest_account_fields():
+    """Fügt Gast-Account-Felder zum User-Modell hinzu (aus add_guest_accounts.py)."""
+    print("\n" + "=" * 60)
+    print("Migration: Gast-Account-Felder zum User-Modell")
+    print("=" * 60)
+    
+    inspector = inspect(db.engine)
+    
+    if 'users' not in inspector.get_table_names():
+        print("[WARNUNG] Tabelle 'users' existiert nicht")
+        return False
+    
+    columns = {col['name'] for col in inspector.get_columns('users')}
+    
+    # Füge is_guest Spalte hinzu
+    if 'is_guest' not in columns:
+        print("[INFO] Füge is_guest Spalte zu users Tabelle hinzu...")
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_guest BOOLEAN DEFAULT FALSE NOT NULL"))
+        print("[OK] Spalte is_guest hinzugefügt")
+    else:
+        print("[INFO] Spalte is_guest existiert bereits")
+    
+    # Füge guest_expires_at Spalte hinzu
+    if 'guest_expires_at' not in columns:
+        print("[INFO] Füge guest_expires_at Spalte zu users Tabelle hinzu...")
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN guest_expires_at DATETIME NULL"))
+        print("[OK] Spalte guest_expires_at hinzugefügt")
+    else:
+        print("[INFO] Spalte guest_expires_at existiert bereits")
+    
+    # Füge guest_username Spalte hinzu
+    if 'guest_username' not in columns:
+        print("[INFO] Füge guest_username Spalte zu users Tabelle hinzu...")
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN guest_username VARCHAR(100) NULL"))
+        print("[OK] Spalte guest_username hinzugefügt")
+    else:
+        print("[INFO] Spalte guest_username existiert bereits")
+    
+    # Setze is_guest=False für alle bestehenden Benutzer
+    print("[INFO] Setze is_guest=False für alle bestehenden Benutzer...")
+    with db.engine.begin() as conn:
+        result = conn.execute(text("UPDATE users SET is_guest = FALSE WHERE is_guest IS NULL"))
+        updated_count = result.rowcount
+    print(f"[OK] {updated_count} Benutzer aktualisiert (is_guest=FALSE)")
+    
+    print("  ✓ Gast-Account-Felder Migration abgeschlossen")
+    return True
+
+
+def migrate_guest_share_access_table():
+    """Erstellt die GuestShareAccess-Tabelle (aus add_guest_accounts.py)."""
+    print("\n" + "=" * 60)
+    print("Migration: GuestShareAccess Tabelle")
+    print("=" * 60)
+    
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    
+    # Erstelle guest_share_access Tabelle
+    if 'guest_share_access' not in tables:
+        print("[INFO] Erstelle guest_share_access Tabelle...")
+        GuestShareAccess.__table__.create(db.engine, checkfirst=True)
+        print("[OK] Tabelle guest_share_access erstellt")
+    else:
+        print("[INFO] Tabelle guest_share_access existiert bereits")
+    
+    print("  ✓ GuestShareAccess Tabelle Migration abgeschlossen")
+    return True
+
+
 def migrate():
     """Führt alle Migrationen aus."""
     print("=" * 60)
-    print("Datenbank-Migration: Version 2.3.0")
-    print("Konsolidierte Migration für alle Versionen bis 2.3.0")
+    print("Datenbank-Migration: Version 2.3.3")
+    print("Konsolidierte Migration für alle Versionen bis 2.3.3")
     print("=" * 60)
     
     app = create_app()
     with app.app_context():
         try:
-            print("\n[1/10] Führe Rollensystem-Migration aus...")
+            print("\n[1/12] Führe Rollensystem-Migration aus...")
             if not migrate_role_system():
                 print("❌ Rollensystem-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[2/10] Führe Musikmodul-Migration aus...")
+            print("\n[2/12] Führe Musikmodul-Migration aus...")
             if not migrate_music_module():
                 print("❌ Musikmodul-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[3/10] Führe Musikmodul wish_count-Migration aus...")
+            print("\n[3/12] Führe Musikmodul wish_count-Migration aus...")
             if not migrate_music_wish_count():
                 print("❌ Musikmodul wish_count-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[4/10] Führe Music-Modul Indizes-Migration aus...")
+            print("\n[4/12] Führe Music-Modul Indizes-Migration aus...")
             if not migrate_music_indexes():
                 print("❌ Music-Modul Indizes-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[5/10] Führe preferred_layout-Migration aus...")
+            print("\n[5/12] Führe preferred_layout-Migration aus...")
             if not migrate_preferred_layout():
                 print("❌ preferred_layout-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[6/10] Führe email_attachments filename-Migration aus...")
+            print("\n[6/12] Führe email_attachments filename-Migration aus...")
             if not migrate_email_attachments_filename():
                 print("❌ email_attachments filename-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[7/10] Führe Sent-E-Mails-Migration aus...")
+            print("\n[7/12] Führe Sent-E-Mails-Migration aus...")
             if not migrate_mark_sent_emails_as_read():
                 print("❌ Sent-E-Mails-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[8/10] Führe Buchungsmodul-Migration aus...")
+            print("\n[8/12] Führe Buchungsmodul-Migration aus...")
             if not migrate_booking_module():
                 print("❌ Buchungsmodul-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[9/10] Führe Excalidraw-Migration aus...")
+            print("\n[9/12] Führe Excalidraw-Migration aus...")
             if not migrate_excalidraw():
                 print("❌ Excalidraw-Migration fehlgeschlagen!")
+                return False
+            
+            print("\n[10/12] Führe Gast-Account-Felder-Migration aus...")
+            if not migrate_guest_account_fields():
+                print("❌ Gast-Account-Felder-Migration fehlgeschlagen!")
+                return False
+            
+            print("\n[11/12] Führe GuestShareAccess-Tabelle-Migration aus...")
+            if not migrate_guest_share_access_table():
+                print("❌ GuestShareAccess-Tabelle-Migration fehlgeschlagen!")
                 return False
             
             print()
@@ -523,8 +604,7 @@ def migrate():
             print("✅ Alle Migrationen erfolgreich abgeschlossen!")
             print("=" * 60)
             print()
-            print("Die Datenbank wurde erfolgreich auf Version 2.3.0 aktualisiert.")
-            print("Alle bestehenden Einzelmigrationsdateien können nun archiviert werden.")
+            print("Die Datenbank wurde erfolgreich auf Version 2.3.3 aktualisiert.")
             return True
             
         except Exception as e:

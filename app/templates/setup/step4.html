@@ -109,30 +109,35 @@
 
 <script>
 // Passwort-Sichtbarkeit umschalten
-document.querySelectorAll('.password-toggle').forEach(button => {
-    button.addEventListener('click', function() {
-        const input = this.parentElement.querySelector('input');
-        const icon = this.querySelector('i');
-        
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.className = 'bi bi-eye-slash';
-        } else {
-            input.type = 'password';
-            icon.className = 'bi bi-eye';
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.password-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('input');
+            const icon = this.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        });
     });
-});
-
-// Passwort-Bestätigung validieren
-document.getElementById('password_confirm').addEventListener('input', function() {
-    const password = document.getElementById('password').value;
-    const confirm = this.value;
     
-    if (confirm && password !== confirm) {
-        this.setCustomValidity('Die Passwörter stimmen nicht überein.');
-    } else {
-        this.setCustomValidity('');
+    // Passwort-Bestätigung validieren
+    const passwordConfirm = document.getElementById('password_confirm');
+    if (passwordConfirm) {
+        passwordConfirm.addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirm = this.value;
+            
+            if (confirm && password !== confirm) {
+                this.setCustomValidity('Die Passwörter stimmen nicht überein.');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
     }
 });
 </script>

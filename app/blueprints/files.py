@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session
 from flask_login import login_required, current_user
-from app.utils.i18n import get_current_language
+from app.utils.i18n import get_current_language, translate
 from app import db
 from app.models.file import File, FileVersion, Folder
 from app.models.user import User
@@ -962,7 +962,7 @@ def preview_file(file_id):
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
     if file_ext not in viewable_extensions:
-        return jsonify({'error': 'Dateityp nicht unterstützt'}), 400
+        return jsonify({'error': translate('files.errors.file_type_not_supported')}), 400
     
     content = request.form.get('content', '')
     

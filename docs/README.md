@@ -2,14 +2,20 @@
 
 Ein umfassendes, webbasiertes Team-Portal mit modernem Design und vollständiger Funktionalität für Teams. Entwickelt mit Flask (Python) und Bootstrap 5.
 
+### Disclaimer
+Das Portal und auch die Dazugehörige Dokumentation wurde zum Teil mit der IDE Cursor und den damit Verbunden KI Tools erstellt. Bei Fehlerhafter Dokuemntation & daraus resultierenden Problemen bitten wir dies zu entschuldigen, da dies ein schulprojekt ist und uns die Zeit fehlt alles ins detail zu überprüfen.
+Wir übernehmen keine Haftung wir ausgenutze Sicherlücken, fehlerhaftes verhalten, datenverlust oder ähnliches die Nutzung dieses Repos erfolgt auf eigene Gefahr.  
+
 ## 📋 Inhaltsverzeichnis
 
 - [Features](#-features)
 - [Module](#-module)
 - [Installation](#-installation)
-- [Projektstruktur](#️-projektstruktur)
+- [Technische Details](#-technische-details)
 - [API-Dokumentation](#-api-dokumentation)
-- [Weitere Dokumentation](#-weitere-dokumentation)
+- [Projektstruktur](#️-projektstruktur)
+- [Dokumentation](#-dokumentation)
+- [Lizenz & Support](#-lizenz--support)
 
 ## ✨ Features
 
@@ -19,75 +25,144 @@ Ein umfassendes, webbasiertes Team-Portal mit modernem Design und vollständiger
 - ✅ **RESTful API** für zukünftige mobile Apps
 - ✅ **Push-Benachrichtigungen** mit Web Push API (VAPID)
 - ✅ **Service Worker** für Offline-Funktionalität
-- ✅ **OnlyOffice Document Server Integration** für Online-Dokumentenbearbeitung
-- ✅ **Excalidraw Integration** für kollaborative Zeichnungen
+- ✅ **WebSocket/Socket.IO** für Echtzeit-Updates
+- ✅ **Redis-Integration** für Multi-Worker-Setups
+- ✅ **OnlyOffice Document Server Integration** (optional) für Online-Dokumentenbearbeitung
 - ✅ **Benutzerverwaltung** mit Admin-Freischaltung
-- ✅ **Rollenbasierte Berechtigungen** (User/Admin)
+- ✅ **Gast-Accounts** für temporären Zugriff
+- ✅ **Rollenbasierte Berechtigungen** (User/Admin/Gast)
+- ✅ **Modulbasierte Zugriffskontrolle**
 - ✅ **Dark Mode Support**
 - ✅ **Personalisierbare Akzentfarben**
 - ✅ **Sichere Passwort-Verschlüsselung** (Argon2)
+- ✅ **Verschlüsselte Credentials-Speicherung** (Fernet)
 - ✅ **Dateiversionierung** (letzte 3 Versionen)
 - ✅ **Responsive Navigation** (Desktop Sidebar / Mobile Bottom Nav)
 - ✅ **Setup-Assistent** für einfache Erstkonfiguration
 - ✅ **Modulare Architektur** - Module können aktiviert/deaktiviert werden
 - ✅ **Mehrsprachigkeit** (Deutsch, Englisch, Portugiesisch, Spanisch, Russisch)
+- ✅ **Automatische Installation** für Ubuntu Server
+- ✅ **Datenbank-Migrationen** für einfache Updates
 
 ## 📦 Module
 
 Prismateams besteht aus verschiedenen Modulen, die je nach Bedarf aktiviert oder deaktiviert werden können:
 
-#### 📊 Dashboard
-Übersicht mit Widgets für Termine, Chats und E-Mails. Schnellzugriff auf wichtige Informationen und personalisierbare Ansicht.
+### 📊 Dashboard
+Übersicht mit Widgets für Termine, Chats und E-Mails. Schnellzugriff auf wichtige Informationen, personalisierbare Ansicht und konfigurierbare Banner.
 
-#### 💬 Chat-System
-Haupt-Chat für alle Teammitglieder, Gruppen-Chats für spezifische Teams, Direktnachrichten zwischen Benutzern. Medien-Upload (Bilder, Videos, Dokumente), Echtzeit-Nachrichten mit WebSocket-Unterstützung und Push-Benachrichtigungen.
+### 💬 Chat-System
+Haupt-Chat für alle Teammitglieder, Gruppen-Chats für spezifische Teams, Direktnachrichten zwischen Benutzern. Medien-Upload (Bilder, Videos, Dokumente), Echtzeit-Nachrichten mit WebSocket-Unterstützung, Push-Benachrichtigungen und Lesebestätigungen.
 
-#### 📁 Dateiverwaltung
-Cloud-Speicher mit Ordnerstruktur, Dateiversionierung (letzte 3 Versionen), OnlyOffice Integration für Online-Bearbeitung, Excalidraw Integration für Zeichnungen, Datei-Sharing, Markdown-Vorschau.
+### 📁 Dateiverwaltung
+Cloud-Speicher mit Ordnerstruktur, Dateiversionierung (letzte 3 Versionen), OnlyOffice Integration (optional) für Online-Bearbeitung von Office-Dokumenten, Datei-Sharing mit temporären Links, Markdown-Vorschau und Text-Editor.
 
-#### 📅 Kalender
-Gemeinsame Termine mit Teilnahmestatus, Termine erstellen/bearbeiten/löschen, Teilnahme zusagen/absagen, öffentliche Kalender-Feeds, Benachrichtigungen für anstehende Termine.
+### 📅 Kalender
+Gemeinsame Termine mit Teilnahmestatus, Termine erstellen/bearbeiten/löschen, Teilnahme zusagen/absagen, öffentliche Kalender-Feeds (iCal), Benachrichtigungen für anstehende Termine, monatliche und zeitraumbasierte Ansichten.
 
-#### 📧 E-Mail-Client
-Zentrales E-Mail-Konto mit IMAP/SMTP-Integration, E-Mails lesen/senden/verwalten, Anhänge unterstützt, E-Mail-Berechtigungen pro Benutzer (Admin-Verwaltung), HTML-E-Mail-Unterstützung.
+### 📧 E-Mail-Client
+Zentrales E-Mail-Konto mit IMAP/SMTP-Integration, E-Mails lesen/senden/verwalten, Anhänge unterstützt, E-Mail-Berechtigungen pro Benutzer (Admin-Verwaltung), HTML-E-Mail-Unterstützung, E-Mail-Synchronisation im Hintergrund.
 
-#### 🔐 Zugangsdaten-Verwaltung
-Sichere Passwortverwaltung mit Verschlüsselung (Fernet), verschlüsselte Speicherung sensibler Daten, Kategorisierung und Organisation von Zugangsdaten.
+### 🔐 Zugangsdaten-Verwaltung
+Sichere Passwortverwaltung mit Verschlüsselung (Fernet), verschlüsselte Speicherung sensibler Daten, Kategorisierung und Organisation von Zugangsdaten, Passwort-Anzeige mit Berechtigungskontrolle.
 
-#### 📚 Bedienungsanleitungen
+### 📚 Bedienungsanleitungen
 PDF-Verwaltung (Admin-Upload), zentrale Sammlung von Anleitungen und Dokumentationen, einfacher Zugriff für alle Teammitglieder.
 
-#### 🎨 Canvas
-Kreativbereich mit dynamischen Textfeldern, freies Layout für Notizen und Ideen, Speicherung von Canvas-Inhalten.
+### 📦 Inventar-Verwaltung
+Produktverwaltung mit Kategorien und Ordnern, QR-Code-Generierung für Produkte, Ausleihsystem mit Transaktionsverfolgung, Inventurlisten und PDF-Export, Produktbilder und Metadaten, Statusverwaltung (verfügbar, ausgeliehen, fehlend), Scanner-Funktion für QR-Codes, Sets und Kategorien, Mobile-API für Scanner-Apps.
 
-#### 📦 Inventar-Verwaltung
-Produktverwaltung mit Kategorien und Ordnern, QR-Code-Generierung für Produkte, Ausleihsystem mit Transaktionsverfolgung, Inventurlisten und PDF-Export, Produktbilder und Metadaten, Statusverwaltung (verfügbar, ausgeliehen, fehlend), Scanner-Funktion für QR-Codes.
+### 📝 Wiki
+Internes Wiki-System mit Versionsverwaltung, Kategorien und Tags, Markdown-Unterstützung, Favoriten-Funktion, Volltext-Suche.
 
-#### 📝 Wiki
-Internes Wiki-System mit Versionsverwaltung, Kategorien und Tags, Markdown-Unterstützung, Favoriten-Funktion.
-
-#### 💬 Kommentare
+### 💬 Kommentare
 Kommentar-System für verschiedene Module, Erwähnungen von Benutzern, Benachrichtigungen bei neuen Kommentaren.
 
-#### 📋 Buchungen
-Buchungssystem mit anpassbaren Formularen, öffentliche Buchungsformulare, Genehmigungsworkflows, Datei-Uploads für Buchungen.
+### 📋 Buchungen
+Buchungssystem mit anpassbaren Formularen, öffentliche Buchungsformulare, Genehmigungsworkflows, Datei-Uploads für Buchungen, PDF-Export.
 
-#### ⚙️ Einstellungen
-Benutzerprofile verwalten, Dark Mode Support, personalisierbare Akzentfarben, Benachrichtigungseinstellungen, System-Einstellungen (nur für Admins), Modulverwaltung (Admin).
+### ⚙️ Einstellungen
+Benutzerprofile verwalten, Dark Mode Support, personalisierbare Akzentfarben, Benachrichtigungseinstellungen, System-Einstellungen (nur für Admins), Modulverwaltung (Admin), Whitelist-Verwaltung (Admin).
 
 ## 🚀 Installation
 
-Eine detaillierte Installationsanleitung finden Sie in:
+### Empfohlene Installation: Automatische Installation (Ubuntu 24.04)
 
-**[📖 INSTALLATION.md](INSTALLATION.md)**
+Für Ubuntu Server wird die **automatische Installation** empfohlen. Das Installationsskript übernimmt alle Schritte automatisch:
 
-Für die Installation mit OnlyOffice Document Server Integration:
+```bash
+# Repository klonen
+git clone <repository-url>
+cd Prismateams_web
 
-**[📖 UBUNTU_ONLYOFFICE_INSTALLATION.md](UBUNTU_ONLYOFFICE_INSTALLATION.md)**
+# Installationsskript ausführbar machen
+chmod +x scripts/install_ubuntu.sh
 
-Für die Installation mit Excalidraw Integration:
+# Installation starten
+sudo ./scripts/install_ubuntu.sh
+```
 
-**[📖 EXCALIDRAW_INSTALLATION.md](EXCALIDRAW_INSTALLATION.md)**
+Das Skript installiert und konfiguriert automatisch:
+- System-Updates und Basis-Pakete
+- Python 3.12+ und Virtual Environment
+- MySQL/MariaDB mit automatischer Datenbank-Erstellung
+- Nginx mit vollständiger Konfiguration
+- Gunicorn als WSGI-Server
+- Redis für Multi-Worker-Setups
+- Docker (optional, für OnlyOffice)
+- OnlyOffice Document Server (optional)
+- Automatische Generierung aller Keys
+- Systemd Service
+- SSL mit Let's Encrypt (optional)
+
+### Alternative: Manuelle Installation
+
+Für detaillierte Installationsanleitungen siehe:
+
+- **[📖 INSTALLATION.md](INSTALLATION.md)** - Vollständige Installationsanleitung (automatisch und manuell)
+
+## 🔧 Technische Details
+
+### Systemanforderungen
+
+**Minimal:**
+- Python 3.8+
+- MySQL/MariaDB oder SQLite
+- 2GB RAM
+- 10GB Speicherplatz
+
+**Empfohlen (Produktion):**
+- Python 3.12+
+- MySQL/MariaDB
+- 4GB+ RAM
+- 20GB+ Speicherplatz
+- Redis (für Multi-Worker-Setups)
+
+**Mit OnlyOffice:**
+- 8GB+ RAM
+- 20GB+ zusätzlicher Speicherplatz
+
+
+## 🔑 API-Dokumentation
+
+Eine vollständige API-Dokumentation mit allen Endpunkten finden Sie in:
+
+**[📖 API_Übersicht.md](API_Übersicht.md)**
+
+Die REST API ist unter `/api/` verfügbar und unterstützt alle Hauptfunktionen des Systems:
+
+- Benutzer-API
+- Chat-API
+- Dateien-API
+- Kalender-API
+- E-Mail-API
+- Zugangsdaten-API
+- Dashboard-API
+- Inventar-API
+- Wiki-API
+- Musik-API
+- Push Notifications API
+- WebSocket/Socket.IO Events
 
 ## 🗂️ Projektstruktur
 
@@ -96,53 +171,54 @@ Prismateams_web/
 ├── app/
 │   ├── __init__.py              # Flask App Factory
 │   ├── models/                   # Datenbank-Modelle
-│   │   ├── user.py
-│   │   ├── chat.py
-│   │   ├── file.py
-│   │   ├── calendar.py
-│   │   ├── email.py
-│   │   ├── credential.py
-│   │   ├── manual.py
-│   │   ├── canvas.py
-│   │   ├── inventory.py
-│   │   ├── notification.py
-│   │   ├── settings.py
-│   │   ├── whitelist.py
-│   │   ├── wiki.py
-│   │   ├── comment.py
-│   │   ├── booking.py
-│   │   ├── role.py
-│   │   └── api_token.py
+│   │   ├── user.py              # Benutzer, Gast-Accounts
+│   │   ├── chat.py              # Chat-System
+│   │   ├── file.py              # Dateiverwaltung
+│   │   ├── calendar.py          # Kalender
+│   │   ├── email.py             # E-Mail-Integration
+│   │   ├── credential.py        # Zugangsdaten
+│   │   ├── manual.py            # Bedienungsanleitungen
+│   │   ├── inventory.py         # Inventar-Verwaltung
+│   │   ├── notification.py      # Benachrichtigungen
+│   │   ├── settings.py          # Einstellungen
+│   │   ├── whitelist.py         # Whitelist
+│   │   ├── wiki.py              # Wiki
+│   │   ├── comment.py           # Kommentare
+│   │   ├── booking.py           # Buchungen
+│   │   ├── role.py              # Rollen/Berechtigungen
+│   │   ├── guest.py             # Gast-Accounts
+│   │   └── api_token.py         # API-Tokens
 │   ├── blueprints/               # Flask Blueprints (Module)
-│   │   ├── auth.py
-│   │   ├── dashboard.py
-│   │   ├── chat.py
-│   │   ├── files.py
-│   │   ├── calendar.py
-│   │   ├── email.py
-│   │   ├── credentials.py
-│   │   ├── manuals.py
-│   │   ├── canvas.py
-│   │   ├── inventory.py
-│   │   ├── settings.py
-│   │   ├── setup.py
-│   │   ├── api.py
-│   │   ├── wiki.py
-│   │   ├── comments.py
-│   │   └── booking.py
+│   │   ├── auth.py              # Authentifizierung
+│   │   ├── dashboard.py         # Dashboard
+│   │   ├── chat.py              # Chat
+│   │   ├── files.py             # Dateiverwaltung
+│   │   ├── calendar.py          # Kalender
+│   │   ├── email.py             # E-Mail
+│   │   ├── credentials.py       # Zugangsdaten
+│   │   ├── manuals.py           # Bedienungsanleitungen
+│   │   ├── inventory.py         # Inventar
+│   │   ├── settings.py          # Einstellungen
+│   │   ├── setup.py             # Setup-Assistent
+│   │   ├── api.py               # REST API
+│   │   ├── wiki.py              # Wiki
+│   │   ├── comments.py          # Kommentare
+│   │   └── booking.py           # Buchungen
 │   ├── templates/                # Jinja2 Templates
 │   ├── static/                   # Statische Dateien
 │   ├── tasks/                     # Hintergrund-Tasks
 │   └── utils/                     # Hilfsfunktionen
 ├── docs/                          # Dokumentation
-│   ├── README.md
-│   ├── INSTALLATION.md
-│   ├── UBUNTU_ONLYOFFICE_INSTALLATION.md
-│   ├── EXCALIDRAW_INSTALLATION.md
-│   ├── API_Übersicht.md
-│   └── env.example
+│   ├── README.md                 # Diese Datei
+│   ├── INSTALLATION.md           # Installationsanleitung
+│   ├── API_Übersicht.md          # API-Dokumentation
+│   └── env.example               # Konfigurationsbeispiel
 ├── migrations/                    # Datenbank-Migrationen
+│   └── migrate_to_2.3.3.py      # Aktuelle Migration
 ├── scripts/                       # Hilfsskripte
+│   ├── install_ubuntu.sh         # Automatische Installation
+│   ├── generate_encryption_keys.py
+│   └── generate_vapid_keys.py
 ├── uploads/                       # Upload-Verzeichnis
 ├── app.py                         # Einstiegspunkt (Entwicklung)
 ├── wsgi.py                        # WSGI-Einstiegspunkt (Produktion)
@@ -150,21 +226,15 @@ Prismateams_web/
 └── requirements.txt               # Python Dependencies
 ```
 
-## 🔑 API-Dokumentation
-
-Eine vollständige API-Dokumentation mit allen Endpunkten finden Sie in:
-
-**[📖 API_Übersicht.md](API_Übersicht.md)**
-
-Die REST API ist unter `/api/` verfügbar und unterstützt alle Hauptfunktionen des Systems.
-
-## 📚 Weitere Dokumentation
+## 📚 Dokumentation
 
 ### Lokale Dokumentation
 
-- **[INSTALLATION.md](INSTALLATION.md)** - Detaillierte Installationsanleitung
-- **[UBUNTU_ONLYOFFICE_INSTALLATION.md](UBUNTU_ONLYOFFICE_INSTALLATION.md)** - Ubuntu Server Installation mit OnlyOffice
-- **[EXCALIDRAW_INSTALLATION.md](EXCALIDRAW_INSTALLATION.md)** - Excalidraw Integration Setup
+- **[README.md](README.md)** - Diese Datei (Überblick)
+- **[INSTALLATION.md](INSTALLATION.md)** - Vollständige Installationsanleitung
+  - Automatische Installation (empfohlen)
+  - Manuelle Installation
+  - Optional: OnlyOffice Integration
 - **[API_Übersicht.md](API_Übersicht.md)** - Vollständige API-Dokumentation
 - **[env.example](env.example)** - Beispiel-Konfigurationsdatei
 
@@ -179,20 +249,25 @@ Das Wiki enthält:
 - Entwickler-Dokumentation
 - Q&A-Bereich
 
-## 📜 Lizenz
+## 📜 Lizenz & Support
+
+### Lizenz
 
 Dieses Projekt ist unter der MIT-Lizenz lizenziert. Siehe [LICENSE](../LICENSE) für Details.
 
-## 👥 Beitrag
+### Beitrag
 
 Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request oder öffnen Sie ein Issue auf GitHub.
 
-## 📧 Support
+### Support
 
 Bei Fragen oder Problemen:
-1. Prüfen Sie die [Dokumentation](https://github.com/iAmCriptic/Prismateams_web/wiki)
-2. Überprüfen Sie die Logs
-3. Öffnen Sie ein [Issue auf GitHub](https://github.com/iAmCriptic/Prismateams_web/issues)
+
+1. Prüfen Sie die [Dokumentation](INSTALLATION.md)
+2. Überprüfen Sie die [API-Dokumentation](API_Übersicht.md)
+3. Besuchen Sie das [GitHub Wiki](https://github.com/iAmCriptic/Prismateams_web/wiki)
+4. Überprüfen Sie die Logs
+5. Öffnen Sie ein [Issue auf GitHub](https://github.com/iAmCriptic/Prismateams_web/issues)
 
 ---
 

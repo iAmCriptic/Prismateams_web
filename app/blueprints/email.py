@@ -7,6 +7,7 @@ from app.models.email import EmailMessage, EmailPermission, EmailAttachment, Ema
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_email_notification
 from app.utils.access_control import check_module_access
+from app.utils.i18n import translate
 from flask_mail import Message
 from datetime import datetime, timedelta
 from html import unescape
@@ -1309,7 +1310,7 @@ def check_duplicate_email(user_id, subject, recipients, body_hash, time_window_s
 def index():
     """Email inbox with folder support."""
     if not check_email_permission('read'):
-        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        flash(translate('email.flash.no_read_permission'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     current_folder = request.args.get('folder', 'INBOX')
@@ -1364,7 +1365,7 @@ def index():
 def folder_view(folder_name):
     """View emails in a specific folder."""
     if not check_email_permission('read'):
-        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        flash(translate('email.flash.no_read_permission'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     # URL-decode folder name in case it's encoded
@@ -1373,7 +1374,7 @@ def folder_view(folder_name):
     
     # Reject invalid folder names
     if not folder_name or folder_name.strip() == '' or folder_name == '/':
-        flash('Ungültiger Ordnername.', 'danger')
+        flash(translate('email.flash.invalid_folder_name'), 'danger')
         return redirect(url_for('email.index'))
     
     # Check if folder exists, if not redirect to index
@@ -1423,7 +1424,7 @@ def folder_view(folder_name):
 def view_email(email_id):
     """View a specific email."""
     if not check_email_permission('read'):
-        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        flash(translate('email.flash.no_read_permission'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     email_msg = EmailMessage.query.get_or_404(email_id)
@@ -1799,7 +1800,7 @@ def build_forward_context(email_msg: EmailMessage, include_attachments: bool):
 @check_module_access('module_email')
 def reply(email_id: int):
     if not check_email_permission('send'):
-        flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
+        flash(translate('email.flash.no_send_permission'), 'danger')
         return redirect(url_for('email.view_email', email_id=email_id))
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_reply_context(email_msg, 'reply')
@@ -1812,7 +1813,7 @@ def reply(email_id: int):
 @check_module_access('module_email')
 def reply_all(email_id: int):
     if not check_email_permission('send'):
-        flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
+        flash(translate('email.flash.no_send_permission'), 'danger')
         return redirect(url_for('email.view_email', email_id=email_id))
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_reply_context(email_msg, 'reply_all')
@@ -1825,7 +1826,7 @@ def reply_all(email_id: int):
 @check_module_access('module_email')
 def forward(email_id: int):
     if not check_email_permission('send'):
-        flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
+        flash(translate('email.flash.no_send_permission'), 'danger')
         return redirect(url_for('email.view_email', email_id=email_id))
     email_msg = EmailMessage.query.get_or_404(email_id)
     ctx = build_forward_context(email_msg, include_attachments=True)
@@ -1838,13 +1839,13 @@ def forward(email_id: int):
 def download_attachment(attachment_id):
     """Download an email attachment with support for large files."""
     if not check_email_permission('read'):
-        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        flash(translate('email.flash.no_read_permission'), 'danger')
         return redirect(url_for('email.index'))
     
     attachment = EmailAttachment.query.get_or_404(attachment_id)
     email_msg = attachment.email
     if not email_msg:
-        flash('Anhang nicht gefunden.', 'danger')
+        flash(translate('email.flash.attachment_not_found'), 'danger')
         return redirect(url_for('email.index'))
     
     try:
@@ -1870,12 +1871,12 @@ def download_attachment(attachment_id):
                 response.headers['Accept-Ranges'] = 'bytes'
                 return response
             else:
-                flash('Anhang-Datei nicht gefunden.', 'danger')
+                flash(translate('email.flash.attachment_file_not_found'), 'danger')
                 return redirect(url_for('email.view_email', email_id=email_msg.id))
         else:
             content = attachment.get_content()
             if not content:
-                flash('Anhang nicht gefunden oder beschädigt.', 'danger')
+                flash(translate('email.flash.attachment_corrupted'), 'danger')
                 return redirect(url_for('email.index'))
             
             file_obj = io.BytesIO(content)
@@ -1910,7 +1911,7 @@ def download_attachment(attachment_id):
 def compose():
     """Compose and send an email."""
     if not check_email_permission('send'):
-        flash('Sie haben keine Berechtigung, E-Mails zu senden.', 'danger')
+        flash(translate('email.flash.no_send_permission'), 'danger')
         return redirect(url_for('email.index'))
     
     if request.method == 'POST':
@@ -2306,17 +2307,17 @@ def compose():
 @check_module_access('module_email')
 def preview_custom_email():
     if not check_email_permission('send'):
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('email.errors.unauthorized')}), 403
     
     data = request.get_json(silent=True) or request.form
     if not data:
-        return jsonify({'error': 'Ungültige Daten'}), 400
+        return jsonify({'error': translate('email.errors.invalid_data')}), 400
     
     subject = (data.get('subject') or '').strip()
     body_html = (data.get('body') or '').strip()
     
     if not body_html:
-        return jsonify({'error': 'Nachricht fehlt'}), 400
+        return jsonify({'error': translate('email.errors.message_missing')}), 400
     
     try:
         # In der Vorschau Base64 verwenden, damit das Logo im Browser angezeigt wird
@@ -2324,7 +2325,7 @@ def preview_custom_email():
         return jsonify({'html': rendered_html})
     except Exception as exc:
         current_app.logger.error(f"E-Mail Vorschau Fehler: {exc}")
-        return jsonify({'error': 'Vorschau konnte nicht erstellt werden'}), 500
+        return jsonify({'error': translate('email.errors.preview_failed')}), 500
 
 
 @email_bp.route('/sync', methods=['POST'])
@@ -2335,7 +2336,7 @@ def sync_emails():
     if not check_email_permission('read'):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept', '').startswith('application/json'):
             return jsonify({'success': False, 'error': 'Nicht autorisiert'}), 403
-        flash('Sie haben keine Berechtigung, E-Mails zu lesen.', 'danger')
+        flash(translate('email.flash.no_read_permission'), 'danger')
         return redirect(url_for('email.index'))
     
     is_async_request = (
@@ -2363,7 +2364,7 @@ def sync_emails():
                     else:
                         flash(f'❌ FEHLER: {message}', 'danger')
                 else:
-                    flash('⚠️ Synchronisation läuft bereits in einem anderen Worker. Bitte warten Sie einen Moment.', 'warning')
+                    flash(translate('email.flash.sync_already_running'), 'warning')
         except Exception as exc:
             current_app.logger.error(f"E-Mail-Synchronisation Fehler (synchron): {exc}", exc_info=True)
             flash(f'❌ FEHLER bei der Synchronisation: {str(exc)}', 'danger')
@@ -2444,7 +2445,7 @@ def sync_emails():
 def delete_email(email_id):
     """Delete email from both portal and IMAP."""
     if not check_email_permission('read'):
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('email.errors.unauthorized')}), 403
     
     email = EmailMessage.query.get_or_404(email_id)
     
@@ -2456,7 +2457,7 @@ def delete_email(email_id):
     db.session.delete(email)
     db.session.commit()
     
-    flash('E-Mail wurde erfolgreich gelöscht.', 'success')
+    flash(translate('email.flash.deleted'), 'success')
     return redirect(url_for('email.folder_view', folder_name=email.folder))
 
 
@@ -2466,13 +2467,13 @@ def delete_email(email_id):
 def move_email(email_id):
     """Move email to another folder in both portal and IMAP."""
     if not check_email_permission('read'):
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('email.errors.unauthorized')}), 403
     
     email = EmailMessage.query.get_or_404(email_id)
     new_folder = request.form.get('folder')
     
     if not new_folder:
-        flash('Zielordner nicht angegeben.', 'danger')
+        flash(translate('email.flash.target_folder_not_specified'), 'danger')
         return redirect(url_for('email.folder_view', folder_name=email.folder))
     
     if email.imap_uid:

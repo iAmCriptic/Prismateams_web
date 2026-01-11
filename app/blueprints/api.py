@@ -8,6 +8,7 @@ from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.email import EmailMessage
 from app.models.notification import PushSubscription
 from app.utils.notifications import register_push_subscription, send_push_notification
+from app.utils.i18n import translate
 from datetime import datetime
 
 api_bp = Blueprint('api', __name__)
@@ -116,7 +117,7 @@ def get_messages(chat_id):
     ).first()
     
     if not membership:
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('api.errors.unauthorized')}), 403
     
     # Check if we want messages since a specific ID
     since_id = request.args.get('since', type=int)
@@ -179,7 +180,7 @@ def get_chat_members(chat_id):
     ).first()
     
     if not membership:
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('api.errors.unauthorized')}), 403
     
     # Get all chat members - use ChatMember as base to ensure all members are included
     # Filter out guest accounts (system accounts that should not be visible)
@@ -377,7 +378,7 @@ def subscribe_push():
         
         if not subscription_data:
             print("API: Fehler: Subscription-Daten fehlen")
-            return jsonify({'error': 'Subscription-Daten fehlen'}), 400
+            return jsonify({'error': translate('api.errors.subscription_data_missing')}), 400
         
         print(f"API: Subscription-Daten: {subscription_data}")
         print(f"API: Subscription Endpoint: {subscription_data.get('endpoint')}")
@@ -393,7 +394,7 @@ def subscribe_push():
         else:
             print(f"=== API: PUSH-SUBSCRIPTION REGISTRIERUNG FEHLGESCHLAGEN ===")
             print(f"API: Fehler bei der Push-Subscription Registrierung für Benutzer {current_user.id}")
-            return jsonify({'error': 'Fehler bei der Registrierung', 'success': False}), 500
+            return jsonify({'error': translate('api.errors.registration_error'), 'success': False}), 500
             
     except Exception as e:
         print(f"=== API: EXCEPTION BEI PUSH-SUBSCRIPTION REGISTRIERUNG ===")
@@ -531,7 +532,7 @@ def update_chat_notification_settings(chat_id):
         ).first()
         
         if not membership:
-            return jsonify({'error': 'Nicht autorisiert'}), 403
+            return jsonify({'error': translate('api.errors.unauthorized')}), 403
         
         # Hole oder erstelle Chat-Einstellungen
         chat_settings = ChatNotificationSettings.query.filter_by(
@@ -624,11 +625,11 @@ def get_vapid_public_key():
             return jsonify({'public_key': key_out})
         except Exception as e:
             print(f"VAPID Key Normalisierung fehlgeschlagen: {e}")
-            return jsonify({'error': 'VAPID Key Formatfehler', 'message': str(e)}), 500
+            return jsonify({'error': translate('api.errors.vapid_key_format_error'), 'message': str(e)}), 500
         
     except Exception as e:
         print(f"VAPID Key Fehler: {e}")
-        return jsonify({'error': str(e), 'message': 'Fehler beim Laden der VAPID Keys'}), 500
+        return jsonify({'error': str(e), 'message': translate('api.errors.vapid_keys_load_error')}), 500
 
 # Test Push Notification Endpoint
 @api_bp.route('/push/test', methods=['POST'])
@@ -715,7 +716,7 @@ def test_push_notification():
             
     except Exception as e:
         print(f"Test-Push Fehler: {e}")
-        return jsonify({'error': str(e), 'message': 'Interner Server-Fehler beim Senden der Test-Benachrichtigung'}), 500
+        return jsonify({'error': str(e), 'message': translate('api.errors.test_notification_error')}), 500
 
 
 @api_bp.route('/notifications/mark-read/<int:notification_id>', methods=['POST'])
@@ -731,7 +732,7 @@ def mark_notification_read(notification_id):
         ).first()
         
         if not notification:
-            return jsonify({'error': 'Benachrichtigung nicht gefunden'}), 404
+            return jsonify({'error': translate('api.errors.notification_not_found')}), 404
         
         # Markiere als gelesen statt zu löschen
         notification.mark_as_read()

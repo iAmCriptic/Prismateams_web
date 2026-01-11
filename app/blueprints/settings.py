@@ -116,7 +116,7 @@ def remove_profile_picture():
     
     current_user.profile_picture = None
     db.session.commit()
-    flash('Profilbild wurde entfernt.', 'success')
+    flash(translate('settings.profile.flash_picture_removed'), 'success')
     return redirect(url_for('settings.profile'))
 
 
@@ -212,7 +212,7 @@ def notifications():
                 db.session.add(chat_setting)
         
         db.session.commit()
-        flash('Benachrichtigungseinstellungen wurden gespeichert.', 'success')
+        flash(translate('settings.notifications.flash_saved'), 'success')
         return redirect(url_for('settings.notifications'))
     
     # Hole Benachrichtigungseinstellungen
@@ -295,7 +295,7 @@ def appearance():
 def admin():
     """Admin settings page."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     return render_template('settings/admin.html')
@@ -393,7 +393,7 @@ def admin_users():
 def create_user():
     """Create a new user account (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     from app.models.role import UserModuleRole
@@ -543,9 +543,9 @@ def create_user():
             
             # Normale Weiterleitung mit Flash (Fallback)
             if email_sent:
-                flash(f'Account für {new_user.full_name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.', 'success')
+                flash(translate('settings.admin.users.flash_user_created', name=new_user.full_name), 'success')
             else:
-                flash(f'Account für {new_user.full_name} wurde erstellt, aber E-Mail konnte nicht gesendet werden. Zugangsdaten: Benutzername: {email}, Passwort: {password}', 'warning')
+                flash(translate('settings.admin.users.flash_email_failed', name=new_user.full_name, email=email, password=password), 'warning')
             
             return redirect(url_for('settings.admin_users'))
         
@@ -746,7 +746,7 @@ def create_user():
                 })
             
             # Normale Weiterleitung mit Flash (Fallback)
-            flash(f'Gast-Account für {new_user.full_name} wurde erstellt. Zugangsdaten: Benutzername: {email}, Passwort: {password}', 'success')
+            flash(translate('settings.admin.users.flash_guest_created', name=new_user.full_name, email=email, password=password), 'success')
             return redirect(url_for('settings.admin_users'))
         else:
             error_msg = 'Ungültiger Account-Typ.'
@@ -832,7 +832,7 @@ def activate_user(user_id):
     
     db.session.commit()
     
-    flash(f'Benutzer {user.full_name} wurde aktiviert.', 'success')
+    flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -844,20 +844,20 @@ def deactivate_user(user_id):
         return redirect(url_for('settings.index'))
     
     if user_id == current_user.id:
-        flash('Sie können sich nicht selbst deaktivieren.', 'danger')
+        flash(translate('settings.admin.users.flash_cannot_deactivate_self'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     user = User.query.get_or_404(user_id)
     
     # Super-Admins können nicht deaktiviert werden
     if user.is_super_admin:
-        flash('Der Hauptadministrator kann nicht deaktiviert werden.', 'danger')
+        flash(translate('settings.admin.users.flash_cannot_deactivate_super_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     user.is_active = False
     db.session.commit()
     
-    flash(f'Benutzer {user.full_name} wurde deaktiviert.', 'success')
+    flash(translate('settings.admin.users.flash_user_deactivated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -872,13 +872,13 @@ def make_admin(user_id):
     
     # Gast-Accounts können keine Admins werden
     if hasattr(user, 'is_guest') and user.is_guest:
-        flash('Gast-Accounts können keine Administratoren werden.', 'danger')
+        flash(translate('settings.admin.users.flash_guest_cannot_be_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     user.is_admin = True
     db.session.commit()
     
-    flash(f'{user.full_name} ist jetzt Administrator.', 'success')
+    flash(translate('settings.admin.users.flash_user_made_admin', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -890,20 +890,20 @@ def remove_admin(user_id):
         return redirect(url_for('settings.index'))
     
     if user_id == current_user.id:
-        flash('Sie können sich nicht selbst die Admin-Rechte entziehen.', 'danger')
+        flash(translate('settings.admin.users.flash_cannot_remove_admin_self'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     user = User.query.get_or_404(user_id)
     
     # Super-Admins können ihre Rechte nicht entzogen bekommen
     if user.is_super_admin:
-        flash('Die Admin-Rechte des Hauptadministrators können nicht entzogen werden.', 'danger')
+        flash(translate('settings.admin.users.flash_cannot_remove_super_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     user.is_admin = False
     db.session.commit()
     
-    flash(f'{user.full_name} ist kein Administrator mehr.', 'success')
+    flash(translate('settings.admin.users.flash_admin_removed', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -915,14 +915,14 @@ def delete_user(user_id):
         return redirect(url_for('settings.index'))
     
     if user_id == current_user.id:
-        flash('Sie können sich nicht selbst löschen.', 'danger')
+        flash(translate('settings.admin.users.flash_cannot_delete_self'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     user = User.query.get_or_404(user_id)
     
     # Super-Admins können nicht gelöscht werden
     if user.is_super_admin:
-        flash('Der Hauptadministrator kann nicht gelöscht werden.', 'danger')
+        flash(translate('settings.admin.users.flash_cannot_delete_super_admin'), 'danger')
         return redirect(url_for('settings.admin_users'))
     
     # Delete profile picture
@@ -936,7 +936,7 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     
-    flash(f'Benutzer {user.full_name} wurde gelöscht.', 'success')
+    flash(translate('settings.admin.users.flash_user_deleted', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -945,7 +945,7 @@ def delete_user(user_id):
 def admin_email_footer():
     """Configure email footer template (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
@@ -960,7 +960,7 @@ def admin_email_footer():
             db.session.add(new_setting)
         
         db.session.commit()
-        flash('E-Mail-Footer wurde erfolgreich gespeichert.', 'success')
+        flash(translate('settings.admin.email_footer.flash_saved'), 'success')
         return redirect(url_for('settings.admin_email_footer'))
     
     # Get current footer template
@@ -984,10 +984,10 @@ Gesendet von <user> (<email>)
 def admin_email_permissions():
     """Umleitung zur Benutzerverwaltung (E-Mail-Berechtigungen wurden in Rollenverwaltung verschoben)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
-    flash('E-Mail-Berechtigungen werden jetzt in der Benutzerverwaltung unter Rollen verwaltet.', 'info')
+    flash(translate('settings.admin.email_permissions.flash_moved_to_roles'), 'info')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -1008,8 +1008,8 @@ def toggle_email_read(user_id):
     db.session.commit()
     
     user = User.query.get(user_id)
-    status = "aktiviert" if perm.can_read else "deaktiviert"
-    flash(f'E-Mail-Leseberechtigung für {user.full_name} wurde {status}.', 'success')
+    status = translate('common.active') if perm.can_read else translate('common.inactive')
+    flash(translate('settings.admin.email_permissions.flash_read_toggled', name=user.full_name, status=status), 'success')
     return redirect(url_for('settings.admin_email_permissions'))
 
 
@@ -1030,8 +1030,8 @@ def toggle_email_send(user_id):
     db.session.commit()
     
     user = User.query.get(user_id)
-    status = "aktiviert" if perm.can_send else "deaktiviert"
-    flash(f'E-Mail-Sendeberechtigung für {user.full_name} wurde {status}.', 'success')
+    status = translate('common.active') if perm.can_send else translate('common.inactive')
+    flash(translate('settings.admin.email_permissions.flash_send_toggled', name=user.full_name, status=status), 'success')
     return redirect(url_for('settings.admin_email_permissions'))
 
 
@@ -1040,7 +1040,7 @@ def toggle_email_send(user_id):
 def admin_system():
     """System settings (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
@@ -1068,7 +1068,7 @@ def admin_system():
                     
                     max_size = 5 * 1024 * 1024  # 5MB in bytes
                     if file_size > max_size:
-                        flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+                        flash(translate('settings.admin.system.flash_logo_too_large', size=file_size / (1024*1024)), 'danger')
                         return redirect(url_for('settings.admin_system'))
                     
                     # Create filename with timestamp
@@ -1101,9 +1101,9 @@ def admin_system():
                     else:
                         logo_setting = SystemSettings(key='portal_logo', value=filename)
                         db.session.add(logo_setting)
-                    flash('Portalslogo wurde erfolgreich hochgeladen.', 'success')
+                    flash(translate('settings.admin.system.flash_logo_uploaded'), 'success')
                 else:
-                    flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
+                    flash(translate('settings.admin.system.flash_logo_invalid_type'), 'danger')
                     return redirect(url_for('settings.admin_system'))
         
         # Update default accent color
@@ -1205,7 +1205,7 @@ def admin_file_settings():
 def admin_modules():
     """Module settings (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
@@ -1265,7 +1265,7 @@ def admin_modules():
 def admin_backup():
     """Backup Import/Export (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
@@ -1275,7 +1275,7 @@ def admin_backup():
             # Export-Backup erstellen
             categories = request.form.getlist('export_categories')
             if not categories:
-                flash('Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.', 'danger')
+                flash(translate('settings.admin.backup.flash_no_export_categories'), 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             try:
@@ -1305,7 +1305,7 @@ def admin_backup():
                     )
                 else:
                     os.unlink(temp_path)
-                    flash('Fehler beim Erstellen des Backups.', 'danger')
+                    flash(translate('settings.admin.backup.flash_export_error'), 'danger')
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Export: {str(e)}")
                 try:
@@ -1313,21 +1313,21 @@ def admin_backup():
                         os.unlink(temp_path)
                 except OSError as cleanup_error:
                     current_app.logger.warning(f'Temporäre Backup-Datei konnte nach Fehler nicht gelöscht werden: {cleanup_error}')
-                flash(f'Fehler beim Erstellen des Backups: {str(e)}', 'danger')
+                flash(translate('settings.admin.backup.flash_export_error_detail', error=str(e)), 'danger')
         
         elif action == 'import':
             # Import-Backup hochladen
             if 'backup_file' not in request.files:
-                flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
+                flash(translate('settings.admin.backup.flash_no_file'), 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             file = request.files['backup_file']
             if file.filename == '':
-                flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
+                flash(translate('settings.admin.backup.flash_no_file'), 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             if not file.filename.endswith('.prismateams'):
-                flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
+                flash(translate('settings.admin.backup.flash_invalid_extension'), 'danger')
                 return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
             
             try:
@@ -1340,7 +1340,7 @@ def admin_backup():
                 # Kategorien auswählen
                 import_categories = request.form.getlist('import_categories')
                 if not import_categories:
-                    flash('Bitte wählen Sie mindestens eine Kategorie zum Importieren aus.', 'danger')
+                    flash(translate('settings.admin.backup.flash_no_import_categories'), 'danger')
                     os.unlink(temp_path)
                     return render_template('settings/admin_backup.html', categories=SUPPORTED_CATEGORIES)
                 
@@ -1352,12 +1352,12 @@ def admin_backup():
                 
                 if result['success']:
                     imported = ', '.join(result.get('imported', []))
-                    flash(f'Backup erfolgreich importiert! Importierte Kategorien: {imported}', 'success')
+                    flash(translate('settings.admin.backup.flash_import_success', categories=imported), 'success')
                 else:
-                    flash(f'Fehler beim Importieren des Backups: {result.get("error", "Unbekannter Fehler")}', 'danger')
+                    flash(translate('settings.admin.backup.flash_import_error', error=result.get("error", translate('common.unknown_error'))), 'danger')
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Import: {str(e)}")
-                flash(f'Fehler beim Importieren des Backups: {str(e)}', 'danger')
+                flash(translate('settings.admin.backup.flash_import_error', error=str(e)), 'danger')
                 if 'temp_path' in locals():
                     try:
                         os.unlink(temp_path)
@@ -1372,7 +1372,7 @@ def admin_backup():
 def admin_whitelist():
     """Manage whitelist entries (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     # Get all whitelist entries
@@ -1393,13 +1393,13 @@ def add_whitelist_entry():
     description = request.form.get('description', '').strip()
     
     if not entry or entry_type not in ['email', 'domain']:
-        flash('Bitte geben Sie einen gültigen Eintrag und Typ an.', 'danger')
+        flash(translate('settings.admin.whitelist.flash_invalid_entry'), 'danger')
         return redirect(url_for('settings.admin_whitelist'))
     
     # Validate entry format
     if entry_type == 'email':
         if '@' not in entry:
-            flash('Bitte geben Sie eine gültige E-Mail-Adresse ein.', 'danger')
+            flash(translate('settings.admin.whitelist.flash_invalid_email'), 'danger')
             return redirect(url_for('settings.admin_whitelist'))
     elif entry_type == 'domain':
         if not entry.startswith('@'):
@@ -1409,9 +1409,9 @@ def add_whitelist_entry():
     result = WhitelistEntry.add_entry(entry, entry_type, description, current_user.id)
     
     if result:
-        flash(f'Whitelist-Eintrag "{entry}" wurde hinzugefügt.', 'success')
+        flash(translate('settings.admin.whitelist.flash_entry_added', entry=entry), 'success')
     else:
-        flash('Fehler beim Hinzufügen des Whitelist-Eintrags. Möglicherweise existiert er bereits.', 'danger')
+        flash(translate('settings.admin.whitelist.flash_entry_add_error'), 'danger')
     
     return redirect(url_for('settings.admin_whitelist'))
 
@@ -1427,10 +1427,10 @@ def toggle_whitelist_entry(entry_id):
     
     if result:
         entry = WhitelistEntry.query.get(entry_id)
-        status = "aktiviert" if entry.is_active else "deaktiviert"
-        flash(f'Whitelist-Eintrag "{entry.entry}" wurde {status}.', 'success')
+        status = translate('common.active') if entry.is_active else translate('common.inactive')
+        flash(translate('settings.admin.whitelist.flash_entry_toggled', entry=entry.entry, status=status), 'success')
     else:
-        flash('Fehler beim Ändern des Whitelist-Eintrags.', 'danger')
+        flash(translate('settings.admin.whitelist.flash_entry_toggle_error'), 'danger')
     
     return redirect(url_for('settings.admin_whitelist'))
 
@@ -1444,15 +1444,15 @@ def delete_whitelist_entry(entry_id):
     
     entry = WhitelistEntry.query.get(entry_id)
     if not entry:
-        flash('Whitelist-Eintrag nicht gefunden.', 'danger')
+        flash(translate('settings.admin.whitelist.flash_entry_not_found'), 'danger')
         return redirect(url_for('settings.admin_whitelist'))
     
     result = WhitelistEntry.remove_entry(entry_id)
     
     if result:
-        flash(f'Whitelist-Eintrag "{entry.entry}" wurde gelöscht.', 'success')
+        flash(translate('settings.admin.whitelist.flash_entry_deleted', entry=entry.entry), 'success')
     else:
-        flash('Fehler beim Löschen des Whitelist-Eintrags.', 'danger')
+        flash(translate('settings.admin.whitelist.flash_entry_delete_error'), 'danger')
     
     return redirect(url_for('settings.admin_whitelist'))
 
@@ -1462,7 +1462,7 @@ def delete_whitelist_entry(entry_id):
 def admin_inventory_settings():
     """Lagerverwaltung-Einstellungen (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
@@ -1481,7 +1481,7 @@ def admin_inventory_settings():
             db.session.add(ownership_setting)
         
         db.session.commit()
-        flash('Lagerverwaltung-Einstellungen wurden gespeichert.', 'success')
+        flash(translate('settings.admin.inventory.flash_saved'), 'success')
         return redirect(url_for('settings.admin_inventory_settings'))
     
     # Lade aktuelle Einstellungen
@@ -1496,7 +1496,7 @@ def admin_inventory_settings():
 def admin_email_module():
     """E-Mail-Moduleinstellungen Übersicht mit Tabs (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     # Lade Footer-Template
@@ -1528,7 +1528,7 @@ Gesendet von <user> (<email>)
 def admin_email_settings():
     """E-Mail-System-Einstellungen (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     if request.method == 'POST':
@@ -1574,7 +1574,7 @@ def admin_email_settings():
             db.session.add(sync_setting)
         
         db.session.commit()
-        flash('E-Mail-Einstellungen wurden gespeichert.', 'success')
+        flash(translate('settings.admin.email_settings.flash_saved'), 'success')
         return redirect(url_for('settings.admin_email_settings'))
     
     # Lade aktuelle Einstellungen
@@ -1594,7 +1594,7 @@ def admin_email_settings():
 def admin_music():
     """Musikmodul-Einstellungen (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     from app.models.music import MusicSettings, MusicProviderToken
@@ -1676,7 +1676,7 @@ def admin_music():
             db.session.add(deezer_app_id_setting)
         
         db.session.commit()
-        flash('Musikmodul-Einstellungen wurden gespeichert.', 'success')
+        flash(translate('settings.admin.music.flash_saved'), 'success')
         return redirect(url_for('settings.admin_music'))
     
     # GET: Zeige Einstellungsseite
@@ -1725,7 +1725,7 @@ def admin_roles():
 def admin_roles_user(user_id):
     """Zeige Rollen für einen bestimmten Benutzer (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     from app.models.role import UserModuleRole
@@ -1881,7 +1881,7 @@ def admin_roles_user_update(user_id):
 def admin_roles_default():
     """Konfiguriere Standardrollen für neue Benutzer (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
     import json
@@ -1924,7 +1924,7 @@ def admin_roles_default():
             db.session.add(default_roles_setting)
         
         db.session.commit()
-        flash('Standardrollen wurden erfolgreich gespeichert.', 'success')
+        flash(translate('settings.admin.roles.flash_default_saved'), 'success')
         return redirect(url_for('settings.admin_roles_default'))
     
     # GET: Lade aktuelle Standardrollen
@@ -1974,7 +1974,7 @@ def booking_form_create():
         enable_shared_folder = request.form.get('enable_shared_folder') == 'on'
         
         if not title:
-            flash('Bitte geben Sie einen Titel ein.', 'danger')
+            flash(translate('settings.admin.booking_forms.flash_title_required'), 'danger')
             return render_template('booking/admin/form_edit.html', form=None, fields=[], all_users=User.query.filter_by(is_active=True).all())
         
         form = BookingForm(
@@ -1990,7 +1990,7 @@ def booking_form_create():
         db.session.add(form)
         db.session.commit()
         
-        flash(f'Formular "{title}" wurde erstellt.', 'success')
+        flash(translate('settings.admin.booking_forms.flash_form_created', title=title), 'success')
         return redirect(url_for('settings.booking_form_edit', form_id=form.id))
     
     return render_template('booking/admin/form_edit.html', form=None, fields=[], all_users=User.query.filter_by(is_active=True).all())
@@ -2014,7 +2014,7 @@ def booking_form_edit(form_id):
             # Status-Update
             form.is_active = request.form.get('is_active') == 'on'
             db.session.commit()
-            flash('Status wurde aktualisiert.', 'success')
+            flash(translate('settings.admin.booking_forms.flash_status_updated'), 'success')
             return redirect(url_for('settings.booking_form_edit', form_id=form_id))
         
         # Formular-Update
@@ -2026,7 +2026,7 @@ def booking_form_edit(form_id):
         enable_shared_folder = request.form.get('enable_shared_folder') == 'on'
         
         if not title:
-            flash('Bitte geben Sie einen Titel ein.', 'danger')
+            flash(translate('settings.admin.booking_forms.flash_title_required'), 'danger')
             fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
             return render_template('booking/admin/form_edit.html', form=form, fields=fields, all_users=User.query.filter_by(is_active=True).all())
         
@@ -2038,7 +2038,7 @@ def booking_form_edit(form_id):
         form.enable_shared_folder = enable_shared_folder
         
         db.session.commit()
-        flash(f'Formular "{title}" wurde aktualisiert.', 'success')
+        flash(translate('settings.admin.booking_forms.flash_form_updated', title=title), 'success')
         return redirect(url_for('settings.booking_form_edit', form_id=form_id))
     
     fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
@@ -2061,7 +2061,7 @@ def booking_form_delete(form_id):
     db.session.delete(form)
     db.session.commit()
     
-    flash(f'Formular "{title}" wurde gelöscht.', 'success')
+    flash(translate('settings.admin.booking_forms.flash_form_deleted', title=title), 'success')
     return redirect(url_for('settings.booking_forms'))
 
 

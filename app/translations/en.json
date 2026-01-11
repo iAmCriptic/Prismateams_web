@@ -43,7 +43,8 @@
     "optional": "Optional",
     "required": "Required",
     "language": "Language",
-    "select_language": "Select language"
+    "select_language": "Select language",
+    "unknown_error": "Unknown error"
   },
   "auth": {
     "login": {
@@ -84,13 +85,52 @@
       "resend_button": "Resend code",
       "warning_title": "Important",
       "warning_message": "Without a confirmed email address only limited features are available."
+    },
+    "flash": {
+      "fill_all_fields": "Please fill in all required fields.",
+      "passwords_dont_match": "The passwords do not match.",
+      "password_too_short": "The password must be at least 8 characters long.",
+      "email_already_registered": "This email address is already registered.",
+      "register_success_whitelisted": "Registration successful! Your account has been automatically activated. Please confirm your email address.",
+      "register_success_whitelisted_no_email": "Registration successful! Your account has been automatically activated. Email confirmation could not be sent.",
+      "register_pending_admin": "Your account must be activated by an administrator. A confirmation email has been sent to you.",
+      "register_pending_admin_no_email": "Your account must be activated by an administrator. Email confirmation could not be sent.",
+      "enter_email_password": "Please enter email and password.",
+      "invalid_credentials": "Invalid email or password.",
+      "guest_account_expired": "Your guest account has expired and has been removed.",
+      "account_not_activated": "Your account has not been activated yet. Please wait for activation by an administrator.",
+      "confirm_email_required": "Please confirm your email address to continue.",
+      "email_already_confirmed": "Your email address has already been confirmed.",
+      "enter_confirmation_code": "Please enter the confirmation code.",
+      "email_confirmed_success": "Email address successfully confirmed!",
+      "invalid_confirmation_code": "Invalid or expired confirmation code.",
+      "confirmation_email_resent": "Confirmation email has been resent.",
+      "confirmation_email_failed": "Confirmation email could not be sent. The code has been output to the console.",
+      "admin_only": "Only administrators have access to this page.",
+      "test_email_sent": "Test email successfully sent!",
+      "test_email_success_message": "Email was successfully sent.",
+      "test_email_error": "Error sending test email: {error}",
+      "logout_success": "You have been successfully logged out."
     }
   },
   "dashboard": {
     "page_title": "Dashboard",
     "setup": {
       "success_title": "🎉 Setup complete!",
-      "success_body": "Welcome to your team portal! You can now add more users via the settings."
+      "success_body": "Welcome to your team portal! You can now add more users via the settings.",
+      "flash": {
+        "select_backup_file": "Please select a backup file.",
+        "invalid_file_extension": "Invalid file extension. Please select a .prismateams file.",
+        "invalid_file_type": "Invalid file type. Only PNG, JPG, JPEG, GIF and SVG files are allowed.",
+        "fill_all_fields": "Please fill in all required fields.",
+        "passwords_dont_match": "The passwords do not match.",
+        "password_too_short": "The password must be at least 8 characters long.",
+        "completed": "Setup successfully completed! Welcome to your team portal.",
+        "enter_portal_name": "Please enter a portal name.",
+        "completed_emoji": "🎉 Setup successfully completed! Welcome to your team portal.",
+        "add_users_info": "You can now add more users via the settings.",
+        "admin_account_created": "Your administrator account has been created and you are automatically logged in."
+      }
     },
     "update": {
       "title": "Update available!",
@@ -223,6 +263,10 @@
           "logout": "Log out"
         }
       }
+    },
+    "flash": {
+      "guests_cannot_edit": "Guest accounts cannot edit the dashboard.",
+      "saved": "Dashboard configuration successfully saved!"
     }
   },
   "languages": {
@@ -342,7 +386,9 @@
       "flash_picture_too_large": "Profile picture is too large. Maximum size: 5MB. Your file: {size:.1f}MB",
       "flash_picture_invalid_type": "Invalid file type. Only PNG, JPG, JPEG and GIF files are allowed.",
       "flash_picture_uploaded": "Profile picture uploaded successfully.",
-      "flash_profile_updated": "Profile updated."
+      "flash_profile_updated": "Profile updated.",
+      "title": "Profile",
+      "flash_picture_removed": "Profile picture has been removed."
     },
     "notifications": {
       "page_title": "Notifications - Settings",
@@ -500,7 +546,26 @@
         "breadcrumb_users": "User Management",
         "heading": "User Management",
         "configure_default_roles": "Configure Default Roles",
-        "flash_unauthorized": "Only administrators have access to this page."
+        "flash_unauthorized": "Only administrators have access to this page.",
+        "create_user": "Create new user",
+        "guest_account": "Guest Account",
+        "guest_expires_at": "Expires at",
+        "guest_no_expiry": "No expiry",
+        "flash_user_created": "Account for {name} has been created and email with credentials has been sent.",
+        "flash_guest_created": "Guest account for {name} has been created. Credentials: Username: {email}, Password: {password}",
+        "flash_email_failed": "Account for {name} has been created, but email could not be sent. Credentials: Username: {email}, Password: {password}",
+        "flash_user_activated": "User {name} has been activated.",
+        "flash_user_deactivated": "User {name} has been deactivated.",
+        "flash_cannot_deactivate_self": "You cannot deactivate yourself.",
+        "flash_cannot_deactivate_super_admin": "The super administrator cannot be deactivated.",
+        "flash_user_made_admin": "{name} is now an administrator.",
+        "flash_admin_removed": "{name} is no longer an administrator.",
+        "flash_cannot_remove_admin_self": "You cannot remove admin rights from yourself.",
+        "flash_cannot_remove_super_admin": "The super administrator's admin rights cannot be removed.",
+        "flash_guest_cannot_be_admin": "Guest accounts cannot become administrators.",
+        "flash_user_deleted": "User {name} has been deleted.",
+        "flash_cannot_delete_self": "You cannot delete yourself.",
+        "flash_cannot_delete_super_admin": "The super administrator cannot be deleted."
       },
       "sections": {
         "users": {
@@ -595,10 +660,64 @@
         "portal_logo_help": "Logo for the portal (PNG, JPG, JPEG, GIF or SVG, max. 5MB)",
         "save_button": "Save Changes",
         "back_button": "Back",
-        "flash_updated": "System settings have been updated."
+        "flash_updated": "System settings have been updated.",
+        "default_accent_color_label": "Standard-Akzentfarbe",
+        "default_accent_color_help": "Default accent color for new users. Users can change this later in their settings.",
+        "color_gradient_label": "Gradient for Login/Register",
+        "color_gradient_help": "Choose a gradient for the login and registration pages.",
+        "color_gradient_default": "Default (Blue-Violet)",
+        "color_gradient_purple_blue": "Purple-Blue",
+        "color_gradient_pink_red": "Pink-Red",
+        "color_gradient_blue_cyan": "Blue-Cyan",
+        "color_gradient_green_teal": "Green-Teal",
+        "color_gradient_pink_yellow": "Pink-Yellow",
+        "color_gradient_pastel": "Pastel",
+        "color_gradient_rose_pastel": "Rose-Pastel",
+        "color_gradient_orange_pastel": "Orange-Pastel"
       },
       "booking_forms": {
         "flash_unauthorized": "Only administrators have access to this page."
+      },
+      "email_footer": {
+        "flash_saved": "Email footer has been successfully saved."
+      },
+      "email_permissions": {
+        "flash_moved_to_roles": "Email permissions are now managed in user management under roles.",
+        "flash_read_toggled": "Email read permission for {name} has been {status}.",
+        "flash_send_toggled": "Email send permission for {name} has been {status}."
+      },
+      "music": {
+        "flash_saved": "Music module settings have been saved."
+      },
+      "roles": {
+        "flash_default_saved": "Default roles have been successfully saved."
+      },
+      "inventory": {
+        "flash_saved": "Inventory management settings have been saved."
+      },
+      "email_settings": {
+        "flash_saved": "Email settings have been saved."
+      },
+      "backup": {
+        "flash_no_export_categories": "Please select at least one category to export.",
+        "flash_export_error": "Error creating backup.",
+        "flash_export_error_detail": "Error creating backup: {error}",
+        "flash_no_file": "Please select a backup file.",
+        "flash_invalid_extension": "Invalid file extension. Please select a .prismateams file.",
+        "flash_no_import_categories": "Please select at least one category to import.",
+        "flash_import_success": "Backup successfully imported! Imported categories: {categories}",
+        "flash_import_error": "Error importing backup: {error}"
+      },
+      "whitelist": {
+        "flash_invalid_entry": "Please enter a valid entry and type.",
+        "flash_invalid_email": "Please enter a valid email address.",
+        "flash_entry_added": "Whitelist entry \"{entry}\" has been added.",
+        "flash_entry_add_error": "Error adding whitelist entry. It may already exist.",
+        "flash_entry_toggled": "Whitelist entry \"{entry}\" has been {status}.",
+        "flash_entry_toggle_error": "Error updating whitelist entry.",
+        "flash_entry_not_found": "Whitelist entry not found.",
+        "flash_entry_deleted": "Whitelist entry \"{entry}\" has been deleted.",
+        "flash_entry_delete_error": "Error deleting whitelist entry."
       }
     }
   },
@@ -705,6 +824,30 @@
           "select_members": "Please select at least one member."
         }
       }
+    },
+    "flash": {
+      "main_chat_not_found": "Main chat not found.",
+      "not_member": "You are not a member of this chat.",
+      "select_person": "Please select a person for the private chat.",
+      "no_self_chat": "You cannot create a private chat with yourself.",
+      "enter_name": "Please enter a name.",
+      "select_member": "Please select at least one member.",
+      "private_chat_exists": "A private chat with {name} already exists.",
+      "private_chat_created": "Private chat with {name} has been created.",
+      "group_chat_created": "Group chat \"{name}\" has been created.",
+      "main_chat_cannot_edit": "The main chat cannot be edited",
+      "private_chat_cannot_edit": "Private chats cannot be edited",
+      "updated": "Chat successfully updated",
+      "deleted": "Chat successfully deleted"
+    },
+    "errors": {
+      "main_chat_not_found": "Main chat not found",
+      "unauthorized": "Unauthorized",
+      "message_empty": "Message must not be empty",
+      "main_chat_cannot_edit": "The main chat cannot be edited",
+      "private_chat_cannot_edit": "Private chats cannot be edited",
+      "main_chat_cannot_delete": "The main chat cannot be deleted",
+      "not_member": "You are not a member of this chat"
     }
   },
   "files": {
@@ -869,10 +1012,16 @@
         "file_details_error": "Error loading file details",
         "settings_error": "Error loading settings",
         "file_too_large": "The file is too large. Maximum size: 100MB per file."
+      },
+      "errors": {
+        "file_type_not_supported": "File type not supported"
       }
     },
     "onlyoffice": {
       "back_button_label": "Back"
+    },
+    "errors": {
+      "file_type_not_supported": "File type not supported"
     }
   },
   "canvas": {
@@ -940,6 +1089,16 @@
       "comments": {
         "toggle": "Show/hide comments",
         "title": "Comments"
+      },
+      "color": {
+        "title": "Colors",
+        "toggle": "Colors",
+        "stroke": "Stroke color",
+        "fill": "Fill color",
+        "fill_none": "No fill",
+        "stroke_width": "Stroke width",
+        "text_color": "Text color",
+        "text_size": "Text size"
       }
     },
     "flash": {
@@ -1101,6 +1260,15 @@
         "added": "Added to favorites",
         "removed": "Removed from favorites",
         "missing": "Not in favorites"
+      },
+      "errors": {
+        "unauthorized": "Unauthorized",
+        "subscription_data_missing": "Subscription data missing",
+        "registration_error": "Registration error",
+        "vapid_key_format_error": "VAPID key format error",
+        "vapid_keys_load_error": "Error loading VAPID keys",
+        "test_notification_error": "Internal server error sending test notification",
+        "notification_not_found": "Notification not found"
       }
     },
     "flash": {
@@ -1165,6 +1333,15 @@
       "hours_other": "{count} hours ago",
       "days_one": "{count} day ago",
       "days_other": "{count} days ago"
+    },
+    "errors": {
+      "invalid_content_type": "Invalid content_type",
+      "comments_disabled_markdown": "Comments are disabled for Markdown files",
+      "comment_content_empty": "Comment content must not be empty",
+      "invalid_parent_comment": "Invalid parent comment",
+      "parent_comment_mismatch": "Parent comment does not belong to this object",
+      "no_permission": "No permission",
+      "comment_deleted": "Comment has been deleted"
     }
   },
   "calendar": {
@@ -1185,11 +1362,37 @@
         "feeds": "Manage public calendars"
       },
       "month_names": [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
       ],
-      "weekday_short": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      "weekday_long": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      "weekday_short": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ],
+      "weekday_long": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ],
       "list": {
         "details": "Details",
         "time_suffix": "",
@@ -1255,7 +1458,15 @@
             "yearly": "e.g. every 2 years"
           },
           "days_label": "Weekdays",
-          "weekday_names": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "weekday_names": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
           "end_label": "Repeat ends on (optional)",
           "end_help": "Leave empty for unlimited recurrence"
         }
@@ -1324,6 +1535,27 @@
         "submit": "Save changes",
         "cancel": "Cancel"
       }
+    },
+    "flash": {
+      "fill_all_fields": "Please fill in all required fields.",
+      "end_after_start": "The end date must be after the start date.",
+      "recurrence_end_after_start": "The recurrence end date must be after the start date.",
+      "invalid_recurrence_end": "Invalid recurrence end date.",
+      "invalid_datetime_format": "Invalid date/time format.",
+      "instance_edit_warning": "This is an instance of a recurring event. Edit the master event.",
+      "updated": "Event has been updated.",
+      "admin_only_delete": "Only administrators can delete events.",
+      "deleted": "Event has been deleted.",
+      "removed_from_event": "You have been removed from this event and can no longer participate.",
+      "admin_cannot_remove": "Administrators cannot be removed from events.",
+      "participant_removed": "Participant has been removed.",
+      "not_recurring": "This is not a recurring event.",
+      "recurring_deleted": "Recurring event and all instances have been deleted.",
+      "feed_created": "Public calendar has been created.",
+      "no_permission_delete_feed": "You do not have permission to delete this feed.",
+      "feed_deleted": "Feed has been deleted.",
+      "select_file": "Please select a file.",
+      "select_ics_file": "Please select a .ics file."
     }
   },
   "email": {
@@ -1412,6 +1644,9 @@
       "messages": {
         "server_error": "Server error {status}",
         "validation_error": "Please enter a message."
+      },
+      "original_email": {
+        "title": "Original email"
       }
     },
     "view": {
@@ -1423,7 +1658,8 @@
         "from": "From:",
         "to": "To:",
         "cc": "CC:",
-        "date": "Date:"
+        "date": "Date:",
+        "subject": "Subject:"
       },
       "attachments": {
         "title": "Attachments ({count})",
@@ -1456,6 +1692,17 @@
       "page_title_suffix": "ONLYOFFICE Editor",
       "back_button_label": "Team Portal",
       "back_button_title": "Back to the team portal"
+    },
+    "flash": {
+      "no_read_permission": "You do not have permission to read emails.",
+      "no_send_permission": "You do not have permission to send emails.",
+      "invalid_folder_name": "Invalid folder name.",
+      "attachment_not_found": "Attachment not found.",
+      "attachment_file_not_found": "Attachment file not found.",
+      "attachment_corrupted": "Attachment not found or corrupted.",
+      "sync_already_running": "⚠️ Synchronization is already running in another worker. Please wait a moment.",
+      "deleted": "Email has been successfully deleted.",
+      "target_folder_not_specified": "Target folder not specified."
     }
   },
   "credentials": {
@@ -1514,9 +1761,27 @@
         "card_title": "Edit credentials",
         "password_help": "Leave empty to keep the current password"
       }
+    },
+    "flash": {
+      "fill_all_fields": "Please fill in all required fields.",
+      "saved": "Credentials for \"{website_name}\" have been saved.",
+      "updated": "Credentials for \"{website_name}\" have been updated.",
+      "deleted": "Credentials for \"{website_name}\" have been deleted."
+    },
+    "errors": {
+      "decrypt_error": "Error decrypting password"
     }
   },
   "manuals": {
+    "flash": {
+      "upload_admin_only": "Only administrators can upload manuals.",
+      "no_file_selected": "No file selected.",
+      "only_pdf": "Only PDF files are allowed.",
+      "uploaded": "Manual \"{title}\" has been uploaded.",
+      "file_not_found": "The manual file could not be found.",
+      "delete_admin_only": "Only administrators can delete manuals.",
+      "deleted": "Manual \"{title}\" has been deleted."
+    },
     "index": {
       "page_title": "Manuals - Team Portal",
       "heading": "Manuals",
@@ -1900,7 +2165,60 @@
       "document_uploaded": "Document \"{filename}\" has been uploaded successfully.",
       "invalid_request": "Invalid request.",
       "document_deleted": "Document \"{filename}\" has been deleted successfully.",
-      "file_not_found": "The file could not be found."
+      "file_not_found": "The file could not be found.",
+      "fill_all_fields": "Please fill in all fields.",
+      "invalid_date": "Invalid date."
+    },
+    "errors": {
+      "no_borrow_permission": "You do not have permission to borrow items.",
+      "no_action_specified": "No action specified.",
+      "product_or_set_not_found": "Product or set not found.",
+      "inventory_not_active": "Inventory is not active.",
+      "product_not_in_inventory": "Product not found in this inventory.",
+      "qr_data_required": "QR code data required.",
+      "invalid_qr_code": "Invalid QR code.",
+      "product_not_found": "Product not found.",
+      "only_product_qr_supported": "Only product QR codes are supported.",
+      "guests_cannot_create": "Guest accounts cannot create products.",
+      "product_name_required": "The product name is required.",
+      "invalid_length_format": "Invalid length specification. Expected meter value (e.g. 5.5).",
+      "guests_cannot_update": "Guest accounts cannot update products.",
+      "no_data_submitted": "No data submitted.",
+      "guests_cannot_delete": "Guest accounts cannot delete products.",
+      "product_borrowed_cannot_delete": "Product cannot be deleted because it is currently borrowed.",
+      "invalid_product_ids_array": "Invalid product IDs. Expected array of IDs.",
+      "no_product_ids": "No product IDs submitted.",
+      "invalid_product_ids_numeric": "Invalid product IDs. All IDs must be numbers.",
+      "some_product_ids_not_found": "Some product IDs were not found.",
+      "validation_error": "Validation error",
+      "no_update_data": "No update data submitted.",
+      "update_error": "Error updating",
+      "delete_error": "Error deleting",
+      "folder_name_required": "The folder name is required.",
+      "folder_name_exists": "A folder with this name already exists.",
+      "product_id_return_date_required": "Product ID and expected return date are required.",
+      "product_not_available": "Product is not available.",
+      "invalid_date_format": "Invalid date format.",
+      "invalid_date_format_iso": "Invalid date format. Use YYYY-MM-DD.",
+      "user_not_found": "User not found.",
+      "no_active_borrow": "No active loan found.",
+      "no_valid_products": "No valid products found.",
+      "print_sheet_error": "Error generating print sheet.",
+      "search_term_required": "Search term required.",
+      "filter_name_required": "Filter name required.",
+      "filter_name_exists": "A filter with this name already exists.",
+      "no_permission": "No permission.",
+      "product_not_favorite": "Product is not a favorite.",
+      "invalid_or_expired_token": "Invalid or expired token.",
+      "transaction_id_required": "Transaction ID required.",
+      "already_returned": "Loan has already been returned.",
+      "borrow_transaction_not_found": "Borrow transaction not found.",
+      "product_set_not_found": "Product set not found.",
+      "category_name_required": "The category name is required.",
+      "category_name_exists": "A category with this name already exists.",
+      "invalid_category_name": "Invalid category name.",
+      "category_not_found": "Category not found.",
+      "new_category_name_required": "The new category name is required."
     }
   },
   "music": {
@@ -1922,7 +2240,8 @@
         "unknown_artist": "Unknown artist",
         "add_next": "Next",
         "add_last": "Last of wishlist",
-        "add_end": "End"
+        "add_end": "End",
+        "mark_played": "Zu bereits gespielt verschieben"
       },
       "queue": {
         "title": "Queue",
@@ -1940,12 +2259,15 @@
         "clear_queue": "Do you really want to clear the queue? This action cannot be undone.",
         "clear_wishlist": "Do you really want to clear the wishlist? This action cannot be undone.",
         "reset_all": "Do you really want to reset EVERYTHING?\n\nThis will delete:\n- The entire wishlist\n- The entire queue\n- All played songs\n\nThis action cannot be undone!",
-        "reset_all_confirm": "Are you really sure? All data will be permanently deleted!"
+        "reset_all_confirm": "Are you really sure? All data will be permanently deleted!",
+        "mark_as_played": "Do you want to mark this song as already played?",
+        "remove_from_queue": "Do you want to remove this song from the queue?"
       },
       "errors": {
         "generic": "Error: {error}",
         "unknown": "Unknown error"
-      }
+      },
+      "public_url_button": "Get Public URL"
     },
     "public_wishlist": {
       "page_title": "Music Wishlist",
@@ -1961,7 +2283,14 @@
       "add_button": "Add",
       "success_message": "Song successfully added to wishlist!",
       "error_message": "Search error: {error}",
-      "wish_count_increased": "Wish count increased ({count}x requested)"
+      "wish_count_increased": "Wish count increased ({count}x requested)",
+      "no_providers": "No music providers activated. Please activate at least one provider in the settings.",
+      "search_help_format": "Format",
+      "search_help_text": "With quotes: <code>\"Title\" \"Artist\"</code> or free: <code>Title Artist</code>",
+      "search_help_providers": "The search automatically searches all activated providers",
+      "recommendations": "Recommendations",
+      "recommendation_badge": "Recommendation",
+      "no_recommendations": "No recommendations available."
     },
     "admin": {
       "page_title": "Music Module Settings - Administration",
@@ -1981,7 +2310,9 @@
         "connected": "Spotify is connected to your account.",
         "disconnect": "Disconnect",
         "not_connected": "Spotify is not connected.",
-        "connect": "Connect"
+        "connect": "Connect",
+        "hint_title": "Note",
+        "hint": "Spotify uses simple OAuth authentication. Users can sign in with their Spotify account."
       },
       "youtube": {
         "title": "YouTube Music OAuth Configuration",
@@ -1995,10 +2326,34 @@
         "connected": "YouTube Music is connected to your account.",
         "disconnect": "Disconnect",
         "not_connected": "YouTube Music is not connected.",
-        "connect": "Connect"
+        "connect": "Connect",
+        "hint_title": "Note",
+        "hint": "YouTube can now be used with a simple API key. OAuth is optional.",
+        "api_key_label": "API Key (recommended)",
+        "api_key_placeholder": "YouTube API Key",
+        "api_key_help": "Get an API key in the <a href=\"{link}\" target=\"_blank\">Google Cloud Console</a>"
       },
       "save": "Save settings",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "provider_activation": {
+        "title": "Provider Activation and Order",
+        "description": "Activate the desired music providers and set the search order.",
+        "enabled_label": "Activated Providers",
+        "move_up": "Move up",
+        "move_down": "Move down"
+      },
+      "deezer": {
+        "title": "Deezer",
+        "hint_title": "Note",
+        "hint": "Deezer uses a public API. An App ID is optional but recommended for higher rate limits.",
+        "app_id_label": "App ID (optional)",
+        "app_id_placeholder": "Deezer App ID",
+        "app_id_help": "Get an App ID in the <a href=\"{link}\" target=\"_blank\">Deezer Developer Portal</a> (optional, but recommended for higher rate limits)"
+      },
+      "musicbrainz": {
+        "title": "MusicBrainz",
+        "description": "MusicBrainz benötigt keine Konfiguration. Es ist eine öffentliche API ohne Authentifizierung."
+      }
     },
     "flash": {
       "spotify_connected": "Spotify successfully connected!",
@@ -2006,7 +2361,16 @@
       "connect_error": "Error connecting: {error}",
       "oauth_error": "{provider} OAuth error: {error}",
       "no_auth_code": "No auth code received",
-      "invalid_provider": "Invalid provider"
+      "invalid_provider": "Invalid provider",
+      "missing_data": "Fehlende Daten",
+      "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)",
+      "wish_added": "Lied zur Wunschliste hinzugefügt",
+      "query_required": "Suchbegriff erforderlich",
+      "search_error": "Fehler bei der Suche: {error}",
+      "already_processed": "Lied ist bereits verarbeitet",
+      "already_in_queue": "Lied ist bereits in der Warteschlange",
+      "already_played": "Lied ist bereits als gespielt markiert",
+      "queue_id_required": "queue_id und position erforderlich"
     }
   },
   "booking": {
