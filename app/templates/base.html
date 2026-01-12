@@ -311,6 +311,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
+            <li class="nav-item sidebar-nav-item" data-nav-id="contacts" data-nav-priority="4.5">
+                <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-person-lines-fill me-2"></i>
+                    {{ _('layout.nav.contacts') }}
+                </a>
+            </li>
+            {% endif %}
             {% if is_module_enabled('module_credentials') and (not current_user.is_authenticated or has_module_access(current_user, 'module_credentials')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="credentials" data-nav-priority="5">
                 <a href="{{ url_for('credentials.index') }}" class="nav-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
@@ -427,6 +435,14 @@
                     <a href="{{ url_for('email.index') }}" class="nav-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-envelope me-2"></i>
                         {{ _('layout.nav.email') }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill me-2"></i>
+                        {{ _('layout.nav.contacts') }}
                     </a>
                 </li>
                 {% endif %}

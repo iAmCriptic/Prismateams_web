@@ -526,7 +526,19 @@ def setup_step1():
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     
-    return render_template('setup/step1.html', color_gradient=current_gradient)
+    # Verfügbare Sprachen und deren Namen
+    language_names = {
+        'de': 'Deutsch',
+        'en': 'English',
+        'pt': 'Português',
+        'es': 'Español',
+        'ru': 'Русский'
+    }
+    available_langs = list(available_languages())
+    languages = [(lang, language_names.get(lang, lang.upper())) for lang in available_langs]
+    current_language = session.get('setup_default_language', 'de')
+    
+    return render_template('setup/step1.html', color_gradient=current_gradient, languages=languages, current_language=current_language)
 
 
 @setup_bp.route('/setup/step2', methods=['GET', 'POST'])

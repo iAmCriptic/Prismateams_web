@@ -9,6 +9,7 @@
       "files": "Dateien",
       "calendar": "Kalender",
       "email": "E-Mails",
+      "contacts": "Kontakte",
       "credentials": "Zugangsdaten",
       "manuals": "Handbücher",
       "canvas": "Canvas",
@@ -86,6 +87,17 @@
       "warning_title": "Wichtig",
       "warning_message": "Ohne bestätigte E-Mail-Adresse stehen nur eingeschränkte Funktionen zur Verfügung."
     },
+    "change_password": {
+      "title": "Passwort ändern",
+      "subtitle": "Bitte ändern Sie Ihr Passwort.",
+      "required_title": "Erforderlich",
+      "required_message": "Sie müssen Ihr Passwort beim ersten Login ändern, um Ihr eigenes Passwort festzulegen.",
+      "current_password": "Aktuelles Passwort",
+      "new_password": "Neues Passwort",
+      "confirm_password": "Neues Passwort bestätigen",
+      "password_help": "Mindestens 8 Zeichen",
+      "submit": "Passwort ändern"
+    },
     "flash": {
       "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
       "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
@@ -106,6 +118,11 @@
       "invalid_confirmation_code": "Ungültiger oder abgelaufener Bestätigungscode.",
       "confirmation_email_resent": "Bestätigungs-E-Mail wurde erneut gesendet.",
       "confirmation_email_failed": "Bestätigungs-E-Mail konnte nicht gesendet werden. Der Code wurde in der Konsole ausgegeben.",
+      "must_change_password": "Sie müssen Ihr Passwort beim ersten Login ändern.",
+      "fill_all_fields_password": "Bitte füllen Sie alle Felder aus.",
+      "current_password_wrong": "Das aktuelle Passwort ist falsch.",
+      "password_must_differ": "Das neue Passwort muss sich vom aktuellen Passwort unterscheiden.",
+      "password_changed_success": "Passwort wurde erfolgreich geändert.",
       "admin_only": "Nur Administratoren haben Zugriff auf diese Seite.",
       "test_email_sent": "Test-E-Mail erfolgreich gesendet!",
       "test_email_success_message": "E-Mail wurde erfolgreich gesendet.",
@@ -1253,6 +1270,68 @@
       }
     }
   },
+  "contacts": {
+    "flash": {
+      "name_required": "Bitte geben Sie einen Namen ein.",
+      "email_required": "Bitte geben Sie eine E-Mail-Adresse ein.",
+      "invalid_email": "Ungültige E-Mail-Adresse.",
+      "duplicate_email": "Ein Kontakt mit dieser E-Mail-Adresse existiert bereits.",
+      "created": "Kontakt wurde erfolgreich erstellt.",
+      "updated": "Kontakt wurde erfolgreich aktualisiert.",
+      "deleted": "Kontakt wurde erfolgreich gelöscht.",
+      "create_error": "Fehler beim Erstellen des Kontakts.",
+      "update_error": "Fehler beim Aktualisieren des Kontakts.",
+      "delete_error": "Fehler beim Löschen des Kontakts."
+    },
+    "index": {
+      "page_title": "Kontakte - Team Portal",
+      "heading": "Kontakte",
+      "new_button": "Neuer Kontakt",
+      "labels": {
+        "phone": "Telefon",
+        "notes": "Notizen"
+      },
+      "actions": {
+        "edit": "Bearbeiten",
+        "delete_confirm": "Kontakt wirklich löschen?"
+      },
+      "empty_message": "Keine Kontakte vorhanden."
+    },
+    "form": {
+      "fields": {
+        "name": "Name",
+        "email": "E-Mail-Adresse",
+        "phone": "Telefonnummer",
+        "notes": "Notizen"
+      },
+      "placeholders": {
+        "name": "z.B. Max Mustermann",
+        "email": "max.mustermann@example.com",
+        "phone": "+49 123 456789",
+        "notes": "Zusätzliche Informationen..."
+      },
+      "buttons": {
+        "save": "Speichern",
+        "cancel": "Abbrechen"
+      },
+      "create": {
+        "page_title": "Neuer Kontakt - Team Portal",
+        "breadcrumb": {
+          "index": "Kontakte",
+          "current": "Neuer Kontakt"
+        },
+        "card_title": "Neuen Kontakt erstellen"
+      },
+      "edit": {
+        "page_title": "Kontakt bearbeiten - Team Portal",
+        "breadcrumb": {
+          "index": "Kontakte",
+          "current": "Bearbeiten"
+        },
+        "card_title": "Kontakt bearbeiten"
+      }
+    }
+  },
   "canvas": {
     "index": {
       "page_title": "Canvas - Team Portal",
@@ -2239,9 +2318,6 @@
         "mark_played": "Zu bereits gespielt verschieben"
       },
       "public_url_button": "Public URL Abrufen",
-      "played": {
-        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden"
-      },
       "queue": {
         "title": "Warteschlange",
         "clear": "Leeren",
@@ -2252,7 +2328,8 @@
       "played": {
         "title": "Bereits Gespielt",
         "empty": "Noch keine Lieder gespielt",
-        "played_at": "Gespielt:"
+        "played_at": "Gespielt:",
+        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden"
       },
       "confirmations": {
         "mark_as_played": "Möchten Sie dieses Lied als bereits gespielt markieren?",
@@ -2332,6 +2409,7 @@
         "client_secret_placeholder": "YouTube OAuth Client Secret",
         "redirect_uri": "Redirect URI:",
         "redirect_uri_help": "Fügen Sie diese URL in Ihrer Google Cloud Console als autorisierte Redirect URI hinzu.",
+        "client_id_help": "Erhalten Sie dies von {link}",
         "connected": "YouTube OAuth verbunden",
         "disconnect": "Trennen",
         "not_connected": "YouTube Music ist nicht verbunden.",
@@ -2569,6 +2647,21 @@
       "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
       "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
       "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
+    }
+  },
+  "setup": {
+    "flash": {
+      "select_backup_file": "Bitte wählen Sie eine Backup-Datei aus.",
+      "invalid_file_extension": "Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.",
+      "invalid_file_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.",
+      "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
+      "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
+      "password_too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+      "completed": "Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
+      "enter_portal_name": "Bitte geben Sie einen Portalsnamen ein.",
+      "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
+      "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
+      "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
     }
   }
 }

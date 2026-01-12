@@ -178,7 +178,7 @@ def product_new():
         condition = request.form.get('condition', '').strip()
         location = request.form.get('location', '').strip()
         length_input = request.form.get('length', '').strip()
-        normalized_length, _ = normalize_length_input(length_input) if length_input else (None, None)
+        normalized_length, _unused = normalize_length_input(length_input) if length_input else (None, None)
         if length_input and normalized_length is None:
             flash(_('inventory.flash.invalid_length'), 'danger')
             categories = get_inventory_categories()
@@ -309,7 +309,7 @@ def product_edit(product_id):
         
         length_input = request.form.get('length', '').strip()
         if length_input:
-            normalized_length, _ = normalize_length_input(length_input)
+            normalized_length, _unused = normalize_length_input(length_input)
             if normalized_length is None:
                 flash(translate('inventory.flash.invalid_length'), 'danger')
                 categories = get_inventory_categories()
@@ -1700,7 +1700,7 @@ def api_product_create():
     length_raw = data.get('length')
     normalized_length = None
     if length_raw not in (None, ''):
-        normalized_length, _ = normalize_length_input(str(length_raw))
+        normalized_length, _unused = normalize_length_input(str(length_raw))
         if normalized_length is None:
             return jsonify({'error': translate('inventory.errors.invalid_length_format')}), 400
     
@@ -1765,7 +1765,7 @@ def api_product_update(product_id):
         if length_raw in (None, ''):
             product.length = None
         else:
-            normalized_length, _ = normalize_length_input(str(length_raw))
+            normalized_length, _unused = normalize_length_input(str(length_raw))
             if normalized_length is None:
                 return jsonify({'error': translate('inventory.errors.invalid_length_format')}), 400
             product.length = normalized_length
@@ -1846,7 +1846,7 @@ def api_products_bulk_update():
         if length_raw in (None, ''):
             updates['length'] = None
         else:
-            normalized_length, _ = normalize_length_input(str(length_raw))
+            normalized_length, _unused = normalize_length_input(str(length_raw))
             if normalized_length is None:
                 errors.append('Ungültige Längenangabe. Erwartet Meterwert (z.B. 5.5).')
             else:

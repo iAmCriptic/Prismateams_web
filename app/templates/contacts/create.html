@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('contacts.form.create.page_title') }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('contacts.index') }}">{{ _('contacts.form.create.breadcrumb.index') }}</a></li>
+                <li class="breadcrumb-item active">{{ _('contacts.form.create.breadcrumb.current') }}</li>
+            </ol>
+        </nav>
+        
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ _('contacts.form.create.card_title') }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">{{ _('contacts.form.fields.name') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="{{ _('contacts.form.placeholders.name') }}" value="{{ name|default('') }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">{{ _('contacts.form.fields.email') }} <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="{{ _('contacts.form.placeholders.email') }}" value="{{ email|default('') }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">{{ _('contacts.form.fields.phone') }}</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" placeholder="{{ _('contacts.form.placeholders.phone') }}" value="{{ phone|default('') }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">{{ _('contacts.form.fields.notes') }}</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="{{ _('contacts.form.placeholders.notes') }}">{{ notes|default('') }}</textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-accent">{{ _('contacts.form.buttons.save') }}</button>
+                        <a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary">{{ _('contacts.form.buttons.cancel') }}</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

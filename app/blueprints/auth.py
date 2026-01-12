@@ -240,6 +240,11 @@ def login():
         # Log user in
         login_user(user, remember=remember)
         
+        # Prüfe ob Passwort geändert werden muss
+        if user.must_change_password:
+            flash(translate('auth.flash.must_change_password'), 'warning')
+            return redirect(url_for('auth.change_password'))
+        
         # Add user to main chat if not already a member and user has chat access
         from app.utils.access_control import has_module_access
         if has_module_access(user, 'module_chat'):
@@ -395,6 +400,53 @@ def test_email():
                              success=False, 
                              config=config_info,
                              error=str(e))
+
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change password (required for admin-created users on first login)."""
+    color_gradient = get_color_gradient()
+    
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validierung
+        if not current_password or not new_password or not confirm_password:
+            flash(translate('auth.flash.fill_all_fields_password'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe aktuelles Passwort
+        if not current_user.check_password(current_password):
+            flash(translate('auth.flash.current_password_wrong'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe ob neues Passwort gleich dem aktuellen ist
+        if current_user.check_password(new_password):
+            flash(translate('auth.flash.password_must_differ'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe Passwort-Bestätigung
+        if new_password != confirm_password:
+            flash(translate('auth.flash.passwords_dont_match'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe Passwort-Länge
+        if len(new_password) < 8:
+            flash(translate('auth.flash.password_too_short'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Passwort ändern
+        current_user.set_password(new_password)
+        current_user.must_change_password = False
+        db.session.commit()
+        
+        flash(translate('auth.flash.password_changed_success'), 'success')
+        return redirect(url_for('dashboard.index'))
+    
+    return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
 
 
 @auth_bp.route('/logout')

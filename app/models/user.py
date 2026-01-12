@@ -61,6 +61,9 @@ class User(UserMixin, db.Model):
     # Module Access Control
     has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module
     
+    # Password change requirement
+    must_change_password = db.Column(db.Boolean, default=False, nullable=False)  # Muss Passwort beim ersten Login ändern
+    
     # Dashboard Configuration
     dashboard_config = db.Column(db.Text, nullable=True)
     

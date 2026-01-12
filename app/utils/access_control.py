@@ -97,7 +97,7 @@ def get_accessible_modules(user):
     if user.is_super_admin or user.is_admin:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals',
+            'module_contacts', 'module_credentials', 'module_manuals',
             'module_inventory', 'module_wiki', 'module_booking'
         ]
         return [m for m in all_modules if is_module_enabled(m)]
@@ -115,7 +115,7 @@ def get_accessible_modules(user):
     if has_full_access and not is_guest:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals',
+            'module_contacts', 'module_credentials', 'module_manuals',
             'module_inventory', 'module_wiki', 'module_booking'
         ]
         return [m for m in all_modules if is_module_enabled(m)]
@@ -131,7 +131,7 @@ def get_accessible_modules(user):
     else:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals',
+            'module_contacts', 'module_credentials', 'module_manuals',
             'module_inventory', 'module_wiki', 'module_booking'
         ]
     
@@ -174,9 +174,50 @@ def has_guest_share_access(user, share_token, share_type):
     return access is not None
 
 
+def guest_has_file_access(user, file):
+    """
+    Prüft ob ein Gast-Account Zugriff auf eine Datei hat.
+    Berücksichtigt sowohl direkte Datei-Freigaben als auch Dateien in freigegebenen Ordnern.
+    
+    Args:
+        user: User-Objekt (muss Gast-Account sein)
+        file: File-Objekt
+        
+    Returns:
+        True wenn Zugriff vorhanden, False sonst
+    """
+    if not hasattr(user, 'is_guest') or not user.is_guest:
+        return False
+    
+    from app.models.file import Folder
+    
+    # Prüfe direkte Datei-Freigabe
+    if file.share_token and file.share_enabled:
+        if has_guest_share_access(user, file.share_token, 'file'):
+            return True
+    
+    # Prüfe ob Datei in einem freigegebenen Ordner ist
+    if file.folder_id:
+        folder = Folder.query.get(file.folder_id)
+        if folder and folder.share_token and folder.share_enabled:
+            if has_guest_share_access(user, folder.share_token, 'folder'):
+                return True
+        
+        # Prüfe rekursiv alle übergeordneten Ordner
+        current_folder = folder
+        while current_folder and current_folder.parent_id:
+            current_folder = Folder.query.get(current_folder.parent_id)
+            if current_folder and current_folder.share_token and current_folder.share_enabled:
+                if has_guest_share_access(user, current_folder.share_token, 'folder'):
+                    return True
+    
+    return False
+
+
 def get_guest_accessible_items(user):
     """
     Gibt alle für einen Gast-Account zugänglichen Dateien und Ordner zurück.
+    Inkludiert auch alle Dateien und Unterordner in freigegebenen Ordnern.
     
     Args:
         user: User-Objekt (muss Gast-Account sein)
@@ -195,16 +236,49 @@ def get_guest_accessible_items(user):
     
     files = []
     folders = []
+    processed_folder_ids = set()
+    
+    def get_all_subfolders(folder_id):
+        """Rekursiv alle Unterordner eines Ordners holen."""
+        subfolders = Folder.query.filter_by(parent_id=folder_id).all()
+        result = list(subfolders)
+        for subfolder in subfolders:
+            result.extend(get_all_subfolders(subfolder.id))
+        return result
+    
+    def get_all_files_in_folder(folder_id):
+        """Alle Dateien in einem Ordner und seinen Unterordnern holen."""
+        files_in_folder = File.query.filter_by(folder_id=folder_id, is_current=True).all()
+        result = list(files_in_folder)
+        subfolders = Folder.query.filter_by(parent_id=folder_id).all()
+        for subfolder in subfolders:
+            result.extend(get_all_files_in_folder(subfolder.id))
+        return result
     
     for access in guest_accesses:
         if access.share_type == 'file':
             file_item = File.query.filter_by(share_token=access.share_token, share_enabled=True).first()
-            if file_item:
+            if file_item and file_item not in files:
                 files.append(file_item)
         elif access.share_type == 'folder':
             folder_item = Folder.query.filter_by(share_token=access.share_token, share_enabled=True).first()
             if folder_item:
-                folders.append(folder_item)
+                if folder_item.id not in processed_folder_ids:
+                    folders.append(folder_item)
+                    processed_folder_ids.add(folder_item.id)
+                    
+                    # Füge alle Unterordner hinzu
+                    subfolders = get_all_subfolders(folder_item.id)
+                    for subfolder in subfolders:
+                        if subfolder.id not in processed_folder_ids:
+                            folders.append(subfolder)
+                            processed_folder_ids.add(subfolder.id)
+                    
+                    # Füge alle Dateien im Ordner und seinen Unterordnern hinzu
+                    files_in_folder = get_all_files_in_folder(folder_item.id)
+                    for file_in_folder in files_in_folder:
+                        if file_in_folder not in files:
+                            files.append(file_in_folder)
     
     return files, folders
 

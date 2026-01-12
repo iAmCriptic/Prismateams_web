@@ -3,6 +3,7 @@ from .chat import Chat, ChatMessage, ChatMember
 from .file import File, FileVersion, Folder
 from .calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
 from .email import EmailMessage, EmailPermission, EmailAttachment
+from .contact import Contact
 from .credential import Credential
 from .manual import Manual
 from .settings import SystemSettings
@@ -21,6 +22,7 @@ __all__ = [
     'File', 'FileVersion', 'Folder',
     'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed',
     'EmailMessage', 'EmailPermission', 'EmailAttachment',
+    'Contact',
     'Credential',
     'Manual',
     'SystemSettings',

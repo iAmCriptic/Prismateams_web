@@ -449,7 +449,8 @@ def create_user():
                 phone=phone,
                 is_active=True,
                 is_email_confirmed=True,  # Admin erstellt - E-Mail ist bestätigt
-                is_guest=False
+                is_guest=False,
+                must_change_password=True  # Benutzer muss Passwort beim ersten Login ändern
             )
             new_user.set_password(password)
             
@@ -907,6 +908,246 @@ def remove_admin(user_id):
     return redirect(url_for('settings.admin_users'))
 
 
+@settings_bp.route('/admin/users/<int:user_id>/edit_guest', methods=['GET', 'POST'])
+@login_required
+def edit_guest_user(user_id):
+    """Edit a guest account (admin only)."""
+    if not current_user.is_admin:
+        return redirect(url_for('settings.index'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Nur Gast-Accounts können bearbeitet werden
+    if not user.is_guest:
+        flash('Dieser Benutzer ist kein Gast-Account.', 'danger')
+        return redirect(url_for('settings.admin_users'))
+    
+    if request.method == 'POST':
+        # Aktualisiere Name
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        
+        if not first_name or not last_name:
+            flash('Bitte geben Sie Vor- und Nachname ein.', 'danger')
+            return redirect(url_for('settings.edit_guest_user', user_id=user_id))
+        
+        user.first_name = first_name
+        user.last_name = last_name
+        
+        # Aktualisiere Ablaufzeit
+        guest_expires_at_str = request.form.get('guest_expires_at', '').strip()
+        if guest_expires_at_str:
+            try:
+                user.guest_expires_at = datetime.fromisoformat(guest_expires_at_str.replace('T', ' '))
+            except:
+                flash('Ungültiges Datumsformat für Ablaufzeit.', 'danger')
+                return redirect(url_for('settings.edit_guest_user', user_id=user_id))
+        else:
+            user.guest_expires_at = None
+        
+        # Aktualisiere Module
+        from app.models.role import UserModuleRole
+        from app.utils.common import is_module_enabled
+        
+        # Erlaubte Module für Gäste
+        allowed_modules = [
+            'module_calendar',
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music'
+        ]
+        
+        # Entferne alle bestehenden Modul-Rollen (außer automatisch gesetzte)
+        existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()
+        for role in existing_roles:
+            # Behalte automatisch gesetzte Module (module_chat, module_files) nur wenn noch Zugriff vorhanden
+            if role.module_key in ['module_chat', 'module_files']:
+                # Prüfe ob noch Chat/File-Zugriff vorhanden
+                if role.module_key == 'module_chat':
+                    from app.models.chat import ChatMember
+                    has_chat = ChatMember.query.filter_by(user_id=user.id).first() is not None
+                    if not has_chat:
+                        db.session.delete(role)
+                elif role.module_key == 'module_files':
+                    from app.models.guest import GuestShareAccess
+                    has_file_access = GuestShareAccess.query.filter_by(user_id=user.id).first() is not None
+                    if not has_file_access:
+                        db.session.delete(role)
+            elif role.module_key in allowed_modules:
+                # Entferne erlaubte Module - werden neu gesetzt
+                db.session.delete(role)
+        
+        # Füge neue Module hinzu
+        selected_modules = request.form.getlist('allowed_modules')
+        for module_key in selected_modules:
+            if module_key in allowed_modules and is_module_enabled(module_key):
+                role = UserModuleRole(
+                    user_id=user.id,
+                    module_key=module_key,
+                    has_access=True
+                )
+                db.session.add(role)
+        
+        # Aktualisiere Chat-Zuweisungen
+        from app.models.chat import Chat, ChatMember
+        
+        # Entferne alle bestehenden Chat-Mitgliedschaften
+        ChatMember.query.filter_by(user_id=user.id).delete()
+        
+        # Füge neue Chat-Mitgliedschaften hinzu
+        chat_ids = request.form.getlist('chat_ids')
+        has_chat_access = False
+        for chat_id_str in chat_ids:
+            try:
+                chat_id = int(chat_id_str)
+                chat = Chat.query.get(chat_id)
+                if chat:
+                    member = ChatMember(
+                        chat_id=chat_id,
+                        user_id=user.id
+                    )
+                    db.session.add(member)
+                    has_chat_access = True
+            except (ValueError, TypeError):
+                pass
+        
+        # Aktualisiere Chat-Modul-Zugriff
+        if has_chat_access and is_module_enabled('module_chat'):
+            # Prüfe ob Chat-Modul-Rolle bereits existiert
+            chat_role = UserModuleRole.query.filter_by(
+                user_id=user.id,
+                module_key='module_chat'
+            ).first()
+            if not chat_role:
+                chat_role = UserModuleRole(
+                    user_id=user.id,
+                    module_key='module_chat',
+                    has_access=True
+                )
+                db.session.add(chat_role)
+        else:
+            # Entferne Chat-Modul-Rolle wenn keine Chats mehr zugewiesen
+            chat_role = UserModuleRole.query.filter_by(
+                user_id=user.id,
+                module_key='module_chat'
+            ).first()
+            if chat_role:
+                db.session.delete(chat_role)
+        
+        # Aktualisiere Freigabelink-Zuweisungen
+        from app.models.guest import GuestShareAccess
+        from app.models.file import File, Folder
+        
+        # Entferne alle bestehenden Freigabelink-Zuweisungen
+        GuestShareAccess.query.filter_by(user_id=user.id).delete()
+        
+        # Füge neue Freigabelink-Zuweisungen hinzu
+        share_tokens = request.form.getlist('share_tokens')
+        has_file_access = False
+        for share_token in share_tokens:
+            # Prüfe ob es ein File oder Folder ist
+            file_item = File.query.filter_by(share_token=share_token, share_enabled=True).first()
+            folder_item = Folder.query.filter_by(share_token=share_token, share_enabled=True).first()
+            
+            if file_item:
+                share_access = GuestShareAccess(
+                    user_id=user.id,
+                    share_token=share_token,
+                    share_type='file'
+                )
+                db.session.add(share_access)
+                has_file_access = True
+            elif folder_item:
+                share_access = GuestShareAccess(
+                    user_id=user.id,
+                    share_token=share_token,
+                    share_type='folder'
+                )
+                db.session.add(share_access)
+                has_file_access = True
+        
+        # Aktualisiere Dateien-Modul-Zugriff
+        if has_file_access and is_module_enabled('module_files'):
+            # Prüfe ob Dateien-Modul-Rolle bereits existiert
+            file_role = UserModuleRole.query.filter_by(
+                user_id=user.id,
+                module_key='module_files'
+            ).first()
+            if not file_role:
+                file_role = UserModuleRole(
+                    user_id=user.id,
+                    module_key='module_files',
+                    has_access=True
+                )
+                db.session.add(file_role)
+        else:
+            # Entferne Dateien-Modul-Rolle wenn keine Freigabelinks mehr zugewiesen
+            file_role = UserModuleRole.query.filter_by(
+                user_id=user.id,
+                module_key='module_files'
+            ).first()
+            if file_role:
+                db.session.delete(file_role)
+        
+        db.session.commit()
+        
+        flash(f'Gast-Account für {user.full_name} wurde erfolgreich aktualisiert.', 'success')
+        return redirect(url_for('settings.admin_users'))
+    
+    # GET: Zeige Bearbeitungsformular
+    # Hole aktuelle Module des Gastes
+    from app.models.role import UserModuleRole
+    current_modules = [role.module_key for role in UserModuleRole.query.filter_by(user_id=user.id).all()]
+    
+    # Hole aktuelle Chat-Mitgliedschaften
+    from app.models.chat import ChatMember
+    current_chat_ids = [member.chat_id for member in ChatMember.query.filter_by(user_id=user.id).all()]
+    
+    # Hole aktuelle Freigabelink-Zuweisungen
+    from app.models.guest import GuestShareAccess
+    current_share_tokens = [access.share_token for access in GuestShareAccess.query.filter_by(user_id=user.id).all()]
+    
+    # Hole alle verfügbaren Module
+    guest_modules = [
+        ('module_calendar', 'Kalender'),
+        ('module_manuals', 'Anleitungen'),
+        ('module_inventory', 'Lagerverwaltung'),
+        ('module_wiki', 'Wiki'),
+        ('module_music', 'Musik')
+    ]
+    
+    # Hole alle verfügbaren Freigabelinks
+    shared_files = File.query.filter_by(share_enabled=True).all()
+    shared_folders = Folder.query.filter_by(share_enabled=True).all()
+    
+    # Hole alle verfügbaren Chats
+    from app.models.chat import Chat
+    all_chats_list = Chat.query.order_by(Chat.created_at).all()
+    
+    # Erstelle Liste ohne Duplikate: Haupt-Chat zuerst (nur einer), dann andere
+    all_chats = []
+    main_chat_added = False
+    main_chat_ids = set()
+    
+    for chat in all_chats_list:
+        if chat.is_main_chat and not main_chat_added:
+            all_chats.append(chat)
+            main_chat_added = True
+            main_chat_ids.add(chat.id)
+        elif chat.is_main_chat:
+            main_chat_ids.add(chat.id)
+        elif not chat.is_main_chat:
+            all_chats.append(chat)
+    
+    return render_template('settings/admin_edit_guest.html',
+                         user=user,
+                         guest_modules=guest_modules,
+                         current_modules=current_modules,
+                         shared_files=shared_files,
+                         shared_folders=shared_folders,
+                         current_share_tokens=current_share_tokens,
+                         all_chats=all_chats,
+                         current_chat_ids=current_chat_ids)
+
+
 @settings_bp.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def delete_user(user_id):
@@ -932,6 +1173,16 @@ def delete_user(user_id):
         old_path = os.path.join(upload_dir, user.profile_picture)
         if os.path.exists(old_path):
             os.remove(old_path)
+    
+    # Delete guest share access entries before deleting user
+    # This prevents foreign key constraint errors
+    from app.models.guest import GuestShareAccess
+    GuestShareAccess.query.filter_by(user_id=user_id).delete()
+    
+    # Delete user module roles before deleting user
+    # This prevents foreign key constraint errors
+    from app.models.role import UserModuleRole
+    UserModuleRole.query.filter_by(user_id=user_id).delete()
     
     db.session.delete(user)
     db.session.commit()

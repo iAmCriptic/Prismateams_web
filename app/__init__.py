@@ -630,6 +630,7 @@ def create_app(config_name='default'):
     from app.blueprints.files import files_bp
     from app.blueprints.calendar import calendar_bp
     from app.blueprints.email import email_bp, start_email_sync
+    from app.blueprints.contacts import contacts_bp
     from app.blueprints.credentials import credentials_bp
     from app.blueprints.manuals import manuals_bp
     from app.blueprints.settings import settings_bp
@@ -649,6 +650,7 @@ def create_app(config_name='default'):
     app.register_blueprint(files_bp, url_prefix='/files')
     app.register_blueprint(calendar_bp, url_prefix='/calendar')
     app.register_blueprint(email_bp, url_prefix='/email')
+    app.register_blueprint(contacts_bp, url_prefix='/contacts')
     app.register_blueprint(credentials_bp, url_prefix='/credentials')
     app.register_blueprint(manuals_bp, url_prefix='/manuals')
     app.register_blueprint(settings_bp, url_prefix='/settings')

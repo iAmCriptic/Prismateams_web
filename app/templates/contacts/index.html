@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('contacts.index.page_title') }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h1><i class="bi bi-person-lines-fill"></i> {{ _('contacts.index.heading') }}</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('contacts.create') }}" class="btn btn-accent">
+            <i class="bi bi-plus-circle"></i> {{ _('contacts.index.new_button') }}
+        </a>
+    </div>
+</div>
+
+{% if contacts %}
+<div class="row g-3">
+    {% for contact in contacts %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="avatar-circle me-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px;">
+                        {{ contact.name[0].upper() }}
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="card-title mb-1">{{ contact.name }}</h5>
+                        <a href="mailto:{{ contact.email }}" class="small text-muted text-decoration-none">
+                            {{ contact.email }}
+                            <i class="bi bi-envelope"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                {% if contact.phone %}
+                <div class="mb-2">
+                    <small class="text-muted">{{ _('contacts.index.labels.phone') }}</small>
+                    <div>
+                        <a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if contact.notes %}
+                <div class="mb-3">
+                    <small class="text-muted">{{ _('contacts.index.labels.notes') }}</small>
+                    <p class="small mb-0">{{ contact.notes }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('contacts.edit', contact_id=contact.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-pencil"></i> {{ _('contacts.index.actions.edit') }}
+                    </a>
+                    <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    {{ _('contacts.index.empty_message') }}
+</div>
+{% endif %}
+{% endblock %}

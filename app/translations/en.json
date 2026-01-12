@@ -9,6 +9,7 @@
       "files": "Files",
       "calendar": "Calendar",
       "email": "Emails",
+      "contacts": "Contacts",
       "credentials": "Credentials",
       "manuals": "Manuals",
       "canvas": "Canvas",
@@ -86,6 +87,17 @@
       "warning_title": "Important",
       "warning_message": "Without a confirmed email address only limited features are available."
     },
+    "change_password": {
+      "title": "Change password",
+      "subtitle": "Please change your password.",
+      "required_title": "Required",
+      "required_message": "You must change your password on first login to set your own password.",
+      "current_password": "Current password",
+      "new_password": "New password",
+      "confirm_password": "Confirm new password",
+      "password_help": "At least 8 characters",
+      "submit": "Change password"
+    },
     "flash": {
       "fill_all_fields": "Please fill in all required fields.",
       "passwords_dont_match": "The passwords do not match.",
@@ -106,6 +118,11 @@
       "invalid_confirmation_code": "Invalid or expired confirmation code.",
       "confirmation_email_resent": "Confirmation email has been resent.",
       "confirmation_email_failed": "Confirmation email could not be sent. The code has been output to the console.",
+      "must_change_password": "You must change your password on first login.",
+      "fill_all_fields_password": "Please fill in all fields.",
+      "current_password_wrong": "The current password is incorrect.",
+      "password_must_differ": "The new password must differ from the current password.",
+      "password_changed_success": "Password has been successfully changed.",
       "admin_only": "Only administrators have access to this page.",
       "test_email_sent": "Test email successfully sent!",
       "test_email_success_message": "Email was successfully sent.",
@@ -661,7 +678,7 @@
         "save_button": "Save Changes",
         "back_button": "Back",
         "flash_updated": "System settings have been updated.",
-        "default_accent_color_label": "Standard-Akzentfarbe",
+        "default_accent_color_label": "Default accent color",
         "default_accent_color_help": "Default accent color for new users. Users can change this later in their settings.",
         "color_gradient_label": "Gradient for Login/Register",
         "color_gradient_help": "Choose a gradient for the login and registration pages.",
@@ -1772,6 +1789,68 @@
       "decrypt_error": "Error decrypting password"
     }
   },
+  "contacts": {
+    "flash": {
+      "name_required": "Please enter a name.",
+      "email_required": "Please enter an email address.",
+      "invalid_email": "Invalid email address.",
+      "duplicate_email": "A contact with this email address already exists.",
+      "created": "Contact created successfully.",
+      "updated": "Contact updated successfully.",
+      "deleted": "Contact deleted successfully.",
+      "create_error": "Error creating contact.",
+      "update_error": "Error updating contact.",
+      "delete_error": "Error deleting contact."
+    },
+    "index": {
+      "page_title": "Contacts - Team Portal",
+      "heading": "Contacts",
+      "new_button": "New Contact",
+      "labels": {
+        "phone": "Phone",
+        "notes": "Notes"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete_confirm": "Delete this contact?"
+      },
+      "empty_message": "No contacts available."
+    },
+    "form": {
+      "fields": {
+        "name": "Name",
+        "email": "Email Address",
+        "phone": "Phone Number",
+        "notes": "Notes"
+      },
+      "placeholders": {
+        "name": "e.g. John Doe",
+        "email": "john.doe@example.com",
+        "phone": "+1 234 567890",
+        "notes": "Additional information..."
+      },
+      "buttons": {
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "create": {
+        "page_title": "New Contact - Team Portal",
+        "breadcrumb": {
+          "index": "Contacts",
+          "current": "New Contact"
+        },
+        "card_title": "Create New Contact"
+      },
+      "edit": {
+        "page_title": "Edit Contact - Team Portal",
+        "breadcrumb": {
+          "index": "Contacts",
+          "current": "Edit"
+        },
+        "card_title": "Edit Contact"
+      }
+    }
+  },
   "manuals": {
     "flash": {
       "upload_admin_only": "Only administrators can upload manuals.",
@@ -2241,7 +2320,7 @@
         "add_next": "Next",
         "add_last": "Last of wishlist",
         "add_end": "End",
-        "mark_played": "Zu bereits gespielt verschieben"
+        "mark_played": "Move to already played"
       },
       "queue": {
         "title": "Queue",
@@ -2253,7 +2332,8 @@
       "played": {
         "title": "Played",
         "empty": "No songs played yet",
-        "played_at": "Played:"
+        "played_at": "Played:",
+        "loading_hint": "Click on the tab to load the list"
       },
       "confirmations": {
         "clear_queue": "Do you really want to clear the queue? This action cannot be undone.",
@@ -2352,7 +2432,7 @@
       },
       "musicbrainz": {
         "title": "MusicBrainz",
-        "description": "MusicBrainz benötigt keine Konfiguration. Es ist eine öffentliche API ohne Authentifizierung."
+        "description": "MusicBrainz requires no configuration. It is a public API without authentication."
       }
     },
     "flash": {
@@ -2362,15 +2442,15 @@
       "oauth_error": "{provider} OAuth error: {error}",
       "no_auth_code": "No auth code received",
       "invalid_provider": "Invalid provider",
-      "missing_data": "Fehlende Daten",
-      "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)",
-      "wish_added": "Lied zur Wunschliste hinzugefügt",
-      "query_required": "Suchbegriff erforderlich",
-      "search_error": "Fehler bei der Suche: {error}",
-      "already_processed": "Lied ist bereits verarbeitet",
-      "already_in_queue": "Lied ist bereits in der Warteschlange",
-      "already_played": "Lied ist bereits als gespielt markiert",
-      "queue_id_required": "queue_id und position erforderlich"
+      "missing_data": "Missing data",
+      "wish_count_increased": "Wish count increased ({count}x requested)",
+      "wish_added": "Song added to wishlist",
+      "query_required": "Search term required",
+      "search_error": "Search error: {error}",
+      "already_processed": "Song is already processed",
+      "already_in_queue": "Song is already in the queue",
+      "already_played": "Song is already marked as played",
+      "queue_id_required": "queue_id and position required"
     }
   },
   "booking": {
@@ -2547,6 +2627,21 @@
       "rejection_saved": "Rejection for {role_name} has been saved.",
       "mailbox_not_available": "Mailbox is not available for this booking.",
       "mailbox_not_created": "Mailbox has not been created yet."
+    }
+  },
+  "setup": {
+    "flash": {
+      "select_backup_file": "Please select a backup file.",
+      "invalid_file_extension": "Invalid file extension. Please select a .prismateams file.",
+      "invalid_file_type": "Invalid file type. Only PNG, JPG, JPEG, GIF and SVG files are allowed.",
+      "fill_all_fields": "Please fill in all required fields.",
+      "passwords_dont_match": "The passwords do not match.",
+      "password_too_short": "The password must be at least 8 characters long.",
+      "completed": "Setup successfully completed! Welcome to your team portal.",
+      "enter_portal_name": "Please enter a portal name.",
+      "completed_emoji": "🎉 Setup successfully completed! Welcome to your team portal.",
+      "add_users_info": "You can now add more users via the settings.",
+      "admin_account_created": "Your administrator account has been created and you are automatically logged in."
     }
   }
 }

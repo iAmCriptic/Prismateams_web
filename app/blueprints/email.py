@@ -2302,6 +2302,170 @@ def compose():
     return render_template('email/compose.html')
 
 
+@email_bp.route('/save_draft', methods=['POST'])
+@login_required
+@check_module_access('module_email')
+def save_draft():
+    """Speichere einen E-Mail-Entwurf."""
+    if not check_email_permission('send'):
+        return jsonify({'success': False, 'message': 'Nicht autorisiert'}), 403
+    
+    try:
+        # Unterstütze sowohl JSON als auch FormData
+        if request.is_json:
+            data = request.get_json()
+            to = (data.get('to') or '').strip()
+            cc = (data.get('cc') or '').strip()
+            subject = (data.get('subject') or '').strip()
+            body_html = (data.get('body') or '').strip()
+            in_reply_to = (data.get('in_reply_to') or '').strip()
+            references = (data.get('references') or '').strip()
+            has_attachments = False
+        else:
+            data = request.form
+            to = (data.get('to') or '').strip()
+            cc = (data.get('cc') or '').strip()
+            subject = (data.get('subject') or '').strip()
+            body_html = (data.get('body') or '').strip()
+            in_reply_to = (data.get('in_reply_to') or '').strip()
+            references = (data.get('references') or '').strip()
+            has_attachments = bool(request.files.getlist('attachments'))
+        
+        # Prüfe, ob HTML tatsächlich Text enthält (nicht nur leere Tags)
+        def has_real_text_in_html(html_content):
+            """Prüft, ob HTML tatsächlich Text enthält, nicht nur leere Tags."""
+            if not html_content or not html_content.strip():
+                return False
+            
+            # Entferne alle HTML-Tags und prüfe, ob noch Text übrig ist
+            import re
+            text_only = re.sub(r'<[^>]+>', '', html_content)
+            text_only = re.sub(r'&nbsp;', ' ', text_only)  # Ersetze &nbsp; durch Leerzeichen
+            text_only = re.sub(r'\s+', ' ', text_only)  # Normalisiere Whitespace
+            return text_only.strip() != ''
+        
+        # Prüfe, ob überhaupt ein Entwurf vorhanden ist
+        has_real_html_content = has_real_text_in_html(body_html)
+        has_content = bool(subject or has_real_html_content or has_attachments)
+        
+        if not has_content:
+            return jsonify({'success': False, 'message': 'Kein Entwurf zum Speichern'}), 400
+        
+        # Stelle sicher, dass der Drafts-Ordner existiert
+        drafts_folder = EmailFolder.query.filter_by(name='Drafts').first()
+        if not drafts_folder:
+            drafts_folder = EmailFolder(
+                name='Drafts',
+                display_name='Entwürfe',
+                folder_type='standard',
+                is_system=True
+            )
+            db.session.add(drafts_folder)
+            db.session.commit()
+        
+        # Erstelle oder aktualisiere Entwurf
+        from config import get_formatted_sender
+        sender = get_formatted_sender() or current_user.email
+        
+        # Prüfe, ob bereits ein Entwurf mit diesem Betreff existiert (optional: könnte auch nach ID suchen)
+        # Für jetzt erstellen wir immer einen neuen Entwurf
+        body_text = html_to_plain_text(body_html) if body_html else ''
+        
+        email_record = EmailMessage(
+            subject=subject or '(Kein Betreff)',
+            sender=sender,
+            recipients=to or '',
+            cc=cc,
+            body_text=body_text,
+            body_html=body_html,
+            folder='Drafts',
+            is_sent=False,
+            is_read=False,
+            sent_by_user_id=current_user.id,
+            received_at=datetime.utcnow(),
+            has_attachments=False
+        )
+        
+        # Speichere Anhänge, falls vorhanden (nur bei FormData)
+        if not request.is_json and 'attachments' in request.files:
+            attachments = request.files.getlist('attachments')
+            for attachment in attachments:
+                if attachment.filename:
+                    attachment.seek(0)
+                    content = attachment.read()
+                    attachment.seek(0)
+                    
+                    # Prüfe Dateigröße
+                    max_db_size = current_app.config.get('MAX_ATTACHMENT_DB_SIZE', 5 * 1024 * 1024)  # 5MB
+                    attachment_size = len(content)
+                    
+                    if attachment_size > max_db_size:
+                        # Speichere große Dateien auf der Festplatte
+                        import os
+                        attachments_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'email_attachments')
+                        os.makedirs(attachments_dir, exist_ok=True)
+                        
+                        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                        safe_filename = "".join(c for c in attachment.filename if c.isalnum() or c in '._- ')
+                        file_path = os.path.join(attachments_dir, f"{timestamp}_{safe_filename}")
+                        
+                        try:
+                            with open(file_path, 'wb') as f:
+                                f.write(content)
+                            
+                            email_attachment = EmailAttachment(
+                                email=email_record,
+                                filename=attachment.filename,
+                                content_type=attachment.content_type or 'application/octet-stream',
+                                size=attachment_size,
+                                content=None,
+                                file_path=file_path,
+                                is_large_file=True
+                            )
+                        except Exception as file_error:
+                            logging.error(f"Fehler beim Speichern großer Datei: {file_error}")
+                            # Fallback: versuche trotzdem in DB zu speichern
+                            email_attachment = EmailAttachment(
+                                email=email_record,
+                                filename=attachment.filename,
+                                content_type=attachment.content_type or 'application/octet-stream',
+                                size=attachment_size,
+                                content=content,
+                                file_path=None,
+                                is_large_file=False
+                            )
+                    else:
+                        email_attachment = EmailAttachment(
+                            email=email_record,
+                            filename=attachment.filename,
+                            content_type=attachment.content_type or 'application/octet-stream',
+                            size=attachment_size,
+                            content=content,
+                            file_path=None,
+                            is_large_file=False
+                        )
+                    
+                    db.session.add(email_attachment)
+                    email_record.has_attachments = True
+        
+        db.session.add(email_record)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Entwurf gespeichert',
+            'draft_id': email_record.id
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Fehler beim Speichern des Entwurfs: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Fehler beim Speichern des Entwurfs: {str(e)}'
+        }), 500
+
+
 @email_bp.route('/preview/custom', methods=['POST'])
 @login_required
 @check_module_access('module_email')
