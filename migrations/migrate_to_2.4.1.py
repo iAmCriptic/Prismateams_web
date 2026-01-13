@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Datenbank-Migration: Version 2.3.3
-Konsolidierte Migration für alle Versionen bis 2.3.3
+Datenbank-Migration: Version 2.4.1
+Konsolidierte Migration für alle Versionen bis 2.4.1
 
 Diese Migration fasst sämtliche bisherigen Einzelskripte zusammen:
-- migrate_to_2.3.0.py (Rollensystem, Musikmodul, preferred_layout, email_attachments, Excalidraw, etc.)
-- add_guest_accounts.py (Gast-Account-Felder und GuestShareAccess-Tabelle)
+- migrate_to_2.3.3.py (Rollensystem, Musikmodul, preferred_layout, email_attachments, Excalidraw, etc.)
+- add_must_change_password.py (must_change_password Spalte)
+- create_contacts_table.py (contacts Tabelle)
 
 WICHTIG: Die Felder und Tabellen sind in den SQLAlchemy-Modellen bereits
 definiert. Bei Neuinstallationen genügt weiterhin `db.create_all()`.
@@ -49,7 +50,7 @@ def index_exists(inspector, table_name, index_name):
 
 
 def migrate_role_system():
-    """Migration zum Rollensystem (aus migrate_to_2.2.1.py)."""
+    """Migration zum Rollensystem (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Rollensystem")
     print("=" * 60)
@@ -90,7 +91,7 @@ def migrate_role_system():
 
 
 def migrate_music_module():
-    """Migration für Musikmodul (aus migrate_to_2.2.1.py)."""
+    """Migration für Musikmodul (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Musikmodul")
     print("=" * 60)
@@ -123,7 +124,7 @@ def migrate_music_module():
 
 
 def migrate_music_wish_count():
-    """Migration: Fügt wish_count Spalte zu music_wishes hinzu (aus migrate_to_2.2.1.py)."""
+    """Migration: Fügt wish_count Spalte zu music_wishes hinzu (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Musikmodul - wish_count")
     print("=" * 60)
@@ -152,7 +153,7 @@ def migrate_music_wish_count():
 
 
 def migrate_music_indexes():
-    """Migration: Fügt Performance-Indizes zu Music-Tabellen hinzu (aus add_music_indexes.py)."""
+    """Migration: Fügt Performance-Indizes zu Music-Tabellen hinzu (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Music-Modul Performance-Indizes")
     print("=" * 60)
@@ -248,7 +249,7 @@ def migrate_music_indexes():
 
 
 def migrate_preferred_layout():
-    """Migration: Fügt preferred_layout Spalte zur users Tabelle hinzu (aus add_preferred_layout.py)."""
+    """Migration: Fügt preferred_layout Spalte zur users Tabelle hinzu (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: preferred_layout Spalte")
     print("=" * 60)
@@ -288,7 +289,7 @@ def migrate_preferred_layout():
 
 
 def migrate_email_attachments_filename():
-    """Migration: Erweitert filename-Feld in email_attachments (aus fix_email_attachments_filename.py)."""
+    """Migration: Erweitert filename-Feld in email_attachments (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: email_attachments filename-Feld Erweiterung")
     print("=" * 60)
@@ -332,7 +333,7 @@ def migrate_email_attachments_filename():
 
 
 def migrate_mark_sent_emails_as_read():
-    """Migration: Markiert alle E-Mails im Sent-Ordner als gelesen (aus mark_sent_emails_as_read.py)."""
+    """Migration: Markiert alle E-Mails im Sent-Ordner als gelesen (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Markiere E-Mails im Sent-Ordner als gelesen")
     print("=" * 60)
@@ -368,7 +369,7 @@ def migrate_mark_sent_emails_as_read():
 
 
 def migrate_booking_module():
-    """Migration für Buchungsmodul (aus migrate_to_2.2.1.py)."""
+    """Migration für Buchungsmodul (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Buchungsmodul")
     print("=" * 60)
@@ -406,7 +407,7 @@ def migrate_booking_module():
 
 
 def migrate_excalidraw():
-    """Migration für Excalidraw Integration (aus migrate_to_2.2.1.py)."""
+    """Migration für Excalidraw Integration (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Excalidraw Integration")
     print("=" * 60)
@@ -462,7 +463,7 @@ def migrate_excalidraw():
 
 
 def migrate_guest_account_fields():
-    """Fügt Gast-Account-Felder zum User-Modell hinzu (aus add_guest_accounts.py)."""
+    """Fügt Gast-Account-Felder zum User-Modell hinzu (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: Gast-Account-Felder zum User-Modell")
     print("=" * 60)
@@ -514,7 +515,7 @@ def migrate_guest_account_fields():
 
 
 def migrate_guest_share_access_table():
-    """Erstellt die GuestShareAccess-Tabelle (aus add_guest_accounts.py)."""
+    """Erstellt die GuestShareAccess-Tabelle (aus migrate_to_2.3.3.py)."""
     print("\n" + "=" * 60)
     print("Migration: GuestShareAccess Tabelle")
     print("=" * 60)
@@ -534,69 +535,158 @@ def migrate_guest_share_access_table():
     return True
 
 
+def migrate_must_change_password():
+    """Migration: Fügt must_change_password Spalte zur users Tabelle hinzu (aus add_must_change_password.py)."""
+    print("\n" + "=" * 60)
+    print("Migration: must_change_password Spalte")
+    print("=" * 60)
+    
+    inspector = inspect(db.engine)
+    
+    if 'users' not in inspector.get_table_names():
+        print("[WARNUNG] Tabelle 'users' existiert nicht")
+        return False
+    
+    if not column_exists('users', 'must_change_password'):
+        print("[INFO] Füge must_change_password Spalte zu users Tabelle hinzu...")
+        with db.engine.begin() as conn:
+            conn.execute(text("""
+                ALTER TABLE users 
+                ADD COLUMN must_change_password BOOLEAN DEFAULT FALSE NOT NULL
+            """))
+        print("[OK] Spalte must_change_password hinzugefügt")
+        
+        # Setze Standardwert für alle bestehenden Benutzer
+        print("[INFO] Setze must_change_password=FALSE für alle bestehenden Benutzer...")
+        with db.engine.begin() as conn:
+            result = conn.execute(text("""
+                UPDATE users 
+                SET must_change_password = FALSE 
+                WHERE must_change_password IS NULL
+            """))
+            updated_count = result.rowcount
+        print(f"[OK] {updated_count} Benutzer aktualisiert (must_change_password=FALSE)")
+    else:
+        print("[INFO] Spalte must_change_password existiert bereits")
+    
+    print("  ✓ must_change_password Migration abgeschlossen")
+    return True
+
+
+def migrate_contacts_table():
+    """Migration: Erstellt die contacts Tabelle (aus create_contacts_table.py)."""
+    print("\n" + "=" * 60)
+    print("Migration: Erstelle contacts Tabelle")
+    print("=" * 60)
+    
+    inspector = inspect(db.engine)
+    
+    # Prüfe ob Tabelle bereits existiert
+    if table_exists('contacts'):
+        print("✓ Tabelle 'contacts' existiert bereits. Migration übersprungen.")
+        return True
+    
+    # Erstelle Tabelle
+    print("Erstelle Tabelle 'contacts'...")
+    
+    with db.engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                phone VARCHAR(50),
+                notes TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER NOT NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        """))
+        
+        # Erstelle Indizes
+        print("Erstelle Indizes...")
+        conn.execute(text("CREATE INDEX idx_contacts_email ON contacts(email)"))
+        conn.execute(text("CREATE INDEX idx_contacts_name ON contacts(name)"))
+    print("✓ Migration erfolgreich abgeschlossen!")
+    
+    print("  ✓ contacts Tabelle Migration abgeschlossen")
+    return True
+
+
 def migrate():
     """Führt alle Migrationen aus."""
     print("=" * 60)
-    print("Datenbank-Migration: Version 2.3.3")
-    print("Konsolidierte Migration für alle Versionen bis 2.3.3")
+    print("Datenbank-Migration: Version 2.4.1")
+    print("Konsolidierte Migration für alle Versionen bis 2.4.1")
     print("=" * 60)
     
     app = create_app()
     with app.app_context():
         try:
-            print("\n[1/12] Führe Rollensystem-Migration aus...")
+            print("\n[1/14] Führe Rollensystem-Migration aus...")
             if not migrate_role_system():
                 print("❌ Rollensystem-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[2/12] Führe Musikmodul-Migration aus...")
+            print("\n[2/14] Führe Musikmodul-Migration aus...")
             if not migrate_music_module():
                 print("❌ Musikmodul-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[3/12] Führe Musikmodul wish_count-Migration aus...")
+            print("\n[3/14] Führe Musikmodul wish_count-Migration aus...")
             if not migrate_music_wish_count():
                 print("❌ Musikmodul wish_count-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[4/12] Führe Music-Modul Indizes-Migration aus...")
+            print("\n[4/14] Führe Music-Modul Indizes-Migration aus...")
             if not migrate_music_indexes():
                 print("❌ Music-Modul Indizes-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[5/12] Führe preferred_layout-Migration aus...")
+            print("\n[5/14] Führe preferred_layout-Migration aus...")
             if not migrate_preferred_layout():
                 print("❌ preferred_layout-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[6/12] Führe email_attachments filename-Migration aus...")
+            print("\n[6/14] Führe email_attachments filename-Migration aus...")
             if not migrate_email_attachments_filename():
                 print("❌ email_attachments filename-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[7/12] Führe Sent-E-Mails-Migration aus...")
+            print("\n[7/14] Führe Sent-E-Mails-Migration aus...")
             if not migrate_mark_sent_emails_as_read():
                 print("❌ Sent-E-Mails-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[8/12] Führe Buchungsmodul-Migration aus...")
+            print("\n[8/14] Führe Buchungsmodul-Migration aus...")
             if not migrate_booking_module():
                 print("❌ Buchungsmodul-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[9/12] Führe Excalidraw-Migration aus...")
+            print("\n[9/14] Führe Excalidraw-Migration aus...")
             if not migrate_excalidraw():
                 print("❌ Excalidraw-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[10/12] Führe Gast-Account-Felder-Migration aus...")
+            print("\n[10/14] Führe Gast-Account-Felder-Migration aus...")
             if not migrate_guest_account_fields():
                 print("❌ Gast-Account-Felder-Migration fehlgeschlagen!")
                 return False
             
-            print("\n[11/12] Führe GuestShareAccess-Tabelle-Migration aus...")
+            print("\n[11/14] Führe GuestShareAccess-Tabelle-Migration aus...")
             if not migrate_guest_share_access_table():
                 print("❌ GuestShareAccess-Tabelle-Migration fehlgeschlagen!")
+                return False
+            
+            print("\n[12/14] Führe must_change_password-Migration aus...")
+            if not migrate_must_change_password():
+                print("❌ must_change_password-Migration fehlgeschlagen!")
+                return False
+            
+            print("\n[13/14] Führe contacts Tabelle-Migration aus...")
+            if not migrate_contacts_table():
+                print("❌ contacts Tabelle-Migration fehlgeschlagen!")
                 return False
             
             print()
@@ -604,7 +694,7 @@ def migrate():
             print("✅ Alle Migrationen erfolgreich abgeschlossen!")
             print("=" * 60)
             print()
-            print("Die Datenbank wurde erfolgreich auf Version 2.3.3 aktualisiert.")
+            print("Die Datenbank wurde erfolgreich auf Version 2.4.1 aktualisiert.")
             return True
             
         except Exception as e:
