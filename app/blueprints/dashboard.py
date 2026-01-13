@@ -198,6 +198,26 @@ def index():
             logger.warning(f"Fehler beim Prüfen auf Updates: {e}")
             # Update-Info ist nicht kritisch, Dashboard kann ohne geladen werden
     
+    # Für Gast-Accounts: Prüfe Zugriff auf spezifische Ressourcen
+    guest_has_chat_access = False
+    guest_has_file_access = False
+    guest_accessible_modules = []  # Leere Liste für normale Benutzer
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import get_accessible_modules, get_guest_accessible_items
+        
+        # Hole alle Module, auf die der Gast Zugriff hat
+        guest_accessible_modules = get_accessible_modules(current_user)
+        
+        # Prüfe ob Gast Zugriff auf Chats hat (Mitglied in mindestens einem Chat)
+        if 'module_chat' in guest_accessible_modules:
+            user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
+            guest_has_chat_access = len(user_chats) > 0
+        
+        # Prüfe ob Gast Zugriff auf Dateien hat (mindestens ein Ordner oder eine Datei freigegeben)
+        if 'module_files' in guest_accessible_modules:
+            accessible_files, accessible_folders = get_guest_accessible_items(current_user)
+            guest_has_file_access = len(accessible_files) > 0 or len(accessible_folders) > 0
+    
     return render_template(
         'dashboard/index.html',
         upcoming_events=upcoming_events,
@@ -211,7 +231,10 @@ def index():
         total_pending_bookings=total_pending_bookings,
         dashboard_config=config,
         setup_completed=setup_completed,
-        update_info=update_info
+        update_info=update_info,
+        guest_has_chat_access=guest_has_chat_access,
+        guest_has_file_access=guest_has_file_access,
+        guest_accessible_modules=guest_accessible_modules
     )
 
 

@@ -29,6 +29,11 @@ def index():
 @login_required
 def profile():
     """Edit user profile."""
+    # Gast-Accounts können ihr Profil nicht bearbeiten
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.profile.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
     if request.method == 'POST':
         current_user.first_name = request.form.get('first_name', '').strip()
         current_user.last_name = request.form.get('last_name', '').strip()
@@ -104,6 +109,11 @@ def profile():
 @login_required
 def remove_profile_picture():
     """Remove user's profile picture."""
+    # Gast-Accounts können ihr Profil nicht bearbeiten
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.profile.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
     if current_user.profile_picture:
         try:
             project_root = os.path.dirname(current_app.root_path)
@@ -769,6 +779,7 @@ def create_user():
     ]
     
     # Hole alle verfügbaren Freigabelinks
+    from app.models.file import File, Folder
     shared_files = File.query.filter_by(share_enabled=True).all()
     shared_folders = Folder.query.filter_by(share_enabled=True).all()
     
@@ -1115,6 +1126,7 @@ def edit_guest_user(user_id):
     ]
     
     # Hole alle verfügbaren Freigabelinks
+    from app.models.file import File, Folder
     shared_files = File.query.filter_by(share_enabled=True).all()
     shared_folders = Folder.query.filter_by(share_enabled=True).all()
     

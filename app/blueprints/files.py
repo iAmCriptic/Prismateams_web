@@ -198,6 +198,17 @@ def rename_file(file_id):
         flash('Ungültiger Dateiname.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
+    # Prüfe ob bereits eine Datei mit diesem Namen im selben Ordner existiert
+    existing_file = File.query.filter_by(
+        name=new_name,
+        folder_id=file.folder_id,
+        is_current=True
+    ).first()
+    
+    if existing_file and existing_file.id != file.id:
+        flash(f'Eine Datei mit dem Namen "{new_name}" existiert bereits in diesem Ordner.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
     file.name = new_name
     db.session.commit()
     flash('Datei wurde umbenannt.', 'success')

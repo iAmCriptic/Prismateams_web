@@ -405,7 +405,8 @@
       "flash_picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF Dateien sind erlaubt.",
       "flash_picture_uploaded": "Profilbild wurde erfolgreich hochgeladen.",
       "flash_picture_removed": "Profilbild wurde entfernt.",
-      "flash_profile_updated": "Profil wurde aktualisiert."
+      "flash_profile_updated": "Profil wurde aktualisiert.",
+      "flash_guests_cannot_edit": "Gast-Accounts können ihr Profil nicht bearbeiten."
     },
     "notifications": {
       "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert."
@@ -1030,6 +1031,16 @@
           "edit_title": "Freigabe bearbeiten",
           "password_help": "Schützt die Freigabe mit einem Passwort.",
           "expires_help": "Nach diesem Datum ist die Freigabe nicht mehr verfügbar."
+        },
+        "rename_file": {
+          "title": "Datei umbenennen",
+          "name_label": "Neuer Dateiname",
+          "name_help": "Geben Sie den neuen Namen für die Datei ein (ohne Dateiendung)."
+        },
+        "rename_folder": {
+          "title": "Ordner umbenennen",
+          "name_label": "Neuer Ordnername",
+          "name_help": "Geben Sie den neuen Namen für den Ordner ein."
         }
       },
       "alerts": {

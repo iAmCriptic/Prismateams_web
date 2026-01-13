@@ -374,6 +374,7 @@
     let lastMessageId = {{ messages[-1].id if messages else 0 }};
     let isPolling = true;
     let currentMemberCount = {{ members|length }};
+    let isSendingMessage = false; // Flag to prevent duplicate message sending
     const CHAT_I18N = {{ chat_view_js|tojson }};
     const CHAT_TEXT = {
         you: "{{ _('chat.view.message.you') }}",
@@ -388,7 +389,14 @@
     function scrollToBottom() {
         const container = document.getElementById('messages-container');
         if (container) {
-            container.scrollTop = container.scrollHeight;
+            // Use requestAnimationFrame to ensure DOM is updated
+            requestAnimationFrame(() => {
+                container.scrollTop = container.scrollHeight;
+                // Double-check after a short delay to ensure it scrolled
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 50);
+            });
         }
     }
     
@@ -405,6 +413,11 @@
     document.getElementById('message-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // Prevent duplicate submissions
+        if (isSendingMessage) {
+            return;
+        }
+        
         const formData = new FormData(this);
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
@@ -412,6 +425,9 @@
         if (!messageInput.value.trim() && !formData.get('file').name) {
             return;
         }
+        
+        // Set flag to prevent duplicate submissions
+        isSendingMessage = true;
         
         // Disable send button
         sendButton.disabled = true;
@@ -442,7 +458,8 @@
             console.error('Error:', error);
             alert(CHAT_I18N.send_error_generic);
         } finally {
-            // Re-enable send button
+            // Re-enable send button and reset flag
+            isSendingMessage = false;
             sendButton.disabled = false;
             sendButton.innerHTML = '<i class="bi bi-send"></i>';
         }
@@ -785,7 +802,10 @@
     document.getElementById('message-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            document.getElementById('message-form').dispatchEvent(new Event('submit'));
+            // Only trigger submit if not already sending
+            if (!isSendingMessage) {
+                document.getElementById('message-form').dispatchEvent(new Event('submit'));
+            }
         }
     });
     
@@ -793,7 +813,10 @@
     document.getElementById('message-input-desktop').addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            document.getElementById('message-form-desktop').dispatchEvent(new Event('submit'));
+            // Only trigger submit if not already sending
+            if (!isSendingMessage) {
+                document.getElementById('message-form-desktop').dispatchEvent(new Event('submit'));
+            }
         }
     });
     
@@ -807,6 +830,11 @@
     document.getElementById('message-form-desktop').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // Prevent duplicate submissions
+        if (isSendingMessage) {
+            return;
+        }
+        
         const formData = new FormData(this);
         const messageInput = document.getElementById('message-input-desktop');
         const sendButton = document.getElementById('send-button-desktop');
@@ -814,6 +842,9 @@
         if (!messageInput.value.trim() && !formData.get('file').name) {
             return;
         }
+        
+        // Set flag to prevent duplicate submissions
+        isSendingMessage = true;
         
         // Disable send button
         sendButton.disabled = true;
@@ -844,7 +875,8 @@
             console.error('Error:', error);
             alert(CHAT_I18N.send_error_generic);
         } finally {
-            // Re-enable send button
+            // Re-enable send button and reset flag
+            isSendingMessage = false;
             sendButton.disabled = false;
             sendButton.innerHTML = '<i class="bi bi-send"></i>';
         }
@@ -952,6 +984,11 @@
     }
     
     async function sendVoiceMessage(audioBlob, mimeType) {
+        // Prevent duplicate submissions
+        if (isSendingMessage) {
+            return;
+        }
+        
         // Determine file extension based on MIME type
         let extension = 'webm';
         if (mimeType.includes('ogg')) {
@@ -965,6 +1002,9 @@
         const formData = new FormData();
         formData.append('file', audioBlob, `voice_message.${extension}`);
         formData.append('content', '');
+        
+        // Set flag to prevent duplicate submissions
+        isSendingMessage = true;
         
         try {
             const response = await fetch(`/chat/${chatId}/send`, {
@@ -987,6 +1027,9 @@
         } catch (error) {
             console.error('Error sending voice message:', error);
             alert(CHAT_I18N.voice_error);
+        } finally {
+            // Reset flag
+            isSendingMessage = false;
         }
     }
 </script>

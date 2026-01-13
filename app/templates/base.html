@@ -393,8 +393,10 @@
                     <strong>{{ current_user.full_name }}</strong>
                 </a>
                 <ul class="dropdown-menu text-small shadow">
+                    {% if not current_user.is_guest %}
                     <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
+                    {% endif %}
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('layout.nav.logout') }}</a></li>
                 </ul>
             </div>
@@ -501,12 +503,14 @@
                     </a>
                 </li>
                 <li><hr></li>
+                {% if not current_user.is_guest %}
                 <li>
                     <a href="{{ url_for('settings.profile') }}" class="nav-link">
                         <i class="bi bi-person me-2"></i>
                         {{ _('layout.nav.profile') }}
                     </a>
                 </li>
+                {% endif %}
                 <li>
                     <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
                         <i class="bi bi-box-arrow-right me-2"></i>

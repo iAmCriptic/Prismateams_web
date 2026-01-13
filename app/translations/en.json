@@ -405,7 +405,8 @@
       "flash_picture_uploaded": "Profile picture uploaded successfully.",
       "flash_profile_updated": "Profile updated.",
       "title": "Profile",
-      "flash_picture_removed": "Profile picture has been removed."
+      "flash_picture_removed": "Profile picture has been removed.",
+      "flash_guests_cannot_edit": "Guest accounts cannot edit their profile."
     },
     "notifications": {
       "page_title": "Notifications - Settings",
@@ -1012,6 +1013,16 @@
           "edit_title": "Edit share",
           "password_help": "Protects the share with a password.",
           "expires_help": "After this date the share is no longer available."
+        },
+        "rename_file": {
+          "title": "Rename file",
+          "name_label": "New file name",
+          "name_help": "Enter the new name for the file (without file extension)."
+        },
+        "rename_folder": {
+          "title": "Rename folder",
+          "name_label": "New folder name",
+          "name_help": "Enter the new name for the folder."
         }
       },
       "alerts": {
