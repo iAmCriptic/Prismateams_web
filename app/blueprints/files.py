@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session
 from flask_login import login_required, current_user
-from app.utils.i18n import get_current_language
+from app.utils.i18n import get_current_language, translate
 from app import db
 from app.models.file import File, FileVersion, Folder
 from app.models.user import User
@@ -58,6 +58,7 @@ def browse_folder(folder_id):
             subfolders = [f for f in accessible_folders if f.parent_id is None]
         
         # Zeige nur zugängliche Dateien im aktuellen Ordner
+        # (get_guest_accessible_items gibt bereits alle Dateien inkl. Unterordnern zurück)
         if folder_id:
             files = [f for f in accessible_files if f.folder_id == folder_id]
         else:
@@ -195,6 +196,17 @@ def rename_file(file_id):
     # Keine Pfadseparatoren erlauben
     if '/' in new_name or '\\' in new_name:
         flash('Ungültiger Dateiname.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    
+    # Prüfe ob bereits eine Datei mit diesem Namen im selben Ordner existiert
+    existing_file = File.query.filter_by(
+        name=new_name,
+        folder_id=file.folder_id,
+        is_current=True
+    ).first()
+    
+    if existing_file and existing_file.id != file.id:
+        flash(f'Eine Datei mit dem Namen "{new_name}" existiert bereits in diesem Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     file.name = new_name
@@ -446,10 +458,22 @@ def create_office_file():
 @check_module_access('module_files')
 def upload_file():
     """Upload a file or folder."""
-    # Gast-Accounts können keine Dateien hochladen
+    # Gast-Accounts können nur in freigegebenen Ordnern hochladen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash('Gast-Accounts können keine Dateien hochladen.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        folder_id = request.form.get('folder_id')
+        folder_id = int(folder_id) if folder_id else None
+        
+        # Prüfe ob Gast Zugriff auf diesen Ordner hat
+        if folder_id:
+            from app.utils.access_control import get_guest_accessible_items
+            accessible_files, accessible_folders = get_guest_accessible_items(current_user)
+            folder_with_access = next((f for f in accessible_folders if f.id == folder_id), None)
+            if not folder_with_access:
+                flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
+                return redirect(request.referrer or url_for('files.index'))
+        else:
+            flash('Gast-Accounts können nur in freigegebenen Ordnern Dateien hochladen.', 'danger')
+            return redirect(request.referrer or url_for('files.index'))
     
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
@@ -856,17 +880,12 @@ def download_version(version_id):
 @check_module_access('module_files')
 def edit_file(file_id):
     """Edit a text file online."""
-    # Gast-Accounts können keine Dateien bearbeiten
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash('Gast-Accounts können keine Dateien bearbeiten.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
-    
     file = File.query.get_or_404(file_id)
     
     # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        from app.utils.access_control import has_guest_share_access
-        if not has_guest_share_access(current_user, file.share_token or '', 'file'):
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
     
@@ -962,7 +981,7 @@ def preview_file(file_id):
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
     if file_ext not in viewable_extensions:
-        return jsonify({'error': 'Dateityp nicht unterstützt'}), 400
+        return jsonify({'error': translate('files.errors.file_type_not_supported')}), 400
     
     content = request.form.get('content', '')
     
@@ -986,6 +1005,13 @@ def preview_file(file_id):
 def view_file(file_id):
     """View a file in fullscreen mode (for markdown/text/PDF files)."""
     file = File.query.get_or_404(file_id)
+    
+    # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
+            flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+            return redirect(url_for('files.index'))
     
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
@@ -1906,6 +1932,13 @@ def edit_onlyoffice(file_id):
         return redirect(url_for('files.index'))
     
     file = File.query.get_or_404(file_id)
+    
+    # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
+            flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
+            return redirect(url_for('files.index'))
     
     # Check if file type is supported by ONLYOFFICE
     from app.utils.onlyoffice import is_onlyoffice_file_type, get_onlyoffice_document_type, get_onlyoffice_file_type, generate_onlyoffice_token

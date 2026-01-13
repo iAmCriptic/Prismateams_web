@@ -1,114 +1,145 @@
 # Team Portal - Installationsanleitung
 
-## Schnellstart (Entwicklung)
+## ✅ Empfohlene Installation: Automatische Installation (Ubuntu 24.04)
 
-### 1. Voraussetzungen prüfen
-```bash
-python --version  # Python 3.8+ erforderlich
-```
+**Diese Methode wird für Ubuntu Server empfohlen.** Das Installationsskript übernimmt alle Schritte automatisch und konfiguriert das System vollständig.
 
-### 2. Projekt einrichten
-```bash
-# Repository klonen
-git clone https://github.com/yourusername/teamportal.git
-cd teamportal
+⚠️⚠️ Zurzeit kann eine Nachträgliche eintarung der Vapid & Secret keys für Benarichtigungen, Passwörter und Music erfordlich sein. 
+   ```bash
+    # Encryption Keys (aus generate_encryption_keys.py kopieren)
+    CREDENTIAL_ENCRYPTION_KEY=your-credential-encryption-key-here
+    MUSIC_ENCRYPTION_KEY=your-music-encryption-key-here
 
-# Virtual Environment erstellen
-python -m venv venv
+    VAPID_PUBLIC_KEY=your-vapid-public-key-here
+    VAPID_PRIVATE_KEY=your-vapid-private-key-here
+   ```
 
-# Virtual Environment aktivieren
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
 
-# Dependencies installieren
-pip install -r requirements.txt
-```
+### Voraussetzungen
 
-### 3. Umgebungsvariablen konfigurieren
-```bash
-# Kopiere die Beispiel-Datei
-# Windows:
-copy env.example .env
-# Linux/Mac:
-cp env.example .env
+- Ubuntu 24.04.3 LTS (oder kompatibel)
+- Root-Zugriff (sudo)
+- Internet-Verbindung
+- Mindestens 4GB RAM empfohlen (für OnlyOffice und Excalidraw)
 
-# Generiere Verschlüsselungsschlüssel
-# Windows:
-python scripts/generate_encryption_keys.py
-# Linux/Mac:
-python3 scripts/generate_encryption_keys.py
+### Installation
 
-# Bearbeite .env und setze mindestens:
-# - SECRET_KEY (generiere einen sicheren Schlüssel, z.B. mit: openssl rand -hex 32)
-# - DATABASE_URI (für SQLite: sqlite:///teamportal.db)
-# - CREDENTIAL_ENCRYPTION_KEY (aus dem Script kopieren)
-# - MUSIC_ENCRYPTION_KEY (aus dem Script kopieren)
-```
+1. **Repository klonen oder Dateien kopieren**
+   ```bash
+   # Option 1: Repository klonen
+   git clone <repository-url>
+   cd Prismateams_web
+   
+   # Option 2: Dateien bereits vorhanden
+   cd /pfad/zum/projekt
+   ```
 
-### 4. Datenbank-Setup (Entwicklung)
+2. **Skript ausführbar machen**
+   ```bash
+   chmod +x scripts/install_ubuntu.sh
+   ```
 
-**Wichtig:** Die Datenbank wird **automatisch** beim ersten Start der Anwendung erstellt. Sie müssen **KEINE** Tabellen manuell anlegen!
+3. **Skript als root ausführen**
+   ```bash
+   sudo ./scripts/install_ubuntu.sh
+   ```
 
-#### Für SQLite (Standard):
-Die Datenbank wird automatisch erstellt. Keine weiteren Schritte erforderlich.
+### Was wird installiert?
 
-#### Für MySQL/MariaDB:
-Erstellen Sie nur die **leere Datenbank** (ohne Tabellen):
+Das Skript installiert und konfiguriert automatisch:
 
-```bash
-# Datenbank erstellen
-sudo mysql -u root -p
-```
+- ✅ System-Updates und Basis-Pakete
+- ✅ Python 3.12+ und pip
+- ✅ MySQL/MariaDB mit automatischer Datenbank- und Benutzererstellung
+- ✅ Nginx mit vollständiger Konfiguration
+- ✅ Gunicorn als WSGI-Server
+- ✅ Docker und Docker Compose (optional)
+- ✅ OnlyOffice Document Server (Docker, optional)
+- ✅ Excalidraw Client und Room Server (Docker, optional)
+- ✅ Python Virtual Environment
+- ✅ Automatische Generierung aller Keys:
+  - Flask SECRET_KEY
+  - VAPID Keys (für Push-Benachrichtigungen)
+  - Encryption Keys (für Credentials und Music-Modul)
+  - OnlyOffice Secret Key
+- ✅ Automatische .env-Konfiguration
+- ✅ Datenbank-Initialisierung (automatisch beim ersten Start)
+- ✅ Systemd Service für Gunicorn
+- ✅ Firewall-Konfiguration (UFW)
+- ✅ Optional: SSL mit Let's Encrypt
 
-In der MySQL-Konsole:
-```sql
-CREATE DATABASE teamportal CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
-```
+### Interaktive Abfragen
 
-**Datenbankbenutzer erstellen (optional, aber empfohlen):**
-```sql
-CREATE USER 'teamportal'@'localhost' IDENTIFIED BY 'IhrSicheresPasswort123!';
-GRANT ALL PRIVILEGES ON teamportal.* TO 'teamportal'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
+Das Skript fragt Sie nach:
 
-#### Automatische Tabellenerstellung
+1. **Installationspfad** (Standard: `/var/www/teamportal`)
+   - Wo soll die Anwendung installiert werden?
 
-Die Anwendung erstellt **alle Tabellen automatisch** beim ersten Start. Führen Sie einfach `app.py` einmal aus:
+2. **Domain oder IP-Adresse**
+   - Für Nginx-Konfiguration und optional SSL
 
-```bash
-# Anwendung starten
-python app.py
-```
+3. **SSL mit Let's Encrypt**
+   - Soll SSL automatisch eingerichtet werden?
+   - E-Mail-Adresse für Let's Encrypt
 
-**Warten Sie etwa 1 Minute**, damit die Datenbank vollständig initialisiert wird. Dann können Sie die Anwendung mit `Ctrl+C` stoppen.
+4. **MySQL Root-Passwort**
+   - Lassen Sie leer für automatische Generierung
+   - Oder geben Sie ein sicheres Passwort ein
 
-Die Datenbank ist jetzt vollständig eingerichtet und alle Tabellen wurden automatisch erstellt. Sie müssen keine SQL-Befehle manuell ausführen!
+5. **E-Mail-Konfiguration**
+   - SMTP-Server, Port, Benutzername, Passwort
+   - IMAP-Server, Port (falls benötigt)
 
-### 5. Anwendung starten
-```bash
-python app.py
-```
+### Automatisch generierte Werte
 
-Die Anwendung läuft nun auf `http://localhost:5000`
+Das Skript generiert automatisch:
 
-### 6. Ersten Admin erstellen
+- MySQL Root-Passwort (falls nicht angegeben)
+- Datenbank-Benutzer-Passwort
+- Flask SECRET_KEY
+- VAPID Keys
+- Encryption Keys
+- OnlyOffice Secret Key
 
-**Wichtig:** Der erste Admin wird **per Browser** eingerichtet, nicht über die Datenbank!
+**⚠️ WICHTIG:** Speichern Sie die am Ende ausgegebenen Passwörter und Keys sicher!
 
-1. Öffne `http://localhost:5000` im Browser
-2. Die Anwendung zeigt automatisch einen **Setup-Assistenten** an
-3. Folgen Sie den Anweisungen im Browser, um den ersten Admin-Benutzer zu erstellen
-4. Geben Sie die gewünschten Daten ein (E-Mail, Name, Passwort, etc.)
-5. Nach der Registrierung wird der erste Benutzer automatisch als Admin aktiviert
+### Nach der Installation
 
-**Hinweis:** Falls der Setup-Assistent nicht automatisch erscheint, können Sie direkt zur Registrierungsseite navigieren und sich dort registrieren. Der erste registrierte Benutzer wird automatisch als Admin eingerichtet.
+1. **E-Mail-Konfiguration prüfen**
+   - Das Skript hat bereits die E-Mail-Einstellungen in `$INSTALL_DIR/.env` konfiguriert
+   - Sie können diese bei Bedarf anpassen
 
-## Produktionsinstallation (Ubuntu Server)
+2. **Anwendung öffnen**
+   - Öffnen Sie `http://ihre-domain.de` (oder `https://` wenn SSL eingerichtet)
+   - Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten
+
+3. **Service-Status prüfen**
+   ```bash
+   systemctl status teamportal
+   systemctl status nginx
+   docker ps  # Falls Docker-Services installiert wurden
+   ```
+
+### Vorteile der automatischen Installation
+
+- ✅ **Vollautomatisch:** Alle Schritte werden automatisch ausgeführt
+- ✅ **Fehlerfrei:** Reduziert menschliche Fehler
+- ✅ **Schnell:** Installation in wenigen Minuten
+- ✅ **Konsistent:** Gleiche Konfiguration bei jeder Installation
+- ✅ **Sicher:** Automatische Generierung sicherer Passwörter und Keys
+
+### Troubleshooting
+
+Bei Problemen mit der automatischen Installation:
+
+- Prüfen Sie die Logs während der Installation
+- Überprüfen Sie die `.env`-Datei
+- Siehe auch den Abschnitt [Troubleshooting](#troubleshooting) weiter unten
+- Für manuelle Anpassungen siehe [Produktionsinstallation (Ubuntu Server)](#produktionsinstallation-ubuntu-server) (manuelle Methode)
+
+---
+
+## Produktionsinstallation (Ubuntu Server) - Manuelle Methode
 
 Diese Anleitung führt Sie Schritt für Schritt durch die vollständige Installation von Prismateams auf einem Ubuntu Server, inklusive optionaler Integrationen für Excalidraw und OnlyOffice.
 
@@ -285,6 +316,11 @@ DATABASE_URI=mysql+pymysql://teamportal:IhrSicheresPasswort123!@localhost/teampo
 CREDENTIAL_ENCRYPTION_KEY=your-credential-encryption-key-here
 MUSIC_ENCRYPTION_KEY=your-music-encryption-key-here
 
+# VAPID Keys (aus generate_vapid_keys.py kopieren)
+# Erforderlich für Push-Benachrichtigungen
+VAPID_PUBLIC_KEY=your-vapid-public-key-here
+VAPID_PRIVATE_KEY=your-vapid-private-key-here
+
 # ONLYOFFICE Configuration (OPTIONAL)
 # Setzen Sie ONLYOFFICE_ENABLED=False, wenn OnlyOffice NICHT installiert ist
 ONLYOFFICE_ENABLED=True
@@ -321,6 +357,8 @@ SESSION_COOKIE_SAMESITE=Lax
 - **SECRET_KEY:** Generieren Sie einen sicheren Schlüssel (z.B. mit `openssl rand -hex 32`)
 - **CREDENTIAL_ENCRYPTION_KEY:** Kopieren Sie den Key aus der Ausgabe von `generate_encryption_keys.py`
 - **MUSIC_ENCRYPTION_KEY:** Kopieren Sie den Key aus der Ausgabe von `generate_encryption_keys.py`
+- **VAPID_PUBLIC_KEY:** Kopieren Sie den Public Key aus der Ausgabe von `generate_vapid_keys.py`
+- **VAPID_PRIVATE_KEY:** Kopieren Sie den Private Key aus der Ausgabe von `generate_vapid_keys.py`
 - **ONLYOFFICE_ENABLED:** 
   - Setzen Sie auf `True`, wenn OnlyOffice installiert ist (Schritt 5)
   - Setzen Sie auf `False`, wenn OnlyOffice NICHT installiert ist
@@ -764,21 +802,7 @@ sudo ufw enable
 sudo ufw status
 ```
 
-### Schritt 14: Datenbank-Migrationen ausführen (falls erforderlich)
-
-**Wichtig:** Die Datenbank und alle Tabellen werden **automatisch** beim ersten Start der Anwendung (Schritt 10) angelegt. Sie müssen **KEINE** Tabellen manuell erstellen!
-
-Falls Sie von einer älteren Version aktualisieren, müssen Sie nach dem ersten Start die entsprechende Migrationsdatei ausführen:
-
-```bash
-cd /var/www/teamportal
-# Beispiel für Migration zu Version 2.2.0:
-sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.2.0.py"
-```
-
-**Hinweis:** Prüfen Sie die verfügbaren Migrationsdateien im `migrations/` Verzeichnis und führen Sie die entsprechende Migration für Ihre Zielversion aus (z.B. `migrate_to_2.2.0.py`).
-
-### Schritt 15: Ersten Admin erstellen
+### Schritt 14: Ersten Admin erstellen
 
 **Wichtig:** Der erste Admin wird **per Browser** eingerichtet, nicht über die Shell!
 
@@ -789,61 +813,6 @@ sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_
 5. Nach der Registrierung wird der erste Benutzer automatisch als Admin aktiviert
 
 **Hinweis:** Falls der Setup-Assistent nicht automatisch erscheint, können Sie direkt zur Registrierungsseite navigieren und sich dort registrieren. Der erste registrierte Benutzer wird automatisch als Admin eingerichtet.
-
-### Schritt 16: Datenbank-Initialisierung prüfen
-
-**Wichtig:** Die Datenbank wurde beim ersten Start in Schritt 10 automatisch erstellt. Prüfen Sie die Logs, um sicherzustellen, dass alles erfolgreich war:
-
-```bash
-# Prüfen Sie die Logs auf Erfolg
-sudo journalctl -u teamportal -n 100 | grep -i "database\|table\|create"
-
-# Oder prüfen Sie direkt in der Datenbank
-mysql -u teamportal -p teamportal -e "SHOW TABLES;"
-```
-
-Falls die Datenbank nicht automatisch erstellt wurde, können Sie die Anwendung manuell einmal starten:
-
-```bash
-cd /var/www/teamportal
-sudo -u www-data bash -c "source venv/bin/activate && python app.py"
-```
-
-**Warten Sie etwa 1 Minute**, damit die Datenbank vollständig initialisiert wird, dann stoppen Sie die Anwendung mit `Ctrl+C`. Die Datenbank ist jetzt vollständig eingerichtet.
-
-### Schritt 17: Verifizierung und Tests
-
-#### 16.1 Container-Status prüfen (falls Docker-Services installiert)
-
-```bash
-# OnlyOffice Container (falls installiert)
-sudo docker ps | grep onlyoffice
-
-# Excalidraw Container (falls installiert)
-sudo docker ps | grep excalidraw
-```
-
-#### 16.2 Services testen
-
-```bash
-# OnlyOffice testen (falls installiert)
-curl http://localhost:8080/welcome/
-
-# Excalidraw testen (falls installiert)
-curl http://localhost:8081/
-curl http://localhost:8082/
-
-# Hauptanwendung testen
-curl http://localhost:5000/
-```
-
-#### 16.3 In Browser testen
-
-1. Öffnen Sie `https://ihre-domain.de` (oder `http://ihre-domain.de` wenn kein SSL) im Browser
-2. Melden Sie sich mit dem erstellten Admin-Account an
-3. Testen Sie die optionalen Features:
-   - **OnlyOffice:** Laden Sie eine .docx-Datei hoch und öffnen Sie sie
-   - **Excalidraw:** Gehen Sie zu Canvas > Neuer Canvas und erstellen Sie einen Canvas
 
 ## Wartung
 
@@ -890,7 +859,7 @@ sudo docker restart excalidraw-room
 
 **Option 1: Force Update (empfohlen, überschreibt lokale Änderungen)**
 
-Diese Variante ist die **empfohlene Update-Methode**, da alle Daten in der Datenbank gespeichert sind und lokale Code-Änderungen überschrieben werden können. Lokale Änderungen werden komplett verworfen.
+Diese Variante ist die **empfohlene Update-Methode**, da nichts verloren gehen kann, außer man hat eigene Änderungen im system vorgenommen. dann am Besten mit git stash arbeiten. 
 
 ```bash
 cd /var/www/teamportal
@@ -911,45 +880,22 @@ sudo systemctl restart teamportal
 
 **Hinweis:** Wenn Sie den `master`-Branch statt `main` verwenden, ersetzen Sie `origin/main` durch `origin/master` im `git reset`-Befehl.
 
-**Option 2: Mit lokalen Änderungen (git stash)**
 
-Diese Variante behält lokale Änderungen und versucht sie nach dem Update wieder anzuwenden. Verwenden Sie diese Variante nur, wenn Sie lokale Code-Änderungen beibehalten möchten.
+### Datenbank-Migrationen ausführen
 
-```bash
-cd /var/www/teamportal
+**Wichtig:** Bei einer Neuinstallation werden die Datenbank und alle Tabellen **automatisch** beim ersten Start der Anwendung angelegt. Sie müssen **KEINE** Tabellen manuell erstellen!
 
-# Lokale Änderungen temporär speichern
-sudo -u www-data git stash
+**Migrationen sind nur erforderlich, wenn Sie von einer älteren Version aktualisieren.**
 
-# Updates pullen
-sudo -u www-data git pull
-
-# Gespeicherte Änderungen wieder anwenden (falls nötig)
-sudo -u www-data git stash pop
-
-# Dependencies aktualisieren
-sudo ./venv/bin/pip install -r requirements.txt
-
-# Anwendung neu starten
-sudo systemctl restart teamportal
-```
-
-**Option 3: Ohne lokale Änderungen (einfacher git pull)**
-
-Diese Variante funktioniert nur, wenn keine lokalen Änderungen vorhanden sind.
+Falls Sie von einer älteren Version aktualisieren, müssen Sie nach dem Update die entsprechende Migrationsdatei ausführen:
 
 ```bash
 cd /var/www/teamportal
-
-# Git Pull als www-data ausführen
-sudo -u www-data git pull
-
-# Dependencies aktualisieren
-sudo ./venv/bin/pip install -r requirements.txt
-
-# Anwendung neu starten
-sudo systemctl restart teamportal
+# Migration zu Version 2.3.3:
+sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.3.3.py"
 ```
+
+**Hinweis:** Prüfen Sie die verfügbaren Migrationsdateien im `migrations/` Verzeichnis und führen Sie die entsprechende Migration für Ihre Zielversion aus (z.B. `migrate_to_2.3.3.py`).
 
 ### Docker-Container aktualisieren (falls installiert)
 
@@ -1105,7 +1051,7 @@ sudo docker restart excalidraw-room
 - Prüfen Sie ob `EXCALIDRAW_ENABLED=True` in `.env` gesetzt ist
 - Prüfen Sie ob Excalidraw unter `/excalidraw` erreichbar ist
 - Starten Sie die Anwendung neu: `sudo systemctl restart teamportal`
-- Führen Sie die entsprechende Migrationsdatei aus (z.B. `migrate_to_2.2.0.py`): `sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.2.0.py"`
+- Führen Sie die entsprechende Migrationsdatei aus (z.B. `migrate_to_2.3.3.py`): `sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.3.3.py"`
 
 ### Redis-Probleme
 ```bash
@@ -1343,8 +1289,7 @@ sudo docker stats excalidraw excalidraw-room
 8. ✅ Nginx konfigurieren
 9. ✅ SSL mit Let's Encrypt (empfohlen)
 10. ✅ Firewall konfigurieren
-11. ✅ Datenbank-Initialisierung prüfen
-12. ✅ Ersten Admin erstellen
+11. ✅ Ersten Admin erstellen
 
 ### Optionale Schritte (nur bei Bedarf)
 - **Docker installieren:** Nur erforderlich für OnlyOffice oder Excalidraw

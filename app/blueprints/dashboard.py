@@ -9,6 +9,7 @@ from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
 from app import db
 from app.utils.common import is_module_enabled, check_for_updates
+from app.utils.i18n import translate
 from datetime import datetime, date
 from sqlalchemy import and_
 import logging
@@ -197,6 +198,26 @@ def index():
             logger.warning(f"Fehler beim Prüfen auf Updates: {e}")
             # Update-Info ist nicht kritisch, Dashboard kann ohne geladen werden
     
+    # Für Gast-Accounts: Prüfe Zugriff auf spezifische Ressourcen
+    guest_has_chat_access = False
+    guest_has_file_access = False
+    guest_accessible_modules = []  # Leere Liste für normale Benutzer
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        from app.utils.access_control import get_accessible_modules, get_guest_accessible_items
+        
+        # Hole alle Module, auf die der Gast Zugriff hat
+        guest_accessible_modules = get_accessible_modules(current_user)
+        
+        # Prüfe ob Gast Zugriff auf Chats hat (Mitglied in mindestens einem Chat)
+        if 'module_chat' in guest_accessible_modules:
+            user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
+            guest_has_chat_access = len(user_chats) > 0
+        
+        # Prüfe ob Gast Zugriff auf Dateien hat (mindestens ein Ordner oder eine Datei freigegeben)
+        if 'module_files' in guest_accessible_modules:
+            accessible_files, accessible_folders = get_guest_accessible_items(current_user)
+            guest_has_file_access = len(accessible_files) > 0 or len(accessible_folders) > 0
+    
     return render_template(
         'dashboard/index.html',
         upcoming_events=upcoming_events,
@@ -210,7 +231,10 @@ def index():
         total_pending_bookings=total_pending_bookings,
         dashboard_config=config,
         setup_completed=setup_completed,
-        update_info=update_info
+        update_info=update_info,
+        guest_has_chat_access=guest_has_chat_access,
+        guest_has_file_access=guest_has_file_access,
+        guest_accessible_modules=guest_accessible_modules
     )
 
 
@@ -220,7 +244,7 @@ def edit():
     """Dashboard-Bearbeitungsseite."""
     # Gast-Accounts können Dashboard nicht bearbeiten
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash('Gast-Accounts können das Dashboard nicht bearbeiten.', 'danger')
+        flash(translate('dashboard.flash.guests_cannot_edit'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     if request.method == 'POST':
@@ -260,7 +284,7 @@ def edit():
         config['quick_access_links'] = quick_access_links
         current_user.set_dashboard_config(config)
         
-        flash('Dashboard-Konfiguration erfolgreich gespeichert!', 'success')
+        flash(translate('dashboard.flash.saved'), 'success')
         return redirect(url_for('dashboard.index'))
     
     # GET: Zeige Bearbeitungsseite
@@ -274,7 +298,7 @@ def api_config():
     """API-Endpunkt für Dashboard-Konfiguration."""
     # Gast-Accounts können Dashboard nicht bearbeiten
     if hasattr(current_user, 'is_guest') and current_user.is_guest and request.method == 'POST':
-        return jsonify({'error': 'Gast-Accounts können das Dashboard nicht bearbeiten.'}), 403
+        return jsonify({'error': translate('dashboard.errors.guests_cannot_edit')}), 403
     
     if request.method == 'GET':
         config = current_user.get_dashboard_config()
@@ -283,7 +307,7 @@ def api_config():
     elif request.method == 'POST':
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'Keine Daten übermittelt.'}), 400
+            return jsonify({'error': translate('dashboard.errors.no_data_submitted')}), 400
         
         config = {
             'enabled_widgets': data.get('enabled_widgets', []),
@@ -298,22 +322,22 @@ def api_config():
 def api_update_banner():
     """API-Endpunkt für Update-Banner-Aktionen."""
     if not current_user.is_admin:
-        return jsonify({'error': 'Nur Administratoren haben Zugriff.'}), 403
+        return jsonify({'error': translate('dashboard.errors.admin_only')}), 403
     
     data = request.get_json()
     action = data.get('action')
     
     if action == 'dismiss':
         # Banner schließen (nur für diese Session)
-        return jsonify({'success': True, 'message': 'Banner geschlossen.'})
+        return jsonify({'success': True, 'message': translate('dashboard.messages.banner_dismissed')})
     
     elif action == 'disable':
         # Update-Benachrichtigungen deaktivieren
         current_user.show_update_notifications = False
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Update-Benachrichtigungen deaktiviert.'})
+        return jsonify({'success': True, 'message': translate('dashboard.messages.update_notifications_disabled')})
     
-    return jsonify({'error': 'Ungültige Aktion.'}), 400
+    return jsonify({'error': translate('dashboard.errors.invalid_action')}), 400
 
 
 # SSE-basierte Live-Updates (siehe app/blueprints/sse.py)

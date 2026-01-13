@@ -4,6 +4,7 @@ from app import db
 from app.models.comment import Comment, CommentMention
 from app.models.user import User
 from app.utils.notifications import send_push_notification
+from app.utils.i18n import translate
 from datetime import datetime
 
 comments_bp = Blueprint('comments', __name__, url_prefix='/api/comments')
@@ -97,7 +98,7 @@ def send_mention_notifications(comment, mentions):
 def get_comments(content_type, content_id):
     """Holt alle Kommentare für ein Objekt."""
     if content_type not in ['file', 'wiki']:
-        return jsonify({'error': 'Ungültiger content_type'}), 400
+        return jsonify({'error': translate('comments.errors.invalid_content_type')}), 400
     
     # Lade alle Kommentare (nur Top-Level, ohne Replies)
     comments = Comment.query.filter_by(
@@ -157,29 +158,29 @@ def get_replies(parent_id):
 def create_comment(content_type, content_id):
     """Erstellt einen neuen Kommentar."""
     if content_type not in ['file', 'wiki']:
-        return jsonify({'error': 'Ungültiger content_type'}), 400
+        return jsonify({'error': translate('comments.errors.invalid_content_type')}), 400
     
     # Prüfe ob Kommentare für .md Dateien deaktiviert sind
     if content_type == 'file':
         from app.models.file import File
         file = File.query.get(content_id)
         if file and file.name.endswith('.md'):
-            return jsonify({'error': 'Kommentare sind für Markdown-Dateien deaktiviert'}), 403
+            return jsonify({'error': translate('comments.errors.comments_disabled_markdown')}), 403
     
     data = request.get_json()
     content = data.get('content', '').strip()
     parent_id = data.get('parent_id', None)
     
     if not content:
-        return jsonify({'error': 'Kommentar-Inhalt darf nicht leer sein'}), 400
+        return jsonify({'error': translate('comments.errors.comment_content_empty')}), 400
     
     # Prüfe ob parent_id gültig ist (falls vorhanden)
     if parent_id:
         parent_comment = Comment.query.get(parent_id)
         if not parent_comment or parent_comment.is_deleted:
-            return jsonify({'error': 'Ungültiger parent-Kommentar'}), 400
+            return jsonify({'error': translate('comments.errors.invalid_parent_comment')}), 400
         if parent_comment.content_type != content_type or parent_comment.content_id != content_id:
-            return jsonify({'error': 'Parent-Kommentar gehört nicht zu diesem Objekt'}), 400
+            return jsonify({'error': translate('comments.errors.parent_comment_mismatch')}), 400
     
     # Erstelle Kommentar
     comment = Comment(
@@ -226,16 +227,16 @@ def update_comment(comment_id):
     
     # Prüfe Berechtigung
     if comment.author_id != current_user.id:
-        return jsonify({'error': 'Keine Berechtigung'}), 403
+        return jsonify({'error': translate('comments.errors.no_permission')}), 403
     
     if comment.is_deleted:
-        return jsonify({'error': 'Kommentar wurde gelöscht'}), 400
+        return jsonify({'error': translate('comments.errors.comment_deleted')}), 400
     
     data = request.get_json()
     content = data.get('content', '').strip()
     
     if not content:
-        return jsonify({'error': 'Kommentar-Inhalt darf nicht leer sein'}), 400
+        return jsonify({'error': translate('comments.errors.comment_content_empty')}), 400
     
     comment.content = content
     comment.updated_at = datetime.utcnow()
@@ -260,7 +261,7 @@ def delete_comment(comment_id):
     
     # Prüfe Berechtigung
     if comment.author_id != current_user.id:
-        return jsonify({'error': 'Keine Berechtigung'}), 403
+        return jsonify({'error': translate('comments.errors.no_permission')}), 403
     
     comment.soft_delete()
     

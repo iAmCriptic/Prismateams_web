@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.manual import Manual
 from app.utils.access_control import check_module_access
+from app.utils.i18n import translate
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
@@ -25,19 +26,19 @@ def index():
 def upload():
     """Upload a new manual (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren können Anleitungen hochladen.', 'danger')
+        flash(translate('manuals.flash.upload_admin_only'), 'danger')
         return redirect(url_for('manuals.index'))
     
     if request.method == 'POST':
         if 'file' not in request.files:
-            flash('Keine Datei ausgewählt.', 'danger')
+            flash(translate('manuals.flash.no_file_selected'), 'danger')
             return render_template('manuals/upload.html')
         
         file = request.files['file']
         title = request.form.get('title', '').strip()
         
         if file.filename == '':
-            flash('Keine Datei ausgewählt.', 'danger')
+            flash(translate('manuals.flash.no_file_selected'), 'danger')
             return render_template('manuals/upload.html')
         
         if not title:
@@ -45,7 +46,7 @@ def upload():
         
         # Check if file is PDF
         if not file.filename.lower().endswith('.pdf'):
-            flash('Nur PDF-Dateien sind erlaubt.', 'danger')
+            flash(translate('manuals.flash.only_pdf'), 'danger')
             return render_template('manuals/upload.html')
         
         filename = secure_filename(file.filename)
@@ -69,7 +70,7 @@ def upload():
         db.session.add(manual)
         db.session.commit()
         
-        flash(f'Anleitung "{title}" wurde hochgeladen.', 'success')
+        flash(translate('manuals.flash.uploaded', title=title), 'success')
         return redirect(url_for('manuals.index'))
     
     return render_template('manuals/upload.html')
@@ -97,7 +98,7 @@ def view(manual_id):
         file_path = os.path.abspath(uploads_path)
     
     if not os.path.exists(file_path):
-        flash('Die Anleitung-Datei konnte nicht gefunden werden.', 'danger')
+        flash(translate('manuals.flash.file_not_found'), 'danger')
         return redirect(url_for('manuals.index'))
     
     return send_file(file_path, mimetype='application/pdf')
@@ -125,7 +126,7 @@ def download(manual_id):
         file_path = os.path.abspath(uploads_path)
     
     if not os.path.exists(file_path):
-        flash('Die Anleitung-Datei konnte nicht gefunden werden.', 'danger')
+        flash(translate('manuals.flash.file_not_found'), 'danger')
         return redirect(url_for('manuals.index'))
     
     return send_file(file_path, as_attachment=True, download_name=f"{manual.title}.pdf")
@@ -137,7 +138,7 @@ def download(manual_id):
 def delete(manual_id):
     """Delete a manual (admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren können Anleitungen löschen.', 'danger')
+        flash(translate('manuals.flash.delete_admin_only'), 'danger')
         return redirect(url_for('manuals.index'))
     
     manual = Manual.query.get_or_404(manual_id)
@@ -163,7 +164,7 @@ def delete(manual_id):
     db.session.delete(manual)
     db.session.commit()
     
-    flash(f'Anleitung "{manual.title}" wurde gelöscht.', 'success')
+    flash(translate('manuals.flash.deleted', title=manual.title), 'success')
     return redirect(url_for('manuals.index'))
 
 

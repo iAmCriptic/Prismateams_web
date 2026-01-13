@@ -177,12 +177,9 @@
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form method="POST" action="{{ url_for('files.rename_folder', folder_id=folder.id) }}" class="d-inline" onsubmit="return confirm('{{ _('files.index.alerts.rename_folder') }}');">
-                                        <input type="hidden" name="new_name" value="{{ folder.name }}">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
-                                        </button>
-                                    </form>
+                                    <a class="dropdown-item" href="#" onclick="openRenameFolderModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}'); return false;">
+                                        <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
+                                    </a>
                                 </li>
                                 <li>
                                     <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
@@ -360,12 +357,9 @@
                                     <i class="bi bi-info-circle"></i> {{ _('files.index.file_actions.details') }}
                                 </a></li>
                                 <li>
-                                    <form method="POST" action="{{ url_for('files.rename_file', file_id=file.id) }}" class="d-inline" onsubmit="return confirm('{{ _('files.index.alerts.rename_file') }}');">
-                                        <input type="hidden" name="new_name" value="{{ file.name }}">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-pencil"></i> {{ _('files.index.file_actions.rename') }}
-                                        </button>
-                                    </form>
+                                    <a class="dropdown-item" href="#" onclick="openRenameFileModal({{ file.id }}, '{{ file.name|replace("'", "\\'") }}'); return false;">
+                                        <i class="bi bi-pencil"></i> {{ _('files.index.file_actions.rename') }}
+                                    </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
@@ -498,12 +492,9 @@
                     {% endif %}
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <form method="POST" action="{{ url_for('files.rename_folder', folder_id=folder.id) }}" class="d-inline" onsubmit="return confirm('{{ _('files.index.alerts.rename_folder') }}');">
-                            <input type="hidden" name="new_name" value="{{ folder.name }}">
-                            <button type="submit" class="dropdown-item">
-                                <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
-                            </button>
-                        </form>
+                        <a class="dropdown-item" href="#" onclick="openRenameFolderModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}'); return false;">
+                            <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
+                        </a>
                     </li>
                     <li>
                         <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
@@ -638,6 +629,11 @@
                     <li><a class="dropdown-item" href="#" onclick="openFileDetails({{ file.id }})">
                         <i class="bi bi-info-circle"></i> {{ _('files.index.file_actions.details') }}
                     </a></li>
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="openRenameFileModal({{ file.id }}, '{{ file.name|replace("'", "\\'") }}'); return false;">
+                            <i class="bi bi-pencil"></i> {{ _('files.index.file_actions.rename') }}
+                        </a>
+                    </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
@@ -805,6 +801,59 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Datei umbenennen Modal -->
+<div class="modal fade" id="renameFileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _('files.index.modals.rename_file.title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="renameFileForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newFileName" class="form-label">{{ _('files.index.modals.rename_file.name_label') }}</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="newFileName" name="new_name" required autofocus>
+                            <span class="input-group-text" id="fileExtension"></span>
+                        </div>
+                        <div class="form-text">{{ _('files.index.modals.rename_file.name_help') }}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent">{{ _('common.save') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Ordner umbenennen Modal -->
+<div class="modal fade" id="renameFolderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ _('files.index.modals.rename_folder.title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="renameFolderForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newFolderName" class="form-label">{{ _('files.index.modals.rename_folder.name_label') }}</label>
+                        <input type="text" class="form-control" id="newFolderName" name="new_name" required autofocus>
+                        <div class="form-text">{{ _('files.index.modals.rename_folder.name_help') }}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent">{{ _('common.save') }}</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1820,6 +1869,84 @@ function copyDropboxUrl() {
         btn.classList.remove('btn-success');
         btn.classList.add('btn-outline-secondary');
     }, 2000);
+}
+
+// ===== Datei umbenennen =====
+let renameFileSubmitHandler = null;
+
+function openRenameFileModal(fileId, currentName) {
+    const modal = new bootstrap.Modal(document.getElementById('renameFileModal'));
+    const form = document.getElementById('renameFileForm');
+    const input = document.getElementById('newFileName');
+    const extensionSpan = document.getElementById('fileExtension');
+    
+    // Setze Form-Action
+    form.action = `/files/file/${fileId}/rename`;
+    
+    // Entferne alten Event-Listener falls vorhanden
+    if (renameFileSubmitHandler) {
+        form.removeEventListener('submit', renameFileSubmitHandler);
+    }
+    
+    // Extrahiere Dateiname und Erweiterung
+    const lastDotIndex = currentName.lastIndexOf('.');
+    let fileNameWithoutExt = currentName;
+    let fileExtension = '';
+    
+    if (lastDotIndex > 0) {
+        fileNameWithoutExt = currentName.substring(0, lastDotIndex);
+        fileExtension = currentName.substring(lastDotIndex);
+    }
+    
+    // Setze nur den Namen ohne Erweiterung
+    input.value = fileNameWithoutExt;
+    input.name = 'new_name'; // Stelle sicher, dass das Input den richtigen Namen hat
+    
+    // Zeige Erweiterung im Input-Group-Text
+    if (fileExtension) {
+        extensionSpan.textContent = fileExtension;
+        extensionSpan.style.display = 'block';
+    } else {
+        extensionSpan.style.display = 'none';
+    }
+    
+    // Beim Absenden: Erweiterung wieder anhängen
+    renameFileSubmitHandler = function(e) {
+        const nameValue = input.value.trim();
+        if (nameValue) {
+            // Erweiterung wieder anhängen
+            input.value = nameValue + fileExtension;
+        }
+    };
+    
+    form.addEventListener('submit', renameFileSubmitHandler);
+    
+    // Fokus auf Input-Feld setzen und Text auswählen
+    modal.show();
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 300);
+}
+
+// ===== Ordner umbenennen =====
+function openRenameFolderModal(folderId, currentName) {
+    const modal = new bootstrap.Modal(document.getElementById('renameFolderModal'));
+    const form = document.getElementById('renameFolderForm');
+    const input = document.getElementById('newFolderName');
+    
+    // Setze Form-Action
+    form.action = `/files/folder/${folderId}/rename`;
+    
+    // Setze aktuellen Namen als Standardwert
+    input.value = currentName;
+    
+    // Fokus auf Input-Feld setzen und Text auswählen
+    modal.show();
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 300);
 }
 
 // ===== Umbenennen & Freigaben =====

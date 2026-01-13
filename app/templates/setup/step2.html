@@ -57,9 +57,96 @@
                         </button>
                     </div>
                     
+                    <!-- Standardrollen -->
+                    <div class="mb-4">
+                        <h6 class="mb-3">Standardrollen für neue Benutzer</h6>
+                        <p class="text-muted small mb-3">
+                            Legen Sie fest, welche Rollen neue Benutzer standardmäßig erhalten sollen. Diese Einstellungen werden bei der Registrierung angewendet.
+                        </p>
+                        
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access" onchange="toggleDefaultModuleRoles()">
+                                <label class="form-check-label" for="default_full_access">
+                                    <strong>Vollzugriff als Standard</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                Wenn aktiviert, erhalten neue Benutzer automatisch Vollzugriff auf alle Module.
+                            </small>
+                        </div>
+                        
+                        <div id="defaultModuleRolesSection">
+                            <p class="text-muted small mb-3">Wählen Sie die Module aus, auf die neue Benutzer standardmäßig Zugriff haben sollen:</p>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_chat" name="default_module_chat" checked>
+                                        <label class="form-check-label" for="default_module_chat">Chat</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_files" name="default_module_files" checked>
+                                        <label class="form-check-label" for="default_module_files">Dateien</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_calendar" name="default_module_calendar" checked>
+                                        <label class="form-check-label" for="default_module_calendar">Kalender</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_email" name="default_module_email" checked>
+                                        <label class="form-check-label" for="default_module_email">E-Mail</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_credentials" name="default_module_credentials" checked>
+                                        <label class="form-check-label" for="default_module_credentials">Zugangsdaten</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_manuals" name="default_module_manuals" checked>
+                                        <label class="form-check-label" for="default_module_manuals">Anleitungen</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_inventory" name="default_module_inventory" checked>
+                                        <label class="form-check-label" for="default_module_inventory">Lagerverwaltung</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_wiki" name="default_module_wiki" checked>
+                                        <label class="form-check-label" for="default_module_wiki">Wiki</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_booking" name="default_module_booking" checked>
+                                        <label class="form-check-label" for="default_module_booking">Buchungen</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input default-module-checkbox" type="checkbox" id="default_module_music" name="default_module_music" checked>
+                                        <label class="form-check-label" for="default_module_music">Musik</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="setup-info">
                         <i class="bi bi-info-circle icon"></i>
-                        <strong>Hinweis:</strong> Sie können später jederzeit weitere E-Mail-Adressen oder Domains zur Whitelist hinzufügen oder entfernen.
+                        <strong>Hinweis:</strong> Sie können später jederzeit weitere E-Mail-Adressen oder Domains zur Whitelist hinzufügen oder entfernen, sowie die Standardrollen in den Admin-Einstellungen ändern.
                     </div>
                     
                     <div class="d-flex justify-content-between">
@@ -123,6 +210,32 @@ document.addEventListener('click', function(e) {
             document.querySelectorAll('.remove-entry').forEach(btn => btn.style.display = 'none');
         }
     }
+});
+
+// Standardrollen-Toggle-Funktion
+function toggleDefaultModuleRoles() {
+    const fullAccess = document.getElementById('default_full_access');
+    const moduleSection = document.getElementById('defaultModuleRolesSection');
+    const moduleCheckboxes = document.querySelectorAll('.default-module-checkbox');
+    
+    if (fullAccess && moduleSection && moduleCheckboxes) {
+        if (fullAccess.checked) {
+            moduleSection.style.opacity = '0.5';
+            moduleCheckboxes.forEach(cb => {
+                cb.disabled = true;
+            });
+        } else {
+            moduleSection.style.opacity = '1';
+            moduleCheckboxes.forEach(cb => {
+                cb.disabled = false;
+            });
+        }
+    }
+}
+
+// Initial aufrufen beim Laden
+document.addEventListener('DOMContentLoaded', function() {
+    toggleDefaultModuleRoles();
 });
 </script>
 

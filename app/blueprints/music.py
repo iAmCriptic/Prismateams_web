@@ -10,6 +10,7 @@ from app.utils.music_oauth import (
 )
 from app.utils.music_api import search_music, get_track, search_music_multi_provider
 from app.utils.access_control import check_module_access
+from app.utils.i18n import translate
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, case
 from datetime import datetime
@@ -56,7 +57,7 @@ def public_wishlist():
         duration_ms = request.form.get('duration_ms', '').strip()
         
         if not all([provider, track_id, title]):
-            return jsonify({'error': 'Fehlende Daten'}), 400
+            return jsonify({'error': translate('music.flash.missing_data')}), 400
         
         # Prüfe ob Lied bereits existiert (beliebiger Status)
         existing = MusicWish.query.filter_by(
@@ -85,7 +86,7 @@ def public_wishlist():
                 }
             })
             
-            return jsonify({'success': True, 'message': f'Wunschzähler erhöht ({existing.wish_count}x gewünscht)'})
+            return jsonify({'success': True, 'message': translate('music.flash.wish_count_increased', count=existing.wish_count)})
         
         # Erstelle neuen Wunsch
         wish = MusicWish(
@@ -118,7 +119,7 @@ def public_wishlist():
             }
         })
         
-        return jsonify({'success': True, 'message': 'Lied zur Wunschliste hinzugefügt'})
+        return jsonify({'success': True, 'message': translate('music.flash.wish_added')})
     
     # GET: Zeige Suchseite
     # Hole Einstellungen für Template (mit Cache)
@@ -159,7 +160,7 @@ def public_search():
     include_recommendations = request.json.get('recommendations', True)  # Default: True
     
     if not query:
-        return jsonify({'error': 'Suchbegriff erforderlich'}), 400
+        return jsonify({'error': translate('music.flash.query_required')}), 400
     
     try:
         # Verwende Multi-Provider-Suche (automatisch über alle aktivierten Provider)
@@ -180,7 +181,7 @@ def public_search():
         })
     except Exception as e:
         logger.error(f"Fehler bei Multi-Provider-Suche: {e}", exc_info=True)
-        return jsonify({'error': f'Fehler bei der Suche: {str(e)}'}), 500
+        return jsonify({'error': translate('music.flash.search_error', error=str(e))}), 500
 
 
 # Admin-Routen (Login erforderlich)
@@ -230,12 +231,12 @@ def add_to_queue():
     wish = MusicWish.query.get_or_404(wish_id)
     
     if wish.status != 'pending':
-        return jsonify({'error': 'Lied ist bereits verarbeitet'}), 400
+        return jsonify({'error': translate('music.flash.already_processed')}), 400
     
     # Prüfe ob bereits in Queue
     existing_queue = MusicQueue.query.filter_by(wish_id=wish_id).first()
     if existing_queue:
-        return jsonify({'error': 'Lied ist bereits in der Warteschlange'}), 400
+        return jsonify({'error': translate('music.flash.already_in_queue')}), 400
     
     # Bestimme Position (optimiert mit func.max)
     if position == 'next':
@@ -318,7 +319,7 @@ def mark_wish_as_played():
     wish = MusicWish.query.get_or_404(wish_id)
     
     if wish.status == 'played':
-        return jsonify({'error': 'Lied ist bereits als gespielt markiert'}), 400
+        return jsonify({'error': translate('music.flash.already_played')}), 400
     
     # Setze Status auf 'played'
     wish.status = 'played'
@@ -396,7 +397,7 @@ def move_queue_item():
     new_position = request.json.get('position')
     
     if not queue_id or new_position is None:
-        return jsonify({'error': 'queue_id und position erforderlich'}), 400
+        return jsonify({'error': translate('music.flash.queue_id_required')}), 400
     
     queue_entry = MusicQueue.query.get_or_404(queue_id)
     old_position = queue_entry.position
@@ -632,7 +633,7 @@ def connect_spotify():
         auth_url = get_spotify_oauth_url()
         return redirect(auth_url)
     except Exception as e:
-        flash(f'Fehler beim Verbinden mit Spotify: {str(e)}', 'danger')
+        flash(translate('music.flash.connect_error', provider='Spotify', error=str(e)), 'danger')
         return redirect(url_for('music.index'))
 
 
@@ -645,7 +646,7 @@ def connect_youtube():
         auth_url = get_youtube_oauth_url()
         return redirect(auth_url)
     except Exception as e:
-        flash(f'Fehler beim Verbinden mit YouTube: {str(e)}', 'danger')
+        flash(translate('music.flash.connect_error', provider='YouTube', error=str(e)), 'danger')
         return redirect(url_for('music.index'))
 
 
@@ -658,18 +659,18 @@ def spotify_callback():
     error = request.args.get('error')
     
     if error:
-        flash(f'Spotify OAuth Fehler: {error}', 'danger')
+        flash(translate('music.flash.oauth_error', provider='Spotify', error=error), 'danger')
         return redirect(url_for('music.index'))
     
     if not code:
-        flash('Kein Auth-Code erhalten', 'danger')
+        flash(translate('music.flash.no_auth_code'), 'danger')
         return redirect(url_for('music.index'))
     
     try:
         handle_spotify_callback(code, state)
-        flash('Spotify erfolgreich verbunden!', 'success')
+        flash(translate('music.flash.spotify_connected'), 'success')
     except Exception as e:
-        flash(f'Fehler beim Verbinden: {str(e)}', 'danger')
+        flash(translate('music.flash.connect_error', provider='Spotify', error=str(e)), 'danger')
     
     return redirect(url_for('music.index'))
 
@@ -683,18 +684,18 @@ def youtube_callback():
     error = request.args.get('error')
     
     if error:
-        flash(f'YouTube OAuth Fehler: {error}', 'danger')
+        flash(translate('music.flash.oauth_error', provider='YouTube', error=error), 'danger')
         return redirect(url_for('music.index'))
     
     if not code:
-        flash('Kein Auth-Code erhalten', 'danger')
+        flash(translate('music.flash.no_auth_code'), 'danger')
         return redirect(url_for('music.index'))
     
     try:
         handle_youtube_callback(code, state)
-        flash('YouTube Music erfolgreich verbunden!', 'success')
+        flash(translate('music.flash.youtube_connected'), 'success')
     except Exception as e:
-        flash(f'Fehler beim Verbinden: {str(e)}', 'danger')
+        flash(translate('music.flash.connect_error', provider='YouTube', error=str(e)), 'danger')
     
     return redirect(url_for('music.index'))
 
@@ -705,7 +706,7 @@ def youtube_callback():
 def disconnect(provider):
     """Trennt die Verbindung zu einem Provider."""
     if provider not in ['spotify', 'youtube']:
-        return jsonify({'error': 'Ungültiger Provider'}), 400
+        return jsonify({'error': translate('music.flash.invalid_provider')}), 400
     
     try:
         disconnect_provider(current_user.id, provider)

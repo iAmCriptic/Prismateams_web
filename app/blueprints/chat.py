@@ -6,6 +6,7 @@ from app.models.user import User
 from app.utils.notifications import send_chat_notification
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update_multiple
+from app.utils.i18n import translate
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
@@ -129,7 +130,7 @@ def send_message(chat_id):
     ).first()
     
     if not membership:
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('chat.errors.unauthorized')}), 403
     
     content = request.form.get('content', '').strip()
     file = request.files.get('file')
@@ -163,7 +164,7 @@ def send_message(chat_id):
             message_type = 'voice'
     
     if not content and not media_url:
-        return jsonify({'error': 'Nachricht darf nicht leer sein'}), 400
+        return jsonify({'error': translate('chat.errors.message_empty')}), 400
     
     # Create message
     message = ChatMessage(
@@ -252,7 +253,7 @@ def create_chat():
             
             member_id = int(member_id)
             if member_id == current_user.id:
-                flash('Sie können keinen privaten Chat mit sich selbst erstellen.', 'warning')
+                flash(translate('chat.flash.no_self_chat'), 'warning')
                 return redirect(url_for('chat.create_chat'))
             
             # Prüfe ob bereits ein privater Chat mit dieser Person existiert
@@ -267,7 +268,7 @@ def create_chat():
             ).group_by(Chat.id).having(db.func.count(ChatMember.id) == 2).first()
             
             if existing_dm:
-                flash(f'Ein privater Chat mit {other_user.full_name} existiert bereits.', 'info')
+                flash(translate('chat.flash.private_chat_exists', name=other_user.full_name), 'info')
                 return redirect(url_for('chat.view_chat', chat_id=existing_dm.id))
             
             # Erstelle privaten Chat - Name wird nur der andere Benutzer sein
@@ -289,7 +290,7 @@ def create_chat():
             
             db.session.commit()
             
-            flash(f'Privater Chat mit {other_user.full_name} wurde erstellt.', 'success')
+            flash(translate('chat.flash.private_chat_created', name=other_user.full_name), 'success')
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
         
         else:
@@ -298,11 +299,11 @@ def create_chat():
             member_ids = request.form.getlist('members')
             
             if not name:
-                flash('Bitte geben Sie einen Namen ein.', 'danger')
+                flash(translate('chat.flash.enter_name'), 'danger')
                 return redirect(url_for('chat.create_chat'))
             
             if not member_ids:
-                flash('Bitte wählen Sie mindestens ein Mitglied aus.', 'danger')
+                flash(translate('chat.flash.select_member'), 'danger')
                 return redirect(url_for('chat.create_chat'))
             
             # Create new group chat
@@ -340,7 +341,7 @@ def create_chat():
             
             db.session.commit()
             
-            flash(f'Gruppen-Chat "{name}" wurde erstellt.', 'success')
+            flash(translate('chat.flash.group_chat_created', name=name), 'success')
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
     
     # Get all active users, excluding guest accounts
@@ -365,7 +366,7 @@ def direct_message(user_id):
     ).first_or_404()
     
     if user_id == current_user.id:
-        flash('Sie können keinen Chat mit sich selbst starten.', 'warning')
+        flash(translate('chat.flash.no_self_chat'), 'warning')
         return redirect(url_for('chat.index'))
     
     # Check if DM already exists
@@ -444,18 +445,18 @@ def update_chat(chat_id):
     ).first()
     
     if not membership:
-        return jsonify({'error': 'Nicht autorisiert'}), 403
+        return jsonify({'error': translate('chat.errors.unauthorized')}), 403
     
     # Only allow updating group chats (not main chat, not direct messages)
     if chat.is_main_chat:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Der Haupt-Chat kann nicht bearbeitet werden'}), 400
-        flash('Der Haupt-Chat kann nicht bearbeitet werden', 'danger')
+            return jsonify({'error': translate('chat.errors.main_chat_cannot_edit')}), 400
+        flash(translate('chat.flash.main_chat_cannot_edit'), 'danger')
         return redirect(url_for('chat.view_chat', chat_id=1))
     if chat.is_direct_message:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Private Chats können nicht bearbeitet werden'}), 400
-        flash('Private Chats können nicht bearbeitet werden', 'danger')
+            return jsonify({'error': translate('chat.errors.private_chat_cannot_edit')}), 400
+        flash(translate('chat.flash.private_chat_cannot_edit'), 'danger')
         return redirect(url_for('chat.view_chat', chat_id=chat_id))
     
     # Alle Mitglieder können den Chat bearbeiten (Mitgliedschaft wurde bereits geprüft)
@@ -535,7 +536,7 @@ def update_chat(chat_id):
             }
         })
     
-    flash('Chat erfolgreich aktualisiert', 'success')
+    flash(translate('chat.flash.updated'), 'success')
     # Always redirect to /chat/1 for main chat to keep URL consistent
     redirect_chat_id = 1 if chat.is_main_chat else chat_id
     return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
@@ -561,7 +562,7 @@ def delete_chat(chat_id):
     # Prevent deletion of main chat
     if chat.is_main_chat:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Der Haupt-Chat kann nicht gelöscht werden'}), 400
+            return jsonify({'error': translate('chat.errors.main_chat_cannot_delete')}), 400
         flash('Der Haupt-Chat kann nicht gelöscht werden', 'danger')
         return redirect(url_for('chat.view_chat', chat_id=1))
     
@@ -573,7 +574,7 @@ def delete_chat(chat_id):
     
     if not membership:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'error': 'Sie sind kein Mitglied dieses Chats'}), 403
+            return jsonify({'error': translate('chat.errors.not_member')}), 403
         flash('Sie sind kein Mitglied dieses Chats', 'danger')
         return redirect(url_for('chat.index'))
     
@@ -586,7 +587,7 @@ def delete_chat(chat_id):
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'success': True, 'message': 'Chat erfolgreich gelöscht'})
     
-    flash('Chat erfolgreich gelöscht', 'success')
+    flash(translate('chat.flash.deleted'), 'success')
     return redirect(url_for('chat.index'))
 
 
@@ -620,10 +621,10 @@ def chat_settings(chat_id):
     
     # Only allow editing group chats (not main chat, not direct messages)
     if chat.is_main_chat:
-        flash('Der Haupt-Chat kann nicht bearbeitet werden', 'danger')
+        flash(translate('chat.flash.main_chat_cannot_edit'), 'danger')
         return redirect(url_for('chat.view_chat', chat_id=1))
     if chat.is_direct_message:
-        flash('Private Chats können nicht bearbeitet werden', 'danger')
+        flash(translate('chat.flash.private_chat_cannot_edit'), 'danger')
         return redirect(url_for('chat.view_chat', chat_id=chat_id))
     
     # Alle Mitglieder können die Chat-Einstellungen bearbeiten (Mitgliedschaft wurde bereits geprüft)

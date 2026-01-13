@@ -3,8 +3,18 @@
 {% block title %}{{ _('email.compose.page_title') }}{% endblock %}
 
 {% block extra_css %}
+<!-- Contacts CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
 <!-- Quill Editor CSS -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+    /* Avatar-Kreise für Kontakte verwenden Akzentfarbe */
+    .chip-avatar,
+    .autocomplete-avatar {
+        background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+        color: white !important;
+    }
+</style>
 <style>
     /* Mobile Full-Screen Mode */
     @media (max-width: 767.98px) {
@@ -20,17 +30,22 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
         
         .email-composer-header {
             border-radius: 0;
             flex-shrink: 0;
+            position: relative;
+            z-index: 1;
         }
         
         .email-composer-toolbar {
             flex-shrink: 0;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            position: relative;
+            z-index: 1;
         }
         
         .email-composer-toolbar .ql-toolbar {
@@ -42,6 +57,7 @@
             flex: 1;
             overflow: hidden;
             display: flex;
+            min-height: 0;
         }
         
         .quill-editor-container {
@@ -49,6 +65,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
         }
         
         #editor {
@@ -61,6 +78,16 @@
         .email-composer-footer {
             flex-shrink: 0;
             border-radius: 0;
+            position: sticky;
+            bottom: 0;
+            background: var(--bs-secondary-bg);
+            z-index: 10;
+            padding: 1rem !important;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        [data-bs-theme="dark"] .email-composer-footer {
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
         }
         
         /* Ensure inputs don't zoom on focus (iOS) */
@@ -72,6 +99,24 @@
         /* Full-screen wrapper */
         .email-compose-wrapper {
             position: relative;
+        }
+        
+        /* Ensure buttons are always visible and accessible */
+        .email-composer-footer .d-flex {
+            gap: 0.75rem;
+        }
+        
+        .email-composer-footer button,
+        .email-composer-footer a {
+            min-height: 44px;
+            padding: 0.625rem 1.25rem;
+            font-size: 1rem;
+            flex: 1;
+        }
+        
+        #sendEmailButton {
+            flex: 1.5;
+            font-weight: 600;
         }
     }
     
@@ -290,14 +335,16 @@
                     
                     <div class="p-3 border-bottom">
                         <div class="mb-3">
-                            <label for="to" class="form-label fw-bold">{{ _('email.compose.form.to') }}</label>
-                            <input type="text" class="form-control" id="to" name="to" placeholder="{{ _('email.compose.form.to_placeholder') }}" value="{{ to|default('') }}" required>
+                            <label for="toChipContainer" class="form-label fw-bold">{{ _('email.compose.form.to') }}</label>
+                            <div id="toChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.to_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                            <input type="hidden" id="toHidden" name="to" value="{{ to|default('') }}" required>
                             <div class="form-text">{{ _('email.compose.form.to_help') }}</div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="cc" class="form-label fw-bold">{{ _('email.compose.form.cc') }}</label>
-                            <input type="text" class="form-control" id="cc" name="cc" placeholder="{{ _('email.compose.form.cc_placeholder') }}" value="{{ cc|default('') }}">
+                            <label for="ccChipContainer" class="form-label fw-bold">{{ _('email.compose.form.cc') }}</label>
+                            <div id="ccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.cc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                            <input type="hidden" id="ccHidden" name="cc" value="{{ cc|default('') }}">
                         </div>
                         
                         <div class="mb-3">
@@ -361,6 +408,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Contacts JS -->
+<script src="{{ url_for('static', filename='js/contacts.js') }}"></script>
 <!-- Quill Editor JS -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
@@ -421,17 +470,37 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Mobile: Focus management for keyboard
     if (isMobile) {
-        var toInput = document.getElementById('to');
-        var ccInput = document.getElementById('cc');
+        var toInput = document.querySelector('#toChipContainer .contact-chip-input');
+        var ccInput = document.querySelector('#ccChipContainer .contact-chip-input');
+        var footer = document.querySelector('.email-composer-footer');
+        var sendButton = document.getElementById('sendEmailButton');
+        
+        // Function to ensure footer is visible
+        function ensureFooterVisible() {
+            if (footer && sendButton) {
+                setTimeout(function() {
+                    // Scroll footer into view if needed
+                    var footerRect = footer.getBoundingClientRect();
+                    var viewportHeight = window.innerHeight;
+                    
+                    // If footer is below viewport, scroll it into view
+                    if (footerRect.bottom > viewportHeight) {
+                        sendButton.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                }, 500); // Delay to account for keyboard animation
+            }
+        }
         
         // Auto-focus first empty field
-        if (toInput && !toInput.value) {
+        if (toInput) {
             setTimeout(function() {
                 toInput.focus();
+                ensureFooterVisible();
             }, 300);
         } else if (subjectInput && !subjectInput.value) {
             setTimeout(function() {
                 subjectInput.focus();
+                ensureFooterVisible();
             }, 300);
         }
         
@@ -442,10 +511,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Scroll to input on mobile
                     setTimeout(function() {
                         input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Also ensure footer is visible after keyboard opens
+                        ensureFooterVisible();
                     }, 300);
+                });
+                
+                input.addEventListener('blur', function() {
+                    // Ensure footer is visible when keyboard closes
+                    setTimeout(ensureFooterVisible, 300);
                 });
             }
         });
+        
+        // Ensure footer is visible when editor is focused
+        var editorElement = document.querySelector('#editor .ql-editor');
+        if (editorElement) {
+            editorElement.addEventListener('focus', function() {
+                ensureFooterVisible();
+            });
+        }
+        
+        // Also check on window resize (keyboard open/close)
+        var resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(ensureFooterVisible, 300);
+        });
+        
+        // Initial check
+        ensureFooterVisible();
     }
     
     function setPreviewPlaceholder() {
@@ -695,6 +789,163 @@ document.addEventListener('DOMContentLoaded', function() {
     if (subjectInput) {
         subjectInput.addEventListener('input', schedulePreview);
     }
+    
+    // Entwurf-Speicherung beim Verlassen der Seite
+    var hasUnsavedDraft = false;
+    var isSubmittingForm = false;
+    var draftSaveUrl = "{{ url_for('email.save_draft') }}";
+    
+    // Prüfe, ob HTML tatsächlich Text enthält (nicht nur leere Tags)
+    function hasRealTextContent(htmlContent) {
+        if (!htmlContent || htmlContent.trim().length === 0) {
+            return false;
+        }
+        
+        // Erstelle temporäres Element, um Text zu extrahieren
+        var tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        var textContent = tempDiv.textContent || tempDiv.innerText || '';
+        
+        // Entferne alle Whitespace-Zeichen und prüfe, ob noch Text übrig ist
+        return textContent.trim().length > 0;
+    }
+    
+    // Prüfe, ob ein Entwurf vorhanden ist
+    function hasDraftContent() {
+        var subject = subjectInput ? subjectInput.value.trim() : '';
+        var to = document.getElementById('to') ? document.getElementById('to').value.trim() : '';
+        var textContent = quill.getText().trim();
+        var htmlContent = quill.root.innerHTML.trim();
+        var attachments = document.getElementById('attachments');
+        var hasAttachments = attachments && attachments.files && attachments.files.length > 0;
+        
+        // Prüfe, ob HTML tatsächlich Text enthält
+        var hasRealHtmlContent = hasRealTextContent(htmlContent);
+        
+        // Entwurf vorhanden, wenn Betreff, echter Text oder Anhänge vorhanden sind
+        return subject.length > 0 || textContent.length > 0 || hasRealHtmlContent || hasAttachments;
+    }
+    
+    // Speichere Entwurf
+    function saveDraft() {
+        if (isSubmittingForm) {
+            return Promise.resolve();
+        }
+        
+        if (!hasDraftContent()) {
+            return Promise.resolve();
+        }
+        
+        var formData = new FormData();
+        var to = document.getElementById('toHidden') ? document.getElementById('toHidden').value : '';
+        var cc = document.getElementById('ccHidden') ? document.getElementById('ccHidden').value : '';
+        var subject = subjectInput ? subjectInput.value : '';
+        var htmlContent = quill.root.innerHTML;
+        var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
+        var references = document.querySelector('input[name="references"]') ? document.querySelector('input[name="references"]').value : '';
+        
+        formData.append('to', to);
+        formData.append('cc', cc);
+        formData.append('subject', subject);
+        formData.append('body', htmlContent);
+        formData.append('in_reply_to', inReplyTo);
+        formData.append('references', references);
+        
+        // Füge Anhänge hinzu
+        var attachments = document.getElementById('attachments');
+        if (attachments && attachments.files) {
+            for (var i = 0; i < attachments.files.length; i++) {
+                formData.append('attachments', attachments.files[i]);
+            }
+        }
+        
+        // Sende Entwurf asynchron (beacon für beforeunload)
+        return fetch(draftSaveUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            keepalive: true  // Wichtig für beforeunload
+        }).then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            if (data.success) {
+                hasUnsavedDraft = false;
+                console.log('Entwurf gespeichert');
+            }
+        }).catch(function(error) {
+            console.error('Fehler beim Speichern des Entwurfs:', error);
+        });
+    }
+    
+    // Speichere Entwurf beim Verlassen der Seite
+    window.addEventListener('beforeunload', function(e) {
+        if (isSubmittingForm) {
+            return;
+        }
+        
+        if (hasDraftContent()) {
+            // Verwende fetch mit keepalive für zuverlässiges Speichern beim Verlassen
+            var to = document.getElementById('to') ? document.getElementById('to').value : '';
+            var cc = document.getElementById('cc') ? document.getElementById('cc').value : '';
+            var subject = subjectInput ? subjectInput.value : '';
+            var htmlContent = quill.root.innerHTML;
+            var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
+            var references = document.querySelector('input[name="references"]') ? document.querySelector('input[name="references"]').value : '';
+            
+            // Erstelle JSON-Daten
+            var data = {
+                to: to,
+                cc: cc,
+                subject: subject,
+                body: htmlContent,
+                in_reply_to: inReplyTo,
+                references: references
+            };
+            
+            // Verwende fetch mit keepalive für zuverlässiges Speichern beim Verlassen
+            fetch(draftSaveUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(data),
+                keepalive: true  // Wichtig: erlaubt Request auch nach page unload
+            }).catch(function(error) {
+                console.error('Fehler beim automatischen Speichern des Entwurfs:', error);
+            });
+        }
+    });
+    
+    // Speichere Entwurf beim Klick auf Zurück-Button
+    var cancelButton = document.querySelector('a[href="{{ url_for("email.index") }}"]');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', function(e) {
+            if (isSubmittingForm) {
+                return;
+            }
+            
+            if (hasDraftContent()) {
+                e.preventDefault();
+                saveDraft().then(function() {
+                    window.location.href = "{{ url_for('email.index') }}";
+                });
+            }
+        });
+    }
+    
+    // Markiere Formular als absendend, wenn es gesendet wird
+    form.addEventListener('submit', function() {
+        isSubmittingForm = true;
+    });
+    
+    // Prüfe regelmäßig, ob ein Entwurf vorhanden ist
+    setInterval(function() {
+        hasUnsavedDraft = hasDraftContent();
+    }, 2000);
     
 });
 </script>

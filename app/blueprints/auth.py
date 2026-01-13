@@ -6,6 +6,7 @@ from app.models.email import EmailPermission
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
 from app.models.settings import SystemSettings
+from app.utils.i18n import translate
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
@@ -52,20 +53,20 @@ def register():
         
         # Validation
         if not all([email, password, first_name, last_name]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
             return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         if password != password_confirm:
-            flash('Die Passwörter stimmen nicht überein.', 'danger')
+            flash(translate('auth.flash.passwords_dont_match'), 'danger')
             return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         if len(password) < 8:
-            flash('Das Passwort muss mindestens 8 Zeichen lang sein.', 'danger')
+            flash(translate('auth.flash.password_too_short'), 'danger')
             return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         # Check if user already exists
         if User.query.filter_by(email=email).first():
-            flash('Diese E-Mail-Adresse ist bereits registriert.', 'danger')
+            flash(translate('auth.flash.email_already_registered'), 'danger')
             return render_template('auth/register.html', color_gradient=get_color_gradient())
         
         # Check if email is whitelisted
@@ -163,16 +164,16 @@ def register():
             # Benutzer ist whitelisted - direkt einloggen und zur E-Mail-Bestätigung weiterleiten
             login_user(new_user, remember=False)
             if email_sent:
-                flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Bitte bestätigen Sie Ihre E-Mail-Adresse.', 'success')
+                flash(translate('auth.flash.register_success_whitelisted'), 'success')
             else:
-                flash('Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.', 'warning')
+                flash(translate('auth.flash.register_success_whitelisted_no_email'), 'warning')
             return redirect(url_for('auth.confirm_email'))
         else:
             # Benutzer ist nicht whitelisted - zurück zum Login mit entsprechender Meldung
             if email_sent:
-                flash('Dein Konto muss vom Administrator aktiviert werden. Eine Bestätigungs-E-Mail wurde an Sie gesendet.', 'info')
+                flash(translate('auth.flash.register_pending_admin'), 'info')
             else:
-                flash('Dein Konto muss vom Administrator aktiviert werden. E-Mail-Bestätigung konnte nicht gesendet werden.', 'warning')
+                flash(translate('auth.flash.register_pending_admin_no_email'), 'warning')
             return redirect(url_for('auth.login'))
     
     return render_template('auth/register.html', color_gradient=get_color_gradient())
@@ -195,7 +196,7 @@ def login():
         remember = request.form.get('remember', False) == 'on'
         
         if not email or not password:
-            flash('Bitte geben Sie E-Mail und Passwort ein.', 'danger')
+            flash(translate('auth.flash.enter_email_password'), 'danger')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
         # Unterstütze @gast.system.local Format für Gast-Accounts
@@ -209,7 +210,7 @@ def login():
             user = User.query.filter_by(email=email).first()
         
         if not user or not user.check_password(password):
-            flash('Ungültige E-Mail oder Passwort.', 'danger')
+            flash(translate('auth.flash.invalid_credentials'), 'danger')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
         # Prüfe Ablaufzeit für Gast-Accounts
@@ -218,18 +219,18 @@ def login():
                 # Account ist abgelaufen - lösche ihn
                 db.session.delete(user)
                 db.session.commit()
-                flash('Ihr Gast-Account ist abgelaufen und wurde entfernt.', 'danger')
+                flash(translate('auth.flash.guest_account_expired'), 'danger')
                 return render_template('auth/login.html', color_gradient=get_color_gradient())
         
         if not user.is_active:
-            flash('Ihr Konto wurde noch nicht aktiviert. Bitte warten Sie auf die Freischaltung durch einen Administrator.', 'warning')
+            flash(translate('auth.flash.account_not_activated'), 'warning')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
         # Gast-Accounts benötigen keine E-Mail-Bestätigung
         # Normale Accounts: Check if email confirmation is required (nicht für Admins)
         if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
             login_user(user, remember=remember)
-            flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
+            flash(translate('auth.flash.confirm_email_required'), 'info')
             return redirect(url_for('auth.confirm_email'))
         
         # Update last login
@@ -238,6 +239,11 @@ def login():
         
         # Log user in
         login_user(user, remember=remember)
+        
+        # Prüfe ob Passwort geändert werden muss
+        if user.must_change_password:
+            flash(translate('auth.flash.must_change_password'), 'warning')
+            return redirect(url_for('auth.change_password'))
         
         # Add user to main chat if not already a member and user has chat access
         from app.utils.access_control import has_module_access
@@ -275,23 +281,23 @@ def login():
 def confirm_email():
     """E-Mail-Bestätigung."""
     if current_user.is_email_confirmed:
-        flash('Ihre E-Mail-Adresse wurde bereits bestätigt.', 'info')
+        flash(translate('auth.flash.email_already_confirmed'), 'info')
         return redirect(url_for('dashboard.index'))
     
     if request.method == 'POST':
         confirmation_code = request.form.get('confirmation_code', '').strip()
         
         if not confirmation_code:
-            flash('Bitte geben Sie den Bestätigungscode ein.', 'danger')
+            flash(translate('auth.flash.enter_confirmation_code'), 'danger')
             return render_template('auth/confirm_email.html', color_gradient=get_color_gradient())
         
         from app.utils.email_sender import verify_confirmation_code
         
         if verify_confirmation_code(current_user, confirmation_code):
-            flash('E-Mail-Adresse erfolgreich bestätigt!', 'success')
+            flash(translate('auth.flash.email_confirmed_success'), 'success')
             return redirect(url_for('dashboard.index'))
         else:
-            flash('Ungültiger oder abgelaufener Bestätigungscode.', 'danger')
+            flash(translate('auth.flash.invalid_confirmation_code'), 'danger')
             return render_template('auth/confirm_email.html', color_gradient=get_color_gradient())
     
     return render_template('auth/confirm_email.html', color_gradient=get_color_gradient())
@@ -302,15 +308,15 @@ def confirm_email():
 def resend_confirmation():
     """Bestätigungs-E-Mail erneut senden."""
     if current_user.is_email_confirmed:
-        flash('Ihre E-Mail-Adresse wurde bereits bestätigt.', 'info')
+        flash(translate('auth.flash.email_already_confirmed'), 'info')
         return redirect(url_for('dashboard.index'))
     
     from app.utils.email_sender import resend_confirmation_email
     
     if resend_confirmation_email(current_user):
-        flash('Bestätigungs-E-Mail wurde erneut gesendet.', 'success')
+        flash(translate('auth.flash.confirmation_email_resent'), 'success')
     else:
-        flash('Bestätigungs-E-Mail konnte nicht gesendet werden. Der Code wurde in der Konsole ausgegeben.', 'warning')
+        flash(translate('auth.flash.confirmation_email_failed'), 'warning')
     
     return redirect(url_for('auth.confirm_email'))
 
@@ -320,7 +326,7 @@ def resend_confirmation():
 def show_confirmation_codes():
     """Zeigt alle ausstehenden Bestätigungscodes an (Admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     from app.models.user import User
@@ -346,7 +352,7 @@ def show_confirmation_codes():
 def test_email():
     """Testet die E-Mail-Konfiguration (Admin only)."""
     if not current_user.is_admin:
-        flash('Nur Administratoren haben Zugriff auf diese Seite.', 'danger')
+        flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     from flask import current_app
@@ -382,18 +388,65 @@ def test_email():
         
         send_email_with_lock(msg)
         
-        flash('Test-E-Mail erfolgreich gesendet!', 'success')
+        flash(translate('auth.flash.test_email_sent'), 'success')
         return render_template('auth/email_test_result.html', 
                              success=True, 
                              config=config_info,
-                             message='E-Mail wurde erfolgreich gesendet.')
+                             message=translate('auth.flash.test_email_success_message'))
         
     except Exception as e:
-        flash(f'Fehler beim Senden der Test-E-Mail: {str(e)}', 'danger')
+        flash(translate('auth.flash.test_email_error', error=str(e)), 'danger')
         return render_template('auth/email_test_result.html', 
                              success=False, 
                              config=config_info,
                              error=str(e))
+
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change password (required for admin-created users on first login)."""
+    color_gradient = get_color_gradient()
+    
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validierung
+        if not current_password or not new_password or not confirm_password:
+            flash(translate('auth.flash.fill_all_fields_password'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe aktuelles Passwort
+        if not current_user.check_password(current_password):
+            flash(translate('auth.flash.current_password_wrong'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe ob neues Passwort gleich dem aktuellen ist
+        if current_user.check_password(new_password):
+            flash(translate('auth.flash.password_must_differ'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe Passwort-Bestätigung
+        if new_password != confirm_password:
+            flash(translate('auth.flash.passwords_dont_match'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Prüfe Passwort-Länge
+        if len(new_password) < 8:
+            flash(translate('auth.flash.password_too_short'), 'danger')
+            return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+        
+        # Passwort ändern
+        current_user.set_password(new_password)
+        current_user.must_change_password = False
+        db.session.commit()
+        
+        flash(translate('auth.flash.password_changed_success'), 'success')
+        return redirect(url_for('dashboard.index'))
+    
+    return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
 
 
 @auth_bp.route('/logout')
@@ -401,7 +454,7 @@ def test_email():
 def logout():
     """User logout."""
     logout_user()
-    flash('Sie wurden erfolgreich abgemeldet.', 'success')
+    flash(translate('auth.flash.logout_success'), 'success')
     return redirect(url_for('auth.login'))
 
 

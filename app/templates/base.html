@@ -311,6 +311,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
+            <li class="nav-item sidebar-nav-item" data-nav-id="contacts" data-nav-priority="4.5">
+                <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-person-lines-fill me-2"></i>
+                    {{ _('layout.nav.contacts') }}
+                </a>
+            </li>
+            {% endif %}
             {% if is_module_enabled('module_credentials') and (not current_user.is_authenticated or has_module_access(current_user, 'module_credentials')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="credentials" data-nav-priority="5">
                 <a href="{{ url_for('credentials.index') }}" class="nav-link {% if request.endpoint and 'credentials' in request.endpoint %}active{% endif %}">
@@ -385,8 +393,10 @@
                     <strong>{{ current_user.full_name }}</strong>
                 </a>
                 <ul class="dropdown-menu text-small shadow">
+                    {% if not current_user.is_guest %}
                     <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
+                    {% endif %}
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('layout.nav.logout') }}</a></li>
                 </ul>
             </div>
@@ -427,6 +437,14 @@
                     <a href="{{ url_for('email.index') }}" class="nav-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-envelope me-2"></i>
                         {{ _('layout.nav.email') }}
+                    </a>
+                </li>
+                {% endif %}
+                {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill me-2"></i>
+                        {{ _('layout.nav.contacts') }}
                     </a>
                 </li>
                 {% endif %}
@@ -485,12 +503,14 @@
                     </a>
                 </li>
                 <li><hr></li>
+                {% if not current_user.is_guest %}
                 <li>
                     <a href="{{ url_for('settings.profile') }}" class="nav-link">
                         <i class="bi bi-person me-2"></i>
                         {{ _('layout.nav.profile') }}
                     </a>
                 </li>
+                {% endif %}
                 <li>
                     <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
                         <i class="bi bi-box-arrow-right me-2"></i>

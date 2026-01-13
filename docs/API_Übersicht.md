@@ -295,6 +295,32 @@ GET /api/events/{event_id}
 GET /calendar/api/events/{year}/{month}
 ```
 
+**Parameter:**
+- `year`: Jahr (z. B. 2025)
+- `month`: Monat (1-12)
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "title": "Team Meeting",
+    "start_time": "2025-01-23T10:00:00",
+    "end_time": "2025-01-23T11:00:00",
+    "start_date": "2025-01-23",
+    "end_date": "2025-01-23",
+    "duration_days": 1,
+    "location": "Konferenzraum A",
+    "description": "Wöchentliches Team Meeting",
+    "day": 23,
+    "time": "10:00",
+    "participation_status": "accepted",
+    "is_recurring": false,
+    "url": "/calendar/view/1"
+  }
+]
+```
+
 #### Termine für Zeitraum abrufen
 ```http
 GET /calendar/api/events/range/{start_date}/{end_date}
@@ -303,6 +329,28 @@ GET /calendar/api/events/range/{start_date}/{end_date}
 **Parameter:**
 - `start_date`: YYYY-MM-DD Format
 - `end_date`: YYYY-MM-DD Format
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "title": "Team Meeting",
+    "start_time": "2025-01-23T10:00:00",
+    "end_time": "2025-01-23T11:00:00",
+    "start_date": "2025-01-23",
+    "end_date": "2025-01-23",
+    "duration_days": 1,
+    "location": "Konferenzraum A",
+    "description": "Wöchentliches Team Meeting",
+    "day": 23,
+    "time": "10:00",
+    "participation_status": "accepted",
+    "is_recurring": false,
+    "url": "/calendar/view/1"
+  }
+]
+```
 
 #### Teilnahme an Termin
 ```http
@@ -587,6 +635,56 @@ GET /email/attachment/{attachment_id}
 
 **Ergebnis:**
 - Binary-Download; 404 wenn Anhang fehlt
+
+---
+
+### 📝 Wiki API
+
+#### Wiki-Seite als Favorit hinzufügen
+```http
+POST /wiki/api/favorite/{page_id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "is_favorite": true,
+  "message": "Zur Favoritenliste hinzugefügt."
+}
+```
+
+**Status Codes:** 200 bei Erfolg, 400 wenn bereits favorisiert oder Limit erreicht (max. 5 Favoriten), 403 wenn Modul deaktiviert, 404 wenn Seite nicht gefunden
+
+#### Wiki-Seite aus Favoriten entfernen
+```http
+DELETE /wiki/api/favorite/{page_id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "is_favorite": false,
+  "message": "Von Favoritenliste entfernt."
+}
+```
+
+**Status Codes:** 200 bei Erfolg, 404 wenn nicht favorisiert
+
+#### Favoriten-Status prüfen
+```http
+GET /wiki/api/favorite/check/{page_id}
+```
+
+**Response:**
+```json
+{
+  "is_favorite": true
+}
+```
+
+**Status Codes:** 200 bei Erfolg, 403 wenn Modul deaktiviert, 404 wenn Seite nicht gefunden
 
 ---
 
@@ -951,6 +1049,1094 @@ GET /api/calendar/upcoming-count
   "count": 3
 }
 ```
+
+#### Dashboard-Konfiguration abrufen
+```http
+GET /api/dashboard/config
+```
+
+**Response:**
+```json
+{
+  "enabled_widgets": ["termine", "chats", "emails"],
+  "quick_access_links": [
+    {"name": "Chat", "url": "/chat", "icon": "chat"}
+  ]
+}
+```
+
+#### Dashboard-Konfiguration aktualisieren
+```http
+POST /api/dashboard/config
+Content-Type: application/json
+
+{
+  "enabled_widgets": ["termine", "chats", "emails", "dateien"],
+  "quick_access_links": [
+    {"name": "Chat", "url": "/chat", "icon": "chat"}
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "config": {
+    "enabled_widgets": ["termine", "chats", "emails", "dateien"],
+    "quick_access_links": [
+      {"name": "Chat", "url": "/chat", "icon": "chat"}
+    ]
+  }
+}
+```
+
+#### Update-Banner verwalten
+```http
+POST /api/dashboard/update-banner
+Content-Type: application/json
+
+{
+  "action": "dismiss"
+}
+```
+
+**Parameter:**
+- `action`: `dismiss` (Banner schließen) oder `disable` (Update-Benachrichtigungen deaktivieren)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Banner geschlossen."
+}
+```
+
+**Hinweis:** Nur für Administratoren verfügbar.
+
+---
+
+### 🎵 Music API
+
+#### Öffentlichen Link abrufen
+```http
+GET /music/api/public-link
+```
+
+**Response:**
+```json
+{
+  "link": "https://portal.example.com/music/public-wishlist"
+}
+```
+
+#### QR-Code generieren
+```http
+GET /music/api/qr-code?url={url}
+```
+
+**Parameter:**
+- `url` (optional): URL für QR-Code (Standard: öffentliche Wunschliste-URL)
+
+**Response:** PNG-Bild (image/png)
+
+#### QR-Code PDF herunterladen
+```http
+GET /music/api/public-link/pdf
+```
+
+**Response:** PDF-Datei (A5-Format mit QR-Code)
+**Content-Type:** application/pdf
+**Content-Disposition:** attachment; filename=musikwuensche.pdf
+
+#### Wunschliste Anzahl
+```http
+GET /music/api/wishlist/count
+```
+
+**Response:**
+```json
+{
+  "count": 42
+}
+```
+
+#### Queue Anzahl
+```http
+GET /music/api/queue/count
+```
+
+**Response:**
+```json
+{
+  "count": 15
+}
+```
+
+#### Queue Liste
+```http
+GET /music/api/queue/list
+```
+
+**Response:**
+```json
+{
+  "queue": [
+    {
+      "id": 1,
+      "position": 1,
+      "wish": {
+        "id": 10,
+        "title": "Song Title",
+        "artist": "Artist Name",
+        "provider": "spotify",
+        "image_url": "https://...",
+        "wish_count": 5
+      }
+    }
+  ]
+}
+```
+
+#### Wunschliste Liste
+```http
+GET /music/api/wishlist/list?page=1&per_page=50
+```
+
+**Parameter:**
+- `page` (optional): Seitennummer (Standard: 1)
+- `per_page` (optional): Einträge pro Seite (Standard: 50, Maximum: 50)
+
+**Response:**
+```json
+{
+  "wishes": [
+    {
+      "id": 1,
+      "title": "Song Title",
+      "artist": "Artist Name",
+      "provider": "spotify",
+      "image_url": "https://...",
+      "wish_count": 5,
+      "created_at": "2025-01-22T10:00:00"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 50,
+    "total": 42,
+    "pages": 1,
+    "has_next": false,
+    "has_prev": false
+  }
+}
+```
+
+#### Gespielte Lieder Anzahl
+```http
+GET /music/api/played/count
+```
+
+**Response:**
+```json
+{
+  "count": 128
+}
+```
+
+#### Gespielte Lieder Liste
+```http
+GET /music/api/played/list?page=1&per_page=50
+```
+
+**Parameter:**
+- `page` (optional): Seitennummer (Standard: 1)
+- `per_page` (optional): Einträge pro Seite (Standard: 50, Maximum: 50)
+
+**Response:**
+```json
+{
+  "played": [
+    {
+      "id": 1,
+      "title": "Song Title",
+      "artist": "Artist Name",
+      "provider": "spotify",
+      "image_url": "https://...",
+      "wish_count": 5,
+      "updated_at": "2025-01-22T10:00:00"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 50,
+    "total": 128,
+    "pages": 3,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+---
+
+### 📦 Inventar API
+
+#### Produkte abrufen
+```http
+GET /inventory/api/products?search={search}&category={category}&status={status}&sort_by={sort_by}&sort_dir={sort_dir}
+```
+
+**Parameter:**
+- `search` (optional): Suchbegriff (Name, Seriennummer, Beschreibung)
+- `category` (optional): Kategorie-Filter
+- `status` (optional): Status-Filter (available, borrowed, missing)
+- `sort_by` (optional): Sortierung nach (name, category, status, condition, folder, created_at, length) - Standard: name
+- `sort_dir` (optional): Sortierrichtung (asc, desc) - Standard: asc
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Produktname",
+    "description": "Beschreibung",
+    "category": "Kategorie",
+    "serial_number": "SN12345",
+    "condition": "Gut",
+    "location": "Lager A",
+    "length": "5.5m",
+    "length_meters": 5.5,
+    "folder_id": 1,
+    "folder_name": "Ordner",
+    "purchase_date": "2024-01-01",
+    "status": "available",
+    "image_path": "image.jpg",
+    "qr_code_data": "product:1",
+    "created_at": "2025-01-22T10:00:00",
+    "created_by": 1
+  }
+]
+```
+
+#### Einzelnes Produkt abrufen
+```http
+GET /inventory/api/products/{product_id}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Produktname",
+  "description": "Beschreibung",
+  "category": "Kategorie",
+  "serial_number": "SN12345",
+  "condition": "Gut",
+  "location": "Lager A",
+  "length": "5.5m",
+  "length_meters": 5.5,
+  "folder_id": 1,
+  "folder_name": "Ordner",
+  "purchase_date": "2024-01-01",
+  "status": "available",
+  "image_path": "image.jpg",
+  "qr_code_data": "product:1",
+  "created_at": "2025-01-22T10:00:00",
+  "created_by": 1
+}
+```
+
+#### Produkt erstellen
+```http
+POST /inventory/api/products
+Content-Type: application/json
+
+{
+  "name": "Produktname",
+  "description": "Beschreibung",
+  "category": "Kategorie",
+  "serial_number": "SN12345",
+  "condition": "Gut",
+  "location": "Lager A",
+  "length": "5.5",
+  "purchase_date": "2024-01-01"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Produktname",
+  "qr_code_data": "product:1"
+}
+```
+
+**Status Codes:** 201 bei Erfolg, 400 bei Validierungsfehlern, 403 für Gast-Accounts
+
+#### Produkt aktualisieren
+```http
+PUT /inventory/api/products/{product_id}
+Content-Type: application/json
+
+{
+  "name": "Neuer Produktname",
+  "category": "Neue Kategorie"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+**Status Codes:** 200 bei Erfolg, 400 bei Validierungsfehlern, 403 für Gast-Accounts, 404 wenn nicht gefunden
+
+#### Produkt löschen
+```http
+DELETE /inventory/api/products/{product_id}
+```
+
+**Response:**
+```json
+{
+  "message": "Produkt gelöscht."
+}
+```
+
+**Status Codes:** 200 bei Erfolg, 400 wenn ausgeliehen, 403 für Gast-Accounts, 404 wenn nicht gefunden
+
+#### Produkte Massen-Update
+```http
+POST /inventory/api/products/bulk-update
+Content-Type: application/json
+
+{
+  "product_ids": [1, 2, 3],
+  "updates": {
+    "category": "Neue Kategorie",
+    "status": "available"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "updated_count": 3
+}
+```
+
+#### Produkte Massen-Löschung
+```http
+POST /inventory/api/products/bulk-delete
+Content-Type: application/json
+
+{
+  "product_ids": [1, 2, 3]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "deleted_count": 3
+}
+```
+
+#### Bestand abrufen
+```http
+GET /inventory/api/stock?search={search}&category={category}&status={status}
+```
+
+**Parameter:**
+- `search` (optional): Suchbegriff
+- `category` (optional): Kategorie-Filter
+- `status` (optional): Status-Filter
+
+**Response:** Siehe `/api/products` (vereinfachte Produktliste)
+
+#### Filter-Optionen abrufen
+```http
+GET /inventory/api/inventory/filter-options?folder_id={folder_id}
+```
+
+**Parameter:**
+- `folder_id` (optional): Ordner-ID (0 = Root, keine Ordner)
+
+**Response:**
+```json
+{
+  "categories": ["Kategorie 1", "Kategorie 2"],
+  "conditions": ["Gut", "Ausgezeichnet"],
+  "locations": ["Lager A", "Lager B"],
+  "lengths": ["5.5m", "10m"],
+  "purchase_years": ["2024", "2023"]
+}
+```
+
+#### Ordner abrufen
+```http
+GET /inventory/api/folders
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Ordner",
+    "parent_id": null,
+    "created_at": "2025-01-22T10:00:00"
+  }
+]
+```
+
+#### Ordner erstellen
+```http
+POST /inventory/api/folders
+Content-Type: application/json
+
+{
+  "name": "Neuer Ordner",
+  "parent_id": null
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Neuer Ordner",
+  "parent_id": null
+}
+```
+
+#### Ordner aktualisieren
+```http
+PUT /inventory/api/folders/{folder_id}
+Content-Type: application/json
+
+{
+  "name": "Umbenannter Ordner"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Ordner löschen
+```http
+DELETE /inventory/api/folders/{folder_id}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Ausleihen
+```http
+POST /inventory/api/borrow
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "borrower_id": 2,
+  "expected_return_date": "2025-02-01"
+}
+```
+
+**Parameter:**
+- `product_id`: Produkt-ID (erforderlich)
+- `borrower_id` (optional): Ausleiher-ID (Standard: aktueller Benutzer)
+- `expected_return_date`: Erwartetes Rückgabedatum (YYYY-MM-DD, erforderlich)
+
+**Response:**
+```json
+{
+  "transaction_id": 1,
+  "transaction_number": "BOR-20250122-001",
+  "borrow_group_id": null,
+  "qr_code_data": "borrow:BOR-20250122-001"
+}
+```
+
+**Status Codes:** 201 bei Erfolg, 400 bei Validierungsfehlern, 403 bei fehlender Berechtigung, 404 wenn nicht gefunden
+
+#### Alle Ausleihen abrufen
+```http
+GET /inventory/api/borrows
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "transaction_number": "BOR-20250122-001",
+    "borrow_group_id": null,
+    "product_id": 1,
+    "product_name": "Produktname",
+    "borrower_id": 2,
+    "borrower_name": "Max Mustermann",
+    "borrow_date": "2025-01-22T10:00:00",
+    "expected_return_date": "2025-02-01",
+    "is_overdue": false,
+    "qr_code_data": "borrow:BOR-20250122-001"
+  }
+]
+```
+
+#### Meine Ausleihen abrufen
+```http
+GET /inventory/api/borrows/my
+```
+
+**Response:** Siehe `/api/borrows` (nur eigene Ausleihen)
+
+#### Meine Ausleihen gruppiert
+```http
+GET /inventory/api/borrows/my/grouped
+```
+
+**Response:**
+```json
+[
+  {
+    "borrow_group_id": null,
+    "borrow_date": "2025-01-22T10:00:00",
+    "expected_return_date": "2025-02-01",
+    "product_count": 2,
+    "is_overdue": false,
+    "products": ["Produkt 1", "Produkt 2"],
+    "transactions": [
+      {
+        "id": 1,
+        "transaction_number": "BOR-20250122-001",
+        "product_id": 1,
+        "product_name": "Produkt 1",
+        "expected_return_date": "2025-02-01",
+        "is_overdue": false,
+        "qr_code_data": "borrow:BOR-20250122-001"
+      }
+    ]
+  }
+]
+```
+
+#### Rückgabe registrieren
+```http
+POST /inventory/api/return
+Content-Type: application/json
+
+{
+  "qr_code": "borrow:BOR-20250122-001"
+}
+```
+
+**Oder:**
+```json
+{
+  "transaction_number": "BOR-20250122-001"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Rückgabe erfolgreich registriert.",
+  "transaction_id": 1
+}
+```
+
+**Status Codes:** 200 bei Erfolg, 404 wenn nicht gefunden
+
+#### Ausleihschein PDF
+```http
+GET /inventory/api/borrow/{transaction_id}/pdf
+```
+
+**Response:** PDF-Datei (Ausleihschein)
+**Content-Type:** application/pdf
+
+#### QR-Code-Druckbogen generieren
+```http
+POST /inventory/api/print-qr-codes
+Content-Type: application/json
+
+{
+  "product_ids": [1, 2, 3],
+  "label_type": "device"
+}
+```
+
+**Parameter:**
+- `product_ids`: Array von Produkt-IDs (erforderlich)
+- `label_type` (optional): "device" oder "cable" (Standard: "device")
+
+**Response:** PDF-Datei (QR-Code-Druckbogen)
+**Content-Type:** application/pdf
+
+#### Produktsets abrufen
+```http
+GET /inventory/api/sets
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Set Name",
+    "description": "Beschreibung",
+    "created_at": "2025-01-22T10:00:00"
+  }
+]
+```
+
+#### Einzelnes Produktset abrufen
+```http
+GET /inventory/api/sets/{set_id}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Set Name",
+  "description": "Beschreibung",
+  "items": [
+    {
+      "id": 1,
+      "product_id": 1,
+      "product_name": "Produktname",
+      "quantity": 1
+    }
+  ],
+  "created_at": "2025-01-22T10:00:00"
+}
+```
+
+#### Produkt-Dokumente abrufen
+```http
+GET /inventory/api/products/{product_id}/documents
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "file_name": "dokument.pdf",
+    "file_type": "manual",
+    "uploaded_by": 1,
+    "uploaded_at": "2025-01-22T10:00:00"
+  }
+]
+```
+
+#### Suche
+```http
+GET /inventory/api/search?q={query}
+```
+
+**Parameter:**
+- `q`: Suchbegriff (erforderlich)
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Produktname",
+    "category": "Kategorie",
+    "status": "available",
+    "qr_code_data": "product:1"
+  }
+]
+```
+
+#### Gespeicherte Filter abrufen
+```http
+GET /inventory/api/filters
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Mein Filter",
+    "filter_data": {
+      "category": "Kategorie",
+      "status": "available"
+    },
+    "created_at": "2025-01-22T10:00:00"
+  }
+]
+```
+
+#### Filter speichern
+```http
+POST /inventory/api/filters/save
+Content-Type: application/json
+
+{
+  "name": "Mein Filter",
+  "filter_data": {
+    "category": "Kategorie",
+    "status": "available"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Mein Filter",
+  "success": true
+}
+```
+
+#### Filter löschen
+```http
+DELETE /inventory/api/filters/{filter_id}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Favoriten abrufen
+```http
+GET /inventory/api/favorites
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "product_id": 1,
+    "product_name": "Produktname",
+    "created_at": "2025-01-22T10:00:00"
+  }
+]
+```
+
+#### Produkt als Favorit hinzufügen
+```http
+POST /inventory/api/favorites/{product_id}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Produkt aus Favoriten entfernen
+```http
+DELETE /inventory/api/favorites/{product_id}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Statistiken abrufen
+```http
+GET /inventory/api/statistics
+```
+
+**Response:**
+```json
+{
+  "total_products": 150,
+  "available": 120,
+  "borrowed": 25,
+  "missing": 5,
+  "total_categories": 10,
+  "total_borrows": 45
+}
+```
+
+#### Inventur-Items abrufen
+```http
+GET /inventory/api/inventory/{inventory_id}/items
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "product_id": 1,
+    "product_name": "Produktname",
+    "checked": false,
+    "checked_by": null,
+    "checked_at": null
+  }
+]
+```
+
+#### Inventur-Item aktualisieren
+```http
+POST /inventory/api/inventory/{inventory_id}/item/{product_id}/update
+Content-Type: application/json
+
+{
+  "note": "Notiz"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Inventur-Item abhaken
+```http
+POST /inventory/api/inventory/{inventory_id}/item/{product_id}/check
+Content-Type: application/json
+
+{
+  "checked": true
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "checked": true,
+  "checked_by": 1,
+  "checked_at": "2025-01-22T10:00:00"
+}
+```
+
+#### Inventur scannen
+```http
+POST /inventory/api/inventory/{inventory_id}/scan
+Content-Type: application/json
+
+{
+  "qr_code": "product:1"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "product": {
+    "id": 1,
+    "name": "Produktname"
+  }
+}
+```
+
+#### Kategorien abrufen
+```http
+GET /inventory/api/categories
+```
+
+**Response:**
+```json
+["Kategorie 1", "Kategorie 2"]
+```
+
+#### Kategorie erstellen
+```http
+POST /inventory/api/categories
+Content-Type: application/json
+
+{
+  "name": "Neue Kategorie"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "name": "Neue Kategorie"
+}
+```
+
+#### Kategorie aktualisieren
+```http
+PUT /inventory/api/categories/{category_name}
+Content-Type: application/json
+
+{
+  "name": "Umbenannte Kategorie"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Kategorie löschen
+```http
+DELETE /inventory/api/categories/{category_name}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Mobile Token erstellen
+```http
+POST /inventory/api/mobile/token
+Content-Type: application/json
+
+{
+  "name": "Mein Gerät"
+}
+```
+
+**Response:**
+```json
+{
+  "token": "abc123...",
+  "token_id": 1,
+  "name": "Mein Gerät",
+  "created_at": "2025-01-22T10:00:00"
+}
+```
+
+#### Mobile Tokens abrufen
+```http
+GET /inventory/api/mobile/tokens
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Mein Gerät",
+    "created_at": "2025-01-22T10:00:00",
+    "last_used_at": "2025-01-22T12:00:00"
+  }
+]
+```
+
+#### Mobile Token löschen
+```http
+DELETE /inventory/api/mobile/tokens/{token_id}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Mobile Produkte abrufen
+```http
+GET /inventory/api/mobile/products
+Authorization: Bearer {token}
+```
+
+**Response:** Siehe `/api/products` (vereinfachte Produktliste)
+
+#### Mobile Produkt abrufen
+```http
+GET /inventory/api/mobile/products/{product_id}
+Authorization: Bearer {token}
+```
+
+**Response:** Siehe `/api/products/{product_id}` (vereinfachte Produktdetails)
+
+#### Mobile Ausleihen
+```http
+POST /inventory/api/mobile/borrow
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "expected_return_date": "2025-02-01"
+}
+```
+
+**Response:** Siehe `/api/borrow`
+
+#### Mobile Rückgabe
+```http
+POST /inventory/api/mobile/return
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "qr_code": "borrow:BOR-20250122-001"
+}
+```
+
+**Response:** Siehe `/api/return`
+
+#### Mobile scannen
+```http
+POST /inventory/api/mobile/scan
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "qr_code": "product:1"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "product": {
+    "id": 1,
+    "name": "Produktname",
+    "status": "available"
+  }
+}
+```
+
+#### Mobile Statistiken
+```http
+GET /inventory/api/mobile/statistics
+Authorization: Bearer {token}
+```
+
+**Response:** Siehe `/api/statistics`
 
 ---
 

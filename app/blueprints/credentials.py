@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.credential import Credential
 from app.utils.access_control import check_module_access
+from app.utils.i18n import translate
 from cryptography.fernet import Fernet
 import os
 import requests
@@ -82,7 +83,7 @@ def create():
         notes = request.form.get('notes', '').strip()
         
         if not all([website_url, website_name, username, password]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            flash(translate('credentials.flash.fill_all_fields'), 'danger')
             return render_template('credentials/create.html')
         
         # Get favicon
@@ -105,7 +106,7 @@ def create():
         db.session.add(credential)
         db.session.commit()
         
-        flash(f'Zugangsdaten für "{website_name}" wurden gespeichert.', 'success')
+        flash(translate('credentials.flash.saved', website_name=website_name), 'success')
         return redirect(url_for('credentials.index'))
     
     return render_template('credentials/create.html')
@@ -134,7 +135,7 @@ def edit(credential_id):
         
         db.session.commit()
         
-        flash(f'Zugangsdaten für "{credential.website_name}" wurden aktualisiert.', 'success')
+        flash(translate('credentials.flash.updated', website_name=credential.website_name), 'success')
         return redirect(url_for('credentials.index'))
     
     # Decrypt password for display
@@ -153,7 +154,7 @@ def delete(credential_id):
     db.session.delete(credential)
     db.session.commit()
     
-    flash(f'Zugangsdaten für "{credential.website_name}" wurden gelöscht.', 'success')
+    flash(translate('credentials.flash.deleted', website_name=credential.website_name), 'success')
     return redirect(url_for('credentials.index'))
 
 
@@ -169,7 +170,7 @@ def view_password(credential_id):
         password = credential.get_password(key)
         return jsonify({'password': password})
     except Exception as e:
-        return jsonify({'error': 'Fehler beim Entschlüsseln des Passworts'}), 500
+        return jsonify({'error': translate('credentials.errors.decrypt_error')}), 500
 
 
 

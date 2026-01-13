@@ -115,8 +115,8 @@
                 <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3">
                 {% endif %}
             </div>
-            <h1 class="text-center mb-2"><i class="bi bi-music-note-beamed"></i> Dein Musikwunsch</h1>
-            <p class="text-center mb-0">Teile uns hier deinen Musikwunsch mit</p>
+            <h1 class="text-center mb-2"><i class="bi bi-music-note-beamed"></i> {{ _('music.public_wishlist.title') }}</h1>
+            <p class="text-center mb-0">{{ _('music.public_wishlist.subtitle') }}</p>
         </div>
     </div>
     
@@ -127,38 +127,38 @@
                     <div class="card-body">
                         {% if not has_providers %}
                         <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle"></i> Keine Musik-Provider aktiviert. Bitte aktivieren Sie mindestens einen Provider in den Einstellungen.
+                            <i class="bi bi-exclamation-triangle"></i> {{ _('music.public_wishlist.no_providers') }}
                         </div>
                         {% else %}
                         <div class="mb-4">
-                            <label for="search-query" class="form-label">Lied suchen</label>
+                            <label for="search-query" class="form-label">{{ _('music.public_wishlist.search_label') }}</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="search-query" placeholder='"Titel" "Künstler" oder frei'>
+                                <input type="text" class="form-control" id="search-query" placeholder="{{ _('music.public_wishlist.search_placeholder') }}">
                                 <button class="btn btn-primary" type="button" id="search-btn">
-                                    <i class="bi bi-search"></i> Suchen
+                                    <i class="bi bi-search"></i> {{ _('music.public_wishlist.search_button') }}
                                 </button>
                             </div>
                             <div class="form-text">
-                                <strong>Format:</strong> Mit Anführungszeichen: <code>"Titel" "Künstler"</code> oder frei: <code>Titel Künstler</code><br>
-                                Die Suche durchsucht automatisch alle aktivierten Provider: 
+                                <strong>{{ _('music.public_wishlist.search_help_format') }}:</strong> {{ _('music.public_wishlist.search_help_text') | safe }}<br>
+                                {{ _('music.public_wishlist.search_help_providers') }}: 
                                 {% for provider in enabled_providers %}
                                     {% if provider == 'spotify' %}Spotify{% elif provider == 'youtube' %}YouTube{% elif provider == 'musicbrainz' %}MusicBrainz{% endif %}{% if not loop.last %}, {% endif %}
                                 {% endfor %}
                             </div>
                             <div class="alert alert-info mt-3 mb-0" style="background-color: #1a1a1a; border-color: #0d6efd; color: #ffffff;">
-                                <i class="bi bi-info-circle"></i> <strong>Hinweis:</strong> Solltest du mit nur Titel dein Lied nicht finden, ergänze den Künstler oder wende dich an die Veranstalter.
+                                <i class="bi bi-info-circle"></i> <strong>{{ _('music.public_wishlist.search_hint_title') }}:</strong> {{ _('music.public_wishlist.search_hint') }}
                             </div>
                         </div>
                         {% endif %}
                         
                         <div id="search-results" class="search-results" style="display: none;">
-                            <h5 class="mb-3 text-white">Suchergebnisse</h5>
+                            <h5 class="mb-3 text-white">{{ _('music.public_wishlist.search_results') }}</h5>
                             <div id="results-list"></div>
                             
                             <div id="recommendations-section" style="display: none;" class="mt-4">
                                 <hr style="border-color: #333333;">
                                 <h5 class="mb-3 text-white">
-                                    <i class="bi bi-lightbulb"></i> Empfehlungen
+                                    <i class="bi bi-lightbulb"></i> {{ _('music.public_wishlist.recommendations') }}
                                 </h5>
                                 <div id="recommendations-list"></div>
                             </div>
@@ -166,7 +166,7 @@
                         
                         <div id="loading" class="text-center" style="display: none;">
                             <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Laden...</span>
+                                <span class="visually-hidden">{{ _('music.public_wishlist.loading') }}</span>
                             </div>
                         </div>
                         
@@ -238,14 +238,14 @@
                         document.getElementById('recommendations-section').style.display = 'none';
                     }
                 } else {
-                    resultsList.innerHTML = '<p class="text-white-50">Keine Ergebnisse gefunden.</p>';
+                    resultsList.innerHTML = '<p class="text-white-50">' + translations.noResults + '</p>';
                     resultsDiv.style.display = 'block';
                     document.getElementById('recommendations-section').style.display = 'none';
                 }
             })
             .catch(error => {
                 loading.style.display = 'none';
-                errorMsg.textContent = 'Fehler bei der Suche: ' + error.message;
+                errorMsg.textContent = translations.searchError.replace('{error}', error.message);
                 errorMsg.style.display = 'block';
             });
         }
@@ -262,7 +262,7 @@
                         <img src="${track.image_url || '/static/img/logo.png'}" alt="Cover" class="track-image me-3">
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${escapeHtml(track.title)}</h6>
-                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || 'Unbekannter Künstler')}</p>
+                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || translations.unknownArtist)}</p>
                             ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
                             <span class="badge bg-primary provider-badge">
                                 ${track.provider === 'spotify' ? 'Spotify' : 
@@ -271,7 +271,7 @@
                             </span>
                         </div>
                         <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
-                            <i class="bi bi-plus-circle"></i> Hinzufügen
+                            <i class="bi bi-plus-circle"></i> ${translations.addButton}
                         </button>
                     </div>
                 `;
@@ -284,7 +284,7 @@
             recommendationsList.innerHTML = '';
             
             if (recommendations.length === 0) {
-                recommendationsList.innerHTML = '<p class="text-white-50">Keine Empfehlungen verfügbar.</p>';
+                recommendationsList.innerHTML = '<p class="text-white-50">' + translations.noRecommendations + '</p>';
                 return;
             }
             
@@ -308,15 +308,15 @@
                         }
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${escapeHtml(track.title)}</h6>
-                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || 'Unbekannter Künstler')}</p>
+                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || translations.unknownArtist)}</p>
                             ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
                             <span class="badge bg-info provider-badge">
-                                <i class="bi bi-lightbulb"></i> Empfehlung
+                                <i class="bi bi-lightbulb"></i> ${translations.recommendation}
                             </span>
                             ${providerBadge}
                         </div>
                         <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
-                            <i class="bi bi-plus-circle"></i> Hinzufügen
+                            <i class="bi bi-plus-circle"></i> ${translations.addButton}
                         </button>
                     </div>
                 `;
@@ -348,7 +348,12 @@
                     errorMsg.style.display = 'block';
                     successMsg.style.display = 'none';
                 } else {
-                    successMsg.textContent = 'Lied erfolgreich zur Wunschliste hinzugefügt!';
+                    if (data.message && data.message.includes('Wunschzähler erhöht')) {
+                        const count = data.message.match(/\d+/)?.[0] || '1';
+                        successMsg.textContent = translations.wishCountIncreased.replace('{count}', count);
+                    } else {
+                        successMsg.textContent = translations.successMessage;
+                    }
                     successMsg.style.display = 'block';
                     errorMsg.style.display = 'none';
                     
@@ -359,7 +364,7 @@
             })
             .catch(error => {
                 const errorMsg = document.getElementById('error-message');
-                errorMsg.textContent = 'Fehler: ' + error.message;
+                errorMsg.textContent = translations.searchError.replace('{error}', error.message);
                 errorMsg.style.display = 'block';
             });
         }

@@ -90,7 +90,7 @@
     body .messages-area {
         flex: 1 !important;
         overflow-y: auto !important;
-        padding: 1rem !important;
+        padding: 1rem 1rem 2rem 1rem !important;
         background: #f8f9fa !important;
         margin-top: 56px !important;
         margin-bottom: 80px !important;
@@ -517,7 +517,7 @@
     .messages-area {
         flex: 1;
         overflow-y: auto;
-        padding: 1rem;
+        padding: 1rem 1rem 2rem 1rem;
         background: #f8f9fa;
         margin-top: 56px; /* Space for header */
         margin-bottom: 80px; /* Space for input */

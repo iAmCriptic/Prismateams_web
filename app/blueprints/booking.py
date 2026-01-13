@@ -11,6 +11,7 @@ from app.models.file import Folder
 from app.models.user import User
 from app.utils.email_sender import send_booking_confirmation_email, send_booking_accepted_email, send_booking_rejected_email
 from app.utils.access_control import check_module_access
+from app.utils.i18n import translate
 from app.tasks.booking_archiver import archive_old_booking_requests
 from datetime import datetime, timedelta, date, time
 from werkzeug.utils import secure_filename
@@ -61,7 +62,7 @@ def public_form(form_id):
     form = BookingForm.query.get_or_404(form_id)
     
     if not form.is_active:
-        flash('Dieses Buchungsformular ist nicht mehr aktiv.', 'warning')
+        flash(translate('booking.flash.form_not_active'), 'warning')
         return redirect(url_for('booking.public_booking'))
     
     if request.method == 'POST':
@@ -71,15 +72,15 @@ def public_form(form_id):
         email = request.form.get('email', '').strip()
         
         if not applicant_name:
-            flash('Bitte geben Sie Ihren Namen ein.', 'danger')
+            flash(translate('booking.flash.enter_name'), 'danger')
             return render_template('booking/public_form.html', form=form)
         
         if not event_name:
-            flash('Bitte geben Sie einen Namen für die Veranstaltung ein.', 'danger')
+            flash(translate('booking.flash.enter_event_name'), 'danger')
             return render_template('booking/public_form.html', form=form)
         
         if not email or '@' not in email:
-            flash('Bitte geben Sie eine gültige E-Mail-Adresse ein.', 'danger')
+            flash(translate('booking.flash.enter_valid_email'), 'danger')
             return render_template('booking/public_form.html', form=form)
         
         # Validiere zusätzliche Pflichtfelder
@@ -88,7 +89,7 @@ def public_form(form_id):
             if field.is_required:
                 value = request.form.get(f'field_{field.id}', '').strip()
                 if not value:
-                    errors.append(f'Das Feld "{field.field_label}" ist ein Pflichtfeld.')
+                    errors.append(translate('booking.flash.field_required', field_label=field.field_label))
         
         if errors:
             for error in errors:
@@ -257,14 +258,14 @@ def mailbox_upload(token):
     
     # Prüfe ob Ordner existiert
     if not booking_request.folder_id:
-        flash('Briefkasten wurde noch nicht erstellt.', 'warning')
+        flash(translate('booking.flash.mailbox_not_created'), 'warning')
         return redirect(url_for('booking.public_view', token=token))
     
     folder = booking_request.folder
     
     if request.method == 'POST':
         if 'file' not in request.files:
-            flash('Keine Datei ausgewählt.', 'danger')
+            flash(translate('booking.flash.no_file_selected'), 'danger')
             return redirect(url_for('booking.mailbox_upload', token=token))
         
         files = request.files.getlist('file')
@@ -281,7 +282,7 @@ def mailbox_upload(token):
             
             max_size = 50 * 1024 * 1024  # 50MB
             if file_size > max_size:
-                flash(f'Datei "{file.filename}" ist zu groß (max. 50MB).', 'danger')
+                flash(translate('booking.flash.file_too_large', filename=file.filename), 'danger')
                 continue
             
             # Datei speichern
@@ -318,9 +319,9 @@ def mailbox_upload(token):
         
         if uploaded_count > 0:
             db.session.commit()
-            flash(f'{uploaded_count} Datei(en) wurden erfolgreich hochgeladen.', 'success')
+            flash(translate('booking.flash.files_uploaded', count=uploaded_count), 'success')
         else:
-            flash('Keine Dateien wurden hochgeladen.', 'warning')
+            flash(translate('booking.flash.no_files_uploaded'), 'warning')
         
         return redirect(url_for('booking.mailbox_upload', token=token))
     
@@ -422,7 +423,7 @@ def request_accept(request_id):
     
     # Parse Datum und Zeiten für Kalendereintrag
     if not booking_request.event_date:
-        flash('Bitte geben Sie ein Datum für die Veranstaltung ein.', 'danger')
+        flash(translate('booking.flash.enter_event_date'), 'danger')
         return redirect(url_for('booking.request_detail', request_id=request_id))
     
     # Kombiniere Datum und Zeit
@@ -510,7 +511,7 @@ def request_accept(request_id):
     except Exception as e:
         current_app.logger.error(f"Fehler beim Senden der Annahme-E-Mail: {e}")
     
-    flash('Buchung wurde angenommen und Kalendereintrag wurde erstellt.', 'success')
+    flash(translate('booking.flash.accepted'), 'success')
     return redirect(url_for('booking.request_detail', request_id=request_id))
 
 
@@ -522,13 +523,13 @@ def request_reject(request_id):
     booking_request = BookingRequest.query.get_or_404(request_id)
     
     if booking_request.status != 'pending':
-        flash('Diese Buchung kann nicht mehr abgelehnt werden.', 'warning')
+        flash(translate('booking.flash.cannot_reject'), 'warning')
         return redirect(url_for('booking.request_detail', request_id=request_id))
     
     rejection_reason = request.form.get('rejection_reason', '').strip()
     
     if not rejection_reason:
-        flash('Bitte geben Sie einen Ablehnungsgrund ein.', 'danger')
+        flash(translate('booking.flash.enter_rejection_reason'), 'danger')
         return redirect(url_for('booking.request_detail', request_id=request_id))
     
     # Aktualisiere Buchungsanfrage
@@ -545,7 +546,7 @@ def request_reject(request_id):
     except Exception as e:
         current_app.logger.error(f"Fehler beim Senden der Ablehnungs-E-Mail: {e}")
     
-    flash('Buchung wurde abgelehnt.', 'success')
+    flash(translate('booking.flash.rejected'), 'success')
     return redirect(url_for('booking.request_detail', request_id=request_id))
 
 
@@ -560,7 +561,7 @@ def request_send_email(request_id):
     email_body = request.form.get('email_body', '').strip()
     
     if not email_subject or not email_body:
-        flash('Bitte füllen Sie Betreff und Nachricht aus.', 'danger')
+        flash(translate('booking.flash.fill_subject_message'), 'danger')
         return redirect(url_for('booking.request_detail', request_id=request_id))
     
     # Sende E-Mail
@@ -578,10 +579,10 @@ def request_send_email(request_id):
         )
         send_email_with_lock(msg)
         
-        flash('E-Mail wurde gesendet.', 'success')
+        flash(translate('booking.flash.email_sent'), 'success')
     except Exception as e:
         current_app.logger.error(f"Fehler beim Senden der E-Mail: {e}")
-        flash('Fehler beim Senden der E-Mail.', 'danger')
+        flash(translate('booking.flash.email_error'), 'danger')
     
     return redirect(url_for('booking.request_detail', request_id=request_id))
 
@@ -597,7 +598,7 @@ def request_approve(request_id, role_id):
     # Prüfe ob Benutzer dieser Rolle zugewiesen ist
     role_user = BookingFormRoleUser.query.filter_by(role_id=role_id, user_id=current_user.id).first()
     if not role_user:
-        flash('Sie sind dieser Rolle nicht zugewiesen.', 'danger')
+        flash(translate('booking.flash.not_assigned_to_role'), 'danger')
         return redirect(url_for('booking.request_detail', request_id=request_id))
     
     # Finde oder erstelle Approval
@@ -638,7 +639,7 @@ def request_approve(request_id, role_id):
     
     db.session.commit()
     
-    flash(f'Zustimmung für {role.role_name} wurde gespeichert.', 'success')
+    flash(translate('booking.flash.approval_saved', role_name=role.role_name), 'success')
     return redirect(url_for('booking.request_detail', request_id=request_id))
 
 
@@ -653,7 +654,7 @@ def request_reject_role(request_id, role_id):
     # Prüfe ob Benutzer dieser Rolle zugewiesen ist
     role_user = BookingFormRoleUser.query.filter_by(role_id=role_id, user_id=current_user.id).first()
     if not role_user:
-        flash('Sie sind dieser Rolle nicht zugewiesen.', 'danger')
+        flash(translate('booking.flash.not_assigned_to_role'), 'danger')
         return redirect(url_for('booking.request_detail', request_id=request_id))
     
     # Finde oder erstelle Approval
@@ -677,7 +678,7 @@ def request_reject_role(request_id, role_id):
     
     db.session.commit()
     
-    flash(f'Ablehnung für {role.role_name} wurde gespeichert.', 'warning')
+    flash(translate('booking.flash.rejection_saved', role_name=role.role_name), 'warning')
     return redirect(url_for('booking.request_detail', request_id=request_id))
 
 

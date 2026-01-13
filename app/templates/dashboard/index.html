@@ -78,6 +78,8 @@
 <div class="row g-3">
     {% set enabled_widgets = dashboard_config.get('enabled_widgets', []) %}
     
+    <!-- Widgets werden für Gast-Accounts nicht angezeigt -->
+    {% if not current_user.is_guest %}
     <!-- Upcoming Events Widget -->
     {% if 'termine' in enabled_widgets and is_module_enabled('module_calendar') %}
     <div class="col-12 col-md-6 col-lg-4 d-flex">
@@ -406,6 +408,7 @@
         </div>
     </div>
     {% endif %}
+    {% endif %}
 </div>
 
 <div class="row mt-4">
@@ -433,19 +436,101 @@
                         'profile': {'url': url_for('settings.profile'), 'icon': 'bi-person', 'label_key': 'settings.profile.title', 'module': None},
                         'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None}
                     } %}
-                    {% for link_key in quick_access_links %}
-                        {% if link_key in link_map %}
-                            {% set link = link_map[link_key] %}
-                            {% if link.module is none or is_module_enabled(link.module) %}
-                            <div class="col-6 col-md-3">
-                                <a href="{{ link.url }}" class="btn {% if link_key == 'logout' %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
-                                    <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                    {{ _(link.label_key) }}
-                                </a>
-                            </div>
+                    {% if current_user.is_guest %}
+                        {# Für Gäste: Zeige ALLE zugänglichen Module, nicht nur konfigurierte #}
+                        {# Erstelle Mapping von Modul-Schlüssel zu Link-Key #}
+                        {% set module_to_link_key = {
+                            'module_chat': 'chat',
+                            'module_files': 'files',
+                            'module_calendar': 'calendar',
+                            'module_manuals': 'manuals',
+                            'module_inventory': 'inventory',
+                            'module_wiki': 'wiki',
+                            'module_music': 'music',
+                            'module_booking': 'booking'
+                        } %}
+                        {# Definiere Reihenfolge für Module (entspricht Navigation) #}
+                        {% set module_order = [
+                            'module_chat',
+                            'module_files',
+                            'module_calendar',
+                            'module_manuals',
+                            'module_inventory',
+                            'module_wiki',
+                            'module_music',
+                            'module_booking'
+                        ] %}
+                        {# Sortiere zugängliche Module nach definierter Reihenfolge #}
+                        {% set sorted_modules = [] %}
+                        {% for module_key in module_order %}
+                            {% if module_key in guest_accessible_modules %}
+                                {% set _ = sorted_modules.append(module_key) %}
                             {% endif %}
+                        {% endfor %}
+                        {# Zeige alle zugänglichen Module in der richtigen Reihenfolge #}
+                        {% for module_key in sorted_modules %}
+                            {% set link_key = module_to_link_key.get(module_key) %}
+                            {% if link_key and link_key in link_map %}
+                                {% set link = link_map[link_key] %}
+                                {% set should_show = false %}
+                                {# Prüfe spezielle Bedingungen für Chats und Dateien #}
+                                {% if module_key == 'module_chat' %}
+                                    {% if guest_has_chat_access %}
+                                        {% set should_show = true %}
+                                    {% endif %}
+                                {% elif module_key == 'module_files' %}
+                                    {% if guest_has_file_access %}
+                                        {% set should_show = true %}
+                                    {% endif %}
+                                {% else %}
+                                    {# Andere Module: Zeige wenn Modul aktiviert ist #}
+                                    {% if is_module_enabled(module_key) %}
+                                        {% set should_show = true %}
+                                    {% endif %}
+                                {% endif %}
+                                {% if should_show %}
+                                <div class="col-6 col-md-3">
+                                    <a href="{{ link.url }}" class="btn btn-outline-primary w-100">
+                                        <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
+                                        {{ _(link.label_key) }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {# Settings und Logout immer anzeigen #}
+                        {% if 'settings' in link_map %}
+                        <div class="col-6 col-md-3">
+                            <a href="{{ link_map['settings'].url }}" class="btn btn-outline-primary w-100">
+                                <i class="bi {{ link_map['settings'].icon }} d-block fs-3 mb-2"></i>
+                                {{ _(link_map['settings'].label_key) }}
+                            </a>
+                        </div>
                         {% endif %}
-                    {% endfor %}
+                        {% if 'logout' in link_map %}
+                        <div class="col-6 col-md-3">
+                            <a href="{{ link_map['logout'].url }}" class="btn btn-outline-danger w-100">
+                                <i class="bi {{ link_map['logout'].icon }} d-block fs-3 mb-2"></i>
+                                {{ _(link_map['logout'].label_key) }}
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        {# Normale Benutzer: Standard-Logik #}
+                        {% for link_key in quick_access_links %}
+                            {% if link_key in link_map %}
+                                {% set link = link_map[link_key] %}
+                                {% if link.module is none or is_module_enabled(link.module) %}
+                                <div class="col-6 col-md-3">
+                                    <a href="{{ link.url }}" class="btn {% if link_key == 'logout' %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
+                                        <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
+                                        {{ _(link.label_key) }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
         </div>

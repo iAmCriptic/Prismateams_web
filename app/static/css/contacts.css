@@ -1,0 +1,209 @@
+/* Kontakt-Chip-Komponente Styles */
+
+.contact-chip-wrapper {
+    position: relative;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    background: var(--bs-body-bg);
+    min-height: 48px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.contact-chip-wrapper:focus-within {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.contact-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: flex-start;
+    margin-left: 0.5rem;
+}
+
+.contact-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1.5rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    font-size: 0.875rem;
+    max-width: 100%;
+}
+
+.contact-chip-wrapper .chip-avatar,
+.chip-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50% !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    color: white !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.chip-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.chip-remove {
+    background: none;
+    border: none;
+    color: var(--bs-body-color);
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: opacity 0.2s, background-color 0.2s;
+}
+
+.chip-remove:hover {
+    opacity: 1;
+    background-color: var(--bs-danger);
+    color: white;
+}
+
+.contact-chip-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    flex: 0 0 auto;
+    min-width: 150px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.contact-chip-input::placeholder {
+    color: var(--bs-secondary-color);
+}
+
+/* Autocomplete Dropdown */
+.contact-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 0.25rem;
+}
+
+.autocomplete-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--bs-border-color);
+    transition: background-color 0.15s;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background-color: var(--bs-secondary-bg);
+}
+
+.autocomplete-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.contact-autocomplete-dropdown .autocomplete-avatar,
+.autocomplete-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50% !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    color: white !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.autocomplete-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.autocomplete-name {
+    font-weight: 500;
+    color: var(--bs-body-color);
+    margin-bottom: 0.25rem;
+}
+
+.autocomplete-email {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dark Mode Anpassungen */
+[data-bs-theme="dark"] .contact-chip-wrapper {
+    background: var(--bs-secondary-bg);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .contact-chip {
+    background: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .contact-autocomplete-dropdown {
+    background: var(--bs-secondary-bg);
+    border-color: var(--bs-border-color);
+}
+
+/* Mobile Optimierungen */
+@media (max-width: 767.98px) {
+    .contact-chip-wrapper {
+        min-height: 44px;
+        padding: 0.375rem;
+    }
+    
+    .chip-text {
+        max-width: 150px;
+    }
+    
+    .contact-chip-input {
+        min-width: 100px;
+        font-size: 16px; /* Verhindert Zoom auf iOS */
+    }
+    
+    .autocomplete-item {
+        padding: 1rem;
+    }
+}

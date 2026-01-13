@@ -7,6 +7,7 @@ from app.models.chat import Chat, ChatMember
 from app.models.settings import SystemSettings
 from app.models.whitelist import WhitelistEntry
 from app.utils.backup import import_backup, SUPPORTED_CATEGORIES
+from app.utils.i18n import translate, available_languages
 from datetime import datetime
 import logging
 import os
@@ -64,16 +65,16 @@ def setup_import_backup():
         elif action == 'import':
             # Backup importieren
             if 'backup_file' not in request.files:
-                flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
+                flash(translate('setup.flash.select_backup_file'), 'danger')
                 return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
             
             file = request.files['backup_file']
             if file.filename == '':
-                flash('Bitte wählen Sie eine Backup-Datei aus.', 'danger')
+                flash(translate('setup.flash.select_backup_file'), 'danger')
                 return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
             
             if not file.filename.endswith('.prismateams'):
-                flash('Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.', 'danger')
+                flash(translate('setup.flash.invalid_file_extension'), 'danger')
                 return render_template('setup/import_backup.html', categories=SUPPORTED_CATEGORIES, color_gradient=current_gradient)
             
             try:
@@ -125,6 +126,7 @@ def setup_complete():
         portal_name = request.form.get('portal_name', '').strip()
         default_accent_color = request.form.get('default_accent_color', '#0d6efd').strip()
         color_gradient = request.form.get('color_gradient', '').strip()
+        default_language = request.form.get('default_language', 'de').strip()
         
         # Handle portal logo upload
         portal_logo_filename = None
@@ -162,7 +164,7 @@ def setup_complete():
                     file.save(filepath)
                     portal_logo_filename = filename
                 else:
-                    flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
+                    flash(translate('setup.flash.invalid_file_type'), 'danger')
                     return render_template('setup/complete.html')
         
         # Whitelist-Einträge
@@ -183,15 +185,15 @@ def setup_complete():
         
         # Validierung
         if not all([portal_name, email, password, first_name, last_name]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            flash(translate('setup.flash.fill_all_fields'), 'danger')
             return render_template('setup/complete.html')
         
         if password != password_confirm:
-            flash('Die Passwörter stimmen nicht überein.', 'danger')
+            flash(translate('setup.flash.passwords_dont_match'), 'danger')
             return render_template('setup/complete.html')
         
         if len(password) < 8:
-            flash('Das Passwort muss mindestens 8 Zeichen lang sein.', 'danger')
+            flash(translate('setup.flash.password_too_short'), 'danger')
             return render_template('setup/complete.html')
         
         try:
@@ -202,6 +204,7 @@ def setup_complete():
             portal_logo_filename = session.get('setup_portal_logo', portal_logo_filename if 'portal_logo_filename' in locals() else None)
             default_accent_color = session.get('setup_default_accent_color', '#0d6efd')
             color_gradient = session.get('setup_color_gradient', None)
+            default_language = session.get('setup_default_language', 'de')
             
             # Ersten Administrator erstellen
             admin_user = User(
@@ -282,6 +285,16 @@ def setup_complete():
             db.session.add(accent_color_setting)
             logging.info(f"Default accent color setting created: {default_accent_color}")
             
+            # Standardsprache speichern
+            default_language = session.get('setup_default_language', 'de')
+            language_setting = SystemSettings(
+                key='default_language',
+                value=default_language,
+                description='Standardsprache der Benutzeroberfläche für neue Benutzer.'
+            )
+            db.session.add(language_setting)
+            logging.info(f"Default language setting created: {default_language}")
+            
             # Farbverlauf speichern
             if color_gradient:
                 gradient_setting = SystemSettings(
@@ -339,7 +352,7 @@ def setup_complete():
             login_user(admin_user)
             logging.info("Admin user logged in")
             
-            flash('Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.', 'success')
+            flash(translate('setup.flash.completed'), 'success')
             return redirect(url_for('dashboard.index'))
             
         except Exception as e:
@@ -347,8 +360,19 @@ def setup_complete():
             logging.error(f"Error during setup: {str(e)}")
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
             return render_template('setup/complete.html')
+    # Verfügbare Sprachen und deren Namen
+    language_names = {
+        'de': 'Deutsch',
+        'en': 'English',
+        'pt': 'Português',
+        'es': 'Español',
+        'ru': 'Русский'
+    }
+    available_langs = list(available_languages())
+    languages = [(lang, language_names.get(lang, lang.upper())) for lang in available_langs]
+    current_language = session.get('setup_default_language', 'de')
     
-    return render_template('setup/complete.html')
+    return render_template('setup/complete.html', languages=languages, current_language=current_language)
 
 
 @setup_bp.route('/setup/step1', methods=['GET', 'POST'])
@@ -363,7 +387,7 @@ def setup_step1():
         color_gradient = request.form.get('color_gradient', '').strip()
         
         if not portal_name:
-            flash('Bitte geben Sie einen Portalsnamen ein.', 'danger')
+            flash(translate('setup.flash.enter_portal_name'), 'danger')
             return render_template('setup/step1.html')
         
         # Handle portal logo upload
@@ -402,14 +426,18 @@ def setup_step1():
                     file.save(filepath)
                     portal_logo_filename = filename
                 else:
-                    flash('Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt.', 'danger')
+                    flash(translate('setup.flash.invalid_file_type'), 'danger')
                     return render_template('setup/step1.html')
+        
+        # Standardsprache lesen
+        default_language = request.form.get('default_language', 'de').strip()
         
         # Speichere in Session für später
         session['setup_portal_name'] = portal_name
         session['setup_portal_logo'] = portal_logo_filename
         session['setup_default_accent_color'] = default_accent_color
         session['setup_color_gradient'] = color_gradient
+        session['setup_default_language'] = default_language
         
         # Speichere direkt in die Datenbank, damit die Werte sofort verfügbar sind
         try:
@@ -498,7 +526,19 @@ def setup_step1():
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     
-    return render_template('setup/step1.html', color_gradient=current_gradient)
+    # Verfügbare Sprachen und deren Namen
+    language_names = {
+        'de': 'Deutsch',
+        'en': 'English',
+        'pt': 'Português',
+        'es': 'Español',
+        'ru': 'Русский'
+    }
+    available_langs = list(available_languages())
+    languages = [(lang, language_names.get(lang, lang.upper())) for lang in available_langs]
+    current_language = session.get('setup_default_language', 'de')
+    
+    return render_template('setup/step1.html', color_gradient=current_gradient, languages=languages, current_language=current_language)
 
 
 @setup_bp.route('/setup/step2', methods=['GET', 'POST'])
@@ -524,6 +564,24 @@ def setup_step2():
         
         # Speichere in Session
         session['setup_whitelist_entries'] = whitelist_entries
+        
+        # Standardrollen verarbeiten
+        all_modules = [
+            'module_chat', 'module_files', 'module_calendar', 'module_email',
+            'module_credentials', 'module_manuals', 'module_inventory',
+            'module_wiki', 'module_booking', 'module_music'
+        ]
+        
+        default_roles = {
+            'full_access': request.form.get('default_full_access') == 'on'
+        }
+        
+        # Modulspezifische Rollen
+        for module_key in all_modules:
+            default_roles[module_key] = request.form.get(f'default_{module_key}') == 'on'
+        
+        # Speichere in Session
+        session['setup_default_roles'] = default_roles
         
         return redirect(url_for('setup.setup_step3'))
     
@@ -589,15 +647,15 @@ def setup_step4():
         
         # Validierung
         if not all([email, password, first_name, last_name]):
-            flash('Bitte füllen Sie alle Pflichtfelder aus.', 'danger')
+            flash(translate('setup.flash.fill_all_fields'), 'danger')
             return render_template('setup/step3.html')
         
         if password != password_confirm:
-            flash('Die Passwörter stimmen nicht überein.', 'danger')
+            flash(translate('setup.flash.passwords_dont_match'), 'danger')
             return render_template('setup/step3.html')
         
         if len(password) < 8:
-            flash('Das Passwort muss mindestens 8 Zeichen lang sein.', 'danger')
+            flash(translate('setup.flash.password_too_short'), 'danger')
             return render_template('setup/step3.html')
         
         try:
@@ -714,6 +772,21 @@ def setup_step4():
                     db.session.add(gradient_setting)
                     logging.info("Color gradient setting created")
             
+            # Standardsprache speichern
+            default_language = session.get('setup_default_language', 'de')
+            language_setting = SystemSettings.query.filter_by(key='default_language').first()
+            if language_setting:
+                language_setting.value = default_language
+                logging.info(f"Default language setting updated: {default_language}")
+            else:
+                language_setting = SystemSettings(
+                    key='default_language',
+                    value=default_language,
+                    description='Standardsprache der Benutzeroberfläche für neue Benutzer.'
+                )
+                db.session.add(language_setting)
+                logging.info(f"Default language setting created: {default_language}")
+            
             # Whitelist-Einträge hinzufügen
             whitelist_entries = session.get('setup_whitelist_entries', [])
             for entry_data in whitelist_entries:
@@ -740,6 +813,18 @@ def setup_step4():
                 created_by=admin_user.id
             )
             db.session.add(admin_whitelist_entry)
+            
+            # Standardrollen speichern (aus Session)
+            import json
+            default_roles = session.get('setup_default_roles', {})
+            if default_roles:
+                default_roles_setting = SystemSettings(
+                    key='default_module_roles',
+                    value=json.dumps(default_roles),
+                    description='Standardrollen für neue Benutzer'
+                )
+                db.session.add(default_roles_setting)
+                logging.info("Default module roles setting created")
             
             # Module-Einstellungen speichern (aus Session)
             modules = session.get('setup_modules', {
@@ -802,9 +887,9 @@ def setup_step4():
             session['setup_completed'] = True
             
             # Erfolgreiche Setup-Abschluss-Meldung
-            flash('🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.', 'success')
-            flash('Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.', 'info')
-            flash('Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt.', 'info')
+            flash(translate('setup.flash.completed_emoji'), 'success')
+            flash(translate('setup.flash.add_users_info'), 'info')
+            flash(translate('setup.flash.admin_account_created'), 'info')
             logging.info("Redirecting to dashboard")
             return redirect(url_for('dashboard.index'))
             

@@ -67,6 +67,16 @@
                             <option value="linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)">Orange-Pastell</option>
                         </select>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="default_language" class="form-label">Standardsprache</label>
+                        <select class="form-select" id="default_language" name="default_language">
+                            {% for lang_code, lang_name in languages %}
+                            <option value="{{ lang_code }}" {% if current_language == lang_code %}selected{% endif %}>{{ lang_name }}{% if lang_code == 'de' %} (Voreingestellt){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Die Standardsprache für das Portal. Neue Benutzer erhalten diese Sprache standardmäßig.</div>
+                    </div>
                 </div>
                 
                 <!-- Whitelist -->
@@ -155,6 +165,30 @@
                                 <input class="form-check-input" type="checkbox" id="module_inventory" name="module_inventory" checked>
                                 <label class="form-check-label" for="module_inventory">
                                     <i class="bi bi-box-seam me-2"></i>Lagerverwaltung
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="module_wiki" name="module_wiki" checked>
+                                <label class="form-check-label" for="module_wiki">
+                                    <i class="bi bi-journal-text me-2"></i>Wiki
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="module_booking" name="module_booking" checked>
+                                <label class="form-check-label" for="module_booking">
+                                    <i class="bi bi-calendar-check me-2"></i>Buchungen
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="module_music" name="module_music" checked>
+                                <label class="form-check-label" for="module_music">
+                                    <i class="bi bi-music-note-beamed me-2"></i>Musik
                                 </label>
                             </div>
                         </div>

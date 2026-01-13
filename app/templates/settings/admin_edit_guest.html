@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Gast-Account bearbeiten{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin_users') }}">Benutzerverwaltung</a></li>
+        <li class="breadcrumb-item active">Gast-Account bearbeiten</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Gast-Account bearbeiten: {{ user.full_name }}</h2>
+    <a href="{{ url_for('settings.admin_users') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-person-dash me-2"></i>Gast-Account: {{ user.email }}
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('settings.edit_guest_user', user_id=user.id) }}">
+            <div class="mb-3">
+                <label for="first_name" class="form-label">Vorname <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="last_name" class="form-label">Nachname <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="guest_expires_at" class="form-label">Ablaufzeit (optional)</label>
+                <input type="datetime-local" class="form-control" id="guest_expires_at" name="guest_expires_at" 
+                       value="{% if user.guest_expires_at %}{{ user.guest_expires_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                <small class="form-text text-muted">Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.</small>
+            </div>
+            
+            <hr>
+            
+            <h5 class="mb-3">Freigabelink-Zugriff</h5>
+            <div class="mb-3">
+                <small class="text-muted">Wählen Sie die Freigabelinks, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Freigabeordnern wird automatisch Zugriff auf das Dateien-Modul gewährt.</small>
+            </div>
+            
+            {% if shared_files %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">Dateien:</label>
+                {% for file in shared_files %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ file.share_token }}" 
+                           id="share_file_{{ file.id }}" {% if file.share_token in current_share_tokens %}checked{% endif %}>
+                    <label class="form-check-label" for="share_file_{{ file.id }}">
+                        {{ file.original_name }} ({{ file.share_token[:8] }}...)
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if shared_folders %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">Ordner:</label>
+                {% for folder in shared_folders %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ folder.share_token }}" 
+                           id="share_folder_{{ folder.id }}" {% if folder.share_token in current_share_tokens %}checked{% endif %}>
+                    <label class="form-check-label" for="share_folder_{{ folder.id }}">
+                        {{ folder.name }} ({{ folder.share_token[:8] }}...)
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if not shared_files and not shared_folders %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> Keine Freigabelinks verfügbar. Erstellen Sie zuerst Freigabelinks für Dateien oder Ordner.
+            </div>
+            {% endif %}
+            
+            <hr>
+            
+            <h5 class="mb-3">Chat-Zugriff</h5>
+            <div class="mb-3">
+                <small class="text-muted">Wählen Sie die Chats, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Chats wird automatisch Zugriff auf das Chat-Modul gewährt.</small>
+            </div>
+            
+            {% if all_chats %}
+            {% for chat in all_chats %}
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="chat_ids" value="{{ chat.id }}" 
+                       id="chat_{{ chat.id }}" {% if chat.id in current_chat_ids %}checked{% endif %}>
+                <label class="form-check-label" for="chat_{{ chat.id }}">
+                    <strong>{{ chat.name }}</strong>
+                    {% if chat.is_main_chat %}<span class="badge bg-primary ms-2">Haupt-Chat</span>{% endif %}
+                </label>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> Keine Chats verfügbar.
+            </div>
+            {% endif %}
+            
+            <hr>
+            
+            <h5 class="mb-3">Modul-Zugriff</h5>
+            <div class="mb-3">
+                <small class="text-muted">Wählen Sie zusätzliche Module, auf die der Gast-Account Zugriff haben soll. E-Mail, Passwort, Chats und Dateien werden automatisch über die obigen Zuweisungen gesteuert.</small>
+            </div>
+            {% for module_key, module_name in guest_modules %}
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="allowed_modules" value="{{ module_key }}" 
+                       id="module_{{ module_key }}" {% if module_key in current_modules %}checked{% endif %}>
+                <label class="form-check-label" for="module_{{ module_key }}">
+                    <strong>{{ module_name }}</strong>
+                </label>
+            </div>
+            {% endfor %}
+            
+            <hr>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Gast-Accounts haben keinen Zugriff auf E-Mail & Passwort-Modul. Sie können im Inventar nur anzeigen (keine Ausleihen). Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> Änderungen speichern
+            </button>
+            <a href="{{ url_for('settings.admin_users') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-x"></i> Abbrechen
+            </a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
