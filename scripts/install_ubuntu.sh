@@ -111,23 +111,64 @@ gather_information() {
     read -p "Installationspfad [/var/www/teamportal]: " INSTALL_DIR
     INSTALL_DIR=${INSTALL_DIR:-/var/www/teamportal}
     
-    # Domain/IP
-    read -p "Domain oder IP-Adresse für Nginx: " DOMAIN
-    if [ -z "$DOMAIN" ]; then
-        log_error "Domain/IP ist erforderlich!"
-        exit 1
-    fi
+    # Gunicorn-Port
+    read -p "Gunicorn-Port [5000]: " GUNICORN_PORT
+    GUNICORN_PORT=${GUNICORN_PORT:-5000}
     
-    # SSL
-    read -p "SSL mit Let's Encrypt einrichten? (j/n) [n]: " SETUP_SSL
-    SETUP_SSL=${SETUP_SSL:-n}
+    # Webserver-Setup-Option
+    log_info ""
+    log_info "=== Webserver-Konfiguration ==="
+    read -p "Möchten Sie, dass der Webserver automatisch eingerichtet wird? (j/n) [j]: " SETUP_WEBSERVER
+    SETUP_WEBSERVER=${SETUP_WEBSERVER:-j}
     
-    if [[ $SETUP_SSL =~ ^[JjYy]$ ]]; then
-        read -p "E-Mail-Adresse für Let's Encrypt: " LETSENCRYPT_EMAIL
-        if [ -z "$LETSENCRYPT_EMAIL" ]; then
-            log_warning "Keine E-Mail angegeben. Verwende webmaster@$DOMAIN"
-            LETSENCRYPT_EMAIL="webmaster@$DOMAIN"
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        # Webserver-Typ-Auswahl
+        read -p "Welchen Webserver möchten Sie verwenden? (nginx/apache) [nginx]: " WEBSERVER_TYPE
+        WEBSERVER_TYPE=${WEBSERVER_TYPE:-nginx}
+        
+        # Validiere Webserver-Typ
+        if [[ "$WEBSERVER_TYPE" != "nginx" && "$WEBSERVER_TYPE" != "apache" ]]; then
+            log_warning "Ungültiger Webserver-Typ. Verwende nginx."
+            WEBSERVER_TYPE="nginx"
         fi
+        
+        # Domain/IP (erforderlich bei automatischer Webserver-Einrichtung)
+        read -p "Domain oder IP-Adresse für ${WEBSERVER_TYPE}: " DOMAIN
+        if [ -z "$DOMAIN" ]; then
+            log_error "Domain/IP ist erforderlich für automatische Webserver-Einrichtung!"
+            exit 1
+        fi
+        
+        # SSL
+        read -p "SSL mit Let's Encrypt einrichten? (j/n) [n]: " SETUP_SSL
+        SETUP_SSL=${SETUP_SSL:-n}
+        
+        if [[ $SETUP_SSL =~ ^[JjYy]$ ]]; then
+            read -p "E-Mail-Adresse für Let's Encrypt: " LETSENCRYPT_EMAIL
+            if [ -z "$LETSENCRYPT_EMAIL" ]; then
+                log_warning "Keine E-Mail angegeben. Verwende webmaster@$DOMAIN"
+                LETSENCRYPT_EMAIL="webmaster@$DOMAIN"
+            fi
+        fi
+    else
+        # Manuelle Webserver-Einrichtung
+        WEBSERVER_TYPE=""
+        SETUP_SSL="n"
+        LETSENCRYPT_EMAIL=""
+        
+        # Domain/IP optional bei manueller Einrichtung
+        read -p "Domain oder IP-Adresse (optional, für Dokumentation): " DOMAIN
+        
+        log_info ""
+        log_warning "=== WICHTIGER HINWEIS ==="
+        log_info "Sie haben sich für die manuelle Webserver-Einrichtung entschieden."
+        log_info "Bitte beachten Sie den Einrichtungsprozess ab Schritt 11 in der INSTALLATION.md"
+        log_info "Schritt 11: Nginx/Apache konfigurieren"
+        log_info "Schritt 12: SSL mit Let's Encrypt (optional)"
+        log_info "Schritt 13: Firewall konfigurieren"
+        log_info ""
+        log_info "Gunicorn läuft auf Port ${GUNICORN_PORT} und muss im Webserver konfiguriert werden."
+        log_info ""
     fi
     
     # Datenbank-Root-Passwort
@@ -218,31 +259,34 @@ setup_system() {
     fi
     
     log_info "Installiere Basis-Pakete..."
-    if ! apt-get install -y -qq \
-        curl \
-        wget \
-        git \
-        build-essential \
-        software-properties-common \
-        apt-transport-https \
-        ca-certificates \
-        gnupg \
-        lsb-release \
-        python3 \
-        python3-pip \
-        python3-venv \
-        python3-dev \
-        libmysqlclient-dev \
-        pkg-config \
-        ufw \
-        nginx \
-        supervisor \
-        mysql-server \
-        mysql-client \
-        redis-server \
-        openssl \
-        certbot \
-        python3-certbot-nginx; then
+    
+    # Basis-Paketliste (immer installieren)
+    BASE_PACKAGES="curl wget git build-essential software-properties-common \
+        apt-transport-https ca-certificates gnupg lsb-release \
+        python3 python3-pip python3-venv python3-dev \
+        libmysqlclient-dev pkg-config ufw supervisor \
+        mysql-server mysql-client redis-server openssl certbot"
+    
+    # Webserver-Pakete bedingt hinzufügen
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            BASE_PACKAGES="$BASE_PACKAGES nginx python3-certbot-nginx"
+            log_info "Installiere NGINX und Certbot für NGINX..."
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            BASE_PACKAGES="$BASE_PACKAGES apache2"
+            # Prüfe ob python3-certbot-apache verfügbar ist
+            if apt-cache show python3-certbot-apache &>/dev/null; then
+                BASE_PACKAGES="$BASE_PACKAGES python3-certbot-apache"
+            else
+                log_warning "python3-certbot-apache nicht verfügbar. Verwende certbot ohne Apache-Plugin."
+            fi
+            log_info "Installiere Apache2 und Certbot für Apache..."
+        fi
+    else
+        log_info "Webserver wird manuell eingerichtet - überspringe Webserver-Installation"
+    fi
+    
+    if ! apt-get install -y -qq $BASE_PACKAGES; then
         error_exit "Paket-Installation fehlgeschlagen"
     fi
     
@@ -251,8 +295,17 @@ setup_system() {
         error_exit "Python3 wurde nicht korrekt installiert"
     fi
     
-    if ! command -v nginx &> /dev/null; then
-        error_exit "Nginx wurde nicht korrekt installiert"
+    # Webserver-Validierung nur wenn automatisch eingerichtet
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            if ! command -v nginx &> /dev/null; then
+                error_exit "Nginx wurde nicht korrekt installiert"
+            fi
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            if ! command -v apache2 &> /dev/null; then
+                error_exit "Apache2 wurde nicht korrekt installiert"
+            fi
+        fi
     fi
     
     log_info "Aktualisiere pip..."
@@ -940,9 +993,9 @@ Group=www-data
 WorkingDirectory=${INSTALL_DIR}
 Environment="PATH=${INSTALL_DIR}/venv/bin"
 Environment="FLASK_ENV=production"
-ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
+    ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
     --workers 1 \\
-    --bind 127.0.0.1:5000 \\
+    --bind 127.0.0.1:${GUNICORN_PORT} \\
     --timeout 600 \\
     --access-logfile - \\
     --error-logfile - \\
@@ -1007,7 +1060,7 @@ setup_nginx() {
 # Dies ist erforderlich für Socket.IO mit Multi-Worker-Setups
 upstream teamportal_backend {
     ip_hash;  # Session-Stickiness für Socket.IO Multi-Worker
-    server 127.0.0.1:5000;
+    server 127.0.0.1:${GUNICORN_PORT};
 }
 
 server {
@@ -1219,6 +1272,179 @@ EOF
     log_success "Nginx konfiguriert"
 }
 
+# Apache Konfiguration
+setup_apache() {
+    log_info "=== Apache Konfiguration ==="
+    
+    # Apache-Module aktivieren
+    log_info "Aktiviere erforderliche Apache-Module..."
+    a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl 2>/dev/null || true
+    
+    # Apache Virtual Host-Konfiguration erstellen
+    log_info "Erstelle Apache Virtual Host-Konfiguration..."
+    cat > /etc/apache2/sites-available/teamportal.conf <<EOF
+<VirtualHost *:80>
+    ServerName ${DOMAIN}
+    
+    # Security headers
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # File upload limit
+    LimitRequestBody 104857600
+    
+    # Proxy-Einstellungen
+    ProxyPreserveHost On
+    ProxyRequests Off
+    
+    # OnlyOffice Cache (MUSS VOR /onlyoffice kommen!)
+    # OnlyOffice benötigt diesen Pfad für interne Cache-Dateien
+    # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+    <Location /cache>
+        ProxyPass http://127.0.0.1:8080/cache
+        ProxyPassReverse http://127.0.0.1:8080/cache
+        ProxyPassReverse http://127.0.0.1:8080/cache
+        
+        ProxyPreserveHost On
+        RequestHeader set Host "\${HTTP_HOST}"
+        RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+        RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+        RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+    </Location>
+    
+    # OnlyOffice Document Server (OPTIONAL - nur wenn installiert)
+    # Entfernen Sie diesen Block, wenn OnlyOffice NICHT installiert ist
+    <Location /onlyoffice>
+        ProxyPass http://127.0.0.1:8080/
+        ProxyPassReverse http://127.0.0.1:8080/
+        
+        ProxyPreserveHost On
+        RequestHeader set Host "\${HTTP_HOST}"
+        RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+        RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+        RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+        
+        # CORS headers for OnlyOffice
+        Header always set Access-Control-Allow-Origin "*"
+        Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+        Header always set Access-Control-Allow-Headers "Authorization, Content-Type"
+        Header always set Access-Control-Allow-Credentials "true"
+    </Location>
+    
+    # Excalidraw Room Server (OPTIONAL - nur wenn installiert)
+    # WICHTIG: Muss VOR /excalidraw kommen!
+    # Entfernen Sie diesen Block, wenn Excalidraw NICHT installiert ist
+    <Location /excalidraw-room>
+        ProxyPass http://127.0.0.1:8082/
+        ProxyPassReverse http://127.0.0.1:8082/
+        ProxyPassReverse ws://127.0.0.1:8082/
+        
+        ProxyPreserveHost On
+        RequestHeader set Host "\${HTTP_HOST}"
+        RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+        RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+        RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+    </Location>
+    
+    # Excalidraw Client (OPTIONAL - nur wenn installiert)
+    # Entfernen Sie diesen Block, wenn Excalidraw NICHT installiert ist
+    <Location /excalidraw>
+        ProxyPass http://127.0.0.1:8081/
+        ProxyPassReverse http://127.0.0.1:8081/
+        ProxyPassReverse ws://127.0.0.1:8081/
+        
+        ProxyPreserveHost On
+        RequestHeader set Host "\${HTTP_HOST}"
+        RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+        RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+        RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+    </Location>
+    
+    # Statische Dateien (MUSS VOR / kommen!)
+    Alias /static ${INSTALL_DIR}/app/static
+    <Directory "${INSTALL_DIR}/app/static">
+        Require all granted
+        ExpiresActive On
+        ExpiresDefault "access plus 30 days"
+    </Directory>
+    
+    # Uploads (MUSS VOR / kommen!)
+    Alias /uploads ${INSTALL_DIR}/uploads
+    <Directory "${INSTALL_DIR}/uploads">
+        Require all granted
+        ExpiresActive On
+        ExpiresDefault "access plus 7 days"
+    </Directory>
+    
+    # Socket.IO spezifische Konfiguration (MUSS VOR / kommen!)
+    # Socket.IO verwendet /socket.io/ für Polling und WebSocket-Verbindungen
+    <Location /socket.io/>
+        ProxyPass http://127.0.0.1:${GUNICORN_PORT}/socket.io/
+        ProxyPassReverse http://127.0.0.1:${GUNICORN_PORT}/socket.io/
+        ProxyPassReverse ws://127.0.0.1:${GUNICORN_PORT}/socket.io/
+        
+        ProxyPreserveHost On
+        RequestHeader set Host "\${HTTP_HOST}"
+        RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+        RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+        RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+        
+        # CORS für Socket.IO (falls nötig)
+        Header always set Access-Control-Allow-Origin "*"
+        Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Header always set Access-Control-Allow-Headers "Content-Type"
+        Header always set Access-Control-Allow-Credentials "true"
+    </Location>
+    
+    # Hauptanwendung (MUSS ZULETZT kommen!)
+    <Location />
+        ProxyPass http://127.0.0.1:${GUNICORN_PORT}/
+        ProxyPassReverse http://127.0.0.1:${GUNICORN_PORT}/
+        ProxyPassReverse ws://127.0.0.1:${GUNICORN_PORT}/
+        
+        ProxyPreserveHost On
+        RequestHeader set Host "\${HTTP_HOST}"
+        RequestHeader set X-Real-IP "\${REMOTE_ADDR}"
+        RequestHeader set X-Forwarded-For "\${HTTP_X_FORWARDED_FOR}"
+        RequestHeader set X-Forwarded-Proto "\${REQUEST_SCHEME}"
+    </Location>
+    
+    # Logging
+    ErrorLog \${APACHE_LOG_DIR}/teamportal_error.log
+    CustomLog \${APACHE_LOG_DIR}/teamportal_access.log combined
+</VirtualHost>
+EOF
+    
+    # Site aktivieren
+    log_info "Aktiviere Apache-Site..."
+    a2ensite teamportal.conf || error_exit "Site-Aktivierung fehlgeschlagen"
+    
+    # Standard-Site deaktivieren
+    a2dissite 000-default.conf 2>/dev/null || true
+    
+    # Apache-Konfiguration testen
+    log_info "Teste Apache-Konfiguration..."
+    if ! apache2ctl configtest; then
+        error_exit "Apache-Konfigurationstest fehlgeschlagen"
+    fi
+    
+    # Apache neu starten
+    log_info "Starte Apache..."
+    systemctl enable apache2 || error_exit "Apache-Aktivierung fehlgeschlagen"
+    systemctl restart apache2 || error_exit "Apache-Neustart fehlgeschlagen"
+    
+    # Prüfe Status
+    sleep 2
+    if systemctl is-active --quiet apache2; then
+        log_success "Apache läuft"
+    else
+        error_exit "Apache läuft nicht. Prüfe Logs: journalctl -u apache2 -n 50"
+    fi
+    
+    log_success "Apache konfiguriert"
+}
+
 # Firewall Setup
 setup_firewall() {
     log_info "=== Firewall Setup ==="
@@ -1226,14 +1452,37 @@ setup_firewall() {
     # UFW konfigurieren
     ufw --force enable
     ufw allow 22/tcp
-    ufw allow 80/tcp
-    ufw allow 443/tcp
+    
+    # Webserver-spezifische Firewall-Regeln
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            ufw allow 'Nginx Full'
+            log_info "NGINX Firewall-Regeln hinzugefügt"
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            ufw allow 'Apache Full'
+            log_info "Apache Firewall-Regeln hinzugefügt"
+        else
+            # Fallback: Ports manuell öffnen
+            ufw allow 80/tcp
+            ufw allow 443/tcp
+        fi
+    else
+        # Bei manueller Webserver-Einrichtung: Nur SSH erlauben
+        log_info "Webserver wird manuell eingerichtet - nur SSH erlaubt"
+        log_info "Bitte konfigurieren Sie die Firewall-Regeln manuell für Ihren Webserver"
+    fi
     
     log_success "Firewall konfiguriert"
 }
 
 # SSL Setup
 setup_ssl() {
+    # SSL-Setup nur durchführen, wenn Webserver automatisch eingerichtet wird
+    if [[ ! $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        log_info "SSL-Setup übersprungen (Webserver wird manuell eingerichtet)"
+        return
+    fi
+    
     if [[ ! $SETUP_SSL =~ ^[JjYy]$ ]]; then
         return
     fi
@@ -1243,10 +1492,24 @@ setup_ssl() {
     # Prüfe ob Certbot verfügbar ist
     if ! command -v certbot &> /dev/null; then
         log_warning "Certbot nicht gefunden. Installiere..."
-        apt-get install -y -qq certbot python3-certbot-nginx || {
-            log_warning "Certbot Installation fehlgeschlagen. SSL wird übersprungen."
-            return
-        }
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            apt-get install -y -qq certbot python3-certbot-nginx || {
+                log_warning "Certbot Installation fehlgeschlagen. SSL wird übersprungen."
+                return
+            }
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            if apt-cache show python3-certbot-apache &>/dev/null; then
+                apt-get install -y -qq certbot python3-certbot-apache || {
+                    log_warning "Certbot Installation fehlgeschlagen. SSL wird übersprungen."
+                    return
+                }
+            else
+                apt-get install -y -qq certbot || {
+                    log_warning "Certbot Installation fehlgeschlagen. SSL wird übersprungen."
+                    return
+                }
+            fi
+        fi
     fi
     
     # Prüfe ob Domain erreichbar ist (Port 80 muss offen sein)
@@ -1262,12 +1525,23 @@ setup_ssl() {
         fi
     fi
     
-    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
-        log_success "SSL konfiguriert"
-        systemctl reload nginx
-    else
-        log_warning "SSL-Setup fehlgeschlagen. Bitte manuell einrichten mit:"
-        log_info "  certbot --nginx -d $DOMAIN"
+    # Webserver-spezifisches SSL-Setup
+    if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+        if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
+            log_success "SSL konfiguriert"
+            systemctl reload nginx
+        else
+            log_warning "SSL-Setup fehlgeschlagen. Bitte manuell einrichten mit:"
+            log_info "  certbot --nginx -d $DOMAIN"
+        fi
+    elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+        if certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect; then
+            log_success "SSL konfiguriert"
+            systemctl reload apache2
+        else
+            log_warning "SSL-Setup fehlgeschlagen. Bitte manuell einrichten mit:"
+            log_info "  certbot --apache -d $DOMAIN"
+        fi
     fi
 }
 
@@ -1289,7 +1563,16 @@ print_summary() {
     echo "Zusammenfassung:"
     echo "==============="
     echo "Installationspfad: $INSTALL_DIR"
-    echo "Domain: $DOMAIN"
+    echo "Gunicorn-Port: $GUNICORN_PORT"
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        echo "Webserver: ${WEBSERVER_TYPE} (automatisch eingerichtet)"
+        echo "Domain: $DOMAIN"
+    else
+        echo "Webserver: Manuell einzurichten"
+        if [ -n "$DOMAIN" ]; then
+            echo "Domain: $DOMAIN"
+        fi
+    fi
     echo "Datenbank: $DB_NAME"
     echo "Datenbank-Benutzer: $DB_USER"
     echo "Datenbank-Passwort: $DB_PASS"
@@ -1319,10 +1602,24 @@ print_summary() {
     else
         echo "1. E-Mail-Einstellungen wurden bereits konfiguriert"
     fi
-    echo "2. Warten Sie etwa 1 Minute, damit die Datenbank beim ersten Start initialisiert wird"
-    echo "3. Prüfen Sie die Logs: journalctl -u teamportal -n 50"
-    echo "4. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
-    echo "5. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+    if [[ ! $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        echo "2. Richten Sie den Webserver manuell ein (siehe INSTALLATION.md, Schritt 11-13)"
+        echo "   - Gunicorn läuft auf Port ${GUNICORN_PORT}"
+        echo "   - Konfigurieren Sie den Webserver so, dass er auf http://127.0.0.1:${GUNICORN_PORT} weiterleitet"
+        echo "3. Warten Sie etwa 1 Minute, damit die Datenbank beim ersten Start initialisiert wird"
+        echo "4. Prüfen Sie die Logs: journalctl -u teamportal -n 50"
+        if [ -n "$DOMAIN" ]; then
+            echo "5. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
+        else
+            echo "5. Öffnen Sie die Anwendung über Ihren konfigurierten Webserver"
+        fi
+        echo "6. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+    else
+        echo "2. Warten Sie etwa 1 Minute, damit die Datenbank beim ersten Start initialisiert wird"
+        echo "3. Prüfen Sie die Logs: journalctl -u teamportal -n 50"
+        echo "4. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
+        echo "5. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+    fi
     echo
     echo "WICHTIG: Nach erfolgreichem ersten Start können Sie auf mehrere Worker umstellen:"
     echo "  sudo nano /etc/systemd/system/teamportal.service"
@@ -1335,19 +1632,37 @@ print_summary() {
     echo
     echo "Service-Status prüfen:"
     echo "  systemctl status teamportal"
-    echo "  systemctl status nginx"
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            echo "  systemctl status nginx"
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            echo "  systemctl status apache2"
+        fi
+    fi
     echo "  docker ps"
     echo
     echo "Logs ansehen:"
     echo "  journalctl -u teamportal -f"
-    echo "  journalctl -u nginx -f"
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            echo "  journalctl -u nginx -f"
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            echo "  journalctl -u apache2 -f"
+        fi
+    fi
     echo "  docker logs onlyoffice-documentserver"
     echo "  docker logs excalidraw"
     echo "  docker logs excalidraw-room"
     echo
     echo "Bei Problemen:"
     echo "  - Prüfe Logs: journalctl -u teamportal -n 100"
-    echo "  - Prüfe Nginx: nginx -t && systemctl status nginx"
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            echo "  - Prüfe Nginx: nginx -t && systemctl status nginx"
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            echo "  - Prüfe Apache: apache2ctl configtest && systemctl status apache2"
+        fi
+    fi
     echo "  - Prüfe Datenbank: mysql -u $DB_USER -p$DB_PASS $DB_NAME -e 'SHOW TABLES;'"
     echo
 }
@@ -1377,7 +1692,20 @@ main() {
     setup_upload_directories
     # init_database wird NICHT aufgerufen - DB wird durch Gunicorn beim ersten Start initialisiert
     setup_gunicorn_service
-    setup_nginx
+    
+    # Webserver-Setup (bedingt)
+    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+        if [ "$WEBSERVER_TYPE" = "nginx" ]; then
+            setup_nginx
+        elif [ "$WEBSERVER_TYPE" = "apache" ]; then
+            setup_apache
+        fi
+    else
+        log_info ""
+        log_info "=== Webserver-Setup übersprungen ==="
+        log_info "Bitte richten Sie den Webserver manuell ein (siehe INSTALLATION.md, Schritt 11-13)"
+    fi
+    
     setup_firewall
     setup_ssl
     set_permissions

@@ -346,13 +346,16 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
     story.append(Spacer(1, 0.8*cm))
     
     # Hinweis
+    # Verwende Helvetica statt Helvetica-Italic, da Helvetica-Italic Unicode-Zeichen 
+    # (z.B. "ü" in "Rückgabedatum") nicht korrekt darstellen kann.
+    # Die Hervorhebung erfolgt bereits über Farbe und Einrückung.
     note_style = ParagraphStyle(
         'Note',
         parent=styles['Normal'],
         fontSize=10,
         textColor=colors.HexColor('#666666'),
         alignment=TA_LEFT,
-        fontName='Helvetica-Italic',
+        fontName='Helvetica',
         leftIndent=0.5*cm,
         rightIndent=0.5*cm
     )

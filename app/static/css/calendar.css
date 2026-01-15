@@ -91,23 +91,25 @@
 .calendar-body {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    min-height: 400px;
+    height: 500px;
+    min-height: 500px;
     position: relative;
-    overflow: visible;
+    overflow: hidden;
 }
 
 .calendar-day {
     padding: 0.5rem;
     border-right: 1px solid #dee2e6;
     border-bottom: 1px solid #dee2e6;
-    min-height: 60px;
+    height: calc(500px / 6);
+    min-height: calc(500px / 6);
+    max-height: calc(500px / 6);
     position: relative;
     cursor: pointer;
     transition: background-color 0.15s ease-in-out;
     display: flex;
     flex-direction: column;
-    overflow: visible;
-    max-height: none;
+    overflow: hidden;
     gap: 0.125rem;
 }
 
@@ -144,21 +146,10 @@
     flex-shrink: 0;
 }
 
-/* Multi-day events in month view */
-.calendar-day {
-    position: relative;
-    overflow: visible;
-}
-
-.calendar-body {
-    position: relative;
-    overflow: visible;
-}
+/* Multi-day events in month view - removed duplicate .calendar-day and .calendar-body definitions */
 
 .calendar-event.multi-day {
-    white-space: normal;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    white-space: nowrap;
     position: relative;
     margin: 0.25rem 0;
     box-sizing: border-box;
@@ -167,11 +158,13 @@
     font-weight: 500;
     transition: box-shadow 0.3s ease, opacity 0.2s ease;
     pointer-events: auto;
-    overflow: visible;
+    overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
     min-height: 24px;
+    max-width: 100%;
+    flex-shrink: 1;
     /* Visual distinction for multi-day events */
     border-left: 4px solid;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -452,8 +445,15 @@
         font-size: 0.875rem;
     }
     
+    .calendar-body {
+        height: 400px;
+        min-height: 400px;
+    }
+    
     .calendar-day {
-        min-height: 50px;
+        height: calc(400px / 6);
+        min-height: calc(400px / 6);
+        max-height: calc(400px / 6);
         padding: 0.25rem;
         font-size: 0.875rem;
     }
@@ -537,8 +537,15 @@
 }
 
 @media (max-width: 576px) {
+    .calendar-body {
+        height: 400px;
+        min-height: 400px;
+    }
+    
     .calendar-day {
-        min-height: 40px;
+        height: calc(400px / 6);
+        min-height: calc(400px / 6);
+        max-height: calc(400px / 6);
         font-size: 0.75rem;
     }
     
