@@ -108,11 +108,11 @@
         <div class="container">
             <div class="text-center mb-3">
                 {% if portal_logo_filename %}
-                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3">
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3" style="max-height: 96px; height: auto; width: auto;">
                 {% elif app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3">
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3" style="max-height: 96px; height: auto; width: auto;">
                 {% else %}
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3" style="max-height: 96px; height: auto; width: auto;">
                 {% endif %}
             </div>
             <h1 class="text-center mb-2"><i class="bi bi-music-note-beamed"></i> {{ _('music.public_wishlist.title') }}</h1>
@@ -141,8 +141,9 @@
                             <div class="form-text">
                                 <strong>{{ _('music.public_wishlist.search_help_format') }}:</strong> {{ _('music.public_wishlist.search_help_text') | safe }}<br>
                                 {{ _('music.public_wishlist.search_help_providers') }}: 
+                                {% set provider_names = {'spotify': 'Spotify', 'youtube': 'YouTube', 'deezer': 'Deezer', 'musicbrainz': 'MusicBrainz'} %}
                                 {% for provider in enabled_providers %}
-                                    {% if provider == 'spotify' %}Spotify{% elif provider == 'youtube' %}YouTube{% elif provider == 'musicbrainz' %}MusicBrainz{% endif %}{% if not loop.last %}, {% endif %}
+                                    {{ provider_names.get(provider, provider) }}{% if not loop.last %}, {% endif %}
                                 {% endfor %}
                             </div>
                             <div class="alert alert-info mt-3 mb-0" style="background-color: #1a1a1a; border-color: #0d6efd; color: #ffffff;">
@@ -181,6 +182,21 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Einstellungen
+        const showProviderBadges = {{ 'true' if show_provider_badges else 'false' }};
+        
+        // Übersetzungen für JavaScript
+        const translations = {
+            noResults: "{{ _('music.public_wishlist.no_results') }}",
+            unknownArtist: "{{ _('music.public_wishlist.unknown_artist') }}",
+            addButton: "{{ _('music.public_wishlist.add_button') }}",
+            recommendation: "{{ _('music.public_wishlist.recommendation_badge') }}",
+            noRecommendations: "{{ _('music.public_wishlist.no_recommendations') }}",
+            successMessage: "{{ _('music.public_wishlist.success_message') }}",
+            wishCountIncreased: "{{ _('music.public_wishlist.wish_count_increased') }}",
+            searchError: "{{ _('music.public_wishlist.search_error') }}"
+        };
+        
         let searchTimeout;
         
         document.getElementById('search-query').addEventListener('input', function() {
@@ -220,15 +236,23 @@
                     query: query
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 loading.style.display = 'none';
                 if (data.error) {
                     errorMsg.textContent = data.error;
                     errorMsg.style.display = 'block';
+                    resultsDiv.style.display = 'none';
+                    document.getElementById('recommendations-section').style.display = 'none';
                 } else if (data.results && data.results.length > 0) {
                     displayResults(data.results);
                     resultsDiv.style.display = 'block';
+                    errorMsg.style.display = 'none';
                     
                     // Zeige Recommendations wenn vorhanden
                     if (data.recommendations && data.recommendations.length > 0) {
@@ -240,6 +264,7 @@
                 } else {
                     resultsList.innerHTML = '<p class="text-white-50">' + translations.noResults + '</p>';
                     resultsDiv.style.display = 'block';
+                    errorMsg.style.display = 'none';
                     document.getElementById('recommendations-section').style.display = 'none';
                 }
             })
@@ -264,11 +289,12 @@
                             <h6 class="mb-1">${escapeHtml(track.title)}</h6>
                             <p class="text-muted mb-1 small">${escapeHtml(track.artist || translations.unknownArtist)}</p>
                             ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
-                            <span class="badge bg-primary provider-badge">
+                            ${showProviderBadges ? `<span class="badge bg-primary provider-badge">
                                 ${track.provider === 'spotify' ? 'Spotify' : 
                                   track.provider === 'youtube' ? 'YouTube' : 
+                                  track.provider === 'deezer' ? 'Deezer' : 
                                   track.provider === 'musicbrainz' ? 'MusicBrainz' : track.provider}
-                            </span>
+                            </span>` : ''}
                         </div>
                         <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
                             <i class="bi bi-plus-circle"></i> ${translations.addButton}
@@ -298,6 +324,10 @@
                     providerBadge = '<span class="badge bg-success provider-badge ms-2">Spotify</span>';
                 } else if (track.provider === 'youtube') {
                     providerBadge = '<span class="badge bg-danger provider-badge ms-2">YouTube</span>';
+                } else if (track.provider === 'deezer') {
+                    providerBadge = '<span class="badge bg-primary provider-badge ms-2">Deezer</span>';
+                } else if (track.provider === 'musicbrainz') {
+                    providerBadge = '<span class="badge bg-info provider-badge ms-2">MusicBrainz</span>';
                 }
                 
                 item.innerHTML = `
@@ -310,10 +340,10 @@
                             <h6 class="mb-1">${escapeHtml(track.title)}</h6>
                             <p class="text-muted mb-1 small">${escapeHtml(track.artist || translations.unknownArtist)}</p>
                             ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
-                            <span class="badge bg-info provider-badge">
+                            ${showProviderBadges ? `<span class="badge bg-info provider-badge">
                                 <i class="bi bi-lightbulb"></i> ${translations.recommendation}
                             </span>
-                            ${providerBadge}
+                            ${providerBadge}` : ''}
                         </div>
                         <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
                             <i class="bi bi-plus-circle"></i> ${translations.addButton}

@@ -627,8 +627,35 @@
 
 /* Desktop Chat Styles */
 @media (min-width: 768px) {
+    /* Prevent body and main content from scrolling on desktop chat page */
+    body:has(.desktop-chat-header) {
+        overflow: hidden !important;
+        height: 100vh !important;
+        position: fixed !important;
+        width: 100% !important;
+    }
+    
+    body:has(.desktop-chat-header) .container-fluid,
+    body:has(.desktop-chat-header) .container,
+    body:has(.desktop-chat-header) main {
+        overflow: visible !important;
+        max-height: 100vh !important;
+        height: auto !important;
+    }
+    
+    /* Ensure the chat view wrapper doesn't scroll */
+    body:has(.desktop-chat-header) .desktop-chat-header,
+    body:has(.desktop-chat-header) .chat-container {
+        position: relative;
+    }
+    
+    /* Wrapper for chat header and container */
+    .desktop-chat-header + .chat-container {
+        margin-top: 0;
+    }
+    
     .chat-container {
-        height: 70vh;
+        height: calc(100vh - 240px); /* Account for header (~140px + margin) and input (~80px) */
         border-radius: 0.75rem;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         background-color: white;
@@ -636,6 +663,37 @@
         display: flex;
         flex-direction: row;
         border: 1px solid #e9ecef;
+        margin-bottom: 80px; /* Space for fixed input */
+        max-height: calc(100vh - 240px);
+        position: relative;
+    }
+    
+    /* Optimize container height on smaller screens to ensure input is visible */
+    @media (max-height: 900px) {
+        .chat-container {
+            height: calc(100vh - 220px) !important; /* Header ~140px + Input ~80px */
+            max-height: calc(100vh - 220px) !important;
+            min-height: 400px;
+            margin-bottom: 80px !important;
+        }
+    }
+    
+    @media (max-height: 800px) {
+        .chat-container {
+            height: calc(100vh - 200px) !important; /* Header ~120px + Input ~70px */
+            max-height: calc(100vh - 200px) !important;
+            min-height: 350px;
+            margin-bottom: 70px !important;
+        }
+    }
+    
+    @media (max-height: 700px) {
+        .chat-container {
+            height: calc(100vh - 180px) !important; /* Header ~100px + Input ~60px */
+            max-height: calc(100vh - 180px) !important;
+            min-height: 300px;
+            margin-bottom: 60px !important;
+        }
     }
     
     [data-bs-theme="dark"] .chat-container {
@@ -654,7 +712,7 @@
         padding: 1.5rem;
         flex: 1;
         overflow-y: auto;
-        height: auto;
+        height: 100%;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -684,10 +742,16 @@
     align-items: center;
 }
 
+.desktop-chat-info {
+    flex: 1;
+    min-width: 0;
+}
+
 .desktop-chat-header .breadcrumb {
     background: transparent;
     padding: 0;
-    margin: 0;
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
 }
 
 .desktop-chat-header .breadcrumb-item a {
@@ -712,6 +776,196 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+/* Responsive adjustments for smaller screens - Reduce header size */
+@media (max-width: 1200px) {
+    .desktop-chat-header {
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .desktop-chat-title-section {
+        gap: 0.75rem;
+    }
+    
+    .chat-avatar {
+        width: 50px;
+        height: 50px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .chat-avatar-group {
+        font-size: 1.25rem;
+    }
+    
+    .chat-title {
+        font-size: 1.5rem;
+    }
+    
+    .chat-members-info {
+        gap: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    
+    .member-count {
+        font-size: 0.85rem;
+    }
+    
+    .member-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .desktop-chat-header .breadcrumb {
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* Even more compact for medium screens */
+@media (max-width: 992px) {
+    .desktop-chat-header {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .desktop-chat-title-section {
+        gap: 0.5rem;
+    }
+    
+    .chat-avatar {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .chat-avatar-group {
+        font-size: 1.1rem;
+    }
+    
+    .chat-title {
+        font-size: 1.25rem;
+    }
+    
+    .chat-members-info {
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+    }
+    
+    .member-count {
+        font-size: 0.8rem;
+    }
+    
+    .member-avatar {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .desktop-chat-header .breadcrumb {
+        margin-bottom: 0.25rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Compact header for smaller screen heights - This is key for the issue */
+@media (max-height: 900px) and (min-width: 768px) {
+    .desktop-chat-header {
+        padding: 0.75rem 1.25rem !important;
+        margin-bottom: 0.75rem !important;
+        max-height: 140px;
+        overflow: hidden;
+    }
+    
+    .desktop-chat-header .breadcrumb {
+        margin-bottom: 0.25rem !important;
+        font-size: 0.75rem !important;
+    }
+    
+    .desktop-chat-header .breadcrumb-item {
+        font-size: 0.75rem !important;
+    }
+    
+    .desktop-chat-title-section {
+        gap: 0.5rem !important;
+    }
+    
+    .chat-avatar {
+        width: 40px !important;
+        height: 40px !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    .chat-avatar-group {
+        font-size: 1rem !important;
+    }
+    
+    .chat-title {
+        font-size: 1.25rem !important;
+        margin: 0 !important;
+        line-height: 1.3 !important;
+    }
+    
+    .chat-members-info {
+        gap: 0.5rem !important;
+        margin-top: 0.25rem !important;
+    }
+    
+    .member-count {
+        font-size: 0.75rem !important;
+    }
+    
+    .member-avatar {
+        width: 22px !important;
+        height: 22px !important;
+    }
+}
+
+/* Extra compact for very small heights */
+@media (max-height: 800px) and (min-width: 768px) {
+    .desktop-chat-header {
+        padding: 0.5rem 1rem !important;
+        margin-bottom: 0.5rem !important;
+        max-height: 120px;
+    }
+    
+    .desktop-chat-header .breadcrumb {
+        margin-bottom: 0.125rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .chat-avatar {
+        width: 36px !important;
+        height: 36px !important;
+    }
+    
+    .chat-avatar-group {
+        font-size: 0.9rem !important;
+    }
+    
+    .chat-title {
+        font-size: 1.1rem !important;
+    }
+    
+    .member-avatar {
+        width: 20px !important;
+        height: 20px !important;
+    }
+    
+    .member-count {
+        font-size: 0.7rem !important;
+    }
+}
+
+/* Hide breadcrumb on very small heights to save space */
+@media (max-height: 750px) and (min-width: 768px) {
+    .desktop-chat-header .breadcrumb {
+        display: none !important;
+    }
+    
+    .desktop-chat-header {
+        max-height: 100px !important;
+        padding: 0.5rem 1rem !important;
+    }
 }
 
 .chat-avatar-section {
@@ -1328,17 +1582,49 @@
 
 @media (min-width: 768px) {
     .chat-input-container {
-        position: relative;
-        bottom: auto;
-        left: auto;
-        right: auto;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 280px !important; /* Start after chat sidebar (members list) */
+        right: 0 !important;
         background-color: white;
         border-top: 1px solid #e9ecef;
-        border-radius: 0 0 0.75rem 0.75rem;
-        padding: 1.5rem;
-        box-shadow: none;
+        border-radius: 0;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
         margin: 0;
-        width: auto;
+        width: calc(100% - 280px) !important; /* Full width minus chat sidebar */
+        z-index: 1000;
+        height: auto;
+        min-height: 70px;
+    }
+    
+    /* Account for main navigation sidebar on larger screens */
+    @media (min-width: 992px) {
+        .chat-input-container {
+            left: 280px !important; /* Start after chat sidebar, main nav is separate */
+            width: calc(100% - 280px) !important;
+        }
+    }
+    
+    /* Ensure input group content is right-aligned */
+    .chat-input-container .input-group {
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    
+    /* Adjust input height on smaller screens */
+    @media (max-height: 800px) {
+        .chat-input-container {
+            padding: 0.75rem 1.25rem !important;
+            min-height: 60px !important;
+        }
+    }
+    
+    @media (max-height: 700px) {
+        .chat-input-container {
+            padding: 0.5rem 1rem !important;
+            min-height: 50px !important;
+        }
     }
     
     [data-bs-theme="dark"] .chat-input-container {

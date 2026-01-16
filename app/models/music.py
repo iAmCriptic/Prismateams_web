@@ -163,4 +163,27 @@ class MusicSettings(db.Model):
         """Prüft ob ein Provider aktiviert ist."""
         enabled = MusicSettings.get_enabled_providers()
         return provider in enabled
+    
+    @staticmethod
+    def get_show_provider_badges():
+        """Gibt zurück, ob Provider-Badges angezeigt werden sollen."""
+        setting = MusicSettings.query.filter_by(key='show_provider_badges').first()
+        if setting and setting.value:
+            return setting.value.lower() == 'true'
+        return True  # Standard: Anzeigen
+    
+    @staticmethod
+    def set_show_provider_badges(show):
+        """Setzt ob Provider-Badges angezeigt werden sollen."""
+        setting = MusicSettings.query.filter_by(key='show_provider_badges').first()
+        if setting:
+            setting.value = 'true' if show else 'false'
+        else:
+            setting = MusicSettings(
+                key='show_provider_badges',
+                value='true' if show else 'false',
+                description='Provider-Badges und Tags in Suchergebnissen anzeigen'
+            )
+            db.session.add(setting)
+        db.session.commit()
 

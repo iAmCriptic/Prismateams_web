@@ -1047,6 +1047,169 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
+// Sidebar Navigation Management für Tablets/kleine PCs
+// Verwaltet die Sidebar-Navigation mit Prioritäten und Scroll-Funktionalität
+function manageSidebarNavigation() {
+    const sidebarNav = document.getElementById('sidebarNavList');
+    const sidebarNavItems = document.getElementById('sidebarNavItems');
+    const sidebarMoreButton = document.getElementById('sidebarMoreButton');
+    const desktopMoreMenuItems = document.getElementById('desktopMoreMenuItems');
+    
+    if (!sidebarNav || !sidebarNavItems) {
+        return; // Sidebar nicht vorhanden (z.B. auf Mobile)
+    }
+    
+    // Prüfe, ob wir auf einem Tablet/kleinen PC sind (768px - 991px)
+    const isTablet = window.innerWidth >= 768 && window.innerWidth < 992;
+    
+    // Alle Navigation-Elemente sammeln
+    const allNavItems = Array.from(sidebarNavItems.querySelectorAll('.sidebar-nav-item'));
+    
+    // Sortiere nach Priorität
+    const sortedItems = allNavItems.sort((a, b) => {
+        const priorityA = a.getAttribute('data-nav-priority');
+        const priorityB = b.getAttribute('data-nav-priority');
+        
+        // "always-visible" hat höchste Priorität
+        if (priorityA === 'always-visible') return -1;
+        if (priorityB === 'always-visible') return 1;
+        
+        // Konvertiere zu Zahlen für Vergleich
+        const numA = parseFloat(priorityA) || 999;
+        const numB = parseFloat(priorityB) || 999;
+        
+        return numA - numB;
+    });
+    
+    // Berechne verfügbaren Platz in der Sidebar
+    const calculateAvailableSpace = () => {
+        const sidebar = document.getElementById('desktopSidebar');
+        if (!sidebar) return 0;
+        
+        const header = sidebar.querySelector('.sidebar-header');
+        const footer = sidebar.querySelector('.sidebar-footer');
+        
+        const headerHeight = header ? header.offsetHeight : 0;
+        const footerHeight = footer ? footer.offsetHeight : 0;
+        const availableHeight = window.innerHeight - headerHeight - footerHeight;
+        
+        return availableHeight;
+    };
+    
+    // Prüfe, ob alle Elemente in die Sidebar passen
+    const checkIfAllItemsFit = () => {
+        const availableHeight = calculateAvailableSpace();
+        let totalHeight = 0;
+        
+        sortedItems.forEach(item => {
+            totalHeight += item.offsetHeight;
+        });
+        
+        return totalHeight <= availableHeight;
+    };
+    
+    // Zeige/Verstecke "Mehr"-Button und verschiebe Elemente ins More-Menu
+    const updateNavigation = () => {
+        const allItemsFit = checkIfAllItemsFit();
+        
+        if (allItemsFit) {
+            // Alle Elemente passen - verstecke "Mehr"-Button
+            if (sidebarMoreButton) {
+                sidebarMoreButton.classList.add('d-none');
+            }
+            
+            // Alle Elemente in der Sidebar anzeigen
+            sortedItems.forEach(item => {
+                if (item.id !== 'sidebarMoreButton') {
+                    item.style.display = '';
+                }
+            });
+            
+            // More-Menu leeren
+            if (desktopMoreMenuItems) {
+                desktopMoreMenuItems.innerHTML = '';
+            }
+        } else {
+            // Nicht alle Elemente passen - zeige "Mehr"-Button
+            if (sidebarMoreButton) {
+                sidebarMoreButton.classList.remove('d-none');
+            }
+            
+            // Berechne, welche Elemente in die Sidebar passen
+            const availableHeight = calculateAvailableSpace();
+            let currentHeight = 0;
+            const visibleItems = [];
+            const hiddenItems = [];
+            
+            // Füge "Mehr"-Button zur Höhe hinzu
+            const moreButtonHeight = sidebarMoreButton ? sidebarMoreButton.offsetHeight : 0;
+            
+            sortedItems.forEach(item => {
+                if (item.id === 'sidebarMoreButton') {
+                    return; // Überspringe "Mehr"-Button selbst
+                }
+                
+                const itemHeight = item.offsetHeight;
+                
+                if (currentHeight + itemHeight + moreButtonHeight <= availableHeight) {
+                    visibleItems.push(item);
+                    currentHeight += itemHeight;
+                } else {
+                    hiddenItems.push(item);
+                }
+            });
+            
+            // Zeige sichtbare Elemente
+            visibleItems.forEach(item => {
+                item.style.display = '';
+            });
+            
+            // Verstecke versteckte Elemente
+            hiddenItems.forEach(item => {
+                item.style.display = 'none';
+            });
+            
+            // Füge versteckte Elemente zum More-Menu hinzu
+            if (desktopMoreMenuItems && hiddenItems.length > 0) {
+                desktopMoreMenuItems.innerHTML = '';
+                hiddenItems.forEach(item => {
+                    const link = item.querySelector('a');
+                    if (link) {
+                        const menuItem = document.createElement('li');
+                        menuItem.className = 'nav-item';
+                        menuItem.innerHTML = link.outerHTML;
+                        desktopMoreMenuItems.appendChild(menuItem);
+                    }
+                });
+            }
+        }
+    };
+    
+    // Initialisiere Navigation
+    updateNavigation();
+    
+    // Aktualisiere bei Fenstergrößenänderung
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            updateNavigation();
+        }, 250);
+    });
+}
+
+// Initialisiere Sidebar-Navigation beim Laden der Seite
+document.addEventListener('DOMContentLoaded', function() {
+    manageSidebarNavigation();
+});
+
+// Initialisiere auch nach dynamischen Änderungen
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', manageSidebarNavigation);
+} else {
+    manageSidebarNavigation();
+}
+
 
 
 

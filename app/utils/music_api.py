@@ -853,37 +853,83 @@ class DeezerAPI:
             try:
                 params = {
                     'q': search_query,
-                    'limit': limit
+                    'limit': min(limit, 25)  # Deezer API Limit ist 25 pro Request
                 }
                 
                 # Deezer öffentliche API benötigt keine Authentifizierung für Suchen
                 # App-ID wird gespeichert für mögliche zukünftige Verwendung
                 
+                logger.debug(f"Deezer API Suche: {search_query} (Limit: {params['limit']})")
+                
+                # Deezer API Endpoint: /search (Standard-Endpoint)
                 response = requests.get(
                     f'{self.BASE_URL}/search',
                     headers=self.headers,
                     params=params,
                     timeout=MUSIC_API_TIMEOUT
                 )
+                
+                # Logge Response-Status für Debugging
+                logger.debug(f"Deezer API Response Status: {response.status_code}")
+                
+                # Prüfe auf spezielle Fehler
+                if response.status_code == 403:
+                    raise Exception("Deezer API: Zugriff verweigert (möglicherweise Rate Limit oder geografische Einschränkung)")
+                elif response.status_code == 404:
+                    raise Exception("Deezer API: Endpoint nicht gefunden")
+                
                 response.raise_for_status()
                 data = response.json()
                 
+                # Prüfe auf Fehler in der Response
+                if 'error' in data:
+                    error_msg = data.get('error', {}).get('message', 'Unbekannter Fehler')
+                    error_type = data.get('error', {}).get('type', 'Unknown')
+                    raise Exception(f"Deezer API Fehler ({error_type}): {error_msg}")
+                
+                # Prüfe ob 'data' vorhanden ist
+                if 'data' not in data:
+                    logger.warning(f"Deezer API: Kein 'data' Feld in Response. Response: {data}")
+                    return []
+                
                 results = []
                 for track in data.get('data', []):
+                    # Validiere dass Track die notwendigen Felder hat
+                    if not track.get('id'):
+                        logger.warning(f"Deezer API: Track ohne ID gefunden: {track}")
+                        continue
+                    
                     # Deezer gibt Dauer in Sekunden zurück, konvertiere zu ms
                     duration_ms = track.get('duration') * 1000 if track.get('duration') else None
+                    
+                    # Hole Artist-Name sicher
+                    artist_name = 'Unbekannter Künstler'
+                    if track.get('artist'):
+                        if isinstance(track['artist'], dict):
+                            artist_name = track['artist'].get('name', 'Unbekannter Künstler')
+                        else:
+                            artist_name = str(track['artist'])
+                    
+                    # Hole Album-Info sicher
+                    album_title = None
+                    image_url = None
+                    if track.get('album'):
+                        if isinstance(track['album'], dict):
+                            album_title = track['album'].get('title')
+                            image_url = track['album'].get('cover_medium') or track['album'].get('cover')
                     
                     results.append({
                         'id': str(track['id']),
                         'title': track.get('title', 'Unbekannt'),
-                        'artist': track.get('artist', {}).get('name', 'Unbekannter Künstler'),
-                        'album': track.get('album', {}).get('title', None),
-                        'image_url': track.get('album', {}).get('cover_medium', None),
+                        'artist': artist_name,
+                        'album': album_title,
+                        'image_url': image_url,
                         'url': track.get('link', f"https://www.deezer.com/track/{track['id']}"),
                         'duration_ms': duration_ms,
                         'provider': 'deezer'
                     })
                 
+                logger.info(f"Deezer API: {len(results)} Ergebnisse gefunden für '{search_query}'")
                 return results
             except Timeout as e:
                 last_exception = e
@@ -901,12 +947,21 @@ class DeezerAPI:
                 raise Exception(f"Deezer API Verbindungsfehler: {str(e)}")
             except RequestException as e:
                 last_exception = e
+                # Logge detaillierte Fehlerinformationen
+                if e.response:
+                    try:
+                        error_data = e.response.json()
+                        logger.error(f"Deezer API Fehler Response: {error_data}")
+                    except:
+                        logger.error(f"Deezer API Fehler Response Text: {e.response.text[:200]}")
+                
                 if attempt < MAX_RETRIES and e.response and e.response.status_code >= 500:
                     logger.warning(f"Deezer API Serverfehler (Versuch {attempt + 1}/{MAX_RETRIES + 1}), retry...")
                     time.sleep(RETRY_DELAY)
                     continue
                 raise Exception(f"Deezer API Fehler: {str(e)}")
             except Exception as e:
+                logger.error(f"Deezer API unerwarteter Fehler: {e}", exc_info=True)
                 raise Exception(f"Deezer API Fehler: {str(e)}")
         
         raise Exception(f"Deezer API Fehler nach {MAX_RETRIES + 1} Versuchen: {str(last_exception)}")
@@ -1139,24 +1194,46 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None, in
     first_spotify_track_id = None  # Für Spotify Recommendations
     
     # Suche nacheinander über Provider
+    provider_errors = []  # Sammle Fehler für besseres Debugging
     for provider in active_providers:
         try:
             # Spotify benötigt OAuth (Benutzer-Login)
             if provider == 'spotify':
                 if not spotify_user_id:
                     logger.warning("Spotify aktiviert, aber kein verbundener Account gefunden. Überspringe Spotify.")
+                    provider_errors.append(f"Spotify: Kein verbundener Account gefunden")
                     continue
-                client = get_api_client(user_id=spotify_user_id, provider=provider, use_client_credentials=False)
-                spotify_client = client  # Speichere für später (Recommendations)
+                try:
+                    client = get_api_client(user_id=spotify_user_id, provider=provider, use_client_credentials=False)
+                    spotify_client = client  # Speichere für später (Recommendations)
+                except Exception as e:
+                    logger.warning(f"Spotify Client-Erstellung fehlgeschlagen: {e}")
+                    provider_errors.append(f"Spotify: {str(e)}")
+                    continue
             # YouTube kann mit API-Key verwendet werden
             elif provider == 'youtube':
-                client = get_api_client(user_id=None, provider=provider, use_client_credentials=True)
-            # MusicBrainz benötigt keine Authentifizierung
+                try:
+                    client = get_api_client(user_id=None, provider=provider, use_client_credentials=True)
+                except Exception as e:
+                    logger.warning(f"YouTube Client-Erstellung fehlgeschlagen: {e}")
+                    provider_errors.append(f"YouTube: {str(e)}")
+                    continue
+            # MusicBrainz und Deezer benötigen keine Authentifizierung
             else:
-                client = get_api_client(user_id=None, provider=provider, use_client_credentials=False)
+                try:
+                    client = get_api_client(user_id=None, provider=provider, use_client_credentials=False)
+                except Exception as e:
+                    logger.warning(f"{provider.capitalize()} Client-Erstellung fehlgeschlagen: {e}")
+                    provider_errors.append(f"{provider.capitalize()}: {str(e)}")
+                    continue
             
             # Nutze geparste Query für bessere Ergebnisse
-            results = client.search(query, limit=limit, parsed_query=parsed_query)
+            try:
+                results = client.search(query, limit=limit, parsed_query=parsed_query)
+            except Exception as e:
+                logger.warning(f"Fehler bei Suche mit {provider}: {e}")
+                provider_errors.append(f"{provider.capitalize()}: Suche fehlgeschlagen")
+                continue
             
             # Füge Ergebnisse hinzu, entferne Duplikate
             for result in results:
@@ -1180,9 +1257,14 @@ def search_music_multi_provider(query, limit=10, min_results=5, user_id=None, in
                 break
                 
         except Exception as e:
-            logger.warning(f"Fehler beim Suchen mit Provider {provider}: {e}")
+            logger.warning(f"Unerwarteter Fehler beim Suchen mit Provider {provider}: {e}", exc_info=True)
+            provider_errors.append(f"{provider.capitalize()}: {str(e)}")
             # Weiter mit nächstem Provider
             continue
+    
+    # Logge Provider-Fehler wenn alle Provider fehlgeschlagen sind
+    if not all_results and provider_errors:
+        logger.error(f"Alle Provider fehlgeschlagen. Fehler: {', '.join(provider_errors)}")
     
     # Sortiere Ergebnisse nach Relevanz-Score (höher = besser)
     all_results.sort(key=lambda x: (

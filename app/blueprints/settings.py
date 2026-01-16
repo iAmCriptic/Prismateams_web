@@ -1938,6 +1938,10 @@ def admin_music():
             deezer_app_id_setting = MusicSettings(key='deezer_app_id', value=deezer_app_id, description='Deezer App-ID (optional, aber empfohlen für höhere Rate Limits)')
             db.session.add(deezer_app_id_setting)
         
+        # Provider-Badge-Anzeige Einstellung
+        show_provider_badges = request.form.get('show_provider_badges') == 'on'
+        MusicSettings.set_show_provider_badges(show_provider_badges)
+        
         db.session.commit()
         flash(translate('settings.admin.music.flash_saved'), 'success')
         return redirect(url_for('settings.admin_music'))
@@ -1960,6 +1964,9 @@ def admin_music():
     spotify_redirect_uri = url_for('music.spotify_callback', _external=True)
     youtube_redirect_uri = url_for('music.youtube_callback', _external=True)
     
+    # Hole Einstellung für Provider-Badge-Anzeige (auch im GET-Fall)
+    show_provider_badges = MusicSettings.get_show_provider_badges()
+    
     return render_template('settings/admin_music.html',
                          enabled_providers=enabled_providers,
                          provider_order=provider_order,
@@ -1972,7 +1979,8 @@ def admin_music():
                          spotify_connected=spotify_connected,
                          youtube_connected=youtube_connected,
                          spotify_redirect_uri=spotify_redirect_uri,
-                         youtube_redirect_uri=youtube_redirect_uri)
+                         youtube_redirect_uri=youtube_redirect_uri,
+                         show_provider_badges=show_provider_badges)
 
 
 @settings_bp.route('/admin/roles')

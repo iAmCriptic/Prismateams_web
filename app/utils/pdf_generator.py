@@ -346,13 +346,16 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
     story.append(Spacer(1, 0.8*cm))
     
     # Hinweis
+    # Verwende Helvetica statt Helvetica-Italic, da Helvetica-Italic Unicode-Zeichen 
+    # (z.B. "ü" in "Rückgabedatum") nicht korrekt darstellen kann.
+    # Die Hervorhebung erfolgt bereits über Farbe und Einrückung.
     note_style = ParagraphStyle(
         'Note',
         parent=styles['Normal'],
         fontSize=10,
         textColor=colors.HexColor('#666666'),
         alignment=TA_LEFT,
-        fontName='Helvetica-Italic',
+        fontName='Helvetica',
         leftIndent=0.5*cm,
         rightIndent=0.5*cm
     )
@@ -360,6 +363,37 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
         f"Bitte beachten Sie das voraussichtliche Rückgabedatum: {first_transaction.expected_return_date.strftime('%d.%m.%Y')}",
         note_style
     ))
+    story.append(Spacer(1, 0.8*cm))
+    
+    # Rückgabe-QR-Code
+    qr_data = generate_borrow_qr_code(first_transaction.transaction_number)
+    qr_bytes = generate_qr_code_bytes(qr_data, box_size=8, border=4)
+    qr_image = Image(BytesIO(qr_bytes), width=5*cm, height=5*cm)
+    
+    # QR-Code-Beschriftung
+    qr_label_style = ParagraphStyle(
+        'QRCodeLabel',
+        parent=styles['Normal'],
+        fontSize=11,
+        textColor=colors.black,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold',
+        spaceAfter=0.3*cm
+    )
+    story.append(Paragraph("Rückgabe-QR-Code:", qr_label_style))
+    
+    # QR-Code zentriert
+    qr_table = Table([[qr_image]], colWidths=[5*cm], rowHeights=[5*cm])
+    qr_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(qr_table)
+    story.append(Spacer(1, 0.8*cm))
     
     # Footer
     footer_style = ParagraphStyle(

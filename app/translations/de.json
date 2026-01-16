@@ -2367,6 +2367,8 @@
       "search_help_format": "Format",
       "search_help_text": "Mit Anführungszeichen: <code>\"Titel\" \"Künstler\"</code> oder frei: <code>Titel Künstler</code>",
       "search_help_providers": "Die Suche durchsucht automatisch alle aktivierten Provider",
+      "search_hint_title": "Tipp",
+      "search_hint": "Verwenden Sie Anführungszeichen für präzisere Suchergebnisse, z.B. \"Straßenjunge\" \"Sido\"",
       "search_results": "Suchergebnisse",
       "loading": "Laden...",
       "no_results": "Keine Ergebnisse gefunden.",
@@ -2376,7 +2378,9 @@
       "wish_count_increased": "Wunschzähler erhöht ({count}x gewünscht)",
       "recommendations": "Empfehlungen",
       "recommendation_badge": "Empfehlung",
-      "no_recommendations": "Keine Empfehlungen verfügbar."
+      "no_recommendations": "Keine Empfehlungen verfügbar.",
+      "unknown_artist": "Unbekannter Künstler",
+      "search_error": "Fehler bei der Suche: {error}"
     },
     "admin": {
       "page_title": "Musikmodul-Einstellungen - Administration",
@@ -2437,6 +2441,11 @@
       "musicbrainz": {
         "title": "MusicBrainz",
         "description": "MusicBrainz benötigt keine Konfiguration. Es ist eine öffentliche API ohne Authentifizierung."
+      },
+      "display_settings": {
+        "title": "Anzeige-Einstellungen",
+        "show_provider_badges": "Provider-Badges und Tags anzeigen",
+        "show_provider_badges_help": "Wenn aktiviert, werden in den Suchergebnissen Badges (z.B. 'Spotify', 'Deezer') und Tags angezeigt. Wenn deaktiviert, werden diese ausgeblendet."
       },
       "save": "Einstellungen speichern",
       "cancel": "Abbrechen"
