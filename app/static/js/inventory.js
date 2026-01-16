@@ -188,7 +188,19 @@ class StockManager {
                 return;
             }
             
-            const data = await response.json();
+            // Prüfe Content-Type bevor JSON geparst wird
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Wenn keine JSON-Antwort, versuche Text zu lesen
+                const text = await response.text();
+                console.error('Ungültige Antwort vom Server beim Laden der Produkte:', text);
+                this.showError('Ungültige Antwort vom Server. Bitte laden Sie die Seite neu.');
+                return;
+            }
             
             if (!Array.isArray(data)) {
                 console.error('Ungültige API-Antwort:', data);
@@ -231,7 +243,7 @@ class StockManager {
             
             // Ordner
             if (p.folder_id && this.isValidValue(p.folder_name)) {
-                this.folders.add({ id: p.folder_id, name: p.folder_name.trim() });
+                this.foldersSet.add({ id: p.folder_id, name: p.folder_name.trim() });
             }
             
             // Zustände
@@ -1355,7 +1367,18 @@ class StockManager {
                 })
             });
             
-            const data = await response.json();
+            // Prüfe Content-Type bevor JSON geparst wird
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Wenn keine JSON-Antwort, versuche Text zu lesen
+                const text = await response.text();
+                console.error('Ungültige Antwort vom Server:', text);
+                throw new Error('Ungültige Antwort vom Server. Bitte versuchen Sie es erneut.');
+            }
             
             if (!response.ok) {
                 throw new Error(data.error || 'Fehler beim Löschen der Produkte');
@@ -1364,6 +1387,16 @@ class StockManager {
             // Erfolgreich gelöscht
             if (modal) {
                 modal.hide();
+                // Warte kurz und entferne Backdrop falls vorhanden
+                setTimeout(() => {
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) {
+                        backdrop.remove();
+                    }
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }, 300);
             }
             
             // Zeige Erfolgsmeldung
@@ -1380,6 +1413,21 @@ class StockManager {
         } catch (error) {
             console.error('Fehler beim Löschen:', error);
             this.showError(error.message || 'Fehler beim Löschen der Produkte. Bitte versuchen Sie es erneut.');
+            
+            // Modal schließen auch bei Fehler
+            if (modal) {
+                modal.hide();
+                // Warte kurz und entferne Backdrop falls vorhanden
+                setTimeout(() => {
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) {
+                        backdrop.remove();
+                    }
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }, 300);
+            }
             
             if (confirmBtn) {
                 confirmBtn.disabled = false;
@@ -1407,7 +1455,18 @@ class StockManager {
                 }
             });
             
-            const data = await response.json();
+            // Prüfe Content-Type bevor JSON geparst wird
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Wenn keine JSON-Antwort, versuche Text zu lesen
+                const text = await response.text();
+                console.error('Ungültige Antwort vom Server:', text);
+                throw new Error('Ungültige Antwort vom Server. Bitte versuchen Sie es erneut.');
+            }
             
             if (!response.ok) {
                 throw new Error(data.error || 'Fehler beim Löschen des Produkts');

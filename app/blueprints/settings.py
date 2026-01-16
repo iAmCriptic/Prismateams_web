@@ -4,7 +4,7 @@ from app import db
 from app.models.user import User
 from app.models.email import EmailPermission
 from app.models.settings import SystemSettings
-from app.models.notification import NotificationSettings, ChatNotificationSettings
+from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
 from app.utils.notifications import get_or_create_notification_settings
@@ -1196,6 +1196,38 @@ def delete_user(user_id):
     from app.models.role import UserModuleRole
     UserModuleRole.query.filter_by(user_id=user_id).delete()
     
+    # Delete notification-related entries before deleting user
+    # This prevents foreign key constraint errors (user_id cannot be null)
+    NotificationSettings.query.filter_by(user_id=user_id).delete()
+    ChatNotificationSettings.query.filter_by(user_id=user_id).delete()
+    PushSubscription.query.filter_by(user_id=user_id).delete()
+    NotificationLog.query.filter_by(user_id=user_id).delete()
+    
+    # Delete API tokens before deleting user
+    from app.models.api_token import ApiToken
+    ApiToken.query.filter_by(user_id=user_id).delete()
+    
+    # Delete inventory-related user entries
+    from app.models.inventory import ProductFavorite, SavedFilter
+    ProductFavorite.query.filter_by(user_id=user_id).delete()
+    SavedFilter.query.filter_by(user_id=user_id).delete()
+    
+    # Delete wiki favorites before deleting user
+    from app.models.wiki import WikiFavorite
+    WikiFavorite.query.filter_by(user_id=user_id).delete()
+    
+    # Delete comment mentions before deleting user
+    from app.models.comment import CommentMention
+    CommentMention.query.filter_by(user_id=user_id).delete()
+    
+    # Delete music provider tokens before deleting user
+    from app.models.music import MusicProviderToken
+    MusicProviderToken.query.filter_by(user_id=user_id).delete()
+    
+    # Delete booking role assignments before deleting user
+    from app.models.booking import BookingFormRoleAssignment
+    BookingFormRoleAssignment.query.filter_by(user_id=user_id).delete()
+    
     db.session.delete(user)
     db.session.commit()
     
@@ -2334,6 +2366,354 @@ def booking_form_delete(form_id):
     
     flash(translate('settings.admin.booking_forms.flash_form_deleted', title=title), 'success')
     return redirect(url_for('settings.booking_forms'))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/secondary-logo/upload', methods=['POST'])
+@login_required
+def booking_secondary_logo_upload(form_id):
+    """Upload secondary logo for booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    if 'logo' not in request.files:
+        flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    file = request.files['logo']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    # Validate file type
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+    if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+        # Validate file size (5MB limit)
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        max_size = 5 * 1024 * 1024  # 5MB in bytes
+        if file_size > max_size:
+            flash(f'Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+            return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+        
+        # Create filename with timestamp
+        filename = secure_filename(file.filename)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"secondary_logo_{form_id}_{timestamp}_{filename}"
+        
+        # Ensure upload directory exists
+        project_root = os.path.dirname(current_app.root_path)
+        upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'booking_forms', str(form_id))
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Delete old logo if exists
+        if form.secondary_logo_path:
+            old_path = os.path.join(project_root, form.secondary_logo_path)
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except:
+                    pass
+        
+        # Save file
+        filepath = os.path.join(upload_dir, filename)
+        file.save(filepath)
+        
+        # Update form with relative path
+        relative_path = os.path.join('booking_forms', str(form_id), filename).replace('\\', '/')
+        form.secondary_logo_path = relative_path
+        db.session.commit()
+        
+        flash('Optionales 2. Logo wurde erfolgreich hochgeladen.', 'success')
+    else:
+        flash('Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG', 'danger')
+    
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/secondary-logo/delete', methods=['POST'])
+@login_required
+def booking_secondary_logo_delete(form_id):
+    """Delete secondary logo for booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    if form.secondary_logo_path:
+        project_root = os.path.dirname(current_app.root_path)
+        filepath = os.path.join(project_root, form.secondary_logo_path)
+        
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except:
+                pass
+        
+        form.secondary_logo_path = None
+        db.session.commit()
+        flash('Optionales 2. Logo wurde gelöscht.', 'success')
+    else:
+        flash('Kein Logo vorhanden.', 'warning')
+    
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/secondary-logo/<path:filename>')
+@login_required
+def booking_secondary_logo(form_id, filename):
+    """Serve secondary logo for booking form."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        from urllib.parse import unquote
+        filename = unquote(filename)
+        
+        project_root = os.path.dirname(current_app.root_path)
+        directory = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'booking_forms', str(form_id))
+        full_path = os.path.join(directory, filename)
+        
+        if not os.path.isfile(full_path):
+            abort(404)
+        
+        return send_from_directory(directory, filename)
+    except FileNotFoundError:
+        abort(404)
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/fields/add', methods=['POST'])
+@login_required
+def booking_field_add(form_id):
+    """Add a field to a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm, BookingFormField
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    field_type = request.form.get('field_type', '').strip()
+    field_label = request.form.get('field_label', '').strip()
+    field_name = request.form.get('field_name', '').strip()
+    placeholder = request.form.get('placeholder', '').strip()
+    is_required = request.form.get('is_required') == 'on'
+    field_options = request.form.get('field_options', '').strip()
+    
+    if not field_label:
+        flash('Bezeichnung ist erforderlich.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    # Generate field_name if not provided
+    if not field_name:
+        import re
+        field_name = re.sub(r'[^a-zA-Z0-9_]', '_', field_label.lower())
+        field_name = re.sub(r'_+', '_', field_name)
+    
+    # Get max field_order
+    max_order = db.session.query(db.func.max(BookingFormField.field_order)).filter_by(form_id=form_id).scalar() or 0
+    
+    # Parse options for select/checkbox fields
+    options_json = None
+    if field_type in ['select', 'checkbox'] and field_options:
+        options = [opt.strip() for opt in field_options.split('\n') if opt.strip()]
+        if options:
+            import json
+            options_json = json.dumps(options)
+    
+    field = BookingFormField(
+        form_id=form_id,
+        field_type=field_type,
+        field_name=field_name,
+        field_label=field_label,
+        placeholder=placeholder or None,
+        is_required=is_required,
+        field_order=max_order + 1,
+        field_options=options_json
+    )
+    
+    db.session.add(field)
+    db.session.commit()
+    
+    flash(f'Feld "{field_label}" wurde hinzugefügt.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/fields/<int:field_id>/delete', methods=['POST'])
+@login_required
+def booking_field_delete(form_id, field_id):
+    """Delete a field from a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm, BookingFormField
+    
+    form = BookingForm.query.get_or_404(form_id)
+    field = BookingFormField.query.filter_by(id=field_id, form_id=form_id).first_or_404()
+    
+    field_label = field.field_label
+    db.session.delete(field)
+    db.session.commit()
+    
+    flash(f'Feld "{field_label}" wurde gelöscht.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/roles/create', methods=['POST'])
+@login_required
+def booking_role_create(form_id):
+    """Create a role for a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm, BookingFormRole
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    role_name = request.form.get('role_name', '').strip()
+    is_required = request.form.get('is_required') == 'on'
+    
+    if not role_name:
+        flash('Rollenname ist erforderlich.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    # Get max role_order
+    max_order = db.session.query(db.func.max(BookingFormRole.role_order)).filter_by(form_id=form_id).scalar() or 0
+    
+    role = BookingFormRole(
+        form_id=form_id,
+        role_name=role_name,
+        is_required=is_required,
+        role_order=max_order + 1
+    )
+    
+    db.session.add(role)
+    db.session.commit()
+    
+    flash(f'Rolle "{role_name}" wurde erstellt.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/roles/<int:role_id>/edit', methods=['POST'])
+@login_required
+def booking_role_edit(form_id, role_id):
+    """Edit a role for a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm, BookingFormRole
+    
+    form = BookingForm.query.get_or_404(form_id)
+    role = BookingFormRole.query.filter_by(id=role_id, form_id=form_id).first_or_404()
+    
+    role_name = request.form.get('role_name', '').strip()
+    is_required = request.form.get('is_required') == 'on'
+    
+    if not role_name:
+        flash('Rollenname ist erforderlich.', 'danger')
+        return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+    
+    role.role_name = role_name
+    role.is_required = is_required
+    
+    db.session.commit()
+    
+    flash(f'Rolle "{role_name}" wurde aktualisiert.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/roles/<int:role_id>/delete', methods=['POST'])
+@login_required
+def booking_role_delete(form_id, role_id):
+    """Delete a role from a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm, BookingFormRole
+    
+    form = BookingForm.query.get_or_404(form_id)
+    role = BookingFormRole.query.filter_by(id=role_id, form_id=form_id).first_or_404()
+    
+    role_name = role.role_name
+    db.session.delete(role)
+    db.session.commit()
+    
+    flash(f'Rolle "{role_name}" wurde gelöscht.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/roles/<int:role_id>/users/add', methods=['POST'])
+@login_required
+def booking_role_user_add(form_id, role_id):
+    """Add users to a role for a booking form (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from app.models.booking import BookingForm, BookingFormRole, BookingFormRoleUser
+    
+    form = BookingForm.query.get_or_404(form_id)
+    role = BookingFormRole.query.filter_by(id=role_id, form_id=form_id).first_or_404()
+    
+    # Get selected user IDs
+    user_ids = request.form.getlist('user_ids')
+    user_ids = [int(uid) for uid in user_ids if uid.isdigit()]
+    
+    # Remove all existing users from this role
+    BookingFormRoleUser.query.filter_by(role_id=role_id).delete()
+    
+    # Add selected users
+    for user_id in user_ids:
+        # Check if user exists and is active
+        user = User.query.filter_by(id=user_id, is_active=True).first()
+        if user:
+            role_user = BookingFormRoleUser(role_id=role_id, user_id=user_id)
+            db.session.add(role_user)
+    
+    db.session.commit()
+    
+    flash(f'Benutzer für Rolle "{role.role_name}" wurden aktualisiert.', 'success')
+    return redirect(url_for('settings.booking_form_edit', form_id=form_id))
+
+
+@settings_bp.route('/admin/booking-forms/<int:form_id>/roles', methods=['GET'])
+@login_required
+def booking_roles(form_id):
+    """Get roles for a booking form as JSON (admin only)."""
+    if not current_user.is_admin:
+        from flask import jsonify
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    from app.models.booking import BookingForm, BookingFormRole
+    from flask import jsonify
+    
+    form = BookingForm.query.get_or_404(form_id)
+    
+    roles = []
+    for role in form.roles:
+        roles.append({
+            'id': role.id,
+            'role_name': role.role_name,
+            'is_required': role.is_required,
+            'role_order': role.role_order,
+            'users': [{'id': u.user_id, 'full_name': u.user.full_name} for u in role.users]
+        })
+    
+    return jsonify({'roles': roles})
 
 
 @settings_bp.route('/about')

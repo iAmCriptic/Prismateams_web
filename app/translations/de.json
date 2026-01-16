@@ -750,7 +750,12 @@
         "flash_updated": "System-Einstellungen wurden aktualisiert."
       },
       "booking_forms": {
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
+        "flash_title_required": "Bitte geben Sie einen Titel ein.",
+        "flash_form_created": "Formular \"{title}\" wurde erstellt.",
+        "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
+        "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
+        "flash_status_updated": "Status wurde aktualisiert."
       }
     }
   },

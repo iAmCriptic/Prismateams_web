@@ -694,7 +694,12 @@
         "color_gradient_orange_pastel": "Orange-Pastel"
       },
       "booking_forms": {
-        "flash_unauthorized": "Only administrators have access to this page."
+        "flash_unauthorized": "Only administrators have access to this page.",
+        "flash_title_required": "Please enter a title.",
+        "flash_form_created": "Form \"{title}\" has been created.",
+        "flash_form_updated": "Form \"{title}\" has been updated.",
+        "flash_form_deleted": "Form \"{title}\" has been deleted.",
+        "flash_status_updated": "Status has been updated."
       },
       "email_footer": {
         "flash_saved": "Email footer has been successfully saved."
