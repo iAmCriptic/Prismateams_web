@@ -1,4 +1,5 @@
 from .user import User
+from .user_session import UserSession
 from .chat import Chat, ChatMessage, ChatMember
 from .file import File, FileVersion, Folder
 from .calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
@@ -17,7 +18,7 @@ from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
 
 __all__ = [
-    'User',
+    'User', 'UserSession',
     'Chat', 'ChatMessage', 'ChatMember',
     'File', 'FileVersion', 'Folder',
     'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed',

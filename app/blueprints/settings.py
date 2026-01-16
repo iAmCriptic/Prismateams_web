@@ -14,6 +14,10 @@ from datetime import datetime
 import os
 import tempfile
 from app.utils.i18n import available_languages, translate
+from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
+from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
+from app.utils.password_policy import validate_password
+from datetime import datetime
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -39,14 +43,6 @@ def profile():
         current_user.last_name = request.form.get('last_name', '').strip()
         current_user.email = request.form.get('email', '').strip().lower()
         current_user.phone = request.form.get('phone', '').strip()
-        
-        # Handle password change
-        new_password = request.form.get('new_password', '').strip()
-        if new_password:
-            if len(new_password) < 8:
-                flash(translate('settings.profile.flash_password_length'), 'danger')
-                return render_template('settings/profile.html', user=current_user)
-            current_user.set_password(new_password)
         
         # Handle profile picture upload
         if 'profile_picture' in request.files:
@@ -2714,6 +2710,197 @@ def booking_roles(form_id):
         })
     
     return jsonify({'roles': roles})
+
+
+@settings_bp.route('/security')
+@login_required
+def security():
+    """Sicherheits-Einstellungen Hauptseite."""
+    # Gast-Accounts können Sicherheitseinstellungen nicht ändern
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    return render_template('settings/security.html', user=current_user)
+
+
+@settings_bp.route('/security/passwords', methods=['GET', 'POST'])
+@login_required
+def security_passwords():
+    """Passwörter & 2FA Einstellungen."""
+    # Gast-Accounts können Sicherheitseinstellungen nicht ändern
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'change_password':
+            current_password = request.form.get('current_password', '')
+            new_password = request.form.get('new_password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            
+            if not current_password or not new_password or not confirm_password:
+                flash(translate('settings.security.password.fill_all_fields'), 'danger')
+                return redirect(url_for('settings.security_passwords'))
+            
+            if not current_user.check_password(current_password):
+                flash(translate('settings.security.password.current_wrong'), 'danger')
+                return redirect(url_for('settings.security_passwords'))
+            
+            if new_password != confirm_password:
+                flash(translate('settings.security.password.passwords_dont_match'), 'danger')
+                return redirect(url_for('settings.security_passwords'))
+            
+            # Validiere Passwort-Policy
+            is_valid, error_msg = validate_password(new_password, min_length=8, require_complexity=False)
+            if not is_valid:
+                flash(error_msg or translate('settings.security.password.invalid'), 'danger')
+                return redirect(url_for('settings.security_passwords'))
+            
+            # Prüfe ob neues Passwort gleich dem aktuellen ist
+            if current_user.check_password(new_password):
+                flash(translate('settings.security.password.must_differ'), 'danger')
+                return redirect(url_for('settings.security_passwords'))
+            
+            # Passwort ändern
+            current_user.set_password(new_password)
+            current_user.password_changed_at = datetime.utcnow()
+            db.session.commit()
+            
+            flash(translate('settings.security.password.changed_success'), 'success')
+            return redirect(url_for('settings.security_passwords'))
+    
+    # Generiere QR-Code für 2FA-Setup (wenn noch nicht aktiviert)
+    qr_code_data = None
+    totp_secret = None
+    if not current_user.totp_enabled:
+        # Generiere Secret nur wenn es noch nicht in der Session ist
+        from flask import session as flask_session
+        if '2fa_setup_secret' not in flask_session:
+            flask_session['2fa_setup_secret'] = generate_totp_secret()
+        totp_secret = flask_session['2fa_setup_secret']
+        totp_uri = get_totp_uri(current_user.email, totp_secret)
+        qr_code_data = generate_qr_code(totp_uri)
+    
+    return render_template('settings/security_passwords.html', 
+                         user=current_user,
+                         qr_code_data=qr_code_data,
+                         totp_secret=totp_secret)
+
+
+@settings_bp.route('/security/enable-2fa', methods=['POST'])
+@login_required
+def enable_2fa():
+    """Aktiviere 2FA für den Benutzer."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    from flask import session as flask_session
+    totp_code = request.form.get('totp_code', '').strip()
+    secret = flask_session.get('2fa_setup_secret')
+    
+    if not totp_code or not secret:
+        flash(translate('settings.security.2fa.enter_code'), 'danger')
+        return redirect(url_for('settings.security_passwords'))
+    
+    # Verifiziere TOTP-Code
+    if not verify_totp(secret, totp_code):
+        flash(translate('settings.security.2fa.invalid_code'), 'danger')
+        return redirect(url_for('settings.security_passwords'))
+    
+    # Verschlüssele und speichere Secret
+    current_user.totp_secret = encrypt_secret(secret)
+    current_user.totp_enabled = True
+    db.session.commit()
+    
+    # Entferne Secret aus Session
+    flask_session.pop('2fa_setup_secret', None)
+    
+    flash(translate('settings.security.2fa.enabled_success'), 'success')
+    return redirect(url_for('settings.security_passwords'))
+
+
+@settings_bp.route('/security/disable-2fa', methods=['POST'])
+@login_required
+def disable_2fa():
+    """Deaktiviere 2FA für den Benutzer."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    password = request.form.get('password', '')
+    
+    if not password:
+        flash(translate('settings.security.2fa.enter_password'), 'danger')
+        return redirect(url_for('settings.security_passwords'))
+    
+    if not current_user.check_password(password):
+        flash(translate('settings.security.2fa.wrong_password'), 'danger')
+        return redirect(url_for('settings.security_passwords'))
+    
+    current_user.totp_secret = None
+    current_user.totp_enabled = False
+    db.session.commit()
+    
+    flash(translate('settings.security.2fa.disabled_success'), 'success')
+    return redirect(url_for('settings.security_passwords'))
+
+
+@settings_bp.route('/security/devices')
+@login_required
+def security_devices():
+    """Angemeldete Geräte anzeigen."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    sessions = get_user_sessions(current_user.id)
+    return render_template('settings/security_devices.html', 
+                         user=current_user,
+                         sessions=sessions)
+
+
+@settings_bp.route('/security/revoke-session', methods=['POST'])
+@login_required
+def revoke_session_route():
+    """Meldet eine spezifische Session ab."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    session_id = request.form.get('session_id', '')
+    
+    if not session_id:
+        flash(translate('settings.security.devices.invalid_session'), 'danger')
+        return redirect(url_for('settings.security_devices'))
+    
+    if revoke_session(current_user.id, session_id):
+        flash(translate('settings.security.devices.session_revoked'), 'success')
+    else:
+        flash(translate('settings.security.devices.session_not_found'), 'danger')
+    
+    return redirect(url_for('settings.security_devices'))
+
+
+@settings_bp.route('/security/revoke-all-sessions', methods=['POST'])
+@login_required
+def revoke_all_sessions_route():
+    """Meldet alle anderen Sessions ab."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
+        return redirect(url_for('settings.index'))
+    
+    revoked_count = revoke_all_sessions(current_user.id, exclude_current=True)
+    
+    if revoked_count > 0:
+        flash(translate('settings.security.devices.all_sessions_revoked', count=revoked_count), 'success')
+    else:
+        flash(translate('settings.security.devices.no_sessions_to_revoke'), 'info')
+    
+    return redirect(url_for('settings.security_devices'))
 
 
 @settings_bp.route('/about')

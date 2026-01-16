@@ -64,6 +64,17 @@ class User(UserMixin, db.Model):
     # Password change requirement
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)  # Muss Passwort beim ersten Login ändern
     
+    # Two-Factor Authentication (2FA)
+    totp_secret = db.Column(db.String(255), nullable=True)  # Verschlüsseltes TOTP-Secret
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Password Policy
+    password_changed_at = db.Column(db.DateTime, nullable=True)  # Wann wurde das Passwort zuletzt geändert
+    
+    # Rate Limiting für Login-Versuche
+    failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
+    failed_login_until = db.Column(db.DateTime, nullable=True)  # Sperrung bis zu diesem Zeitpunkt
+    
     # Dashboard Configuration
     dashboard_config = db.Column(db.Text, nullable=True)
     

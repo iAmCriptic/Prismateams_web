@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_socketio import SocketIO
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import config
 import json
 import os
@@ -13,6 +15,7 @@ from app.utils.i18n import register_i18n, translate
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
+limiter = Limiter(key_func=get_remote_address)
 
 # SocketIO mit optionaler Redis Message Queue für Multi-Worker-Setups
 def create_socketio():
@@ -64,6 +67,25 @@ def create_app(config_name='default'):
     else:
         logger.warning(f"Redis NICHT aktiviert - Multi-Worker-Setups funktionieren nicht korrekt!")
         logger.warning(f"Setze REDIS_ENABLED=True in der .env oder stelle sicher, dass Redis läuft")
+    
+    # Flask-Limiter für Rate Limiting initialisieren
+    # Verwende Redis als Storage-Backend wenn verfügbar (für Production)
+    if redis_enabled:
+        try:
+            # Verwende Redis als Storage-Backend für Rate Limiting
+            limiter.init_app(app, storage_uri=redis_url)
+            logger.info(f"Flask-Limiter mit Redis Storage konfiguriert: {redis_url}")
+        except Exception as e:
+            logger.warning(f"Fehler beim Konfigurieren von Flask-Limiter mit Redis: {e}")
+            logger.warning("Verwende Memory-Storage als Fallback (nicht für Production empfohlen)")
+            limiter.init_app(app)
+    else:
+        # In Development: Memory-Storage mit Warnung
+        # In Production: Warnung ausgeben
+        if config_name == 'production':
+            logger.warning("⚠️  WICHTIG: Flask-Limiter verwendet Memory-Storage in Production!")
+            logger.warning("⚠️  Für Production sollte Redis aktiviert werden (REDIS_ENABLED=True)")
+        limiter.init_app(app)
     
     if redis_enabled:
         try:
@@ -766,6 +788,7 @@ def create_app(config_name='default'):
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
+                from app.models.user_session import UserSession
                 
                 # Prüfe welche Tabellen bereits existieren
                 from sqlalchemy import inspect, text
@@ -910,9 +933,44 @@ def create_app(config_name='default'):
                                 print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
                         else:
                             print("[WARNUNG] Sprach-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_languages.py")
+                    
+                    # Sicherheitsfeatures-Migration (2FA, Rate Limiting, Session-Management)
+                    if 'users' in inspector.get_table_names():
+                        columns = {col['name'] for col in inspector.get_columns('users')}
+                        security_columns = {'totp_secret', 'totp_enabled', 'password_changed_at', 'failed_login_attempts', 'failed_login_until'}
+                        if not security_columns.issubset(columns) or 'user_sessions' not in inspector.get_table_names():
+                            print("[INFO] Führe Sicherheitsfeatures-Migration aus...")
+                            migrations_path = os.path.join(
+                                os.path.dirname(os.path.dirname(__file__)),
+                                'migrations',
+                                'migrate_security_features.py'
+                            )
+                            if os.path.exists(migrations_path):
+                                env = os.environ.copy()
+                                env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
+                                try:
+                                    result = subprocess.run(
+                                        [sys.executable, migrations_path],
+                                        capture_output=True,
+                                        text=True,
+                                        timeout=60,
+                                        env=env
+                                    )
+                                    if result.returncode == 0:
+                                        print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
+                                    else:
+                                        print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
+                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                                except subprocess.TimeoutExpired:
+                                    print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
+                                except Exception as exc:
+                                    print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                            else:
+                                print("[WARNUNG] Sicherheitsfeatures-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_security_features.py")
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
+                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
                 
                 from app.models.email import EmailFolder
                 

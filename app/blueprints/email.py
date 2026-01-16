@@ -2861,6 +2861,20 @@ def move_email(email_id):
 
 def delete_email_from_imap(email_id, folder_name):
     """Delete email from IMAP server."""
+    # Validiere email_id
+    if not email_id:
+        return False, "Ungültige E-Mail-ID (leer oder None)"
+    
+    # Konvertiere zu String und prüfe, ob es eine gültige UID ist
+    try:
+        uid_str = str(email_id).strip()
+        if not uid_str or uid_str == 'None' or uid_str == '':
+            return False, "Ungültige E-Mail-ID (leer)"
+        # Prüfe, ob es eine Zahl ist (UIDs sind normalerweise Zahlen)
+        int(uid_str)
+    except (ValueError, AttributeError):
+        return False, f"Ungültige E-Mail-ID Format: {email_id}"
+    
     mail_conn = connect_imap()
     if not mail_conn:
         return False, "IMAP-Verbindung fehlgeschlagen"
@@ -2868,27 +2882,52 @@ def delete_email_from_imap(email_id, folder_name):
     try:
         status, messages = mail_conn.select(folder_name)
         if status != 'OK':
+            mail_conn.logout()
             return False, f"Ordner '{folder_name}' konnte nicht geöffnet werden"
         
-        status, response = mail_conn.store(email_id, '+FLAGS', '\\Deleted')
+        # Versuche, die E-Mail als gelöscht zu markieren
+        # Verwende UID STORE statt STORE, da wir mit UIDs arbeiten
+        status, response = mail_conn.uid('STORE', uid_str, '+FLAGS', '\\Deleted')
         if status != 'OK':
-            return False, "E-Mail konnte nicht als gelöscht markiert werden"
+            mail_conn.logout()
+            error_msg = str(response) if response else "Unbekannter Fehler"
+            return False, f"E-Mail konnte nicht als gelöscht markiert werden: {error_msg}"
         
+        # Lösche die E-Mail endgültig
         status, response = mail_conn.expunge()
         if status != 'OK':
-            return False, "E-Mail konnte nicht gelöscht werden"
+            mail_conn.logout()
+            return False, f"E-Mail konnte nicht gelöscht werden: {response}"
         
         mail_conn.close()
         mail_conn.logout()
         return True, "E-Mail erfolgreich gelöscht"
         
     except Exception as e:
+        try:
+            mail_conn.logout()
+        except:
+            pass
         logging.error(f"IMAP delete failed: {str(e)}")
         return False, f"Lösch-Fehler: {str(e)}"
 
 
 def move_email_in_imap(email_id, from_folder, to_folder):
     """Move email between IMAP folders."""
+    # Validiere email_id
+    if not email_id:
+        return False, "Ungültige E-Mail-ID (leer oder None)"
+    
+    # Konvertiere zu String und prüfe, ob es eine gültige UID ist
+    try:
+        uid_str = str(email_id).strip()
+        if not uid_str or uid_str == 'None' or uid_str == '':
+            return False, "Ungültige E-Mail-ID (leer)"
+        # Prüfe, ob es eine Zahl ist (UIDs sind normalerweise Zahlen)
+        int(uid_str)
+    except (ValueError, AttributeError):
+        return False, f"Ungültige E-Mail-ID Format: {email_id}"
+    
     mail_conn = connect_imap()
     if not mail_conn:
         return False, "IMAP-Verbindung fehlgeschlagen"
@@ -2899,31 +2938,43 @@ def move_email_in_imap(email_id, from_folder, to_folder):
             if from_folder != 'INBOX':
                 status, messages = mail_conn.select('INBOX')
                 if status != 'OK':
+                    mail_conn.logout()
                     return False, f"Quellordner '{from_folder}' und INBOX konnten nicht geöffnet werden"
         
-        status, response = mail_conn.copy(email_id, to_folder)
+        # Verwende UID COPY statt COPY, da wir mit UIDs arbeiten
+        status, response = mail_conn.uid('COPY', uid_str, to_folder)
         if status != 'OK':
             try:
                 mail_conn.create(to_folder)
-                status, response = mail_conn.copy(email_id, to_folder)
+                status, response = mail_conn.uid('COPY', uid_str, to_folder)
                 if status != 'OK':
+                    mail_conn.logout()
                     return False, f"E-Mail konnte nicht nach '{to_folder}' kopiert werden (auch nach Ordner-Erstellung nicht)"
-            except:
-                return False, f"E-Mail konnte nicht nach '{to_folder}' kopiert werden"
+            except Exception as e:
+                mail_conn.logout()
+                return False, f"E-Mail konnte nicht nach '{to_folder}' kopiert werden: {str(e)}"
         
-        status, response = mail_conn.store(email_id, '+FLAGS', '\\Deleted')
+        # Verwende UID STORE statt STORE, da wir mit UIDs arbeiten
+        status, response = mail_conn.uid('STORE', uid_str, '+FLAGS', '\\Deleted')
         if status != 'OK':
-            return False, "E-Mail konnte nicht als gelöscht markiert werden"
+            mail_conn.logout()
+            error_msg = str(response) if response else "Unbekannter Fehler"
+            return False, f"E-Mail konnte nicht als gelöscht markiert werden: {error_msg}"
         
         status, response = mail_conn.expunge()
         if status != 'OK':
-            return False, "E-Mail konnte nicht verschoben werden"
+            mail_conn.logout()
+            return False, f"E-Mail konnte nicht verschoben werden: {response}"
         
         mail_conn.close()
         mail_conn.logout()
         return True, f"E-Mail erfolgreich nach '{to_folder}' verschoben"
         
     except Exception as e:
+        try:
+            mail_conn.logout()
+        except:
+            pass
         logging.error(f"IMAP move failed: {str(e)}")
         return False, f"Verschieb-Fehler: {str(e)}"
 

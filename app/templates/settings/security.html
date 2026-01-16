@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('settings.security.page_title') }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.security.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.security.breadcrumb_security') }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-shield-lock"></i> {{ _('settings.security.heading') }}</h4>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-4" id="securityTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="passwords-tab" data-bs-toggle="tab" data-bs-target="#passwords" type="button" role="tab">
+                            <i class="bi bi-key"></i> {{ _('settings.security.tabs.passwords') }}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices" type="button" role="tab">
+                            <i class="bi bi-device-hdd"></i> {{ _('settings.security.tabs.devices') }}
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="securityTabsContent">
+                    <div class="tab-pane fade show active" id="passwords" role="tabpanel">
+                        {% include 'settings/security_passwords.html' %}
+                    </div>
+                    <div class="tab-pane fade" id="devices" role="tabpanel">
+                        {% include 'settings/security_devices.html' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
