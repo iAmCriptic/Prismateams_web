@@ -1,17 +1,356 @@
-from flask import Blueprint, jsonify, request, url_for
-from flask_login import login_required, current_user
-from app import db
+from flask import Blueprint, jsonify, request, url_for, session as flask_session
+from flask_login import login_required, current_user, login_user
+from app import db, limiter
 from app.models.user import User
 from app.models.chat import Chat, ChatMessage, ChatMember
 from app.models.file import File, Folder
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.email import EmailMessage
 from app.models.notification import PushSubscription
+from app.models.api_token import ApiToken
 from app.utils.notifications import register_push_subscription, send_push_notification
 from app.utils.i18n import translate
-from datetime import datetime
+from app.utils.totp import verify_totp, decrypt_secret
+from app.utils.session_manager import create_session
+from datetime import datetime, timedelta
 
 api_bp = Blueprint('api', __name__)
+
+
+def require_api_auth(f):
+    """
+    Decorator für API-Endpunkte, die entweder Session- oder Token-Authentifizierung akzeptieren.
+    Setzt current_user für Token-basierte Authentifizierung.
+    """
+    from functools import wraps
+    from flask_login import current_user
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Prüfe zuerst ob Session-basierte Authentifizierung vorhanden ist
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
+        
+        # Prüfe Token-basierte Authentifizierung
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header.replace('Bearer ', '').strip()
+            api_token = ApiToken.query.filter_by(token=token).first()
+            
+            if api_token and not api_token.is_expired():
+                user = api_token.user
+                if user and user.is_active:
+                    # Setze current_user für diesen Request
+                    from flask_login import _request_ctx_stack
+                    _request_ctx_stack.top.user = user
+                    api_token.mark_as_used()
+                    return f(*args, **kwargs)
+        
+        return jsonify({
+            'success': False,
+            'error': 'Authentifizierung erforderlich'
+        }), 401
+    
+    return decorated_function
+
+
+# Authentication API
+@api_bp.route('/auth/login', methods=['POST'])
+@limiter.limit("5 per 15 minutes")
+def api_login():
+    """
+    API-Login mit 2FA-Unterstützung.
+    
+    Request Body (JSON):
+    {
+        "email": "user@example.com",
+        "password": "password123",
+        "totp_code": "123456",  // Optional, nur wenn 2FA aktiviert ist
+        "remember": true,        // Optional
+        "return_token": false    // Optional, gibt API-Token zurück statt Session
+    }
+    
+    Response (2FA erforderlich):
+    {
+        "success": false,
+        "requires_2fa": true,
+        "message": "2FA-Code erforderlich"
+    }
+    
+    Response (Erfolg):
+    {
+        "success": true,
+        "user": {
+            "id": 1,
+            "email": "user@example.com",
+            "full_name": "Max Mustermann",
+            "is_admin": false
+        },
+        "token": "..."  // Nur wenn return_token=true
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Keine Daten übermittelt'
+            }), 400
+        
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+        totp_code = data.get('totp_code', '').strip()
+        remember = data.get('remember', False)
+        return_token = data.get('return_token', False)
+        
+        if not email or not password:
+            return jsonify({
+                'success': False,
+                'error': 'E-Mail und Passwort sind erforderlich'
+            }), 400
+        
+        # Unterstütze @gast.system.local Format für Gast-Accounts
+        user = None
+        if email.endswith('@gast.system.local'):
+            guest_username = email.replace('@gast.system.local', '')
+            user = User.query.filter_by(guest_username=guest_username, is_guest=True).first()
+        else:
+            user = User.query.filter_by(email=email).first()
+        
+        # Prüfe ob Account gesperrt ist (Rate Limiting)
+        if user and user.failed_login_until and datetime.utcnow() < user.failed_login_until:
+            remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
+            return jsonify({
+                'success': False,
+                'error': f'Account gesperrt. Bitte warten Sie {remaining_seconds} Sekunden.',
+                'account_locked': True,
+                'remaining_seconds': remaining_seconds
+            }), 423  # 423 Locked
+        
+        # Prüfe Credentials
+        if not user or not user.check_password(password):
+            # Erhöhe fehlgeschlagene Versuche
+            if user:
+                user.failed_login_attempts += 1
+                if user.failed_login_attempts >= 5:
+                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                    user.failed_login_attempts = 0
+                db.session.commit()
+            return jsonify({
+                'success': False,
+                'error': 'Ungültige Zugangsdaten'
+            }), 401
+        
+        # Reset fehlgeschlagene Versuche bei erfolgreichem Passwort-Check
+        user.failed_login_attempts = 0
+        user.failed_login_until = None
+        
+        # Prüfe Ablaufzeit für Gast-Accounts
+        if user.is_guest and user.guest_expires_at:
+            if datetime.utcnow() > user.guest_expires_at:
+                db.session.delete(user)
+                db.session.commit()
+                return jsonify({
+                    'success': False,
+                    'error': 'Gast-Account ist abgelaufen'
+                }), 401
+        
+        if not user.is_active:
+            return jsonify({
+                'success': False,
+                'error': 'Account ist nicht aktiviert'
+            }), 403
+        
+        # 2FA-Verifizierung (wenn aktiviert)
+        if user.totp_enabled and user.totp_secret:
+            if not totp_code:
+                # 2FA erforderlich, aber kein Code übermittelt
+                return jsonify({
+                    'success': False,
+                    'requires_2fa': True,
+                    'message': '2FA-Code erforderlich',
+                    'error': 'Bitte geben Sie den 2FA-Code ein'
+                }), 200  # 200 damit Client weiß, dass Credentials korrekt waren
+            
+            # Verifiziere TOTP-Code
+            if not verify_totp(user.totp_secret, totp_code):
+                user.failed_login_attempts += 1
+                if user.failed_login_attempts >= 5:
+                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                    user.failed_login_attempts = 0
+                db.session.commit()
+                return jsonify({
+                    'success': False,
+                    'requires_2fa': True,
+                    'error': 'Ungültiger 2FA-Code'
+                }), 401
+        
+        # Gast-Accounts benötigen keine E-Mail-Bestätigung
+        # Normale Accounts: Check if email confirmation is required (nicht für Admins)
+        if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
+            # E-Mail-Bestätigung erforderlich
+            return jsonify({
+                'success': False,
+                'requires_email_confirmation': True,
+                'error': 'E-Mail-Bestätigung erforderlich'
+            }), 403
+        
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        # Log user in (erstellt Session-Cookie)
+        login_user(user, remember=remember)
+        
+        # Erstelle Session für Session-Management (nur wenn Session-basiert, nicht bei Token)
+        if not return_token:
+            create_session(user.id)
+        
+        # Bereite Response vor
+        response_data = {
+            'success': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'full_name': user.full_name,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_admin': user.is_admin,
+                'is_guest': user.is_guest,
+                'profile_picture': url_for('settings.profile_picture', filename=user.profile_picture) if user.profile_picture else None,
+                'accent_color': user.accent_color,
+                'dark_mode': user.dark_mode,
+                'totp_enabled': user.totp_enabled
+            }
+        }
+        
+        # Wenn Token angefordert wurde, erstelle API-Token
+        if return_token:
+            token = ApiToken.create_token(
+                user_id=user.id,
+                name='API Login',
+                expires_in_days=30
+            )
+            response_data['token'] = token.token
+            response_data['token_expires_at'] = token.expires_at.isoformat() if token.expires_at else None
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/auth/logout', methods=['POST'])
+def api_logout():
+    """
+    API-Logout.
+    Unterstützt sowohl Session- als auch Token-basierte Authentifizierung.
+    """
+    from flask_login import logout_user
+    from app.utils.session_manager import revoke_session_by_id
+    
+    # Prüfe ob Session-basierte Authentifizierung
+    if current_user.is_authenticated:
+        # Revoke current session
+        session_id = flask_session.get('session_id')
+        if session_id:
+            revoke_session_by_id(session_id)
+        logout_user()
+    
+    # Prüfe ob Token-basierte Authentifizierung
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header.replace('Bearer ', '').strip()
+        api_token = ApiToken.query.filter_by(token=token).first()
+        if api_token:
+            # Lösche Token (oder markiere als inaktiv)
+            db.session.delete(api_token)
+            db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Erfolgreich abgemeldet'
+    }), 200
+
+
+@api_bp.route('/auth/verify-token', methods=['POST'])
+def api_verify_token():
+    """
+    Verifiziert einen API-Token.
+    
+    Request Body (JSON):
+    {
+        "token": "api_token_here"
+    }
+    
+    Response:
+    {
+        "success": true,
+        "user": {...}
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Keine Daten übermittelt'
+            }), 400
+        
+        token = data.get('token', '').strip()
+        if not token:
+            return jsonify({
+                'success': False,
+                'error': 'Token erforderlich'
+            }), 400
+        
+        # Prüfe Token
+        api_token = ApiToken.query.filter_by(token=token, expires_at=None).first()
+        if not api_token:
+            # Prüfe auch nicht-abgelaufene Token
+            api_token = ApiToken.query.filter_by(token=token).first()
+            if not api_token or api_token.is_expired():
+                return jsonify({
+                    'success': False,
+                    'error': 'Ungültiger oder abgelaufener Token'
+                }), 401
+        
+        # Prüfe ob User noch aktiv ist
+        user = api_token.user
+        if not user or not user.is_active:
+            return jsonify({
+                'success': False,
+                'error': 'Benutzer ist nicht aktiv'
+            }), 401
+        
+        # Markiere Token als verwendet
+        api_token.mark_as_used()
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'full_name': user.full_name,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_admin': user.is_admin,
+                'is_guest': user.is_guest,
+                'profile_picture': url_for('settings.profile_picture', filename=user.profile_picture) if user.profile_picture else None,
+                'accent_color': user.accent_color,
+                'dark_mode': user.dark_mode,
+                'totp_enabled': user.totp_enabled
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # User API

@@ -2736,6 +2736,22 @@ def security_passwords():
     if request.method == 'POST':
         action = request.form.get('action')
         
+        if action == 'start_2fa_setup':
+            # Starte 2FA-Einrichtung
+            from flask import session as flask_session
+            flask_session['2fa_setup_started'] = True
+            flask_session['2fa_setup_secret'] = generate_totp_secret()
+            flash(translate('settings.security.2fa.setup_started'), 'info')
+            return redirect(url_for('settings.security_passwords'))
+        
+        if action == 'cancel_2fa_setup':
+            # Bricht 2FA-Einrichtung ab
+            from flask import session as flask_session
+            flask_session.pop('2fa_setup_started', None)
+            flask_session.pop('2fa_setup_secret', None)
+            flash(translate('settings.security.2fa.setup_cancelled'), 'info')
+            return redirect(url_for('settings.security_passwords'))
+        
         if action == 'change_password':
             current_password = request.form.get('current_password', '')
             new_password = request.form.get('new_password', '')
@@ -2775,19 +2791,27 @@ def security_passwords():
     # Generiere QR-Code für 2FA-Setup (wenn noch nicht aktiviert)
     qr_code_data = None
     totp_secret = None
+    show_setup = False
     if not current_user.totp_enabled:
-        # Generiere Secret nur wenn es noch nicht in der Session ist
         from flask import session as flask_session
-        if '2fa_setup_secret' not in flask_session:
-            flask_session['2fa_setup_secret'] = generate_totp_secret()
-        totp_secret = flask_session['2fa_setup_secret']
-        totp_uri = get_totp_uri(current_user.email, totp_secret)
-        qr_code_data = generate_qr_code(totp_uri)
+        # Prüfe ob Setup gestartet wurde
+        setup_started = flask_session.get('2fa_setup_started', False)
+        
+        # Wenn Setup gestartet wurde, zeige QR-Code
+        if setup_started:
+            # Generiere Secret nur wenn es noch nicht in der Session ist
+            if '2fa_setup_secret' not in flask_session:
+                flask_session['2fa_setup_secret'] = generate_totp_secret()
+            totp_secret = flask_session['2fa_setup_secret']
+            totp_uri = get_totp_uri(current_user.email, totp_secret)
+            qr_code_data = generate_qr_code(totp_uri)
+            show_setup = True
     
     return render_template('settings/security_passwords.html', 
                          user=current_user,
                          qr_code_data=qr_code_data,
-                         totp_secret=totp_secret)
+                         totp_secret=totp_secret,
+                         show_setup=show_setup)
 
 
 @settings_bp.route('/security/enable-2fa', methods=['POST'])
