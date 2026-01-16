@@ -181,6 +181,20 @@
                         <i class="bi bi-check-circle"></i> {{ _('music.admin.musicbrainz.description') }}
                     </div>
                     
+                    <hr class="my-4">
+                    
+                    <!-- Anzeige-Einstellungen -->
+                    <h5 class="mb-3">{{ _('music.admin.display_settings.title') }}</h5>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="show_provider_badges" name="show_provider_badges" {% if show_provider_badges %}checked{% endif %}>
+                            <label class="form-check-label" for="show_provider_badges">
+                                {{ _('music.admin.display_settings.show_provider_badges') }}
+                            </label>
+                        </div>
+                        <div class="form-text">{{ _('music.admin.display_settings.show_provider_badges_help') }}</div>
+                    </div>
+                    
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save"></i> {{ _('music.admin.save') }}

@@ -143,13 +143,17 @@ def public_wishlist():
     if portal_logo_filename:
         app_logo = None
     
+    # Hole Einstellung für Provider-Badge-Anzeige
+    show_provider_badges = MusicSettings.get_show_provider_badges()
+    
     return render_template('music/public_wishlist.html', 
                          has_providers=has_providers,
                          enabled_providers=enabled_providers,
                          color_gradient=color_gradient,
                          portal_logo_filename=portal_logo_filename,
                          app_name=app_name,
-                         app_logo=app_logo)
+                         app_logo=app_logo,
+                         show_provider_badges=show_provider_badges)
 
 
 @music_bp.route('/wishlist/search', methods=['POST'])
@@ -161,6 +165,15 @@ def public_search():
     
     if not query:
         return jsonify({'error': translate('music.flash.query_required')}), 400
+    
+    # Prüfe ob Provider aktiviert sind
+    enabled_providers = MusicSettings.get_enabled_providers()
+    if not enabled_providers:
+        return jsonify({
+            'error': translate('music.public_wishlist.no_providers'),
+            'results': [],
+            'recommendations': []
+        }), 200  # 200 statt 400, damit Frontend die Nachricht anzeigen kann
     
     try:
         # Verwende Multi-Provider-Suche (automatisch über alle aktivierten Provider)
@@ -175,13 +188,29 @@ def public_search():
         )
         
         # search_result ist jetzt ein Dictionary mit 'results' und 'recommendations'
+        results = search_result.get('results', [])
+        recommendations = search_result.get('recommendations', [])
+        
+        # Logge für Debugging
+        logger.info(f"Suche nach '{query}': {len(results)} Ergebnisse, {len(recommendations)} Empfehlungen")
+        
         return jsonify({
-            'results': search_result.get('results', []),
-            'recommendations': search_result.get('recommendations', [])
+            'results': results,
+            'recommendations': recommendations
         })
     except Exception as e:
         logger.error(f"Fehler bei Multi-Provider-Suche: {e}", exc_info=True)
-        return jsonify({'error': translate('music.flash.search_error', error=str(e))}), 500
+        # Gebe benutzerfreundliche Fehlermeldung zurück
+        error_message = str(e)
+        if 'user_id erforderlich' in error_message or 'Token' in error_message:
+            error_message = "Spotify-Provider benötigt eine Verbindung. Bitte kontaktieren Sie einen Administrator."
+        elif 'API-Key' in error_message:
+            error_message = "YouTube-Provider benötigt einen API-Key. Bitte kontaktieren Sie einen Administrator."
+        return jsonify({
+            'error': translate('music.flash.search_error', error=error_message),
+            'results': [],
+            'recommendations': []
+        }), 500
 
 
 # Admin-Routen (Login erforderlich)
