@@ -1023,6 +1023,92 @@ def resend_confirmation_email(user):
     return send_confirmation_email(user)
 
 
+def send_password_reset_email(user):
+    """Sendet eine Passwort-Reset-E-Mail an den Benutzer."""
+    try:
+        # Generiere Passwort-Reset-Code
+        reset_code = generate_confirmation_code()
+        
+        # Setze Ablaufzeit (1 Stunde)
+        expires_at = datetime.utcnow() + timedelta(hours=1)
+        
+        # Aktualisiere Benutzer-Daten
+        user.password_reset_code = reset_code
+        user.password_reset_code_expires = expires_at
+        
+        # Speichere in Datenbank
+        from app import db
+        db.session.commit()
+        
+        # Prüfe E-Mail-Konfiguration
+        mail_server = current_app.config.get('MAIL_SERVER')
+        mail_username = current_app.config.get('MAIL_USERNAME')
+        mail_password = current_app.config.get('MAIL_PASSWORD')
+        
+        if not all([mail_server, mail_username, mail_password]):
+            logging.warning(f"E-Mail-Konfiguration unvollständig. Reset-Code für {user.email}: {reset_code}")
+            return False
+        
+        # Get portal name from SystemSettings
+        try:
+            from app.models.settings import SystemSettings
+            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
+        except:
+            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
+        
+        # HTML-Template rendern (Logo wird als CID-Anhang eingefügt)
+        html_content = render_template(
+            'emails/password_reset.html',
+            user=user,
+            reset_code=reset_code,
+            app_name=portal_name,
+            current_year=datetime.utcnow().year,
+            logo_cid='portal_logo'
+        )
+        
+        # Plain text Version
+        plain_text = f"Passwort-Reset-Code: {reset_code}\n\nBitte geben Sie diesen Code ein, um Ihr Passwort zurückzusetzen. Der Code ist 1 Stunde gültig."
+        
+        # Erstelle Message mit Logo als CID-Anhang
+        msg = create_message_with_logo(
+            subject=f'Passwort zurücksetzen - {portal_name}',
+            recipients=[user.email],
+            html_content=html_content,
+            body_text=plain_text
+        )
+        
+        # E-Mail senden
+        try:
+            send_email_with_lock(msg)
+            logging.info(f"Password reset email sent to {user.email} with code: {reset_code}")
+            return True
+        except Exception as send_error:
+            logging.error(f"Failed to send password reset email to {user.email}: {str(send_error)}")
+            return False
+        
+    except Exception as e:
+        logging.error(f"Failed to send password reset email to {user.email}: {str(e)}")
+        return False
+
+
+def verify_password_reset_code(user, code):
+    """Überprüft den Passwort-Reset-Code."""
+    if not user.password_reset_code or not user.password_reset_code_expires:
+        return False
+    
+    # Prüfe Ablaufzeit
+    if datetime.utcnow() > user.password_reset_code_expires:
+        return False
+    
+    # Prüfe Code
+    if user.password_reset_code != code:
+        return False
+    
+    # Code ist gültig
+    return True
+
+
 def send_borrow_receipt_email(borrow_transactions):
     """Sendet eine E-Mail mit Ausleihschein-PDF nach erfolgreicher Ausleihe."""
     try:
