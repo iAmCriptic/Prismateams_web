@@ -1798,10 +1798,54 @@ def api_product_delete(product_id):
     if active_borrow:
         return jsonify({'error': translate('inventory.errors.product_borrowed_cannot_delete')}), 400
     
-    db.session.delete(product)
-    db.session.commit()
+    # Prüfe ob Produkt in Produktsets enthalten ist
+    set_items = ProductSetItem.query.filter_by(product_id=product_id).all()
+    if set_items:
+        set_names = [item.set.name for item in set_items if item.set]
+        return jsonify({
+            'error': f'Das Produkt "{product.name}" kann nicht gelöscht werden, da es in folgenden Produktsets enthalten ist: {", ".join(set_names)}. Bitte entfernen Sie das Produkt zuerst aus den Sets.'
+        }), 400
     
-    return jsonify({'message': 'Produkt gelöscht.'})
+    try:
+        # Lösche zugehörige Produktset-Items (falls vorhanden)
+        ProductSetItem.query.filter_by(product_id=product_id).delete()
+        
+        # Lösche Produktbild
+        if product.image_path:
+            image_path_full = product.image_path
+            if not os.path.isabs(image_path_full):
+                image_path_full = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images', image_path_full)
+            
+            if os.path.exists(image_path_full):
+                try:
+                    os.remove(image_path_full)
+                except Exception as e:
+                    current_app.logger.warning(f"Fehler beim Löschen des Bildes von Produkt {product_id}: {e}")
+        
+        # Lösche zugehörige Dokumente
+        documents = ProductDocument.query.filter_by(product_id=product_id).all()
+        for doc in documents:
+            if doc.file_path and os.path.exists(doc.file_path):
+                try:
+                    os.remove(doc.file_path)
+                except Exception as e:
+                    current_app.logger.warning(f"Fehler beim Löschen des Dokuments {doc.id}: {e}")
+            db.session.delete(doc)
+        
+        # Lösche das Produkt
+        db.session.delete(product)
+        db.session.commit()
+        
+        return jsonify({'message': 'Produkt gelöscht.'})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Fehler beim Löschen von Produkt {product_id}: {e}", exc_info=True)
+        
+        error_msg = str(e)
+        if 'foreign key constraint' in error_msg.lower() or '1451' in error_msg:
+            return jsonify({'error': f'Das Produkt "{product.name}" kann nicht gelöscht werden, da es noch in Verwendung ist (z.B. in einem Produktset).'}), 400
+        else:
+            return jsonify({'error': f'Fehler beim Löschen des Produkts: {error_msg}'}), 500
 
 
 @inventory_bp.route('/api/products/bulk-update', methods=['POST'])
@@ -1977,15 +2021,36 @@ def api_products_bulk_delete():
     errors = []
     
     for product in products:
+        product_id = product.id  # Speichere ID vor möglichem Rollback
+        product_name = product.name  # Speichere Name für Fehlermeldung
+        
         try:
-            if product.image_path and os.path.exists(product.image_path):
-                try:
-                    os.remove(product.image_path)
-                except Exception as e:
-                    current_app.logger.warning(f"Fehler beim Löschen des Bildes von Produkt {product.id}: {e}")
+            # Prüfe ob Produkt in Produktsets enthalten ist
+            set_items = ProductSetItem.query.filter_by(product_id=product_id).all()
+            if set_items:
+                set_names = [item.set.name for item in set_items if item.set]
+                return jsonify({
+                    'error': f'Das Produkt "{product_name}" kann nicht gelöscht werden, da es in folgenden Produktsets enthalten ist: {", ".join(set_names)}. Bitte entfernen Sie das Produkt zuerst aus den Sets.',
+                    'details': [f'Produkt in Set: {name}' for name in set_names]
+                }), 400
+            
+            # Lösche zugehörige Produktset-Items (falls vorhanden)
+            ProductSetItem.query.filter_by(product_id=product_id).delete()
+            
+            # Lösche Produktbild
+            if product.image_path:
+                image_path_full = product.image_path
+                if not os.path.isabs(image_path_full):
+                    image_path_full = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images', image_path_full)
+                
+                if os.path.exists(image_path_full):
+                    try:
+                        os.remove(image_path_full)
+                    except Exception as e:
+                        current_app.logger.warning(f"Fehler beim Löschen des Bildes von Produkt {product_id}: {e}")
             
             # Lösche auch zugehörige Dokumente
-            documents = ProductDocument.query.filter_by(product_id=product.id).all()
+            documents = ProductDocument.query.filter_by(product_id=product_id).all()
             for doc in documents:
                 if doc.file_path and os.path.exists(doc.file_path):
                     try:
@@ -1994,17 +2059,31 @@ def api_products_bulk_delete():
                         current_app.logger.warning(f"Fehler beim Löschen des Dokuments {doc.id}: {e}")
                 db.session.delete(doc)
             
+            # Lösche das Produkt
             db.session.delete(product)
             deleted_count += 1
+            
         except Exception as e:
-            current_app.logger.error(f"Fehler beim Löschen von Produkt {product.id}: {e}")
-            errors.append(f"Fehler bei Produkt {product.id}: {str(e)}")
+            db.session.rollback()
+            error_msg = str(e)
+            current_app.logger.error(f"Fehler beim Löschen von Produkt {product_id} ({product_name}): {e}", exc_info=True)
+            
+            # Prüfe ob es ein Foreign Key Constraint Fehler ist
+            if 'foreign key constraint' in error_msg.lower() or '1451' in error_msg:
+                errors.append(f'Das Produkt "{product_name}" kann nicht gelöscht werden, da es noch in Verwendung ist (z.B. in einem Produktset).')
+            else:
+                errors.append(f'Fehler bei Produkt "{product_name}" (ID: {product_id}): {error_msg}')
     
     if errors:
         db.session.rollback()
         return jsonify({'error': translate('inventory.errors.delete_error'), 'details': errors}), 500
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Fehler beim Commit der Löschung: {e}", exc_info=True)
+        return jsonify({'error': 'Fehler beim Speichern der Änderungen. Bitte versuchen Sie es erneut.'}), 500
     
     return jsonify({
         'message': f'{deleted_count} Produkt(e) erfolgreich gelöscht.',

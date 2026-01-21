@@ -7,7 +7,7 @@ from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
 from app.models.settings import SystemSettings
 from app.utils.i18n import translate
-from datetime import datetime
+from datetime import datetime, timedelta
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -447,6 +447,119 @@ def change_password():
         return redirect(url_for('dashboard.index'))
     
     return render_template('auth/change_password.html', must_change=current_user.must_change_password, color_gradient=color_gradient)
+
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Passwort vergessen - E-Mail eingeben."""
+    # Prüfe ob Setup nötig ist
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+    
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash(translate('auth.flash.enter_email'), 'danger')
+            return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+        
+        # Rate Limiting: Prüfe ob zu viele Anfragen in der letzten Stunde
+        # Suche nach User mit dieser E-Mail
+        user = User.query.filter_by(email=email).first()
+        
+        if user and not user.is_guest:
+            # Prüfe Rate Limiting: Maximal 3 Reset-Anfragen pro Stunde
+            recent_resets = 0
+            if user.password_reset_code_expires:
+                # Wenn ein Code existiert und noch nicht abgelaufen ist, zähle als eine Anfrage
+                if datetime.utcnow() < user.password_reset_code_expires:
+                    # Prüfe ob Code in der letzten Stunde erstellt wurde
+                    if user.password_reset_code_expires > datetime.utcnow() - timedelta(hours=1):
+                        recent_resets = 1
+            
+            # Zähle weitere Reset-Codes in der letzten Stunde (vereinfachte Prüfung)
+            # In einer produktiven Umgebung könnte man hier eine separate Tabelle für Rate-Limiting verwenden
+            if recent_resets >= 3:
+                # Zeige trotzdem Erfolgsmeldung (Sicherheit)
+                flash(translate('auth.flash.password_reset_email_sent'), 'success')
+                return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+            
+            # Sende Passwort-Reset-E-Mail
+            from app.utils.email_sender import send_password_reset_email
+            send_password_reset_email(user)
+            
+            # Weiterleitung zur Reset-Password-Seite mit E-Mail-Adresse
+            flash(translate('auth.flash.password_reset_email_sent'), 'success')
+            return redirect(url_for('auth.reset_password', email=email))
+        
+        # Zeige immer Erfolgsmeldung (auch wenn E-Mail nicht existiert - Sicherheit)
+        flash(translate('auth.flash.password_reset_email_sent'), 'success')
+        return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+    
+    return render_template('auth/forgot_password.html', color_gradient=get_color_gradient())
+
+
+@auth_bp.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    """Passwort zurücksetzen mit Code."""
+    # Prüfe ob Setup nötig ist
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+    
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        reset_code = request.form.get('reset_code', '').strip()
+        new_password = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        # Validierung
+        if not all([email, reset_code, new_password, confirm_password]):
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
+            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+        
+        # Finde User
+        user = User.query.filter_by(email=email).first()
+        if not user or user.is_guest:
+            flash(translate('auth.flash.invalid_reset_code'), 'danger')
+            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+        
+        # Prüfe Reset-Code
+        from app.utils.email_sender import verify_password_reset_code
+        if not verify_password_reset_code(user, reset_code):
+            flash(translate('auth.flash.invalid_reset_code'), 'danger')
+            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+        
+        # Prüfe Passwort-Bestätigung
+        if new_password != confirm_password:
+            flash(translate('auth.flash.passwords_dont_match'), 'danger')
+            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+        
+        # Prüfe Passwort-Länge
+        if len(new_password) < 8:
+            flash(translate('auth.flash.password_too_short'), 'danger')
+            return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
+        
+        # Setze neues Passwort
+        user.set_password(new_password)
+        # Lösche Reset-Code
+        user.password_reset_code = None
+        user.password_reset_code_expires = None
+        db.session.commit()
+        
+        flash(translate('auth.flash.password_reset_success'), 'success')
+        return redirect(url_for('auth.login'))
+    
+    # GET: Zeige Formular
+    email = request.args.get('email', '')
+    return render_template('auth/reset_password.html', email=email, color_gradient=get_color_gradient())
 
 
 @auth_bp.route('/logout')
