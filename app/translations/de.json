@@ -57,7 +57,9 @@
       "submit": "Anmelden",
       "forgot_password": "Passwort vergessen?",
       "register_link_prefix": "Neu bei Prismateams?",
-      "register_link_cta": "Jetzt registrieren"
+      "register_link_cta": "Jetzt registrieren",
+      "2fa_code": "2FA-Code",
+      "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein."
     },
     "register": {
       "title": "Registrieren",
@@ -155,6 +157,9 @@
       "password_reset_email_sent": "Falls ein Konto mit dieser E-Mail-Adresse existiert, wurde ein Reset-Code gesendet.",
       "invalid_reset_code": "Ungültiger oder abgelaufener Reset-Code.",
       "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden."
+      "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
+      "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
+      "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt."
     }
   },
   "dashboard": {
@@ -378,6 +383,11 @@
           "description": "Push-Benachrichtigungen für Chat, Dateien, E-Mails und Termine",
           "button": "Bearbeiten"
         },
+        "security": {
+          "title": "Sicherheit",
+          "description": "Passwort ändern, 2FA aktivieren und angemeldete Geräte verwalten",
+          "button": "Öffnen"
+        },
         "about": {
           "title": "Über",
           "description": "Informationen über PrismaTeams, Version und Ersteller",
@@ -434,6 +444,84 @@
       "flash_picture_removed": "Profilbild wurde entfernt.",
       "flash_profile_updated": "Profil wurde aktualisiert.",
       "flash_guests_cannot_edit": "Gast-Accounts können ihr Profil nicht bearbeiten."
+    },
+    "security": {
+      "page_title": "Sicherheit - Einstellungen",
+      "breadcrumb_settings": "Einstellungen",
+      "breadcrumb_security": "Sicherheit",
+      "heading": "Sicherheitseinstellungen",
+      "flash_guests_cannot_edit": "Gast-Accounts können Sicherheitseinstellungen nicht ändern.",
+      "tabs": {
+        "passwords": "Passwörter & 2FA",
+        "devices": "Angemeldete Geräte"
+      },
+      "password": {
+        "heading": "Passwort ändern",
+        "current_label": "Aktuelles Passwort",
+        "new_label": "Neues Passwort",
+        "confirm_label": "Neues Passwort bestätigen",
+        "help": "Mindestens 8 Zeichen",
+        "change_button": "Passwort ändern",
+        "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
+        "current_wrong": "Das aktuelle Passwort ist falsch.",
+        "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
+        "invalid": "Das Passwort entspricht nicht den Anforderungen.",
+        "must_differ": "Das neue Passwort muss sich vom aktuellen Passwort unterscheiden.",
+        "changed_success": "Passwort wurde erfolgreich geändert."
+      },
+      "2fa": {
+        "heading": "Zwei-Faktor-Authentifizierung (2FA)",
+        "enabled": "2FA ist aktiviert.",
+        "not_enabled": "2FA ist nicht aktiviert. Aktivieren Sie 2FA für zusätzliche Sicherheit.",
+        "setup_button": "2FA aktivieren",
+        "start_setup_button": "2FA-Einrichtung starten",
+        "start_setup_description": "Klicken Sie auf den Button, um die 2FA-Einrichtung zu starten. Sie erhalten dann einen QR-Code zum Scannen.",
+        "setup_instructions": "Scannen Sie den QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Microsoft Authenticator) und geben Sie dann den 6-stelligen Code ein.",
+        "setup_warning": "Wichtig: Speichern Sie den Secret-Code an einem sicheren Ort. Falls Sie Ihr Gerät verlieren, benötigen Sie diesen Code, um 2FA wiederherzustellen.",
+        "enter_code_label": "2FA-Code",
+        "enter_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
+        "secret_label": "Secret-Code",
+        "secret_help": "Falls Sie den QR-Code nicht scannen können, verwenden Sie diesen Secret-Code manuell in Ihrer Authenticator-App.",
+        "enable_button": "2FA aktivieren",
+        "cancel_button": "Abbrechen",
+        "disable_button": "2FA deaktivieren",
+        "disable_confirm": "Möchten Sie 2FA wirklich deaktivieren?",
+        "disable_password_label": "Passwort zur Bestätigung",
+        "disable_password_help": "Geben Sie Ihr Passwort ein, um 2FA zu deaktivieren.",
+        "enter_code": "Bitte geben Sie den 2FA-Code ein.",
+        "enter_password": "Bitte geben Sie Ihr Passwort ein.",
+        "invalid_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
+        "enabled_success": "2FA wurde erfolgreich aktiviert.",
+        "disabled_success": "2FA wurde erfolgreich deaktiviert.",
+        "wrong_password": "Das Passwort ist falsch.",
+        "setup_started": "2FA-Einrichtung gestartet. Bitte scannen Sie den QR-Code und geben Sie den Code ein.",
+        "setup_cancelled": "2FA-Einrichtung wurde abgebrochen."
+      },
+      "devices": {
+        "heading": "Angemeldete Geräte",
+        "description": "Verwalten Sie Ihre aktiven Sitzungen und melden Sie sich von anderen Geräten ab.",
+        "table": {
+          "device": "Gerät",
+          "ip_address": "IP-Adresse",
+          "last_activity": "Letzte Aktivität",
+          "status": "Status"
+        },
+        "current_session": "Aktuelle Sitzung",
+        "active": "Aktiv",
+        "inactive": "Inaktiv",
+        "unknown_device": "Unbekanntes Gerät",
+        "unknown": "Unbekannt",
+        "revoke_button": "Abmelden",
+        "revoke_confirm": "Möchten Sie sich wirklich von diesem Gerät abmelden?",
+        "revoke_all_button": "Alle anderen Geräte abmelden",
+        "revoke_all_confirm": "Möchten Sie sich wirklich von allen anderen Geräten abmelden?",
+        "session_revoked": "Sitzung wurde erfolgreich abgemeldet.",
+        "session_not_found": "Sitzung nicht gefunden.",
+        "all_sessions_revoked": "{count} Sitzung(en) wurden erfolgreich abgemeldet.",
+        "no_sessions_to_revoke": "Keine anderen Sitzungen zum Abmelden.",
+        "no_sessions": "Keine aktiven Sitzungen gefunden.",
+        "invalid_session": "Ungültige Sitzung."
+      }
     },
     "notifications": {
       "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert."

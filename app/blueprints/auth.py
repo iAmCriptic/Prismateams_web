@@ -1,12 +1,15 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db
+from app import db, limiter
 from app.models.user import User
 from app.models.email import EmailPermission
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
 from app.models.settings import SystemSettings
 from app.utils.i18n import translate
+from app.utils.session_manager import create_session, revoke_session_by_id
+from app.utils.totp import verify_totp
+from app.utils.password_policy import validate_password
 from datetime import datetime, timedelta
 
 auth_bp = Blueprint('auth', __name__)
@@ -180,8 +183,9 @@ def register():
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per 15 minutes")
 def login():
-    """User login."""
+    """User login mit Rate Limiting."""
     # Prüfe ob Setup nötig ist
     from app.blueprints.setup import is_setup_needed
     if is_setup_needed():
@@ -194,6 +198,7 @@ def login():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         remember = request.form.get('remember', False) == 'on'
+        totp_code = request.form.get('totp_code', '').strip()
         
         if not email or not password:
             flash(translate('auth.flash.enter_email_password'), 'danger')
@@ -209,9 +214,28 @@ def login():
             # Standard-Login für normale Accounts
             user = User.query.filter_by(email=email).first()
         
+        # Prüfe ob Account gesperrt ist (Rate Limiting)
+        if user and user.failed_login_until and datetime.utcnow() < user.failed_login_until:
+            remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
+            flash(translate('auth.flash.account_locked', seconds=remaining_seconds), 'danger')
+            return render_template('auth/login.html', color_gradient=get_color_gradient())
+        
+        # Prüfe Credentials
         if not user or not user.check_password(password):
+            # Erhöhe fehlgeschlagene Versuche
+            if user:
+                user.failed_login_attempts += 1
+                if user.failed_login_attempts >= 5:
+                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                    user.failed_login_attempts = 0
+                db.session.commit()
             flash(translate('auth.flash.invalid_credentials'), 'danger')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
+        
+        # Reset fehlgeschlagene Versuche bei erfolgreichem Passwort-Check
+        user.failed_login_attempts = 0
+        user.failed_login_until = None
+        db.session.commit()
         
         # Prüfe Ablaufzeit für Gast-Accounts
         if user.is_guest and user.guest_expires_at:
@@ -226,10 +250,37 @@ def login():
             flash(translate('auth.flash.account_not_activated'), 'warning')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
+        # 2FA-Verifizierung (wenn aktiviert)
+        if user.totp_enabled and user.totp_secret:
+            if not totp_code:
+                # Zeige 2FA-Eingabefeld
+                flash(translate('auth.flash.enter_2fa_code'), 'info')
+                return render_template('auth/login.html', 
+                                     color_gradient=get_color_gradient(),
+                                     show_2fa=True,
+                                     email=email,
+                                     remember=remember)
+            
+            # Verifiziere TOTP-Code
+            if not verify_totp(user.totp_secret, totp_code):
+                user.failed_login_attempts += 1
+                if user.failed_login_attempts >= 5:
+                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                    user.failed_login_attempts = 0
+                db.session.commit()
+                flash(translate('auth.flash.invalid_2fa_code'), 'danger')
+                return render_template('auth/login.html', 
+                                     color_gradient=get_color_gradient(),
+                                     show_2fa=True,
+                                     email=email,
+                                     remember=remember)
+        
         # Gast-Accounts benötigen keine E-Mail-Bestätigung
         # Normale Accounts: Check if email confirmation is required (nicht für Admins)
         if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
             login_user(user, remember=remember)
+            # Erstelle Session
+            create_session(user.id)
             flash(translate('auth.flash.confirm_email_required'), 'info')
             return redirect(url_for('auth.confirm_email'))
         
@@ -239,6 +290,9 @@ def login():
         
         # Log user in
         login_user(user, remember=remember)
+        
+        # Erstelle Session für Session-Management
+        create_session(user.id)
         
         # Prüfe ob Passwort geändert werden muss
         if user.must_change_password:
@@ -566,6 +620,11 @@ def reset_password():
 @login_required
 def logout():
     """User logout."""
+    # Melde Session ab
+    session_id = session.get('session_id')
+    if session_id:
+        revoke_session_by_id(session_id)
+    
     logout_user()
     flash(translate('auth.flash.logout_success'), 'success')
     return redirect(url_for('auth.login'))

@@ -53,6 +53,23 @@
         </div>
     </div>
     
+    {% if not current_user.is_guest %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-shield-lock text-danger"></i>
+                    {{ _('settings.index.cards.security.title') }}
+                </h5>
+                <p class="card-text">{{ _('settings.index.cards.security.description') }}</p>
+                <a href="{{ url_for('settings.security') }}" class="btn btn-outline-primary">
+                    {{ _('settings.index.cards.security.button') }} <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <div class="col-12 col-md-6 col-lg-4">
         <div class="card h-100">
             <div class="card-body">

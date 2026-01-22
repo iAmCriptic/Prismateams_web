@@ -36,8 +36,18 @@
                         </div>
                     </div>
                     
+                    {% if show_2fa %}
+                    <div class="mb-3">
+                        <label for="totp_code" class="form-label">{{ _('auth.login.2fa_code') }}</label>
+                        <input type="text" class="form-control" id="totp_code" name="totp_code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autofocus>
+                        <div class="form-text">{{ _('auth.login.2fa_code_help') }}</div>
+                        <input type="hidden" name="email" value="{{ email }}">
+                        <input type="hidden" name="remember" value="{{ 'on' if remember else '' }}">
+                    </div>
+                    {% endif %}
+                    
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember" {% if show_2fa and remember %}checked{% endif %}>
                         <label class="form-check-label" for="remember">
                             {{ _('auth.login.remember_me') }}
                         </label>
