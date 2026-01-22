@@ -55,6 +55,7 @@
       "password": "Passwort",
       "remember_me": "Angemeldet bleiben",
       "submit": "Anmelden",
+      "forgot_password": "Passwort vergessen?",
       "register_link_prefix": "Neu bei Prismateams?",
       "register_link_cta": "Jetzt registrieren",
       "2fa_code": "2FA-Code",
@@ -100,6 +101,28 @@
       "password_help": "Mindestens 8 Zeichen",
       "submit": "Passwort ändern"
     },
+    "forgot_password": {
+      "title": "Passwort vergessen",
+      "subtitle": "Geben Sie Ihre E-Mail-Adresse ein, um einen Reset-Code zu erhalten.",
+      "email": "E-Mail-Adresse",
+      "email_help": "Wir senden Ihnen einen Code zum Zurücksetzen Ihres Passworts.",
+      "info_message": "Wir senden Ihnen einen 6-stelligen Code per E-Mail, mit dem Sie Ihr Passwort zurücksetzen können.",
+      "submit": "Code anfordern",
+      "back_to_login": "Zurück zur Anmeldung"
+    },
+    "reset_password": {
+      "title": "Passwort zurücksetzen",
+      "subtitle": "Geben Sie den Code und Ihr neues Passwort ein.",
+      "email": "E-Mail-Adresse",
+      "reset_code": "Reset-Code",
+      "code_help": "Den Code finden Sie in der E-Mail mit dem Betreff \"Passwort zurücksetzen\".",
+      "new_password": "Neues Passwort",
+      "confirm_password": "Neues Passwort bestätigen",
+      "password_help": "Mindestens 8 Zeichen",
+      "info_message": "Der Code ist 1 Stunde gültig. Prüfen Sie bitte auch Ihren Spam-Ordner.",
+      "submit": "Passwort zurücksetzen",
+      "back_to_login": "Zurück zur Anmeldung"
+    },
     "flash": {
       "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
       "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
@@ -130,6 +153,10 @@
       "test_email_success_message": "E-Mail wurde erfolgreich gesendet.",
       "test_email_error": "Fehler beim Senden der Test-E-Mail: {error}",
       "logout_success": "Sie wurden erfolgreich abgemeldet.",
+      "enter_email": "Bitte geben Sie Ihre E-Mail-Adresse ein.",
+      "password_reset_email_sent": "Falls ein Konto mit dieser E-Mail-Adresse existiert, wurde ein Reset-Code gesendet.",
+      "invalid_reset_code": "Ungültiger oder abgelaufener Reset-Code.",
+      "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden."
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt."

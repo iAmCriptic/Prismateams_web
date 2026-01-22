@@ -192,8 +192,15 @@ def truncate_filename(filename, max_length=500):
         return filename[:max_length]
 
 
-def connect_imap():
-    """Connect to IMAP server with robust error handling."""
+def connect_imap(folder='INBOX'):
+    """Connect to IMAP server with robust error handling.
+    
+    Args:
+        folder: IMAP folder to select (default: 'INBOX')
+    
+    Returns:
+        IMAP connection object or None if connection failed
+    """
     try:
         imap_server = current_app.config.get('IMAP_SERVER')
         imap_port = current_app.config.get('IMAP_PORT', 993)
@@ -202,20 +209,44 @@ def connect_imap():
         password = current_app.config.get('MAIL_PASSWORD')
         
         if not all([imap_server, username, password]):
-            raise Exception("IMAP configuration missing - check .env file")
+            logging.error("IMAP configuration missing - check .env file")
+            logging.error(f"IMAP_SERVER: {imap_server is not None}, MAIL_USERNAME: {username is not None}, MAIL_PASSWORD: {password is not None}")
+            return None
+        
+        logging.debug(f"Connecting to IMAP server: {imap_server}:{imap_port} (SSL: {imap_use_ssl})")
         
         if imap_use_ssl:
-            mail = imaplib.IMAP4_SSL(imap_server, imap_port)
+            mail = imaplib.IMAP4_SSL(imap_server, imap_port, timeout=30)
         else:
-            mail = imaplib.IMAP4(imap_server, imap_port)
+            mail = imaplib.IMAP4(imap_server, imap_port, timeout=30)
         
+        logging.debug(f"Logging in as {username}")
         mail.login(username, password)
-        mail.select('INBOX')
         
+        logging.debug(f"Selecting folder: {folder}")
+        status, messages = mail.select(folder)
+        if status != 'OK':
+            # Versuche mit Anführungszeichen
+            try:
+                status, messages = mail.select(f'"{folder}"')
+            except:
+                pass
+            if status != 'OK':
+                logging.warning(f"Could not select folder '{folder}', status: {status}")
+                # Weiter mit INBOX als Fallback
+                mail.select('INBOX')
+        
+        logging.debug("IMAP connection established successfully")
         return mail
+    except imaplib.IMAP4.error as e:
+        error_msg = str(e).encode('ascii', errors='replace').decode('ascii')
+        logging.error(f"IMAP authentication error: {error_msg}")
+        return None
     except Exception as e:
         error_msg = str(e).encode('ascii', errors='replace').decode('ascii')
         logging.error(f"IMAP connection failed: {error_msg}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -300,19 +331,29 @@ def save_email_to_imap_sent(msg):
             return False, None
         
         # Verbindung herstellen
-        if imap_use_ssl:
-            mail_conn = imaplib.IMAP4_SSL(imap_server, imap_port)
-        else:
-            mail_conn = imaplib.IMAP4(imap_server, imap_port)
-        
-        mail_conn.login(username, password)
+        try:
+            if imap_use_ssl:
+                mail_conn = imaplib.IMAP4_SSL(imap_server, imap_port, timeout=30)
+            else:
+                mail_conn = imaplib.IMAP4(imap_server, imap_port, timeout=30)
+            
+            mail_conn.login(username, password)
+        except Exception as conn_error:
+            logging.error(f"Fehler beim Verbinden mit IMAP zum Speichern der gesendeten E-Mail: {conn_error}")
+            return False, None
         
         # Sent-Ordner finden
         sent_folder = find_sent_folder(mail_conn)
         if not sent_folder:
             logging.warning("Sent folder not found on IMAP server, cannot save email")
-            mail_conn.close()
-            mail_conn.logout()
+            try:
+                mail_conn.close()
+            except:
+                pass
+            try:
+                mail_conn.logout()
+            except:
+                pass
             return False, None
         
         # E-Mail als RFC822-String konvertieren
@@ -326,18 +367,35 @@ def save_email_to_imap_sent(msg):
             
             if result[0] == 'OK':
                 logging.info(f"Email saved to IMAP Sent folder '{sent_folder}'")
-                mail_conn.close()
-                mail_conn.logout()
+                try:
+                    mail_conn.close()
+                except:
+                    pass
+                try:
+                    mail_conn.logout()
+                except:
+                    pass
                 return True, sent_folder
             else:
                 logging.warning(f"Failed to save email to IMAP Sent folder: {result}")
-                mail_conn.close()
-                mail_conn.logout()
+                try:
+                    mail_conn.close()
+                except:
+                    pass
+                try:
+                    mail_conn.logout()
+                except:
+                    pass
                 return False, sent_folder
         except Exception as e:
             logging.error(f"Error saving email to IMAP Sent folder: {e}")
+            import traceback
+            logging.error(f"Traceback: {traceback.format_exc()}")
             try:
                 mail_conn.close()
+            except:
+                pass
+            try:
                 mail_conn.logout()
             except:
                 pass
@@ -345,14 +403,22 @@ def save_email_to_imap_sent(msg):
             
     except Exception as e:
         logging.error(f"Error connecting to IMAP to save sent email: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         return False, None
 
 
 def sync_imap_folders():
     """Sync IMAP folders from server to database."""
-    mail_conn = connect_imap()
-    if not mail_conn:
-        return False, "IMAP-Verbindung fehlgeschlagen"
+    mail_conn = None
+    try:
+        mail_conn = connect_imap('INBOX')
+        if not mail_conn:
+            logging.error("IMAP-Verbindung fehlgeschlagen beim Synchronisieren der Ordner")
+            return False, "IMAP-Verbindung fehlgeschlagen"
+    except Exception as conn_error:
+        logging.error(f"Fehler beim Verbinden mit IMAP für Ordner-Sync: {conn_error}")
+        return False, f"IMAP-Verbindungsfehler: {str(conn_error)}"
     
     try:
         status, folders = mail_conn.list()
@@ -482,21 +548,50 @@ def sync_imap_folders():
                 db.session.delete(invalid_folder)
         
         db.session.commit()
-        mail_conn.close()
-        mail_conn.logout()
+        
+        # Schließe IMAP-Verbindung sicher
+        if mail_conn:
+            try:
+                mail_conn.close()
+            except Exception as close_error:
+                logging.debug(f"Fehler beim Schließen der IMAP-Verbindung: {close_error}")
+            try:
+                mail_conn.logout()
+            except Exception as logout_error:
+                logging.debug(f"Fehler beim Logout von IMAP: {logout_error}")
         
         return True, f"{len(synced_folders)} Ordner synchronisiert"
         
     except Exception as e:
         logging.error(f"Folder sync failed: {str(e)}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Stelle sicher, dass IMAP-Verbindung geschlossen wird
+        if mail_conn:
+            try:
+                mail_conn.close()
+            except:
+                pass
+            try:
+                mail_conn.logout()
+            except:
+                pass
+        
         return False, f"Ordner-Sync-Fehler: {str(e)}"
 
 
 def sync_emails_from_folder(folder_name):
     """Sync emails from a specific IMAP folder with bidirectional support."""
-    mail_conn = connect_imap()
-    if not mail_conn:
-        return False, "IMAP-Verbindung fehlgeschlagen"
+    mail_conn = None
+    try:
+        mail_conn = connect_imap(folder_name)
+        if not mail_conn:
+            logging.error(f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'")
+            return False, f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'"
+    except Exception as conn_error:
+        logging.error(f"Fehler beim Verbinden mit IMAP für Ordner '{folder_name}': {conn_error}")
+        return False, f"IMAP-Verbindungsfehler: {str(conn_error)}"
     
     stats = {
         'new_emails': 0,
@@ -508,43 +603,71 @@ def sync_emails_from_folder(folder_name):
     }
     
     try:
-        try:
-            status, messages = mail_conn.select(folder_name)
-            if status != 'OK':
-                try:
-                    status, messages = mail_conn.select(f'"{folder_name}"')
-                except:
-                    pass
-                if status != 'OK':
-                    # Ordner existiert nicht auf dem Server - überspringen, aber in DB behalten
-                    error_msg = messages[0].decode() if messages else 'Unbekannter Fehler'
-                    # Prüfe ob es sich um einen Archiv-Ordner handelt (Archive oder Archives)
-                    is_archive_folder = folder_name in ['Archive', 'Archives']
-                    if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg:
-                        if is_archive_folder:
-                            logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
-                        else:
-                            logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
-                        try:
-                            mail_conn.logout()
-                        except:
-                            pass
-                        return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
-                    else:
-                        logging.debug(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
-                        try:
-                            mail_conn.logout()
-                        except:
-                            pass
-                        return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
-        except Exception as e:
-            logging.debug(f"Exception while selecting folder '{folder_name}': {e}")
+        # Haupt-Synchronisations-Logik
+        # Versuche Ordner zu öffnen
+        status, messages = mail_conn.select(folder_name)
+        if status != 'OK':
+            # Versuche mit Anführungszeichen (für Ordner mit Leerzeichen)
             try:
-                mail_conn.logout()
-            except:
-                pass
-            return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {str(e)}"
-        
+                status, messages = mail_conn.select(f'"{folder_name}"')
+            except Exception as quote_error:
+                logging.debug(f"Could not select folder '{folder_name}' with quotes: {quote_error}")
+            
+            if status != 'OK':
+                # Ordner existiert nicht auf dem Server - überspringen, aber in DB behalten
+                error_msg = ''
+                try:
+                    if messages and len(messages) > 0:
+                        if isinstance(messages[0], bytes):
+                            error_msg = messages[0].decode('utf-8', errors='ignore')
+                        else:
+                            error_msg = str(messages[0])
+                except:
+                    error_msg = 'Unbekannter Fehler'
+                
+                # Prüfe ob es sich um einen Archiv-Ordner handelt (Archive oder Archives)
+                is_archive_folder = folder_name in ['Archive', 'Archives']
+                if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg or "NONEXISTENT" in error_msg:
+                    if is_archive_folder:
+                        logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
+                    else:
+                        logging.info(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
+                    try:
+                        mail_conn.close()
+                    except:
+                        pass
+                    try:
+                        mail_conn.logout()
+                    except:
+                        pass
+                    return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen"
+                else:
+                    logging.warning(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
+                    try:
+                        mail_conn.close()
+                    except:
+                        pass
+                    try:
+                        mail_conn.logout()
+                    except:
+                        pass
+                    return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}"
+    except Exception as e:
+        logging.error(f"Exception while selecting folder '{folder_name}': {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        try:
+            mail_conn.close()
+        except:
+            pass
+        try:
+            mail_conn.logout()
+        except:
+            pass
+        return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {str(e)}"
+    
+    # Haupt-Synchronisations-Logik
+    try:
         # Ermittle die höchste bereits synchronisierte UID für diesen Ordner
         highest_uid = None
         try:
@@ -572,82 +695,87 @@ def sync_emails_from_folder(folder_name):
         
         if len(all_seq_numbers) == 0:
             logging.info(f"No emails found in folder '{folder_name}' on server")
-            mail_conn.close()
-            mail_conn.logout()
+            try:
+                mail_conn.close()
+            except:
+                pass
+            try:
+                mail_conn.logout()
+            except:
+                pass
             return True, f"Ordner '{folder_name}': Keine E-Mails vorhanden"
         
         # Hole UIDs für alle E-Mails
         # Verwende FETCH mit UID für alle Sequenznummern auf einmal
         if len(all_seq_numbers) > 0:
-                try:
-                    first_seq = all_seq_numbers[0].decode() if isinstance(all_seq_numbers[0], bytes) else str(all_seq_numbers[0])
-                    last_seq = all_seq_numbers[-1].decode() if isinstance(all_seq_numbers[-1], bytes) else str(all_seq_numbers[-1])
-                    seq_range = f"{first_seq}:{last_seq}" if len(all_seq_numbers) > 1 else first_seq
-                    status, uid_data = mail_conn.fetch(seq_range, '(UID)')
-                    
-                    
-                    # Erstelle Mapping von Sequenznummer zu UID
-                    if status == 'OK' and uid_data:
-                        import re
-                        for item in uid_data:
-                            uid_info = None
-                            # Handle both tuple and bytes formats
-                            if isinstance(item, tuple) and len(item) > 0:
-                                # Format: (b'1 (UID 123)', b'...')
-                                uid_info = item[0].decode('utf-8', errors='ignore') if isinstance(item[0], bytes) else str(item[0])
-                            elif isinstance(item, bytes):
-                                # Format: b'1 (UID 123)' - direct bytes object
-                                uid_info = item.decode('utf-8', errors='ignore')
-                            elif isinstance(item, str):
-                                # Format: '1 (UID 123)' - direct string
-                                uid_info = item
-                            
-                            if uid_info:
-                                # Parse: "1 (UID 123)" -> seq=1, uid=123
-                                match = re.search(r'(\d+)\s+\(UID\s+(\d+)\)', uid_info)
-                                if match:
-                                    seq_num = match.group(1)
-                                    uid_num = match.group(2)
-                                    seq_to_uid[seq_num] = uid_num
-                    
-                    # Falls Batch-Abfrage nicht alle UIDs zurückgegeben hat, hole sie einzeln
-                    if len(seq_to_uid) < len(all_seq_numbers):
-                        logging.debug(f"Batch UID fetch returned {len(seq_to_uid)} UIDs, but {len(all_seq_numbers)} emails exist. Fetching remaining UIDs individually...")
-                        for seq_bytes in all_seq_numbers:
-                            seq_str = seq_bytes.decode() if isinstance(seq_bytes, bytes) else str(seq_bytes)
-                            if seq_str not in seq_to_uid:
-                                try:
-                                    status_single, uid_data_single = mail_conn.fetch(seq_str, '(UID)')
-                                    if status_single == 'OK' and uid_data_single:
-                                        import re
-                                        for item in uid_data_single:
-                                            uid_info = None
-                                            # Handle both tuple and bytes formats
-                                            if isinstance(item, tuple) and len(item) > 0:
-                                                uid_info = item[0].decode('utf-8', errors='ignore') if isinstance(item[0], bytes) else str(item[0])
-                                            elif isinstance(item, bytes):
-                                                uid_info = item.decode('utf-8', errors='ignore')
-                                            elif isinstance(item, str):
-                                                uid_info = item
-                                            
-                                            if uid_info:
-                                                match = re.search(r'\(UID\s+(\d+)\)', uid_info)
-                                                if match:
-                                                    seq_to_uid[seq_str] = match.group(1)
-                                                    break
-                                except Exception as single_fetch_error:
-                                    logging.debug(f"Failed to fetch UID for sequence {seq_str}: {single_fetch_error}")
-                                    # Fallback: Verwende Sequenznummer als UID
-                                    seq_to_uid[seq_str] = seq_str
-                    
-                    logging.debug(f"Created UID mapping for {len(seq_to_uid)} emails in folder '{folder_name}'")
-                except Exception as uid_fetch_error:
-                    logging.warning(f"Failed to fetch UIDs for folder '{folder_name}': {uid_fetch_error}")
-                    # Falls UID-Abfrage komplett fehlschlägt, verwende Sequenznummern als Fallback
+            try:
+                first_seq = all_seq_numbers[0].decode() if isinstance(all_seq_numbers[0], bytes) else str(all_seq_numbers[0])
+                last_seq = all_seq_numbers[-1].decode() if isinstance(all_seq_numbers[-1], bytes) else str(all_seq_numbers[-1])
+                seq_range = f"{first_seq}:{last_seq}" if len(all_seq_numbers) > 1 else first_seq
+                status, uid_data = mail_conn.fetch(seq_range, '(UID)')
+                
+                # Erstelle Mapping von Sequenznummer zu UID
+                if status == 'OK' and uid_data:
+                    import re
+                    for item in uid_data:
+                        uid_info = None
+                        # Handle both tuple and bytes formats
+                        if isinstance(item, tuple) and len(item) > 0:
+                            # Format: (b'1 (UID 123)', b'...')
+                            uid_info = item[0].decode('utf-8', errors='ignore') if isinstance(item[0], bytes) else str(item[0])
+                        elif isinstance(item, bytes):
+                            # Format: b'1 (UID 123)' - direct bytes object
+                            uid_info = item.decode('utf-8', errors='ignore')
+                        elif isinstance(item, str):
+                            # Format: '1 (UID 123)' - direct string
+                            uid_info = item
+                        
+                        if uid_info:
+                            # Parse: "1 (UID 123)" -> seq=1, uid=123
+                            match = re.search(r'(\d+)\s+\(UID\s+(\d+)\)', uid_info)
+                            if match:
+                                seq_num = match.group(1)
+                                uid_num = match.group(2)
+                                seq_to_uid[seq_num] = uid_num
+                
+                # Falls Batch-Abfrage nicht alle UIDs zurückgegeben hat, hole sie einzeln
+                if len(seq_to_uid) < len(all_seq_numbers):
+                    logging.debug(f"Batch UID fetch returned {len(seq_to_uid)} UIDs, but {len(all_seq_numbers)} emails exist. Fetching remaining UIDs individually...")
                     for seq_bytes in all_seq_numbers:
                         seq_str = seq_bytes.decode() if isinstance(seq_bytes, bytes) else str(seq_bytes)
-                        seq_to_uid[seq_str] = seq_str
-                    logging.debug(f"Using sequence numbers as UID fallback for {len(seq_to_uid)} emails")
+                        if seq_str not in seq_to_uid:
+                            try:
+                                status_single, uid_data_single = mail_conn.fetch(seq_str, '(UID)')
+                                if status_single == 'OK' and uid_data_single:
+                                    import re
+                                    for item in uid_data_single:
+                                        uid_info = None
+                                        # Handle both tuple and bytes formats
+                                        if isinstance(item, tuple) and len(item) > 0:
+                                            uid_info = item[0].decode('utf-8', errors='ignore') if isinstance(item[0], bytes) else str(item[0])
+                                        elif isinstance(item, bytes):
+                                            uid_info = item.decode('utf-8', errors='ignore')
+                                        elif isinstance(item, str):
+                                            uid_info = item
+                                        
+                                        if uid_info:
+                                            match = re.search(r'\(UID\s+(\d+)\)', uid_info)
+                                            if match:
+                                                seq_to_uid[seq_str] = match.group(1)
+                                                break
+                            except Exception as single_fetch_error:
+                                logging.debug(f"Failed to fetch UID for sequence {seq_str}: {single_fetch_error}")
+                                # Fallback: Verwende Sequenznummer als UID
+                                seq_to_uid[seq_str] = seq_str
+                
+                logging.debug(f"Created UID mapping for {len(seq_to_uid)} emails in folder '{folder_name}'")
+            except Exception as uid_fetch_error:
+                logging.warning(f"Failed to fetch UIDs for folder '{folder_name}': {uid_fetch_error}")
+                # Falls UID-Abfrage komplett fehlschlägt, verwende Sequenznummern als Fallback
+                for seq_bytes in all_seq_numbers:
+                    seq_str = seq_bytes.decode() if isinstance(seq_bytes, bytes) else str(seq_bytes)
+                    seq_to_uid[seq_str] = seq_str
+                logging.debug(f"Using sequence numbers as UID fallback for {len(seq_to_uid)} emails")
         
         # Filtere nach neuen E-Mails (UID > highest_uid)
         logging.info(f"Filtering emails for folder '{folder_name}': highest_uid={highest_uid}, seq_to_uid mapping has {len(seq_to_uid)} entries")
@@ -705,8 +833,14 @@ def sync_emails_from_folder(folder_name):
         
         if len(email_ids) == 0:
             logging.info(f"No new emails to sync in folder '{folder_name}' (all {len(all_seq_numbers)} emails already in database or filtered out)")
-            mail_conn.close()
-            mail_conn.logout()
+            try:
+                mail_conn.close()
+            except:
+                pass
+            try:
+                mail_conn.logout()
+            except:
+                pass
             return True, f"Ordner '{folder_name}': Keine neuen E-Mails vorhanden"
         
         # Für die Prüfung gelöschter E-Mails: Hole alle UIDs vom Server (nur wenn nicht erste Sync)
@@ -1289,8 +1423,16 @@ def sync_emails_from_folder(folder_name):
                 continue
         
         db.session.commit()
-        mail_conn.close()
-        mail_conn.logout()
+        
+        # Schließe IMAP-Verbindung sicher
+        try:
+            mail_conn.close()
+        except Exception as close_error:
+            logging.debug(f"Fehler beim Schließen der IMAP-Verbindung: {close_error}")
+        try:
+            mail_conn.logout()
+        except Exception as logout_error:
+            logging.debug(f"Fehler beim Logout von IMAP: {logout_error}")
         
         # Sende Dashboard-Updates an alle Benutzer mit E-Mail-Berechtigungen (nur wenn neue E-Mails)
         if stats['new_emails'] > 0:
@@ -1333,6 +1475,20 @@ def sync_emails_from_folder(folder_name):
         
     except Exception as e:
         logging.error(f"Email sync from folder failed: {str(e)}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Stelle sicher, dass IMAP-Verbindung geschlossen wird
+        if mail_conn:
+            try:
+                mail_conn.close()
+            except:
+                pass
+            try:
+                mail_conn.logout()
+            except:
+                pass
+        
         return False, f"E-Mail-Sync-Fehler für Ordner '{folder_name}': {str(e)}"
 
 
@@ -1391,51 +1547,82 @@ def sync_emails_from_server():
     logging.info("E-Mail-Synchronisation wird gestartet")
     
     try:
+        # Synchronisiere zuerst die Ordner-Liste
         folder_success, folder_message = sync_imap_folders()
         if not folder_success:
-            logging.debug(f"Ordner-Sync-Warnung: {folder_message}")
+            logging.warning(f"Ordner-Sync-Warnung: {folder_message}")
+            # Weiter mit Standard-Ordnern, auch wenn Ordner-Sync fehlschlägt
+            logging.info("Verwende Standard-Ordner als Fallback")
         
+        # Hole Ordner aus Datenbank
         folder_rows = db.session.query(EmailFolder.name, EmailFolder.display_name).all()
         if not folder_rows:
+            # Fallback: Verwende Standard-Ordner
             folder_rows = [('INBOX', 'Posteingang')]
+            logging.info("Keine Ordner in Datenbank gefunden, verwende Standard-Ordner")
         
-        logging.debug(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
+        logging.info(f"Syncing emails from {len(folder_rows)} folders: {[name for (name, _) in folder_rows]}")
         
         total_synced = 0
+        total_new = 0
         folder_results = []
+        successful_folders = 0
+        failed_folders = 0
         
         for (folder_name, display_name) in folder_rows:
             try:
-                logging.debug(f"Syncing folder: '{folder_name}' ({display_name})")
+                logging.info(f"Syncing folder: '{folder_name}' ({display_name})")
                 success, message = sync_emails_from_folder(folder_name)
                 if success:
+                    successful_folders += 1
                     import re
-                    match = re.search(r'(\d+) E-Mails', message)
+                    # Suche nach verschiedenen Mustern für Anzahl
+                    match = re.search(r'(\d+)\s+(neu|new)', message, re.IGNORECASE)
+                    if match:
+                        count = int(match.group(1))
+                        total_new += count
+                    # Auch nach "E-Mails" suchen
+                    match = re.search(r'(\d+)\s+E-Mails', message, re.IGNORECASE)
                     if match:
                         count = int(match.group(1))
                         total_synced += count
                     folder_results.append(f"{display_name}: {message}")
+                    logging.info(f"✓ Ordner '{folder_name}' erfolgreich synchronisiert: {message}")
                 else:
-                    logging.debug(f"Failed to sync folder '{folder_name}': {message}")
+                    failed_folders += 1
+                    logging.warning(f"✗ Ordner '{folder_name}' konnte nicht synchronisiert werden: {message}")
                     folder_results.append(f"{display_name}: Fehler - {message}")
             except Exception as folder_error:
+                failed_folders += 1
                 logging.error(f"Fehler beim Synchronisieren des Ordners '{folder_name}': {folder_error}")
+                import traceback
+                logging.error(f"Traceback: {traceback.format_exc()}")
                 folder_results.append(f"{display_name}: Fehler - {str(folder_error)}")
                 continue
         
-        print("E-Mail-Synchronisation wurde beendet")
-        logging.info("E-Mail-Synchronisation wurde beendet")
+        print(f"E-Mail-Synchronisation wurde beendet: {successful_folders} erfolgreich, {failed_folders} fehlgeschlagen")
+        logging.info(f"E-Mail-Synchronisation wurde beendet: {successful_folders} Ordner erfolgreich, {failed_folders} Ordner fehlgeschlagen")
         
-        if total_synced > 0:
-            return True, f"{total_synced} E-Mails aus {len(folder_rows)} Ordnern synchronisiert"
+        # Erstelle Ergebnis-Meldung
+        if total_new > 0:
+            result_msg = f"{total_new} neue E-Mails aus {successful_folders} Ordnern synchronisiert"
+        elif total_synced > 0:
+            result_msg = f"{total_synced} E-Mails aus {successful_folders} Ordnern synchronisiert"
+        elif successful_folders > 0:
+            result_msg = f"{successful_folders} Ordner synchronisiert (keine neuen E-Mails)"
         else:
-            return True, "Keine E-Mails synchronisiert"
+            result_msg = "Keine E-Mails synchronisiert"
+        
+        if failed_folders > 0:
+            result_msg += f" ({failed_folders} Ordner fehlgeschlagen)"
+        
+        return True, result_msg
     except Exception as e:
         logging.error(f"Kritischer Fehler in sync_emails_from_server: {e}")
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
         print(f"E-Mail-Synchronisation Fehler: {e}")
-        return False, f"Fehler: {str(e)}"
+        return False, f"Kritischer Fehler: {str(e)}"
 
 
 def check_email_permission(permission_type='read'):

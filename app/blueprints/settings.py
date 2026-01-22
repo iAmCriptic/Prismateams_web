@@ -1221,8 +1221,8 @@ def delete_user(user_id):
     MusicProviderToken.query.filter_by(user_id=user_id).delete()
     
     # Delete booking role assignments before deleting user
-    from app.models.booking import BookingFormRoleAssignment
-    BookingFormRoleAssignment.query.filter_by(user_id=user_id).delete()
+    from app.models.booking import BookingFormRoleUser
+    BookingFormRoleUser.query.filter_by(user_id=user_id).delete()
     
     db.session.delete(user)
     db.session.commit()
