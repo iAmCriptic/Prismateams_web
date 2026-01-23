@@ -137,21 +137,26 @@
                     <!-- Bild-Upload -->
                     <div class="mb-3">
                         <label for="image" class="form-label">{{ _('inventory.product.form.image') }}</label>
-                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                        {% if product and product.image_path %}
-                        <div class="mt-2">
-                            <small class="text-muted">Aktuelles Bild:</small><br>
-                            {% set image_filename = product.image_path.split('/')[-1] if '/' in product.image_path else product.image_path %}
-                            {% set image_filename = image_filename.split('\\')[-1] if '\\' in image_filename else image_filename %}
-                            <img src="{{ url_for('inventory.serve_product_image', filename=image_filename) }}" alt="Produktbild" class="img-thumbnail mt-2" style="max-width: 200px;">
+                        <div id="inventoryImageDropZone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                            <i class="bi bi-cloud-upload fs-4 text-muted mb-2"></i>
+                            <p class="mb-2 small"><strong>Bild hier ablegen</strong></p>
+                            <p class="text-muted small mb-2">oder klicken Sie hier</p>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            {% if product and product.image_path %}
                             <div class="mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProductImage({{ product.id }})">
-                                    <i class="bi bi-trash"></i> Bild entfernen
-                                </button>
+                                <small class="text-muted">Aktuelles Bild:</small><br>
+                                {% set image_filename = product.image_path.split('/')[-1] if '/' in product.image_path else product.image_path %}
+                                {% set image_filename = image_filename.split('\\')[-1] if '\\' in image_filename else image_filename %}
+                                <img src="{{ url_for('inventory.serve_product_image', filename=image_filename) }}" alt="Produktbild" class="img-thumbnail mt-2" style="max-width: 200px;">
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProductImage({{ product.id }})">
+                                        <i class="bi bi-trash"></i> Bild entfernen
+                                    </button>
+                                </div>
+                                <input type="hidden" id="remove_image" name="remove_image" value="0">
                             </div>
-                            <input type="hidden" id="remove_image" name="remove_image" value="0">
+                            {% endif %}
                         </div>
-                        {% endif %}
                         <small class="form-text text-muted">{{ _('inventory.product.form.image_help') }}</small>
                     </div>
 
@@ -281,6 +286,26 @@ window.inventoryFormData = {
 };
 </script>
 <script src="{{ url_for('static', filename='js/product_form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
+<script>
+// Drag & Drop für Produktbild
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('inventoryImageDropZone');
+    const fileInput = document.getElementById('image');
+    
+    if (dropZone && fileInput) {
+        new FileUploadDnD({
+            dropZone: dropZone,
+            fileInput: fileInput,
+            accept: 'image/*',
+            multiple: false,
+            onFilesSelected: function(files) {
+                console.log('Produktbild ausgewählt:', files.length);
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 {% endblock %}
 

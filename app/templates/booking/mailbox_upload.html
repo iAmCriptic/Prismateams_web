@@ -35,8 +35,11 @@
                             {% endif %}
                         {% endwith %}
                         
-                        <form method="POST" enctype="multipart/form-data" class="mb-4">
-                            <div class="mb-3">
+                        <form method="POST" enctype="multipart/form-data" class="mb-4" id="bookingUploadForm">
+                            <div class="mb-3" id="bookingUploadDropZone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <i class="bi bi-cloud-upload fs-1 text-primary mb-3"></i>
+                                <p class="mb-2"><strong>Dateien hier ablegen</strong></p>
+                                <p class="text-muted small mb-3">oder klicken Sie hier, um Dateien auszuwählen</p>
                                 <label for="file" class="form-label">Dateien auswählen</label>
                                 <input type="file" class="form-control" id="file" name="file" multiple required>
                                 <div class="form-text">Sie können mehrere Dateien gleichzeitig auswählen (max. 50MB pro Datei).</div>
@@ -97,6 +100,49 @@
             </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Einfache Drag & Drop Implementierung für Booking
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropZone = document.getElementById('bookingUploadDropZone');
+        const fileInput = document.getElementById('file');
+        
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropZone.style.borderColor = '#007bff';
+                dropZone.style.backgroundColor = 'rgba(0, 123, 255, 0.1)';
+            });
+            
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                dropZone.style.borderColor = '#dee2e6';
+                dropZone.style.backgroundColor = 'transparent';
+            });
+            
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropZone.style.borderColor = '#dee2e6';
+                dropZone.style.backgroundColor = 'transparent';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const dataTransfer = new DataTransfer();
+                    Array.from(files).forEach(file => dataTransfer.items.add(file));
+                    fileInput.files = dataTransfer.files;
+                }
+            });
+            
+            dropZone.addEventListener('click', function(e) {
+                if (e.target === dropZone || dropZone.contains(e.target)) {
+                    if (!e.target.closest('input')) {
+                        fileInput.click();
+                    }
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>
 

@@ -78,10 +78,15 @@
                     <hr class="my-4">
                     
                     <h5 class="mb-3">Dateien hochladen</h5>
-                    <form method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label">Dateien auswählen</label>
-                            <input type="file" class="form-control" name="file" multiple required>
+                    <form method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data" id="shareUploadForm">
+                        <div class="mb-3" id="shareUploadDropZone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                            <i class="bi bi-cloud-upload fs-1 text-primary mb-3"></i>
+                            <p class="mb-2"><strong>Dateien hier ablegen</strong></p>
+                            <p class="text-muted small mb-3">oder klicken Sie hier, um Dateien auszuwählen</p>
+                            <div class="mb-3 w-100">
+                                <label class="form-label">Dateien auswählen</label>
+                                <input type="file" class="form-control" id="shareFileInput" name="file" multiple required>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Hochladen</button>
                     </form>
@@ -90,6 +95,25 @@
         </div>
     </div>
 </div>
+
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('shareUploadDropZone');
+    const fileInput = document.getElementById('shareFileInput');
+    
+    if (dropZone && fileInput) {
+        new FileUploadDnD({
+            dropZone: dropZone,
+            fileInput: fileInput,
+            multiple: true,
+            onFilesSelected: function(files) {
+                console.log('Dateien ausgewählt:', files.length);
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 
 

@@ -1,185 +1,6 @@
 import json
 import os
-from typing import Any, Dict, Iterable, Optional, Tuple
-
-from flask import current_app, g
-from flask_login import current_user
-
-DEFAULT_LANGUAGE = "de"
-TRANSLATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "translations")
-
-
-def _ensure_translations_dir() -> None:
-    """Stellt sicher, dass das Übersetzungsverzeichnis existiert."""
-    os.makedirs(TRANSLATIONS_DIR, exist_ok=True)
-
-
-def _translation_path(language: str) -> str:
-    return os.path.join(TRANSLATIONS_DIR, f"{language}.json")
-
-
-_TRANSLATION_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
-
-
-def _load_language(language: str) -> Dict[str, Any]:
-    """Lädt eine Sprachdatei aus dem JSON-Verzeichnis, erkennt Änderungen automatisch."""
-    _ensure_translations_dir()
-    path = _translation_path(language)
-    if not os.path.exists(path):
-        _TRANSLATION_CACHE.pop(language, None)
-        return {}
-
-    try:
-        mtime = os.path.getmtime(path)
-    except OSError:
-        _TRANSLATION_CACHE.pop(language, None)
-        return {}
-
-    cached = _TRANSLATION_CACHE.get(language)
-    if cached and cached[0] >= mtime:
-        return cached[1]
-
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                _TRANSLATION_CACHE[language] = (mtime, data)
-                return data
-    except Exception as exc:  # pragma: no cover - nur Log, kein Test
-        if current_app:
-            current_app.logger.warning("Konnte Sprachdatei %s nicht laden: %s", path, exc)
-
-    _TRANSLATION_CACHE.pop(language, None)
-    return {}
-
-
-def clear_cache() -> None:
-    """Leert den Sprachcache (z.B. nach Updates)."""
-    _TRANSLATION_CACHE.clear()
-
-
-def _walk_translation(data: Dict[str, Any], parts: Iterable[str]) -> Optional[str]:
-    """Navigiert durch das Dict gemäß Punkt-Notation."""
-    current: Any = data
-    for part in parts:
-        if not isinstance(current, dict) or part not in current:
-            return None
-        current = current[part]
-    if isinstance(current, str):
-        return current
-    return None
-
-
-def _get_system_setting(key: str, default: Optional[str] = None) -> Optional[str]:
-    """Hilfsfunktion, um SystemSettings abzufragen."""
-    try:
-        from app.models.settings import SystemSettings
-
-        setting = SystemSettings.query.filter_by(key=key).first()
-        if setting and setting.value:
-            return setting.value
-    except Exception as exc:  # pragma: no cover - nur Log
-        if current_app:
-            current_app.logger.debug("SystemSetting %s nicht verfügbar: %s", key, exc)
-    return default
-
-
-def resolve_language(explicit_language: Optional[str] = None) -> str:
-    """Bestimmt die aktuell zu verwendende Sprache."""
-    if explicit_language:
-        return explicit_language
-
-    try:
-        if current_user and getattr(current_user, "is_authenticated", False):
-            user_language = getattr(current_user, "language", None)
-            if user_language:
-                return user_language
-    except Exception:
-        pass
-
-    system_language = _get_system_setting("default_language", None)
-    if system_language:
-        return system_language
-
-    return DEFAULT_LANGUAGE
-
-
-def available_languages() -> Iterable[str]:
-    """Liefert alle vorhandenen Sprachcodes."""
-    _ensure_translations_dir()
-    try:
-        files = os.listdir(TRANSLATIONS_DIR)
-    except FileNotFoundError:
-        return [DEFAULT_LANGUAGE]
-
-    languages = sorted(
-        {os.path.splitext(filename)[0] for filename in files if filename.endswith(".json")}
-    )
-    return languages or [DEFAULT_LANGUAGE]
-
-
-def translate(key: str, language: Optional[str] = None, **kwargs: Any) -> str:
-    """Übersetzt einen Schlüssel in die gewünschte Sprache."""
-    language_code = language or getattr(g, "language", None) or resolve_language()
-
-    parts = key.split(".")
-    text = _walk_translation(_load_language(language_code), parts)
-
-    fallback_language = None
-    if text is None:
-        fallback_language = _get_system_setting("default_language", DEFAULT_LANGUAGE)
-        if fallback_language and fallback_language != language_code:
-            text = _walk_translation(_load_language(fallback_language), parts)
-
-    if text is None and DEFAULT_LANGUAGE not in (language_code, fallback_language or ""):
-        text = _walk_translation(_load_language(DEFAULT_LANGUAGE), parts)
-
-    if text is None:
-        text = key
-
-    if kwargs:
-        try:
-            return text.format(**kwargs)
-        except Exception:
-            current_app.logger.debug("Formatierung für Schlüssel '%s' fehlgeschlagen", key)
-    return text
-
-
-def init_i18n(app) -> None:
-    """Initialisiert i18n im Flask-Context."""
-
-    @app.before_request
-    def _set_language_context():
-        language_code = resolve_language()
-        g.language = language_code
-        g.translations = _load_language(language_code)
-
-    @app.context_processor
-    def _inject_translations():
-        return {
-            "current_language": getattr(g, "language", resolve_language()),
-            "available_languages": list(available_languages()),
-            "_": translate,
-            "translate": translate,
-            "current_translations": getattr(g, "translations", {}),
-        }
-
-    app.jinja_env.globals["_"] = translate
-    app.jinja_env.globals["translate"] = translate
-    app.jinja_env.filters["translate"] = lambda value, **kwargs: translate(value, **kwargs)
-
-
-__all__ = [
-    "init_i18n",
-    "translate",
-    "resolve_language",
-    "available_languages",
-    "clear_cache",
-]
-import json
-import os
 from copy import deepcopy
-from functools import lru_cache
 from typing import Any, Dict, Iterable, Optional
 
 from flask import current_app, g, request
@@ -205,32 +26,47 @@ def _safe_logger_warning(message: str) -> None:
         logger.warning(message)
 
 
-@lru_cache(maxsize=None)
+# Cache mit Modifikationszeit-Tracking für automatische Invalidierung
+_translation_cache: Dict[str, tuple[float, Dict[str, Any]]] = {}
+
+
 def _load_translations(language: str) -> Dict[str, Any]:
-    """Lädt die Übersetzungen für eine Sprache aus der JSON-Datei."""
+    """Lädt die Übersetzungen für eine Sprache aus der JSON-Datei mit automatischer Cache-Invalidierung."""
     ensure_translation_dir()
     file_path = os.path.join(TRANSLATION_DIR, f"{language}.json")
 
     if not os.path.exists(file_path):
+        _translation_cache.pop(language, None)
         return {}
 
     try:
+        # Prüfe Modifikationszeit für Cache-Invalidierung
+        mtime = os.path.getmtime(file_path)
+        cached = _translation_cache.get(language)
+        
+        # Verwende Cache nur wenn Datei nicht geändert wurde
+        if cached and cached[0] >= mtime:
+            return cached[1]
+        
+        # Lade Datei neu
         with open(file_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
-            return data if isinstance(data, dict) else {}
+            if isinstance(data, dict):
+                _translation_cache[language] = (mtime, data)
+                return data
+            return {}
     except Exception as exc:  # pylint: disable=broad-except
         _safe_logger_warning(f"Übersetzungen für '{language}' konnten nicht geladen werden: {exc}")
+        _translation_cache.pop(language, None)
         return {}
 
 
 def clear_translation_cache(language: Optional[str] = None) -> None:
     """Leert den Cache für Übersetzungen (z. B. nach Updates durch die Community)."""
     if language:
-        cache = _load_translations.cache_info()  # type: ignore[attr-defined]
-        if cache.hits or cache.misses:  # pragma: no branch - informative usage
-            _load_translations.cache_clear()  # type: ignore[attr-defined]
+        _translation_cache.pop(language, None)
     else:
-        _load_translations.cache_clear()  # type: ignore[attr-defined]
+        _translation_cache.clear()
 
 
 def _resolve_key(translations: Dict[str, Any], key: str) -> Optional[Any]:
@@ -387,4 +223,7 @@ def _(key: str, **kwargs: Any) -> str:
     """Kurzalias für translate – wird in Templates & Python genutzt."""
     return translate(key, **kwargs)
 
+
+# Alias für Rückwärtskompatibilität
+available_languages = get_available_languages
 

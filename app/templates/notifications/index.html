@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('notifications.page_title', default='Benachrichtigungen') }} - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1>
+                    <i class="bi bi-bell me-2"></i>
+                    {{ _('notifications.page_title', default='Benachrichtigungen') }}
+                </h1>
+                <p class="text-muted">{{ _('notifications.subtitle', default='Verwalten Sie Ihre Benachrichtigungen') }}</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary" onclick="markAllRead()">
+                    <i class="bi bi-check-all me-1"></i>
+                    {{ _('notifications.mark_all_read', default='Alle als gelesen markieren') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistiken -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="bi bi-bar-chart me-2"></i>
+                    {{ _('notifications.stats.title', default='Übersicht') }}
+                </h5>
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="text-center">
+                            <div class="fs-3 fw-bold text-primary">{{ total_unread }}</div>
+                            <small class="text-muted">{{ _('notifications.stats.total_unread', default='Ungelesen gesamt') }}</small>
+                        </div>
+                    </div>
+                    {% for category, count in stats.items() %}
+                    <div class="col-6 col-md-3">
+                        <div class="text-center">
+                            <div class="fs-3 fw-bold">{{ count }}</div>
+                            <small class="text-muted">{{ category }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="category" class="form-label">{{ _('notifications.filter.category', default='Kategorie') }}</label>
+                        <select class="form-select" id="category" name="category" onchange="this.form.submit()">
+                            <option value="">{{ _('notifications.filter.all_categories', default='Alle Kategorien') }}</option>
+                            <option value="Chat" {% if category == 'Chat' %}selected{% endif %}>Chat</option>
+                            <option value="Dateien" {% if category == 'Dateien' %}selected{% endif %}>Dateien</option>
+                            <option value="E-Mails" {% if category == 'E-Mails' %}selected{% endif %}>E-Mails</option>
+                            <option value="Kalender" {% if category == 'Kalender' %}selected{% endif %}>Kalender</option>
+                            <option value="System" {% if category == 'System' %}selected{% endif %}>System</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="unread_only" name="unread_only" value="true" {% if unread_only %}checked{% endif %} onchange="this.form.submit()">
+                            <label class="form-check-label" for="unread_only">
+                                {{ _('notifications.filter.unread_only', default='Nur ungelesene') }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel me-1"></i>
+                            {{ _('notifications.filter.apply', default='Filter anwenden') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Benachrichtigungen -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if notifications.items %}
+                <div class="list-group list-group-flush">
+                    {% for notification in notifications.items %}
+                    <div class="list-group-item {% if not notification.is_read %}bg-light{% endif %}" id="notification-{{ notification.id }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    {% if notification.icon %}
+                                    <img src="{{ notification.icon }}" alt="" class="me-2" style="width: 24px; height: 24px;">
+                                    {% else %}
+                                    <i class="bi bi-bell me-2"></i>
+                                    {% endif %}
+                                    <h6 class="mb-0 {% if not notification.is_read %}fw-bold{% endif %}">
+                                        {% if not notification.is_read %}
+                                        <span class="badge bg-primary me-2">Neu</span>
+                                        {% endif %}
+                                        {{ notification.title }}
+                                    </h6>
+                                    <span class="badge bg-secondary ms-2">{{ notification.category }}</span>
+                                </div>
+                                {% if notification.body %}
+                                <p class="mb-2 text-muted">{{ notification.body }}</p>
+                                {% endif %}
+                                <div class="d-flex gap-3 align-items-center">
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>
+                                        {{ notification.sent_at.strftime('%d.%m.%Y %H:%M') }}
+                                    </small>
+                                    {% if notification.url %}
+                                    <a href="{{ notification.url }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-arrow-right me-1"></i>
+                                        {{ _('notifications.view', default='Anzeigen') }}
+                                    </a>
+                                    {% endif %}
+                                    {% if not notification.is_read %}
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="markAsRead({{ notification.id }})">
+                                        <i class="bi bi-check me-1"></i>
+                                        {{ _('notifications.mark_read', default='Als gelesen markieren') }}
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if notifications.pages > 1 %}
+                <nav aria-label="Seitennavigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if notifications.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ notifications.prev_num }}{% if category %}&category={{ category }}{% endif %}{% if unread_only %}&unread_only=true{% endif %}">
+                                {{ _('common.previous', default='Zurück') }}
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in notifications.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                            {% if page_num %}
+                                {% if page_num == notifications.page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_num }}{% if category %}&category={{ category }}{% endif %}{% if unread_only %}&unread_only=true{% endif %}">{{ page_num }}</a>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if notifications.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ notifications.next_num }}{% if category %}&category={{ category }}{% endif %}{% if unread_only %}&unread_only=true{% endif %}">
+                                {{ _('common.next', default='Weiter') }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
+                    <p class="text-muted">{{ _('notifications.empty', default='Keine Benachrichtigungen gefunden.') }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markAsRead(notificationId) {
+    fetch(`/api/notifications/mark-read/${notificationId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const element = document.getElementById(`notification-${notificationId}`);
+            if (element) {
+                element.classList.remove('bg-light');
+                const badge = element.querySelector('.badge.bg-primary');
+                if (badge) badge.remove();
+                const button = element.querySelector('button');
+                if (button) button.remove();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Fehler:', error);
+        alert('Fehler beim Markieren als gelesen');
+    });
+}
+
+function markAllRead() {
+    if (!confirm('{{ _("notifications.confirm_mark_all_read", default="Möchten Sie wirklich alle Benachrichtigungen als gelesen markieren?") }}')) {
+        return;
+    }
+    
+    fetch('/api/notifications/read-all', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Fehler:', error);
+        alert('Fehler beim Markieren aller als gelesen');
+    });
+}
+</script>
+{% endblock %}

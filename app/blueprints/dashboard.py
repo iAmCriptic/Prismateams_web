@@ -258,6 +258,9 @@ def edit():
             if request.form.get(f'widget_{widget}') == 'on':
                 enabled_widgets.append(widget)
         
+        # Header-Optionen
+        show_notification_bell = request.form.get('show_notification_bell') == 'on'
+        
         # Schnellzugriff-Links aus Formular
         quick_access_links = []
         available_links = {
@@ -282,6 +285,7 @@ def edit():
         # Speichere Konfiguration
         config['enabled_widgets'] = enabled_widgets
         config['quick_access_links'] = quick_access_links
+        config['show_notification_bell'] = show_notification_bell
         current_user.set_dashboard_config(config)
         
         flash(translate('dashboard.flash.saved'), 'success')

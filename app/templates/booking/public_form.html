@@ -175,12 +175,17 @@
                                 </div>
                                 
                                 {% elif field.field_type in ['file', 'image'] %}
-                                <input type="file" 
-                                       class="form-control" 
-                                       id="field_{{ field.id }}" 
-                                       name="field_{{ field.id }}"
-                                       {% if field.field_type == 'image' %}accept="image/*"{% endif %}
-                                       {% if field.is_required %}required{% endif %}>
+                                <div class="booking-file-drop-zone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; margin-bottom: 10px;">
+                                    <i class="bi bi-cloud-upload text-muted mb-2"></i>
+                                    <p class="mb-2 small"><strong>Datei hier ablegen</strong></p>
+                                    <p class="text-muted small mb-2">oder klicken Sie hier</p>
+                                    <input type="file" 
+                                           class="form-control" 
+                                           id="field_{{ field.id }}" 
+                                           name="field_{{ field.id }}"
+                                           {% if field.field_type == 'image' %}accept="image/*"{% endif %}
+                                           {% if field.is_required %}required{% endif %}>
+                                </div>
                                 {% endif %}
                             </div>
                             {% endfor %}

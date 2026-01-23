@@ -19,7 +19,7 @@
             <div class="card-body">
                 <form method="POST" enctype="multipart/form-data">
                     <div class="text-center mb-4">
-                        <div id="profile-picture-preview">
+                        <div id="profile-picture-preview" id="profilePictureDropZone" style="display: inline-block; position: relative; border: 2px dashed transparent; border-radius: 50%; padding: 10px; cursor: pointer;">
                             {% if user.profile_picture %}
                             <img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" class="avatar-lg rounded-circle mb-2" alt="{{ _('settings.profile.picture.alt') }}" id="current-profile-pic">
                             {% else %}
@@ -104,6 +104,28 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
+<script>
+// Drag & Drop für Profilbild
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('profile-picture-preview');
+    const fileInput = document.getElementById('profile_picture');
+    
+    if (dropZone && fileInput) {
+        new FileUploadDnD({
+            dropZone: dropZone,
+            fileInput: fileInput,
+            accept: 'image/*',
+            multiple: false,
+            onFilesSelected: function(files) {
+                if (files.length > 0) {
+                    previewProfilePicture(fileInput);
+                }
+            }
+        });
+    }
+});
+</script>
 <script>
 function previewProfilePicture(input) {
     const file = input.files[0];

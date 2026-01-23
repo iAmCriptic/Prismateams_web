@@ -76,6 +76,7 @@ class PushSubscription(db.Model):
     p256dh_key = db.Column(db.Text, nullable=False)
     auth_key = db.Column(db.Text, nullable=False)
     user_agent = db.Column(db.String(255), nullable=True)
+    device_id = db.Column(db.String(255), nullable=True)  # Für Geräteverfolgung bei Deduplizierung
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_used = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -105,6 +106,7 @@ class NotificationLog(db.Model):
     body = db.Column(db.Text, nullable=True)
     icon = db.Column(db.String(255), nullable=True)
     url = db.Column(db.String(255), nullable=True)
+    category = db.Column(db.String(50), default='System', nullable=False)  # Chat, Dateien, E-Mails, Kalender, System
     sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     success = db.Column(db.Boolean, default=True, nullable=False)
     error_message = db.Column(db.Text, nullable=True)

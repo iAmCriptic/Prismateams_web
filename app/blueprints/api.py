@@ -819,6 +819,115 @@ def get_notification_settings():
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    """Hole alle Benachrichtigungen für den aktuellen Benutzer."""
+    try:
+        from app.models.notification import NotificationLog
+        from sqlalchemy import desc
+        
+        category = request.args.get('category', None)
+        unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        query = NotificationLog.query.filter_by(user_id=current_user.id)
+        
+        if category:
+            query = query.filter_by(category=category)
+        
+        if unread_only:
+            query = query.filter_by(is_read=False)
+        
+        total = query.count()
+        notifications = query.order_by(desc(NotificationLog.sent_at)).limit(limit).offset(offset).all()
+        
+        return jsonify({
+            'notifications': [{
+                'id': n.id,
+                'title': n.title,
+                'body': n.body,
+                'icon': n.icon,
+                'url': n.url,
+                'category': n.category,
+                'sent_at': n.sent_at.isoformat(),
+                'is_read': n.is_read,
+                'read_at': n.read_at.isoformat() if n.read_at else None
+            } for n in notifications],
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/notifications/unread', methods=['GET'])
+@login_required
+def get_unread_notifications():
+    """Hole ungelesene Benachrichtigungen für den aktuellen Benutzer."""
+    try:
+        from app.models.notification import NotificationLog
+        from sqlalchemy import desc
+        
+        notifications = NotificationLog.query.filter_by(
+            user_id=current_user.id,
+            is_read=False
+        ).order_by(desc(NotificationLog.sent_at)).limit(20).all()
+        
+        # Gruppiere nach Kategorie
+        by_category = {}
+        for n in notifications:
+            if n.category not in by_category:
+                by_category[n.category] = []
+            by_category[n.category].append({
+                'id': n.id,
+                'title': n.title,
+                'body': n.body,
+                'icon': n.icon,
+                'url': n.url,
+                'sent_at': n.sent_at.isoformat()
+            })
+        
+        return jsonify({
+            'notifications': by_category,
+            'total': len(notifications)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/notifications/stats', methods=['GET'])
+@login_required
+def get_notification_stats():
+    """Hole Statistiken über Benachrichtigungen."""
+    try:
+        from app.models.notification import NotificationLog
+        from sqlalchemy import func
+        
+        # Ungelesene Benachrichtigungen pro Kategorie
+        stats = db.session.query(
+            NotificationLog.category,
+            func.count(NotificationLog.id).label('count')
+        ).filter_by(
+            user_id=current_user.id,
+            is_read=False
+        ).group_by(NotificationLog.category).all()
+        
+        result = {
+            'by_category': {category: count for category, count in stats},
+            'total_unread': sum(count for _, count in stats)
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @api_bp.route('/notifications/settings', methods=['POST'])
 @login_required
 def update_notification_settings():
@@ -1032,6 +1141,7 @@ def test_push_notification():
                 title="Test-Benachrichtigung",
                 body="Dies ist eine Test-Push-Benachrichtigung vom Team Portal.",
                 url="/dashboard/",
+                category='System',
                 data={'type': 'test', 'timestamp': datetime.utcnow().isoformat()}
             )
             
@@ -1079,6 +1189,42 @@ def mark_notification_read(notification_id):
         return jsonify({'message': 'Benachrichtigung als gelesen markiert'})
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/notifications/read-all', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    """Markiere alle Benachrichtigungen als gelesen."""
+    try:
+        from app.models.notification import NotificationLog
+        from datetime import datetime
+        
+        category = request.json.get('category', None) if request.json else None
+        
+        query = NotificationLog.query.filter_by(
+            user_id=current_user.id,
+            is_read=False
+        )
+        
+        if category:
+            query = query.filter_by(category=category)
+        
+        notifications = query.all()
+        
+        for notification in notifications:
+            notification.is_read = True
+            notification.read_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'marked_count': len(notifications)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 

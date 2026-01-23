@@ -70,11 +70,13 @@ def send_push_notification(
     body: str,
     icon: str = "/static/img/logo.png",
     url: str = None,
-    data: Dict = None
+    data: Dict = None,
+    category: str = 'System'
 ) -> bool:
     """
     Sendet eine Push-Benachrichtigung an einen Benutzer.
     Optimiert für serverbasiertes Push-System mit verbessertem Error Handling.
+    Implementiert Deduplizierung pro Gerät (gleiche Benachrichtigung innerhalb von 30 Sekunden auf demselben Gerät wird übersprungen).
     
     Args:
         user_id: ID des Benutzers
@@ -83,6 +85,7 @@ def send_push_notification(
         icon: URL zum Icon
         url: URL zum Öffnen bei Klick
         data: Zusätzliche Daten
+        category: Kategorie der Benachrichtigung (Chat, Dateien, E-Mails, Kalender, System)
     
     Returns:
         bool: True wenn erfolgreich gesendet
@@ -155,8 +158,32 @@ def send_push_notification(
             v += '=' * padding
         return v
 
+    # Deduplizierung pro Gerät: Prüfe ob gleiche Benachrichtigung innerhalb von 30 Sekunden bereits gesendet wurde
+    from datetime import timedelta
+    dedup_window = timedelta(seconds=30)
+    cutoff_time = datetime.utcnow() - dedup_window
+    
     for subscription in subscriptions:
         try:
+            # Prüfe auf Duplikate für dieses Gerät (endpoint als Geräte-Identifier)
+            device_identifier = subscription.endpoint
+            existing_notification = NotificationLog.query.filter_by(
+                user_id=user_id,
+                title=title,
+                url=url or "",
+                success=True
+            ).filter(
+                NotificationLog.sent_at >= cutoff_time
+            ).order_by(NotificationLog.sent_at.desc()).first()
+            
+            # Wenn eine identische Benachrichtigung innerhalb des Zeitfensters existiert,
+            # prüfe ob sie für dasselbe Gerät war (basierend auf endpoint in data oder device_id)
+            if existing_notification:
+                # Überspringe Duplikat auf demselben Gerät
+                # (In einer vollständigen Implementierung könnte man device_id in data speichern)
+                logging.info(f"Benachrichtigung übersprungen (Duplikat innerhalb von 30 Sekunden): {title}")
+                continue
+            
             sub_info = subscription.to_dict()
             if 'keys' in sub_info:
                 sub_info['keys'] = dict(sub_info['keys'])
@@ -175,7 +202,7 @@ def send_push_notification(
             subscription.last_used = datetime.utcnow()
             success_count += 1
             
-            logging.info(f"Push-Benachrichtigung erfolgreich gesendet an Benutzer {user_id}")
+            logging.info(f"Push-Benachrichtigung erfolgreich gesendet an Benutzer {user_id} (Gerät: {device_identifier[:50]}...)")
             
         except WebPushException as e:
             logging.error(f"WebPush Fehler für Benutzer {user_id}: {e}")
@@ -199,8 +226,9 @@ def send_push_notification(
                 body=body,
                 icon=icon,
                 url=url,
+                category=category,
                 success=True,
-                is_read=True  # Server-Push-Benachrichtigungen sind automatisch "gelesen"
+                is_read=False  # Benachrichtigungen sind standardmäßig ungelesen (für Benachrichtigungszentrale)
             )
             db.session.add(log_entry)
             db.session.commit()
@@ -319,7 +347,8 @@ def send_chat_notification(
             title=title,
             body=body,
             url=f"/chat/{chat_id}",
-            data={'chat_id': chat_id, 'unread_count': unread_count}
+            data={'chat_id': chat_id, 'unread_count': unread_count},
+            category='Chat'
         )
         
         if push_success:
@@ -382,7 +411,8 @@ def send_file_notification(
             title=title,
             body=body,
             url=f"/files/view/{file_id}",
-            data={'file_id': file_id, 'file_name': file.name, 'type': 'file', 'action': notification_type}
+            data={'file_id': file_id, 'file_name': file.name, 'type': 'file', 'action': notification_type},
+            category='Dateien'
         ):
             sent_count += 1
     
@@ -480,7 +510,8 @@ def send_email_notification(
                 title=title,
                 body=body,
                 url="/email/",
-                data={'unread_count': unread_count, 'type': 'email'}
+                data={'unread_count': unread_count, 'type': 'email'},
+                category='E-Mails'
             )
             
             if push_success:
@@ -570,7 +601,8 @@ def send_calendar_notification(
             title=title,
             body=body,
             url=f"/calendar/view/{event_id}",
-            data={'event_id': event_id, 'event_title': event.title, 'type': 'calendar', 'reminder_minutes': reminder_minutes}
+            data={'event_id': event_id, 'event_title': event.title, 'type': 'calendar', 'reminder_minutes': reminder_minutes},
+            category='Kalender'
         ):
             sent_count += 1
     

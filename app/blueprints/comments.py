@@ -81,6 +81,7 @@ def send_mention_notifications(comment, mentions):
             title=f"Du wurdest in einem Kommentar erwähnt",
             body=f"{current_user.full_name} hat dich in einem Kommentar zu \"{content_name}\" erwähnt",
             url=comment.get_content_url(),
+            category='System',
             data={
                 'comment_id': comment.id,
                 'content_type': comment.content_type,

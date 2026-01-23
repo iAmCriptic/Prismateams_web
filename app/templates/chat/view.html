@@ -248,7 +248,7 @@
         </div>
     </div>
     
-    <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column; min-height: 200px;">
+    <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column; min-height: 200px; position: relative;">
         {% if messages %}
             {% for message in messages %}
             <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
@@ -367,6 +367,57 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
+<script>
+// Drag & Drop für Chat
+document.addEventListener('DOMContentLoaded', function() {
+    const messagesContainer = document.getElementById('messages-container');
+    const fileInputMobile = document.getElementById('file-upload');
+    const fileInputDesktop = document.getElementById('file-upload-desktop');
+    
+    // Drag & Drop für Mobile
+    if (messagesContainer && fileInputMobile) {
+        new FileUploadDnD({
+            dropZone: messagesContainer,
+            fileInput: fileInputMobile,
+            accept: 'image/*,video/*,audio/*',
+            multiple: false,
+            onFilesSelected: function(files) {
+                if (files.length > 0) {
+                    // Zeige Dateiname an
+                    const fileName = files[0].name;
+                    const fileInfo = document.getElementById('file-info');
+                    const fileNameEl = document.getElementById('file-name');
+                    if (fileInfo && fileNameEl) {
+                        fileInfo.style.display = 'block';
+                        fileNameEl.textContent = fileName;
+                    }
+                }
+            }
+        });
+    }
+    
+    // Drag & Drop für Desktop
+    if (messagesContainer && fileInputDesktop) {
+        new FileUploadDnD({
+            dropZone: messagesContainer,
+            fileInput: fileInputDesktop,
+            accept: 'image/*,video/*,audio/*',
+            multiple: false,
+            onFilesSelected: function(files) {
+                if (files.length > 0) {
+                    // Zeige Dateiname an
+                    const fileName = files[0].name;
+                    const fileNameEl = document.getElementById('file-name-desktop');
+                    if (fileNameEl) {
+                        fileNameEl.textContent = fileName;
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% set chat_view_js = current_translations.get('chat', {}).get('view', {}).get('js', {}) %}
 <script>
     const chatId = {{ 1 if chat.is_main_chat else chat.id }};

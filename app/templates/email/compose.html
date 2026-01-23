@@ -380,7 +380,10 @@
                         </div>
                     </div>
                     <div class="email-composer-footer">
-                        <div class="mb-3">
+                        <div class="mb-3" id="emailAttachmentsDropZone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                            <i class="bi bi-cloud-upload fs-4 text-muted mb-2"></i>
+                            <p class="mb-2 small"><strong>{{ _('email.compose.attachments.drag_drop', default='Anhänge hier ablegen') }}</strong></p>
+                            <p class="text-muted small mb-2">{{ _('email.compose.attachments.drag_drop_help', default='oder klicken Sie hier') }}</p>
                             <label for="attachments" class="form-label fw-bold">
                                 <i class="bi bi-paperclip me-1"></i>{{ _('email.compose.attachments.label') }}
                             </label>
@@ -948,7 +951,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 2000);
     
 });
+
+// Drag & Drop für E-Mail-Anhänge
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('emailAttachmentsDropZone');
+    const fileInput = document.getElementById('attachments');
+    
+    if (dropZone && fileInput) {
+        new FileUploadDnD({
+            dropZone: dropZone,
+            fileInput: fileInput,
+            multiple: true,
+            onFilesSelected: function(files) {
+                console.log('Anhänge ausgewählt:', files.length);
+            }
+        });
+    }
+});
 </script>
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
 {% endblock %}
 
 

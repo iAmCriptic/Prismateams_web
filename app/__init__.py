@@ -246,14 +246,53 @@ def create_app(config_name='default'):
             flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
             return redirect(url_for('auth.confirm_email'))
     
+    @app.before_request
+    def check_session_validity():
+        """Prüft ob die aktuelle Session noch aktiv ist."""
+        from flask import session as flask_session, redirect, url_for
+        from flask_login import current_user, logout_user
+        from app.utils.session_manager import get_current_session
+        
+        # WICHTIG: Socket.IO-Requests ausschließen
+        if request.path.startswith('/socket.io/'):
+            return
+        
+        # Auth-Routen ausschließen (um Redirect-Loops zu vermeiden)
+        if (request.endpoint and 
+            (request.endpoint.startswith('auth.') or 
+             request.endpoint.startswith('static') or
+             request.endpoint.startswith('setup.'))):
+            return
+        
+        # Nur für authentifizierte Benutzer prüfen
+        if not current_user.is_authenticated:
+            return
+        
+        # Prüfe ob eine Session-ID in der Flask-Session existiert
+        session_id = flask_session.get('session_id')
+        if not session_id:
+            # Keine Session-ID vorhanden - könnte eine alte Session sein
+            # Erstelle eine neue Session für diese alte Session
+            from app.utils.session_manager import create_session
+            create_session(current_user.id)
+            return
+        
+        # Prüfe ob die Session in der Datenbank noch aktiv ist
+        current_session = get_current_session(current_user.id)
+        if not current_session or not current_session.is_active:
+            # Session wurde revoked oder existiert nicht mehr - Benutzer abmelden
+            logout_user()
+            flask_session.clear()  # Flask-Session leeren
+            from app.utils.i18n import translate
+            flash(translate('auth.flash.session_revoked'), 'warning')
+            return redirect(url_for('auth.login'))
+    
     from app.models.user import User
     
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
     
-    from app.utils.i18n import init_i18n
-    init_i18n(app)
 
     upload_dirs = [
         app.config['UPLOAD_FOLDER'],
@@ -664,7 +703,8 @@ def create_app(config_name='default'):
     from app.blueprints.booking import booking_bp
     from app.blueprints.music import music_bp
     from app.blueprints.sse import sse_bp
-    
+    from app.blueprints.notifications import notifications_bp
+
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -684,6 +724,7 @@ def create_app(config_name='default'):
     app.register_blueprint(booking_bp, url_prefix='/booking')
     app.register_blueprint(music_bp)
     app.register_blueprint(sse_bp, url_prefix='/sse')
+    app.register_blueprint(notifications_bp)
     
     @app.route('/manifest.json')
     def manifest():

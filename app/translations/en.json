@@ -55,6 +55,7 @@
       "password": "Password",
       "remember_me": "Keep me signed in",
       "submit": "Log in",
+      "forgot_password": "Forgot password?",
       "register_link_prefix": "New to Prismateams?",
       "register_link_cta": "Create an account"
     },
@@ -122,6 +123,7 @@
       "fill_all_fields_password": "Please fill in all fields.",
       "current_password_wrong": "The current password is incorrect.",
       "password_must_differ": "The new password must differ from the current password.",
+      "session_revoked": "Your session has been revoked. Please log in again.",
       "password_changed_success": "Password has been successfully changed.",
       "admin_only": "Only administrators have access to this page.",
       "test_email_sent": "Test email successfully sent!",
@@ -208,6 +210,12 @@
         "title": "Bookings",
         "empty": "No pending bookings",
         "more_indicator": "and {count} more"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "loading": "Loading...",
+        "empty": "No unread notifications",
+        "view_all": "View all"
       }
     },
     "quick_access": {
@@ -257,6 +265,14 @@
           "buchungen": {
             "label": "Bookings",
             "description": "Shows pending booking requests."
+          }
+        },
+        "header_options": {
+          "title": "Header Options",
+          "description": "Settings for the elements in the top right of the dashboard header.",
+          "notification_bell": {
+            "label": "Show notification bell",
+            "description": "Shows a bell with indicator for unread notifications in the top right of the dashboard."
           }
         }
       },
@@ -350,6 +366,11 @@
           "title": "Notifications",
           "description": "Push notifications for chat, files, email and calendar",
           "button": "Edit"
+        },
+        "security": {
+          "title": "Security",
+          "description": "Change password, enable 2FA and manage logged-in devices",
+          "button": "Open"
         },
         "about": {
           "title": "About",
@@ -511,6 +532,83 @@
         "toast_app_installed_title": "App installed",
         "toast_app_installed_message": "The app was installed successfully!"
       }
+    },
+    "security": {
+      "page_title": "Security - Settings",
+      "breadcrumb_settings": "Settings",
+      "breadcrumb_security": "Security",
+      "heading": "Security",
+      "tabs": {
+        "passwords": "Passwords",
+        "devices": "Devices"
+      },
+      "password": {
+        "heading": "Change Password",
+        "current_label": "Current password",
+        "new_label": "New password",
+        "help": "At least 8 characters",
+        "confirm_label": "Confirm new password",
+        "change_button": "Change password",
+        "fill_all_fields": "Please fill in all fields.",
+        "current_wrong": "The current password is incorrect.",
+        "passwords_dont_match": "The passwords do not match.",
+        "invalid": "Invalid password.",
+        "must_differ": "The new password must differ from the current password.",
+        "changed_success": "Password has been successfully changed."
+      },
+      "2fa": {
+        "heading": "Two-Factor Authentication",
+        "enabled": "Two-factor authentication is enabled.",
+        "not_enabled": "Two-factor authentication is not enabled.",
+        "start_setup_description": "Add an extra layer of security to your account by enabling two-factor authentication.",
+        "start_setup_button": "Set up 2FA",
+        "setup_warning": "Important: Make sure to save the backup code or secret key. You will need it if you lose access to your authenticator app.",
+        "setup_instructions": "Scan this QR code with your authenticator app (e.g. Google Authenticator, Authy, Microsoft Authenticator).",
+        "secret_label": "Secret key",
+        "secret_help": "If you cannot scan the QR code, enter this secret key manually in your authenticator app.",
+        "enter_code_label": "Enter verification code",
+        "enter_code_help": "Enter the 6-digit code from your authenticator app.",
+        "enable_button": "Enable 2FA",
+        "cancel_button": "Cancel",
+        "disable_confirm": "Do you really want to disable two-factor authentication?",
+        "disable_password_label": "Password",
+        "disable_password_help": "Enter your password to confirm disabling 2FA.",
+        "disable_button": "Disable 2FA",
+        "setup_started": "2FA setup started. Please scan the QR code and enter the verification code.",
+        "setup_cancelled": "2FA setup has been cancelled.",
+        "enter_code": "Please enter the verification code.",
+        "invalid_code": "Invalid verification code.",
+        "enabled_success": "Two-factor authentication has been enabled successfully.",
+        "enter_password": "Please enter your password.",
+        "wrong_password": "The password is incorrect.",
+        "disabled_success": "Two-factor authentication has been disabled successfully."
+      },
+      "devices": {
+        "heading": "Logged-in Devices",
+        "description": "Manage your active sessions and logged-in devices. You can revoke access for any device.",
+        "table": {
+          "device": "Device",
+          "ip_address": "IP Address",
+          "last_activity": "Last Activity",
+          "status": "Status"
+        },
+        "unknown_device": "Unknown device",
+        "current_session": "Current session",
+        "unknown": "Unknown",
+        "active": "Active",
+        "inactive": "Inactive",
+        "revoke_confirm": "Do you really want to revoke access for this device?",
+        "revoke_button": "Revoke",
+        "revoke_all_confirm": "Do you really want to revoke access for all other devices?",
+        "revoke_all_button": "Revoke all other sessions",
+        "no_sessions": "No active sessions found.",
+        "invalid_session": "Invalid session.",
+        "session_revoked": "Session has been revoked successfully.",
+        "session_not_found": "Session not found.",
+        "all_sessions_revoked": "{count} session(s) have been revoked successfully.",
+        "no_sessions_to_revoke": "No sessions to revoke."
+      },
+      "flash_guests_cannot_edit": "Guest accounts cannot edit security settings."
     },
     "about": {
       "page_title": "About Prismateams - Settings",
@@ -1668,7 +1766,9 @@
       "attachments": {
         "label": "Attachments (optional)",
         "help": "You can select multiple files",
-        "footer_note": "The email footer is added automatically."
+        "footer_note": "The email footer is added automatically.",
+        "drag_drop": "Drop attachments here",
+        "drag_drop_help": "or click here"
       },
       "buttons": {
         "send": "Send",
@@ -2659,5 +2759,24 @@
       "add_users_info": "You can now add more users via the settings.",
       "admin_account_created": "Your administrator account has been created and you are automatically logged in."
     }
+  },
+  "notifications": {
+    "page_title": "Notifications",
+    "subtitle": "Manage your notifications",
+    "mark_all_read": "Mark all as read",
+    "stats": {
+      "title": "Overview",
+      "total_unread": "Total unread"
+    },
+    "filter": {
+      "category": "Category",
+      "all_categories": "All categories",
+      "unread_only": "Unread only",
+      "apply": "Apply filter"
+    },
+    "view": "View",
+    "mark_read": "Mark as read",
+    "empty": "No notifications found.",
+    "confirm_mark_all_read": "Do you really want to mark all notifications as read?"
   }
 }

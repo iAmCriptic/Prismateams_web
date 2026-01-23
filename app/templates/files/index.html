@@ -724,15 +724,20 @@
             <form method="POST" action="{{ url_for('files.upload_file') }}" enctype="multipart/form-data" id="uploadForm">
                 <div class="modal-body">
                     <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                    <div class="mb-3">
-                        <label for="file" class="form-label">{{ _('files.index.modals.upload.file_label') }}</label>
-                        <input type="file" class="form-control" id="file" name="file">
-                        <div class="form-text">{{ _('files.index.modals.upload.file_help') }}</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="folder_upload" class="form-label">{{ _('files.index.modals.upload.folder_label') }}</label>
-                        <input type="file" class="form-control" id="folder_upload" name="folder_upload" webkitdirectory directory multiple>
-                        <div class="form-text">{{ _('files.index.modals.upload.folder_help') }}</div>
+                    <div class="mb-3" id="fileUploadDropZone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <i class="bi bi-cloud-upload fs-1 text-muted mb-2"></i>
+                        <p class="mb-2"><strong>{{ _('files.index.modals.upload.drag_drop_text', default='Dateien hier ablegen') }}</strong></p>
+                        <p class="text-muted small mb-3">{{ _('files.index.modals.upload.drag_drop_help', default='oder klicken Sie hier, um Dateien auszuwählen') }}</p>
+                        <div class="mb-3">
+                            <label for="file" class="form-label">{{ _('files.index.modals.upload.file_label') }}</label>
+                            <input type="file" class="form-control" id="file" name="file" multiple>
+                            <div class="form-text">{{ _('files.index.modals.upload.file_help') }}</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="folder_upload" class="form-label">{{ _('files.index.modals.upload.folder_label') }}</label>
+                            <input type="file" class="form-control" id="folder_upload" name="folder_upload" webkitdirectory directory multiple>
+                            <div class="form-text">{{ _('files.index.modals.upload.folder_help') }}</div>
+                        </div>
                     </div>
                     <div class="progress mb-3" style="display: none;" id="uploadProgress">
                         <div class="progress-bar" role="progressbar" style="width: 0%"></div>
@@ -911,6 +916,7 @@
 }
 </style>
 
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
 <script>
 const FILES_I18N = {{ current_translations.get('files', {}).get('index', {})|tojson }};
 document.addEventListener('DOMContentLoaded', function() {
@@ -2038,6 +2044,30 @@ function showSimpleModal(title, bodyHtml) {
     const bsModal = new bootstrap.Modal(modal);
     bsModal.show();
 }
+
+// Drag & Drop für Upload-Modal
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadModal = document.getElementById('uploadModal');
+    if (uploadModal) {
+        uploadModal.addEventListener('shown.bs.modal', function() {
+            const dropZone = document.getElementById('fileUploadDropZone');
+            const fileInput = document.getElementById('file');
+            const folderInput = document.getElementById('folder_upload');
+            
+            if (dropZone && fileInput) {
+                // Drag & Drop für einzelne Dateien
+                new FileUploadDnD({
+                    dropZone: dropZone,
+                    fileInput: fileInput,
+                    multiple: true,
+                    onFilesSelected: function(files) {
+                        console.log('Dateien ausgewählt:', files.length);
+                    }
+                });
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
 

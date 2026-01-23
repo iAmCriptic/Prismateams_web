@@ -147,6 +147,7 @@
       "fill_all_fields_password": "Bitte füllen Sie alle Felder aus.",
       "current_password_wrong": "Das aktuelle Passwort ist falsch.",
       "password_must_differ": "Das neue Passwort muss sich vom aktuellen Passwort unterscheiden.",
+      "session_revoked": "Ihre Session wurde widerrufen. Bitte melden Sie sich erneut an.",
       "password_changed_success": "Passwort wurde erfolgreich geändert.",
       "admin_only": "Nur Administratoren haben Zugriff auf diese Seite.",
       "test_email_sent": "Test-E-Mail erfolgreich gesendet!",
@@ -156,7 +157,7 @@
       "enter_email": "Bitte geben Sie Ihre E-Mail-Adresse ein.",
       "password_reset_email_sent": "Falls ein Konto mit dieser E-Mail-Adresse existiert, wurde ein Reset-Code gesendet.",
       "invalid_reset_code": "Ungültiger oder abgelaufener Reset-Code.",
-      "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden."
+      "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden.",
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt."
@@ -244,11 +245,23 @@
         "title": "Buchungen",
         "empty": "Keine ausstehenden Buchungen",
         "more_indicator": "und {count} weitere"
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "loading": "Lade...",
+        "empty": "Keine ungelesenen Benachrichtigungen",
+        "view_all": "Alle anzeigen"
       }
     },
     "quick_access": {
       "title": "Schnellzugriff",
       "edit_dashboard": "Dashboard bearbeiten"
+    },
+    "notification_bell": {
+      "title": "Benachrichtigungen"
+    },
+    "settings_gear": {
+      "title": "Einstellungen"
     },
     "edit": {
       "page_title": "Dashboard bearbeiten - Team Portal",
@@ -293,6 +306,14 @@
           "buchungen": {
             "label": "Buchungen",
             "description": "Zeigt ausstehende Buchungsanfragen."
+          }
+        },
+        "header_options": {
+          "title": "Header-Optionen",
+          "description": "Einstellungen für die Elemente oben rechts im Dashboard-Header.",
+          "notification_bell": {
+            "label": "Benachrichtigungs-Glocke anzeigen",
+            "description": "Zeigt eine Glocke mit Indikator für ungelesene Benachrichtigungen oben rechts im Dashboard an."
           }
         }
       },
@@ -449,82 +470,78 @@
       "page_title": "Sicherheit - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_security": "Sicherheit",
-      "heading": "Sicherheitseinstellungen",
-      "flash_guests_cannot_edit": "Gast-Accounts können Sicherheitseinstellungen nicht ändern.",
+      "heading": "Sicherheit",
       "tabs": {
-        "passwords": "Passwörter & 2FA",
-        "devices": "Angemeldete Geräte"
+        "passwords": "Passwörter",
+        "devices": "Geräte"
       },
       "password": {
         "heading": "Passwort ändern",
         "current_label": "Aktuelles Passwort",
         "new_label": "Neues Passwort",
-        "confirm_label": "Neues Passwort bestätigen",
         "help": "Mindestens 8 Zeichen",
+        "confirm_label": "Neues Passwort bestätigen",
         "change_button": "Passwort ändern",
         "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
         "current_wrong": "Das aktuelle Passwort ist falsch.",
         "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
-        "invalid": "Das Passwort entspricht nicht den Anforderungen.",
+        "invalid": "Ungültiges Passwort.",
         "must_differ": "Das neue Passwort muss sich vom aktuellen Passwort unterscheiden.",
         "changed_success": "Passwort wurde erfolgreich geändert."
       },
       "2fa": {
-        "heading": "Zwei-Faktor-Authentifizierung (2FA)",
-        "enabled": "2FA ist aktiviert.",
-        "not_enabled": "2FA ist nicht aktiviert. Aktivieren Sie 2FA für zusätzliche Sicherheit.",
-        "setup_button": "2FA aktivieren",
-        "start_setup_button": "2FA-Einrichtung starten",
-        "start_setup_description": "Klicken Sie auf den Button, um die 2FA-Einrichtung zu starten. Sie erhalten dann einen QR-Code zum Scannen.",
-        "setup_instructions": "Scannen Sie den QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Microsoft Authenticator) und geben Sie dann den 6-stelligen Code ein.",
-        "setup_warning": "Wichtig: Speichern Sie den Secret-Code an einem sicheren Ort. Falls Sie Ihr Gerät verlieren, benötigen Sie diesen Code, um 2FA wiederherzustellen.",
-        "enter_code_label": "2FA-Code",
+        "heading": "Zwei-Faktor-Authentifizierung",
+        "enabled": "Zwei-Faktor-Authentifizierung ist aktiviert.",
+        "not_enabled": "Zwei-Faktor-Authentifizierung ist nicht aktiviert.",
+        "start_setup_description": "Fügen Sie eine zusätzliche Sicherheitsebene zu Ihrem Konto hinzu, indem Sie die Zwei-Faktor-Authentifizierung aktivieren.",
+        "start_setup_button": "2FA einrichten",
+        "setup_warning": "Wichtig: Stellen Sie sicher, dass Sie den Backup-Code oder den geheimen Schlüssel speichern. Sie benötigen ihn, wenn Sie den Zugriff auf Ihre Authenticator-App verlieren.",
+        "setup_instructions": "Scannen Sie diesen QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Authy, Microsoft Authenticator).",
+        "secret_label": "Geheimer Schlüssel",
+        "secret_help": "Wenn Sie den QR-Code nicht scannen können, geben Sie diesen geheimen Schlüssel manuell in Ihrer Authenticator-App ein.",
+        "enter_code_label": "Bestätigungscode eingeben",
         "enter_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
-        "secret_label": "Secret-Code",
-        "secret_help": "Falls Sie den QR-Code nicht scannen können, verwenden Sie diesen Secret-Code manuell in Ihrer Authenticator-App.",
         "enable_button": "2FA aktivieren",
         "cancel_button": "Abbrechen",
+        "disable_confirm": "Möchten Sie die Zwei-Faktor-Authentifizierung wirklich deaktivieren?",
+        "disable_password_label": "Passwort",
+        "disable_password_help": "Geben Sie Ihr Passwort ein, um die Deaktivierung von 2FA zu bestätigen.",
         "disable_button": "2FA deaktivieren",
-        "disable_confirm": "Möchten Sie 2FA wirklich deaktivieren?",
-        "disable_password_label": "Passwort zur Bestätigung",
-        "disable_password_help": "Geben Sie Ihr Passwort ein, um 2FA zu deaktivieren.",
-        "enter_code": "Bitte geben Sie den 2FA-Code ein.",
+        "setup_started": "2FA-Einrichtung gestartet. Bitte scannen Sie den QR-Code und geben Sie den Bestätigungscode ein.",
+        "setup_cancelled": "2FA-Einrichtung wurde abgebrochen.",
+        "enter_code": "Bitte geben Sie den Bestätigungscode ein.",
+        "invalid_code": "Ungültiger Bestätigungscode.",
+        "enabled_success": "Zwei-Faktor-Authentifizierung wurde erfolgreich aktiviert.",
         "enter_password": "Bitte geben Sie Ihr Passwort ein.",
-        "invalid_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
-        "enabled_success": "2FA wurde erfolgreich aktiviert.",
-        "disabled_success": "2FA wurde erfolgreich deaktiviert.",
         "wrong_password": "Das Passwort ist falsch.",
-        "setup_started": "2FA-Einrichtung gestartet. Bitte scannen Sie den QR-Code und geben Sie den Code ein.",
-        "setup_cancelled": "2FA-Einrichtung wurde abgebrochen."
+        "disabled_success": "Zwei-Faktor-Authentifizierung wurde erfolgreich deaktiviert."
       },
       "devices": {
         "heading": "Angemeldete Geräte",
-        "description": "Verwalten Sie Ihre aktiven Sitzungen und melden Sie sich von anderen Geräten ab.",
+        "description": "Verwalten Sie Ihre aktiven Sitzungen und angemeldeten Geräte. Sie können den Zugriff für jedes Gerät widerrufen.",
         "table": {
           "device": "Gerät",
           "ip_address": "IP-Adresse",
           "last_activity": "Letzte Aktivität",
           "status": "Status"
         },
+        "unknown_device": "Unbekanntes Gerät",
         "current_session": "Aktuelle Sitzung",
+        "unknown": "Unbekannt",
         "active": "Aktiv",
         "inactive": "Inaktiv",
-        "unknown_device": "Unbekanntes Gerät",
-        "unknown": "Unbekannt",
-        "revoke_button": "Abmelden",
-        "revoke_confirm": "Möchten Sie sich wirklich von diesem Gerät abmelden?",
-        "revoke_all_button": "Alle anderen Geräte abmelden",
-        "revoke_all_confirm": "Möchten Sie sich wirklich von allen anderen Geräten abmelden?",
-        "session_revoked": "Sitzung wurde erfolgreich abgemeldet.",
-        "session_not_found": "Sitzung nicht gefunden.",
-        "all_sessions_revoked": "{count} Sitzung(en) wurden erfolgreich abgemeldet.",
-        "no_sessions_to_revoke": "Keine anderen Sitzungen zum Abmelden.",
+        "revoke_confirm": "Möchten Sie den Zugriff für dieses Gerät wirklich widerrufen?",
+        "revoke_button": "Widerrufen",
+        "revoke_all_confirm": "Möchten Sie den Zugriff für alle anderen Geräte wirklich widerrufen?",
+        "revoke_all_button": "Alle anderen Sitzungen widerrufen",
         "no_sessions": "Keine aktiven Sitzungen gefunden.",
-        "invalid_session": "Ungültige Sitzung."
-      }
-    },
-    "notifications": {
-      "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert."
+        "invalid_session": "Ungültige Sitzung.",
+        "session_revoked": "Sitzung wurde erfolgreich widerrufen.",
+        "session_not_found": "Sitzung nicht gefunden.",
+        "all_sessions_revoked": "{count} Sitzung(en) wurden erfolgreich widerrufen.",
+        "no_sessions_to_revoke": "Keine Sitzungen zum Widerrufen."
+      },
+      "flash_guests_cannot_edit": "Gastkonten können die Sicherheitseinstellungen nicht bearbeiten."
     },
     "notifications": {
       "page_title": "Benachrichtigungen - Einstellungen",
@@ -712,9 +729,32 @@
         "flash_send_toggled": "E-Mail-Sendeberechtigung für {name} wurde {status}."
       },
       "system": {
-        "flash_logo_too_large": "Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
-        "flash_logo_uploaded": "Portalslogo wurde erfolgreich hochgeladen.",
-        "flash_logo_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt."
+        "page_title": "System-Einstellungen - Administration",
+        "breadcrumb_system": "System-Einstellungen",
+        "heading": "System-Einstellungen",
+        "section_title": "Portal-Einstellungen",
+        "portal_name_label": "Portalsname",
+        "portal_name_placeholder": "z.B. Prismateams",
+        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
+        "portal_logo_label": "Portalslogo",
+        "current_logo": "Aktuelles Logo",
+        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
+        "default_accent_color_label": "Standard-Akzentfarbe",
+        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
+        "color_gradient_label": "Farbverlauf für Login/Register",
+        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
+        "color_gradient_default": "Standard (Blau-Violett)",
+        "color_gradient_purple_blue": "Blau-Violett",
+        "color_gradient_pink_red": "Pink-Rot",
+        "color_gradient_blue_cyan": "Blau-Cyan",
+        "color_gradient_green_teal": "Grün-Türkis",
+        "color_gradient_pink_yellow": "Pink-Gelb",
+        "color_gradient_pastel": "Pastell",
+        "color_gradient_rose_pastel": "Rosa-Pastell",
+        "color_gradient_orange_pastel": "Orange-Pastell",
+        "save_button": "Änderungen speichern",
+        "back_button": "Zurück",
+        "flash_updated": "System-Einstellungen wurden aktualisiert."
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
@@ -750,6 +790,7 @@
         "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags."
       },
       "booking_forms": {
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_title_required": "Bitte geben Sie einen Titel ein.",
         "flash_form_created": "Formular \"{title}\" wurde erstellt.",
         "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
@@ -835,42 +876,6 @@
         "save_button": "Änderungen speichern",
         "flash_updated": "Datei-Einstellungen wurden aktualisiert.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
-      },
-      "system": {
-        "page_title": "System-Einstellungen - Administration",
-        "breadcrumb_system": "System-Einstellungen",
-        "heading": "System-Einstellungen",
-        "section_title": "Portal-Einstellungen",
-        "portal_name_label": "Portalsname",
-        "portal_name_placeholder": "z.B. Prismateams",
-        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
-        "portal_logo_label": "Portalslogo",
-        "current_logo": "Aktuelles Logo",
-        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
-        "default_accent_color_label": "Standard-Akzentfarbe",
-        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
-        "color_gradient_label": "Farbverlauf für Login/Register",
-        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
-        "color_gradient_default": "Standard (Blau-Violett)",
-        "color_gradient_purple_blue": "Blau-Violett",
-        "color_gradient_pink_red": "Pink-Rot",
-        "color_gradient_blue_cyan": "Blau-Cyan",
-        "color_gradient_green_teal": "Grün-Türkis",
-        "color_gradient_pink_yellow": "Pink-Gelb",
-        "color_gradient_pastel": "Pastell",
-        "color_gradient_rose_pastel": "Rosa-Pastell",
-        "color_gradient_orange_pastel": "Orange-Pastell",
-        "save_button": "Änderungen speichern",
-        "back_button": "Zurück",
-        "flash_updated": "System-Einstellungen wurden aktualisiert."
-      },
-      "booking_forms": {
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
-        "flash_title_required": "Bitte geben Sie einen Titel ein.",
-        "flash_form_created": "Formular \"{title}\" wurde erstellt.",
-        "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
-        "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
-        "flash_status_updated": "Status wurde aktualisiert."
       }
     }
   },
@@ -1083,7 +1088,9 @@
           "file_label": "Datei auswählen (max. 100MB pro Datei)",
           "file_help": "Maximale Dateigröße: 100MB pro Datei",
           "folder_label": "Oder Ordner auswählen",
-          "folder_help": "Dateien größer als 100MB werden übersprungen"
+          "folder_help": "Dateien größer als 100MB werden übersprungen",
+          "drag_drop_text": "Dateien hier ablegen",
+          "drag_drop_help": "oder klicken Sie hier, um Dateien auszuwählen"
         },
         "new_folder": {
           "title": "Neuer Ordner",
@@ -1278,7 +1285,9 @@
       "attachments": {
         "label": "Anhänge (optional)",
         "help": "Mehrere Dateien auswählen möglich",
-        "footer_note": "Der E-Mail-Footer wird automatisch hinzugefügt."
+        "footer_note": "Der E-Mail-Footer wird automatisch hinzugefügt.",
+        "drag_drop": "Anhänge hier ablegen",
+        "drag_drop_help": "oder klicken Sie hier"
       },
       "buttons": {
         "send": "Senden",
@@ -1822,11 +1831,37 @@
         "feeds": "Öffentliche Kalender verwalten"
       },
       "month_names": [
-        "Januar", "Februar", "März", "April", "Mai", "Juni",
-        "Juli", "August", "September", "Oktober", "November", "Dezember"
+        "Januar",
+        "Februar",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember"
       ],
-      "weekday_short": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
-      "weekday_long": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+      "weekday_short": [
+        "Mo",
+        "Di",
+        "Mi",
+        "Do",
+        "Fr",
+        "Sa",
+        "So"
+      ],
+      "weekday_long": [
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag"
+      ],
       "list": {
         "details": "Details",
         "time_suffix": "Uhr",
@@ -1892,7 +1927,15 @@
             "yearly": "z.B. alle 2 Jahre"
           },
           "days_label": "Wochentage",
-          "weekday_names": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+          "weekday_names": [
+            "Montag",
+            "Dienstag",
+            "Mittwoch",
+            "Donnerstag",
+            "Freitag",
+            "Samstag",
+            "Sonntag"
+          ],
           "end_label": "Wiederholung endet am (optional)",
           "end_help": "Wenn leer, wird unbegrenzt wiederholt"
         }
@@ -2058,18 +2101,59 @@
       "new_category_name_required": "Der neue Kategoriename ist verpflichtend."
     },
     "flash": {
-      "guests_cannot_create": "Gast-Accounts können keine Produkte erstellen.",
+      "folder_not_found": "Ordner nicht gefunden.",
       "product_name_required": "Der Produktname ist verpflichtend.",
-      "guests_cannot_edit": "Gast-Accounts können keine Produkte bearbeiten.",
       "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
-      "guests_cannot_delete": "Gast-Accounts können keine Produkte löschen.",
+      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
+      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
+      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
+      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
+      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
+      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
+      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
+      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
+      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_products_selected": "Keine Produkte ausgewählt.",
       "invalid_product_ids": "Ungültige Produkt-IDs.",
-      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
-      "enter_set_name": "Bitte geben Sie einen Namen für das Set ein.",
-      "select_at_least_one_product": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "no_permission_delete_set": "Sie haben keine Berechtigung, dieses Set zu löschen.",
-      "invalid_request": "Ungültige Anfrage."
+      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
+      "no_valid_products": "Keine gültigen Produkte gefunden.",
+      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
+      "invalid_date_format": "Ungültiges Datumsformat.",
+      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
+      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
+      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
+      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
+      "product_unavailable": "Das Produkt ist nicht verfügbar.",
+      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
+      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
+      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
+      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
+      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
+      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
+      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
+      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
+      "folder_name_required": "Der Ordnername ist verpflichtend.",
+      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
+      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
+      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
+      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "generate_error": "Fehler beim Generieren des Druckbogens.",
+      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
+      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
+      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
+      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
+      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
+      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
+      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
+      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
+      "no_file_selected": "Keine Datei ausgewählt.",
+      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
+      "invalid_request": "Ungültige Anfrage.",
+      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
+      "file_not_found": "Die Datei konnte nicht gefunden werden.",
+      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
+      "invalid_date": "Ungültiges Datum."
     },
     "dashboard": {
       "page_title": "Lagerverwaltung - Team Portal",
@@ -2369,61 +2453,6 @@
     "print_qr": {
       "page_title": "QR-Codes drucken - Team Portal",
       "heading": "QR-Codes drucken"
-    },
-    "flash": {
-      "folder_not_found": "Ordner nicht gefunden.",
-      "product_name_required": "Der Produktname ist verpflichtend.",
-      "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
-      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
-      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
-      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
-      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
-      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
-      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
-      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
-      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
-      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
-      "no_products_selected": "Keine Produkte ausgewählt.",
-      "invalid_product_ids": "Ungültige Produkt-IDs.",
-      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
-      "no_valid_products": "Keine gültigen Produkte gefunden.",
-      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
-      "invalid_date_format": "Ungültiges Datumsformat.",
-      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
-      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
-      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
-      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
-      "product_unavailable": "Das Produkt ist nicht verfügbar.",
-      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
-      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
-      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
-      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
-      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
-      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
-      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
-      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
-      "folder_name_required": "Der Ordnername ist verpflichtend.",
-      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
-      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
-      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
-      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "generate_error": "Fehler beim Generieren des Druckbogens.",
-      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
-      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
-      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
-      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
-      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
-      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
-      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
-      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
-      "no_file_selected": "Keine Datei ausgewählt.",
-      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
-      "invalid_request": "Ungültige Anfrage.",
-      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
-      "file_not_found": "Die Datei konnte nicht gefunden werden.",
-      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
-      "invalid_date": "Ungültiges Datum."
     }
   },
   "music": {
@@ -2590,29 +2619,21 @@
   },
   "booking": {
     "flash": {
-      "form_not_active": "Dieses Buchungsformular ist nicht mehr aktiv.",
-      "enter_name": "Bitte geben Sie Ihren Namen ein.",
-      "enter_event_name": "Bitte geben Sie einen Namen für die Veranstaltung ein.",
-      "enter_valid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-      "field_required": "Das Feld \"{field_label}\" ist ein Pflichtfeld.",
-      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
-      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt.",
-      "no_file_selected": "Keine Datei ausgewählt.",
-      "no_files_uploaded": "Keine Dateien wurden hochgeladen.",
-      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
-      "enter_event_date": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
-      "accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
-      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
-      "enter_rejection_reason": "Bitte geben Sie einen Ablehnungsgrund ein.",
-      "rejected": "Buchung wurde abgelehnt.",
-      "fill_subject_message": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
+      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
+      "request_rejected": "Buchung wurde abgelehnt.",
       "email_sent": "E-Mail wurde gesendet.",
       "email_error": "Fehler beim Senden der E-Mail.",
-      "not_assigned_to_role": "Sie sind dieser Rolle nicht zugewiesen.",
-      "file_too_large": "Datei \"{filename}\" ist zu groß (max. 50MB).",
-      "files_uploaded": "{count} Datei(en) wurden erfolgreich hochgeladen.",
+      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
+      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
+      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
+      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
+      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
       "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
-      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert."
+      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
+      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
+      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     },
     "requests": {
       "page_title": "Buchungsanfragen - Team Portal",
@@ -2770,23 +2791,6 @@
           "description": "Spotify und YouTube Music verbinden und konfigurieren"
         }
       }
-    },
-    "flash": {
-      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
-      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
-      "request_rejected": "Buchung wurde abgelehnt.",
-      "email_sent": "E-Mail wurde gesendet.",
-      "email_error": "Fehler beim Senden der E-Mail.",
-      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
-      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
-      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
-      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
-      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
-      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
-      "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
-      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
-      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
-      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     }
   },
   "setup": {
@@ -2803,5 +2807,24 @@
       "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
       "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
     }
+  },
+  "notifications": {
+    "page_title": "Benachrichtigungen",
+    "subtitle": "Verwalten Sie Ihre Benachrichtigungen",
+    "mark_all_read": "Alle als gelesen markieren",
+    "stats": {
+      "title": "Übersicht",
+      "total_unread": "Ungelesen gesamt"
+    },
+    "filter": {
+      "category": "Kategorie",
+      "all_categories": "Alle Kategorien",
+      "unread_only": "Nur ungelesene",
+      "apply": "Filter anwenden"
+    },
+    "view": "Anzeigen",
+    "mark_read": "Als gelesen markieren",
+    "empty": "Keine Benachrichtigungen gefunden.",
+    "confirm_mark_all_read": "Möchten Sie wirklich alle Benachrichtigungen als gelesen markieren?"
   }
 }

@@ -31,16 +31,20 @@
                         <div class="form-text">Ihr Name wird als Ersteller angezeigt. Lassen Sie das Feld leer für anonyme Uploads.</div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="file" class="form-label">Dateien auswählen</label>
-                        <input type="file" class="form-control" id="file" name="file" multiple required>
-                        <div class="form-text">Maximale Dateigröße: 100MB pro Datei. Mehrere Dateien können gleichzeitig ausgewählt werden.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="folder_upload" class="form-label">Oder Ordner auswählen</label>
-                        <input type="file" class="form-control" id="folder_upload" name="file" webkitdirectory directory multiple>
-                        <div class="form-text">Dateien größer als 100MB werden automatisch übersprungen.</div>
+                    <div class="mb-3" id="dropboxUploadDropZone" style="border: 2px dashed #dee2e6; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; min-height: 200px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <i class="bi bi-cloud-upload fs-1 text-primary mb-3"></i>
+                        <p class="mb-2"><strong>Dateien hier ablegen</strong></p>
+                        <p class="text-muted small mb-3">oder klicken Sie hier, um Dateien auszuwählen</p>
+                        <div class="mb-3 w-100">
+                            <label for="file" class="form-label">Dateien auswählen</label>
+                            <input type="file" class="form-control" id="file" name="file" multiple required>
+                            <div class="form-text">Maximale Dateigröße: 100MB pro Datei. Mehrere Dateien können gleichzeitig ausgewählt werden.</div>
+                        </div>
+                        <div class="mb-3 w-100">
+                            <label for="folder_upload" class="form-label">Oder Ordner auswählen</label>
+                            <input type="file" class="form-control" id="folder_upload" name="file" webkitdirectory directory multiple>
+                            <div class="form-text">Dateien größer als 100MB werden automatisch übersprungen.</div>
+                        </div>
                     </div>
                     
                     <div class="progress mb-3" style="display: none;" id="uploadProgress">
@@ -61,8 +65,26 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/file-upload-dnd.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Drag & Drop für Dropbox-Upload
+    const dropZone = document.getElementById('dropboxUploadDropZone');
+    const fileInput = document.getElementById('file');
+    
+    if (dropZone && fileInput) {
+        new FileUploadDnD({
+            dropZone: dropZone,
+            fileInput: fileInput,
+            multiple: true,
+            maxSize: 100 * 1024 * 1024, // 100MB
+            onFilesSelected: function(files) {
+                console.log('Dateien ausgewählt:', files.length);
+                validateUpload();
+            }
+        });
+    }
+    
     const fileInput = document.getElementById('file');
     const folderInput = document.getElementById('folder_upload');
     const uploadForm = document.getElementById('uploadForm');

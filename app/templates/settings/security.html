@@ -42,4 +42,36 @@
         </div>
     </div>
 </div>
+
+<script>
+// Aktiviere den Devices-Tab wenn Hash-Fragment #devices vorhanden ist
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#devices') {
+        const devicesTab = document.getElementById('devices-tab');
+        const passwordsTab = document.getElementById('passwords-tab');
+        const devicesPane = document.getElementById('devices');
+        const passwordsPane = document.getElementById('passwords');
+        
+        if (devicesTab && devicesPane) {
+            // Entferne active von Passwords-Tab
+            if (passwordsTab) {
+                passwordsTab.classList.remove('active');
+                passwordsTab.setAttribute('aria-selected', 'false');
+            }
+            if (passwordsPane) {
+                passwordsPane.classList.remove('show', 'active');
+            }
+            
+            // Aktiviere Devices-Tab
+            devicesTab.classList.add('active');
+            devicesTab.setAttribute('aria-selected', 'true');
+            devicesPane.classList.add('show', 'active');
+            
+            // Bootstrap Tab-Event auslösen
+            const tab = new bootstrap.Tab(devicesTab);
+            tab.show();
+        }
+    }
+});
+</script>
 {% endblock %}

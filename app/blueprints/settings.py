@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, abort, current_app, send_file, g, after_this_request, session
 from flask_login import login_required, current_user
 from app import db
 from app.models.user import User
@@ -15,7 +15,7 @@ import os
 import tempfile
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
-from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
+from app.utils.session_manager import get_user_sessions, get_user_sessions_with_recent, revoke_session, revoke_all_sessions, create_session
 from app.utils.password_policy import validate_password
 from datetime import datetime
 
@@ -2721,7 +2721,14 @@ def security():
         flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
         return redirect(url_for('settings.index'))
     
-    return render_template('settings/security.html', user=current_user)
+    # Stelle sicher, dass eine Session-ID existiert (für ältere Sessions)
+    if not session.get('session_id'):
+        create_session(current_user.id)
+    
+    # Lade alle aktiven Sessions und inaktive Sessions der letzten 24 Stunden
+    sessions = get_user_sessions_with_recent(current_user.id, hours=24)
+    
+    return render_template('settings/security.html', user=current_user, sessions=sessions)
 
 
 @settings_bp.route('/security/passwords', methods=['GET', 'POST'])
@@ -2881,10 +2888,8 @@ def security_devices():
         flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
         return redirect(url_for('settings.index'))
     
-    sessions = get_user_sessions(current_user.id)
-    return render_template('settings/security_devices.html', 
-                         user=current_user,
-                         sessions=sessions)
+    # Weiterleitung zur Haupt-Security-Seite mit Devices-Tab
+    return redirect(url_for('settings.security') + '#devices')
 
 
 @settings_bp.route('/security/revoke-session', methods=['POST'])
@@ -2899,14 +2904,14 @@ def revoke_session_route():
     
     if not session_id:
         flash(translate('settings.security.devices.invalid_session'), 'danger')
-        return redirect(url_for('settings.security_devices'))
+        return redirect(url_for('settings.security') + '#devices')
     
     if revoke_session(current_user.id, session_id):
         flash(translate('settings.security.devices.session_revoked'), 'success')
     else:
         flash(translate('settings.security.devices.session_not_found'), 'danger')
     
-    return redirect(url_for('settings.security_devices'))
+    return redirect(url_for('settings.security') + '#devices')
 
 
 @settings_bp.route('/security/revoke-all-sessions', methods=['POST'])
@@ -2924,7 +2929,7 @@ def revoke_all_sessions_route():
     else:
         flash(translate('settings.security.devices.no_sessions_to_revoke'), 'info')
     
-    return redirect(url_for('settings.security_devices'))
+    return redirect(url_for('settings.security') + '#devices')
 
 
 @settings_bp.route('/about')

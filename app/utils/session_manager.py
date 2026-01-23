@@ -2,7 +2,7 @@
 Session-Management Utility für die Verwaltung von Benutzer-Sessions.
 """
 from flask import session, request
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import db
 from app.models.user_session import UserSession
 import secrets
@@ -54,6 +54,46 @@ def get_user_sessions(user_id, include_current=True):
         sess.is_current = (sess.session_id == current_session_id) if include_current else False
     
     return sessions
+
+
+def get_user_sessions_with_recent(user_id, include_current=True, hours=24):
+    """
+    Holt alle aktiven Sessions und inaktive Sessions der letzten N Stunden eines Benutzers.
+    
+    Args:
+        user_id: Die Benutzer-ID
+        include_current: Ob die aktuelle Session markiert werden soll
+        hours: Anzahl der Stunden für inaktive Sessions (Standard: 24)
+    
+    Returns:
+        Liste aller relevanten Sessions, sortiert nach last_activity (neueste zuerst)
+    """
+    # Hole alle aktiven Sessions
+    active_sessions = UserSession.query.filter_by(
+        user_id=user_id,
+        is_active=True
+    ).all()
+    
+    # Hole inaktive Sessions der letzten N Stunden
+    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+    inactive_sessions = UserSession.query.filter(
+        UserSession.user_id == user_id,
+        UserSession.is_active == False,
+        UserSession.last_activity >= cutoff_time
+    ).all()
+    
+    # Kombiniere beide Listen
+    all_sessions = active_sessions + inactive_sessions
+    
+    # Sortiere nach last_activity (neueste zuerst)
+    all_sessions.sort(key=lambda s: s.last_activity, reverse=True)
+    
+    # Markiere die aktuelle Session
+    current_session_id = session.get('session_id')
+    for sess in all_sessions:
+        sess.is_current = (sess.session_id == current_session_id) if include_current else False
+    
+    return all_sessions
 
 
 def get_current_session(user_id):

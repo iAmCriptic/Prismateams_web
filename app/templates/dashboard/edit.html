@@ -104,6 +104,28 @@
                     {% endif %}
                 </div>
             </div>
+            
+            <!-- Dashboard-Header Optionen -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-sliders me-2"></i>
+                        {{ _('dashboard.edit.header_options.title', default='Header-Optionen') }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">{{ _('dashboard.edit.header_options.description', default='Einstellungen für die Elemente oben rechts im Dashboard-Header.') }}</p>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="show_notification_bell" id="show_notification_bell" {% if dashboard_config.get('show_notification_bell', False) %}checked{% endif %}>
+                        <label class="form-check-label" for="show_notification_bell">
+                            <i class="bi bi-bell text-info me-2"></i>
+                            <strong>{{ _('dashboard.edit.header_options.notification_bell.label', default='Benachrichtigungs-Glocke anzeigen') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.header_options.notification_bell.description', default='Zeigt eine Glocke mit Indikator für ungelesene Benachrichtigungen oben rechts im Dashboard an.') }}</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="col-12 col-lg-6 mb-4">
