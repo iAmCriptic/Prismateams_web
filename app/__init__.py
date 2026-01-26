@@ -704,6 +704,9 @@ def create_app(config_name='default'):
     from app.blueprints.music import music_bp
     from app.blueprints.sse import sse_bp
     from app.blueprints.notifications import notifications_bp
+    from app.blueprints.webhooks import webhooks_bp
+    from app.blueprints.oauth import oauth_bp
+    from app.blueprints.api_v2 import api_v2_bp
 
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -725,6 +728,14 @@ def create_app(config_name='default'):
     app.register_blueprint(music_bp)
     app.register_blueprint(sse_bp, url_prefix='/sse')
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(webhooks_bp)
+    app.register_blueprint(oauth_bp)
+    app.register_blueprint(api_v2_bp, url_prefix='/api/v2')
+    
+    # Initialize OAuth2 server
+    from app.utils.oauth_server import OAuth2Server
+    oauth2_server = OAuth2Server()
+    oauth2_server.init_app(app)
     
     @app.route('/manifest.json')
     def manifest():

@@ -2018,32 +2018,77 @@ def normalize_addresses(addresses):
 
 
 def build_plain_quote_header(email_msg: EmailMessage) -> str:
+    """Erstellt einen professionellen Zitat-Header im Outlook/Gmail-Stil."""
     sent_at = email_msg.received_at or email_msg.sent_at or datetime.utcnow()
-    header = (
-        f"Von: {email_msg.sender}\n"
-        f"An: {email_msg.recipients or ''}\n"
-        f"{'CC: ' + email_msg.cc + '\n' if email_msg.cc else ''}"
-        f"Datum: {sent_at.strftime('%d.%m.%Y %H:%M')}\n"
-        f"Betreff: {email_msg.subject}\n\n"
-    )
+    sender = email_msg.sender or ''
+    
+    # Format: "Am [Datum] um [Uhrzeit] schrieb [Absender]:"
+    header = f"Am {sent_at.strftime('%d.%m.%Y')} um {sent_at.strftime('%H:%M')} schrieb {sender}:"
     return header
 
 
-def quote_plain(email_msg: EmailMessage) -> str:
+def extract_clean_body_text(email_msg: EmailMessage, max_lines: int = 50) -> str:
+    """Extrahiert den sauberen Body-Text ohne alte Zitate und begrenzt die Länge."""
     body = email_msg.body_text or ''
     if not body and email_msg.body_html:
         import re
         body = re.sub(r'<[^>]+>', '', email_msg.body_html)
         body = body.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
     
+    # Bereinige den Text
+    lines = body.split('\n')
+    clean_lines = []
+    skip_old_quotes = False
+    
+    for line in lines:
+        stripped = line.strip()
+        
+        # Erkenne den Beginn alter Zitate und überspringe sie
+        if stripped.startswith('Am ') and ' schrieb ' in stripped and stripped.endswith(':'):
+            skip_old_quotes = True
+            continue
+        if stripped.startswith('Von:') and 'Gesendet:' in body:
+            skip_old_quotes = True
+            continue
+        if stripped.startswith('-----Original') or stripped.startswith('-------- Ursprüngliche'):
+            skip_old_quotes = True
+            continue
+        
+        # Überspringe bereits zitierte Zeilen (beginnen mit >)
+        if stripped.startswith('>'):
+            continue
+        
+        if not skip_old_quotes:
+            clean_lines.append(line)
+    
+    # Begrenze auf max_lines
+    if len(clean_lines) > max_lines:
+        clean_lines = clean_lines[:max_lines]
+        clean_lines.append('[...]')
+    
+    # Entferne führende und nachfolgende Leerzeilen
+    while clean_lines and not clean_lines[0].strip():
+        clean_lines.pop(0)
+    while clean_lines and not clean_lines[-1].strip():
+        clean_lines.pop()
+    
+    return '\n'.join(clean_lines)
+
+
+def quote_plain(email_msg: EmailMessage) -> str:
+    """Erstellt ein professionelles Zitat im Outlook/Gmail-Stil."""
+    body = extract_clean_body_text(email_msg, max_lines=50)
     header = build_plain_quote_header(email_msg)
     
+    # Zitiere jede Zeile mit "> " Präfix
     quoted_lines = []
-    quoted_lines.append(header)
     for line in body.split('\n'):
         quoted_lines.append(f"> {line}")
     
-    return '\n'.join(quoted_lines)
+    quoted_body = '\n'.join(quoted_lines)
+    
+    # Format: Header + Leerzeile + zitierter Text
+    return f"{header}\n>\n{quoted_body}"
 
 
 def build_reply_context(email_msg: EmailMessage, mode: str):

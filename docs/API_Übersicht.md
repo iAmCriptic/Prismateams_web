@@ -2590,7 +2590,134 @@ fetch('/api/push/subscribe', {
 
 ---
 
+## Webhooks API
+
+Webhooks ermöglichen die Benachrichtigung externer Systeme bei bestimmten Events.
+
+### Webhook erstellen
+```http
+POST /api/webhooks
+Content-Type: application/json
+Authorization: Bearer <admin_token>
+
+{
+  "name": "Mein Webhook",
+  "url": "https://example.com/webhook",
+  "events": ["chat.message.created", "calendar.event.created"],
+  "secret": "optional_secret"
+}
+```
+
+### Verfügbare Events
+- **Chat**: `chat.message.created`, `chat.created`, `chat.member.added`
+- **Kalender**: `calendar.event.created`, `calendar.event.updated`, `calendar.event.deleted`
+- **Dateien**: `file.uploaded`, `file.updated`, `file.deleted`
+- **E-Mail**: `email.received`, `email.sent`
+- **Inventar**: `inventory.product.created`, `inventory.borrow.created`, `inventory.return.completed`
+- **Benutzer**: `user.created`, `user.updated`, `user.deleted`, `user.login`
+- **Wiki**: `wiki.page.created`, `wiki.page.updated`
+
+### Webhook-Payload
+```json
+{
+  "event": "chat.message.created",
+  "timestamp": "2025-01-26T10:30:00Z",
+  "data": {
+    "message_id": 123,
+    "chat_id": 1,
+    "sender_id": 1,
+    "content": "Hallo!"
+  }
+}
+```
+
+### Signatur-Verifizierung
+Wenn ein Secret konfiguriert ist, wird ein HMAC-SHA256 Signatur-Header mitgesendet:
+```
+X-Webhook-Signature: sha256=<signature>
+```
+
+---
+
+## OAuth2 Authentifizierung
+
+Die API unterstützt OAuth2 für externe Anwendungen.
+
+### OAuth2 Flows
+- **Authorization Code + PKCE**: Für Mobile Apps und SPAs
+- **Client Credentials**: Für Server-zu-Server Kommunikation
+- **Refresh Token**: Für Token-Erneuerung
+
+### Endpunkte
+- `GET /oauth/authorize` - Authorization-Anfrage
+- `POST /oauth/token` - Token-Austausch
+- `POST /oauth/revoke` - Token widerrufen
+- `GET /oauth/userinfo` - Benutzerinformationen (OpenID Connect)
+- `GET /.well-known/oauth-authorization-server` - Server-Metadaten
+
+### Authorization Code Flow
+```http
+GET /oauth/authorize?
+  client_id=<client_id>&
+  redirect_uri=<redirect_uri>&
+  response_type=code&
+  scope=openid profile read:chats&
+  state=<random_state>&
+  code_challenge=<pkce_challenge>&
+  code_challenge_method=S256
+```
+
+### Token-Anfrage
+```http
+POST /oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=<authorization_code>&
+redirect_uri=<redirect_uri>&
+client_id=<client_id>&
+client_secret=<client_secret>&
+code_verifier=<pkce_verifier>
+```
+
+### Verfügbare Scopes
+- `openid` - Grundlegende Identität
+- `profile` - Profilinformationen
+- `email` - E-Mail-Adresse
+- `read:users` / `write:users` - Benutzerzugriff
+- `read:chats` / `write:chats` - Chat-Zugriff
+- `read:files` / `write:files` - Datei-Zugriff
+- `read:calendar` / `write:calendar` - Kalender-Zugriff
+- `read:inventory` / `write:inventory` - Inventar-Zugriff
+- `webhooks` - Webhook-Verwaltung
+- `admin` - Admin-Funktionen
+
+---
+
+## Swagger/OpenAPI Dokumentation
+
+Eine interaktive API-Dokumentation mit Swagger UI ist verfügbar unter:
+
+**`/api/v2/docs`**
+
+Die OpenAPI 3.0 Spezifikation kann abgerufen werden unter:
+- `/api/v2/swagger.json`
+
+Die Swagger UI ermöglicht:
+- Interaktives Testen aller API-Endpunkte
+- OAuth2-Authentifizierung direkt in der UI
+- Vollständige Schema-Dokumentation
+- Request/Response-Beispiele
+
+---
+
 ## Changelog
+
+### Version 2.0.0
+- **Webhooks**: Event-basierte Benachrichtigungen für externe Systeme
+- **OAuth2**: Vollständige OAuth2-Implementierung mit PKCE-Support
+- **Swagger UI**: Interaktive API-Dokumentation unter /api/v2/docs
+- **API v2**: Neue REST API mit Flask-RESTX
 
 ### Version 1.0.0
 - Initiale API-Implementierung

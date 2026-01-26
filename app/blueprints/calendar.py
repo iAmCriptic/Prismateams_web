@@ -7,6 +7,7 @@ from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
+from app.utils.webhook_dispatcher import emit_webhook_event
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import generate_ical_feed, import_events_from_ical
@@ -257,6 +258,19 @@ def create_event():
         
         db.session.commit()
         
+        # Emit webhook event for new calendar event
+        emit_webhook_event('calendar.event.created', {
+            'event_id': event.id,
+            'title': event.title,
+            'description': event.description,
+            'start_time': event.start_time.isoformat() if event.start_time else None,
+            'end_time': event.end_time.isoformat() if event.end_time else None,
+            'location': event.location,
+            'created_by': current_user.id,
+            'created_by_name': current_user.full_name,
+            'is_recurring': event.recurrence_type != 'none'
+        }, context={'user_id': current_user.id})
+        
         # Sende Dashboard-Updates an alle aktiven Benutzer
         try:
             from app.utils.dashboard_events import emit_dashboard_update
@@ -354,6 +368,18 @@ def edit_event(event_id):
         
         db.session.commit()
         
+        # Emit webhook event for calendar event update
+        emit_webhook_event('calendar.event.updated', {
+            'event_id': event.id,
+            'title': event.title,
+            'description': event.description,
+            'start_time': event.start_time.isoformat() if event.start_time else None,
+            'end_time': event.end_time.isoformat() if event.end_time else None,
+            'location': event.location,
+            'updated_by': current_user.id,
+            'updated_by_name': current_user.full_name,
+        }, context={'user_id': current_user.id})
+        
         # Sende Dashboard-Updates an alle Event-Teilnehmer
         try:
             from app.utils.dashboard_events import emit_dashboard_update
@@ -411,8 +437,21 @@ def delete_event(event_id):
     # Hole Teilnehmer-IDs vor dem Löschen
     participant_ids = [p.user_id for p in EventParticipant.query.filter_by(event_id=event_id).all()]
     
+    # Capture event details before deletion for webhook
+    deleted_event_data = {
+        'event_id': event.id,
+        'title': event.title,
+        'start_time': event.start_time.isoformat() if event.start_time else None,
+        'end_time': event.end_time.isoformat() if event.end_time else None,
+        'deleted_by': current_user.id,
+        'deleted_by_name': current_user.full_name,
+    }
+    
     db.session.delete(event)
     db.session.commit()
+    
+    # Emit webhook event for calendar event deletion
+    emit_webhook_event('calendar.event.deleted', deleted_event_data, context={'user_id': current_user.id})
     
     # Sende Dashboard-Updates an alle Event-Teilnehmer
     try:

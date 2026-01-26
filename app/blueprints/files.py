@@ -8,6 +8,7 @@ from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update
+from app.utils.webhook_dispatcher import emit_webhook_event
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -312,6 +313,18 @@ def create_file():
     )
     db.session.add(new_file)
     db.session.commit()
+    
+    # Emit webhook event for file upload
+    emit_webhook_event('file.uploaded', {
+        'file_id': new_file.id,
+        'name': new_file.name,
+        'original_name': new_file.original_name,
+        'mime_type': new_file.mime_type,
+        'file_size': new_file.file_size,
+        'folder_id': new_file.folder_id,
+        'uploaded_by': current_user.id,
+        'uploaded_by_name': current_user.full_name,
+    }, context={'user_id': current_user.id})
     
     # Sende Dashboard-Update an den Benutzer
     try:

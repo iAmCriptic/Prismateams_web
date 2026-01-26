@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Anwendung autorisieren - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <!-- App Info -->
+                    <div class="text-center mb-4">
+                        {% if client.logo_uri %}
+                        <img src="{{ client.logo_uri }}" alt="{{ client.client_name }}" class="mb-3" style="max-width: 80px; max-height: 80px;">
+                        {% else %}
+                        <div class="mb-3">
+                            <i class="bi bi-app-indicator display-3 text-primary"></i>
+                        </div>
+                        {% endif %}
+                        <h4 class="mb-1">{{ client.client_name }}</h4>
+                        {% if client.client_uri %}
+                        <small class="text-muted">{{ client.client_uri }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Authorization Message -->
+                    <p class="text-center mb-4">
+                        <strong>{{ client.client_name }}</strong> möchte auf Ihren Account zugreifen.
+                    </p>
+                    
+                    <!-- Requested Permissions -->
+                    {% if scopes %}
+                    <div class="mb-4">
+                        <p class="fw-bold mb-2">Diese Anwendung möchte:</p>
+                        <ul class="list-group list-group-flush">
+                            {% for scope in scopes %}
+                            <li class="list-group-item d-flex align-items-center px-0">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                <span>{{ scope.description }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- User Info -->
+                    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                        <i class="bi bi-person-circle me-2"></i>
+                        <div>
+                            Angemeldet als <strong>{{ current_user.full_name }}</strong>
+                            <br>
+                            <small class="text-muted">{{ current_user.email }}</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <form method="POST">
+                        <input type="hidden" name="client_id" value="{{ client.client_id }}">
+                        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+                        <input type="hidden" name="scope" value="{{ scope }}">
+                        <input type="hidden" name="state" value="{{ state or '' }}">
+                        <input type="hidden" name="response_type" value="{{ response_type }}">
+                        <input type="hidden" name="code_challenge" value="{{ code_challenge or '' }}">
+                        <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method or 'S256' }}">
+                        <input type="hidden" name="nonce" value="{{ nonce or '' }}">
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" name="action" value="authorize" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-lg me-2"></i>Autorisieren
+                            </button>
+                            <button type="submit" name="action" value="deny" class="btn btn-outline-secondary">
+                                Ablehnen
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Security Notice -->
+                    <div class="mt-4 text-center">
+                        <small class="text-muted">
+                            <i class="bi bi-shield-check me-1"></i>
+                            Sie können diese Berechtigung jederzeit in Ihren Einstellungen widerrufen.
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Additional Info -->
+            <div class="text-center mt-3">
+                <small class="text-muted">
+                    Die Anwendung erhält keinen Zugriff auf Ihr Passwort.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

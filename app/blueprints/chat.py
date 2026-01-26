@@ -7,6 +7,7 @@ from app.utils.notifications import send_chat_notification
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
+from app.utils.webhook_dispatcher import emit_webhook_event
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
@@ -178,6 +179,18 @@ def send_message(chat_id):
     db.session.add(message)
     db.session.commit()
     
+    # Emit webhook event for new message
+    emit_webhook_event('chat.message.created', {
+        'message_id': message.id,
+        'chat_id': actual_chat_id,
+        'chat_name': chat.name,
+        'sender_id': current_user.id,
+        'sender_name': current_user.full_name,
+        'content': content[:500] if content else None,  # Limit content length
+        'message_type': message_type,
+        'created_at': message.created_at.isoformat() if message.created_at else None
+    }, context={'user_id': current_user.id})
+    
     # Sende Push-Benachrichtigungen an andere Chat-Mitglieder
     try:
         sent_count = send_chat_notification(
@@ -340,6 +353,16 @@ def create_chat():
                         db.session.add(member)
             
             db.session.commit()
+            
+            # Emit webhook event for chat creation
+            emit_webhook_event('chat.created', {
+                'chat_id': new_chat.id,
+                'chat_name': new_chat.name,
+                'is_direct_message': False,
+                'created_by': current_user.id,
+                'created_by_name': current_user.full_name,
+                'member_count': len(member_ids) + 1
+            }, context={'user_id': current_user.id})
             
             flash(translate('chat.flash.group_chat_created', name=name), 'success')
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))

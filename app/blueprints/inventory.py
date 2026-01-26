@@ -7,6 +7,7 @@ from app.models.api_token import ApiToken
 from app.models.user import User
 from app.models.settings import SystemSettings
 from app.utils.access_control import check_module_access
+from app.utils.webhook_dispatcher import emit_webhook_event
 import json
 from urllib.parse import unquote
 from app.utils.qr_code import (
@@ -1727,6 +1728,17 @@ def api_product_create():
     product.qr_code_data = qr_data
     db.session.commit()
     
+    # Emit webhook event for product creation
+    emit_webhook_event('inventory.product.created', {
+        'product_id': product.id,
+        'name': product.name,
+        'category': product.category,
+        'serial_number': product.serial_number,
+        'status': product.status,
+        'created_by': current_user.id,
+        'created_by_name': current_user.full_name,
+    }, context={'user_id': current_user.id})
+    
     return jsonify({
         'id': product.id,
         'name': product.name,
@@ -2359,6 +2371,19 @@ def api_borrow():
     db.session.add(borrow_transaction)
     db.session.commit()
     
+    # Emit webhook event for borrow creation
+    emit_webhook_event('inventory.borrow.created', {
+        'transaction_id': borrow_transaction.id,
+        'transaction_number': transaction_number,
+        'product_id': product.id,
+        'product_name': product.name,
+        'borrower_id': borrower.id,
+        'borrower_name': f"{borrower.first_name} {borrower.last_name}",
+        'expected_return_date': expected_return_date.isoformat(),
+        'created_by': current_user.id,
+        'created_by_name': current_user.full_name,
+    }, context={'user_id': current_user.id})
+    
     return jsonify({
         'transaction_id': borrow_transaction.id,
         'transaction_number': transaction_number,
@@ -2514,6 +2539,18 @@ def api_return():
     
     borrow_transaction.mark_as_returned()
     db.session.commit()
+    
+    # Emit webhook event for return completion
+    emit_webhook_event('inventory.return.completed', {
+        'transaction_id': borrow_transaction.id,
+        'transaction_number': borrow_transaction.transaction_number,
+        'product_id': borrow_transaction.product_id,
+        'product_name': borrow_transaction.product.name if borrow_transaction.product else None,
+        'borrower_id': borrow_transaction.borrower_id,
+        'returned_at': borrow_transaction.return_date.isoformat() if borrow_transaction.return_date else None,
+        'returned_by': current_user.id,
+        'returned_by_name': current_user.full_name,
+    }, context={'user_id': current_user.id})
     
     from app.utils.email_sender import send_return_confirmation_email
     try:

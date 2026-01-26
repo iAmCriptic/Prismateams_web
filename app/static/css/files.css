@@ -392,51 +392,8 @@ h5.mb-3 {
     box-sizing: border-box !important;
 }
 
-/* Markdown Preview Styling */
-.markdown-editor-preview.markdown-content sup {
-    font-size: 0.75em;
-    vertical-align: super;
-    line-height: 0;
-}
-
-.markdown-editor-preview.markdown-content sub {
-    font-size: 0.75em;
-    vertical-align: sub;
-    line-height: 0;
-}
-
-.markdown-editor-preview.markdown-content hr {
-    border: none;
-    border-top: 2px solid var(--bs-border-color);
-    margin: 2rem 0;
-    width: 100%;
-}
-
-.markdown-editor-preview.markdown-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.5rem;
-    margin: 1rem 0;
-}
-
-.markdown-editor-preview.markdown-content blockquote {
-    border-left: 4px solid var(--accent-color);
-    padding-left: 1rem;
-    padding-right: 1rem;
-    margin: 1rem 0;
-    font-style: italic;
-    color: var(--bs-secondary);
-    background: var(--bs-secondary-bg);
-    border-radius: 0.25rem;
-}
-
-.markdown-editor-preview.markdown-content blockquote p {
-    margin-bottom: 0.5rem;
-}
-
-.markdown-editor-preview.markdown-content blockquote p:last-child {
-    margin-bottom: 0;
-}
+/* Markdown Preview Styling - erbt von .markdown-content */
+/* Zusätzliche Preview-spezifische Anpassungen falls nötig */
 
 /* Editor Container Anpassungen */
 .markdown-editor-content .row {
@@ -589,4 +546,300 @@ h5.mb-3 {
     background: var(--accent-style) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
+}
+
+/* ============================================
+   Gemeinsame Markdown Content Styles
+   Verwendet von: view.html, edit.html (Preview)
+   ============================================ */
+
+.markdown-content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+.markdown-content h1 { 
+    font-size: 2rem; 
+    border-bottom: 2px solid var(--bs-border-color); 
+    padding-bottom: 0.5rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+.markdown-content h2 { 
+    font-size: 1.5rem; 
+    border-bottom: 1px solid var(--bs-border-color); 
+    padding-bottom: 0.25rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+.markdown-content h3 { 
+    font-size: 1.25rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+.markdown-content p { 
+    margin-bottom: 1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+.markdown-content code {
+    background: var(--bs-secondary-bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+    display: inline-block;
+}
+
+.markdown-content pre {
+    background: var(--bs-secondary-bg);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+}
+
+.markdown-content pre code {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    display: block;
+    background: transparent;
+    padding: 0;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid var(--accent-color);
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin: 1rem 0;
+    font-style: italic;
+    color: var(--bs-secondary);
+    background: var(--bs-secondary-bg);
+    border-radius: 0.25rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+.markdown-content blockquote p {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+/* Tabellen Styles */
+.markdown-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 1rem 0 !important;
+    border: 2px solid #007bff !important;
+    border-radius: 0.5rem !important;
+    overflow: hidden !important;
+    background: white !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.markdown-content th, .markdown-content td {
+    border: 1px solid #dee2e6 !important;
+    padding: 0.75rem !important;
+    text-align: left !important;
+    vertical-align: top !important;
+    font-size: 0.9rem !important;
+}
+
+.markdown-content th {
+    background: #f8f9fa !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid #007bff !important;
+    color: #495057 !important;
+}
+
+.markdown-content tr:nth-child(even) {
+    background: #f8f9fa !important;
+}
+
+.markdown-content tr:hover {
+    background: #e9ecef !important;
+}
+
+.markdown-content tbody tr {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* Tabellen Dark Mode */
+[data-bs-theme="dark"] .markdown-content table {
+    background: #212529 !important;
+    border-color: #495057 !important;
+}
+
+[data-bs-theme="dark"] .markdown-content th {
+    background: #343a40 !important;
+    color: #fff !important;
+    border-bottom-color: #007bff !important;
+}
+
+[data-bs-theme="dark"] .markdown-content th, 
+[data-bs-theme="dark"] .markdown-content td {
+    border-color: #495057 !important;
+    color: #fff !important;
+}
+
+[data-bs-theme="dark"] .markdown-content tr:nth-child(even) {
+    background: #343a40 !important;
+}
+
+[data-bs-theme="dark"] .markdown-content tr:hover {
+    background: #495057 !important;
+}
+
+/* Listen */
+.markdown-content ul, .markdown-content ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+.markdown-content li {
+    margin-bottom: 0.5rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+}
+
+/* Hoch- und Tiefgestellt */
+.markdown-content sup {
+    font-size: 0.75em;
+    vertical-align: super;
+    line-height: 0;
+}
+
+.markdown-content sub {
+    font-size: 0.75em;
+    vertical-align: sub;
+    line-height: 0;
+}
+
+/* Horizontale Linie */
+.markdown-content hr {
+    border: none;
+    border-top: 2px solid var(--bs-border-color);
+    margin: 2rem 0;
+    width: 100%;
+}
+
+/* Bilder */
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+/* Links */
+.markdown-content a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive Markdown Styles */
+@media (max-width: 768px) {
+    .markdown-content {
+        font-size: 16px;
+        line-height: 1.5;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    .markdown-content h1 {
+        font-size: 1.5rem;
+    }
+    
+    .markdown-content h2 {
+        font-size: 1.25rem;
+    }
+    
+    .markdown-content h3 {
+        font-size: 1.1rem;
+    }
+    
+    .markdown-content pre {
+        font-size: 14px;
+        padding: 0.75rem;
+    }
+    
+    .markdown-content code {
+        font-size: 14px;
+    }
+}
+
+/* MathJax/LaTeX Styles */
+.markdown-content .arithmatex {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.markdown-content .MathJax {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* Text Content (für nicht-Markdown Dateien) */
+.text-content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+    overflow-x: hidden;
 }

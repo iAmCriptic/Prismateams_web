@@ -100,6 +100,17 @@
             </button>
         </div>
         
+        <div class="vr"></div>
+        
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('mathInline')" title="Inline-Formel ($...$)">
+                <i class="bi bi-calculator"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('mathBlock')" title="Block-Formel ($$...$$)">
+                <i class="bi bi-calculator-fill"></i>
+            </button>
+        </div>
+        
         <div class="ms-auto">
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-outline-secondary" onclick="togglePreview()" id="previewBtn">
@@ -318,6 +329,14 @@ function formatText(type) {
             replacement = `![${selectedText || 'Alt-Text'}](${selectedText ? 'URL' : 'URL'})`;
             newCursorPos = start + replacement.length - 4; // Cursor vor "URL"
             break;
+        case 'mathInline':
+            replacement = `$${selectedText || 'E = mc^2'}$`;
+            newCursorPos = start + replacement.length;
+            break;
+        case 'mathBlock':
+            replacement = `$$\n${selectedText || '\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}'}\n$$`;
+            newCursorPos = start + replacement.length - 3; // Cursor vor schließenden $$
+            break;
     }
     
     // Ersetze den ausgewählten Text
@@ -463,15 +482,15 @@ window.MathJax = {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
         displayMath: [['$$', '$$'], ['\\[', '\\]']],
         processEscapes: true,
-        processEnvironments: true
+        processEnvironments: true,
+        tags: 'ams'
     },
     options: {
         ignoreHtmlClass: 'tex2jax_ignore',
-        processHtmlClass: 'tex2jax_process'
+        processHtmlClass: 'tex2jax_process|markdown-content'
     }
 };
 </script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
 

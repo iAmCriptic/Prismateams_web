@@ -131,11 +131,12 @@
                                     <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li class="dropdown-submenu">
-                                    <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <li class="dropdown-submenu-container">
+                                    <a class="dropdown-item dropdown-submenu-toggle" href="#" role="button" aria-expanded="false">
                                         <i class="bi bi-folder me-2"></i>{{ _('email.index.labels.move_to_folder') }}
+                                        <i class="bi bi-chevron-right dropdown-submenu-arrow ms-auto"></i>
                                     </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
+                                    <ul class="dropdown-submenu-menu">
                                         {% for folder in folders %}
                                         {% if folder.name != email.folder %}
                                         <li>
@@ -340,15 +341,16 @@
                                 <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <li class="dropdown-submenu-container">
+                                <a class="dropdown-item dropdown-submenu-toggle" href="#" role="button" aria-expanded="false">
                                     <i class="bi bi-folder me-2"></i>{{ _('email.index.labels.move_to_folder') }}
+                                    <i class="bi bi-chevron-right dropdown-submenu-arrow ms-auto"></i>
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
+                                <ul class="dropdown-submenu-menu">
                                     {% for folder in folders %}
                                     {% if folder.name != email.folder %}
                                     <li>
-                                <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
+                                        <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
                                             <input type="hidden" name="folder" value="{{ folder.name }}">
                                             <button type="submit" class="dropdown-item">
                                                 {% if folder.folder_type == 'standard' %}
@@ -374,8 +376,8 @@
                                             </button>
                                         </form>
                                     </li>
-                                        {% endif %}
-                                        {% endfor %}
+                                    {% endif %}
+                                    {% endfor %}
                                 </ul>
                             </li>
                             <li><hr class="dropdown-divider"></li>
@@ -515,11 +517,12 @@
                                     <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li class="dropdown-submenu">
-                                    <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <li class="dropdown-submenu-container">
+                                    <a class="dropdown-item dropdown-submenu-toggle" href="#" role="button" aria-expanded="false">
                                         <i class="bi bi-folder me-2"></i>{{ _('email.index.labels.move_to_folder') }}
+                                        <i class="bi bi-chevron-right dropdown-submenu-arrow ms-auto"></i>
                                     </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
+                                    <ul class="dropdown-submenu-menu">
                                         {% for folder in folders %}
                                         {% if folder.name != email.folder %}
                                         <li>
@@ -667,6 +670,77 @@ document.addEventListener('click', function(e) {
     // Modal anzeigen
     const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true, keyboard: true });
     bsModal.show();
+});
+
+// Dropdown-Submenu Handling für "In Ordner verschieben"
+document.addEventListener('click', function(e) {
+    var toggle = e.target.closest('.dropdown-submenu-toggle');
+    if (toggle) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var container = toggle.closest('.dropdown-submenu-container');
+        var submenu = container.querySelector('.dropdown-submenu-menu');
+        var arrow = toggle.querySelector('.dropdown-submenu-arrow');
+        var isOpen = submenu.classList.contains('show');
+        
+        // Schließe alle anderen offenen Submenüs
+        document.querySelectorAll('.dropdown-submenu-menu.show').forEach(function(menu) {
+            if (menu !== submenu) {
+                menu.classList.remove('show');
+                var otherArrow = menu.closest('.dropdown-submenu-container').querySelector('.dropdown-submenu-arrow');
+                if (otherArrow) otherArrow.classList.remove('rotated');
+            }
+        });
+        
+        // Toggle aktuelles Submenu
+        if (isOpen) {
+            submenu.classList.remove('show');
+            if (arrow) arrow.classList.remove('rotated');
+        } else {
+            submenu.classList.add('show');
+            if (arrow) arrow.classList.add('rotated');
+            
+            // Positionierung anpassen
+            var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
+            if (!isMobile) {
+                var rect = toggle.getBoundingClientRect();
+                var submenuRect = submenu.getBoundingClientRect();
+                var viewportWidth = window.innerWidth;
+                
+                // Prüfe ob rechts genug Platz ist
+                if (rect.right + submenuRect.width > viewportWidth) {
+                    submenu.style.left = 'auto';
+                    submenu.style.right = '100%';
+                } else {
+                    submenu.style.left = '100%';
+                    submenu.style.right = 'auto';
+                }
+            }
+        }
+        return;
+    }
+    
+    // Schließe Submenüs wenn außerhalb geklickt wird
+    if (!e.target.closest('.dropdown-submenu-container')) {
+        document.querySelectorAll('.dropdown-submenu-menu.show').forEach(function(menu) {
+            menu.classList.remove('show');
+            var arrow = menu.closest('.dropdown-submenu-container').querySelector('.dropdown-submenu-arrow');
+            if (arrow) arrow.classList.remove('rotated');
+        });
+    }
+});
+
+// Schließe Submenüs wenn Hauptdropdown geschlossen wird
+document.addEventListener('hidden.bs.dropdown', function(e) {
+    var dropdown = e.target.closest('.dropdown');
+    if (dropdown) {
+        dropdown.querySelectorAll('.dropdown-submenu-menu.show').forEach(function(menu) {
+            menu.classList.remove('show');
+            var arrow = menu.closest('.dropdown-submenu-container').querySelector('.dropdown-submenu-arrow');
+            if (arrow) arrow.classList.remove('rotated');
+        });
+    }
 });
 
 // E-Mail-Synchronisation mit einfachem Reload

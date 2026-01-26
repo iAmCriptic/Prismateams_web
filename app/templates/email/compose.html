@@ -666,43 +666,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     {% endif %}
     
-    // Original E-Mail einfach am Ende einfügen
+    // Original E-Mail als professionelles Zitat einfügen (Outlook/Gmail-Stil)
     {% if is_reply and original_email %}
     (function() {
         setTimeout(function() {
             try {
-                // Einfacher Header
-                var headerText = '{{ _('email.view.header.from') }} ' + {{ original_email.sender|decode_email_header|tojson|safe }} + '\n';
-                headerText += '{{ _('email.view.header.to') }} ' + {{ original_email.recipients|decode_email_header|tojson|safe }} + '\n';
-                {% if original_email.cc %}
-                headerText += '{{ _('email.view.header.cc') }} ' + {{ original_email.cc|decode_email_header|tojson|safe }} + '\n';
-                {% endif %}
-                headerText += '{{ _('email.view.header.date') }} {{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else original_email.sent_at.strftime('%d.%m.%Y %H:%M') }}\n';
-                headerText += '{{ _('email.view.header.subject') }} ' + {{ original_email.subject|decode_email_header|tojson|safe }} + '\n\n';
+                // Professioneller Zitat-Header: "Am [Datum] um [Uhrzeit] schrieb [Absender]:"
+                var sender = {{ original_email.sender|decode_email_header|tojson|safe }};
+                var dateStr = '{{ original_email.received_at.strftime('%d.%m.%Y') if original_email.received_at else original_email.sent_at.strftime('%d.%m.%Y') }}';
+                var timeStr = '{{ original_email.received_at.strftime('%H:%M') if original_email.received_at else original_email.sent_at.strftime('%H:%M') }}';
                 
-                // Trennlinie
-                var separator = '\n##- Bitte geben Sie Ihre Antwort über dieser Zeile ein. -##\n\n';
+                var quoteHeader = '\n\n---\n\nAm ' + dateStr + ' um ' + timeStr + ' schrieb ' + sender + ':\n';
                 
-                // Original-E-Mail Text
+                // Original-E-Mail Text extrahieren und zitieren
                 var originalText = '';
                 {% if original_email.body_text %}
                 originalText = {{ original_email.body_text|tojson|safe }};
                 {% elif original_html %}
-                // HTML zu Text konvertieren (einfach)
+                // HTML zu Text konvertieren
                 var htmlContent = {{ original_html|tojson|safe }};
                 var tempDiv = document.createElement('div');
                 tempDiv.innerHTML = htmlContent;
                 originalText = tempDiv.textContent || tempDiv.innerText || '';
                 {% endif %}
                 
-                // Alles zusammenfügen: Header + Trennlinie + Original-Text
-                var fullText = headerText + separator + originalText;
+                // Text bereinigen und auf 50 Zeilen begrenzen
+                var lines = originalText.split('\n');
+                var cleanLines = [];
+                var skipOldQuotes = false;
+                var maxLines = 50;
+                
+                for (var i = 0; i < lines.length && cleanLines.length < maxLines; i++) {
+                    var line = lines[i];
+                    var stripped = line.trim();
+                    
+                    // Alte Zitat-Header überspringen
+                    if (stripped.indexOf('Am ') === 0 && stripped.indexOf(' schrieb ') > -1 && stripped.slice(-1) === ':') {
+                        skipOldQuotes = true;
+                        continue;
+                    }
+                    if (stripped.indexOf('-----Original') === 0 || stripped.indexOf('-------- Ursprüngliche') === 0) {
+                        skipOldQuotes = true;
+                        continue;
+                    }
+                    
+                    // Bereits zitierte Zeilen überspringen
+                    if (stripped.indexOf('>') === 0) {
+                        continue;
+                    }
+                    
+                    if (!skipOldQuotes) {
+                        cleanLines.push(line);
+                    }
+                }
+                
+                // Führende/nachfolgende Leerzeilen entfernen
+                while (cleanLines.length > 0 && cleanLines[0].trim() === '') {
+                    cleanLines.shift();
+                }
+                while (cleanLines.length > 0 && cleanLines[cleanLines.length - 1].trim() === '') {
+                    cleanLines.pop();
+                }
+                
+                // Jede Zeile mit "> " zitieren
+                var quotedLines = cleanLines.map(function(line) {
+                    return '> ' + line;
+                });
+                
+                if (lines.length > maxLines) {
+                    quotedLines.push('> [...]');
+                }
+                
+                // Zusammenfügen: Leerzeilen + Trenner + Header + Zitat
+                var fullQuote = quoteHeader + quotedLines.join('\n');
                 
                 // Am Ende des Editors einfügen
                 var length = quill.getLength();
-                quill.insertText(length - 1, fullText, 'user');
+                quill.insertText(length - 1, fullQuote, 'user');
                 
-                // Cursor an den Anfang setzen (vor dem Header)
+                // Cursor an den Anfang setzen (Benutzer schreibt hier)
                 quill.setSelection(0);
             } catch (e) {
                 console.error('Fehler beim Einfügen der Original-E-Mail:', e);

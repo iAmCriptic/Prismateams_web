@@ -16,6 +16,8 @@ from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
 from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
+from .webhook import Webhook, WebhookDelivery
+from .oauth import OAuth2Client, OAuth2AuthorizationCode, OAuth2Token
 
 __all__ = [
     'User', 'UserSession',
@@ -34,7 +36,9 @@ __all__ = [
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
     'Comment', 'CommentMention',
     'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings',
-    'GuestShareAccess'
+    'GuestShareAccess',
+    'Webhook', 'WebhookDelivery',
+    'OAuth2Client', 'OAuth2AuthorizationCode', 'OAuth2Token'
 ]
 
 

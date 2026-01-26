@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Autorisierungsfehler - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow border-danger">
+                <div class="card-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle display-1 text-danger"></i>
+                    </div>
+                    
+                    <h4 class="mb-3">Autorisierungsfehler</h4>
+                    
+                    <div class="alert alert-danger" role="alert">
+                        <strong>Fehler:</strong> {{ error }}
+                        {% if description %}
+                        <hr>
+                        <p class="mb-0">{{ description }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="text-muted mb-4">
+                        Die Autorisierungsanfrage konnte nicht verarbeitet werden. 
+                        Bitte kontaktieren Sie den Entwickler der Anwendung.
+                    </p>
+                    
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">
+                        <i class="bi bi-house me-2"></i>Zurück zur Startseite
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
