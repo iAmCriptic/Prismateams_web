@@ -156,7 +156,7 @@
       "enter_email": "Bitte geben Sie Ihre E-Mail-Adresse ein.",
       "password_reset_email_sent": "Falls ein Konto mit dieser E-Mail-Adresse existiert, wurde ein Reset-Code gesendet.",
       "invalid_reset_code": "Ungültiger oder abgelaufener Reset-Code.",
-      "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden."
+      "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden.",
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt."
@@ -1171,16 +1171,27 @@
         "dropbox_disable": "Briefkasten wirklich deaktivieren?"
       },
       "errors": {
-        "file_type_not_supported": "Dateityp nicht unterstützt"
+        "file_type_not_supported": "Dateityp nicht unterstützt",
+        "move_guest_not_allowed": "Gast-Accounts können keine Dateien oder Ordner verschieben.",
+        "move_invalid_request": "Ungültige Verschiebe-Anfrage.",
+        "move_invalid_target": "Ungültiger Zielordner.",
+        "move_target_not_found": "Zielordner wurde nicht gefunden.",
+        "move_item_not_found": "Element wurde nicht gefunden.",
+        "move_cycle_folder": "Ein Ordner kann nicht in sich selbst oder einen Unterordner verschoben werden.",
+        "move_name_conflict": "Im Zielordner existiert bereits eine Datei mit diesem Namen."
       },
       "messages": {
         "upload_error": "Fehler beim Hochladen der Dateien.",
         "upload_folder_error": "Fehler beim Hochladen des Ordners.",
+        "upload_drag_error": "Fehler beim Drag-&-Drop Upload.",
         "select_prompt": "Bitte wählen Sie eine Datei oder einen Ordner aus.",
         "progress": "Lade...",
         "file_details_error": "Fehler beim Laden der Datei-Details",
         "settings_error": "Fehler beim Laden der Einstellungen",
-        "file_too_large": "Die Datei ist zu groß. Maximale Größe: 100MB pro Datei"
+        "file_too_large": "Die Datei ist zu groß. Maximale Größe: 100MB pro Datei",
+        "drag_to_move": "Zum Verschieben ziehen",
+        "move_success": "Element wurde verschoben.",
+        "move_error": "Element konnte nicht verschoben werden."
       }
     },
     "onlyoffice": {

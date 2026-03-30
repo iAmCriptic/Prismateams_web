@@ -192,6 +192,24 @@ def truncate_filename(filename, max_length=500):
         return filename[:max_length]
 
 
+def _is_placeholder_imap_config(imap_server, username, password):
+    """Return True if IMAP config still contains example/placeholder values."""
+    values = [str(v).strip().lower() for v in (imap_server, username, password) if v]
+    if not values:
+        return True
+
+    placeholder_markers = (
+        'example.com',
+        'imap.example.com',
+        'smtp.example.com',
+        'your-',
+        'your_',
+        'changeme',
+        'change-me',
+    )
+    return any(any(marker in value for marker in placeholder_markers) for value in values)
+
+
 def connect_imap(folder='INBOX'):
     """Connect to IMAP server with robust error handling.
     
@@ -209,8 +227,19 @@ def connect_imap(folder='INBOX'):
         password = current_app.config.get('MAIL_PASSWORD')
         
         if not all([imap_server, username, password]):
-            logging.error("IMAP configuration missing - check .env file")
-            logging.error(f"IMAP_SERVER: {imap_server is not None}, MAIL_USERNAME: {username is not None}, MAIL_PASSWORD: {password is not None}")
+            logging.warning("IMAP-Konfiguration unvollständig - E-Mail-Sync wird übersprungen")
+            logging.debug(
+                "IMAP_SERVER gesetzt: %s, MAIL_USERNAME gesetzt: %s, MAIL_PASSWORD gesetzt: %s",
+                bool(imap_server),
+                bool(username),
+                bool(password),
+            )
+            return None
+
+        if _is_placeholder_imap_config(imap_server, username, password):
+            logging.warning(
+                "IMAP-Konfiguration enthält Platzhalterwerte (z. B. *.example.com) - E-Mail-Sync wird übersprungen"
+            )
             return None
         
         logging.debug(f"Connecting to IMAP server: {imap_server}:{imap_port} (SSL: {imap_use_ssl})")
@@ -1547,6 +1576,17 @@ def sync_emails_from_server():
     logging.info("E-Mail-Synchronisation wird gestartet")
     
     try:
+        # Frühzeitiger Abbruch bei fehlender/platzhalterhafter IMAP-Konfiguration,
+        # um wiederholte Fehler pro Ordner zu vermeiden.
+        imap_server = current_app.config.get('IMAP_SERVER')
+        username = current_app.config.get('MAIL_USERNAME')
+        password = current_app.config.get('MAIL_PASSWORD')
+        if _is_placeholder_imap_config(imap_server, username, password):
+            message = "IMAP ist nicht konfiguriert (Platzhalterwerte erkannt) - Synchronisation übersprungen"
+            logging.warning(message)
+            print(message)
+            return False, message
+
         # Synchronisiere zuerst die Ordner-Liste
         folder_success, folder_message = sync_imap_folders()
         if not folder_success:
