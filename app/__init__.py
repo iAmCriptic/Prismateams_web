@@ -586,19 +586,27 @@ def create_app(config_name='default'):
 
     @app.errorhandler(400)
     def bad_request(error):
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Bad request', 'message': str(error)}), 400
         return render_template('errors/400.html'), 400
     
     @app.errorhandler(403)
     def forbidden(error):
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Forbidden', 'message': str(error)}), 403
         return render_template('errors/403.html'), 403
     
     @app.errorhandler(404)
     def not_found(error):
         app.logger.warning(f"404 Not Found: {request.url}")
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Not found', 'path': request.path}), 404
         return render_template('errors/404.html'), 404
     
     @app.errorhandler(429)
     def too_many_requests(error):
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Too many requests', 'message': str(error)}), 429
         return render_template('errors/429.html'), 429
     
     @app.errorhandler(413)

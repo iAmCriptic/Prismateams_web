@@ -8,37 +8,50 @@ import base64
 from flask import current_app
 from cryptography.fernet import Fernet
 import os
+import base64 as std_base64
+import hashlib
 
 
 def get_encryption_key():
     """Holt oder erstellt den Verschlüsselungsschlüssel für TOTP-Secrets."""
-    # Versuche den Schlüssel aus der Umgebung zu holen
-    key = os.environ.get('TOTP_ENCRYPTION_KEY')
-    
-    if not key:
-        # Falls kein Schlüssel gesetzt ist, generiere einen (nur für Development)
-        # In Production sollte dieser in der .env gesetzt werden
-        key = Fernet.generate_key().decode()
+    # Versuche den Schlüssel aus der Umgebung zu holen.
+    # Wir akzeptieren auch Werte mit Anführungszeichen aus .env-Dateien.
+    env_key = os.environ.get('TOTP_ENCRYPTION_KEY')
+    if env_key:
+        normalized = env_key.strip().strip('"').strip("'")
         try:
-            from flask import current_app
-            current_app.logger.warning("TOTP_ENCRYPTION_KEY nicht gesetzt! Verwende temporären Schlüssel.")
-        except:
-            pass  # current_app nicht verfügbar
-    
-    # Stelle sicher, dass der Schlüssel die richtige Länge hat
-    if isinstance(key, str):
-        key = key.encode()
-    
-    # Falls der Schlüssel nicht 32 Bytes hat, generiere einen neuen
-    if len(key) != 44:  # Base64-encoded Fernet key ist 44 Zeichen
-        key = Fernet.generate_key()
+            key_bytes = normalized.encode()
+            # Validiert, dass es ein gültiger Fernet-Key ist
+            Fernet(key_bytes)
+            return key_bytes
+        except Exception:
+            try:
+                current_app.logger.warning(
+                    "TOTP_ENCRYPTION_KEY ist ungültig, verwende deterministischen Fallback-Key."
+                )
+            except Exception:
+                pass
+
+    # Stabiler Fallback: aus SECRET_KEY ableiten (statt Zufalls-Key pro Aufruf).
+    # So bleiben gespeicherte Secrets zwischen Requests/Neustarts entschlüsselbar.
+    secret_seed = os.environ.get('SECRET_KEY')
+    if not secret_seed:
         try:
-            from flask import current_app
-            current_app.logger.warning("TOTP_ENCRYPTION_KEY hat falsche Länge! Verwende neuen Schlüssel.")
-        except:
-            pass  # current_app nicht verfügbar
-    
-    return key
+            secret_seed = current_app.config.get('SECRET_KEY')
+        except Exception:
+            secret_seed = None
+
+    if not secret_seed:
+        secret_seed = 'prismateams-totp-fallback'
+        try:
+            current_app.logger.warning(
+                "Weder TOTP_ENCRYPTION_KEY noch SECRET_KEY gesetzt; verwende unsicheren Fallback."
+            )
+        except Exception:
+            pass
+
+    digest = hashlib.sha256(secret_seed.encode('utf-8')).digest()
+    return std_base64.urlsafe_b64encode(digest)
 
 
 def encrypt_secret(secret):
