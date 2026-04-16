@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Lageplan Editor{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Lageplan verwalten</h1>
+    <div class="card mb-3">
+        <div class="card-body">
+            <form id="uploadForm" class="row g-2">
+                <div class="col-md-5"><input class="form-control" name="name" placeholder="Planname" required></div>
+                <div class="col-md-5"><input class="form-control" type="file" name="file" accept="image/*" required></div>
+                <div class="col-md-2"><button class="btn btn-accent w-100">Upload</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="plans" class="row g-3"></div>
+</div>
+<script src="{{ url_for('static', filename='js/assessment/manage_plan_konva.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Besucherbewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="h4 mb-3">Bewerte {{ stand.name }}</h1>
+                    <div id="fields" class="row g-2">
+                        {% for c in criteria %}
+                        <div class="col-md-6">
+                            <label class="form-label">{{ c.name }} (0-{{ c.max_score }})</label>
+                            <input type="number" class="form-control score" data-id="{{ c.id }}" min="0" max="{{ c.max_score }}" value="0">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn btn-accent mt-3" onclick="submitRating()">Absenden</button>
+                    <p id="status" class="text-muted mt-2 mb-0"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+async function submitRating() {
+    const scores = {};
+    document.querySelectorAll('.score').forEach(el => scores[el.dataset.id] = Number(el.value || 0));
+    const res = await fetch(location.pathname, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({scores})});
+    const data = await res.json();
+    document.getElementById('status').textContent = data.message || '';
+}
+</script>
+{% endblock %}

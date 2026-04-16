@@ -65,6 +65,7 @@ def register_meta_routes(api_bp, require_api_auth):
             "module_wiki",
             "module_booking",
             "module_music",
+            "module_assessment",
         ]
 
         global_active, user_accessible, module_details = [], [], []

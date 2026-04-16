@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -209,6 +209,13 @@ def create_app(config_name='default'):
         """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
         from flask import request, redirect, url_for, flash
         from flask_login import current_user
+
+        if session.get('user_scope') == 'assessment':
+            if request.path.startswith('/assessment'):
+                return
+            if request.endpoint in {'auth.login', 'auth.logout', 'manifest', 'static', 'assessment.map.serve_uploaded_plans', 'assessment.admin_settings.serve_branding_file'}:
+                return
+            return redirect(url_for('assessment.general.home'))
         
         # WICHTIG: Socket.IO-Requests ausschließen (verhindert 401-Fehler)
         # Socket.IO verwendet /socket.io/ als Pfad und hat keinen normalen Endpoint
@@ -247,9 +254,15 @@ def create_app(config_name='default'):
             return redirect(url_for('auth.confirm_email'))
     
     from app.models.user import User
+    from app.models.assessment import AssessmentUser
     
     @login_manager.user_loader
     def load_user(user_id):
+        if isinstance(user_id, str) and user_id.startswith('ass:'):
+            raw_id = user_id.split(':', 1)[1]
+            if raw_id.isdigit():
+                return AssessmentUser.query.get(int(raw_id))
+            return None
         return User.query.get(int(user_id))
     
     from app.utils.i18n import init_i18n
@@ -269,6 +282,9 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'bookings'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'booking_forms'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'veranstaltungen'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'floor_plans'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'branding'),
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
@@ -672,6 +688,7 @@ def create_app(config_name='default'):
     from app.blueprints.booking import booking_bp
     from app.blueprints.music import music_bp
     from app.blueprints.sse import sse_bp
+    from app.blueprints.assessment import assessment_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -692,6 +709,7 @@ def create_app(config_name='default'):
     app.register_blueprint(booking_bp, url_prefix='/booking')
     app.register_blueprint(music_bp)
     app.register_blueprint(sse_bp, url_prefix='/sse')
+    app.register_blueprint(assessment_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -797,6 +815,23 @@ def create_app(config_name='default'):
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
                 from app.models.user_session import UserSession
+                from app.models.assessment import (
+                    AssessmentUser,
+                    AssessmentRole,
+                    AssessmentUserRole,
+                    AssessmentRoom,
+                    AssessmentStand,
+                    AssessmentCriterion,
+                    AssessmentEvaluation,
+                    AssessmentEvaluationScore,
+                    AssessmentVisitorEvaluation,
+                    AssessmentVisitorEvaluationScore,
+                    AssessmentWarning,
+                    AssessmentRoomInspection,
+                    AssessmentAppSetting,
+                    AssessmentFloorPlan,
+                    AssessmentFloorPlanObject,
+                )
                 
                 # Prüfe welche Tabellen bereits existieren
                 from sqlalchemy import inspect, text
@@ -979,6 +1014,67 @@ def create_app(config_name='default'):
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
                     print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+
+                try:
+                    from sqlalchemy import inspect, text
+                    from app.models.assessment import (
+                        AssessmentAppSetting,
+                        AssessmentRole,
+                        AssessmentUser,
+                    )
+
+                    inspector = inspect(db.engine)
+                    dialect = db.engine.dialect.name
+                    existing_tables = set(inspector.get_table_names())
+
+                    if 'ass_users' in existing_tables:
+                        user_columns = {col['name'] for col in inspector.get_columns('ass_users')}
+                        if 'theme_mode' not in user_columns:
+                            print("[INFO] Ergänze ass_users.theme_mode ...")
+                            stmt = "ALTER TABLE ass_users ADD COLUMN theme_mode VARCHAR(16) NOT NULL DEFAULT 'light'"
+                            with db.engine.begin() as connection:
+                                connection.execute(text(stmt))
+                            print("[OK] ass_users.theme_mode hinzugefügt")
+
+                    default_roles = ['Administrator', 'Bewerter', 'Betrachter', 'Inspektor', 'Verwarner']
+                    role_map = {}
+                    for role_name in default_roles:
+                        role = AssessmentRole.query.filter_by(name=role_name).first()
+                        if not role:
+                            role = AssessmentRole(name=role_name)
+                            db.session.add(role)
+                            db.session.flush()
+                        role_map[role_name] = role
+
+                    admin = AssessmentUser.query.filter_by(username='admin').first()
+                    if not admin:
+                        admin = AssessmentUser(
+                            username='admin',
+                            display_name='Administrator',
+                            is_admin=True,
+                            must_change_password=True,
+                            is_active=True,
+                        )
+                        admin.set_password('password')
+                        db.session.add(admin)
+                        db.session.flush()
+                    if role_map['Administrator'] not in admin.roles:
+                        admin.roles.append(role_map['Administrator'])
+
+                    assessment_defaults = {
+                        'welcome_title': 'Willkommen im Bewertungstool',
+                        'welcome_subtitle': 'Bewerten, Ränge prüfen und Verwaltung – alles an einem Ort.',
+                        'module_label': 'Bewertung',
+                        'ranking_active_mode': 'standard',
+                        'ranking_sort_mode': 'total',
+                    }
+                    for key, value in assessment_defaults.items():
+                        if not AssessmentAppSetting.query.filter_by(setting_key=key).first():
+                            db.session.add(AssessmentAppSetting(setting_key=key, setting_value=value))
+                    db.session.commit()
+                except Exception as assessment_error:
+                    db.session.rollback()
+                    print(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
                 
                 from app.models.email import EmailFolder
                 
@@ -1005,6 +1101,13 @@ def create_app(config_name='default'):
                 from app.models.chat import Chat
                 from app.models.user import User
                 from sqlalchemy import inspect, text
+                
+                if not SystemSettings.query.filter_by(key='module_assessment').first():
+                    db.session.add(SystemSettings(
+                        key='module_assessment',
+                        value='True',
+                        description='Modul module_assessment aktiviert'
+                    ))
                 
                 if not SystemSettings.query.filter_by(key='email_footer_text').first():
                     footer = SystemSettings(

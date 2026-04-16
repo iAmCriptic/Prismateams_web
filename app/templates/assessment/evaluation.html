@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Bewertung abgeben{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Stand bewerten</h1>
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Stand</label>
+                <select class="form-select" id="stand"></select>
+            </div>
+            <div id="criteria" class="row g-2"></div>
+            <button class="btn btn-accent mt-3" onclick="submitEval()">Speichern</button>
+            <p class="text-muted mt-2 mb-0" id="status"></p>
+        </div>
+    </div>
+</div>
+<script>
+let criteria = [];
+async function loadData() {
+    const res = await fetch('/assessment/api/evaluate');
+    const data = await res.json();
+    document.getElementById('stand').innerHTML = (data.stands || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    criteria = data.criteria || [];
+    document.getElementById('criteria').innerHTML = criteria.map(c => `
+        <div class="col-md-6">
+            <label class="form-label">${c.name} (0-${c.max_score})</label>
+            <input class="form-control" id="criterion_${c.id}" type="number" min="0" max="${c.max_score}" value="0">
+        </div>
+    `).join('');
+}
+async function submitEval() {
+    const scores = {};
+    criteria.forEach(c => scores[c.id] = Number(document.getElementById(`criterion_${c.id}`).value || 0));
+    const payload = {stand_id: Number(document.getElementById('stand').value), scores};
+    const res = await fetch('/assessment/api/evaluate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    const data = await res.json();
+    document.getElementById('status').textContent = data.message || 'Gespeichert';
+}
+loadData();
+</script>
+{% endblock %}

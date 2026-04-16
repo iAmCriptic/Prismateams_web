@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Kriterienverwaltung - Bewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Kriterienverwaltung</h1>
+        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neues Kriterium anlegen</h2>
+            <form id="criterionForm">
+                <input type="hidden" name="id" id="criterionId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Kriterienname</label>
+                        <input class="form-control" name="name" id="criterionName" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Max. Punktzahl</label>
+                        <input type="number" min="1" class="form-control" name="max_score" id="criterionMax" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Beschreibung <small class="text-muted">(HTML erlaubt: &lt;b&gt;, &lt;i&gt;, &lt;u&gt;)</small></label>
+                        <textarea class="form-control" name="description" id="criterionDescription" rows="3" placeholder="Verwenden Sie HTML-Tags wie <b>, <i>, <u> für Formatierung."></textarea>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>Abbrechen</button>
+                    <button type="submit" class="btn btn-accent" id="saveBtn"><i class="bi bi-save me-1"></i>Kriterium anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Kriterien per Excel hochladen</h2>
+            <form id="excelForm">
+                <div class="mb-3">
+                    <label class="form-label">Excel-Datei auswählen (.xlsx)</label>
+                    <input type="file" class="form-control" accept=".xlsx" name="file" required>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success"><i class="bi bi-upload me-1"></i>Excel hochladen</button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('assessment.excel_uploads.download_sample', which='criteria') }}">
+                        <i class="bi bi-download me-1"></i>Beispiel-Excel herunterladen
+                    </a>
+                </div>
+                <p class="text-muted small mt-2 mb-0">Pflicht-Spalten: <code>Name</code>, <code>Maximale Punktzahl</code>, <code>Beschreibung</code></p>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Kriterien</h2>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead><tr><th>Name</th><th class="text-center">Max</th><th>Beschreibung</th><th class="text-end">Aktion</th></tr></thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const form = document.getElementById('criterionForm');
+const resetBtn = document.getElementById('resetFormBtn');
+const saveBtn = document.getElementById('saveBtn');
+
+async function loadCriteria() {
+    const res = await fetch('/assessment/api/criteria');
+    const data = await res.json();
+    document.getElementById('rows').innerHTML = (data.criteria || []).map(c => `
+        <tr>
+            <td>${escapeHtml(c.name)}</td>
+            <td class="text-center">${c.max_score}</td>
+            <td>${c.description ? c.description : ''}</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary" onclick='editCriterion(${JSON.stringify(c)})'><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCriterion(${c.id})"><i class="bi bi-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function editCriterion(c) {
+    document.getElementById('criterionId').value = c.id;
+    document.getElementById('criterionName').value = c.name;
+    document.getElementById('criterionMax').value = c.max_score;
+    document.getElementById('criterionDescription').value = c.description || '';
+    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
+    resetBtn.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetForm() {
+    form.reset();
+    document.getElementById('criterionId').value = '';
+    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Kriterium anlegen';
+    resetBtn.hidden = true;
+}
+
+resetBtn.addEventListener('click', resetForm);
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    payload.max_score = Number(payload.max_score);
+    const id = payload.id;
+    delete payload.id;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/assessment/api/criteria/${id}` : '/assessment/api/criteria';
+    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    resetForm();
+    loadCriteria();
+});
+
+async function deleteCriterion(id) {
+    if (!confirm('Kriterium wirklich löschen?')) return;
+    await fetch(`/assessment/api/criteria/${id}`, { method: 'DELETE' });
+    loadCriteria();
+}
+
+document.getElementById('excelForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
+    const data = await res.json();
+    alert(data.message || 'Fertig');
+    e.target.reset();
+    loadCriteria();
+});
+
+loadCriteria();
+</script>
+{% endblock %}

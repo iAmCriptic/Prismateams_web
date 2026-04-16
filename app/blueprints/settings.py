@@ -328,7 +328,8 @@ def admin_users():
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
-        ('module_music', 'Musik')
+        ('module_music', 'Musik'),
+        ('module_assessment', 'Bewertung')
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -476,7 +477,7 @@ def create_user():
                         all_modules = [
                             'module_chat', 'module_files', 'module_calendar', 'module_email',
                             'module_credentials', 'module_manuals',
-                            'module_inventory', 'module_wiki', 'module_booking', 'module_music'
+                            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment'
                         ]
                         
                         for module_key in all_modules:
@@ -720,7 +721,7 @@ def create_user():
             # Diese werden automatisch über Freigabelinks/Chats gesteuert
             allowed_modules = [
                 'module_calendar',
-                'module_manuals', 'module_inventory', 'module_wiki', 'module_music'
+                'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment'
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -771,7 +772,8 @@ def create_user():
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_music', 'Musik')
+        ('module_music', 'Musik'),
+        ('module_assessment', 'Bewertung')
     ]
     
     # Hole alle verfügbaren Freigabelinks
@@ -959,7 +961,7 @@ def edit_guest_user(user_id):
         # Erlaubte Module für Gäste
         allowed_modules = [
             'module_calendar',
-            'module_manuals', 'module_inventory', 'module_wiki', 'module_music'
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment'
         ]
         
         # Entferne alle bestehenden Modul-Rollen (außer automatisch gesetzte)
@@ -1118,7 +1120,8 @@ def edit_guest_user(user_id):
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_music', 'Musik')
+        ('module_music', 'Musik'),
+        ('module_assessment', 'Bewertung')
     ]
     
     # Hole alle verfügbaren Freigabelinks
@@ -1511,7 +1514,8 @@ def admin_modules():
             'module_inventory': request.form.get('module_inventory') == 'on',
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
-            'module_music': request.form.get('module_music') == 'on'
+            'module_music': request.form.get('module_music') == 'on',
+            'module_assessment': request.form.get('module_assessment') == 'on'
         }
         
         for module_key, enabled in modules.items():
@@ -1537,6 +1541,7 @@ def admin_modules():
     module_wiki_enabled = is_module_enabled('module_wiki')
     module_booking_enabled = is_module_enabled('module_booking')
     module_music_enabled = is_module_enabled('module_music')
+    module_assessment_enabled = is_module_enabled('module_assessment')
     
     return render_template('settings/admin_modules.html',
                            module_chat_enabled=module_chat_enabled,
@@ -1548,7 +1553,54 @@ def admin_modules():
                            module_inventory_enabled=module_inventory_enabled,
                            module_wiki_enabled=module_wiki_enabled,
                            module_booking_enabled=module_booking_enabled,
-                           module_music_enabled=module_music_enabled)
+                           module_music_enabled=module_music_enabled,
+                           module_assessment_enabled=module_assessment_enabled)
+
+
+@settings_bp.route('/admin/modules/assessment-admin', methods=['POST'])
+@login_required
+def admin_modules_create_assessment_admin():
+    """Schnellanlegen eines Assessment-Modul-Administrators (nur Portal-Admins)."""
+    from flask import jsonify
+
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Nur Portal-Administratoren.'}), 403
+
+    from app.models.assessment import AssessmentRole, AssessmentUser
+
+    data = request.get_json(silent=True) or {}
+    username = (data.get('username') or '').strip().lower()
+    display_name = (data.get('display_name') or '').strip()
+    password = (data.get('password') or '').strip()
+
+    if not username or not display_name or not password:
+        return jsonify({'success': False, 'message': 'Bitte alle Felder ausfüllen.'}), 400
+    if '@' in username:
+        return jsonify({'success': False, 'message': 'Der Benutzername darf kein @ enthalten.'}), 400
+    if len(password) < 8:
+        return jsonify({'success': False, 'message': 'Passwort muss mindestens 8 Zeichen haben.'}), 400
+    if AssessmentUser.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'message': 'Benutzername existiert bereits.'}), 409
+
+    admin_role = AssessmentRole.query.filter_by(name='Administrator').first()
+    if not admin_role:
+        admin_role = AssessmentRole(name='Administrator')
+        db.session.add(admin_role)
+        db.session.flush()
+
+    user = AssessmentUser(
+        username=username,
+        display_name=display_name,
+        is_admin=True,
+        is_active=True,
+        must_change_password=False,
+    )
+    user.set_password(password)
+    user.roles = [admin_role]
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': f"Assessment-Admin '{username}' wurde erfolgreich angelegt."})
 
 
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])
@@ -2108,7 +2160,7 @@ def admin_roles_user_update(user_id):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_music'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment'
         ]
         
         # Aktualisiere Modul-Rollen
@@ -2197,7 +2249,8 @@ def admin_roles_default():
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
-        ('module_music', 'Musik')
+        ('module_music', 'Musik'),
+        ('module_assessment', 'Bewertung')
     ]
     
     if request.method == 'POST':

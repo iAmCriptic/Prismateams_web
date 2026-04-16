@@ -127,7 +127,7 @@ def register():
                     all_modules = [
                         'module_chat', 'module_files', 'module_calendar', 'module_email',
                         'module_credentials', 'module_manuals',
-                        'module_inventory', 'module_wiki', 'module_booking', 'module_music'
+                        'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment'
                     ]
                     
                     for module_key in all_modules:
@@ -195,7 +195,8 @@ def login():
         return redirect(url_for('dashboard.index'))
     
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
+        login_input = request.form.get('email', '').strip()
+        email = login_input.lower()
         password = request.form.get('password', '')
         remember = request.form.get('remember', False) == 'on'
         totp_code = request.form.get('totp_code', '').strip()
@@ -204,6 +205,27 @@ def login():
             flash(translate('auth.flash.enter_email_password'), 'danger')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
+        # Assessment-Login: gleicher Login-Endpunkt, aber Username statt E-Mail.
+        if '@' not in login_input:
+            from app.models.assessment import AssessmentUser
+
+            assessment_user = AssessmentUser.query.filter_by(username=login_input.lower()).first()
+            if not assessment_user or not assessment_user.check_password(password):
+                flash('Ungültiger Benutzername oder Passwort.', 'danger')
+                return render_template('auth/login.html', color_gradient=get_color_gradient())
+
+            if not assessment_user.is_active:
+                flash('Konto ist deaktiviert.', 'warning')
+                return render_template('auth/login.html', color_gradient=get_color_gradient())
+
+            assessment_user.last_login = datetime.utcnow()
+            db.session.commit()
+            login_user(assessment_user, remember=remember)
+            session['user_scope'] = 'assessment'
+            if assessment_user.must_change_password:
+                return redirect(url_for('assessment.auth.admin_setup'))
+            return redirect(url_for('assessment.general.home'))
+
         # Unterstütze @gast.system.local Format für Gast-Accounts
         user = None
         if email.endswith('@gast.system.local'):
@@ -290,6 +312,7 @@ def login():
         
         # Log user in
         login_user(user, remember=remember)
+        session['user_scope'] = 'portal'
         
         # Erstelle Session für Session-Management
         create_session(user.id)
@@ -625,6 +648,7 @@ def logout():
     if session_id:
         revoke_session_by_id(session_id)
     
+    session.pop('user_scope', None)
     logout_user()
     flash(translate('auth.flash.logout_success'), 'success')
     return redirect(url_for('auth.login'))

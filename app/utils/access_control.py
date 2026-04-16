@@ -23,9 +23,13 @@ def has_module_access(user, module_key):
     if hasattr(user, 'is_guest') and user.is_guest:
         if module_key in ['module_email', 'module_credentials']:
             return False
+
+    # Assessment-Accounts dürfen ausschließlich auf ihr Modul zugreifen.
+    if user.__class__.__name__ == 'AssessmentUser':
+        return module_key == 'module_assessment'
     
     # Hauptadministrator und Administrator haben immer Zugriff
-    if user.is_super_admin or user.is_admin:
+    if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
         return True
     
     # Prüfe ob Modul überhaupt aktiviert ist
@@ -94,11 +98,11 @@ def get_accessible_modules(user):
         Liste von Modul-Schlüsseln (z.B. ['module_chat', 'module_files'])
     """
     # Hauptadministrator und Administrator haben Zugriff auf alle aktivierten Module
-    if user.is_super_admin or user.is_admin:
+    if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_assessment'
         ]
         return [m for m in all_modules if is_module_enabled(m)]
     
@@ -116,7 +120,7 @@ def get_accessible_modules(user):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_assessment'
         ]
         return [m for m in all_modules if is_module_enabled(m)]
     
@@ -126,13 +130,13 @@ def get_accessible_modules(user):
     if is_guest:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar',
-            'module_manuals', 'module_inventory', 'module_wiki', 'module_music'
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment'
         ]
     else:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_assessment'
         ]
     
     for module_key in all_modules:

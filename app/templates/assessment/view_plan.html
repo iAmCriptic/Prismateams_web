@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Lageplan{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Lageplan</h1>
+    <div id="activePlan" class="card">
+        <div class="card-body text-muted">Lädt...</div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/assessment/view_plan_konva.js') }}"></script>
+{% endblock %}

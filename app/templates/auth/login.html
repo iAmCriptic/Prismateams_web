@@ -22,8 +22,9 @@
                 
                 <form method="POST">
                     <div class="mb-3">
-                        <label for="email" class="form-label">{{ _('auth.login.email') }}</label>
-                        <input type="email" class="form-control" id="email" name="email" required autofocus>
+                        <label for="email" class="form-label">E-Mail oder Benutzername</label>
+                        <input type="text" class="form-control" id="email" name="email" autocomplete="username" required autofocus>
+                        <div class="form-text">E-Mail-Adresse für Portal-Login oder Benutzername für das Bewertungs-Modul.</div>
                     </div>
                     
                     <div class="mb-3">

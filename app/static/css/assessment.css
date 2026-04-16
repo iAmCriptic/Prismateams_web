@@ -1,0 +1,91 @@
+/* Assessment-Modul: moderner Look für Light / Dark / OLED */
+.assessment-scope .card {
+    border-radius: 14px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.assessment-scope .card.shadow-sm {
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+.assessment-scope .card.shadow-sm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1) !important;
+}
+
+.assessment-scope .display-5 {
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.08));
+}
+
+.assessment-scope .btn-accent,
+.assessment-scope .btn-primary {
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
+}
+
+/* Dark Mode */
+[data-bs-theme="dark"] .assessment-scope .card {
+    background-color: #111827;
+    border-color: #1f2937;
+    color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .assessment-scope .card.shadow-sm {
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-bs-theme="dark"] .assessment-scope .card .text-muted {
+    color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .assessment-scope .table {
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: rgba(255,255,255,0.04);
+    color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .assessment-scope .form-control,
+[data-bs-theme="dark"] .assessment-scope .form-select {
+    background-color: #1f2937;
+    border-color: #334155;
+    color: #e5e7eb;
+}
+
+/* OLED */
+[data-oled-mode="true"] .assessment-scope,
+[data-oled-mode="true"] body.assessment-scope,
+[data-oled-mode="true"] .assessment-scope .main-content {
+    background-color: #000 !important;
+}
+
+[data-oled-mode="true"] .assessment-scope .card {
+    background-color: #050505 !important;
+    border-color: #1a1a1a !important;
+}
+
+[data-oled-mode="true"] .assessment-scope .sidebar {
+    background-color: #000 !important;
+}
+
+[data-oled-mode="true"] .assessment-scope .form-control,
+[data-oled-mode="true"] .assessment-scope .form-select,
+[data-oled-mode="true"] .assessment-scope .input-group-text {
+    background-color: #0a0a0a;
+    border-color: #1f1f1f;
+    color: #e5e7eb;
+}
+
+/* Sidebar & Nav */
+[data-bs-theme="dark"] .assessment-scope .sidebar {
+    background-color: #0f172a !important;
+}
+
+.assessment-scope #assessmentThemeToggle .btn.active {
+    background-color: var(--accent-color, #0d6efd);
+    color: #fff;
+    border-color: var(--accent-color, #0d6efd);
+}
+
+.assessment-scope .nav-pills .nav-link.active {
+    background-color: var(--accent-color, #0d6efd);
+    color: #fff;
+}

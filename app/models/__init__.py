@@ -16,6 +16,23 @@ from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
 from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
+from .assessment import (
+    AssessmentUser,
+    AssessmentRole,
+    AssessmentUserRole,
+    AssessmentRoom,
+    AssessmentStand,
+    AssessmentCriterion,
+    AssessmentEvaluation,
+    AssessmentEvaluationScore,
+    AssessmentVisitorEvaluation,
+    AssessmentVisitorEvaluationScore,
+    AssessmentWarning,
+    AssessmentRoomInspection,
+    AssessmentAppSetting,
+    AssessmentFloorPlan,
+    AssessmentFloorPlanObject,
+)
 
 __all__ = [
     'User', 'UserSession',
@@ -34,7 +51,13 @@ __all__ = [
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
     'Comment', 'CommentMention',
     'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings',
-    'GuestShareAccess'
+    'GuestShareAccess',
+    'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',
+    'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
+    'AssessmentEvaluation', 'AssessmentEvaluationScore',
+    'AssessmentVisitorEvaluation', 'AssessmentVisitorEvaluationScore',
+    'AssessmentWarning', 'AssessmentRoomInspection',
+    'AssessmentAppSetting', 'AssessmentFloorPlan', 'AssessmentFloorPlanObject'
 ]
 
 

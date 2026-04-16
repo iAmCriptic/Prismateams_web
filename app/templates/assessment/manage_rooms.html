@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Raumverwaltung - Bewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Raumverwaltung</h1>
+        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neuen Raum anlegen</h2>
+            <form id="roomForm" class="row g-2 align-items-end">
+                <input type="hidden" id="roomId">
+                <div class="col-md-9">
+                    <label class="form-label">Raumname</label>
+                    <input id="roomName" class="form-control" required>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>Abbrechen</button>
+                    <button class="btn btn-accent w-100" id="saveBtn"><i class="bi bi-save me-1"></i>Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-door-open me-2"></i>Vorhandene Räume</h2>
+            <ul class="list-group list-group-flush" id="rows"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+const form = document.getElementById('roomForm');
+const resetBtn = document.getElementById('resetFormBtn');
+const saveBtn = document.getElementById('saveBtn');
+
+function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadRooms() {
+    const res = await fetch('/assessment/api/rooms');
+    const data = await res.json();
+    document.getElementById('rows').innerHTML = (data.rooms || []).map(r => `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>${escapeHtml(r.name)}</span>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick='editRoom(${JSON.stringify(r)})'><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRoom(${r.id})"><i class="bi bi-trash"></i></button>
+            </div>
+        </li>
+    `).join('');
+}
+
+function editRoom(r) {
+    document.getElementById('roomId').value = r.id;
+    document.getElementById('roomName').value = r.name;
+    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
+    resetBtn.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetForm() {
+    form.reset();
+    document.getElementById('roomId').value = '';
+    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Speichern';
+    resetBtn.hidden = true;
+}
+
+resetBtn.addEventListener('click', resetForm);
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('roomId').value;
+    const name = document.getElementById('roomName').value.trim();
+    if (!name) return;
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/assessment/api/rooms/${id}` : '/assessment/api/rooms';
+    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name}) });
+    resetForm();
+    loadRooms();
+});
+
+async function deleteRoom(id) {
+    if (!confirm('Raum wirklich löschen? Bestehende Stände werden vom Raum gelöst.')) return;
+    await fetch(`/assessment/api/rooms/${id}`, { method: 'DELETE' });
+    loadRooms();
+}
+
+loadRooms();
+</script>
+{% endblock %}
