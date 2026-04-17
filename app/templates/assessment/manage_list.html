@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Reset - Bewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Daten zurücksetzen</h1>
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-danger" data-action="reset_ranking">Rangliste zurücksetzen</button>
+                <button class="btn btn-outline-danger" data-action="reset_room_inspections">Inspektionen zurücksetzen</button>
+                <button class="btn btn-outline-danger" data-action="reset_warnings">Verwarnungen zurücksetzen</button>
+            </div>
+            <p class="text-muted mt-3 mb-0" id="status"></p>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('button[data-action]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+        const result = await fetch('/assessment/api/reset_data', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: btn.dataset.action })
+        });
+        const data = await result.json();
+        document.getElementById('status').textContent = data.message || 'Fertig';
+    });
+});
+</script>
+{% endblock %}

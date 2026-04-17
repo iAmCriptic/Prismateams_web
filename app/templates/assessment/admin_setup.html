@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Admin Setup - Bewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="h4 mb-3">Administratorkonto einrichten</h1>
+                    <form id="adminSetupForm">
+                        <div class="mb-3">
+                            <label class="form-label">Anzeigename</label>
+                            <input class="form-control" name="display_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Neues Passwort</label>
+                            <input type="password" class="form-control" name="new_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Passwort bestätigen</label>
+                            <input type="password" class="form-control" name="confirm_password" required>
+                        </div>
+                        <button class="btn btn-accent w-100">Speichern</button>
+                    </form>
+                    <p class="text-muted mt-3 mb-0" id="status"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('adminSetupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const payload = Object.fromEntries(form.entries());
+    const res = await fetch('/assessment/admin_setup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    document.getElementById('status').textContent = data.message || 'Gespeichert';
+    if (data.success) window.location.href = '/assessment/home';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "assessment/print_base.html" %}
+{% block title %}Bewertung: {{ stand.name if stand else '—' }}{% endblock %}
+
+{% block document_title %}Bewertungsbogen{% endblock %}
+{% block document_subtitle %}<small>{{ stand.name if stand else 'Stand unbekannt' }}</small>{% endblock %}
+{% block document_meta %}{% if evaluation.timestamp %}<div>Zeitpunkt: {{ evaluation.timestamp.strftime('%d.%m.%Y %H:%M') }}</div>{% endif %}{% endblock %}
+
+{% block print_content %}
+<div class="print-section-title">Bewertung nach Kriterien</div>
+<table class="print-table">
+    <thead>
+        <tr>
+            <th style="width:48px">Nr.</th>
+            <th>Kriterium</th>
+            <th style="width:110px" class="text-center">Punkte</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set total_ns = namespace(value=0) %}
+        {% for item in score_rows %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ item.name }}</td>
+                <td class="text-center">{{ item.score }}</td>
+            </tr>
+            {% set total_ns.value = total_ns.value + item.score %}
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <th colspan="2" class="text-end">Gesamtpunktzahl</th>
+            <th class="text-center">{{ total_ns.value }}</th>
+        </tr>
+    </tfoot>
+</table>
+{% endblock %}
+
+{% block footer_left %}Bewertungs-Nr.: {{ evaluation.id }}{% endblock %}

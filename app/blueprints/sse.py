@@ -23,6 +23,9 @@ _redis_url = None  # Wird beim ersten Aufruf gesetzt
 def get_redis_client():
     """Lazy-load Redis client."""
     global _redis_client, _redis_url
+    if has_app_context() and not current_app.config.get('REDIS_ENABLED', False):
+        return None
+
     if _redis_client is None:
         with _redis_lock:
             if _redis_client is None:

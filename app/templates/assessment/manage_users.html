@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Benutzerverwaltung - Bewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Benutzerverwaltung</h1>
+        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-person-plus me-2"></i>Neuen Benutzer anlegen</h2>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Benutzername</label>
+                        <input class="form-control" name="username" id="userUsername" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Anzeigename</label>
+                        <input class="form-control" name="display_name" id="userDisplay" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Passwort <small class="text-muted" id="pwHint"></small></label>
+                        <input type="password" class="form-control" name="password" id="userPassword">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Rollen</label>
+                        <div id="rolesBox" class="d-flex flex-wrap gap-3"></div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>Abbrechen</button>
+                    <button type="submit" class="btn btn-accent" id="saveBtn"><i class="bi bi-save me-1"></i>Benutzer anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Benutzer per Excel hochladen</h2>
+            <form id="excelForm">
+                <div class="mb-3">
+                    <label class="form-label">Excel-Datei auswählen (.xlsx)</label>
+                    <input type="file" class="form-control" accept=".xlsx" name="file" required>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success"><i class="bi bi-upload me-1"></i>Excel hochladen</button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('assessment.excel_uploads.download_sample', which='users') }}">
+                        <i class="bi bi-download me-1"></i>Beispiel-Excel herunterladen
+                    </a>
+                </div>
+                <p class="text-muted small mt-2 mb-0">Pflicht-Spalten: <code>Benutzername</code>, <code>Password</code>, <code>Anzeigename</code>, <code>Rollen</code> (kommagetrennt).</p>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-people me-2"></i>Vorhandene Benutzer</h2>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead><tr><th>Benutzername</th><th>Anzeigename</th><th>Rollen</th><th class="text-end">Aktion</th></tr></thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let roles = [];
+const form = document.getElementById('userForm');
+const resetBtn = document.getElementById('resetFormBtn');
+const saveBtn = document.getElementById('saveBtn');
+const pwHint = document.getElementById('pwHint');
+
+function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadRoles() {
+    const res = await fetch('/assessment/api/roles');
+    const data = await res.json();
+    roles = data.roles || [];
+    document.getElementById('rolesBox').innerHTML = roles.map(r => `
+        <div class="form-check">
+            <input class="form-check-input role-check" type="checkbox" value="${r.id}" id="role_${r.id}">
+            <label class="form-check-label" for="role_${r.id}">${escapeHtml(r.name)}</label>
+        </div>
+    `).join('');
+}
+
+async function loadUsers() {
+    const res = await fetch('/assessment/api/users');
+    const data = await res.json();
+    document.getElementById('rows').innerHTML = (data.users || []).map(u => `
+        <tr>
+            <td>${escapeHtml(u.username)}</td>
+            <td>${escapeHtml(u.display_name)}</td>
+            <td>${(u.role_names || []).map(escapeHtml).join(', ')}</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary" onclick='editUser(${JSON.stringify(u)})'><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id})"><i class="bi bi-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function editUser(u) {
+    document.getElementById('userId').value = u.id;
+    document.getElementById('userUsername').value = u.username;
+    document.getElementById('userDisplay').value = u.display_name;
+    document.getElementById('userPassword').value = '';
+    pwHint.textContent = '(leer lassen = unverändert)';
+    document.querySelectorAll('.role-check').forEach(cb => cb.checked = (u.role_ids || []).includes(Number(cb.value)));
+    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
+    resetBtn.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetForm() {
+    form.reset();
+    document.getElementById('userId').value = '';
+    pwHint.textContent = '';
+    document.querySelectorAll('.role-check').forEach(cb => cb.checked = false);
+    saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Benutzer anlegen';
+    resetBtn.hidden = true;
+}
+
+resetBtn.addEventListener('click', resetForm);
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(form).entries());
+    payload.role_ids = [...document.querySelectorAll('.role-check:checked')].map(cb => Number(cb.value));
+    const id = document.getElementById('userId').value;
+    if (id) payload.id = Number(id);
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch('/assessment/api/users', { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!data.success) alert(data.message || 'Fehler');
+    resetForm();
+    loadUsers();
+});
+
+async function deleteUser(id) {
+    if (!confirm('Benutzer wirklich löschen?')) return;
+    await fetch('/assessment/api/users', { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id}) });
+    loadUsers();
+}
+
+document.getElementById('excelForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const res = await fetch('/assessment/api/import/users', { method: 'POST', body: fd });
+    const data = await res.json();
+    alert(data.message || 'Fertig');
+    e.target.reset();
+    loadUsers();
+});
+
+loadRoles().then(loadUsers);
+</script>
+{% endblock %}

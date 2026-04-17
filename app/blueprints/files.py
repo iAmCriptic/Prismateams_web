@@ -247,6 +247,119 @@ def rename_folder(folder_id):
         return redirect(url_for('files.browse_folder', folder_id=folder.parent_id))
     return redirect(url_for('files.index'))
 
+
+def _is_folder_descendant(candidate_folder, ancestor_folder_id):
+    """Check whether candidate_folder is a descendant of ancestor_folder_id."""
+    current = candidate_folder
+    while current:
+        if current.id == ancestor_folder_id:
+            return True
+        current = current.parent
+    return False
+
+
+@files_bp.route('/move', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def move_item():
+    """Move file or folder into another folder."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_guest_not_allowed')
+        }), 403
+
+    payload = request.get_json(silent=True) or request.form
+    item_type = (payload.get('item_type') or '').strip().lower()
+    item_id_raw = payload.get('item_id')
+    target_folder_raw = payload.get('target_folder_id')
+
+    if item_type not in {'file', 'folder'}:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_invalid_request')
+        }), 400
+
+    try:
+        item_id = int(item_id_raw)
+    except (TypeError, ValueError):
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_invalid_request')
+        }), 400
+
+    target_folder_id = None
+    if target_folder_raw not in (None, '', 'null'):
+        try:
+            target_folder_id = int(target_folder_raw)
+        except (TypeError, ValueError):
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_invalid_target')
+            }), 400
+
+    target_folder = None
+    if target_folder_id is not None:
+        target_folder = Folder.query.get(target_folder_id)
+        if not target_folder:
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_target_not_found')
+            }), 404
+
+    if item_type == 'file':
+        file = File.query.get(item_id)
+        if not file or not file.is_current:
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_item_not_found')
+            }), 404
+
+        if file.folder_id == target_folder_id:
+            return jsonify({'success': True, 'no_change': True}), 200
+
+        name_conflict = File.query.filter(
+            File.id != file.id,
+            File.name == file.name,
+            File.folder_id.is_(target_folder_id) if target_folder_id is None else File.folder_id == target_folder_id,
+            File.is_current == True
+        ).first()
+        if name_conflict:
+            return jsonify({
+                'success': False,
+                'error': translate('files.index.errors.move_name_conflict')
+            }), 409
+
+        file.folder_id = target_folder_id
+        db.session.commit()
+        return jsonify({'success': True}), 200
+
+    folder = Folder.query.get(item_id)
+    if not folder:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_item_not_found')
+        }), 404
+
+    if folder.id == target_folder_id:
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_cycle_folder')
+        }), 400
+
+    if target_folder and _is_folder_descendant(target_folder, folder.id):
+        return jsonify({
+            'success': False,
+            'error': translate('files.index.errors.move_cycle_folder')
+        }), 400
+
+    if folder.parent_id == target_folder_id:
+        return jsonify({'success': True, 'no_change': True}), 200
+
+    folder.parent_id = target_folder_id
+    db.session.commit()
+    return jsonify({'success': True}), 200
+
 @files_bp.route('/create-file', methods=['POST'])
 @login_required
 @check_module_access('module_files')
@@ -575,97 +688,71 @@ def upload_file():
                 return redirect(url_for('files.browse_folder', folder_id=folder_id))
             return redirect(url_for('files.index'))
     
-    # Single file upload
+    # Single/multi file upload
     if 'file' not in request.files:
         flash('Keine Datei ausgewählt.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
-    
-    file = request.files['file']
-    if file.filename == '':
+
+    uploaded_files = [f for f in request.files.getlist('file') if f and f.filename]
+    if not uploaded_files:
         flash('Keine Datei ausgewählt.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
-    
-    # Check file size (100MB limit)
-    file.seek(0, 2)  # Seek to end
-    file_size = file.tell()
-    file.seek(0)  # Reset to beginning
-    
-    if file_size > max_size:
-        flash(f'Datei ist zu groß. Maximale Größe: 100MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
-    
-    original_name = secure_filename(file.filename)
-    
-    # Check if file with same name exists in folder
-    existing_file = File.query.filter_by(
-        name=original_name,
-        folder_id=folder_id,
-        is_current=True
-    ).first()
-    
-    if existing_file:
-        overwrite = request.form.get('overwrite')
-        if overwrite != 'yes':
-            flash(f'Datei "{original_name}" existiert bereits. Möchten Sie sie überschreiben?', 'warning')
-            return render_template(
-                'files/confirm_overwrite.html',
-                filename=original_name,
-                folder_id=folder_id
-            )
-        
-        # Create new version
-        version_number = existing_file.version_number + 1
-        
-        # Save old version to version history
-        old_version = FileVersion(
-            file_id=existing_file.id,
-            version_number=existing_file.version_number,
-            file_path=os.path.abspath(existing_file.file_path),
-            file_size=existing_file.file_size,
-            uploaded_by=existing_file.uploaded_by
-        )
-        db.session.add(old_version)
-        
-        # Delete oldest version if we have more than MAX_FILE_VERSIONS
-        versions = FileVersion.query.filter_by(file_id=existing_file.id).order_by(
-            FileVersion.version_number.desc()
-        ).all()
-        
-        if len(versions) >= MAX_FILE_VERSIONS:
-            oldest = versions[-1]
-            if os.path.exists(oldest.file_path):
-                os.remove(oldest.file_path)
-            db.session.delete(oldest)
-        
-        # Update existing file
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename = f"{timestamp}_{original_name}"
-        filepath = os.path.join('uploads', 'files', filename)
-        file.save(filepath)
-        
-        # Store absolute path in database
-        absolute_filepath = os.path.abspath(filepath)
-        
-        existing_file.file_path = absolute_filepath
-        existing_file.file_size = os.path.getsize(absolute_filepath)
-        existing_file.version_number = version_number
-        existing_file.uploaded_by = current_user.id
-        existing_file.updated_at = datetime.utcnow()
-        
+
+    if len(uploaded_files) > 1:
+        uploaded_count = 0
+        skipped_count = 0
+        skipped_files = []
+
+        for uploaded_file in uploaded_files:
+            uploaded_file.seek(0, 2)
+            file_size = uploaded_file.tell()
+            uploaded_file.seek(0)
+            if file_size > max_size:
+                skipped_count += 1
+                skipped_files.append(uploaded_file.filename)
+                continue
+
+            original_name = secure_filename(uploaded_file.filename)
+            if not original_name:
+                skipped_count += 1
+                skipped_files.append(uploaded_file.filename)
+                continue
+
+            existing_file = File.query.filter_by(
+                name=original_name,
+                folder_id=folder_id,
+                is_current=True
+            ).first()
+
+            if existing_file:
+                skipped_count += 1
+                skipped_files.append(original_name)
+                continue
+
+            _process_file_upload(uploaded_file, original_name, folder_id, current_user.id)
+            uploaded_count += 1
+
         db.session.commit()
-        
-        # Sende Benachrichtigung für geänderte Datei
-        try:
-            send_file_notification(existing_file.id, 'modified')
-        except Exception as e:
-            logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
-        
-        # Sende Dashboard-Update an den Benutzer
+
+        if uploaded_count > 0:
+            try:
+                recent_uploads = File.query.filter_by(
+                    uploaded_by=current_user.id,
+                    folder_id=folder_id
+                ).order_by(File.created_at.desc()).limit(uploaded_count).all()
+                for recent_file in recent_uploads:
+                    try:
+                        send_file_notification(recent_file.id, 'new')
+                    except Exception as e:
+                        logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+            except Exception as e:
+                logging.error(f"Fehler beim Senden von Datei-Benachrichtigungen: {e}")
+
         try:
             recent_files = File.query.filter_by(
                 uploaded_by=current_user.id
             ).order_by(File.updated_at.desc()).limit(3).all()
-            
+
             files_data = [{
                 'id': file.id,
                 'name': file.name,
@@ -674,36 +761,102 @@ def upload_file():
                 'mime_type': file.mime_type,
                 'url': flask_url_for('files.view_file', file_id=file.id)
             } for file in recent_files]
-            
+
             emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
         except Exception as e:
             logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
-        
-        flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
+
+        if uploaded_count > 0:
+            flash(f'{uploaded_count} Datei(en) wurden hochgeladen.', 'success')
+        if skipped_count > 0:
+            flash(f'{skipped_count} Datei(en) wurden übersprungen.', 'warning')
+            if skipped_files:
+                preview = ", ".join(skipped_files[:5])
+                flash(f'Übersprungene Dateien: {preview}{"..." if len(skipped_files) > 5 else ""}', 'info')
     else:
-        # Create new file
-        _process_file_upload(file, original_name, folder_id, current_user.id)
-        db.session.commit()
-        
-        # Sende Benachrichtigung für neue Datei
-        new_file = File.query.filter_by(
+        file = uploaded_files[0]
+
+        # Check file size (100MB limit)
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+
+        if file_size > max_size:
+            flash(f'Datei ist zu groß. Maximale Größe: 100MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+            return redirect(request.referrer or url_for('files.index'))
+
+        original_name = secure_filename(file.filename)
+
+        # Check if file with same name exists in folder
+        existing_file = File.query.filter_by(
             name=original_name,
             folder_id=folder_id,
-            uploaded_by=current_user.id
-        ).order_by(File.created_at.desc()).first()
-        
-        if new_file:
+            is_current=True
+        ).first()
+
+        if existing_file:
+            overwrite = request.form.get('overwrite')
+            if overwrite != 'yes':
+                flash(f'Datei "{original_name}" existiert bereits. Möchten Sie sie überschreiben?', 'warning')
+                return render_template(
+                    'files/confirm_overwrite.html',
+                    filename=original_name,
+                    folder_id=folder_id
+                )
+
+            # Create new version
+            version_number = existing_file.version_number + 1
+
+            # Save old version to version history
+            old_version = FileVersion(
+                file_id=existing_file.id,
+                version_number=existing_file.version_number,
+                file_path=os.path.abspath(existing_file.file_path),
+                file_size=existing_file.file_size,
+                uploaded_by=existing_file.uploaded_by
+            )
+            db.session.add(old_version)
+
+            # Delete oldest version if we have more than MAX_FILE_VERSIONS
+            versions = FileVersion.query.filter_by(file_id=existing_file.id).order_by(
+                FileVersion.version_number.desc()
+            ).all()
+
+            if len(versions) >= MAX_FILE_VERSIONS:
+                oldest = versions[-1]
+                if os.path.exists(oldest.file_path):
+                    os.remove(oldest.file_path)
+                db.session.delete(oldest)
+
+            # Update existing file
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            filename = f"{timestamp}_{original_name}"
+            filepath = os.path.join('uploads', 'files', filename)
+            file.save(filepath)
+
+            # Store absolute path in database
+            absolute_filepath = os.path.abspath(filepath)
+
+            existing_file.file_path = absolute_filepath
+            existing_file.file_size = os.path.getsize(absolute_filepath)
+            existing_file.version_number = version_number
+            existing_file.uploaded_by = current_user.id
+            existing_file.updated_at = datetime.utcnow()
+
+            db.session.commit()
+
+            # Sende Benachrichtigung für geänderte Datei
             try:
-                send_file_notification(new_file.id, 'new')
+                send_file_notification(existing_file.id, 'modified')
             except Exception as e:
                 logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
-            
+
             # Sende Dashboard-Update an den Benutzer
             try:
                 recent_files = File.query.filter_by(
                     uploaded_by=current_user.id
                 ).order_by(File.updated_at.desc()).limit(3).all()
-                
+
                 files_data = [{
                     'id': file.id,
                     'name': file.name,
@@ -712,12 +865,50 @@ def upload_file():
                     'mime_type': file.mime_type,
                     'url': flask_url_for('files.view_file', file_id=file.id)
                 } for file in recent_files]
-                
+
                 emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
             except Exception as e:
                 logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
-        
-        flash(f'Datei "{original_name}" wurde hochgeladen.', 'success')
+
+            flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
+        else:
+            # Create new file
+            _process_file_upload(file, original_name, folder_id, current_user.id)
+            db.session.commit()
+
+            # Sende Benachrichtigung für neue Datei
+            new_file = File.query.filter_by(
+                name=original_name,
+                folder_id=folder_id,
+                uploaded_by=current_user.id
+            ).order_by(File.created_at.desc()).first()
+
+            if new_file:
+                try:
+                    send_file_notification(new_file.id, 'new')
+                except Exception as e:
+                    logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+
+                # Sende Dashboard-Update an den Benutzer
+                try:
+                    recent_files = File.query.filter_by(
+                        uploaded_by=current_user.id
+                    ).order_by(File.updated_at.desc()).limit(3).all()
+
+                    files_data = [{
+                        'id': file.id,
+                        'name': file.name,
+                        'original_name': file.original_name,
+                        'updated_at': file.updated_at.isoformat(),
+                        'mime_type': file.mime_type,
+                        'url': flask_url_for('files.view_file', file_id=file.id)
+                    } for file in recent_files]
+
+                    emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+                except Exception as e:
+                    logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
+
+            flash(f'Datei "{original_name}" wurde hochgeladen.', 'success')
     
     if folder_id:
         return redirect(url_for('files.browse_folder', folder_id=folder_id))

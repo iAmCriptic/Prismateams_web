@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Rauminspektionen{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Rauminspektionen</h1>
+    <div id="rooms" class="row g-3"></div>
+</div>
+<script>
+async function saveInspection(roomId, card) {
+    const isClean = card.querySelector('.is-clean').checked;
+    const comment = card.querySelector('.comment').value;
+    await fetch('/assessment/api/room_inspections', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({room_id: roomId, is_clean: isClean, comment})
+    });
+}
+async function loadRooms() {
+    const res = await fetch('/assessment/api/room_inspections');
+    const data = await res.json();
+    document.getElementById('rooms').innerHTML = (data.rooms || []).map(r => `
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h6">${r.name}</h2>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input is-clean" type="checkbox" ${r.inspection && r.inspection.is_clean ? 'checked' : ''}>
+                        <label class="form-check-label">Sauber</label>
+                    </div>
+                    <textarea class="form-control comment" rows="2" placeholder="Kommentar">${r.inspection && r.inspection.comment ? r.inspection.comment : ''}</textarea>
+                    <button class="btn btn-sm btn-accent mt-2" onclick="saveInspection(${r.id}, this.closest('.card'))">Speichern</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+loadRooms();
+</script>
+{% endblock %}

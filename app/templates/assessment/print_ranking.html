@@ -1,0 +1,32 @@
+{% extends "assessment/print_base.html" %}
+{% block title %}Rangliste – Druckansicht{% endblock %}
+
+{% block document_title %}Rangliste{% endblock %}
+{% block document_subtitle %}<small>Modus: {{ mode_label }} · Sortierung: {{ sort_label }}</small>{% endblock %}
+
+{% block print_content %}
+<table class="print-table">
+    <thead>
+        <tr>
+            <th style="width:48px">Rang</th>
+            <th>Stand</th>
+            <th>Raum</th>
+            <th class="text-center">Gesamtpunkte</th>
+            <th class="text-center">Ø Punkte</th>
+            <th class="text-center">Anzahl Bewertungen</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in ranking %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ row.stand_name }}</td>
+            <td>{{ row.room_name or '—' }}</td>
+            <td class="text-center"><strong>{{ row.displayed_total }}</strong></td>
+            <td class="text-center">{{ '%.2f'|format(row.displayed_avg) }}</td>
+            <td class="text-center">{{ row.displayed_votes }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Verwarnungen{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Verwarnungen</h1>
+    <form id="form" class="row g-2 mb-3">
+        <div class="col-md-4"><select class="form-select" name="stand_id" id="standSelect"></select></div>
+        <div class="col-md-6"><input class="form-control" name="comment" placeholder="Kommentar" required></div>
+        <div class="col-md-2"><button class="btn btn-accent w-100">Speichern</button></div>
+    </form>
+    <table class="table table-striped">
+        <thead><tr><th>Stand</th><th>Kommentar</th><th>Status</th></tr></thead>
+        <tbody id="rows"></tbody>
+    </table>
+</div>
+<script>
+async function loadData() {
+    const res = await fetch('/assessment/warnings/api/items');
+    const data = await res.json();
+    document.getElementById('standSelect').innerHTML = (data.stands || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    document.getElementById('rows').innerHTML = (data.warnings || []).map(w => `
+        <tr><td>${w.stand_name || ''}</td><td>${w.comment}</td><td>${w.is_invalidated ? 'Invalidiert' : 'Aktiv'}</td></tr>
+    `).join('');
+}
+document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.target).entries());
+    payload.stand_id = Number(payload.stand_id);
+    await fetch('/assessment/warnings/api/items', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    e.target.reset();
+    loadData();
+});
+loadData();
+</script>
+{% endblock %}

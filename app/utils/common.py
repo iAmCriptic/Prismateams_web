@@ -7,6 +7,21 @@ from flask import current_app
 import requests
 import os
 
+AVAILABLE_MODULES = [
+    'module_chat',
+    'module_files',
+    'module_calendar',
+    'module_email',
+    'module_contacts',
+    'module_credentials',
+    'module_manuals',
+    'module_inventory',
+    'module_wiki',
+    'module_booking',
+    'module_music',
+    'module_assessment',
+]
+
 
 def get_local_time(utc_datetime):
     """

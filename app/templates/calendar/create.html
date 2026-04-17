@@ -209,6 +209,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Datum aus URL-Parameter übernehmen (z. B. beim Klick auf einen Tag im Kalender)
+    const urlParams = new URLSearchParams(window.location.search);
+    const prefillDate = urlParams.get('date');
+    if (prefillDate && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate)) {
+        if (!startDate.value) startDate.value = prefillDate;
+        if (!endDate.value) endDate.value = prefillDate;
+    }
+
     // Initialisiere beim Laden
     initializeEndDateTime();
 });

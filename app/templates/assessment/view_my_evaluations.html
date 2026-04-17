@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Meine Bewertungen{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">Meine Bewertungen</h1>
+    <table class="table table-striped">
+        <thead><tr><th>Stand</th><th>Punkte</th><th>Zeit</th><th>Druck</th></tr></thead>
+        <tbody id="rows"></tbody>
+    </table>
+</div>
+<script>
+async function load() {
+    const res = await fetch('/assessment/api/my_evaluations');
+    const data = await res.json();
+    document.getElementById('rows').innerHTML = (data.evaluations || []).map(e => `
+        <tr>
+            <td>${e.stand_name}</td>
+            <td>${e.total_score}</td>
+            <td>${e.timestamp ? new Date(e.timestamp).toLocaleString() : '-'}</td>
+            <td><a target="_blank" href="/assessment/print_evaluation/${e.id}" class="btn btn-sm btn-outline-primary">PDF</a></td>
+        </tr>
+    `).join('');
+}
+load();
+</script>
+{% endblock %}

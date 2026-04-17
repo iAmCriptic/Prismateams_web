@@ -245,7 +245,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Calendar Navigation
-    let currentDate = new Date();
+    // Persistente Ansicht: gespeicherten Monat/Woche/Tag wiederherstellen
+    const CAL_STORAGE_KEY = 'calendar.view.state';
+    function loadStoredDate(field) {
+        try {
+            const raw = sessionStorage.getItem(CAL_STORAGE_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            const value = data && data[field];
+            if (!value) return null;
+            const d = new Date(value);
+            return isNaN(d.getTime()) ? null : d;
+        } catch (e) {
+            return null;
+        }
+    }
+    function saveStoredDate(field, date) {
+        try {
+            const raw = sessionStorage.getItem(CAL_STORAGE_KEY);
+            const data = raw ? JSON.parse(raw) : {};
+            data[field] = date.toISOString();
+            sessionStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            // ignorieren
+        }
+    }
+
+    let currentDate = loadStoredDate('month') || new Date();
     const monthNames = CAL_I18N.month_names || [];
     
     function updateCalendar() {
@@ -256,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentMonthLabel) {
             currentMonthLabel.textContent = `${monthName} ${year}`;
         }
-        
+        saveStoredDate('month', currentDate);
         generateCalendar(year, month);
     }
     
@@ -281,7 +307,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const dayCell = document.createElement('div');
             dayCell.className = 'calendar-day';
             dayCell.textContent = day;
-            
+
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            dayCell.dataset.date = dateStr;
+            dayCell.style.cursor = 'pointer';
+            dayCell.addEventListener('click', function(e) {
+                // Klicks auf ein Event nicht als Tagesklick behandeln
+                if (e.target.closest('.calendar-event')) return;
+                window.location.href = `{{ url_for('calendar.create_event') }}?date=${dateStr}`;
+            });
+
             // Heute markieren
             const today = new Date();
             if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
@@ -467,7 +502,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Make event clickable
         eventElement.style.cursor = 'pointer';
-        eventElement.addEventListener('click', function() {
+        eventElement.addEventListener('click', function(e) {
+            e.stopPropagation();
             window.location.href = event.url;
         });
         
@@ -488,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCalendar();
     
     // Week View Functions
-    let currentWeekDate = new Date();
+    let currentWeekDate = loadStoredDate('week') || new Date();
     
     function isMobileView() {
         return window.innerWidth < 768; // Bootstrap md breakpoint
@@ -501,7 +537,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateWeekView() {
         const weekCalendar = document.getElementById('weekCalendar');
         const weekTitle = weekTitleElement;
-        
+        saveStoredDate('week', currentWeekDate);
+
         // Determine number of days to show based on screen width
         const daysToShow = getDaysToShow();
         
@@ -669,12 +706,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Day View Functions
-    let currentDayDate = new Date();
-    
+    let currentDayDate = loadStoredDate('day') || new Date();
+
     function generateDayView() {
         const dayCalendar = document.getElementById('dayCalendar');
         const dayTitle = dayTitleElement;
         const locale = getLocale();
+        saveStoredDate('day', currentDayDate);
 
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         if (dayTitle) {

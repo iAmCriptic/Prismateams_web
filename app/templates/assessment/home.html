@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ assessment_module_label or 'Bewertung' }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-4">
+        {% if assessment_logo_url %}
+        <img src="{{ assessment_logo_url }}" alt="{{ assessment_module_label }}" class="mb-3" style="max-height:80px;max-width:260px;">
+        {% endif %}
+        <h1 class="display-6 mb-1">{{ assessment_welcome_title or 'Willkommen im Bewertungstool' }}</h1>
+        <p class="text-muted mb-0">{{ assessment_welcome_subtitle or 'Bewerten, Ränge prüfen und Verwaltung – alles an einem Ort.' }}</p>
+    </div>
+
+    <div class="row g-4">
+        {% if 'evaluate' in assessment_sections or 'print_blank' in assessment_sections %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center d-flex flex-column">
+                    <i class="bi bi-file-earmark-text display-5 text-primary"></i>
+                    <h2 class="h5 mt-3">Bewertung</h2>
+                    <p class="text-muted small">Hier können Sie Stände bewerten oder Blanko-Bögen drucken.</p>
+                    <div class="mt-auto d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        {% if 'evaluate' in assessment_sections %}
+                        <a href="{{ url_for('assessment.evaluations.evaluate_page') }}" class="btn btn-accent">
+                            <i class="bi bi-pencil-square me-1"></i>Bewerten
+                        </a>
+                        {% endif %}
+                        {% if 'print_blank' in assessment_sections %}
+                        <a href="{{ url_for('assessment.evaluations.blank_print_page') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-printer me-1"></i>Drucken
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'my_evaluations' in assessment_sections %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center d-flex flex-column">
+                    <i class="bi bi-ui-checks display-5 text-success"></i>
+                    <h2 class="h5 mt-3">Meine Bewertungen</h2>
+                    <p class="text-muted small">Sehen Sie Ihre bisherigen Bewertungen ein.</p>
+                    <a href="{{ url_for('assessment.evaluations.view_my_evaluations_page') }}" class="btn btn-success mt-auto">
+                        <i class="bi bi-eye me-1"></i>Ansehen
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'ranking' in assessment_sections or 'map_view' in assessment_sections %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center d-flex flex-column">
+                    <i class="bi bi-trophy display-5 text-warning"></i>
+                    <h2 class="h5 mt-3">Rangliste &amp; Lageplan</h2>
+                    <p class="text-muted small">Aktuelle Rangliste und Lageplan einsehen.</p>
+                    <div class="mt-auto d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        {% if 'ranking' in assessment_sections %}
+                        <a href="{{ url_for('assessment.ranking.view_ranking') }}" class="btn btn-warning text-white">
+                            <i class="bi bi-list-ol me-1"></i>Rangliste
+                        </a>
+                        {% endif %}
+                        {% if 'map_view' in assessment_sections %}
+                        <a href="{{ url_for('assessment.map.view_plan') }}" class="btn btn-outline-warning">
+                            <i class="bi bi-geo-alt me-1"></i>Lageplan
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'inspections' in assessment_sections %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center d-flex flex-column">
+                    <i class="bi bi-bucket display-5 text-info"></i>
+                    <h2 class="h5 mt-3">Rauminspektionen</h2>
+                    <p class="text-muted small">Verwalten Sie Rauminspektionen.</p>
+                    <a href="{{ url_for('assessment.inspections.room_inspections_page') }}" class="btn btn-info text-white mt-auto">
+                        <i class="bi bi-clipboard-check me-1"></i>Verwalten
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'warnings' in assessment_sections %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center d-flex flex-column">
+                    <i class="bi bi-exclamation-octagon display-5 text-danger"></i>
+                    <h2 class="h5 mt-3">Verwarnungen</h2>
+                    <p class="text-muted small">Verwarnungen anlegen oder einsehen.</p>
+                    <a href="{{ url_for('assessment.warnings.warnings_page') }}" class="btn btn-danger mt-auto">
+                        <i class="bi bi-megaphone me-1"></i>Verwalten
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'admin' in assessment_sections %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body">
+                    <div class="text-center">
+                        <i class="bi bi-gear display-5 text-secondary"></i>
+                        <h2 class="h5 mt-3">Admin-Verwaltung</h2>
+                        <p class="text-muted small">Benutzer, Stände, Kriterien &amp; Listen verwalten.</p>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col-6"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.users.manage_users_page') }}">Benutzer</a></div>
+                        <div class="col-6"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.stands.manage_stand_page') }}">Stände</a></div>
+                        <div class="col-6"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.criteria.manage_criteria_page') }}">Kriterien</a></div>
+                        <div class="col-6"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.rooms.manage_rooms_page') }}">Räume</a></div>
+                        <div class="col-6"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.general.manage_list_page') }}">Listen</a></div>
+                        <div class="col-6"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.admin_settings.admin_settings_page') }}">Einstellungen</a></div>
+                        <div class="col-12"><a class="btn btn-outline-dark w-100 btn-sm" href="{{ url_for('assessment.map.manage_plan') }}">Lageplan verwalten</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

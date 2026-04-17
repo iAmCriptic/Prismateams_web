@@ -1,0 +1,77 @@
+<div>
+    <h5 class="mb-3">{{ _('settings.security.devices.heading') }}</h5>
+    
+    <p class="text-muted mb-4">{{ _('settings.security.devices.description') }}</p>
+    
+    {% if sessions %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{{ _('settings.security.devices.table.device') }}</th>
+                    <th>{{ _('settings.security.devices.table.ip_address') }}</th>
+                    <th>{{ _('settings.security.devices.table.last_activity') }}</th>
+                    <th>{{ _('settings.security.devices.table.status') }}</th>
+                    <th>{{ _('common.actions') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sess in sessions %}
+                <tr {% if sess.is_current %}class="table-info"{% endif %}>
+                    <td>
+                        {% if sess.user_agent %}
+                            {% set ua = sess.user_agent.split(' ') %}
+                            {{ ua[0] if ua else sess.user_agent[:50] }}
+                        {% else %}
+                            {{ _('settings.security.devices.unknown_device') }}
+                        {% endif %}
+                        {% if sess.is_current %}
+                            <span class="badge bg-primary ms-2">{{ _('settings.security.devices.current_session') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sess.ip_address or _('settings.security.devices.unknown') }}</td>
+                    <td>
+                        {% if sess.last_activity %}
+                            {{ sess.last_activity.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                            {{ sess.created_at.strftime('%d.%m.%Y %H:%M') }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sess.is_active %}
+                            <span class="badge bg-success">{{ _('settings.security.devices.active') }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ _('settings.security.devices.inactive') }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not sess.is_current %}
+                        <form method="POST" action="{{ url_for('settings.revoke_session_route') }}" style="display: inline;" onsubmit="return confirm('{{ _('settings.security.devices.revoke_confirm') }}');">
+                            <input type="hidden" name="session_id" value="{{ sess.session_id }}">
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="bi bi-x-circle"></i> {{ _('settings.security.devices.revoke_button') }}
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">{{ _('settings.security.devices.current_session') }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="mt-3">
+        <form method="POST" action="{{ url_for('settings.revoke_all_sessions_route') }}" onsubmit="return confirm('{{ _('settings.security.devices.revoke_all_confirm') }}');">
+            <button type="submit" class="btn btn-danger">
+                <i class="bi bi-x-octagon"></i> {{ _('settings.security.devices.revoke_all_button') }}
+            </button>
+        </form>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> {{ _('settings.security.devices.no_sessions') }}
+    </div>
+    {% endif %}
+</div>

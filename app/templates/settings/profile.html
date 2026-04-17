@@ -92,16 +92,7 @@
                         </div>
                     </div>
                     
-                    <hr class="my-4">
-                    
-                    <h5 class="mb-3">{{ _('settings.profile.password.heading') }}</h5>
-                    <div class="mb-3">
-                        <label for="new_password" class="form-label">{{ _('settings.profile.password.label') }}</label>
-                        <input type="password" class="form-control" id="new_password" name="new_password" minlength="8">
-                        <div class="form-text">{{ _('settings.profile.password.help') }}</div>
-                    </div>
-                    
-                    <div class="d-grid gap-2">
+                    <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-accent">{{ _('settings.profile.save_button') }}</button>
                         <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>
                     </div>

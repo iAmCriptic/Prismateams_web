@@ -1,5 +1,10 @@
+{% set _assess_scope = session.get('user_scope') == 'assessment' %}
+{% set _theme_mode = assessment_theme_mode if _assess_scope else ('dark' if current_user.is_authenticated and current_user.dark_mode else 'light') %}
 <!DOCTYPE html>
-<html lang="{{ current_language or 'de' }}" data-bs-theme="{{ 'dark' if current_user.is_authenticated and current_user.dark_mode else 'light' }}" {% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}data-oled-mode="true"{% endif %} {% if current_user.is_authenticated %}data-preferred-layout="{{ current_user.preferred_layout or 'auto' }}"{% endif %}>
+<html lang="{{ current_language or 'de' }}"
+      data-bs-theme="{{ 'dark' if _theme_mode in ('dark','oled') or (not _assess_scope and current_user.is_authenticated and current_user.dark_mode) else 'light' }}"
+      {% if _assess_scope and _theme_mode == 'oled' %}data-oled-mode="true"{% elif current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}data-oled-mode="true"{% endif %}
+      {% if current_user.is_authenticated %}data-preferred-layout="{{ (current_user.preferred_layout if current_user.preferred_layout is defined else 'auto') or 'auto' }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,6 +63,9 @@
         {% elif 'inventory' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
         {% endif %}
+    {% endif %}
+    {% if _assess_scope or (request.endpoint and request.endpoint.startswith('assessment.')) %}
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
     {% endif %}
     
     {% if current_user.is_authenticated %}
@@ -220,7 +228,7 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% if _assess_scope or (request.endpoint and request.endpoint.startswith('assessment.')) %}assessment-scope{% endif %}">
     {% if current_user.is_authenticated %}
     <!-- Mobile Bottom Navigation -->
     <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
@@ -261,18 +269,24 @@
     <!-- Desktop Sidebar -->
     <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 bg-light sidebar" id="desktopSidebar">
         <div class="sidebar-header flex-shrink-0">
-            <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
+            <a href="{% if session.get('user_scope') == 'assessment' %}{{ url_for('assessment.general.home') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
                 {% if portal_logo_filename %}
                 <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
                 {% elif app_logo %}
                 <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
                 {% endif %}
-                <span class="fs-4">{{ app_name or 'Prismateams' }}</span>
+                {% if assessment_logo_url and session.get('user_scope') == 'assessment' %}
+                <img src="{{ assessment_logo_url }}" alt="{{ assessment_module_label or 'Bewertung' }}" height="32" class="me-2">
+                {% endif %}
+                <span class="fs-4">{% if session.get('user_scope') == 'assessment' %}{{ assessment_module_label or 'Bewertung' }}{% else %}{{ app_name or 'Prismateams' }}{% endif %}</span>
             </a>
             <hr>
         </div>
         <div class="sidebar-nav flex-grow-1 overflow-y-auto" id="sidebarNavList">
             <ul class="nav nav-pills flex-column mb-auto" id="sidebarNavItems">
+            {% if session.get('user_scope') == 'assessment' %}
+                {% include 'assessment/_sidebar_nav.html' %}
+            {% else %}
             <li class="nav-item sidebar-nav-item" data-nav-id="dashboard" data-nav-priority="always-visible">
                 <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">
                     <i class="bi bi-house-door me-2"></i>
@@ -367,6 +381,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if is_module_enabled('module_assessment') and (not current_user.is_authenticated or has_module_access(current_user, 'module_assessment')) %}
+            <li class="nav-item sidebar-nav-item" data-nav-id="assessment" data-nav-priority="11.5">
+                <a href="{{ url_for('assessment.general.home') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
+                    <i class="bi bi-clipboard2-check me-2"></i>
+                    Bewertung
+                </a>
+            </li>
+            {% endif %}
             <li class="nav-item sidebar-nav-item" data-nav-id="settings" data-nav-priority="12">
                 <a href="{{ url_for('settings.index') }}" class="nav-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-gear me-2"></i>
@@ -379,8 +401,19 @@
                     {{ _('layout.nav.more') }}
                 </a>
             </li>
+            {% endif %}
             </ul>
         </div>
+        {% if session.get('user_scope') == 'assessment' %}
+        <div class="px-1 pb-2">
+            <div class="small text-muted mb-1">Ansicht</div>
+            <div class="btn-group btn-group-sm w-100" role="group" id="assessmentThemeToggle">
+                <button type="button" class="btn btn-outline-secondary" data-theme="light"><i class="bi bi-sun"></i></button>
+                <button type="button" class="btn btn-outline-secondary" data-theme="dark"><i class="bi bi-moon-stars"></i></button>
+                <button type="button" class="btn btn-outline-secondary" data-theme="oled"><i class="bi bi-circle-fill"></i></button>
+            </div>
+        </div>
+        {% endif %}
         <div class="sidebar-footer flex-shrink-0">
             <hr>
             <div class="dropdown">
@@ -393,7 +426,7 @@
                     <strong>{{ current_user.full_name }}</strong>
                 </a>
                 <ul class="dropdown-menu text-small shadow">
-                    {% if not current_user.is_guest %}
+                    {% if session.get('user_scope') != 'assessment' and not current_user.is_guest %}
                     <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
                     {% endif %}
@@ -424,6 +457,9 @@
         </div>
         <div class="offcanvas-body">
             <ul class="nav nav-pills flex-column">
+                {% if session.get('user_scope') == 'assessment' %}
+                {% include 'assessment/_sidebar_nav.html' %}
+                {% else %}
                 {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
                 <li class="nav-item">
                     <a href="{{ url_for('files.index') }}" class="nav-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
@@ -496,12 +532,21 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('module_assessment') and (not current_user.is_authenticated or has_module_access(current_user, 'module_assessment')) %}
+                <li>
+                    <a href="{{ url_for('assessment.general.home') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
+                        <i class="bi bi-clipboard2-check me-2"></i>
+                        Bewertung
+                    </a>
+                </li>
+                {% endif %}
                 <li>
                     <a href="{{ url_for('settings.index') }}" class="nav-link {% if request.endpoint and 'settings' in request.endpoint %}active{% endif %}">
                         <i class="bi bi-gear me-2"></i>
                         {{ _('layout.nav.settings') }}
                     </a>
                 </li>
+                {% endif %}{# end user_scope != assessment #}
                 <li><hr></li>
                 {% if not current_user.is_guest %}
                 <li>
@@ -559,7 +604,43 @@
     
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    
+
+    {% if session.get('user_scope') == 'assessment' %}
+    <script>
+    (function() {
+        const htmlEl = document.documentElement;
+        const initial = "{{ assessment_theme_mode or 'light' }}";
+        applyTheme(initial);
+
+        function applyTheme(mode) {
+            htmlEl.setAttribute('data-bs-theme', mode === 'light' ? 'light' : 'dark');
+            if (mode === 'oled') {
+                htmlEl.setAttribute('data-oled-mode', 'true');
+            } else {
+                htmlEl.removeAttribute('data-oled-mode');
+            }
+            document.querySelectorAll('#assessmentThemeToggle button').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.theme === mode);
+            });
+        }
+
+        document.querySelectorAll('#assessmentThemeToggle button').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const mode = btn.dataset.theme;
+                applyTheme(mode);
+                try {
+                    await fetch('/assessment/api/theme', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ mode })
+                    });
+                } catch (e) { /* offline-ok */ }
+            });
+        });
+    })();
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen - Bewertung{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Assessment-Einstellungen</h1>
+        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5 mb-3"><i class="bi bi-palette me-2"></i>Erscheinungsbild &amp; Texte</h2>
+                    <form id="settingsForm" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Modul-Label (z.&nbsp;B. in der Sidebar)</label>
+                            <input class="form-control" name="module_label">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Titel der Startseite</label>
+                            <input class="form-control" name="welcome_title">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Untertitel der Startseite</label>
+                            <input class="form-control" name="welcome_subtitle">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Standard-Ranking-Modus</label>
+                            <select class="form-select" name="ranking_active_mode">
+                                <option value="standard">Standard (Jury)</option>
+                                <option value="visitor">Besucherrangliste</option>
+                                <option value="combined">Kombiniert (50/50)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Standard-Sortierung</label>
+                            <select class="form-select" name="ranking_sort_mode">
+                                <option value="total">Gesamtpunktzahl</option>
+                                <option value="avg">Ø-Punktzahl</option>
+                            </select>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                            <button class="btn btn-accent"><i class="bi bi-save me-1"></i>Einstellungen speichern</button>
+                        </div>
+                    </form>
+                    <p id="settingsStatus" class="text-muted small mt-2 mb-0"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5 mb-3"><i class="bi bi-image me-2"></i>Logo</h2>
+                    <div class="text-center mb-3">
+                        <img id="logoPreview" src="" alt="Kein Logo hinterlegt" style="max-height:110px;max-width:100%;" class="border rounded p-2 bg-white">
+                    </div>
+                    <form id="logoForm" class="mb-2">
+                        <input type="file" class="form-control mb-2" name="logo" accept="image/*" required>
+                        <div class="d-grid gap-2 d-sm-flex">
+                            <button class="btn btn-accent flex-fill"><i class="bi bi-upload me-1"></i>Hochladen</button>
+                            <button type="button" class="btn btn-outline-danger" id="logoDelete"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </form>
+                    <p class="text-muted small mb-0">Das Logo erscheint auf Home, Sidebar und allen Druckansichten. Darunter wird automatisch „Powered by {{ assessment_portal_name }}" angezeigt.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+async function loadSettings() {
+    const res = await fetch('/assessment/api/admin_settings');
+    const data = await res.json();
+    const s = data.settings || {};
+    for (const [key, value] of Object.entries(s)) {
+        const el = document.querySelector(`#settingsForm [name="${key}"]`);
+        if (el) el.value = value ?? '';
+    }
+    const preview = document.getElementById('logoPreview');
+    preview.src = s.logo_url || '';
+    preview.style.display = s.logo_url ? 'inline-block' : 'none';
+}
+loadSettings();
+
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.target).entries());
+    const res = await fetch('/assessment/api/admin_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    const data = await res.json();
+    document.getElementById('settingsStatus').textContent = data.message || '';
+});
+
+document.getElementById('logoForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const res = await fetch('/assessment/api/upload_logo', {method:'POST', body: fd});
+    const data = await res.json();
+    if (data.success) {
+        e.target.reset();
+        loadSettings();
+    } else {
+        alert(data.message || 'Fehler');
+    }
+});
+
+document.getElementById('logoDelete').addEventListener('click', async () => {
+    if (!confirm('Logo wirklich entfernen?')) return;
+    await fetch('/assessment/api/delete_logo', {method:'POST'});
+    loadSettings();
+});
+</script>
+{% endblock %}

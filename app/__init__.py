@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_socketio import SocketIO
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import config
 import json
 import os
@@ -13,6 +15,7 @@ from app.utils.i18n import register_i18n, translate
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
+limiter = Limiter(key_func=get_remote_address)
 
 # SocketIO mit optionaler Redis Message Queue für Multi-Worker-Setups
 def create_socketio():
@@ -64,6 +67,25 @@ def create_app(config_name='default'):
     else:
         logger.warning(f"Redis NICHT aktiviert - Multi-Worker-Setups funktionieren nicht korrekt!")
         logger.warning(f"Setze REDIS_ENABLED=True in der .env oder stelle sicher, dass Redis läuft")
+    
+    # Flask-Limiter für Rate Limiting initialisieren
+    # Verwende Redis als Storage-Backend wenn verfügbar (für Production)
+    if redis_enabled:
+        try:
+            # Verwende Redis als Storage-Backend für Rate Limiting
+            limiter.init_app(app, storage_uri=redis_url)
+            logger.info(f"Flask-Limiter mit Redis Storage konfiguriert: {redis_url}")
+        except Exception as e:
+            logger.warning(f"Fehler beim Konfigurieren von Flask-Limiter mit Redis: {e}")
+            logger.warning("Verwende Memory-Storage als Fallback (nicht für Production empfohlen)")
+            limiter.init_app(app)
+    else:
+        # In Development: Memory-Storage mit Warnung
+        # In Production: Warnung ausgeben
+        if config_name == 'production':
+            logger.warning("⚠️  WICHTIG: Flask-Limiter verwendet Memory-Storage in Production!")
+            logger.warning("⚠️  Für Production sollte Redis aktiviert werden (REDIS_ENABLED=True)")
+        limiter.init_app(app)
     
     if redis_enabled:
         try:
@@ -187,6 +209,13 @@ def create_app(config_name='default'):
         """Prüft E-Mail-Bestätigung für alle Routen außer Auth und Setup."""
         from flask import request, redirect, url_for, flash
         from flask_login import current_user
+
+        if session.get('user_scope') == 'assessment':
+            if request.path.startswith('/assessment'):
+                return
+            if request.endpoint in {'auth.login', 'auth.logout', 'manifest', 'static', 'assessment.map.serve_uploaded_plans', 'assessment.admin_settings.serve_branding_file'}:
+                return
+            return redirect(url_for('assessment.general.home'))
         
         # WICHTIG: Socket.IO-Requests ausschließen (verhindert 401-Fehler)
         # Socket.IO verwendet /socket.io/ als Pfad und hat keinen normalen Endpoint
@@ -225,9 +254,15 @@ def create_app(config_name='default'):
             return redirect(url_for('auth.confirm_email'))
     
     from app.models.user import User
+    from app.models.assessment import AssessmentUser
     
     @login_manager.user_loader
     def load_user(user_id):
+        if isinstance(user_id, str) and user_id.startswith('ass:'):
+            raw_id = user_id.split(':', 1)[1]
+            if raw_id.isdigit():
+                return AssessmentUser.query.get(int(raw_id))
+            return None
         return User.query.get(int(user_id))
     
     from app.utils.i18n import init_i18n
@@ -247,6 +282,9 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'bookings'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'booking_forms'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'veranstaltungen'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'floor_plans'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'branding'),
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
@@ -564,19 +602,27 @@ def create_app(config_name='default'):
 
     @app.errorhandler(400)
     def bad_request(error):
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Bad request', 'message': str(error)}), 400
         return render_template('errors/400.html'), 400
     
     @app.errorhandler(403)
     def forbidden(error):
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Forbidden', 'message': str(error)}), 403
         return render_template('errors/403.html'), 403
     
     @app.errorhandler(404)
     def not_found(error):
         app.logger.warning(f"404 Not Found: {request.url}")
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Not found', 'path': request.path}), 404
         return render_template('errors/404.html'), 404
     
     @app.errorhandler(429)
     def too_many_requests(error):
+        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+            return jsonify({'error': 'Too many requests', 'message': str(error)}), 429
         return render_template('errors/429.html'), 429
     
     @app.errorhandler(413)
@@ -642,6 +688,7 @@ def create_app(config_name='default'):
     from app.blueprints.booking import booking_bp
     from app.blueprints.music import music_bp
     from app.blueprints.sse import sse_bp
+    from app.blueprints.assessment import assessment_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -662,6 +709,7 @@ def create_app(config_name='default'):
     app.register_blueprint(booking_bp, url_prefix='/booking')
     app.register_blueprint(music_bp)
     app.register_blueprint(sse_bp, url_prefix='/sse')
+    app.register_blueprint(assessment_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -766,6 +814,24 @@ def create_app(config_name='default'):
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
+                from app.models.user_session import UserSession
+                from app.models.assessment import (
+                    AssessmentUser,
+                    AssessmentRole,
+                    AssessmentUserRole,
+                    AssessmentRoom,
+                    AssessmentStand,
+                    AssessmentCriterion,
+                    AssessmentEvaluation,
+                    AssessmentEvaluationScore,
+                    AssessmentVisitorEvaluation,
+                    AssessmentVisitorEvaluationScore,
+                    AssessmentWarning,
+                    AssessmentRoomInspection,
+                    AssessmentAppSetting,
+                    AssessmentFloorPlan,
+                    AssessmentFloorPlanObject,
+                )
                 
                 # Prüfe welche Tabellen bereits existieren
                 from sqlalchemy import inspect, text
@@ -910,9 +976,105 @@ def create_app(config_name='default'):
                                 print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
                         else:
                             print("[WARNUNG] Sprach-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_languages.py")
+                    
+                    # Sicherheitsfeatures-Migration (2FA, Rate Limiting, Session-Management)
+                    if 'users' in inspector.get_table_names():
+                        columns = {col['name'] for col in inspector.get_columns('users')}
+                        security_columns = {'totp_secret', 'totp_enabled', 'password_changed_at', 'failed_login_attempts', 'failed_login_until'}
+                        if not security_columns.issubset(columns) or 'user_sessions' not in inspector.get_table_names():
+                            print("[INFO] Führe Sicherheitsfeatures-Migration aus...")
+                            migrations_path = os.path.join(
+                                os.path.dirname(os.path.dirname(__file__)),
+                                'migrations',
+                                'migrate_security_features.py'
+                            )
+                            if os.path.exists(migrations_path):
+                                env = os.environ.copy()
+                                env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
+                                try:
+                                    result = subprocess.run(
+                                        [sys.executable, migrations_path],
+                                        capture_output=True,
+                                        text=True,
+                                        timeout=60,
+                                        env=env
+                                    )
+                                    if result.returncode == 0:
+                                        print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
+                                    else:
+                                        print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
+                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                                except subprocess.TimeoutExpired:
+                                    print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
+                                except Exception as exc:
+                                    print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                            else:
+                                print("[WARNUNG] Sicherheitsfeatures-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_security_features.py")
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
+                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+
+                try:
+                    from sqlalchemy import inspect, text
+                    from app.models.assessment import (
+                        AssessmentAppSetting,
+                        AssessmentRole,
+                        AssessmentUser,
+                    )
+
+                    inspector = inspect(db.engine)
+                    dialect = db.engine.dialect.name
+                    existing_tables = set(inspector.get_table_names())
+
+                    if 'ass_users' in existing_tables:
+                        user_columns = {col['name'] for col in inspector.get_columns('ass_users')}
+                        if 'theme_mode' not in user_columns:
+                            print("[INFO] Ergänze ass_users.theme_mode ...")
+                            stmt = "ALTER TABLE ass_users ADD COLUMN theme_mode VARCHAR(16) NOT NULL DEFAULT 'light'"
+                            with db.engine.begin() as connection:
+                                connection.execute(text(stmt))
+                            print("[OK] ass_users.theme_mode hinzugefügt")
+
+                    default_roles = ['Administrator', 'Bewerter', 'Betrachter', 'Inspektor', 'Verwarner']
+                    role_map = {}
+                    for role_name in default_roles:
+                        role = AssessmentRole.query.filter_by(name=role_name).first()
+                        if not role:
+                            role = AssessmentRole(name=role_name)
+                            db.session.add(role)
+                            db.session.flush()
+                        role_map[role_name] = role
+
+                    admin = AssessmentUser.query.filter_by(username='admin').first()
+                    if not admin:
+                        admin = AssessmentUser(
+                            username='admin',
+                            display_name='Administrator',
+                            is_admin=True,
+                            must_change_password=True,
+                            is_active=True,
+                        )
+                        admin.set_password('password')
+                        db.session.add(admin)
+                        db.session.flush()
+                    if role_map['Administrator'] not in admin.roles:
+                        admin.roles.append(role_map['Administrator'])
+
+                    assessment_defaults = {
+                        'welcome_title': 'Willkommen im Bewertungstool',
+                        'welcome_subtitle': 'Bewerten, Ränge prüfen und Verwaltung – alles an einem Ort.',
+                        'module_label': 'Bewertung',
+                        'ranking_active_mode': 'standard',
+                        'ranking_sort_mode': 'total',
+                    }
+                    for key, value in assessment_defaults.items():
+                        if not AssessmentAppSetting.query.filter_by(setting_key=key).first():
+                            db.session.add(AssessmentAppSetting(setting_key=key, setting_value=value))
+                    db.session.commit()
+                except Exception as assessment_error:
+                    db.session.rollback()
+                    print(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
                 
                 from app.models.email import EmailFolder
                 
@@ -939,6 +1101,13 @@ def create_app(config_name='default'):
                 from app.models.chat import Chat
                 from app.models.user import User
                 from sqlalchemy import inspect, text
+                
+                if not SystemSettings.query.filter_by(key='module_assessment').first():
+                    db.session.add(SystemSettings(
+                        key='module_assessment',
+                        value='True',
+                        description='Modul module_assessment aktiviert'
+                    ))
                 
                 if not SystemSettings.query.filter_by(key='email_footer_text').first():
                     footer = SystemSettings(
@@ -1020,7 +1189,6 @@ def create_app(config_name='default'):
                     app.logger.warning("Konnte Benutzersprachen nicht aktualisieren: %s", e)
 
                 main_chat = Chat.query.filter_by(is_main_chat=True).first()
-                main_chat = Chat.query.filter_by(is_main_chat=True).first()
                 if not main_chat:
                     main_chat = Chat(
                         name='Team Chat',
@@ -1039,7 +1207,7 @@ def create_app(config_name='default'):
                             columns = {col['name'] for col in inspector.get_columns('users')}
                             if 'has_full_access' in columns:
                                 from app.utils.access_control import has_module_access
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 for user in active_users:
                                     if has_module_access(user, 'module_chat'):
                                         member = ChatMember(
@@ -1049,7 +1217,7 @@ def create_app(config_name='default'):
                                         db.session.add(member)
                             else:
                                 # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 for user in active_users:
                                     member = ChatMember(
                                         chat_id=main_chat.id,
@@ -1060,7 +1228,7 @@ def create_app(config_name='default'):
                         print(f"WARNING: Could not check has_full_access column: {e}")
                         # Fallback: Füge alle aktiven Benutzer hinzu
                         from app.models.chat import ChatMember
-                        active_users = User.query.filter_by(is_active=True).all()
+                        active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                         for user in active_users:
                             member = ChatMember(
                                 chat_id=main_chat.id,
@@ -1077,7 +1245,7 @@ def create_app(config_name='default'):
                             columns = {col['name'] for col in inspector.get_columns('users')}
                             if 'has_full_access' in columns:
                                 from app.utils.access_control import has_module_access
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                                 existing_user_ids = [member.user_id for member in existing_members]
                                 
@@ -1090,7 +1258,7 @@ def create_app(config_name='default'):
                                         db.session.add(member)
                             else:
                                 # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                                 existing_user_ids = [member.user_id for member in existing_members]
                                 
@@ -1103,7 +1271,7 @@ def create_app(config_name='default'):
                                         db.session.add(member)
                         else:
                             # Fallback: Füge alle aktiven Benutzer hinzu
-                            active_users = User.query.filter_by(is_active=True).all()
+                            active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                             existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                             existing_user_ids = [member.user_id for member in existing_members]
                             
