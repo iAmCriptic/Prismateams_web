@@ -40,6 +40,7 @@ def browse_folder(folder_id):
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         from app.utils.access_control import get_guest_accessible_items
         accessible_files, accessible_folders = get_guest_accessible_items(current_user)
+        accessible_folder_ids = {folder.id for folder in accessible_folders}
         
         # Filtere nach aktuell angezeigtem Ordner
         current_folder = None
@@ -55,14 +56,24 @@ def browse_folder(folder_id):
         if folder_id:
             subfolders = [f for f in accessible_folders if f.parent_id == folder_id]
         else:
-            subfolders = [f for f in accessible_folders if f.parent_id is None]
+            # Root zeigt alle zugänglichen Einstiegspunkte:
+            # - echte Root-Ordner
+            # - freigegebene Unterordner, deren Parent nicht zugänglich ist
+            subfolders = [
+                f for f in accessible_folders
+                if f.parent_id is None or f.parent_id not in accessible_folder_ids
+            ]
         
         # Zeige nur zugängliche Dateien im aktuellen Ordner
         # (get_guest_accessible_items gibt bereits alle Dateien inkl. Unterordnern zurück)
         if folder_id:
             files = [f for f in accessible_files if f.folder_id == folder_id]
         else:
-            files = [f for f in accessible_files if f.folder_id is None]
+            # Root zeigt auch direkt freigegebene Dateien, wenn ihr Ordner nicht zugänglich ist
+            files = [
+                f for f in accessible_files
+                if f.folder_id is None or f.folder_id not in accessible_folder_ids
+            ]
         
         # Sortiere
         subfolders = sorted(subfolders, key=lambda x: x.name)
