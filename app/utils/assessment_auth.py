@@ -32,9 +32,9 @@ def get_assessment_identity():
         return "ass", current_user.id, current_user.role_names
 
     if has_module_access(current_user, "module_assessment"):
-        is_admin = getattr(current_user, "is_admin", False) or getattr(current_user, "is_super_admin", False)
-        roles = ["Administrator"] if is_admin else ["Bewerter"]
-        return "portal", current_user.id, roles
+        # Teamportal-Freischaltung fuer das Bewertungsmodul bedeutet immer Vollzugriff.
+        # Dadurch ist kein separates Assessment-Passwort/-Rollenset notwendig.
+        return "portal", current_user.id, ["Administrator"]
 
     return None, None, []
 
