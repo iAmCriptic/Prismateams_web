@@ -1189,7 +1189,6 @@ def create_app(config_name='default'):
                     app.logger.warning("Konnte Benutzersprachen nicht aktualisieren: %s", e)
 
                 main_chat = Chat.query.filter_by(is_main_chat=True).first()
-                main_chat = Chat.query.filter_by(is_main_chat=True).first()
                 if not main_chat:
                     main_chat = Chat(
                         name='Team Chat',
@@ -1208,7 +1207,7 @@ def create_app(config_name='default'):
                             columns = {col['name'] for col in inspector.get_columns('users')}
                             if 'has_full_access' in columns:
                                 from app.utils.access_control import has_module_access
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 for user in active_users:
                                     if has_module_access(user, 'module_chat'):
                                         member = ChatMember(
@@ -1218,7 +1217,7 @@ def create_app(config_name='default'):
                                         db.session.add(member)
                             else:
                                 # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 for user in active_users:
                                     member = ChatMember(
                                         chat_id=main_chat.id,
@@ -1229,7 +1228,7 @@ def create_app(config_name='default'):
                         print(f"WARNING: Could not check has_full_access column: {e}")
                         # Fallback: Füge alle aktiven Benutzer hinzu
                         from app.models.chat import ChatMember
-                        active_users = User.query.filter_by(is_active=True).all()
+                        active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                         for user in active_users:
                             member = ChatMember(
                                 chat_id=main_chat.id,
@@ -1246,7 +1245,7 @@ def create_app(config_name='default'):
                             columns = {col['name'] for col in inspector.get_columns('users')}
                             if 'has_full_access' in columns:
                                 from app.utils.access_control import has_module_access
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                                 existing_user_ids = [member.user_id for member in existing_members]
                                 
@@ -1259,7 +1258,7 @@ def create_app(config_name='default'):
                                         db.session.add(member)
                             else:
                                 # Spalte existiert noch nicht - füge alle aktiven Benutzer hinzu (Rückwärtskompatibilität)
-                                active_users = User.query.filter_by(is_active=True).all()
+                                active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                                 existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                                 existing_user_ids = [member.user_id for member in existing_members]
                                 
@@ -1272,7 +1271,7 @@ def create_app(config_name='default'):
                                         db.session.add(member)
                         else:
                             # Fallback: Füge alle aktiven Benutzer hinzu
-                            active_users = User.query.filter_by(is_active=True).all()
+                            active_users = User.query.filter_by(is_active=True, is_guest=False).all()
                             existing_members = ChatMember.query.filter_by(chat_id=main_chat.id).all()
                             existing_user_ids = [member.user_id for member in existing_members]
                             

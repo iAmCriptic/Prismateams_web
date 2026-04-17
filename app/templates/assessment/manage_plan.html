@@ -1,18 +1,194 @@
 {% extends "base.html" %}
-{% block title %}Lageplan Editor{% endblock %}
+{% block title %}Lageplan verwalten{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1 class="h4 mb-3">Lageplan verwalten</h1>
-    <div class="card mb-3">
-        <div class="card-body">
-            <form id="uploadForm" class="row g-2">
-                <div class="col-md-5"><input class="form-control" name="name" placeholder="Planname" required></div>
-                <div class="col-md-5"><input class="form-control" type="file" name="file" accept="image/*" required></div>
-                <div class="col-md-2"><button class="btn btn-accent w-100">Upload</button></div>
-            </form>
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-0">Lageplan verwalten</h1>
+            <div class="text-muted small" id="currentPlanInfo">Kein aktiver Plan</div>
+        </div>
+        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+    </div>
+
+    <div class="row g-3 plan-editor-layout">
+        <!-- Linke Sidebar -->
+        <div class="col-lg-3">
+            <div class="accordion" id="leftSidebarAccordion">
+                <div class="accordion-item shadow-sm border-0 mb-2 rounded-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#uploadPanel">
+                            <i class="bi bi-cloud-arrow-up me-2"></i>Lageplan hochladen
+                        </button>
+                    </h2>
+                    <div id="uploadPanel" class="accordion-collapse collapse show" data-bs-parent="#leftSidebarAccordion">
+                        <div class="accordion-body">
+                            <input type="file" id="floorPlanUpload" class="form-control mb-2" accept="image/*">
+                            <button id="uploadPlanButton" class="btn btn-accent w-100">
+                                <i class="bi bi-upload me-1"></i>Plan hochladen &amp; aktivieren
+                            </button>
+                            <p class="small text-muted mb-0 mt-2">Erlaubt: PNG, JPG, GIF, SVG, WEBP.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item shadow-sm border-0 mb-2 rounded-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#scalePanel">
+                            <i class="bi bi-rulers me-2"></i>Maßstab definieren
+                        </button>
+                    </h2>
+                    <div id="scalePanel" class="accordion-collapse collapse" data-bs-parent="#leftSidebarAccordion">
+                        <div class="accordion-body">
+                            <p class="small text-muted">Aktivieren Sie den Modus, klicken Sie zwei Punkte im Plan an und tragen Sie die reale Distanz ein.</p>
+                            <button id="toggleScaleModeButton" class="btn btn-scale-toggle w-100 mb-2">Maßstab-Modus aktivieren</button>
+                            <div class="row g-2 small mb-2">
+                                <div class="col-6"><span class="text-muted">Punkt 1:</span> <span id="scalePoint1Display">–</span></div>
+                                <div class="col-6"><span class="text-muted">Punkt 2:</span> <span id="scalePoint2Display">–</span></div>
+                            </div>
+                            <label class="form-label small mb-1">Reale Distanz (m)</label>
+                            <input id="scaleDistanceInput" type="number" class="form-control mb-2" min="0.01" step="0.01" placeholder="z.B. 10">
+                            <button id="setScaleButton" class="btn btn-success w-100 mb-2" disabled>
+                                <i class="bi bi-save me-1"></i>Maßstab speichern
+                            </button>
+                            <p id="pixelsPerMeterDisplay" class="small text-muted mb-0">Maßstab: Nicht definiert</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item shadow-sm border-0 mb-2 rounded-3">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#toolboxPanel">
+                            <i class="bi bi-grid-3x3-gap me-2"></i>Toolbox
+                        </button>
+                    </h2>
+                    <div id="toolboxPanel" class="accordion-collapse collapse show" data-bs-parent="#leftSidebarAccordion">
+                        <div class="accordion-body">
+                            <p class="small text-muted mb-2">1. Element auswählen · 2. auf den Plan klicken. Esc oder erneut klicken bricht ab.</p>
+                            <div class="toolbox-grid">
+                                <div class="toolbox-item" data-object-type="stand" title="Stand platzieren">
+                                    <i class="bi bi-shop"></i>
+                                    <span>Stand</span>
+                                </div>
+                                <div class="toolbox-item" data-object-type="trash_can" title="Mülleimer platzieren">
+                                    <i class="bi bi-trash3"></i>
+                                    <span>Mülleimer</span>
+                                </div>
+                                <div class="toolbox-item" data-object-type="power_outlet" title="Steckdose platzieren">
+                                    <i class="bi bi-plug"></i>
+                                    <span>Steckdose</span>
+                                </div>
+                                <div class="toolbox-item" data-object-type="wc" title="WC platzieren">
+                                    <i class="bi bi-badge-wc"></i>
+                                    <span>WC</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-2 position-relative">
+                    <div id="floorPlanStage" class="assessment-stage"></div>
+                    <div class="assessment-zoom-overlay" id="zoomControls">
+                        <button id="zoomOutButton" class="btn btn-light btn-sm rounded-circle shadow-sm" title="Herauszoomen"><i class="bi bi-dash-lg"></i></button>
+                        <button id="fitViewButton" class="btn btn-light btn-sm rounded-circle shadow-sm" title="Einpassen"><i class="bi bi-arrows-angle-contract"></i></button>
+                        <button id="zoomInButton" class="btn btn-light btn-sm rounded-circle shadow-sm" title="Hineinzoomen"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                    <div class="assessment-toast" id="inlineMessageContainer"></div>
+                    <div id="stageEmptyState" class="assessment-empty-state">
+                        <i class="bi bi-map display-4 text-muted"></i>
+                        <p class="text-muted mt-2 mb-0">Noch kein Lageplan aktiv. Bitte zuerst hochladen.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Properties + Legende -->
+        <div class="col-lg-3">
+            <div class="card shadow-sm border-0 rounded-3 mb-3 d-none" id="objectPropertiesPanel">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h2 class="h6 mb-0"><i class="bi bi-sliders me-2"></i>Eigenschaften</h2>
+                        <button type="button" class="btn-close" id="closePropertiesButton" aria-label="Schließen"></button>
+                    </div>
+
+                    <div id="standProperties" class="d-none">
+                        <label class="form-label small mb-1">Zugeordneter Stand</label>
+                        <select id="objectStandId" class="form-select form-select-sm mb-2"></select>
+                        <div class="form-check form-switch small mb-2">
+                            <input class="form-check-input" type="checkbox" id="useCustomStandName">
+                            <label class="form-check-label" for="useCustomStandName">Eigenen Namen verwenden</label>
+                        </div>
+                        <input id="standCustomNameInput" type="text" class="form-control form-control-sm mb-2" placeholder="Anzeigename" disabled>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Breite (m)</label>
+                                <input id="standWidth" type="number" class="form-control form-control-sm" min="0" step="0.1">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-1">Höhe (m)</label>
+                                <input id="standHeight" type="number" class="form-control form-control-sm" min="0" step="0.1">
+                            </div>
+                        </div>
+                        <label class="form-label small mb-1">Farbe</label>
+                        <input id="standColor" type="color" class="form-control form-control-color form-control-sm mb-2" value="#cccccc">
+                    </div>
+
+                    <div id="trashCanProperties" class="d-none">
+                        <label class="form-label small mb-1">Farbe</label>
+                        <select id="trashCanColorSelect" class="form-select form-select-sm mb-2">
+                            <option value="yellow">Gelb</option>
+                            <option value="blue">Blau</option>
+                            <option value="black">Schwarz</option>
+                            <option value="green">Grün</option>
+                        </select>
+                    </div>
+
+                    <div id="powerOutletProperties" class="d-none">
+                        <label class="form-label small mb-1">Nummer / Label</label>
+                        <input id="powerOutletLabel" type="text" class="form-control form-control-sm mb-2">
+                    </div>
+
+                    <div id="wcProperties" class="d-none">
+                        <label class="form-label small mb-1">WC-Label</label>
+                        <input id="wcLabel" type="text" class="form-control form-control-sm mb-2" value="WC">
+                    </div>
+
+                    <input id="objectName" type="hidden">
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button id="saveObjectButton" class="btn btn-accent btn-sm flex-fill"><i class="bi bi-save me-1"></i>Speichern</button>
+                        <button id="deleteObjectButton" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-bookmark me-2"></i>Legende</h2>
+                    <div id="legendContent">
+                        <p class="small text-muted mb-0">Keine Objekte platziert.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div id="plans" class="row g-3"></div>
 </div>
+
+<script>
+window.PLAN_API = {
+    getActivePlan: "{{ url_for('assessment.map.get_active_plan') }}",
+    uploadPlan: "{{ url_for('assessment.map.upload_floor_plan') }}",
+    saveObject: "{{ url_for('assessment.map.save_floor_plan_object') }}",
+    deleteObjectBase: "{{ url_for('assessment.map.delete_floor_plan_object', object_id=0) | replace('/0', '') }}",
+    updateScale: "{{ url_for('assessment.map.update_plan_scale') }}",
+    setActive: "{{ url_for('assessment.map.set_active_plan') }}"
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/konva@9.3.14/konva.min.js"></script>
 <script src="{{ url_for('static', filename='js/assessment/manage_plan_konva.js') }}"></script>
 {% endblock %}

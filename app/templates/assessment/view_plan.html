@@ -1,11 +1,63 @@
 {% extends "base.html" %}
 {% block title %}Lageplan{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1 class="h4 mb-3">Lageplan</h1>
-    <div id="activePlan" class="card">
-        <div class="card-body text-muted">Lädt...</div>
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-0">Lageplan</h1>
+            <div class="text-muted small" id="currentPlanInfo">Lädt…</div>
+        </div>
+        <div class="d-flex gap-2">
+            {% if 'admin' in assessment_sections %}
+            <a href="{{ url_for('assessment.map.manage_plan') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil-square me-1"></i>Bearbeiten</a>
+            {% endif %}
+            <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-9">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body p-2 position-relative">
+                    <div id="floorPlanStage" class="assessment-stage"></div>
+                    <div class="assessment-zoom-overlay">
+                        <button id="zoomOutButton" class="btn btn-light btn-sm rounded-circle shadow-sm" title="Herauszoomen"><i class="bi bi-dash-lg"></i></button>
+                        <button id="fitViewButton" class="btn btn-light btn-sm rounded-circle shadow-sm" title="Einpassen"><i class="bi bi-arrows-angle-contract"></i></button>
+                        <button id="zoomInButton" class="btn btn-light btn-sm rounded-circle shadow-sm" title="Hineinzoomen"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                    <div id="stageEmptyState" class="assessment-empty-state">
+                        <i class="bi bi-map display-4 text-muted"></i>
+                        <p class="text-muted mt-2 mb-0">Kein aktiver Lageplan vorhanden.</p>
+                    </div>
+                    <div class="assessment-toast" id="inlineMessageContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="card shadow-sm border-0 rounded-3 mb-3 d-none" id="infoPanel">
+                <div class="card-body">
+                    <h2 class="h6 mb-2" id="infoTitle">Objekt</h2>
+                    <div id="infoBody" class="small text-muted">–</div>
+                </div>
+            </div>
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body">
+                    <h2 class="h6 mb-2"><i class="bi bi-bookmark me-2"></i>Legende</h2>
+                    <div id="legendContent">
+                        <p class="small text-muted mb-0">Keine Objekte vorhanden.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+window.PLAN_API = {
+    getActivePlan: "{{ url_for('assessment.map.get_active_plan') }}"
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/konva@9.3.14/konva.min.js"></script>
 <script src="{{ url_for('static', filename='js/assessment/view_plan_konva.js') }}"></script>
 {% endblock %}
