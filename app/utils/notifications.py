@@ -23,6 +23,27 @@ import base64
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
 
+
+def _deduplicate_subscriptions(subscriptions: List[PushSubscription]) -> List[PushSubscription]:
+    """
+    Entfernt doppelte aktive Subscriptions nach Endpoint.
+    Falls mehrfach vorhanden, wird die zuletzt verwendete behalten.
+    """
+    unique_by_endpoint = {}
+    for subscription in subscriptions:
+        existing = unique_by_endpoint.get(subscription.endpoint)
+        if not existing:
+            unique_by_endpoint[subscription.endpoint] = subscription
+            continue
+
+        existing_last_used = existing.last_used or existing.created_at or datetime.min
+        current_last_used = subscription.last_used or subscription.created_at or datetime.min
+        if current_last_used > existing_last_used:
+            unique_by_endpoint[subscription.endpoint] = subscription
+
+    return list(unique_by_endpoint.values())
+
+
 def get_vapid_keys():
     """Lade VAPID Keys aus der App-Konfiguration."""
     private_key = current_app.config.get('VAPID_PRIVATE_KEY')
@@ -105,6 +126,7 @@ def send_push_notification(
         user_id=user_id,
         is_active=True
     ).all()
+    subscriptions = _deduplicate_subscriptions(subscriptions)
     
     if not subscriptions:
         logging.info(f"Keine Push-Subscriptions für Benutzer {user_id}")
@@ -262,6 +284,8 @@ def send_chat_notification(
         user = User.query.get(member.user_id)
         if not user:
             continue
+        if not user.chat_notifications:
+            continue
         
         # Prüfe ob Benutzer Zugriff auf Chat-Modul hat
         from app.utils.access_control import has_module_access
@@ -283,7 +307,7 @@ def send_chat_notification(
         unread_count = ChatMessage.query.filter(
             ChatMessage.chat_id == chat_id,
             ChatMessage.sender_id != user.id,
-            ChatMessage.created_at > member.last_read_at,
+            ChatMessage.created_at > (member.last_read_at or member.joined_at or datetime.min),
             ChatMessage.is_deleted == False
         ).count()
         
@@ -324,10 +348,9 @@ def send_chat_notification(
         
         if push_success:
             logging.info(f"Chat-Push-Benachrichtigung erfolgreich gesendet an Benutzer {user.id}")
+            sent_count += 1
         else:
             logging.warning(f"Chat-Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
-        
-        sent_count += 1
     
     return sent_count
 
@@ -564,6 +587,19 @@ def send_calendar_notification(
         
         title = f"Termin-Erinnerung"
         body = f"{event.title} {time_text} ({date_str} um {time_str})"
+
+        # Schutz vor Duplikaten (z.B. mehrere Scheduler-Worker oder enge Poll-Intervalle)
+        recent_duplicate = NotificationLog.query.filter_by(
+            user_id=user.id,
+            title=title,
+            body=body,
+            url=f"/calendar/view/{event_id}",
+            success=True
+        ).filter(
+            NotificationLog.sent_at >= datetime.utcnow() - timedelta(minutes=10)
+        ).first()
+        if recent_duplicate:
+            continue
         
         if send_push_notification(
             user_id=user.id,
@@ -596,21 +632,31 @@ def schedule_calendar_reminders():
             CalendarEvent.start_time > now,
             CalendarEvent.start_time <= now + timedelta(days=7)
         ).all()
+
+        reminder_candidates = db.session.query(NotificationSettings.reminder_times).filter(
+            NotificationSettings.calendar_notifications_enabled == True,
+            NotificationSettings.reminder_times.isnot(None),
+            NotificationSettings.reminder_times != "[]"
+        ).all()
+
+        reminder_times = set()
+        for reminder_row in reminder_candidates:
+            raw = reminder_row[0]
+            try:
+                parsed_times = json.loads(raw) if raw else []
+            except Exception:
+                parsed_times = []
+            for value in parsed_times:
+                try:
+                    reminder_times.add(int(value))
+                except (TypeError, ValueError):
+                    continue
         
         for event in future_events:
-            users = User.query.join(NotificationSettings).filter(
-                NotificationSettings.calendar_notifications_enabled == True
-            ).all()
-            
-            for user in users:
-                settings = get_or_create_notification_settings(user.id)
-                reminder_times = settings.get_reminder_times()
-                
-                for reminder_minutes in reminder_times:
-                    reminder_time = event.start_time - timedelta(minutes=reminder_minutes)
-                    
-                    if abs((reminder_time - now).total_seconds()) <= 300:  # 5 Minuten
-                        send_calendar_notification(event.id, reminder_minutes)
+            for reminder_minutes in reminder_times:
+                reminder_time = event.start_time - timedelta(minutes=reminder_minutes)
+                if abs((reminder_time - now).total_seconds()) <= 300:  # 5 Minuten
+                    send_calendar_notification(event.id, reminder_minutes)
     except Exception as e:
         logging.error(f"Fehler beim Planen von Kalender-Erinnerungen: {e}", exc_info=True)
 

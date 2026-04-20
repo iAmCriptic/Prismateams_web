@@ -21,6 +21,67 @@ def get_color_gradient():
     return gradient_setting.value if gradient_setting else None
 
 
+def _clear_pending_2fa_login():
+    """Entfernt zwischengespeicherte 2FA-Login-Daten."""
+    session.pop('pending_2fa_user_id', None)
+    session.pop('pending_2fa_remember', None)
+    session.pop('pending_2fa_next', None)
+
+
+def _finalize_portal_login(user, remember=False, next_page=None):
+    """Finalisiert den Portal-Login nach erfolgreicher Authentifizierung."""
+    # Gast-Accounts benötigen keine E-Mail-Bestätigung
+    # Normale Accounts: Check if email confirmation is required (nicht für Admins)
+    if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
+        login_user(user, remember=remember)
+        create_session(user.id)
+        flash(translate('auth.flash.confirm_email_required'), 'info')
+        return redirect(url_for('auth.confirm_email'))
+
+    # Update last login
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    # Log user in
+    login_user(user, remember=remember)
+    session['user_scope'] = 'portal'
+
+    # Erstelle Session für Session-Management
+    create_session(user.id)
+
+    # Prüfe ob Passwort geändert werden muss
+    if user.must_change_password:
+        flash(translate('auth.flash.must_change_password'), 'warning')
+        return redirect(url_for('auth.change_password'))
+
+    # Add user to main chat if not already a member and user has chat access
+    from app.utils.access_control import has_module_access
+    if has_module_access(user, 'module_chat'):
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            existing_membership = ChatMember.query.filter_by(
+                chat_id=main_chat.id,
+                user_id=user.id
+            ).first()
+
+            if not existing_membership:
+                chat_member = ChatMember(
+                    chat_id=main_chat.id,
+                    user_id=user.id
+                )
+                db.session.add(chat_member)
+                db.session.commit()
+
+    # Make session permanent if remember me is checked
+    if remember:
+        session.permanent = True
+
+    # Redirect to next page or dashboard
+    if next_page:
+        return redirect(next_page)
+    return redirect(url_for('dashboard.index'))
+
+
 @auth_bp.route('/')
 def index():
     """Redirect to login, dashboard, or setup."""
@@ -194,12 +255,16 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
     
+    # Alte 2FA-Pending-Session bereinigen, wenn der Login neu gestartet wird
+    if request.method == 'GET':
+        _clear_pending_2fa_login()
+
     if request.method == 'POST':
         login_input = request.form.get('email', '').strip()
         email = login_input.lower()
         password = request.form.get('password', '')
         remember = request.form.get('remember', False) == 'on'
-        totp_code = request.form.get('totp_code', '').strip()
+        next_page = request.form.get('next') or request.args.get('next')
         
         if not email or not password:
             flash(translate('auth.flash.enter_email_password'), 'danger')
@@ -272,85 +337,69 @@ def login():
             flash(translate('auth.flash.account_not_activated'), 'warning')
             return render_template('auth/login.html', color_gradient=get_color_gradient())
         
-        # 2FA-Verifizierung (wenn aktiviert)
+        # 2FA-Verifizierung in separatem Schritt
         if user.totp_enabled and user.totp_secret:
-            if not totp_code:
-                # Zeige 2FA-Eingabefeld
-                flash(translate('auth.flash.enter_2fa_code'), 'info')
-                return render_template('auth/login.html', 
-                                     color_gradient=get_color_gradient(),
-                                     show_2fa=True,
-                                     email=email,
-                                     remember=remember)
-            
-            # Verifiziere TOTP-Code
-            if not verify_totp(user.totp_secret, totp_code):
-                user.failed_login_attempts += 1
-                if user.failed_login_attempts >= 5:
-                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
-                    user.failed_login_attempts = 0
-                db.session.commit()
-                flash(translate('auth.flash.invalid_2fa_code'), 'danger')
-                return render_template('auth/login.html', 
-                                     color_gradient=get_color_gradient(),
-                                     show_2fa=True,
-                                     email=email,
-                                     remember=remember)
-        
-        # Gast-Accounts benötigen keine E-Mail-Bestätigung
-        # Normale Accounts: Check if email confirmation is required (nicht für Admins)
-        if not user.is_guest and not user.is_email_confirmed and not user.is_admin:
-            login_user(user, remember=remember)
-            # Erstelle Session
-            create_session(user.id)
-            flash(translate('auth.flash.confirm_email_required'), 'info')
-            return redirect(url_for('auth.confirm_email'))
-        
-        # Update last login
-        user.last_login = datetime.utcnow()
-        db.session.commit()
-        
-        # Log user in
-        login_user(user, remember=remember)
-        session['user_scope'] = 'portal'
-        
-        # Erstelle Session für Session-Management
-        create_session(user.id)
-        
-        # Prüfe ob Passwort geändert werden muss
-        if user.must_change_password:
-            flash(translate('auth.flash.must_change_password'), 'warning')
-            return redirect(url_for('auth.change_password'))
-        
-        # Add user to main chat if not already a member and user has chat access
-        from app.utils.access_control import has_module_access
-        if has_module_access(user, 'module_chat'):
-            main_chat = Chat.query.filter_by(is_main_chat=True).first()
-            if main_chat:
-                existing_membership = ChatMember.query.filter_by(
-                    chat_id=main_chat.id,
-                    user_id=user.id
-                ).first()
-                
-                if not existing_membership:
-                    chat_member = ChatMember(
-                        chat_id=main_chat.id,
-                        user_id=user.id
-                    )
-                    db.session.add(chat_member)
-                    db.session.commit()
-        
-        # Make session permanent if remember me is checked
-        if remember:
-            session.permanent = True
-        
-        # Redirect to next page or dashboard
-        next_page = request.args.get('next')
-        if next_page:
-            return redirect(next_page)
-        return redirect(url_for('dashboard.index'))
+            session['pending_2fa_user_id'] = user.id
+            session['pending_2fa_remember'] = remember
+            if next_page:
+                session['pending_2fa_next'] = next_page
+            else:
+                session.pop('pending_2fa_next', None)
+            flash(translate('auth.flash.enter_2fa_code'), 'info')
+            return redirect(url_for('auth.login_2fa'))
+
+        return _finalize_portal_login(user, remember=remember, next_page=next_page)
     
     return render_template('auth/login.html', color_gradient=get_color_gradient())
+
+
+@auth_bp.route('/login/2fa', methods=['GET', 'POST'])
+@limiter.limit("10 per 15 minutes")
+def login_2fa():
+    """Zweiter Login-Schritt für 2FA."""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+
+    pending_user_id = session.get('pending_2fa_user_id')
+    remember = bool(session.get('pending_2fa_remember', False))
+    next_page = session.get('pending_2fa_next')
+
+    if not pending_user_id:
+        flash(translate('auth.flash.enter_email_password'), 'warning')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.get(pending_user_id)
+    if not user or not user.totp_enabled or not user.totp_secret:
+        _clear_pending_2fa_login()
+        flash(translate('auth.flash.enter_email_password'), 'warning')
+        return redirect(url_for('auth.login'))
+
+    if user.failed_login_until and datetime.utcnow() < user.failed_login_until:
+        _clear_pending_2fa_login()
+        remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
+        flash(translate('auth.flash.account_locked', seconds=remaining_seconds), 'danger')
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        totp_code = request.form.get('totp_code', '').strip()
+        if not totp_code:
+            flash(translate('auth.flash.enter_2fa_code'), 'danger')
+            return render_template('auth/login_2fa.html', color_gradient=get_color_gradient())
+
+        if not verify_totp(user.totp_secret, totp_code):
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= 5:
+                user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                user.failed_login_attempts = 0
+            db.session.commit()
+            flash(translate('auth.flash.invalid_2fa_code'), 'danger')
+            return render_template('auth/login_2fa.html', color_gradient=get_color_gradient())
+
+        # Erfolgreicher 2FA-Schritt
+        _clear_pending_2fa_login()
+        return _finalize_portal_login(user, remember=remember, next_page=next_page)
+
+    return render_template('auth/login_2fa.html', color_gradient=get_color_gradient())
 
 
 @auth_bp.route('/confirm-email', methods=['GET', 'POST'])

@@ -252,6 +252,41 @@ def create_app(config_name='default'):
                 return
             flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
             return redirect(url_for('auth.confirm_email'))
+
+    @app.before_request
+    def ensure_portal_session_tracking():
+        """Sorgt dafür, dass authentifizierte Portal-Sessions in user_sessions erfasst sind."""
+        from flask_login import current_user
+
+        if not current_user.is_authenticated:
+            return
+
+        # Assessment-Logins nutzen einen separaten Scope und kein Portal-Session-Tracking.
+        if session.get('user_scope') == 'assessment':
+            return
+
+        # Socket.IO-Handshake/Events sind keine klassischen HTTP-Seitenaufrufe.
+        if request.path.startswith('/socket.io/'):
+            return
+
+        if request.endpoint and request.endpoint.startswith('static'):
+            return
+
+        from datetime import datetime, timedelta
+        from app.utils.session_manager import get_current_session, create_session
+
+        try:
+            current_session = get_current_session(current_user.id)
+            if current_session is None:
+                create_session(current_user.id)
+                return
+
+            # Last-Activity nicht bei jedem Request schreiben, um DB-Last zu reduzieren.
+            if not current_session.last_activity or (datetime.utcnow() - current_session.last_activity) >= timedelta(minutes=1):
+                current_session.last_activity = datetime.utcnow()
+                db.session.commit()
+        except Exception as exc:
+            app.logger.warning("Session-Tracking konnte nicht aktualisiert werden: %s", exc)
     
     from app.models.user import User
     from app.models.assessment import AssessmentUser
@@ -466,7 +501,8 @@ def create_app(config_name='default'):
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
-                'settings': 'settings.index'
+                'settings': 'settings.index',
+                'assessment': 'assessment.general.home'
             }
             
             for module_prefix, index_endpoint in module_mapping.items():
@@ -803,7 +839,7 @@ def create_app(config_name='default'):
                 from app.models.file import File, FileVersion, Folder
                 from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
                 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
-                from app.models.credential import Credential
+                from app.models.credential import Credential, CredentialFolder
                 from app.models.manual import Manual
                 from app.models.settings import SystemSettings
                 from app.models.whitelist import WhitelistEntry
@@ -942,6 +978,31 @@ def create_app(config_name='default'):
                                     print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
                             else:
                                 print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/Migrate_to_1.5.2.py")
+                        if 'color' not in columns:
+                            print("[INFO] Ergänze folders.color ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE folders ADD COLUMN color VARCHAR(16)"))
+                            print("[OK] folders.color hinzugefügt")
+
+                    table_names = inspector.get_table_names()
+                    if 'credential_folders' not in table_names:
+                        print("[INFO] Erstelle credential_folders ...")
+                        CredentialFolder.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] credential_folders erstellt")
+
+                    if 'credentials' in table_names:
+                        credential_columns = {col['name'] for col in inspector.get_columns('credentials')}
+                        if 'folder_id' not in credential_columns:
+                            print("[INFO] Ergänze credentials.folder_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE credentials ADD COLUMN folder_id INTEGER NULL"))
+                            print("[OK] credentials.folder_id hinzugefügt")
+
+                        if 'is_favorite' not in credential_columns:
+                            print("[INFO] Ergänze credentials.is_favorite ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE credentials ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))
+                            print("[OK] credentials.is_favorite hinzugefügt")
 
                     if ('users' in inspector.get_table_names() and
                             'language' not in {col['name'] for col in inspector.get_columns('users')} and
@@ -1011,6 +1072,45 @@ def create_app(config_name='default'):
                                     print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
                             else:
                                 print("[WARNUNG] Sicherheitsfeatures-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_security_features.py")
+
+                    # Kalender-Events: event_color ergänzen
+                    if 'calendar_events' in inspector.get_table_names():
+                        calendar_columns = {col['name'] for col in inspector.get_columns('calendar_events')}
+                        if 'event_color' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.event_color ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events "
+                                    "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
+                                ))
+                            print("[OK] calendar_events.event_color hinzugefügt")
+
+                    # E-Mail-Manager-Großupdate: Farbpunkt/Keyword-Sync-Spalten ergänzen
+                    if 'email_messages' in inspector.get_table_names():
+                        email_columns = {col['name'] for col in inspector.get_columns('email_messages')}
+                        mail_manager_columns = []
+                        if 'color_dot' not in email_columns:
+                            mail_manager_columns.append(("color_dot", "VARCHAR(24) NULL"))
+                        if 'is_flagged' not in email_columns:
+                            mail_manager_columns.append(("is_flagged", "BOOLEAN NOT NULL DEFAULT 0"))
+                        if 'imap_color_keyword' not in email_columns:
+                            mail_manager_columns.append(("imap_color_keyword", "VARCHAR(64) NULL"))
+                        if 'last_flag_sync_at' not in email_columns:
+                            mail_manager_columns.append(("last_flag_sync_at", "DATETIME NULL"))
+                        if mail_manager_columns:
+                            print("[INFO] Ergänze email_messages Mail-Manager-Spalten ...")
+                            try:
+                                with db.engine.begin() as connection:
+                                    for col_name, col_def in mail_manager_columns:
+                                        connection.execute(text(
+                                            f"ALTER TABLE email_messages ADD COLUMN {col_name} {col_def}"
+                                        ))
+                                print(
+                                    "[OK] email_messages Mail-Manager-Spalten hinzugefügt: "
+                                    + ", ".join(c[0] for c in mail_manager_columns)
+                                )
+                            except Exception as mail_col_error:
+                                print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
                     print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")

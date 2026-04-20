@@ -118,7 +118,7 @@
         </div>
         {% endif %}
         
-        {% if html_content %}
+        {% if html_iframe_html %}
         <div class="email-content-wrapper">
             <div class="email-content-header mb-3">
                 <div class="d-flex justify-content-between align-items-center gap-2">
@@ -132,7 +132,6 @@
                         </button>
                         {% endif %}
                     </div>
-                    <!-- Mobile Zoom Controls -->
                     <div class="d-md-none btn-group btn-group-sm" role="group" aria-label="{{ _('email.view.zoom.label') }}">
                         <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn" title="{{ _('email.view.zoom.out') }}">
                             <i class="bi bi-dash"></i>
@@ -146,14 +145,23 @@
                     </div>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content email-content-isolated" style="background: #ffffff !important; color: #333333 !important; border: 1px solid #e0e0e0 !important; width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
+            <div id="htmlContent" class="email-html-iframe-zoom-wrap email-content-isolated">
+                <div class="email-html-frame-wrapper">
+                    <iframe class="email-html-iframe"
+                            title="{{ _('email.view.iframe.title') }}"
+                            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            srcdoc="{{ html_iframe_html|e }}"></iframe>
+                </div>
+            </div>
             {% if email.body_text %}
             <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
-                <pre>{{ email.body_text }}</pre>
+                <div class="email-plain-text">{{ email.body_text }}</div>
             </div>
             {% endif %}
         </div>
-        {% elif email.body_html %}
+        {% elif html_content %}
         <div class="email-content-wrapper">
             <div class="email-content-header mb-3">
                 <div class="d-flex justify-content-between align-items-center gap-2">
@@ -181,16 +189,16 @@
                     </div>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content email-content-isolated" style="background: #ffffff !important; color: #333333 !important; border: 1px solid #e0e0e0 !important; width: 100%; max-width: 100%; box-sizing: border-box;">{{ email.body_html|safe }}</div>
+            <div id="htmlContent" class="email-html-content email-content-isolated{% if is_simple_html %} email-html-content--simple{% endif %}" style="width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
             {% if email.body_text %}
             <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
-                <pre>{{ email.body_text }}</pre>
+                <div class="email-plain-text">{{ email.body_text }}</div>
             </div>
             {% endif %}
         </div>
         {% elif email.body_text %}
         <div class="email-text-content email-content-isolated">
-            <pre>{{ email.body_text }}</pre>
+            <div class="email-plain-text">{{ email.body_text }}</div>
         </div>
         {% else %}
         <div class="alert alert-warning">
@@ -252,12 +260,38 @@ function previewAttachment(attachmentId, filename) {
     new bootstrap.Modal(document.getElementById('attachmentPreviewModal')).show();
 }
 
+function resizeRichEmailIframe() {
+    var iframe = document.querySelector('.email-html-iframe');
+    if (!iframe) return;
+    try {
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        var h = Math.max(
+            doc.body ? doc.body.scrollHeight : 0,
+            doc.documentElement ? doc.documentElement.scrollHeight : 0,
+            doc.body ? doc.body.offsetHeight : 0,
+            doc.documentElement ? doc.documentElement.offsetHeight : 0
+        );
+        if (h > 0) {
+            iframe.style.height = (h + 32) + 'px';
+        }
+    } catch (e) { /* sandbox */ }
+}
+
 // Email content view toggle
 document.addEventListener('DOMContentLoaded', function() {
     const htmlViewBtn = document.getElementById('htmlViewBtn');
     const textViewBtn = document.getElementById('textViewBtn');
     const htmlContent = document.getElementById('htmlContent');
     const textContent = document.getElementById('textContent');
+
+    var richIframe = document.querySelector('.email-html-iframe');
+    if (richIframe) {
+        richIframe.addEventListener('load', resizeRichEmailIframe);
+        setTimeout(resizeRichEmailIframe, 400);
+        window.addEventListener('resize', function() {
+            resizeRichEmailIframe();
+        });
+    }
     
     if (htmlViewBtn && htmlContent) {
         htmlViewBtn.addEventListener('click', function() {

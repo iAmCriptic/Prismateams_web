@@ -208,6 +208,16 @@
         "title": "Bookings",
         "empty": "No pending bookings",
         "more_indicator": "and {count} more"
+      },
+      "passwords": {
+        "title": "Passwords",
+        "empty": "No favorite passwords",
+        "reveal": "Reveal username and password",
+        "labels": {
+          "username": "Username",
+          "password": "Password"
+        },
+        "error": "Could not load password."
       }
     },
     "quick_access": {
@@ -237,6 +247,10 @@
           "dateien": {
             "label": "Recent Files",
             "description": "Shows the files you edited most recently."
+          },
+          "passwoerter": {
+            "label": "Passwords",
+            "description": "Shows up to two of your favorite passwords."
           },
           "canvas": {
             "label": "Canvas",
@@ -1680,6 +1694,10 @@
       },
       "original_email": {
         "title": "Original email"
+      },
+      "reply_context": {
+        "prefix": "Reply to",
+        "hint": "The original message will be appended automatically below your reply."
       }
     },
     "view": {
@@ -1714,6 +1732,9 @@
         "out": "Zoom out",
         "reset": "Reset",
         "in": "Zoom in"
+      },
+      "iframe": {
+        "title": "HTML email"
       },
       "modal": {
         "title": "Attachment preview",
@@ -1753,11 +1774,24 @@
       },
       "actions": {
         "edit": "Edit",
-        "delete_confirm": "Delete these credentials?"
+        "delete_confirm": "Delete these credentials?",
+        "favorite": "Toggle favorite"
       },
       "messages": {
         "copy_success": "Copied to clipboard!",
-        "password_error": "Could not load password."
+        "password_error": "Could not load password.",
+        "favorite_error": "Could not update favorite state.",
+        "move_error": "Could not move credential."
+      },
+      "folders": {
+        "name": "Folder name",
+        "color": "Color",
+        "create": "Create folder",
+        "root": "Root",
+        "drop_hint": "Drag cards here",
+        "root_empty": "No entries in root.",
+        "empty": "This folder is empty.",
+        "move_up": "Move folder up"
       }
     },
     "form": {
@@ -1766,7 +1800,10 @@
         "website_url": "Website URL",
         "username": "Username",
         "password": "Password",
-        "notes": "Notes (optional)"
+        "notes": "Notes (optional)",
+        "folder": "Folder",
+        "root_folder": "Store in root",
+        "is_favorite": "Mark as favorite"
       },
       "placeholders": {
         "website_name": "e.g. GitHub",
@@ -1799,7 +1836,9 @@
       "fill_all_fields": "Please fill in all required fields.",
       "saved": "Credentials for \"{website_name}\" have been saved.",
       "updated": "Credentials for \"{website_name}\" have been updated.",
-      "deleted": "Credentials for \"{website_name}\" have been deleted."
+      "deleted": "Credentials for \"{website_name}\" have been deleted.",
+      "folder_name_required": "Please provide a folder name.",
+      "folder_created": "Folder \"{folder_name}\" has been created."
     },
     "errors": {
       "decrypt_error": "Error decrypting password"

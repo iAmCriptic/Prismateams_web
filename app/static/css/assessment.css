@@ -24,9 +24,9 @@
 
 /* Dark Mode */
 [data-bs-theme="dark"] .assessment-scope .card {
-    background-color: #111827;
-    border-color: #1f2937;
-    color: #e5e7eb;
+    background-color: var(--bs-card-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
 }
 
 [data-bs-theme="dark"] .assessment-scope .card.shadow-sm {
@@ -34,20 +34,20 @@
 }
 
 [data-bs-theme="dark"] .assessment-scope .card .text-muted {
-    color: #94a3b8 !important;
+    color: var(--bs-secondary-color) !important;
 }
 
 [data-bs-theme="dark"] .assessment-scope .table {
     --bs-table-bg: transparent;
-    --bs-table-striped-bg: rgba(255,255,255,0.04);
-    color: #e5e7eb;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.04);
+    color: var(--bs-body-color);
 }
 
 [data-bs-theme="dark"] .assessment-scope .form-control,
 [data-bs-theme="dark"] .assessment-scope .form-select {
-    background-color: #1f2937;
-    border-color: #334155;
-    color: #e5e7eb;
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
 }
 
 /* OLED */
@@ -58,25 +58,28 @@
 }
 
 [data-oled-mode="true"] .assessment-scope .card {
-    background-color: #050505 !important;
+    background-color: #000000 !important;
     border-color: #1a1a1a !important;
+    box-shadow: none !important;
 }
 
 [data-oled-mode="true"] .assessment-scope .sidebar {
-    background-color: #000 !important;
+    background-color: #000000 !important;
+    border-right: 1px solid #1a1a1a !important;
 }
 
 [data-oled-mode="true"] .assessment-scope .form-control,
 [data-oled-mode="true"] .assessment-scope .form-select,
 [data-oled-mode="true"] .assessment-scope .input-group-text {
-    background-color: #0a0a0a;
+    background-color: #000000;
     border-color: #1f1f1f;
-    color: #e5e7eb;
+    color: #ffffff;
 }
 
 /* Sidebar & Nav */
 [data-bs-theme="dark"] .assessment-scope .sidebar {
-    background-color: #0f172a !important;
+    background-color: #212529 !important;
+    border-right: 1px solid #495057 !important;
 }
 
 .assessment-scope #assessmentThemeToggle .btn.active {

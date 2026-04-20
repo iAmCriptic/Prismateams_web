@@ -106,6 +106,58 @@ h5.mb-3 {
     background-color: rgba(0, 0, 0, 0.05);
 }
 
+[data-bs-theme="dark"] .folder-color-icon.text-warning {
+    color: #f6c344 !important;
+}
+
+.file-text-preview {
+    min-height: 120px;
+    max-height: 120px;
+    overflow: hidden;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+}
+
+.file-markdown-preview {
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+
+.file-markdown-preview :is(h1, h2, h3, h4, h5, h6) {
+    font-size: 0.9rem;
+    margin: 0 0 0.35rem 0;
+}
+
+.file-markdown-preview p,
+.file-markdown-preview ul,
+.file-markdown-preview ol,
+.file-markdown-preview table {
+    margin-bottom: 0.35rem;
+}
+
+.file-markdown-preview table {
+    width: 100%;
+    font-size: 0.72rem;
+}
+
+.file-markdown-preview th,
+.file-markdown-preview td {
+    padding: 0.15rem 0.25rem;
+}
+
+.pdf-mini-preview {
+    height: 120px;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+}
+
+.pdf-mini-preview iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    pointer-events: none;
+}
+
 [data-bs-theme="dark"] .file-item:hover,
 [data-bs-theme="dark"] .folder-item:hover {
     background-color: rgba(255, 255, 255, 0.05);

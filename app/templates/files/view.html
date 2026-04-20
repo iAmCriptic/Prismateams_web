@@ -457,7 +457,7 @@
                    <a href="{{ url_for('files.download_file', file_id=file.id) }}">Klicken Sie hier, um die PDF herunterzuladen.</a>
                 </p>
             </iframe>
-        {% elif file.name.endswith('.md') %}
+        {% elif is_markdown|default(file.name.endswith('.md')) %}
             <div class="markdown-content">
                 {{ processed_content | safe }}
             </div>
@@ -465,7 +465,7 @@
             <div class="text-content">{{ content }}</div>
         {% endif %}
         
-        {% if not is_pdf and not file.name.endswith('.md') %}
+        {% if not is_pdf and not is_markdown|default(file.name.endswith('.md')) %}
             {% set content_type='file' %}{% set content_id=file.id %}{% include 'comments/_comments.html' %}
         {% endif %}
     </div>
@@ -489,7 +489,7 @@ document.addEventListener('keydown', function(e) {
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
-{% if file.name.endswith('.md') %}
+{% if is_markdown|default(file.name.endswith('.md')) %}
 <!-- MathJax für LaTeX-Formeln -->
 <script>
 window.MathJax = {

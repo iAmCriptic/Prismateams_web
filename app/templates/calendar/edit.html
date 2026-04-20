@@ -62,6 +62,11 @@
                         <label for="location" class="form-label">{{ _('calendar.create.form.location') }}</label>
                         <input type="text" class="form-control" id="location" name="location" value="{{ event.location or '' }}">
                     </div>
+
+                    <div class="mb-3">
+                        <label for="event_color" class="form-label">Farbe</label>
+                        <input type="color" class="form-control form-control-color" id="event_color" name="event_color" value="{{ event.event_color or '#0d6efd' }}" title="Terminfarbe">
+                    </div>
                     
                     <!-- Wiederkehrende Termine -->
                     <div class="mb-3">

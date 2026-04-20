@@ -6,6 +6,7 @@ from flask import abort, redirect, url_for, flash
 from flask_login import current_user
 from app.utils.common import is_module_enabled
 from app.models.role import UserModuleRole
+import re
 
 
 def has_module_access(user, module_key):
@@ -168,14 +169,32 @@ def has_guest_share_access(user, share_token, share_type):
         return False
     
     from app.models.guest import GuestShareAccess
-    
+
+    normalized_token = _normalize_guest_share_token(share_token)
+    normalized_type = (share_type or '').strip().lower()
+    if not normalized_token or not normalized_type:
+        return False
+
+    # Schneller Pfad für sauber gespeicherte Werte
     access = GuestShareAccess.query.filter_by(
         user_id=user.id,
-        share_token=share_token,
-        share_type=share_type
+        share_token=normalized_token,
+        share_type=normalized_type
     ).first()
-    
-    return access is not None
+    if access is not None:
+        return True
+
+    # Fallback für Legacy-/inkonsistente Daten (z.B. gespeicherte Share-URL statt Token)
+    candidate_accesses = GuestShareAccess.query.filter_by(
+        user_id=user.id,
+        share_type=normalized_type
+    ).all()
+
+    for candidate in candidate_accesses:
+        if _normalize_guest_share_token(candidate.share_token) == normalized_token:
+            return True
+
+    return False
 
 
 def guest_has_file_access(user, file):
@@ -260,31 +279,74 @@ def get_guest_accessible_items(user):
         return result
     
     for access in guest_accesses:
-        if access.share_type == 'file':
-            file_item = File.query.filter_by(share_token=access.share_token, share_enabled=True).first()
-            if file_item and file_item not in files:
-                files.append(file_item)
-        elif access.share_type == 'folder':
-            folder_item = Folder.query.filter_by(share_token=access.share_token, share_enabled=True).first()
-            if folder_item:
-                if folder_item.id not in processed_folder_ids:
-                    folders.append(folder_item)
-                    processed_folder_ids.add(folder_item.id)
-                    
-                    # Füge alle Unterordner hinzu
-                    subfolders = get_all_subfolders(folder_item.id)
-                    for subfolder in subfolders:
-                        if subfolder.id not in processed_folder_ids:
-                            folders.append(subfolder)
-                            processed_folder_ids.add(subfolder.id)
-                    
-                    # Füge alle Dateien im Ordner und seinen Unterordnern hinzu
-                    files_in_folder = get_all_files_in_folder(folder_item.id)
-                    for file_in_folder in files_in_folder:
-                        if file_in_folder not in files:
-                            files.append(file_in_folder)
+        normalized_type = (access.share_type or '').strip().lower()
+        normalized_token = _normalize_guest_share_token(access.share_token)
+        if not normalized_token:
+            continue
+
+        file_item = None
+        folder_item = None
+
+        # Primär über den gespeicherten Typ auflösen, sekundär tolerant fallbacken.
+        if normalized_type == 'file':
+            file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if not file_item:
+                folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+        elif normalized_type == 'folder':
+            folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if not folder_item:
+                file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+        else:
+            # Legacy-Daten ohne konsistenten share_type
+            file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+            if not file_item:
+                folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
+
+        if file_item and file_item not in files:
+            files.append(file_item)
+
+        if folder_item:
+            if folder_item.id not in processed_folder_ids:
+                folders.append(folder_item)
+                processed_folder_ids.add(folder_item.id)
+
+                # Füge alle Unterordner hinzu
+                subfolders = get_all_subfolders(folder_item.id)
+                for subfolder in subfolders:
+                    if subfolder.id not in processed_folder_ids:
+                        folders.append(subfolder)
+                        processed_folder_ids.add(subfolder.id)
+
+                # Füge alle Dateien im Ordner und seinen Unterordnern hinzu
+                files_in_folder = get_all_files_in_folder(folder_item.id)
+                for file_in_folder in files_in_folder:
+                    if file_in_folder not in files:
+                        files.append(file_in_folder)
     
     return files, folders
+
+
+def _normalize_guest_share_token(raw_token):
+    """
+    Normalisiert gespeicherte Share-Referenzen auf den reinen Token.
+
+    Unterstützt:
+    - reinen Token (z.B. abc123)
+    - relative URL (z.B. /files/share/abc123)
+    - absolute URL (z.B. https://example.com/files/share/abc123?x=1)
+    """
+    if not raw_token:
+        return None
+
+    token = str(raw_token).strip()
+    if not token:
+        return None
+
+    match = re.search(r"/share/([^/?#]+)", token)
+    if match:
+        return match.group(1)
+
+    return token
 
 
 def is_guest_allowed_module(guest_user, module_key):

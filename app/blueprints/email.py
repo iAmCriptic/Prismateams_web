@@ -86,7 +86,414 @@ def build_footer_html():
     return ''.join(f'<p>{line}</p>' for line in lines if line and line.strip())
 
 
-def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_preview: bool = False):
+def replace_cid_images_in_email_html(html: str, email_msg) -> str:
+    """Replace cid: image sources with data URLs from stored attachments."""
+    if not html or not email_msg or not getattr(email_msg, 'attachments', None):
+        return html
+    for attachment in email_msg.attachments:
+        if attachment.is_inline and attachment.content_type.startswith('image/'):
+            data_url = attachment.get_data_url()
+            if data_url:
+                cid_pattern = f'cid:{attachment.filename}'
+                html = html.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
+                html = html.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
+                content_id = attachment.content_id
+                if content_id:
+                    html = html.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
+                    html = html.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
+    placeholder_svg = (
+        'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"'
+    )
+    html = re.sub(r'src="cid:([^"]+)"', placeholder_svg, html)
+    return html
+
+
+def sanitize_email_iframe_html(html: str) -> str:
+    """Strip scripts and inline JS handlers before rendering in iframe (XSS mitigation)."""
+    if not html:
+        return html
+    html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.IGNORECASE | re.DOTALL)
+    html = re.sub(r'<script\b[^>]*/>', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)', '', html, flags=re.IGNORECASE)
+    html = re.sub(r'\s+href\s*=\s*["\']?\s*javascript:[^"\'>\s]+["\']?', ' href="#"', html, flags=re.IGNORECASE)
+    return html
+
+
+def inject_iframe_head_meta_and_base(html: str) -> str:
+    """Ensure charset + base target for links; keep sender <head> intact."""
+    meta_charset = '<meta charset="utf-8"/>'
+    base_tag = '<base target="_blank" rel="noopener noreferrer"/>'
+    has_charset = bool(re.search(r'<meta[^>]+charset', html, re.IGNORECASE))
+    has_base = bool(re.search(r'<base\s', html, re.IGNORECASE))
+    inject = ''
+    if not has_charset:
+        inject += meta_charset
+    if not has_base:
+        inject += base_tag
+    if not inject:
+        return html
+    if re.search(r'<head[^>]*>', html, re.IGNORECASE):
+        return re.sub(r'(<head[^>]*>)', r'\1' + inject, html, count=1, flags=re.IGNORECASE)
+    if re.search(r'<html[^>]*>', html, re.IGNORECASE):
+        return re.sub(
+            r'(<html[^>]*>)',
+            r'\1<head>' + inject + '</head>',
+            html,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    return '<head>' + inject + '</head>' + html
+
+
+def inject_iframe_portal_viewer_theme(html: str, viewer_dark: bool, viewer_oled: bool) -> str:
+    """Append last-in-head CSS: portal sans-serif + body colours matching the app theme.
+
+    Helps plain-text / unstyled regions inside the iframe (no more Times New Roman).
+    Sender rules with higher specificity or !important can still win where intended.
+    """
+    if viewer_oled:
+        bg, fg, link, scheme = '#000000', '#e2e8f0', '#60a5fa', 'dark'
+    elif viewer_dark:
+        bg, fg, link, scheme = '#1a202c', '#e2e8f0', '#60a5fa', 'dark'
+    else:
+        bg, fg, link, scheme = '#ffffff', '#212529', '#0d6efd', 'light'
+    css = (
+        '<style type="text/css" id="portal-email-viewer-theme">'
+        f'html{{color-scheme:{scheme};}}'
+        f'body{{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif!important;'
+        f'background:{bg}!important;color:{fg}!important;padding:16px!important;margin:0!important;}}'
+        f'a{{color:{link}!important;}}'
+        f'</style>'
+    )
+    if re.search(r'</head>', html, re.IGNORECASE):
+        return re.sub(r'(</head>)', css + r'\1', html, count=1, flags=re.IGNORECASE)
+    return css + html
+
+
+def build_rich_email_iframe_document(
+    raw_html: str,
+    email_msg,
+    viewer_dark: bool = False,
+    viewer_oled: bool = False,
+) -> str:
+    """Build a full HTML document for srcdoc iframe — preserves sender CSS/layout.
+
+    We do not strip/scoped-rewrite the sender's <style> blocks. A small
+    last-in-head stylesheet matches the portal theme (sans-serif + body colours)
+    so unstyled/plain regions are readable; sender rules can still override.
+    """
+    if not raw_html:
+        return ''
+    try:
+        html = raw_html if isinstance(raw_html, str) else raw_html.decode('utf-8', errors='replace')
+
+        html = html.replace('\u2011', '-')
+        html = html.replace('\u2013', '-')
+        html = html.replace('\u2014', '--')
+        html = html.replace('\u2018', "'")
+        html = html.replace('\u2019', "'")
+        html = html.replace('\u201c', '"')
+        html = html.replace('\u201d', '"')
+        html = html.replace('\u2026', '...')
+        html = html.replace('\ufffc', '')
+        html = re.sub(r'<o:p\s*/>', '', html)
+        html = re.sub(r'<o:p>.*?</o:p>', '', html, flags=re.DOTALL)
+        html = re.sub(r'<w:.*?>.*?</w:.*?>', '', html, flags=re.DOTALL)
+        html = re.sub(r'<m:.*?>.*?</m:.*?>', '', html, flags=re.DOTALL)
+        html = re.sub(r'<v:.*?>.*?</v:.*?>', '', html, flags=re.DOTALL)
+
+        html = replace_cid_images_in_email_html(html, email_msg)
+        html = sanitize_email_iframe_html(html)
+
+        if not re.search(r'<html[\s>]', html, re.IGNORECASE):
+            # Complete document: charset + base so links open safely; avoids broken <head></head> injection.
+            html = (
+                '<!DOCTYPE html><html><head>'
+                '<meta charset="utf-8"/>'
+                '<base target="_blank" rel="noopener noreferrer"/>'
+                '</head><body>' + html + '</body></html>'
+            )
+        else:
+            if not re.search(r'<!DOCTYPE', html, re.IGNORECASE):
+                html = '<!DOCTYPE html>\n' + html
+            html = inject_iframe_head_meta_and_base(html)
+
+        html = inject_iframe_portal_viewer_theme(html, viewer_dark, viewer_oled)
+
+        return html
+    except Exception as e:
+        logging.error(f"build_rich_email_iframe_document: {e}")
+        return ''
+
+
+def process_email_body_html_for_inline_view(html_content: str, email_msg) -> str:
+    """Legacy pipeline: embed HTML in portal viewer with scoped CSS (simple / fallback)."""
+    html_content = html_content.replace('\u2011', '-')
+    html_content = html_content.replace('\u2013', '-')
+    html_content = html_content.replace('\u2014', '--')
+    html_content = html_content.replace('\u2018', "'")
+    html_content = html_content.replace('\u2019', "'")
+    html_content = html_content.replace('\u201c', '"')
+    html_content = html_content.replace('\u201d', '"')
+    html_content = html_content.replace('\u2026', '...')
+    html_content = html_content.replace('\ufffc', '')
+
+    html_content = re.sub(r'<o:p\s*/>', '', html_content)
+    html_content = re.sub(r'<o:p>.*?</o:p>', '', html_content, flags=re.DOTALL)
+    html_content = re.sub(r'<w:.*?>.*?</w:.*?>', '', html_content, flags=re.DOTALL)
+    html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
+    html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
+
+    html_content = re.sub(
+        r'<a([^>]*)href="([^"]*)"([^>]*)>',
+        r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>',
+        html_content,
+    )
+
+    body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, flags=re.IGNORECASE | re.DOTALL)
+    if body_match:
+        body_content = body_match.group(1)
+        html_content = re.sub(
+            r'<body[^>]*>.*?</body>',
+            '<div class="email-body-wrapper">' + body_content + '</div>',
+            html_content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    else:
+        if not html_content.strip().startswith('<div'):
+            html_content = '<div class="email-body-wrapper">' + html_content + '</div>'
+
+    html_content = re.sub(r'<html[^>]*>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'</html>', '', html_content, flags=re.IGNORECASE)
+
+    def scope_style_tags(match):
+        style_content = match.group(1) if match.group(1) else ''
+        if not style_content.strip():
+            return ''
+
+        lines = style_content.split('\n')
+        scoped_lines = []
+        in_media = False
+
+        for line in lines:
+            line_stripped = line.strip()
+            if line_stripped.startswith('@'):
+                if '@media' in line_stripped:
+                    in_media = True
+                    scoped_lines.append(line)
+                    continue
+                elif line_stripped == '}' and in_media:
+                    in_media = False
+                    scoped_lines.append(line)
+                    continue
+
+            if in_media:
+                if '{' in line and not line_stripped.startswith('@'):
+                    scoped_line = re.sub(
+                        r'([^{}]+)\{',
+                        r'.email-content-isolated-inner \1{',
+                        line,
+                    )
+                    scoped_lines.append(scoped_line)
+                else:
+                    scoped_lines.append(line)
+            else:
+                if '{' in line:
+                    scoped_line = re.sub(
+                        r'([^{}]+)\{',
+                        r'.email-content-isolated-inner \1{',
+                        line,
+                    )
+                    scoped_lines.append(scoped_line)
+                else:
+                    scoped_lines.append(line)
+
+        scoped_css = '\n'.join(scoped_lines)
+        scoped_css = re.sub(
+            r'\.email-content-isolated-inner\s+\.email-content-isolated-inner',
+            '.email-content-isolated-inner',
+            scoped_css,
+        )
+        scoped_css = re.sub(
+            r'\.email-content-isolated-inner\s+body\s*\{',
+            '.email-content-isolated-inner {',
+            scoped_css,
+            flags=re.IGNORECASE,
+        )
+        scoped_css = re.sub(
+            r'\.email-content-isolated-inner\s+html\s*\{',
+            '.email-content-isolated-inner {',
+            scoped_css,
+            flags=re.IGNORECASE,
+        )
+
+        return f'<style type="text/css">{scoped_css}</style>'
+
+    html_content = re.sub(
+        r'<style[^>]*>(.*?)</style>',
+        scope_style_tags,
+        html_content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    if not html_content.strip().startswith('<'):
+        html_content = f'<div class="email-body-wrapper">{html_content}</div>'
+
+    if not html_content.strip().startswith('<div class="email-content-isolated-inner">'):
+        html_content = f'<div class="email-content-isolated-inner">{html_content}</div>'
+
+    html_content = replace_cid_images_in_email_html(html_content, email_msg)
+
+    return html_content
+
+
+def is_simple_html_email(html_content: str) -> bool:
+    """Return True if the HTML email does NOT carry its own visual styling.
+
+    "Simple" means: plain paragraphs, basic formatting (bold/italic/lists/links),
+    no <style> block, no body/table background colors, no inline background color.
+    For such emails we can safely follow the portal's light/dark theme instead of
+    forcing a white background (which looks out of place in dark mode).
+    """
+    if not html_content:
+        return True
+    try:
+        lower = html_content.lower()
+        if '<style' in lower:
+            return False
+        # Any explicit background color on body/table/div indicates custom styling.
+        if re.search(r'background(?:-color)?\s*:\s*(?!transparent|inherit|initial|unset|none)', lower):
+            return False
+        if re.search(r'bgcolor\s*=', lower):
+            return False
+        # Large tables / layout tables usually indicate newsletter-style HTML.
+        if '<table' in lower:
+            # allow tiny tables (e.g. signatures) only when they don't set widths
+            if re.search(r'<table[^>]*(width|style)=', lower):
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def extract_body_inner_html(html_content: str) -> str:
+    """Extract inner body content from an HTML document.
+
+    Returns just the contents inside <body>…</body> (or the input if no body tag)
+    and strips outer <html>/<head>/<style> wrappers so the HTML can be embedded.
+    """
+    if not html_content:
+        return ''
+    content = html_content
+    try:
+        # Remove doctype
+        content = re.sub(r'<!DOCTYPE[^>]*>', '', content, flags=re.IGNORECASE)
+        # Strip head (which contains <style>, <meta>, etc. that would bleed out)
+        content = re.sub(r'<head[^>]*>.*?</head>', '', content, flags=re.IGNORECASE | re.DOTALL)
+        # Extract body content if present
+        body_match = re.search(r'<body[^>]*>(.*?)</body>', content, flags=re.IGNORECASE | re.DOTALL)
+        if body_match:
+            content = body_match.group(1)
+        # Remove any leftover html tags
+        content = re.sub(r'</?html[^>]*>', '', content, flags=re.IGNORECASE)
+        # Strip remaining <style> blocks – they would leak to the surrounding page
+        content = re.sub(r'<style[^>]*>.*?</style>', '', content, flags=re.IGNORECASE | re.DOTALL)
+        # Office / mso leftover
+        content = re.sub(r'<o:p\s*/>', '', content)
+        content = re.sub(r'<o:p>.*?</o:p>', '', content, flags=re.DOTALL)
+    except Exception:
+        pass
+    return content.strip()
+
+
+def plain_text_to_html(text: str) -> str:
+    """Convert plain text to minimal HTML preserving line breaks and paragraphs."""
+    if not text:
+        return ''
+    from markupsafe import escape as _escape
+    paragraphs = re.split(r'\n{2,}', text.strip())
+    out = []
+    for para in paragraphs:
+        if not para.strip():
+            continue
+        # Preserve intra-paragraph line breaks with <br>
+        escaped = _escape(para).replace('\n', '<br>')
+        out.append(f'<p style="margin: 0 0 1em 0;">{escaped}</p>')
+    return ''.join(out)
+
+
+def build_quoted_reply_html(original_email) -> str:
+    """Build the HTML for the quoted original email that appears below our styled reply.
+
+    Produces a clean separator, a "<User> <<email>> schrieb am <date>:" header line
+    and the original message body. Kept intentionally simple so other mail clients
+    handle it gracefully and recipients can keep replying.
+    """
+    if original_email is None:
+        return ''
+
+    sender_raw = decode_header_field(original_email.sender) if original_email.sender else ''
+    # Split "Name <email>" into name + email parts, if possible
+    name_part = sender_raw
+    email_part = ''
+    m = re.match(r'^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$', sender_raw)
+    if m:
+        name_part = m.group(1).strip() or m.group(2).strip()
+        email_part = m.group(2).strip()
+    elif '@' in sender_raw:
+        email_part = sender_raw.strip()
+        name_part = sender_raw.strip()
+
+    sent_dt = original_email.received_at or original_email.sent_at or datetime.utcnow()
+    try:
+        date_str = sent_dt.strftime('%d.%m.%Y %H:%M')
+    except Exception:
+        date_str = ''
+
+    # Body: prefer HTML, fall back to plain text
+    body_inner = ''
+    if original_email.body_html:
+        try:
+            raw_html = original_email.body_html
+            if isinstance(raw_html, bytes):
+                raw_html = raw_html.decode('utf-8', errors='replace')
+            body_inner = extract_body_inner_html(str(raw_html))
+        except Exception:
+            body_inner = ''
+    if not body_inner and original_email.body_text:
+        body_inner = plain_text_to_html(original_email.body_text)
+
+    if not body_inner:
+        body_inner = '<p style="margin:0; color:#64748b; font-style:italic;">(leere Nachricht)</p>'
+
+    from markupsafe import escape as _escape
+    header_line = f"Am {_escape(date_str)} schrieb {_escape(name_part)}"
+    if email_part and email_part.lower() != name_part.lower():
+        header_line += f" &lt;{_escape(email_part)}&gt;"
+    header_line += ":"
+
+    # Use inline styles only (email-safe). Keep this outside our branded container.
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
+        ' style="border-collapse:collapse; background-color:#f4f6f8; margin:0; padding:0;">'
+        '<tr><td align="center" style="padding:0 16px 40px 16px;">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
+        ' style="max-width:640px; margin:0 auto; border-collapse:collapse;'
+        ' font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;">'
+        '<tr><td style="padding:8px 4px 0 4px;">'
+        '<hr style="border:0; border-top:1px solid #cbd5e1; margin:0 0 16px 0;">'
+        f'<p style="margin:0 0 12px 0; color:#64748b; font-size:13px; line-height:1.5;">{header_line}</p>'
+        '<div class="quoted-original-body"'
+        ' style="color:#475569; font-size:14px; line-height:1.6; word-break:break-word;'
+        ' border-left:3px solid #cbd5e1; padding:4px 0 4px 14px;">'
+        f'{body_inner}'
+        '</div>'
+        '</td></tr></table></td></tr></table>'
+    )
+
+
+def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_preview: bool = False,
+                        quoted_reply_html: str = None):
     body_html = body_html or ''
     footer_html = build_footer_html()
     
@@ -110,7 +517,8 @@ def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_p
         logo_cid=logo_cid if not use_base64_for_preview else None,
         subject=subject,
         body_html=Markup(combined_html),
-        current_year=current_year
+        current_year=current_year,
+        quoted_reply_html=Markup(quoted_reply_html) if quoted_reply_html else None
     )
 
     plain_body = html_to_plain_text(combined_html)
@@ -119,6 +527,11 @@ def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_p
     copyright_plain = f"© {current_year} {app_name}. Alle Rechte vorbehalten."
 
     plain_sections = [section for section in [plain_body, disclaimer_plain, copyright_plain] if section]
+    # Append plain-text version of the quoted reply (for mail clients that fall back to text)
+    if quoted_reply_html:
+        quoted_plain = html_to_plain_text(quoted_reply_html)
+        if quoted_plain:
+            plain_sections.append('--\n' + quoted_plain)
     rendered_plain = '\n\n'.join(plain_sections)
 
     return rendered_html, rendered_plain
@@ -1745,6 +2158,86 @@ def check_duplicate_email(user_id, subject, recipients, body_hash, time_window_s
         return False
 
 
+def _build_folder_tree(all_folders):
+    """Build a sorted + hierarchical view of folder list.
+
+    Returns a list of folder dicts with keys:
+        - folder: EmailFolder
+        - depth: int
+        - short_name: str
+    Standard folders come first in a fixed order, custom folders are rendered
+    as a tree sorted alphabetically at each level.
+    """
+    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Sent Messages', 'Archive', 'Archives', 'Trash', 'Spam']
+
+    standard_folders = []
+    custom_folders = []
+    for folder in all_folders:
+        if folder.is_system or (folder.folder_type == 'standard' and folder.name in standard_folder_order):
+            standard_folders.append(folder)
+        else:
+            custom_folders.append(folder)
+
+    def standard_sort_key(f):
+        try:
+            return standard_folder_order.index(f.name)
+        except ValueError:
+            return 999
+
+    standard_folders.sort(key=standard_sort_key)
+
+    # Build tree for custom folders by parent_folder
+    custom_by_parent = {}
+    for f in custom_folders:
+        custom_by_parent.setdefault(f.parent_folder, []).append(f)
+    for arr in custom_by_parent.values():
+        arr.sort(key=lambda x: (x.short_name or x.name).lower())
+
+    ordered = []
+    for f in standard_folders:
+        ordered.append({
+            'folder': f,
+            'depth': 0,
+            'short_name': f.display_name,
+        })
+
+    def walk_custom(parent_name, depth):
+        children = custom_by_parent.get(parent_name, [])
+        for child in children:
+            ordered.append({
+                'folder': child,
+                'depth': depth,
+                'short_name': child.short_name or child.display_name,
+            })
+            walk_custom(child.name, depth + 1)
+
+    # Start with roots (parent None or parent that is a system folder not already nested).
+    walk_custom(None, 0)
+    # Also handle custom folders whose parent is a system folder (rare)
+    handled_names = {entry['folder'].name for entry in ordered}
+    for parent_name, children in custom_by_parent.items():
+        if parent_name and parent_name not in handled_names:
+            # Parent is a system folder – render these children as top-level for simplicity
+            for child in children:
+                if child.name not in handled_names:
+                    ordered.append({
+                        'folder': child,
+                        'depth': 0,
+                        'short_name': child.short_name or child.display_name,
+                    })
+                    walk_custom(child.name, 1)
+    return ordered
+
+
+def _folder_tree_context():
+    all_folders = EmailFolder.query.all()
+    ordered = _build_folder_tree(all_folders)
+    # `folders` is kept as flat list for backwards compatibility with the
+    # templates; `folder_tree` adds depth information for the sidebar.
+    flat = [entry['folder'] for entry in ordered]
+    return flat, ordered
+
+
 @email_bp.route('/')
 @login_required
 @check_module_access('module_email')
@@ -1771,45 +2264,24 @@ def index():
         logging.info(f"Wiederhergestellt {restored_count} fälschlicherweise als gelöscht markierte E-Mails im Ordner '{current_folder}'")
     folder_obj = EmailFolder.query.filter_by(name=current_folder).first()
     folder_display_name = folder_obj.display_name if folder_obj else current_folder
-    
-    all_folders = EmailFolder.query.all()
-    
-    # Define standard folder order
-    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Archives', 'Trash', 'Spam']
-    standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Archiv', 'Papierkorb', 'Spam']
-    
-    # Separate standard and custom folders
-    standard_folders = []
-    custom_folders = []
-    
-    for folder in all_folders:
-        if folder.folder_type == 'standard' and folder.display_name in standard_folder_names:
-            standard_folders.append(folder)
-        else:
-            custom_folders.append(folder)
-    
-    # Sort standard folders by predefined order
-    standard_folders.sort(key=lambda x: standard_folder_order.index(x.name) if x.name in standard_folder_order else 999)
-    
-    # Sort custom folders alphabetically
-    custom_folders.sort(key=lambda x: x.display_name)
-    
-    # Combine: standard folders first, then custom folders
-    folders = standard_folders + custom_folders
-    
+
+    folders, folder_tree = _folder_tree_context()
+
     for email_obj in emails:
         if email_obj.attachments:
             email_obj.has_attachments = True
         else:
             email_obj.has_attachments = False
     db.session.commit()
-    
+
     return render_template(
         'email/index.html',
         emails=emails,
         folders=folders,
+        folder_tree=folder_tree,
         current_folder=current_folder,
-        folder_display_name=folder_display_name
+        folder_display_name=folder_display_name,
+        color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
     )
 
 
@@ -1856,33 +2328,19 @@ def folder_view(folder_name):
         logging.info(f"Wiederhergestellt {restored_count} fälschlicherweise als gelöscht markierte E-Mails im Ordner '{folder_name}'")
     
     logging.info(f"Viewing folder '{folder_name}' with {len(emails)} emails")
-    
-    all_folders = EmailFolder.query.all()
-    
-    standard_folder_order = ['INBOX', 'Drafts', 'Sent', 'Archive', 'Archives', 'Trash', 'Spam']
-    standard_folder_names = ['Posteingang', 'Entwürfe', 'Gesendet', 'Archiv', 'Archiv', 'Papierkorb', 'Spam']
-    
-    # Separate standard and custom folders
-    standard_folders = []
-    custom_folders = []
-    
-    for folder in all_folders:
-        if folder.folder_type == 'standard' and folder.display_name in standard_folder_names:
-            standard_folders.append(folder)
-        else:
-            custom_folders.append(folder)
-    
-    # Sort standard folders by predefined order
-    standard_folders.sort(key=lambda x: standard_folder_order.index(x.name) if x.name in standard_folder_order else 999)
-    
-    # Sort custom folders alphabetically
-    custom_folders.sort(key=lambda x: x.display_name)
-    
-    # Combine: standard folders first, then custom folders
-    folders = standard_folders + custom_folders
+
+    folders, folder_tree = _folder_tree_context()
     folder_display_name = folder_obj.display_name if folder_obj else folder_name
-    
-    return render_template('email/index.html', emails=emails, folders=folders, current_folder=folder_name, folder_display_name=folder_display_name)
+
+    return render_template(
+        'email/index.html',
+        emails=emails,
+        folders=folders,
+        folder_tree=folder_tree,
+        current_folder=folder_name,
+        folder_display_name=folder_display_name,
+        color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
+    )
 
 
 @email_bp.route('/view/<int:email_id>')
@@ -1910,127 +2368,54 @@ def view_email(email_id):
         db.session.commit()
     
     
-    html_content = None
+    raw_html = None
     if email_msg.body_html:
         try:
             if isinstance(email_msg.body_html, bytes):
-                html_content = email_msg.body_html.decode('utf-8', errors='replace')
+                raw_html = email_msg.body_html.decode('utf-8', errors='replace')
             else:
-                html_content = str(email_msg.body_html)
-            
-            
-            import re
-            
-            html_content = html_content.replace('\u2011', '-')
-            html_content = html_content.replace('\u2013', '-')
-            html_content = html_content.replace('\u2014', '--')
-            html_content = html_content.replace('\u2018', "'")
-            html_content = html_content.replace('\u2019', "'")
-            html_content = html_content.replace('\u201c', '"')
-            html_content = html_content.replace('\u201d', '"')
-            html_content = html_content.replace('\u2026', '...')
-            html_content = html_content.replace('\ufffc', '')
-            
-            html_content = re.sub(r'<o:p\s*/>', '', html_content)
-            html_content = re.sub(r'<o:p>.*?</o:p>', '', html_content, flags=re.DOTALL)
-            html_content = re.sub(r'<w:.*?>.*?</w:.*?>', '', html_content, flags=re.DOTALL)
-            html_content = re.sub(r'<m:.*?>.*?</m:.*?>', '', html_content, flags=re.DOTALL)
-            html_content = re.sub(r'<v:.*?>.*?</v:.*?>', '', html_content, flags=re.DOTALL)
-            
-            html_content = re.sub(r'<a([^>]*)href="([^"]*)"([^>]*)>', r'<a\1href="\2" target="_blank" rel="noopener noreferrer"\3>', html_content)
-            
-            body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, flags=re.IGNORECASE | re.DOTALL)
-            if body_match:
-                body_content = body_match.group(1)
-                html_content = re.sub(r'<body[^>]*>.*?</body>', '<div class="email-body-wrapper">' + body_content + '</div>', html_content, flags=re.IGNORECASE | re.DOTALL)
-            else:
-                if not html_content.strip().startswith('<div'):
-                    html_content = '<div class="email-body-wrapper">' + html_content + '</div>'
-            
-            # Remove html tags
-            html_content = re.sub(r'<html[^>]*>', '', html_content, flags=re.IGNORECASE)
-            html_content = re.sub(r'</html>', '', html_content, flags=re.IGNORECASE)
-            
-            def scope_style_tags(match):
-                style_content = match.group(1) if match.group(1) else ''
-                if not style_content.strip():
-                    return ''
-                
-                lines = style_content.split('\n')
-                scoped_lines = []
-                in_media = False
-                media_prefix = ''
-                
-                for line in lines:
-                    line_stripped = line.strip()
-                    if line_stripped.startswith('@'):
-                        if '@media' in line_stripped:
-                            in_media = True
-                            media_prefix = line_stripped
-                            scoped_lines.append(line)
-                            continue
-                        elif line_stripped == '}' and in_media:
-                            in_media = False
-                            media_prefix = ''
-                            scoped_lines.append(line)
-                            continue
-                    
-                    if in_media:
-                        if '{' in line and not line_stripped.startswith('@'):
-                            scoped_line = re.sub(
-                                r'([^{}]+)\{',
-                                r'.email-content-isolated-inner \1{',
-                                line
-                            )
-                            scoped_lines.append(scoped_line)
-                        else:
-                            scoped_lines.append(line)
-                    else:
-                        if '{' in line:
-                            scoped_line = re.sub(
-                                r'([^{}]+)\{',
-                                r'.email-content-isolated-inner \1{',
-                                line
-                            )
-                            scoped_lines.append(scoped_line)
-                        else:
-                            scoped_lines.append(line)
-                
-                scoped_css = '\n'.join(scoped_lines)
-                scoped_css = re.sub(r'\.email-content-isolated-inner\s+\.email-content-isolated-inner', '.email-content-isolated-inner', scoped_css)
-                scoped_css = re.sub(r'\.email-content-isolated-inner\s+body\s*\{', '.email-content-isolated-inner {', scoped_css, flags=re.IGNORECASE)
-                scoped_css = re.sub(r'\.email-content-isolated-inner\s+html\s*\{', '.email-content-isolated-inner {', scoped_css, flags=re.IGNORECASE)
-                
-                return f'<style type="text/css">{scoped_css}</style>'
-            
-            html_content = re.sub(r'<style[^>]*>(.*?)</style>', scope_style_tags, html_content, flags=re.IGNORECASE | re.DOTALL)
-            
-            if not html_content.strip().startswith('<'):
-                html_content = f'<div class="email-body-wrapper">{html_content}</div>'
-            
-            if not html_content.strip().startswith('<div class="email-content-isolated-inner">'):
-                html_content = f'<div class="email-content-isolated-inner">{html_content}</div>'
-            
-            for attachment in email_msg.attachments:
-                if attachment.is_inline and attachment.content_type.startswith('image/'):
-                    data_url = attachment.get_data_url()
-                    if data_url:
-                        cid_pattern = f'cid:{attachment.filename}'
-                        html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
-                        html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
-                        content_id = attachment.content_id
-                        if content_id:
-                            html_content = html_content.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
-                            html_content = html_content.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
-            
-            html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"', html_content)
-            
-            
+                raw_html = str(email_msg.body_html)
         except Exception as e:
-            logging.error(f"HTML processing error: {e}")
-            html_content = None
-    
-    return render_template('email/view.html', email=email_msg, html_content=html_content)
+            logging.error(f"HTML decode error: {e}")
+            raw_html = None
+
+    is_simple_html = is_simple_html_email(raw_html) if raw_html else True
+
+    html_iframe_html = None
+    html_content = None
+
+    if raw_html:
+        if not is_simple_html:
+            # Rich HTML: full document in sandboxed iframe so sender CSS/layout stay intact
+            viewer_dark = bool(
+                current_user.is_authenticated and getattr(current_user, 'dark_mode', False)
+            )
+            viewer_oled = bool(
+                current_user.is_authenticated and getattr(current_user, 'oled_mode', False)
+            )
+            html_iframe_html = build_rich_email_iframe_document(
+                raw_html, email_msg, viewer_dark=viewer_dark, viewer_oled=viewer_oled
+            )
+            if not html_iframe_html:
+                try:
+                    html_content = process_email_body_html_for_inline_view(raw_html, email_msg)
+                except Exception as e:
+                    logging.error(f"HTML inline fallback error: {e}")
+                    html_content = None
+        else:
+            try:
+                html_content = process_email_body_html_for_inline_view(raw_html, email_msg)
+            except Exception as e:
+                logging.error(f"HTML processing error: {e}")
+                html_content = None
+
+    return render_template(
+        'email/view.html',
+        email=email_msg,
+        html_content=html_content,
+        html_iframe_html=html_iframe_html,
+        is_simple_html=is_simple_html
+    )
 
 
 def prefix_subject(subject: str, prefix: str) -> str:
@@ -2101,7 +2486,12 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
     cc_list = normalize_addresses(cc_list)
 
     subject = prefix_subject(email_msg.subject or '', 'Re')
-    body_prefill = quote_plain(email_msg)
+    # NOTE: We intentionally do NOT pre-fill the editor body with the quoted
+    # original anymore. The reply editor stays clean so users only write their
+    # reply in our CSS format. The original message is automatically appended
+    # below our styled email when the reply is sent (see compose() handler
+    # and build_quoted_reply_html()).
+    body_prefill = ''
     
     # Extrahiere erste Zeile für Vorschau
     first_line = ''
@@ -2252,7 +2642,10 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
         'original_email': email_msg,
         'original_html': original_html,
         'original_first_line': first_line,
-        'original_attachment_ids': ','.join(attachment_ids)
+        'original_attachment_ids': ','.join(attachment_ids),
+        # Used by the new reply flow: the compose form posts this id back so the
+        # server can append the quoted original below our styled reply.
+        'reply_to_email_id': email_msg.id,
     }
 
 
@@ -2405,6 +2798,9 @@ def compose():
         references = request.form.get('references', '').strip()
         forward_attachment_ids = request.form.get('forward_attachment_ids', '').strip()
         original_attachment_ids = request.form.get('original_attachment_ids', '').strip()
+        # New reply flow: client posts the id of the email we are replying to.
+        # The server builds a quoted block and appends it below our styled reply.
+        reply_to_email_id_raw = request.form.get('reply_to_email_id', '').strip()
         
         if not all([to, subject, body_html]):
             error_msg = 'Bitte füllen Sie alle Pflichtfelder aus.'
@@ -2432,7 +2828,22 @@ def compose():
             logo_cid = "portal_logo"
             # Logo-Bytes werden später als CID-Anhang hinzugefügt
         
-        full_body_html, full_body_plain = render_custom_email(subject, body_html, logo_cid=logo_cid)
+        # Build the quoted-original HTML when this is a reply so it can be
+        # embedded below our styled body.
+        quoted_reply_html = None
+        if reply_to_email_id_raw:
+            try:
+                original = EmailMessage.query.get(int(reply_to_email_id_raw))
+                if original is not None:
+                    quoted_reply_html = build_quoted_reply_html(original)
+            except (ValueError, TypeError):
+                logging.warning(f"Ungültige reply_to_email_id: {reply_to_email_id_raw}")
+            except Exception as quote_exc:
+                logging.error(f"Fehler beim Aufbereiten der zitierten Original-E-Mail: {quote_exc}")
+
+        full_body_html, full_body_plain = render_custom_email(
+            subject, body_html, logo_cid=logo_cid, quoted_reply_html=quoted_reply_html
+        )
         
         
         try:
@@ -2911,13 +3322,28 @@ def preview_custom_email():
     
     subject = (data.get('subject') or '').strip()
     body_html = (data.get('body') or '').strip()
-    
+    reply_to_email_id_raw = str(data.get('reply_to_email_id') or '').strip()
+
     if not body_html:
         return jsonify({'error': translate('email.errors.message_missing')}), 400
-    
+
     try:
+        # When the compose view is a reply, show the quoted original in the preview
+        # so the user sees exactly what the recipient will receive.
+        quoted_reply_html = None
+        if reply_to_email_id_raw:
+            try:
+                original = EmailMessage.query.get(int(reply_to_email_id_raw))
+                if original is not None:
+                    quoted_reply_html = build_quoted_reply_html(original)
+            except (ValueError, TypeError):
+                pass
+
         # In der Vorschau Base64 verwenden, damit das Logo im Browser angezeigt wird
-        rendered_html, _ = render_custom_email(subject, body_html, logo_cid=None, is_preview=True)
+        rendered_html, _ = render_custom_email(
+            subject, body_html, logo_cid=None, is_preview=True,
+            quoted_reply_html=quoted_reply_html
+        )
         return jsonify({'html': rendered_html})
     except Exception as exc:
         current_app.logger.error(f"E-Mail Vorschau Fehler: {exc}")
@@ -3035,55 +3461,328 @@ def sync_emails():
     }), 202
 
 
+def _wants_json_response():
+    """Detect if client expects JSON rather than HTML redirect."""
+    if request.is_json:
+        return True
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    accept = request.headers.get('Accept', '')
+    if 'application/json' in accept and 'text/html' not in accept:
+        return True
+    return False
+
+
 @email_bp.route('/delete/<int:email_id>', methods=['POST'])
 @login_required
 @check_module_access('module_email')
 def delete_email(email_id):
     """Delete email from both portal and IMAP."""
     if not check_email_permission('read'):
+        if _wants_json_response():
+            return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
         return jsonify({'error': translate('email.errors.unauthorized')}), 403
-    
+
     email = EmailMessage.query.get_or_404(email_id)
-    
+    original_folder = email.folder
+
+    imap_warning = None
     if email.imap_uid:
         success, message = delete_email_from_imap(email.imap_uid, email.folder)
         if not success:
-            flash(f'WARNING: E-Mail konnte nicht in IMAP gelöscht werden: {message}', 'warning')
-    
+            imap_warning = message
+
     db.session.delete(email)
     db.session.commit()
-    
+
+    if _wants_json_response():
+        payload = {
+            'success': True,
+            'message': translate('email.flash.deleted'),
+            'folder': original_folder,
+            'email_id': email_id,
+        }
+        if imap_warning:
+            payload['imap_warning'] = imap_warning
+        return jsonify(payload)
+
+    if imap_warning:
+        flash(f'WARNING: E-Mail konnte nicht in IMAP gelöscht werden: {imap_warning}', 'warning')
     flash(translate('email.flash.deleted'), 'success')
-    return redirect(url_for('email.folder_view', folder_name=email.folder))
+    return redirect(url_for('email.folder_view', folder_name=original_folder))
 
 
 @email_bp.route('/move/<int:email_id>', methods=['POST'])
 @login_required
 @check_module_access('module_email')
 def move_email(email_id):
-    """Move email to another folder in both portal and IMAP."""
+    """Move email to another folder in both portal and IMAP (JSON or classic form)."""
     if not check_email_permission('read'):
+        if _wants_json_response():
+            return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
         return jsonify({'error': translate('email.errors.unauthorized')}), 403
-    
+
     email = EmailMessage.query.get_or_404(email_id)
-    new_folder = request.form.get('folder')
-    
+    payload = request.get_json(silent=True) or {}
+    new_folder = (
+        request.form.get('folder')
+        or request.values.get('folder')
+        or payload.get('folder')
+    )
+
     if not new_folder:
+        if _wants_json_response():
+            return jsonify({'success': False, 'error': translate('email.flash.target_folder_not_specified')}), 400
         flash(translate('email.flash.target_folder_not_specified'), 'danger')
         return redirect(url_for('email.folder_view', folder_name=email.folder))
-    
+
+    if new_folder == email.folder:
+        if _wants_json_response():
+            return jsonify({'success': True, 'message': 'Bereits in Zielordner', 'folder': new_folder, 'email_id': email.id})
+        return redirect(url_for('email.folder_view', folder_name=new_folder))
+
+    target_folder_obj = EmailFolder.query.filter_by(name=new_folder).first()
+    if not target_folder_obj:
+        if _wants_json_response():
+            return jsonify({'success': False, 'error': f"Zielordner '{new_folder}' nicht gefunden"}), 404
+        flash(f"Zielordner '{new_folder}' nicht gefunden", 'danger')
+        return redirect(url_for('email.folder_view', folder_name=email.folder))
+
+    imap_warning = None
     if email.imap_uid:
-        success, message = move_email_in_imap(email.imap_uid, email.folder, new_folder)
-        if not success:
-            flash(f'WARNING: E-Mail konnte nicht in IMAP verschoben werden: {message}', 'warning')
-    
+        imap_result = imap_move_message(email.imap_uid, email.folder, new_folder)
+        if not imap_result.get('success'):
+            imap_warning = imap_result.get('message')
+            if _wants_json_response():
+                return jsonify({
+                    'success': False,
+                    'error': f"IMAP-Verschiebung fehlgeschlagen: {imap_warning}",
+                    'retryable': imap_result.get('retryable', False),
+                }), 502
+
     old_folder = email.folder
     email.folder = new_folder
     email.last_imap_sync = datetime.utcnow()
     db.session.commit()
-    
+
+    if _wants_json_response():
+        return jsonify({
+            'success': True,
+            'message': f'E-Mail nach {new_folder} verschoben',
+            'folder': new_folder,
+            'previous_folder': old_folder,
+            'email_id': email.id,
+            'imap_warning': imap_warning,
+        })
+
+    if imap_warning:
+        flash(f'WARNING: E-Mail konnte nicht in IMAP verschoben werden: {imap_warning}', 'warning')
     flash(f'E-Mail wurde erfolgreich von {old_folder} nach {new_folder} verschoben.', 'success')
     return redirect(url_for('email.folder_view', folder_name=new_folder))
+
+
+@email_bp.route('/messages/<int:email_id>/read-state', methods=['POST'])
+@login_required
+@check_module_access('module_email')
+def set_email_read_state(email_id):
+    """Mark email as read or unread (IMAP-synchronised)."""
+    if not check_email_permission('read'):
+        return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
+
+    email = EmailMessage.query.get_or_404(email_id)
+    payload = request.get_json(silent=True) or {}
+    state = (payload.get('state') or request.form.get('state') or '').strip().lower()
+    if state not in ('read', 'unread'):
+        return jsonify({'success': False, 'error': "Ungültiger Status (erwartet 'read' oder 'unread')"}), 400
+
+    seen = state == 'read'
+    imap_warning = None
+    if email.imap_uid:
+        imap_result = imap_mark_seen(email.imap_uid, email.folder, seen=seen)
+        if not imap_result.get('success'):
+            imap_warning = imap_result.get('message')
+
+    email.is_read = seen
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'state': state,
+        'email_id': email.id,
+        'is_read': email.is_read,
+        'imap_warning': imap_warning,
+    })
+
+
+@email_bp.route('/messages/<int:email_id>/color-dot', methods=['POST'])
+@login_required
+@check_module_access('module_email')
+def set_email_color_dot(email_id):
+    """Set/clear the colored label (dot) for an email."""
+    if not check_email_permission('read'):
+        return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
+
+    email = EmailMessage.query.get_or_404(email_id)
+    payload = request.get_json(silent=True) or {}
+    color = (payload.get('color') or request.form.get('color') or '').strip().lower()
+
+    if color not in COLOR_DOT_CHOICES:
+        return jsonify({'success': False, 'error': f"Unbekannte Farbe: {color}"}), 400
+
+    # Remove previous keyword on server if a different one was set
+    previous_keyword = email.imap_color_keyword
+    new_keyword = COLOR_DOT_CHOICES.get(color)
+
+    imap_status = None
+    imap_message = None
+    keyword_supported = None
+    if email.imap_uid:
+        if previous_keyword and previous_keyword != new_keyword:
+            remove_result = imap_set_keyword(email.imap_uid, email.folder, previous_keyword, enabled=False)
+            imap_status = remove_result.get('imap_status')
+            imap_message = remove_result.get('message')
+            keyword_supported = remove_result.get('keyword_supported', keyword_supported)
+        if new_keyword:
+            add_result = imap_set_keyword(email.imap_uid, email.folder, new_keyword, enabled=True)
+            imap_status = add_result.get('imap_status')
+            imap_message = add_result.get('message')
+            keyword_supported = add_result.get('keyword_supported', keyword_supported)
+
+    email.color_dot = color if color and color != 'none' else None
+    email.imap_color_keyword = new_keyword if keyword_supported else None
+    email.last_flag_sync_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'email_id': email.id,
+        'color': email.color_dot,
+        'imap_status': imap_status,
+        'imap_message': imap_message,
+        'keyword_supported': keyword_supported,
+    })
+
+
+@email_bp.route('/folders', methods=['POST'])
+@login_required
+@check_module_access('module_email')
+def create_folder():
+    """Create a new IMAP folder (optionally as subfolder of parent)."""
+    if not check_email_permission('read'):
+        return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get('name') or request.form.get('name') or '').strip()
+    parent = (payload.get('parent') or request.form.get('parent') or '').strip()
+    separator = (payload.get('separator') or request.form.get('separator') or '/').strip() or '/'
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Ordnername fehlt'}), 400
+
+    invalid_chars = set('\\"')
+    if any(ch in name for ch in invalid_chars):
+        return jsonify({'success': False, 'error': 'Ungültige Zeichen im Ordnernamen'}), 400
+
+    if parent:
+        parent_obj = EmailFolder.query.filter_by(name=parent).first()
+        if not parent_obj:
+            return jsonify({'success': False, 'error': f"Übergeordneter Ordner '{parent}' nicht gefunden"}), 404
+        separator = parent_obj.separator or separator
+        full_path = f"{parent}{separator}{name}"
+    else:
+        full_path = name
+
+    existing = EmailFolder.query.filter_by(name=full_path).first()
+    if existing:
+        return jsonify({'success': False, 'error': f"Ordner '{full_path}' existiert bereits"}), 409
+
+    result = imap_create_folder(full_path)
+    if not result.get('success'):
+        return jsonify({
+            'success': False,
+            'error': result.get('message'),
+            'retryable': result.get('retryable', False),
+        }), 502
+
+    now = datetime.utcnow()
+    new_folder = EmailFolder(
+        name=full_path,
+        display_name=name,
+        folder_type='custom',
+        is_system=False,
+        parent_folder=parent or None,
+        separator=separator,
+        created_at=now,
+        last_synced=now,
+    )
+    db.session.add(new_folder)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': result.get('message'),
+        'folder': {
+            'name': new_folder.name,
+            'display_name': new_folder.display_name,
+            'parent_folder': new_folder.parent_folder,
+            'separator': new_folder.separator,
+            'folder_type': new_folder.folder_type,
+            'is_system': new_folder.is_system,
+        },
+    })
+
+
+@email_bp.route('/folders/<path:folder_name>', methods=['DELETE'])
+@login_required
+@check_module_access('module_email')
+def delete_folder(folder_name):
+    """Delete a custom IMAP folder."""
+    if not check_email_permission('read'):
+        return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
+
+    from urllib.parse import unquote
+    folder_name = unquote(folder_name or '').strip()
+
+    folder_obj = EmailFolder.query.filter_by(name=folder_name).first()
+    if not folder_obj:
+        return jsonify({'success': False, 'error': f"Ordner '{folder_name}' nicht gefunden"}), 404
+    if folder_obj.is_system or folder_obj.folder_type == 'standard':
+        return jsonify({'success': False, 'error': 'Systemordner können nicht gelöscht werden'}), 400
+
+    force = bool(request.args.get('force') or (request.get_json(silent=True) or {}).get('force'))
+
+    contained_children = EmailFolder.query.filter_by(parent_folder=folder_name).count()
+    contained_emails = EmailMessage.query.filter_by(folder=folder_name).count()
+    if (contained_children or contained_emails) and not force:
+        return jsonify({
+            'success': False,
+            'requires_confirmation': True,
+            'error': f"Ordner enthält {contained_emails} E-Mails und {contained_children} Unterordner. Bestätigen Sie mit force=true.",
+            'emails_count': contained_emails,
+            'children_count': contained_children,
+        }), 409
+
+    result = imap_delete_folder(folder_name)
+    if not result.get('success'):
+        return jsonify({
+            'success': False,
+            'error': result.get('message'),
+            'retryable': result.get('retryable', False),
+        }), 502
+
+    # Remove child folders and emails bound to this folder locally
+    if contained_children:
+        EmailFolder.query.filter_by(parent_folder=folder_name).delete(synchronize_session=False)
+    if contained_emails:
+        EmailMessage.query.filter_by(folder=folder_name).delete(synchronize_session=False)
+    db.session.delete(folder_obj)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': result.get('message'),
+        'folder': folder_name,
+    })
 
 
 def delete_email_from_imap(email_id, folder_name):
@@ -3204,6 +3903,268 @@ def move_email_in_imap(email_id, from_folder, to_folder):
             pass
         logging.error(f"IMAP move failed: {str(e)}")
         return False, f"Verschieb-Fehler: {str(e)}"
+
+
+# ---------------------------------------------------------------------------
+# IMAP service operations (mail-manager Großupdate)
+# Unified helpers that consolidate connect / select / execute / logout flows
+# ---------------------------------------------------------------------------
+
+SYSTEM_FOLDER_NAMES = {
+    'INBOX', 'Sent', 'Sent Messages', 'Sent Items', 'Gesendet',
+    'Gesendete Nachrichten', 'Drafts', 'Entwürfe',
+    'Trash', 'Deleted Messages', 'Papierkorb',
+    'Spam', 'Junk',
+    'Archive', 'Archives', 'Archiv',
+}
+
+COLOR_DOT_CHOICES = {
+    '': None,
+    'none': None,
+    'red': '$PrismaColorRed',
+    'orange': '$PrismaColorOrange',
+    'yellow': '$PrismaColorYellow',
+    'green': '$PrismaColorGreen',
+    'blue': '$PrismaColorBlue',
+    'purple': '$PrismaColorPurple',
+    'pink': '$PrismaColorPink',
+    'gray': '$PrismaColorGray',
+}
+
+
+def _imap_error_payload(message, retryable=False, code=None):
+    return {
+        'success': False,
+        'message': message,
+        'retryable': retryable,
+        'imap_status': code,
+    }
+
+
+def _imap_success_payload(message, extra=None):
+    payload = {
+        'success': True,
+        'message': message,
+        'imap_status': 'OK',
+    }
+    if extra:
+        payload.update(extra)
+    return payload
+
+
+def _imap_select_folder(mail_conn, folder_name):
+    """Select folder with fallback to quoted name. Returns (ok, status)."""
+    try:
+        status, _ = mail_conn.select(folder_name)
+        if status == 'OK':
+            return True, status
+        try:
+            status, _ = mail_conn.select(f'"{folder_name}"')
+            if status == 'OK':
+                return True, status
+        except Exception:
+            pass
+        return False, status
+    except Exception:
+        return False, 'ERROR'
+
+
+def _encode_imap_folder(name):
+    """Encode folder path for IMAP LIST/CREATE/DELETE commands (IMAP UTF-7 simplified)."""
+    # Our UI passes us UTF-8 strings; imaplib happily accepts them but quoting helps
+    # with spaces or special characters.
+    if name and (' ' in name or '/' in name or '.' in name):
+        return f'"{name}"'
+    return name
+
+
+def imap_create_folder(folder_path):
+    """Create an IMAP folder (supports nested paths with '/' or server separator)."""
+    if not folder_path or not folder_path.strip():
+        return _imap_error_payload("Ordnerpfad darf nicht leer sein")
+
+    folder_path = folder_path.strip()
+
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return _imap_error_payload("IMAP-Verbindung fehlgeschlagen", retryable=True)
+
+    try:
+        encoded = _encode_imap_folder(folder_path)
+        status, response = mail_conn.create(encoded)
+        if status != 'OK':
+            text = ''
+            try:
+                text = b''.join([r for r in response if isinstance(r, bytes)]).decode('utf-8', errors='ignore')
+            except Exception:
+                text = str(response)
+            if 'ALREADYEXISTS' in text.upper() or 'already' in text.lower():
+                return _imap_success_payload(f"Ordner '{folder_path}' existiert bereits")
+            return _imap_error_payload(f"Ordner konnte nicht erstellt werden: {text}", code=status)
+
+        # Subscribe to folder so it shows in IMAP clients
+        try:
+            mail_conn.subscribe(encoded)
+        except Exception:
+            pass
+
+        return _imap_success_payload(f"Ordner '{folder_path}' erstellt")
+    except Exception as e:
+        logging.error(f"imap_create_folder failed: {e}")
+        return _imap_error_payload(f"Ordnererstellung fehlgeschlagen: {str(e)}", retryable=True)
+    finally:
+        try:
+            mail_conn.logout()
+        except Exception:
+            pass
+
+
+def imap_delete_folder(folder_path):
+    """Delete an IMAP folder (must be empty on most servers)."""
+    if not folder_path or not folder_path.strip():
+        return _imap_error_payload("Ordnerpfad darf nicht leer sein")
+    folder_path = folder_path.strip()
+
+    if folder_path in SYSTEM_FOLDER_NAMES:
+        return _imap_error_payload("Systemordner können nicht gelöscht werden")
+
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return _imap_error_payload("IMAP-Verbindung fehlgeschlagen", retryable=True)
+
+    try:
+        encoded = _encode_imap_folder(folder_path)
+        try:
+            mail_conn.unsubscribe(encoded)
+        except Exception:
+            pass
+        status, response = mail_conn.delete(encoded)
+        if status != 'OK':
+            text = ''
+            try:
+                text = b''.join([r for r in response if isinstance(r, bytes)]).decode('utf-8', errors='ignore')
+            except Exception:
+                text = str(response)
+            return _imap_error_payload(f"Ordner konnte nicht gelöscht werden: {text}", code=status)
+        return _imap_success_payload(f"Ordner '{folder_path}' gelöscht")
+    except Exception as e:
+        logging.error(f"imap_delete_folder failed: {e}")
+        return _imap_error_payload(f"Ordnerlöschung fehlgeschlagen: {str(e)}", retryable=True)
+    finally:
+        try:
+            mail_conn.logout()
+        except Exception:
+            pass
+
+
+def imap_move_message(uid, from_folder, to_folder):
+    """Move a message (thin wrapper around move_email_in_imap returning structured payload)."""
+    if not uid:
+        return _imap_error_payload("Ungültige IMAP-UID")
+    if not to_folder:
+        return _imap_error_payload("Zielordner fehlt")
+    ok, msg = move_email_in_imap(uid, from_folder or 'INBOX', to_folder)
+    if ok:
+        return _imap_success_payload(msg)
+    retryable = 'Verbindung' in (msg or '')
+    return _imap_error_payload(msg, retryable=retryable)
+
+
+def imap_mark_seen(uid, folder, seen=True):
+    """Mark a message as seen/unseen on IMAP."""
+    if not uid:
+        return _imap_error_payload("Ungültige IMAP-UID")
+    try:
+        uid_str = str(uid).strip()
+        int(uid_str)
+    except (ValueError, AttributeError):
+        return _imap_error_payload(f"Ungültige UID: {uid}")
+
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return _imap_error_payload("IMAP-Verbindung fehlgeschlagen", retryable=True)
+
+    try:
+        ok, status = _imap_select_folder(mail_conn, folder or 'INBOX')
+        if not ok:
+            return _imap_error_payload(f"Ordner '{folder}' konnte nicht geöffnet werden", code=status)
+        flag_op = '+FLAGS' if seen else '-FLAGS'
+        status, response = mail_conn.uid('STORE', uid_str, flag_op, '\\Seen')
+        if status != 'OK':
+            return _imap_error_payload(
+                f"Gelesen-Status konnte nicht aktualisiert werden: {response}",
+                code=status,
+            )
+        return _imap_success_payload("Gelesen-Status aktualisiert")
+    except Exception as e:
+        logging.error(f"imap_mark_seen failed: {e}")
+        return _imap_error_payload(f"Gelesen-Status-Fehler: {str(e)}", retryable=True)
+    finally:
+        try:
+            mail_conn.close()
+        except Exception:
+            pass
+        try:
+            mail_conn.logout()
+        except Exception:
+            pass
+
+
+def imap_set_keyword(uid, folder, keyword, enabled=True):
+    """Add/remove a custom IMAP keyword. Returns success payload even when server
+    rejects the keyword (treat as local-only) so the caller can fall back cleanly."""
+    if not uid:
+        return _imap_error_payload("Ungültige IMAP-UID")
+    if not keyword:
+        return _imap_error_payload("Kein Schlüsselwort angegeben")
+
+    try:
+        uid_str = str(uid).strip()
+        int(uid_str)
+    except (ValueError, AttributeError):
+        return _imap_error_payload(f"Ungültige UID: {uid}")
+
+    mail_conn = connect_imap()
+    if not mail_conn:
+        return _imap_error_payload("IMAP-Verbindung fehlgeschlagen", retryable=True)
+
+    try:
+        ok, status = _imap_select_folder(mail_conn, folder or 'INBOX')
+        if not ok:
+            return _imap_error_payload(f"Ordner '{folder}' konnte nicht geöffnet werden", code=status)
+        flag_op = '+FLAGS' if enabled else '-FLAGS'
+        status, response = mail_conn.uid('STORE', uid_str, flag_op, keyword)
+        if status != 'OK':
+            # Keyword unsupported: return soft payload so caller keeps local state only
+            return {
+                'success': True,
+                'imap_status': status,
+                'message': 'Server unterstützt Keyword nicht, lokal gespeichert',
+                'keyword_supported': False,
+            }
+        return {
+            'success': True,
+            'imap_status': 'OK',
+            'message': 'Keyword aktualisiert',
+            'keyword_supported': True,
+        }
+    except Exception as e:
+        logging.error(f"imap_set_keyword failed: {e}")
+        return {
+            'success': True,
+            'imap_status': 'ERROR',
+            'message': f'Keyword nicht unterstützt: {str(e)} – lokal gespeichert',
+            'keyword_supported': False,
+        }
+    finally:
+        try:
+            mail_conn.close()
+        except Exception:
+            pass
+        try:
+            mail_conn.logout()
+        except Exception:
+            pass
 
 
 # SSE-basierte Live-Updates (siehe app/blueprints/sse.py)

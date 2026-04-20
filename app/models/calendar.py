@@ -11,6 +11,7 @@ class CalendarEvent(db.Model):
     start_time = db.Column(db.DateTime, nullable=False, index=True)
     end_time = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(255), nullable=True)
+    event_color = db.Column(db.String(7), nullable=False, default='#0d6efd')
     
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

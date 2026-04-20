@@ -4,6 +4,7 @@ from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import ChatMessage, ChatMember
 from app.models.email import EmailMessage, EmailPermission
 from app.models.file import File
+from app.models.credential import Credential
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
@@ -44,6 +45,7 @@ def index():
         'nachrichten': 'module_chat',
         'emails': 'module_email',
         'dateien': 'module_files',
+        'passwoerter': 'module_credentials',
         'neue_wikieintraege': 'module_wiki',
         'meine_wikis': 'module_wiki',
         'meine_ausleihen': 'module_inventory',
@@ -107,6 +109,15 @@ def index():
             ).order_by(File.updated_at.desc()).limit(3).all()
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Dateien: {e}")
+
+    favorite_credentials = []
+    if 'passwoerter' in enabled_widgets and is_module_enabled('module_credentials'):
+        try:
+            favorite_credentials = Credential.query.filter_by(
+                is_favorite=True
+            ).order_by(Credential.updated_at.desc()).limit(2).all()
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Passwort-Favoriten: {e}")
     
     # Neue Wikieinträge Widget
     recent_wiki_pages = []
@@ -224,6 +235,7 @@ def index():
         unread_messages=unread_messages,
         recent_emails=recent_emails,
         recent_files=recent_files,
+        favorite_credentials=favorite_credentials,
         recent_wiki_pages=recent_wiki_pages,
         my_wiki_favorites=my_wiki_favorites,
         my_borrow_groups=my_borrow_groups,
@@ -253,7 +265,7 @@ def edit():
         
         # Widgets aus Formular
         enabled_widgets = []
-        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen']
+        available_widgets = ['termine', 'nachrichten', 'emails', 'dateien', 'passwoerter', 'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen']
         for widget in available_widgets:
             if request.form.get(f'widget_{widget}') == 'on':
                 enabled_widgets.append(widget)

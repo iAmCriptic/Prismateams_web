@@ -244,6 +244,16 @@
         "title": "Buchungen",
         "empty": "Keine ausstehenden Buchungen",
         "more_indicator": "und {count} weitere"
+      },
+      "passwords": {
+        "title": "Passwörter",
+        "empty": "Keine favorisierten Passwörter",
+        "reveal": "Benutzername und Passwort anzeigen",
+        "labels": {
+          "username": "Benutzername",
+          "password": "Passwort"
+        },
+        "error": "Passwort konnte nicht geladen werden."
       }
     },
     "quick_access": {
@@ -273,6 +283,10 @@
           "dateien": {
             "label": "Letzte Dateien",
             "description": "Zeigt die zuletzt bearbeiteten Dateien."
+          },
+          "passwoerter": {
+            "label": "Passwörter",
+            "description": "Zeigt bis zu zwei favorisierte Passwörter."
           },
           "canvas": {
             "label": "Canvas",
@@ -1286,6 +1300,10 @@
       "original_email": {
         "title": "Ursprüngliche E-Mail"
       },
+      "reply_context": {
+        "prefix": "Antwort an",
+        "hint": "Die Originalnachricht wird automatisch unter Ihrer Antwort angehängt."
+      },
       "attachments": {
         "label": "Anhänge (optional)",
         "help": "Mehrere Dateien auswählen möglich",
@@ -1333,6 +1351,9 @@
         "reset": "Zurücksetzen",
         "in": "Vergrößern"
       },
+      "iframe": {
+        "title": "HTML-E-Mail"
+      },
       "modal": {
         "title": "Anhang-Vorschau",
         "close": "Schließen",
@@ -1350,7 +1371,9 @@
       "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
       "saved": "Zugangsdaten für \"{website_name}\" wurden gespeichert.",
       "updated": "Zugangsdaten für \"{website_name}\" wurden aktualisiert.",
-      "deleted": "Zugangsdaten für \"{website_name}\" wurden gelöscht."
+      "deleted": "Zugangsdaten für \"{website_name}\" wurden gelöscht.",
+      "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
+      "folder_created": "Ordner \"{folder_name}\" wurde erstellt."
     },
     "errors": {
       "decrypt_error": "Fehler beim Entschlüsseln des Passworts"
@@ -1369,11 +1392,24 @@
       },
       "actions": {
         "edit": "Bearbeiten",
-        "delete_confirm": "Zugangsdaten wirklich löschen?"
+        "delete_confirm": "Zugangsdaten wirklich löschen?",
+        "favorite": "Favorit umschalten"
       },
       "messages": {
         "copy_success": "In die Zwischenablage kopiert!",
-        "password_error": "Passwort konnte nicht geladen werden."
+        "password_error": "Passwort konnte nicht geladen werden.",
+        "favorite_error": "Favorit konnte nicht aktualisiert werden.",
+        "move_error": "Eintrag konnte nicht verschoben werden."
+      },
+      "folders": {
+        "name": "Ordnername",
+        "color": "Farbe",
+        "create": "Ordner erstellen",
+        "root": "Root",
+        "drop_hint": "Karten hierhin ziehen",
+        "root_empty": "Keine Einträge im Root-Bereich.",
+        "empty": "Dieser Ordner ist leer.",
+        "move_up": "Ordner nach oben"
       }
     },
     "form": {
@@ -1382,7 +1418,10 @@
         "website_url": "Website-URL",
         "username": "Benutzername",
         "password": "Passwort",
-        "notes": "Notizen (optional)"
+        "notes": "Notizen (optional)",
+        "folder": "Ordner",
+        "root_folder": "Im Root speichern",
+        "is_favorite": "Als Favorit markieren"
       },
       "placeholders": {
         "website_name": "z.B. GitHub",

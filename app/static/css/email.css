@@ -6,26 +6,153 @@
 
 .email-text-content {
     border: 1px solid var(--bs-border-color);
-    border-radius: 0.5rem;
-    padding: 1rem;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
     background: var(--bs-body-bg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--bs-body-color);
+    font-family: var(--bs-body-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
     font-size: 1rem;
-    line-height: 1.6;
+    line-height: 1.65;
     isolation: isolate;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .email-text-content pre,
 .email-plain-text {
     white-space: pre-wrap;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    font-family: var(--bs-body-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif) !important;
     background: transparent;
     border: none;
     padding: 0;
     margin: 0;
     color: inherit;
     font-size: 1rem;
-    line-height: 1.6;
+    line-height: 1.65;
+}
+
+/* Plain-only / Text tab: .email-content-isolated forces white bg with !important — override for theme.
+   .email-content-wrapper uses all:initial which resets font to serif — force portal stack here. */
+.email-content-wrapper .email-text-content.email-content-isolated,
+.card-body > .email-text-content.email-content-isolated {
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+    border-color: var(--bs-border-color) !important;
+    font-family: var(--bs-body-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif) !important;
+}
+
+[data-bs-theme="dark"] .email-content-wrapper .email-text-content.email-content-isolated,
+[data-bs-theme="dark"] .card-body > .email-text-content.email-content-isolated {
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+    border-color: var(--bs-border-color) !important;
+}
+
+[data-oled-mode="true"] .email-content-wrapper .email-text-content.email-content-isolated,
+[data-oled-mode="true"] .card-body > .email-text-content.email-content-isolated {
+    background: #000000 !important;
+    color: #e2e8f0 !important;
+    border-color: #1a1a1a !important;
+}
+
+/* Simple (unstyled) HTML emails should follow the portal theme instead of
+   showing a jarring white card in dark mode. Selectors are intentionally
+   high-specificity to win over the generic .email-html-content rules
+   defined further down in this file (which force a white background for
+   richly styled newsletter HTML). */
+.email-content-wrapper .email-html-content.email-html-content--simple {
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+    border: 1px solid var(--bs-border-color) !important;
+    border-radius: 0.75rem !important;
+    padding: 1.25rem 1.5rem !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    font-family: var(--bs-body-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif) !important;
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+}
+
+.email-content-wrapper .email-html-content.email-html-content--simple *:not(a) {
+    color: inherit !important;
+    background-color: transparent !important;
+}
+
+/* Unstyled reply lines often use <div>/<span> without font — inherit portal sans-serif */
+.email-content-wrapper .email-html-content.email-html-content--simple p,
+.email-content-wrapper .email-html-content.email-html-content--simple div,
+.email-content-wrapper .email-html-content.email-html-content--simple span,
+.email-content-wrapper .email-html-content.email-html-content--simple td,
+.email-content-wrapper .email-html-content.email-html-content--simple li {
+    font-family: inherit !important;
+}
+
+[data-bs-theme="dark"] .email-content-wrapper .email-html-content.email-html-content--simple {
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color) !important;
+    border-color: var(--bs-border-color) !important;
+    box-shadow: none;
+}
+
+[data-oled-mode="true"] .email-content-wrapper .email-html-content.email-html-content--simple {
+    background: #000000 !important;
+    border-color: #1a1a1a !important;
+    color: #e2e8f0 !important;
+}
+
+/* Links inside simple html emails should match the accent/primary color */
+.email-content-wrapper .email-html-content.email-html-content--simple a {
+    color: var(--accent-color, var(--bs-primary)) !important;
+    text-decoration: underline;
+}
+
+/* Blockquotes inside simple html emails (quoted replies from other clients) */
+.email-content-wrapper .email-html-content.email-html-content--simple blockquote {
+    border-left: 3px solid var(--bs-border-color) !important;
+    padding: 0.25rem 0 0.25rem 1rem !important;
+    margin: 0.75rem 0 !important;
+    color: var(--bs-secondary-color, var(--bs-body-color)) !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+/* Rich HTML mails: isolated iframe keeps sender layout/CSS (light canvas like Infomaniak). */
+.email-html-frame-wrapper {
+    background: #f1f5f9;
+    border-radius: 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    overflow: hidden;
+    line-height: 0;
+}
+
+.email-html-iframe {
+    width: 100%;
+    min-height: 280px;
+    border: 0;
+    display: block;
+    background: #ffffff;
+    vertical-align: top;
+}
+
+.email-html-iframe-zoom-wrap {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+[data-bs-theme="dark"] .email-html-frame-wrapper {
+    border-color: var(--bs-border-color);
+    /* Canvas stays light so transactional mail colours stay readable */
+    background: #e2e8f0;
+}
+
+[data-oled-mode="true"] .email-html-frame-wrapper {
+    border-color: #1a1a1a;
+    background: #0a0a0a;
+}
+
+[data-oled-mode="true"] .email-html-iframe {
+    background: #ffffff;
 }
 
 [data-bs-theme="dark"] .email-text-content {
@@ -225,6 +352,9 @@
     /* Isoliere den Wrapper komplett */
     all: initial;
     display: block;
+    /* all:initial resets font to UA serif — restore portal/body typography for children */
+    font-family: inherit;
+    color: inherit;
     background: var(--bs-body-bg) !important;
 }
 
