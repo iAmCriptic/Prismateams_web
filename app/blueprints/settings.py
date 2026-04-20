@@ -1205,6 +1205,14 @@ def delete_user(user_id):
     # Delete API tokens before deleting user
     from app.models.api_token import ApiToken
     ApiToken.query.filter_by(user_id=user_id).delete()
+
+    # Delete session entries before deleting user
+    # This prevents foreign key constraint errors on user_sessions.user_id
+    from app.models.user_session import UserSession
+    UserSession.query.filter_by(user_id=user_id).delete()
+
+    # Delete explicit email permission entry (1:1 relation)
+    EmailPermission.query.filter_by(user_id=user_id).delete()
     
     # Delete inventory-related user entries
     from app.models.inventory import ProductFavorite, SavedFilter
@@ -2774,7 +2782,42 @@ def security():
         flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
         return redirect(url_for('settings.index'))
     
-    return render_template('settings/security.html', user=current_user)
+    return _render_security_page(active_tab='passwords')
+
+
+def _render_security_page(active_tab='passwords'):
+    """Rendert die Sicherheitsseite mit allen benötigten Daten im Portal-Layout."""
+    qr_code_data = None
+    totp_secret = None
+    show_setup = False
+    setup_mode = request.args.get('setup') == '1' and active_tab == 'passwords'
+
+    if not current_user.totp_enabled:
+        from flask import session as flask_session
+        setup_started = flask_session.get('2fa_setup_started', False)
+        if setup_mode and setup_started:
+            if '2fa_setup_secret' not in flask_session:
+                flask_session['2fa_setup_secret'] = generate_totp_secret()
+            totp_secret = flask_session['2fa_setup_secret']
+            totp_uri = get_totp_uri(current_user.email, totp_secret)
+            qr_code_data = generate_qr_code(totp_uri)
+            show_setup = True
+        elif not setup_mode:
+            # Setup nicht aktiv angefordert: sensible Setup-Daten verwerfen
+            flask_session.pop('2fa_setup_started', None)
+            flask_session.pop('2fa_setup_secret', None)
+
+    sessions = get_user_sessions(current_user.id)
+
+    return render_template(
+        'settings/security.html',
+        user=current_user,
+        active_tab=active_tab,
+        qr_code_data=qr_code_data,
+        totp_secret=totp_secret,
+        show_setup=show_setup,
+        sessions=sessions
+    )
 
 
 @settings_bp.route('/security/passwords', methods=['GET', 'POST'])
@@ -2795,7 +2838,7 @@ def security_passwords():
             flask_session['2fa_setup_started'] = True
             flask_session['2fa_setup_secret'] = generate_totp_secret()
             flash(translate('settings.security.2fa.setup_started'), 'info')
-            return redirect(url_for('settings.security_passwords'))
+            return redirect(url_for('settings.security_passwords', setup=1))
         
         if action == 'cancel_2fa_setup':
             # Bricht 2FA-Einrichtung ab
@@ -2841,30 +2884,7 @@ def security_passwords():
             flash(translate('settings.security.password.changed_success'), 'success')
             return redirect(url_for('settings.security_passwords'))
     
-    # Generiere QR-Code für 2FA-Setup (wenn noch nicht aktiviert)
-    qr_code_data = None
-    totp_secret = None
-    show_setup = False
-    if not current_user.totp_enabled:
-        from flask import session as flask_session
-        # Prüfe ob Setup gestartet wurde
-        setup_started = flask_session.get('2fa_setup_started', False)
-        
-        # Wenn Setup gestartet wurde, zeige QR-Code
-        if setup_started:
-            # Generiere Secret nur wenn es noch nicht in der Session ist
-            if '2fa_setup_secret' not in flask_session:
-                flask_session['2fa_setup_secret'] = generate_totp_secret()
-            totp_secret = flask_session['2fa_setup_secret']
-            totp_uri = get_totp_uri(current_user.email, totp_secret)
-            qr_code_data = generate_qr_code(totp_uri)
-            show_setup = True
-    
-    return render_template('settings/security_passwords.html', 
-                         user=current_user,
-                         qr_code_data=qr_code_data,
-                         totp_secret=totp_secret,
-                         show_setup=show_setup)
+    return _render_security_page(active_tab='passwords')
 
 
 @settings_bp.route('/security/enable-2fa', methods=['POST'])
@@ -2881,12 +2901,12 @@ def enable_2fa():
     
     if not totp_code or not secret:
         flash(translate('settings.security.2fa.enter_code'), 'danger')
-        return redirect(url_for('settings.security_passwords'))
+        return redirect(url_for('settings.security_passwords', setup=1))
     
     # Verifiziere TOTP-Code
     if not verify_totp(secret, totp_code):
         flash(translate('settings.security.2fa.invalid_code'), 'danger')
-        return redirect(url_for('settings.security_passwords'))
+        return redirect(url_for('settings.security_passwords', setup=1))
     
     # Verschlüssele und speichere Secret
     current_user.totp_secret = encrypt_secret(secret)
@@ -2934,10 +2954,7 @@ def security_devices():
         flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
         return redirect(url_for('settings.index'))
     
-    sessions = get_user_sessions(current_user.id)
-    return render_template('settings/security_devices.html', 
-                         user=current_user,
-                         sessions=sessions)
+    return _render_security_page(active_tab='devices')
 
 
 @settings_bp.route('/security/revoke-session', methods=['POST'])

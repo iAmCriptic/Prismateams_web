@@ -17,10 +17,130 @@ import shutil
 import logging
 import secrets
 import requests
+import re
+import zipfile
 
 files_bp = Blueprint('files', __name__)
 
 MAX_FILE_VERSIONS = 3
+MAX_FILE_PREVIEW_CHARS = 240
+
+
+def _resolve_absolute_file_path(file_path):
+    """Resolve file path to absolute path."""
+    if not file_path:
+        return None
+    if os.path.isabs(file_path):
+        return file_path
+    return os.path.join(os.getcwd(), file_path)
+
+
+def _normalize_preview_text(text, max_chars=MAX_FILE_PREVIEW_CHARS):
+    """Normalize whitespace and limit preview text length."""
+    if not text:
+        return ''
+    normalized = re.sub(r'\s+', ' ', text).strip()
+    if len(normalized) > max_chars:
+        return normalized[:max_chars - 1].rstrip() + '…'
+    return normalized
+
+
+def _extract_preview_from_zip_xml(file_path, xml_candidates):
+    """Extract text preview from zipped XML-based document formats."""
+    try:
+        with zipfile.ZipFile(file_path, 'r') as archive:
+            for member in xml_candidates:
+                if member not in archive.namelist():
+                    continue
+                with archive.open(member) as stream:
+                    raw_xml = stream.read().decode('utf-8', errors='ignore')
+                # Remove tags and decode common XML entities.
+                text = re.sub(r'<[^>]+>', ' ', raw_xml)
+                text = (
+                    text.replace('&nbsp;', ' ')
+                    .replace('&amp;', '&')
+                    .replace('&lt;', '<')
+                    .replace('&gt;', '>')
+                    .replace('&quot;', '"')
+                )
+                preview = _normalize_preview_text(text)
+                if preview:
+                    return preview
+    except Exception:
+        return ''
+    return ''
+
+
+def build_file_preview_text(file):
+    """Build a short preview text for supported file types."""
+    file_ext = os.path.splitext(file.original_name or file.name or '')[1].lower()
+    if not file_ext:
+        return ''
+
+    if file_ext in {'.pdf'}:
+        # PDF gets a visual iframe preview in template.
+        return ''
+
+    file_path = _resolve_absolute_file_path(file.file_path)
+    if not file_path or not os.path.exists(file_path):
+        return ''
+
+    try:
+        if file_ext in {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as handle:
+                return _normalize_preview_text(handle.read(MAX_FILE_PREVIEW_CHARS * 3))
+
+        if file_ext in {'.docx', '.docm'}:
+            return _extract_preview_from_zip_xml(file_path, ['word/document.xml'])
+
+        if file_ext in {'.pptx', '.pptm'}:
+            slide_candidates = [f'ppt/slides/slide{i}.xml' for i in range(1, 4)]
+            return _extract_preview_from_zip_xml(file_path, slide_candidates)
+
+        if file_ext in {'.odt', '.odp'}:
+            return _extract_preview_from_zip_xml(file_path, ['content.xml'])
+    except Exception:
+        return ''
+
+    return ''
+
+
+def build_markdown_preview_html(file):
+    """Build rendered markdown HTML preview for markdown files."""
+    file_ext = os.path.splitext(file.original_name or file.name or '')[1].lower()
+    if file_ext not in {'.md', '.markdown'}:
+        return ''
+
+    file_path = _resolve_absolute_file_path(file.file_path)
+    if not file_path or not os.path.exists(file_path):
+        return ''
+
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as handle:
+            # Keep preview light-weight while preserving markdown structure.
+            markdown_source = handle.read(2500)
+        from app.utils.markdown import process_markdown
+        rendered = process_markdown(markdown_source, wiki_mode=False)
+        return rendered or ''
+    except Exception:
+        return ''
+
+
+def _is_markdown_extension(file_ext):
+    """Return whether the extension is a markdown format."""
+    return file_ext in {'.md', '.markdown'}
+
+
+def _render_view_content(content, file_ext):
+    """Render file content with the same interpreter used by /view."""
+    if _is_markdown_extension(file_ext):
+        try:
+            from app.utils.markdown import process_markdown
+            return process_markdown(content, wiki_mode=False)
+        except Exception as exc:
+            current_app.logger.error(f"Markdown processing error: {exc}")
+            return content
+    return content
 
 
 @files_bp.route('/')
@@ -38,7 +158,7 @@ def browse_folder(folder_id):
     """Browse a specific folder."""
     # Gast-Accounts: Nur Freigabelinks anzeigen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        from app.utils.access_control import get_guest_accessible_items
+        from app.utils.access_control import get_guest_accessible_items, get_guest_directly_shared_folders
         accessible_files, accessible_folders = get_guest_accessible_items(current_user)
         accessible_folder_ids = {folder.id for folder in accessible_folders}
         
@@ -56,13 +176,17 @@ def browse_folder(folder_id):
         if folder_id:
             subfolders = [f for f in accessible_folders if f.parent_id == folder_id]
         else:
-            # Root zeigt alle zugänglichen Einstiegspunkte:
-            # - echte Root-Ordner
-            # - freigegebene Unterordner, deren Parent nicht zugänglich ist
-            subfolders = [
+            # Root zeigt explizit freigegebene Ordner als Einstiegspunkte
+            # sowie Fallback-Roots (wenn ein Parent nicht zugänglich ist).
+            directly_shared_folders = get_guest_directly_shared_folders(current_user)
+            root_like_folders = [
                 f for f in accessible_folders
                 if f.parent_id is None or f.parent_id not in accessible_folder_ids
             ]
+            unique_folders = {}
+            for folder in directly_shared_folders + root_like_folders:
+                unique_folders[folder.id] = folder
+            subfolders = list(unique_folders.values())
         
         # Zeige nur zugängliche Dateien im aktuellen Ordner
         # (get_guest_accessible_items gibt bereits alle Dateien inkl. Unterordnern zurück)
@@ -141,11 +265,16 @@ def browse_folder(folder_id):
     from app.utils.onlyoffice import is_onlyoffice_enabled
     onlyoffice_available = is_onlyoffice_enabled()
 
+    file_preview_map = {file.id: build_file_preview_text(file) for file in files}
+    file_preview_html_map = {file.id: build_markdown_preview_html(file) for file in files}
+
     return render_template(
         'files/index.html',
         current_folder=current_folder,
         subfolders=subfolders,
         files=files,
+        file_preview_map=file_preview_map,
+        file_preview_html_map=file_preview_html_map,
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
         onlyoffice_available=onlyoffice_available,
@@ -257,6 +386,32 @@ def rename_folder(folder_id):
     if folder.parent_id:
         return redirect(url_for('files.browse_folder', folder_id=folder.parent_id))
     return redirect(url_for('files.index'))
+
+
+@files_bp.route('/folder/<int:folder_id>/color', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def update_folder_color(folder_id):
+    """Update folder color for quick visual labeling."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Gast-Accounts können keine Ordnerfarben ändern.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+
+    folder = Folder.query.get_or_404(folder_id)
+    raw_color = (request.form.get('color') or '').strip().lower()
+    clear_color = (request.form.get('clear_color') or '').strip() == '1'
+
+    if clear_color or not raw_color:
+        folder.color = None
+    elif re.fullmatch(r'#[0-9a-f]{6}', raw_color):
+        folder.color = raw_color
+    else:
+        flash('Ungültige Farbe. Bitte wählen Sie eine HEX-Farbe.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+
+    db.session.commit()
+    flash('Ordnerfarbe wurde aktualisiert.', 'success')
+    return redirect(request.referrer or url_for('files.index'))
 
 
 def _is_folder_descendant(candidate_folder, ancestor_folder_id):
@@ -1187,16 +1342,7 @@ def preview_file(file_id):
     
     content = request.form.get('content', '')
     
-    # Process markdown if it's a markdown file
-    if file.name.endswith('.md'):
-        try:
-            from app.utils.markdown import process_markdown
-            processed_content = process_markdown(content, wiki_mode=False)
-        except Exception as e:
-            current_app.logger.error(f"Markdown processing error: {e}")
-            processed_content = content
-    else:
-        processed_content = content
+    processed_content = _render_view_content(content, file_ext)
     
     return jsonify({'html': processed_content})
 
@@ -1263,19 +1409,19 @@ def view_file(file_id):
         else:
             return redirect(url_for('files.index'))
     
-    # Process markdown if it's a markdown file
-    if file.name.endswith('.md'):
-        try:
-            from app.utils.markdown import process_markdown
-            processed_content = process_markdown(content, wiki_mode=False)
-            current_app.logger.info(f"Markdown processed. Table detected: {'<table>' in processed_content}")
-        except Exception as e:
-            current_app.logger.error(f"Markdown processing error: {e}")
-            processed_content = content
-    else:
-        processed_content = content
+    is_markdown = _is_markdown_extension(file_ext)
+    processed_content = _render_view_content(content, file_ext)
+    if is_markdown:
+        current_app.logger.info(f"Markdown processed. Table detected: {'<table>' in processed_content}")
     
-    return render_template('files/view.html', file=file, content=content, processed_content=processed_content, is_pdf=False)
+    return render_template(
+        'files/view.html',
+        file=file,
+        content=content,
+        processed_content=processed_content,
+        is_markdown=is_markdown,
+        is_pdf=False
+    )
 
 
 @files_bp.route('/delete/<int:file_id>', methods=['POST'])

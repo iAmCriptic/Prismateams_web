@@ -28,7 +28,7 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card email-view-card">
     <div class="card-header d-none d-md-flex justify-content-between align-items-start gap-2">
         <h4 class="mb-0">{{ email.subject|decode_email_header }}</h4>
         <div class="d-flex align-items-center gap-2">
@@ -118,7 +118,8 @@
         </div>
         {% endif %}
         
-        {% if html_content %}
+        {% if html_iframe_html %}
+        <div class="email-mobile-zoom-host">
         <div class="email-content-wrapper">
             <div class="email-content-header mb-3">
                 <div class="d-flex justify-content-between align-items-center gap-2">
@@ -132,7 +133,6 @@
                         </button>
                         {% endif %}
                     </div>
-                    <!-- Mobile Zoom Controls -->
                     <div class="d-md-none btn-group btn-group-sm" role="group" aria-label="{{ _('email.view.zoom.label') }}">
                         <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn" title="{{ _('email.view.zoom.out') }}">
                             <i class="bi bi-dash"></i>
@@ -146,14 +146,25 @@
                     </div>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content email-content-isolated" style="background: #ffffff !important; color: #333333 !important; border: 1px solid #e0e0e0 !important; width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
+            <div id="htmlContent" class="email-html-iframe-zoom-wrap email-content-isolated">
+                <div class="email-html-frame-wrapper">
+                    <iframe class="email-html-iframe"
+                            title="{{ _('email.view.iframe.title') }}"
+                            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            srcdoc="{{ html_iframe_html|e }}"></iframe>
+                </div>
+            </div>
             {% if email.body_text %}
             <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
-                <pre>{{ email.body_text }}</pre>
+                <div class="email-plain-text">{{ email.body_text }}</div>
             </div>
             {% endif %}
         </div>
-        {% elif email.body_html %}
+        </div>
+        {% elif html_content %}
+        <div class="email-mobile-zoom-host">
         <div class="email-content-wrapper">
             <div class="email-content-header mb-3">
                 <div class="d-flex justify-content-between align-items-center gap-2">
@@ -181,16 +192,17 @@
                     </div>
                 </div>
             </div>
-            <div id="htmlContent" class="email-html-content email-content-isolated" style="background: #ffffff !important; color: #333333 !important; border: 1px solid #e0e0e0 !important; width: 100%; max-width: 100%; box-sizing: border-box;">{{ email.body_html|safe }}</div>
+            <div id="htmlContent" class="email-html-content email-content-isolated{% if is_simple_html %} email-html-content--simple{% endif %}" style="width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
             {% if email.body_text %}
             <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
-                <pre>{{ email.body_text }}</pre>
+                <div class="email-plain-text">{{ email.body_text }}</div>
             </div>
             {% endif %}
         </div>
+        </div>
         {% elif email.body_text %}
         <div class="email-text-content email-content-isolated">
-            <pre>{{ email.body_text }}</pre>
+            <div class="email-plain-text">{{ email.body_text }}</div>
         </div>
         {% else %}
         <div class="alert alert-warning">
@@ -252,12 +264,38 @@ function previewAttachment(attachmentId, filename) {
     new bootstrap.Modal(document.getElementById('attachmentPreviewModal')).show();
 }
 
+function resizeRichEmailIframe() {
+    var iframe = document.querySelector('.email-html-iframe');
+    if (!iframe) return;
+    try {
+        var doc = iframe.contentDocument || iframe.contentWindow.document;
+        var h = Math.max(
+            doc.body ? doc.body.scrollHeight : 0,
+            doc.documentElement ? doc.documentElement.scrollHeight : 0,
+            doc.body ? doc.body.offsetHeight : 0,
+            doc.documentElement ? doc.documentElement.offsetHeight : 0
+        );
+        if (h > 0) {
+            iframe.style.height = (h + 32) + 'px';
+        }
+    } catch (e) { /* sandbox */ }
+}
+
 // Email content view toggle
 document.addEventListener('DOMContentLoaded', function() {
     const htmlViewBtn = document.getElementById('htmlViewBtn');
     const textViewBtn = document.getElementById('textViewBtn');
     const htmlContent = document.getElementById('htmlContent');
     const textContent = document.getElementById('textContent');
+
+    var richIframe = document.querySelector('.email-html-iframe');
+    if (richIframe) {
+        richIframe.addEventListener('load', resizeRichEmailIframe);
+        setTimeout(resizeRichEmailIframe, 400);
+        window.addEventListener('resize', function() {
+            resizeRichEmailIframe();
+        });
+    }
     
     if (htmlViewBtn && htmlContent) {
         htmlViewBtn.addEventListener('click', function() {
@@ -294,39 +332,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Mobile Zoom Controls
-    const zoomInBtn = document.getElementById('zoomInBtn') || document.getElementById('zoomInBtn2');
-    const zoomOutBtn = document.getElementById('zoomOutBtn') || document.getElementById('zoomOutBtn2');
-    const zoomResetBtn = document.getElementById('zoomResetBtn') || document.getElementById('zoomResetBtn2');
     const emailContent = htmlContent || document.querySelector('.email-html-content');
+    var supportsCssZoom = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('zoom', '1.5');
     
     // Zoom-Level aus localStorage laden oder Standard setzen
     let zoomLevel = parseFloat(localStorage.getItem('emailZoomLevel') || '1.0');
     
     function applyZoom(level) {
         if (!emailContent) return;
-        
-        // Zoom-Level begrenzen (0.5x bis 2.0x)
+
         level = Math.max(0.5, Math.min(2.0, level));
         zoomLevel = level;
-        
-        // Zoom nur auf den E-Mail-Inhalt anwenden
-        // Verwende transform: scale() für bessere Browser-Kompatibilität
-        emailContent.style.transform = `scale(${level})`;
-        emailContent.style.transformOrigin = 'top left';
-        emailContent.style.width = `${100 / level}%`;
-        emailContent.style.height = 'auto';
-        
-        // Zoom-Level speichern
-        localStorage.setItem('emailZoomLevel', level.toString());
-        
-        // Buttons aktivieren/deaktivieren bei Limits
-        if (zoomInBtn) {
-            zoomInBtn.disabled = (level >= 2.0);
-            zoomInBtn.classList.toggle('disabled', level >= 2.0);
+
+        if (supportsCssZoom) {
+            emailContent.style.zoom = String(level);
+            emailContent.style.transform = '';
+            emailContent.style.transformOrigin = '';
+            emailContent.style.width = '100%';
+        } else {
+            emailContent.style.zoom = '';
+            emailContent.style.transform = 'scale(' + level + ')';
+            emailContent.style.transformOrigin = 'top left';
+            emailContent.style.width = (100 / level) + '%';
         }
-        if (zoomOutBtn) {
-            zoomOutBtn.disabled = (level <= 0.5);
-            zoomOutBtn.classList.toggle('disabled', level <= 0.5);
+        emailContent.style.height = 'auto';
+
+        localStorage.setItem('emailZoomLevel', level.toString());
+
+        document.querySelectorAll('#zoomInBtn, #zoomInBtn2').forEach(function (btn) {
+            btn.disabled = (level >= 2.0);
+            btn.classList.toggle('disabled', level >= 2.0);
+        });
+        document.querySelectorAll('#zoomOutBtn, #zoomOutBtn2').forEach(function (btn) {
+            btn.disabled = (level <= 0.5);
+            btn.classList.toggle('disabled', level <= 0.5);
+        });
+
+        if (typeof resizeRichEmailIframe === 'function') {
+            setTimeout(resizeRichEmailIframe, 50);
         }
     }
     
@@ -338,26 +381,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     }
     
-    // Zoom-In Button
-    if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', function() {
+    document.querySelectorAll('#zoomInBtn, #zoomInBtn2').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             applyZoom(zoomLevel + 0.1);
         });
-    }
-    
-    // Zoom-Out Button
-    if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', function() {
+    });
+    document.querySelectorAll('#zoomOutBtn, #zoomOutBtn2').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             applyZoom(zoomLevel - 0.1);
         });
-    }
-    
-    // Zoom Reset Button
-    if (zoomResetBtn) {
-        zoomResetBtn.addEventListener('click', function() {
+    });
+    document.querySelectorAll('#zoomResetBtn, #zoomResetBtn2').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             applyZoom(1.0);
         });
-    }
+    });
 });
 </script>
 {% endblock %}

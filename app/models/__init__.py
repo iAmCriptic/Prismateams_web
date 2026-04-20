@@ -5,7 +5,7 @@ from .file import File, FileVersion, Folder
 from .calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
 from .email import EmailMessage, EmailPermission, EmailAttachment
 from .contact import Contact
-from .credential import Credential
+from .credential import Credential, CredentialFolder
 from .manual import Manual
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
@@ -41,7 +41,7 @@ __all__ = [
     'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed',
     'EmailMessage', 'EmailPermission', 'EmailAttachment',
     'Contact',
-    'Credential',
+    'Credential', 'CredentialFolder',
     'Manual',
     'SystemSettings',
     'WhitelistEntry',

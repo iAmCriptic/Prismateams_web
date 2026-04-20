@@ -1,5 +1,6 @@
 import math
 import os
+from datetime import datetime
 from uuid import uuid4
 
 from flask import Blueprint, current_app, jsonify, render_template, request, send_from_directory, url_for
@@ -127,6 +128,47 @@ def manage_plan():
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter", "Inspektor", "Verwarner"])
 def view_plan():
     return render_template("assessment/view_plan.html")
+
+
+@map_bp.route("/print_plan")
+@assessment_role_required(["Administrator", "Bewerter", "Betrachter", "Inspektor", "Verwarner"])
+def print_plan():
+    plan = AssessmentFloorPlan.query.filter_by(is_active=True).order_by(AssessmentFloorPlan.id.desc()).first()
+    if not plan:
+        return render_template(
+            "assessment/print_plan.html",
+            plan=None,
+            objects=[],
+            stand_entries=[],
+            generated_at=datetime.utcnow(),
+        )
+
+    objects = AssessmentFloorPlanObject.query.filter_by(plan_id=plan.id).all()
+    stand_entries = []
+    for obj in objects:
+        if (obj.type or "").strip().lower() != "stand":
+            continue
+        stand_name = (obj.custom_stand_name or "").strip()
+        if not stand_name and obj.stand and obj.stand.name:
+            stand_name = obj.stand.name.strip()
+        if not stand_name:
+            stand_name = f"Stand #{obj.id}"
+        stand_entries.append(
+            {
+                "name": stand_name,
+                "x": obj.x,
+                "y": obj.y,
+            }
+        )
+    stand_entries.sort(key=lambda entry: entry["name"].lower())
+
+    return render_template(
+        "assessment/print_plan.html",
+        plan=_plan_to_dict(plan),
+        objects=objects,
+        stand_entries=stand_entries,
+        generated_at=datetime.utcnow(),
+    )
 
 
 # -----------------------------------------------------------------------------

@@ -1,5 +1,38 @@
 /* Calendar Styles */
 
+/* Terminfarbe: Schnellwahl neben Color-Picker */
+.calendar-color-picker-row .form-control-color {
+    flex-shrink: 0;
+}
+
+.calendar-color-presets {
+    gap: 0.35rem;
+}
+
+.calendar-color-preset {
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 2px solid var(--bs-border-color);
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.calendar-color-preset:hover {
+    transform: scale(1.08);
+}
+
+.calendar-color-preset:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+.calendar-color-preset.is-active {
+    box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--bs-primary);
+}
+
 /* Calendar */
 .event-card {
     border-left: 4px solid var(--accent-color);

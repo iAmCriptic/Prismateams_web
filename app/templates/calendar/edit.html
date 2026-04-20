@@ -62,6 +62,20 @@
                         <label for="location" class="form-label">{{ _('calendar.create.form.location') }}</label>
                         <input type="text" class="form-control" id="location" name="location" value="{{ event.location or '' }}">
                     </div>
+
+                    <div class="mb-3">
+                        <label for="event_color" class="form-label">Farbe</label>
+                        <div class="d-flex flex-wrap align-items-center gap-2 calendar-color-picker-row">
+                            <input type="color" class="form-control form-control-color" id="event_color" name="event_color" value="{{ event.event_color or '#0d6efd' }}" title="Terminfarbe">
+                            <div class="calendar-color-presets d-flex align-items-center flex-wrap" role="group" aria-label="Schnellfarben">
+                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#0d6efd" style="background-color:#0d6efd" title="Standard (Blau)"></button>
+                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#198754" style="background-color:#198754" title="Grün"></button>
+                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#fd7e14" style="background-color:#fd7e14" title="Orange"></button>
+                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#6f42c1" style="background-color:#6f42c1" title="Violett"></button>
+                                <button type="button" class="calendar-color-preset" data-calendar-preset-color="#dc3545" style="background-color:#dc3545" title="Rot"></button>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Wiederkehrende Termine -->
                     <div class="mb-3">
@@ -124,6 +138,27 @@
 <script>
 const CAL_FORM_I18N = {{ current_translations.get('calendar', {}).get('create', {})|tojson }};
 document.addEventListener('DOMContentLoaded', function() {
+    (function initEventColorPresets() {
+        const input = document.getElementById('event_color');
+        const presets = document.querySelectorAll('[data-calendar-preset-color]');
+        if (!input || !presets.length) return;
+        function syncActive() {
+            const v = (input.value || '').toLowerCase();
+            presets.forEach(function(btn) {
+                const c = (btn.getAttribute('data-calendar-preset-color') || '').toLowerCase();
+                btn.classList.toggle('is-active', c === v);
+            });
+        }
+        presets.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                input.value = btn.getAttribute('data-calendar-preset-color');
+                syncActive();
+            });
+        });
+        input.addEventListener('input', syncActive);
+        syncActive();
+    })();
+
     const isRecurringCheckbox = document.getElementById('is_recurring');
     const recurrenceOptions = document.getElementById('recurrence_options');
     const recurrenceType = document.getElementById('recurrence_type');

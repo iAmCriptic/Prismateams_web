@@ -2,8 +2,193 @@
 
 {% block title %}{{ _('email.index.page_title') }}{% endblock %}
 
+{% macro folder_icon(folder) -%}
+    {%- if folder.folder_type == 'standard' -%}
+        {%- if folder.name == 'INBOX' -%}<i class="bi bi-inbox"></i>
+        {%- elif folder.name in ['Sent', 'Sent Messages'] -%}<i class="bi bi-send"></i>
+        {%- elif folder.name == 'Drafts' -%}<i class="bi bi-file-earmark-text"></i>
+        {%- elif folder.name in ['Trash', 'Deleted Messages'] -%}<i class="bi bi-trash"></i>
+        {%- elif folder.name in ['Spam', 'Junk'] -%}<i class="bi bi-shield-exclamation"></i>
+        {%- elif folder.name in ['Archive', 'Archives'] -%}<i class="bi bi-archive"></i>
+        {%- else -%}<i class="bi bi-folder"></i>
+        {%- endif -%}
+    {%- else -%}<i class="bi bi-folder"></i>
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro email_color_dot(color, extra_class='') %}
+<span class="email-color-dot {{ extra_class }}"
+      data-color="{{ color or '' }}"
+      {% if not color %}hidden{% endif %}
+      style="{% if color %}--dot-color: var(--email-dot-{{ color }}, transparent);{% endif %}"
+      aria-hidden="true"></span>
+{% endmacro %}
+
+{% macro email_action_menu(email, folder_tree) %}
+<ul class="dropdown-menu dropdown-menu-end email-actions-menu">
+    <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
+        <i class="bi bi-eye me-2"></i>{{ _('email.index.actions.view') }}
+    </a></li>
+    <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
+        <i class="bi bi-reply me-2"></i>{{ _('email.index.actions.reply') }}
+    </a></li>
+    <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
+        <i class="bi bi-reply-all me-2"></i>{{ _('email.index.actions.reply_all') }}
+    </a></li>
+    <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
+        <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
+    </a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+        <button type="button" class="dropdown-item" data-action="toggle-read" data-email-id="{{ email.id }}" data-state="{{ 'unread' if email.is_read else 'read' }}">
+            <i class="bi bi-envelope{{ '-open' if not email.is_read else '' }} me-2"></i>
+            {% if email.is_read %}{{ _('email.index.actions.mark_unread') }}{% else %}{{ _('email.index.actions.mark_read') }}{% endif %}
+        </button>
+    </li>
+    <li class="email-action-colors">
+        <h6 class="dropdown-header">{{ _('email.index.actions.set_color_dot') }}</h6>
+        <div class="email-color-picker">
+            <button type="button" class="email-color-swatch {% if not email.color_dot %}is-active{% endif %}"
+                    data-action="set-color" data-email-id="{{ email.id }}" data-color=""
+                    title="{{ _('email.index.actions.color_none') }}">
+                <i class="bi bi-x"></i>
+            </button>
+            {% for color in color_dot_choices %}
+            <button type="button" class="email-color-swatch {% if email.color_dot == color %}is-active{% endif %}"
+                    data-action="set-color" data-email-id="{{ email.id }}" data-color="{{ color }}"
+                    data-color-label="{{ color }}"
+                    style="--swatch-color: var(--email-dot-{{ color }}, transparent);"
+                    title="{{ color }}"></button>
+            {% endfor %}
+        </div>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li class="dropdown-submenu">
+        <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-folder-symlink me-2"></i>{{ _('email.index.labels.move_to_folder') }}
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end email-move-menu">
+            {% for entry in folder_tree %}
+                {% set folder = entry.folder %}
+                {% if folder.name != email.folder %}
+                <li>
+                    <button type="button" class="dropdown-item email-move-item"
+                            data-action="move-email"
+                            data-email-id="{{ email.id }}"
+                            data-folder="{{ folder.name }}"
+                            style="padding-left: {{ 1 + (entry.depth * 1.25) }}rem;">
+                        {{ folder_icon(folder) }} <span class="ms-2">{{ entry.short_name }}</span>
+                    </button>
+                </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+        <button type="button" class="dropdown-item text-danger" data-action="delete-email" data-email-id="{{ email.id }}">
+            <i class="bi bi-trash me-2"></i>{{ _('email.index.actions.delete') }}
+        </button>
+    </li>
+</ul>
+{% endmacro %}
+
+{% macro folder_tree_links(folder_tree, current_folder, mode='sidebar') %}
+    {% for entry in folder_tree %}
+        {% set folder = entry.folder %}
+        {% if mode == 'sidebar' %}
+        <li class="nav-item email-folder-node" data-folder-depth="{{ entry.depth }}">
+            <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
+               class="nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+               data-folder="{{ folder.name }}"
+               data-folder-type="{{ folder.folder_type }}"
+               data-is-system="{{ 'true' if folder.is_system else 'false' }}"
+               style="padding-left: {{ 0.75 + (entry.depth * 1.15) }}rem;">
+                <span class="email-folder-drop-indicator" aria-hidden="true"></span>
+                {{ folder_icon(folder) }}
+                <span class="email-folder-name ms-2">{{ entry.short_name }}</span>
+                {% if folder.folder_type == 'custom' and not folder.is_system %}
+                <button type="button" class="btn btn-sm btn-link text-danger email-folder-delete" data-folder="{{ folder.name }}" title="{{ _('email.index.actions.delete_folder') }}">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+                {% endif %}
+            </a>
+        </li>
+        {% elif mode == 'offcanvas' %}
+        <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
+           class="list-group-item list-group-item-action email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+           data-folder="{{ folder.name }}"
+           data-folder-type="{{ folder.folder_type }}"
+           data-is-system="{{ 'true' if folder.is_system else 'false' }}"
+           style="padding-left: {{ 1 + (entry.depth * 1.1) }}rem;"
+           onclick="setTimeout(function(){ var oc = bootstrap.Offcanvas.getInstance(document.getElementById('mobileFolderMenu')); if(oc) oc.hide(); }, 100);">
+            {{ folder_icon(folder) }}
+            <span class="ms-2">{{ entry.short_name }}</span>
+        </a>
+        {% elif mode == 'dropdown' %}
+        <li>
+            <a class="dropdown-item email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+               href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
+               data-folder="{{ folder.name }}"
+               style="padding-left: {{ 1 + (entry.depth * 1.1) }}rem;">
+                {{ folder_icon(folder) }} <span class="ms-2">{{ entry.short_name }}</span>
+            </a>
+        </li>
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
+{% macro email_list_item(email, variant, folder_tree, current_folder) %}
+<div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %} email-draggable"
+     data-email-id="{{ email.id }}"
+     data-folder="{{ email.folder }}"
+     data-is-read="{{ 'true' if email.is_read else 'false' }}"
+     data-color-dot="{{ email.color_dot or '' }}"
+     draggable="true">
+    <div class="d-flex justify-content-between align-items-start">
+        <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none email-item-link">
+            <div class="d-flex align-items-start">
+                {{ email_color_dot(email.color_dot, 'email-item-color-dot') }}
+                <div class="email-avatar me-3 flex-shrink-0">
+                    <div class="avatar-circle {% if variant == 'mobile' %}avatar-circle-mobile{% endif %}">{{ email.sender|email_sender_initials }}</div>
+                </div>
+                <div class="flex-grow-1 min-width-0">
+                    <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap">
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
+                            {% if email.has_attachments %}
+                            <i class="bi bi-paperclip text-muted" title="{{ _('email.index.labels.has_attachments') }}"></i>
+                            {% endif %}
+                        </div>
+                        <div class="text-end ms-2 flex-shrink-0 email-item-meta">
+                            {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
+                            <span class="badge bg-accent email-unread-badge d-inline-block">{{ _('email.index.labels.new_badge') }}</span>
+                            {% endif %}
+                            <small class="text-muted d-block">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
+                        </div>
+                    </div>
+                    <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
+                    {% if email.body_text %}
+                    <small class="text-muted email-preview">{{ email.body_text[:110] }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        <div class="dropdown ms-2 flex-shrink-0">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle email-action-toggle" type="button"
+                    data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static"
+                    data-bs-auto-close="outside" data-mobile-modal="dropdown"
+                    aria-label="{{ _('email.index.labels.options_title') }}">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            {{ email_action_menu(email, folder_tree) }}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
 {% block content %}
-<div class="email-content w-100">
+<div class="email-content w-100" data-module="email">
 <!-- Mobile Header -->
 <div class="d-md-none mb-3">
     <div class="d-flex justify-content-between align-items-center">
@@ -17,7 +202,6 @@
             <i class="bi bi-pencil-square"></i>
         </a>
     </div>
-    <form id="syncForm" method="POST" action="{{ url_for('email.sync_emails') }}" style="display: none;"></form>
 </div>
 
 <!-- Mobile Folder Menu Overlay -->
@@ -30,35 +214,12 @@
     </div>
     <div class="offcanvas-body p-0">
         <div class="list-group list-group-flush">
-            {% for folder in folders %}
-            {% set folder_label = current_translations.get('email', {}).get('index', {}).get('folders', {}).get(folder.name, folder.display_name) %}
-            <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}" 
-               class="list-group-item list-group-item-action {% if current_folder == folder.name %}active{% endif %}"
-               onclick="setTimeout(function(){ var offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('mobileFolderMenu')); if(offcanvas) offcanvas.hide(); }, 100);">
-                {% if folder.folder_type == 'standard' %}
-                    {% if folder.name == 'INBOX' %}
-                        <i class="bi bi-inbox me-2"></i>
-                    {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                        <i class="bi bi-send me-2"></i>
-                    {% elif folder.name == 'Drafts' %}
-                        <i class="bi bi-file-earmark-text me-2"></i>
-                    {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                        <i class="bi bi-trash me-2"></i>
-                    {% elif folder.name in ['Spam', 'Junk'] %}
-                        <i class="bi bi-shield-exclamation me-2"></i>
-                    {% elif folder.name == 'Archive' %}
-                        <i class="bi bi-archive me-2"></i>
-                    {% else %}
-                        <i class="bi bi-folder me-2"></i>
-                    {% endif %}
-                {% else %}
-                    <i class="bi bi-folder me-2"></i>
-                {% endif %}
-                {{ folder_label }}
-            </a>
-            {% endfor %}
+            {{ folder_tree_links(folder_tree, current_folder, 'offcanvas') }}
         </div>
         <div class="p-3 border-top">
+            <button type="button" class="btn btn-outline-accent w-100 mb-2" data-action="open-folder-create">
+                <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
+            </button>
             <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form" onsubmit="return handleSyncSubmit(event, this);">
                 <button type="submit" class="btn btn-outline-secondary w-100 sync-btn" data-bs-dismiss="offcanvas">
                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
@@ -69,7 +230,7 @@
     </div>
 </div>
 
-<!-- Mobile Email List (außerhalb Desktop-Layout) -->
+<!-- Mobile Email List -->
 <div class="d-md-none">
     <div class="mb-3">
         <h5 class="mb-0"><i class="bi bi-inbox me-2"></i>{{ folder_display_name or _('email.index.folder_default') }}</h5>
@@ -77,111 +238,9 @@
     <div class="card">
         <div class="card-body p-0">
             {% if emails %}
-            <div class="list-group list-group-flush">
+            <div class="list-group list-group-flush email-list email-list-mobile" data-folder="{{ current_folder }}">
                 {% for email in emails %}
-                <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
-                            <div class="d-flex align-items-start">
-                                <!-- Avatar mit Initialen -->
-                                <div class="email-avatar me-3 flex-shrink-0">
-                                    <div class="avatar-circle avatar-circle-mobile">{{ email.sender|email_sender_initials }}</div>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start mb-1">
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
-                                                {% if email.has_attachments %}
-                                                <i class="bi bi-paperclip text-muted ms-2"></i>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="text-end ms-2 flex-shrink-0">
-                                            {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
-                                            <span class="badge bg-accent mb-1 d-block">{{ _('email.index.labels.new_badge') }}</span>
-                                            {% endif %}
-                                            <small class="text-muted">{{ email.received_at.strftime('%d.%m %H:%M') if email.received_at else '' }}</small>
-                                        </div>
-                                    </div>
-                                    <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                                    {% if email.body_text %}
-                                    <small class="text-muted email-preview">{{ email.body_text[:80] }}</small>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </a>
-                        
-                        <!-- Action Buttons -->
-                        <div class="dropdown ms-2 flex-shrink-0">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
-                                    <i class="bi bi-eye me-2"></i>{{ _('email.index.actions.view') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
-                                    <i class="bi bi-reply me-2"></i>{{ _('email.index.actions.reply') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
-                                    <i class="bi bi-reply-all me-2"></i>{{ _('email.index.actions.reply_all') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
-                                    <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li class="dropdown-submenu">
-                                    <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="bi bi-folder me-2"></i>{{ _('email.index.labels.move_to_folder') }}
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        {% for folder in folders %}
-                                        {% if folder.name != email.folder %}
-                                        <li>
-                                            <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
-                                                <input type="hidden" name="folder" value="{{ folder.name }}">
-                                                <button type="submit" class="dropdown-item">
-                                                    {% if folder.folder_type == 'standard' %}
-                                                        {% if folder.name == 'INBOX' %}
-                                                            <i class="bi bi-inbox me-2"></i>
-                                                        {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                                                            <i class="bi bi-send me-2"></i>
-                                                        {% elif folder.name == 'Drafts' %}
-                                                            <i class="bi bi-file-earmark-text me-2"></i>
-                                                        {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                                                            <i class="bi bi-trash me-2"></i>
-                                                        {% elif folder.name in ['Spam', 'Junk'] %}
-                                                            <i class="bi bi-shield-exclamation me-2"></i>
-                                                        {% elif folder.name == 'Archive' %}
-                                                            <i class="bi bi-archive me-2"></i>
-                                                        {% else %}
-                                                            <i class="bi bi-folder me-2"></i>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        <i class="bi bi-folder me-2"></i>
-                                                    {% endif %}
-                                                    {{ folder.display_name }}
-                                                </button>
-                                            </form>
-                                        </li>
-                                        {% endif %}
-                                        {% endfor %}
-                                    </ul>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
-                                          onsubmit="return confirm('{{ _('email.index.confirm.delete_email') }}')" class="d-inline">
-                                        <button type="submit" class="dropdown-item text-danger">
-                                            <i class="bi bi-trash me-2"></i>{{ _('email.index.actions.delete') }}
-                                        </button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                    {{ email_list_item(email, 'mobile', folder_tree, current_folder) }}
                 {% endfor %}
             </div>
             {% else %}
@@ -194,9 +253,8 @@
     </div>
 </div>
 
-<!-- Desktop Layout with Sidebar -->
+<!-- Desktop Layout with Sidebar (from xl up) -->
 <div class="d-none d-xl-flex email-layout-desktop">
-    <!-- Folder Sidebar (Desktop only, ab 1024px) -->
     <div class="email-folder-sidebar">
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="mb-0"><i class="bi bi-envelope me-2"></i>{{ _('email.index.heading') }}</h5>
@@ -204,240 +262,61 @@
                 <i class="bi bi-pencil-square"></i>
             </a>
         </div>
-        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="mb-3 sync-form" onsubmit="return handleSyncSubmit(event, this);">
+        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="mb-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
             <button type="submit" class="btn btn-sm btn-outline-secondary w-100 sync-btn">
                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
                 <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
             </button>
         </form>
-        <hr>
-        <ul class="nav nav-pills flex-column email-folder-list">
-            {% for folder in folders %}
-            {% set folder_label = current_translations.get('email', {}).get('index', {}).get('folders', {}).get(folder.name, folder.display_name) %}
-            <li class="nav-item">
-                <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}" 
-                   class="nav-link email-folder-link {% if current_folder == folder.name %}active{% endif %}">
-                    {% if folder.folder_type == 'standard' %}
-                        {% if folder.name == 'INBOX' %}
-                            <i class="bi bi-inbox me-2"></i>
-                        {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                            <i class="bi bi-send me-2"></i>
-                        {% elif folder.name == 'Drafts' %}
-                            <i class="bi bi-file-earmark-text me-2"></i>
-                        {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                            <i class="bi bi-trash me-2"></i>
-                        {% elif folder.name in ['Spam', 'Junk'] %}
-                            <i class="bi bi-shield-exclamation me-2"></i>
-                        {% elif folder.name == 'Archive' %}
-                            <i class="bi bi-archive me-2"></i>
-                        {% else %}
-                            <i class="bi bi-folder me-2"></i>
-                        {% endif %}
-                    {% else %}
-                        <i class="bi bi-folder me-2"></i>
-                    {% endif %}
-                    {{ folder_label }}
-                </a>
-            </li>
-            {% endfor %}
+        <button type="button" class="btn btn-sm btn-outline-accent w-100 mb-3" data-action="open-folder-create">
+            <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
+        </button>
+        <hr class="my-2">
+        <ul class="nav nav-pills flex-column email-folder-list" id="emailFolderList">
+            {{ folder_tree_links(folder_tree, current_folder, 'sidebar') }}
         </ul>
     </div>
-    
-    <!-- Main Content Area -->
+
     <div class="email-main-content">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="mb-0"><i class="bi bi-inbox me-2"></i>{{ folder_display_name or _('email.index.folder_default') }}</h4>
         </div>
-
-        <!-- Desktop: Email List Card (innerhalb email-main-content) -->
         <div class="card">
             <div class="card-body p-0">
-        {% if emails %}
-        <div class="list-group list-group-flush">
-            {% for email in emails %}
-            <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
-                <!-- Mobile Layout -->
-                <div class="d-md-none">
-                    <div class="d-flex align-items-start mb-2">
-                        <!-- Avatar mit Initialen -->
-                        <div class="email-avatar me-3 flex-shrink-0">
-                            <div class="avatar-circle avatar-circle-mobile">{{ email.sender|email_sender_initials }}</div>
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-start mb-1">
-                                <div class="flex-grow-1">
-                                    <div class="d-flex align-items-center mb-1">
-                                        <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
-                                        {% if email.has_attachments %}
-                                        <i class="bi bi-paperclip text-muted ms-2"></i>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="text-end ms-2">
-                                    {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
-                                    <span class="badge bg-accent mb-1 d-block">{{ _('email.index.labels.new_badge') }}</span>
-                                    {% endif %}
-                                    <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
-                                </div>
-                            </div>
-                            <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                            {% if email.body_text %}
-                            <small class="text-muted email-preview">{{ email.body_text[:80] }}</small>
-                            {% endif %}
-                        </div>
-                    </div>
+                {% if emails %}
+                <div class="list-group list-group-flush email-list email-list-desktop" data-folder="{{ current_folder }}">
+                    {% for email in emails %}
+                        {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
+                    {% endfor %}
                 </div>
-                
-                <!-- Desktop Layout -->
-                <div class="d-none d-md-block">
-                    <div class="d-flex w-100 justify-content-between align-items-start">
-                        <div class="flex-grow-1 d-flex align-items-start">
-                            <!-- Avatar mit Initialen -->
-                            <div class="email-avatar me-3">
-                                <div class="avatar-circle">{{ email.sender|email_sender_initials }}</div>
-                            </div>
-                        <div class="flex-grow-1">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <div class="d-flex align-items-center">
-                                    <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
-                                    {% if email.has_attachments %}
-                                    <i class="bi bi-paperclip text-muted ms-2"></i>
-                                    {% endif %}
-                                </div>
-                                <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
-                            </div>
-                            <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                            {% if email.body_text %}
-                            <small class="text-muted email-preview">{{ email.body_text[:100] }}</small>
-                            {% endif %}
-                            </div>
-                        </div>
-                        {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
-                        <span class="badge bg-accent ms-2">{{ _('email.index.labels.new_badge') }}</span>
-                        {% endif %}
-                    </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    {{ _('email.index.labels.empty') }}
                 </div>
-                    </a>
-                    
-                    <!-- Action Buttons -->
-                    <div class="dropdown ms-2">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside" data-mobile-modal="dropdown">
-                            <i class="bi bi-three-dots-vertical"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
-                                <i class="bi bi-eye me-2"></i>{{ _('email.index.actions.view') }}
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
-                                <i class="bi bi-reply me-2"></i>{{ _('email.index.actions.reply') }}
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
-                                <i class="bi bi-reply-all me-2"></i>{{ _('email.index.actions.reply_all') }}
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
-                                <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-folder me-2"></i>{{ _('email.index.labels.move_to_folder') }}
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    {% for folder in folders %}
-                                    {% if folder.name != email.folder %}
-                                    <li>
-                                <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
-                                            <input type="hidden" name="folder" value="{{ folder.name }}">
-                                            <button type="submit" class="dropdown-item">
-                                                {% if folder.folder_type == 'standard' %}
-                                                    {% if folder.name == 'INBOX' %}
-                                                        <i class="bi bi-inbox me-2"></i>
-                                                    {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                                                        <i class="bi bi-send me-2"></i>
-                                                    {% elif folder.name == 'Drafts' %}
-                                                        <i class="bi bi-file-earmark-text me-2"></i>
-                                                    {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                                                        <i class="bi bi-trash me-2"></i>
-                                                    {% elif folder.name in ['Spam', 'Junk'] %}
-                                                        <i class="bi bi-shield-exclamation me-2"></i>
-                                                    {% elif folder.name == 'Archive' %}
-                                                        <i class="bi bi-archive me-2"></i>
-                                                    {% else %}
-                                                        <i class="bi bi-folder me-2"></i>
-                                                    {% endif %}
-                                                {% else %}
-                                                    <i class="bi bi-folder me-2"></i>
-                                                {% endif %}
-                                                {{ folder.display_name }}
-                                            </button>
-                                        </form>
-                                    </li>
-                                        {% endif %}
-                                        {% endfor %}
-                                </ul>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
-                                      onsubmit="return confirm('{{ _('email.index.confirm.delete_email') }}')" class="d-inline">
-                                    <button type="submit" class="dropdown-item text-danger">
-                                        <i class="bi bi-trash me-2"></i>{{ _('email.index.actions.delete') }}
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+                {% endif %}
             </div>
-            {% endfor %}
         </div>
-        {% else %}
-        <div class="p-4 text-center text-muted">
-            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-            {{ _('email.index.labels.empty') }}
-        </div>
-        {% endif %}
     </div>
 </div>
-</div>
-</div>
 
-<!-- Desktop Header für kleinere Bildschirme (ohne Sidebar) -->
+<!-- Mid-desktop Header (md to xl) -->
 <div class="d-none d-md-flex d-xl-none row mb-3">
     <div class="col">
         <div class="d-flex align-items-center">
             <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
             <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                     <i class="bi bi-folder me-2"></i><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    {% for folder in folders %}
-                    <li><a class="dropdown-item" href="{{ url_for('email.folder_view', folder_name=folder.name) }}">
-                        {% if folder.folder_type == 'standard' %}
-                            {% if folder.name == 'INBOX' %}
-                                <i class="bi bi-inbox me-2"></i>
-                            {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                                <i class="bi bi-send me-2"></i>
-                            {% elif folder.name == 'Drafts' %}
-                                <i class="bi bi-file-earmark-text me-2"></i>
-                            {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                                <i class="bi bi-trash me-2"></i>
-                            {% elif folder.name in ['Spam', 'Junk'] %}
-                                <i class="bi bi-shield-exclamation me-2"></i>
-                            {% elif folder.name == 'Archive' %}
-                                <i class="bi bi-archive me-2"></i>
-                            {% else %}
-                                <i class="bi bi-folder me-2"></i>
-                            {% endif %}
-                        {% else %}
-                            <i class="bi bi-folder me-2"></i>
-                        {% endif %}
-                        {{ folder.display_name }}
-                    </a></li>
-                    {% endfor %}
+                <ul class="dropdown-menu">
+                    {{ folder_tree_links(folder_tree, current_folder, 'dropdown') }}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button" class="dropdown-item" data-action="open-folder-create">
+                            <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
+                        </button>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -455,7 +334,7 @@
     </div>
 </div>
 
-<!-- Desktop: Email List Card (für kleinere Bildschirme ohne Sidebar) -->
+<!-- Mid-desktop email list (md to xl) -->
 <div class="d-none d-md-block d-xl-none">
     <div class="card">
         <div class="card-header">
@@ -463,109 +342,9 @@
         </div>
         <div class="card-body p-0">
             {% if emails %}
-            <div class="list-group list-group-flush">
+            <div class="list-group list-group-flush email-list email-list-mid" data-folder="{{ current_folder }}">
                 {% for email in emails %}
-                <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="flex-grow-1 text-decoration-none">
-                            <div class="d-flex w-100 justify-content-between align-items-start">
-                                <div class="flex-grow-1 d-flex align-items-start">
-                                    <!-- Avatar mit Initialen -->
-                                    <div class="email-avatar me-3">
-                                        <div class="avatar-circle">{{ email.sender|email_sender_initials }}</div>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <div class="d-flex align-items-center">
-                                                <h6 class="mb-0 email-sender">{{ email.sender|decode_email_header }}</h6>
-                                                {% if email.has_attachments %}
-                                                <i class="bi bi-paperclip text-muted ms-2"></i>
-                                                {% endif %}
-                                            </div>
-                                            <small class="text-muted">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
-                                        </div>
-                                        <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                                        {% if email.body_text %}
-                                        <small class="text-muted email-preview">{{ email.body_text[:100] }}</small>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
-                                <span class="badge bg-accent ms-2">{{ _('email.index.labels.new_badge') }}</span>
-                                {% endif %}
-                            </div>
-                        </a>
-                        
-                        <!-- Action Buttons -->
-                        <div class="dropdown ms-2">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="static" data-bs-auto-close="outside">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ url_for('email.view_email', email_id=email.id) }}">
-                                    <i class="bi bi-eye me-2"></i>{{ _('email.index.actions.view') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('email.reply', email_id=email.id) }}">
-                                    <i class="bi bi-reply me-2"></i>{{ _('email.index.actions.reply') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('email.reply_all', email_id=email.id) }}">
-                                    <i class="bi bi-reply-all me-2"></i>{{ _('email.index.actions.reply_all') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('email.forward', email_id=email.id) }}">
-                                    <i class="bi bi-forward me-2"></i>{{ _('email.index.actions.forward') }}
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li class="dropdown-submenu">
-                                    <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="bi bi-folder me-2"></i>{{ _('email.index.labels.move_to_folder') }}
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        {% for folder in folders %}
-                                        {% if folder.name != email.folder %}
-                                        <li>
-                                            <form method="POST" action="{{ url_for('email.move_email', email_id=email.id) }}" class="d-inline">
-                                                <input type="hidden" name="folder" value="{{ folder.name }}">
-                                                <button type="submit" class="dropdown-item">
-                                                    {% if folder.folder_type == 'standard' %}
-                                                        {% if folder.name == 'INBOX' %}
-                                                            <i class="bi bi-inbox me-2"></i>
-                                                        {% elif folder.name in ['Sent', 'Sent Messages'] %}
-                                                            <i class="bi bi-send me-2"></i>
-                                                        {% elif folder.name == 'Drafts' %}
-                                                            <i class="bi bi-file-earmark-text me-2"></i>
-                                                        {% elif folder.name in ['Trash', 'Deleted Messages'] %}
-                                                            <i class="bi bi-trash me-2"></i>
-                                                        {% elif folder.name in ['Spam', 'Junk'] %}
-                                                            <i class="bi bi-shield-exclamation me-2"></i>
-                                                        {% elif folder.name == 'Archive' %}
-                                                            <i class="bi bi-archive me-2"></i>
-                                                        {% else %}
-                                                            <i class="bi bi-folder me-2"></i>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        <i class="bi bi-folder me-2"></i>
-                                                    {% endif %}
-                                                    {{ folder.display_name }}
-                                                </button>
-                                            </form>
-                                        </li>
-                                        {% endif %}
-                                        {% endfor %}
-                                    </ul>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form method="POST" action="{{ url_for('email.delete_email', email_id=email.id) }}" 
-                                          onsubmit="return confirm('{{ _('email.index.confirm.delete_email') }}')" class="d-inline">
-                                        <button type="submit" class="dropdown-item text-danger">
-                                            <i class="bi bi-trash me-2"></i>{{ _('email.index.actions.delete') }}
-                                        </button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                    {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                 {% endfor %}
             </div>
             {% else %}
@@ -577,8 +356,8 @@
         </div>
     </div>
 </div>
-</div>
-<!-- Mobile Actions Modal -->
+
+<!-- Mobile Actions Modal (renders dropdown contents as a centered modal on small screens) -->
 <div class="modal fade" id="emailActionsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -586,95 +365,326 @@
                 <h5 class="modal-title">{{ _('email.index.labels.options_title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('email.index.mobile.close') }}"></button>
             </div>
-            <div class="modal-body" id="emailActionsContent">
+            <div class="modal-body" id="emailActionsContent"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Folder create modal -->
+<div class="modal fade" id="emailFolderCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>{{ _('email.index.folder_create.title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('email.index.mobile.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <form id="emailFolderCreateForm" class="email-folder-form">
+                    <div class="mb-3">
+                        <label class="form-label" for="emailFolderName">{{ _('email.index.folder_create.name_label') }}</label>
+                        <input type="text" class="form-control" id="emailFolderName" name="name" required maxlength="100" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="emailFolderParent">{{ _('email.index.folder_create.parent_label') }}</label>
+                        <select class="form-select" id="emailFolderParent" name="parent">
+                            <option value="">{{ _('email.index.folder_create.parent_none') }}</option>
+                            {% for entry in folder_tree %}
+                                {% if entry.folder.folder_type == 'custom' or entry.folder.name == 'INBOX' %}
+                                <option value="{{ entry.folder.name }}">
+                                    {{ ('&nbsp;' * (entry.depth * 2)) | safe }}{{ entry.short_name }}
+                                </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">{{ _('email.index.folder_create.hint') }}</div>
+                    </div>
+                    <div class="email-folder-form-error text-danger small mb-2" role="alert" hidden></div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('email.index.buttons.cancel') }}</button>
+                        <button type="submit" class="btn btn-accent">
+                            <i class="bi bi-check2 me-1"></i>{{ _('email.index.folder_create.submit') }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-    </div>
+</div>
+
+</div>
+{% endblock %}
 
 {% block extra_js %}
 <script>
 const EMAIL_I18N = {{ current_translations.get('email', {}).get('index', {})|tojson }};
 const EMAIL_MESSAGES = EMAIL_I18N.messages || {};
+const EMAIL_FOLDER_URLS = {
+    messages: "{{ url_for('email.move_email', email_id=0) }}".replace('/0', ''),
+    readState: "{{ url_for('email.set_email_read_state', email_id=0) }}".replace('/0/', '/EMAIL_ID/'),
+    colorDot: "{{ url_for('email.set_email_color_dot', email_id=0) }}".replace('/0/', '/EMAIL_ID/'),
+    delete: "{{ url_for('email.delete_email', email_id=0) }}".replace('/0', ''),
+    move: "{{ url_for('email.move_email', email_id=0) }}".replace('/0', ''),
+    folderCreate: "{{ url_for('email.create_folder') }}",
+    folderDelete: "{{ url_for('email.delete_folder') }}",
+};
 
-function showEmailAlert(message, category = 'info') {
-    if (!message) {
-        return;
-    }
-    const container = document.querySelector('.container-fluid');
-    if (!container) {
-        return;
-    }
+function emailAlert(message, category = 'info') {
+    if (!message) return;
+    const container = document.querySelector('.container-fluid') || document.querySelector('.email-content');
+    if (!container) return;
     const alert = document.createElement('div');
     alert.className = `alert alert-${category} alert-dismissible fade show mt-2`;
     alert.setAttribute('role', 'alert');
     const textSpan = document.createElement('span');
     textSpan.textContent = message;
     alert.appendChild(textSpan);
-
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'btn-close';
     closeBtn.setAttribute('data-bs-dismiss', 'alert');
     closeBtn.setAttribute('aria-label', 'Schließen');
     alert.appendChild(closeBtn);
-
     container.prepend(alert);
+    setTimeout(() => alert.classList.remove('show'), 6000);
+    setTimeout(() => alert.remove(), 7000);
 }
 
 function setSyncButtonsState(disabled) {
     document.querySelectorAll('.sync-btn').forEach(btn => {
         btn.disabled = disabled;
-        const btnSpinner = btn.querySelector('.spinner-border');
-        const btnIcon = btn.querySelector('.sync-icon');
-        if (btnSpinner) {
-            btnSpinner.style.display = disabled ? 'inline-block' : 'none';
-        }
-        if (btnIcon) {
-            btnIcon.style.display = disabled ? 'none' : 'inline';
-        }
+        const spin = btn.querySelector('.spinner-border');
+        const icon = btn.querySelector('.sync-icon');
+        if (spin) spin.style.display = disabled ? 'inline-block' : 'none';
+        if (icon) icon.style.display = disabled ? 'none' : 'inline';
     });
 }
 
-// Mobile: zeige Dropdown-Inhalte als zentriertes Modal
+async function emailApi(url, options = {}) {
+    const response = await fetch(url, {
+        method: options.method || 'POST',
+        headers: Object.assign({
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }, options.headers || {}),
+        body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+    let data;
+    try { data = await response.json(); } catch (e) { data = {}; }
+    if (!response.ok || data.success === false) {
+        const err = new Error(data.error || data.message || `HTTP ${response.status}`);
+        err.data = data;
+        err.status = response.status;
+        throw err;
+    }
+    return data;
+}
+
+function updateEmailItemState(emailId, { isRead, colorDot, removed, movedToFolder }) {
+    document.querySelectorAll(`.email-item[data-email-id="${emailId}"]`).forEach(item => {
+        if (removed || (movedToFolder && movedToFolder !== item.dataset.folder)) {
+            item.remove();
+            return;
+        }
+        if (isRead !== undefined) {
+            item.dataset.isRead = isRead ? 'true' : 'false';
+            item.classList.toggle('fw-bold', !isRead);
+            const badge = item.querySelector('.email-unread-badge');
+            if (badge) badge.style.display = isRead ? 'none' : '';
+            const openEnv = item.querySelector('[data-action="toggle-read"] i');
+            const btn = item.querySelector('[data-action="toggle-read"]');
+            if (btn) btn.dataset.state = isRead ? 'unread' : 'read';
+            if (openEnv) {
+                openEnv.className = isRead ? 'bi bi-envelope me-2' : 'bi bi-envelope-open me-2';
+            }
+        }
+        if (colorDot !== undefined) {
+            item.dataset.colorDot = colorDot || '';
+            const dot = item.querySelector('.email-item-color-dot');
+            if (dot) {
+                if (colorDot) {
+                    dot.hidden = false;
+                    dot.setAttribute('data-color', colorDot);
+                    dot.style.setProperty('--dot-color', `var(--email-dot-${colorDot}, transparent)`);
+                } else {
+                    dot.hidden = true;
+                    dot.removeAttribute('data-color');
+                    dot.style.removeProperty('--dot-color');
+                }
+            }
+            item.querySelectorAll('.email-color-swatch').forEach(sw => {
+                sw.classList.toggle('is-active', (sw.dataset.color || '') === (colorDot || ''));
+            });
+        }
+    });
+    const anyLeft = document.querySelectorAll('.email-item').length;
+    if (anyLeft === 0) {
+        document.querySelectorAll('.email-list').forEach(list => {
+            const wrapper = list.closest('.card-body');
+            if (wrapper && !wrapper.querySelector('.email-empty-placeholder')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'p-4 text-center text-muted email-empty-placeholder';
+                placeholder.innerHTML = '<i class="bi bi-inbox fs-1 d-block mb-2"></i>' + (EMAIL_I18N.labels?.empty || '');
+                wrapper.appendChild(placeholder);
+                list.remove();
+            }
+        });
+    }
+}
+
+async function handleMoveEmail(emailId, folder) {
+    if (!emailId || !folder) return;
+    try {
+        const data = await emailApi(`${EMAIL_FOLDER_URLS.move}/${emailId}`, { body: { folder } });
+        emailAlert(data.message || (EMAIL_I18N.messages?.move_success || 'E-Mail verschoben'), 'success');
+        updateEmailItemState(emailId, { movedToFolder: folder });
+        if (data.imap_warning) emailAlert(data.imap_warning, 'warning');
+    } catch (e) {
+        emailAlert(e.message || (EMAIL_I18N.messages?.move_error || 'Verschieben fehlgeschlagen'), 'danger');
+    }
+}
+
+async function handleToggleRead(emailId, state) {
+    try {
+        const data = await emailApi(EMAIL_FOLDER_URLS.readState.replace('EMAIL_ID', emailId), { body: { state } });
+        updateEmailItemState(emailId, { isRead: data.is_read });
+        if (data.imap_warning) emailAlert(data.imap_warning, 'warning');
+    } catch (e) {
+        emailAlert(e.message, 'danger');
+    }
+}
+
+async function handleSetColor(emailId, color) {
+    try {
+        const data = await emailApi(EMAIL_FOLDER_URLS.colorDot.replace('EMAIL_ID', emailId), { body: { color } });
+        updateEmailItemState(emailId, { colorDot: data.color || '' });
+        if (data.keyword_supported === false) emailAlert(EMAIL_I18N.messages?.color_local_only || 'Farbpunkt nur lokal gespeichert (IMAP unterstützt keine Keywords).', 'info');
+    } catch (e) {
+        emailAlert(e.message, 'danger');
+    }
+}
+
+async function handleDeleteEmail(emailId) {
+    const confirmMsg = EMAIL_I18N.confirm?.delete_email || 'E-Mail wirklich löschen?';
+    if (!window.confirm(confirmMsg)) return;
+    try {
+        const data = await emailApi(`${EMAIL_FOLDER_URLS.delete}/${emailId}`);
+        emailAlert(data.message || 'E-Mail gelöscht', 'success');
+        updateEmailItemState(emailId, { removed: true });
+    } catch (e) {
+        emailAlert(e.message, 'danger');
+    }
+}
+
+async function handleCreateFolder(form) {
+    const formData = new FormData(form);
+    const name = (formData.get('name') || '').trim();
+    const parent = (formData.get('parent') || '').trim();
+    const errEl = form.querySelector('.email-folder-form-error');
+    errEl.hidden = true;
+    if (!name) {
+        errEl.textContent = EMAIL_I18N.folder_create?.error_name_required || 'Bitte einen Ordnernamen eingeben';
+        errEl.hidden = false;
+        return;
+    }
+    try {
+        const data = await emailApi(EMAIL_FOLDER_URLS.folderCreate, { body: { name, parent } });
+        emailAlert(data.message || 'Ordner erstellt', 'success');
+        setTimeout(() => window.location.reload(), 600);
+    } catch (e) {
+        errEl.textContent = e.message;
+        errEl.hidden = false;
+    }
+}
+
+async function handleDeleteFolder(folderName) {
+    const confirmMsg = EMAIL_I18N.confirm?.delete_folder || `Ordner '${folderName}' wirklich löschen?`;
+    if (!window.confirm(confirmMsg.replace('{folder}', folderName))) return;
+    const url = EMAIL_FOLDER_URLS.folderDelete;
+    try {
+        await emailApi(url, { method: 'POST', body: { name: folderName } });
+        emailAlert(EMAIL_I18N.messages?.folder_deleted || 'Ordner gelöscht', 'success');
+        setTimeout(() => window.location.reload(), 500);
+    } catch (e) {
+        if (e.data && e.data.requires_confirmation) {
+            const force = window.confirm(e.message + '\n\n' + (EMAIL_I18N.confirm?.delete_folder_force || 'Trotzdem mit allen Inhalten löschen?'));
+            if (force) {
+                try {
+                    await emailApi(url, { method: 'POST', body: { name: folderName, force: true } });
+                    emailAlert(EMAIL_I18N.messages?.folder_deleted || 'Ordner gelöscht', 'success');
+                    setTimeout(() => window.location.reload(), 500);
+                } catch (err) { emailAlert(err.message, 'danger'); }
+            }
+        } else {
+            emailAlert(e.message, 'danger');
+        }
+    }
+}
+
+// Event delegation for actions
+document.addEventListener('click', (e) => {
+    const action = e.target.closest('[data-action]');
+    if (!action) return;
+    const name = action.dataset.action;
+    const emailId = action.dataset.emailId;
+    if (name === 'toggle-read') {
+        e.preventDefault();
+        handleToggleRead(emailId, action.dataset.state);
+    } else if (name === 'set-color') {
+        e.preventDefault();
+        handleSetColor(emailId, action.dataset.color || '');
+    } else if (name === 'move-email') {
+        e.preventDefault();
+        handleMoveEmail(emailId, action.dataset.folder);
+    } else if (name === 'delete-email') {
+        e.preventDefault();
+        handleDeleteEmail(emailId);
+    } else if (name === 'open-folder-create') {
+        e.preventDefault();
+        const modal = document.getElementById('emailFolderCreateModal');
+        if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+    }
+});
+
+// Folder create form submit
+document.addEventListener('submit', (e) => {
+    if (e.target && e.target.id === 'emailFolderCreateForm') {
+        e.preventDefault();
+        handleCreateFolder(e.target);
+    }
+});
+
+// Folder delete icon
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.email-folder-delete');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    handleDeleteFolder(btn.dataset.folder);
+});
+
+// Mobile actions modal: render dropdown contents as modal on narrow screens
 document.addEventListener('click', function(e) {
     const toggleBtn = e.target.closest('[data-mobile-modal="dropdown"]');
     if (!toggleBtn) return;
-    const isMobile = window.matchMedia('(max-width: 767.98px)').matches;
-    if (!isMobile) return; // Desktop weiter normales Dropdown
-
+    if (!window.matchMedia('(max-width: 767.98px)').matches) return;
     const dropdown = toggleBtn.parentElement && toggleBtn.parentElement.querySelector('.dropdown-menu');
     if (!dropdown) return;
-    e.preventDefault(); // verhindere Dropdown-Öffnung
-
-    // Inhalte in Modal übernehmen
+    e.preventDefault();
     const modalEl = document.getElementById('emailActionsModal');
     const contentEl = document.getElementById('emailActionsContent');
     if (!modalEl || !contentEl) return;
-
-    contentEl.innerHTML = dropdown.innerHTML;
-
-    // Verbesserte Klickflächen im Modal
-    contentEl.querySelectorAll('.dropdown-item').forEach(function(item){
-        item.classList.add('py-2');
-    });
-
-    // Falls Formulare im Menü sind (z. B. Move-to-Ordner), sicherstellen, dass full width
-    contentEl.querySelectorAll('select.form-select').forEach(function(sel){
-        sel.classList.add('w-100');
-    });
-
-    // Modal anzeigen
-    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, focus: true, keyboard: true });
+    contentEl.innerHTML = '';
+    Array.from(dropdown.children).forEach(child => contentEl.appendChild(child.cloneNode(true)));
+    contentEl.querySelectorAll('.dropdown-item').forEach(item => item.classList.add('py-2'));
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
     bsModal.show();
 });
 
-// E-Mail-Synchronisation mit einfachem Reload
+// Sync submit handler (shared)
 function handleSyncSubmit(event, form) {
     event.preventDefault();
-
     setSyncButtonsState(true);
-
     fetch(form.action, {
         method: 'POST',
         headers: {
@@ -684,35 +694,69 @@ function handleSyncSubmit(event, form) {
         },
         body: new URLSearchParams(new FormData(form))
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(EMAIL_MESSAGES.sync_failed || 'Synchronisation konnte nicht gestartet werden.');
-        }
-        return response.json();
-    })
+    .then(r => { if (!r.ok) throw new Error(EMAIL_MESSAGES.sync_failed); return r.json(); })
     .then(data => {
-        if (!data || !data.success) {
-            throw new Error((data && (data.error || data.message)) || EMAIL_MESSAGES.sync_failed || 'Synchronisation konnte nicht gestartet werden.');
-        }
-
-        const infoMessage = data.message || EMAIL_MESSAGES.sync_started || 'Synchronisation gestartet.';
-        showEmailAlert(infoMessage, 'info');
-
-        setTimeout(() => {
-            window.location.reload();
-        }, 10000);
+        if (!data || !data.success) throw new Error(data?.error || EMAIL_MESSAGES.sync_failed);
+        emailAlert(data.message || EMAIL_MESSAGES.sync_started || 'Synchronisation gestartet.', 'info');
+        setTimeout(() => window.location.reload(), 10000);
     })
-    .catch(error => {
-        console.error('Synchronisationsfehler:', error);
-        showEmailAlert(error.message || EMAIL_MESSAGES.sync_error || 'Synchronisation fehlgeschlagen.', 'danger');
+    .catch(err => {
+        console.error('Sync error', err);
+        emailAlert(err.message || EMAIL_MESSAGES.sync_error, 'danger');
         setSyncButtonsState(false);
     });
-
     return false;
 }
+
+// ---------------------------------------------------------------------------
+// Drag & Drop
+// ---------------------------------------------------------------------------
+(function initDragAndDrop() {
+    let currentDragId = null;
+    function onDragStart(e) {
+        const item = e.target.closest('.email-draggable');
+        if (!item) return;
+        currentDragId = item.dataset.emailId;
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', currentDragId); } catch (_) {}
+        item.classList.add('email-dragging');
+        document.querySelectorAll('.email-folder-droptarget').forEach(el => el.classList.add('email-drop-ready'));
+    }
+    function onDragEnd(e) {
+        const item = e.target.closest('.email-draggable');
+        if (item) item.classList.remove('email-dragging');
+        document.querySelectorAll('.email-folder-droptarget').forEach(el => {
+            el.classList.remove('email-drop-ready');
+            el.classList.remove('email-drop-over');
+        });
+        currentDragId = null;
+    }
+    function onDragOver(e) {
+        const drop = e.target.closest('.email-folder-droptarget');
+        if (!drop) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        drop.classList.add('email-drop-over');
+    }
+    function onDragLeave(e) {
+        const drop = e.target.closest('.email-folder-droptarget');
+        if (drop) drop.classList.remove('email-drop-over');
+    }
+    async function onDrop(e) {
+        const drop = e.target.closest('.email-folder-droptarget');
+        if (!drop) return;
+        e.preventDefault();
+        drop.classList.remove('email-drop-over');
+        const emailId = currentDragId || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+        const folder = drop.dataset.folder;
+        if (!emailId || !folder) return;
+        await handleMoveEmail(emailId, folder);
+    }
+    document.addEventListener('dragstart', onDragStart);
+    document.addEventListener('dragend', onDragEnd);
+    document.addEventListener('dragover', onDragOver);
+    document.addEventListener('dragleave', onDragLeave);
+    document.addEventListener('drop', onDrop);
+})();
 </script>
 {% endblock %}
-{% endblock %}
-
-
-

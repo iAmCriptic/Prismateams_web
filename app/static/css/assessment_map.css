@@ -1,0 +1,195 @@
+.assessment-stage {
+    width: 100%;
+    height: 72vh;
+    min-height: 480px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+                      linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+                      linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    cursor: grab;
+}
+
+.assessment-stage.scale-mode {
+    cursor: crosshair;
+    box-shadow: inset 0 0 0 3px #ef4444;
+}
+
+.assessment-stage.place-mode {
+    cursor: crosshair;
+    box-shadow: inset 0 0 0 3px #0d6efd;
+}
+
+.plan-editor-layout {
+    min-height: 75vh;
+}
+
+.toolbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+}
+
+.toolbox-item {
+    border: 1px dashed var(--bs-border-color, #dee2e6);
+    border-radius: 10px;
+    padding: .75rem;
+    text-align: center;
+    cursor: grab;
+    transition: all 0.15s ease;
+    background: var(--bs-body-bg, #fff);
+    user-select: none;
+}
+
+.toolbox-item:hover {
+    border-style: solid;
+    border-color: var(--accent-color, #0d6efd);
+    box-shadow: 0 4px 14px rgba(13, 110, 253, 0.2);
+    transform: translateY(-1px);
+}
+
+.toolbox-item.active {
+    border-style: solid;
+    border-color: var(--accent-color, #0d6efd);
+    background: rgba(13, 110, 253, 0.08);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+.toolbox-item:active {
+    cursor: grabbing;
+}
+
+.toolbox-item i {
+    font-size: 1.8rem;
+    display: block;
+    margin-bottom: .3rem;
+    color: var(--accent-color, #0d6efd);
+}
+
+.toolbox-item span {
+    font-size: .9rem;
+    font-weight: 500;
+}
+
+.btn-scale-toggle {
+    background-color: #8b5cf6;
+    color: #fff;
+    border: none;
+}
+
+.btn-scale-toggle:hover {
+    background-color: #7c3aed;
+    color: #fff;
+}
+
+.btn-scale-toggle.assessment-scale-active {
+    background-color: #ef4444;
+    color: #fff;
+}
+
+.btn-scale-toggle.assessment-scale-active:hover {
+    background-color: #dc2626;
+}
+
+.assessment-zoom-overlay {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: .4rem;
+    z-index: 10;
+}
+
+.assessment-zoom-overlay .btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.assessment-toast {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    padding: .55rem 1rem;
+    border-radius: 8px;
+    background: rgba(17, 24, 39, 0.9);
+    color: #fff;
+    font-size: .85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateY(-6px);
+    z-index: 20;
+    max-width: 320px;
+}
+
+.assessment-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.assessment-toast.success { background: #16a34a; }
+.assessment-toast.danger { background: #dc2626; }
+.assessment-toast.info { background: #0d6efd; }
+
+.assessment-empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    max-width: 320px;
+}
+
+.assessment-empty-state.d-none { display: none; }
+
+.legend-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    vertical-align: middle;
+}
+
+.plan-editor-layout .accordion-button {
+    padding: .75rem 1rem;
+    font-weight: 500;
+}
+
+.plan-editor-layout .accordion-body {
+    padding: 1rem;
+}
+
+[data-bs-theme="dark"] .assessment-stage {
+    background-color: #0b1220;
+    background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%),
+                      linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, #1f2937 75%),
+                      linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+}
+
+[data-bs-theme="dark"] .toolbox-item {
+    background: #111827;
+    border-color: #334155;
+}
+
+[data-oled-mode="true"] .assessment-stage {
+    background-color: #000;
+    background-image: none;
+}
+
+[data-oled-mode="true"] .toolbox-item {
+    background: #0a0a0a;
+    border-color: #1f1f1f;
+}

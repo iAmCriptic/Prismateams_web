@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ _('auth.login.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block title %}{{ _('auth.login.2fa_code') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
 <div class="auth-container auth-login">
@@ -17,72 +17,39 @@
                     {% endif %}
                     {{ app_name or 'Prismateams' }}
                 </h1>
-                <h5 class="text-center mb-2">{{ _('auth.login.title') }}</h5>
-                <p class="text-center text-muted mb-4">{{ _('auth.login.subtitle') }}</p>
-                
+                <h5 class="text-center mb-2">{{ _('auth.login.2fa_code') }}</h5>
+                <p class="text-center text-muted mb-4">{{ _('auth.login.2fa_code_help') }}</p>
+
                 <form method="POST">
-                    {% if request.args.get('next') %}
-                    <input type="hidden" name="next" value="{{ request.args.get('next') }}">
-                    {% endif %}
                     <div class="mb-3">
-                        <label for="email" class="form-label">E-Mail oder Benutzername</label>
-                        <input type="text" class="form-control" id="email" name="email" autocomplete="username" required autofocus>
+                        <label for="totp_code" class="form-label">{{ _('auth.login.2fa_code') }}</label>
+                        <input type="text" class="form-control text-center" id="totp_code" name="totp_code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">{{ _('auth.login.password') }}</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="password" name="password" required>
-                            <button class="btn btn-outline-secondary password-toggle" type="button">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                        <label class="form-check-label" for="remember">
-                            {{ _('auth.login.remember_me') }}
-                        </label>
-                    </div>
-                    
+
                     <button type="submit" class="btn btn-accent w-100 mb-3">{{ _('auth.login.submit') }}</button>
                 </form>
-                
-                <div class="text-center mb-3">
-                    <a href="{{ url_for('auth.forgot_password') }}" class="text-muted">
-                        {{ _('auth.login.forgot_password') }}
-                    </a>
+
+                <div class="text-center">
+                    <a href="{{ url_for('auth.login') }}" class="text-muted">Zurück zum Login</a>
                 </div>
-                
-                <hr class="my-4">
-                
-                <p class="text-center mb-0">
-                    {{ _('auth.login.register_link_prefix') }}
-                    <a href="{{ url_for('auth.register') }}">{{ _('auth.login.register_link_cta') }}</a>
-                </p>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Farbverlauf-Vorschau für Auth-Seiten
 document.addEventListener('DOMContentLoaded', function() {
     const body = document.body;
     const container = document.querySelector('.auth-container');
     const isMobile = window.innerWidth <= 768;
-    
-    // Auf mobilen Geräten keinen Farbverlauf - einfacher Hintergrund
+
     if (isMobile) {
-        // Kein Farbverlauf auf mobilen Geräten - einfacher Hintergrund
         body.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
         body.style.backgroundAttachment = 'scroll';
         container.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
         container.style.backgroundAttachment = 'scroll';
         container.style.backgroundSize = 'auto';
     } else {
-        // Vollständiger Farbverlauf für Desktop
         {% if color_gradient %}
         body.style.background = '{{ color_gradient }}';
         body.style.backgroundAttachment = 'fixed';
@@ -91,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
         container.style.backgroundAttachment = 'fixed';
         container.style.backgroundSize = 'cover';
         {% else %}
-        // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
         body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
         body.style.backgroundAttachment = 'fixed';
         body.style.backgroundSize = 'cover';
@@ -103,6 +69,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
-
-

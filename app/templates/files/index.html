@@ -3,9 +3,9 @@
 {% block title %}{{ _('files.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4 align-items-center g-3">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
+<div class="row mb-4 page-toolbar-row align-items-start g-3">
+    <div class="col-12 col-lg-8 min-width-0">
+        <h1 class="mb-3 text-break"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
         {% if breadcrumb_folders %}
         <nav aria-label="breadcrumb" class="mb-3 mb-md-0">
             <ol class="breadcrumb mb-0 files-breadcrumb-dropzone">
@@ -25,8 +25,9 @@
         </nav>
         {% endif %}
     </div>
-    <div class="col-auto">
-        <div class="btn-group me-2" role="group">
+    <div class="col-12 col-lg-auto">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group" role="group">
             <button class="btn btn-outline-secondary" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
                 <i class="bi bi-list"></i>
             </button>
@@ -84,6 +85,7 @@
             <input type="file" id="directFileUpload" name="file" style="display: none;" multiple>
             <input type="file" id="directFolderUpload" name="folder_upload" style="display: none;" webkitdirectory directory multiple>
         </div>
+        </div>
     </div>
 </div>
 
@@ -128,7 +130,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <i class="bi bi-folder-fill text-warning fs-1"></i>
+                            <i class="bi bi-folder-fill fs-1 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
                             <h6 class="mt-2 mb-0">{{ folder.name }}</h6>
                         </div>
                         <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
@@ -180,6 +182,11 @@
                                 {% endif %}
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="openFolderColorModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}', '{{ folder.color or '' }}'); return false;">
+                                        <i class="bi bi-palette"></i> Ordnerfarbe
+                                    </a>
+                                </li>
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="openRenameFolderModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}'); return false;">
                                         <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
@@ -256,6 +263,8 @@
                 <div class="card-body">
                     <!-- File Preview/Icon -->
                     <div class="text-center mb-3">
+                        {% set file_preview = file_preview_map.get(file.id) %}
+                        {% set file_preview_html = file_preview_html_map.get(file.id) %}
                         {% if file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}
                             <img src="{{ url_for('files.download_file', file_id=file.id) }}" 
                                  class="file-preview img-fluid rounded" 
@@ -264,14 +273,17 @@
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                             <i class="bi bi-file-earmark-image fs-1 text-success" style="display: none;"></i>
                         {% elif file.name.endswith('.pdf') %}
-                            <div class="file-icon-preview bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;">
-                                <img src="{{ url_for('static', filename='img/PDF.png') }}" alt="PDF" class="file-type-icon" style="max-height: 80px; max-width: 80px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                <i class="bi bi-file-earmark-pdf fs-1 text-danger" style="display: none;"></i>
+                            <div class="pdf-mini-preview rounded overflow-hidden">
+                                <iframe src="{{ url_for('files.serve_pdf', file_id=file.id) }}#toolbar=0&navpanes=0&scrollbar=0&page=1" title="PDF Vorschau"></iframe>
                             </div>
-                        {% elif file.name.endswith(('.md', '.markdown')) %}
-                            <div class="file-icon-preview bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;">
-                                <img src="{{ url_for('static', filename='img/markdown.png') }}" alt="Markdown" class="file-type-icon" style="max-height: 80px; max-width: 80px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                <i class="bi bi-file-earmark-text fs-1 text-info" style="display: none;"></i>
+                        {% elif file_preview_html %}
+                            <div class="file-text-preview file-markdown-preview rounded p-3 text-start markdown-content">
+                                {{ file_preview_html|safe }}
+                            </div>
+                        {% elif file_preview %}
+                            <div class="file-text-preview rounded p-3 text-start">
+                                <div class="small text-muted mb-1">Vorschau</div>
+                                <div class="small">{{ file_preview }}</div>
                             </div>
                         {% elif file.name.endswith('.txt') %}
                             <div class="text-preview bg-light rounded p-3" style="height: 120px; overflow: hidden;">
@@ -453,7 +465,7 @@
         {% for folder in subfolders %}
         <div class="list-group-item d-flex justify-content-between align-items-center files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder">
             <div class="d-flex align-items-center" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'" style="cursor: pointer;">
-                <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
+                <i class="bi bi-folder-fill fs-4 me-3 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
                 <span class="fw-medium">{{ folder.name }}</span>
             </div>
             <div class="d-flex align-items-center gap-1">
@@ -505,6 +517,11 @@
                     {% endif %}
                     {% endif %}
                     <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="openFolderColorModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}', '{{ folder.color or '' }}'); return false;">
+                            <i class="bi bi-palette"></i> Ordnerfarbe
+                        </a>
+                    </li>
                     <li>
                         <a class="dropdown-item" href="#" onclick="openRenameFolderModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}'); return false;">
                             <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
@@ -580,12 +597,16 @@
                 
                 <!-- File Name -->
                 <div class="flex-grow-1">
+                    {% set list_file_preview = file_preview_map.get(file.id) %}
                     <h6 class="mb-0 fw-medium">
                         {{ file.name }}
                         {% if file.version_number > 1 %}
                         <span class="badge bg-info ms-1">v{{ file.version_number }}</span>
                         {% endif %}
                     </h6>
+                    {% if list_file_preview %}
+                    <div class="small text-muted text-truncate" style="max-width: 420px;">{{ list_file_preview }}</div>
+                    {% endif %}
                 </div>
             </div>
             
@@ -867,6 +888,37 @@
                         <label for="newFolderName" class="form-label">{{ _('files.index.modals.rename_folder.name_label') }}</label>
                         <input type="text" class="form-control" id="newFolderName" name="new_name" required autofocus>
                         <div class="form-text">{{ _('files.index.modals.rename_folder.name_help') }}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                    <button type="submit" class="btn btn-accent">{{ _('common.save') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Ordnerfarbe Modal -->
+<div class="modal fade" id="folderColorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ordnerfarbe festlegen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="folderColorForm">
+                <div class="modal-body">
+                    <p class="mb-2 small text-muted">Ordner: <strong id="folderColorName"></strong></p>
+                    <input type="hidden" name="clear_color" id="folderColorClear" value="0">
+                    <div class="mb-3">
+                        <label for="folderColorInput" class="form-label">Farbe</label>
+                        <input type="color" class="form-control form-control-color" id="folderColorInput" name="color" value="#f6c344" title="Ordnerfarbe auswählen">
+                    </div>
+                    <div class="mb-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="folderColorResetBtn">
+                            Standardfarbe wiederherstellen
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2190,6 +2242,32 @@ function openRenameFolderModal(folderId, currentName) {
         input.focus();
         input.select();
     }, 300);
+}
+
+// ===== Ordnerfarbe =====
+function openFolderColorModal(folderId, folderName, currentColor) {
+    const modal = new bootstrap.Modal(document.getElementById('folderColorModal'));
+    const form = document.getElementById('folderColorForm');
+    const nameEl = document.getElementById('folderColorName');
+    const colorInput = document.getElementById('folderColorInput');
+    const clearInput = document.getElementById('folderColorClear');
+    const resetBtn = document.getElementById('folderColorResetBtn');
+
+    form.action = `/files/folder/${folderId}/color`;
+    nameEl.textContent = folderName || '';
+    clearInput.value = '0';
+    colorInput.value = (currentColor && /^#[0-9a-fA-F]{6}$/.test(currentColor)) ? currentColor : '#f6c344';
+
+    colorInput.oninput = function() {
+        clearInput.value = '0';
+    };
+
+    resetBtn.onclick = function() {
+        clearInput.value = '1';
+        colorInput.value = '#f6c344';
+    };
+
+    modal.show();
 }
 
 // ===== Umbenennen & Freigaben =====

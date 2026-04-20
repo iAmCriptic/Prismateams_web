@@ -15,6 +15,17 @@ import secrets
 import calendar
 
 calendar_bp = Blueprint('calendar', __name__)
+DEFAULT_EVENT_COLOR = '#0d6efd'
+
+
+def sanitize_event_color(raw_color):
+    """Validiert einen Hex-Farbwert und liefert eine sichere Standardfarbe."""
+    if not raw_color:
+        return DEFAULT_EVENT_COLOR
+    color = raw_color.strip().lower()
+    if len(color) == 7 and color.startswith('#') and all(c in '0123456789abcdef' for c in color[1:]):
+        return color
+    return DEFAULT_EVENT_COLOR
 
 
 def generate_recurring_instances(master_event, start_date, end_date):
@@ -70,6 +81,7 @@ def generate_recurring_instances(master_event, start_date, end_date):
                 'title': master_event.title,
                 'description': master_event.description,
                 'location': master_event.location,
+                'event_color': master_event.event_color or DEFAULT_EVENT_COLOR,
                 'start_time': current_date,
                 'end_time': instance_end,
                 'is_recurring': True,
@@ -186,6 +198,7 @@ def create_event():
         end_date = request.form.get('end_date')
         end_time = request.form.get('end_time')
         location = request.form.get('location', '').strip()
+        event_color = sanitize_event_color(request.form.get('event_color'))
         
         # Wiederholungsoptionen
         is_recurring = request.form.get('is_recurring') == 'on'
@@ -235,6 +248,7 @@ def create_event():
             start_time=start_dt,
             end_time=end_dt,
             location=location,
+            event_color=event_color,
             created_by=current_user.id,
             recurrence_type=recurrence_type if is_recurring else 'none',
             recurrence_end_date=recurrence_end_date,
@@ -299,6 +313,7 @@ def edit_event(event_id):
         event.title = request.form.get('title', '').strip()
         event.description = request.form.get('description', '').strip()
         event.location = request.form.get('location', '').strip()
+        event.event_color = sanitize_event_color(request.form.get('event_color'))
         
         start_date = request.form.get('start_date')
         start_time = request.form.get('start_time')
@@ -558,6 +573,7 @@ def get_events_for_month(year, month):
             'end_date': event.end_time.date().isoformat(),
             'duration_days': duration,
             'location': event.location,
+            'event_color': event.event_color or DEFAULT_EVENT_COLOR,
             'description': event.description,
             'day': event.start_time.day,
             'time': event.start_time.strftime('%H:%M'),
@@ -587,6 +603,7 @@ def get_events_for_month(year, month):
                 'end_date': instance['end_time'].date().isoformat(),
                 'duration_days': duration,
                 'location': instance['location'],
+                'event_color': instance['event_color'],
                 'description': instance['description'],
                 'day': instance['start_time'].day,
                 'time': instance['start_time'].strftime('%H:%M'),
@@ -658,6 +675,7 @@ def get_events_for_range(start_date, end_date):
                 'end_date': event.end_time.date().isoformat(),
                 'duration_days': duration,
                 'location': event.location,
+                'event_color': event.event_color or DEFAULT_EVENT_COLOR,
                 'description': event.description,
                 'day': event.start_time.day,
                 'time': event.start_time.strftime('%H:%M'),
@@ -687,6 +705,7 @@ def get_events_for_range(start_date, end_date):
                     'end_date': instance['end_time'].date().isoformat(),
                     'duration_days': duration,
                     'location': instance['location'],
+                    'event_color': instance['event_color'],
                     'description': instance['description'],
                     'day': instance['start_time'].day,
                     'time': instance['start_time'].strftime('%H:%M'),

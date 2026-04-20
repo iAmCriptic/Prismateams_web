@@ -60,6 +60,17 @@
                             <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.dateien.description') }}</small>
                         </label>
                     </div>
+
+                    {% if is_module_enabled('module_credentials') %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="widget_passwoerter" id="widget_passwoerter" {% if 'passwoerter' in enabled_widgets %}checked{% endif %}>
+                        <label class="form-check-label" for="widget_passwoerter">
+                            <i class="bi bi-key text-danger me-2"></i>
+                            <strong>{{ _('dashboard.edit.widgets.items.passwoerter.label') }}</strong>
+                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.passwoerter.description') }}</small>
+                        </label>
+                    </div>
+                    {% endif %}
                     
                     {% if is_module_enabled('module_wiki') %}
                     <div class="form-check mb-3">

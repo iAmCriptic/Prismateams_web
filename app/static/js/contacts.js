@@ -292,4 +292,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchUrl = ccContainer.getAttribute('data-search-url') || '/contacts/api/search';
         new ContactChipInput('ccChipContainer', 'ccHidden', searchUrl);
     }
+
+    // BCC-Feld
+    const bccContainer = document.getElementById('bccChipContainer');
+    const bccHidden = document.getElementById('bccHidden');
+    if (bccContainer && bccHidden) {
+        const searchUrl = bccContainer.getAttribute('data-search-url') || '/contacts/api/search';
+        new ContactChipInput('bccChipContainer', 'bccHidden', searchUrl);
+    }
 });

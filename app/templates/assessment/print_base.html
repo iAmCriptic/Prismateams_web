@@ -98,10 +98,12 @@
             {% block print_content %}{% endblock %}
         </main>
 
+        {% block print_footer %}
         <footer class="print-footer">
             <span>{% block footer_left %}{% endblock %}</span>
             <span class="powered">Powered by <strong>{{ assessment_portal_name }}</strong></span>
         </footer>
+        {% endblock %}
     </div>
 </body>
 </html>

@@ -21,6 +21,7 @@ class Folder(db.Model):
     share_password_hash = db.Column(db.String(255), nullable=True)
     share_expires_at = db.Column(db.DateTime, nullable=True)
     share_name = db.Column(db.String(255), nullable=True)
+    color = db.Column(db.String(16), nullable=True)
     
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
     files = db.relationship('File', back_populates='folder', cascade='all, delete-orphan')

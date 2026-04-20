@@ -28,7 +28,17 @@ class EmailMessage(db.Model):
     imap_uid = db.Column(db.String(100), nullable=True)  # IMAP UID for this specific folder
     last_imap_sync = db.Column(db.DateTime, nullable=True)  # Last time synced from IMAP
     is_deleted_imap = db.Column(db.Boolean, default=False)  # Marked as deleted in IMAP
-    
+
+    # User-driven organisational flags (mail manager update)
+    # color_dot: free-form short label token (e.g. "red", "green", "blue", "yellow", "purple")
+    # is_flagged: mirror of IMAP \Flagged flag if supported
+    # imap_color_keyword: IMAP keyword that was written alongside color_dot (null if server
+    # does not support keywords)
+    color_dot = db.Column(db.String(24), nullable=True)
+    is_flagged = db.Column(db.Boolean, default=False, nullable=False)
+    imap_color_keyword = db.Column(db.String(64), nullable=True)
+    last_flag_sync_at = db.Column(db.DateTime, nullable=True)
+
     sent_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     received_at = db.Column(db.DateTime, nullable=True, index=True)
@@ -111,7 +121,23 @@ class EmailFolder(db.Model):
     
     def __repr__(self):
         return f'<EmailFolder {self.name}>'
-    
+
+    @property
+    def depth(self):
+        """Hierarchy depth based on parent_folder chain (0 = top-level)."""
+        if not self.parent_folder:
+            return 0
+        sep = self.separator or '/'
+        return self.parent_folder.count(sep) + 1
+
+    @property
+    def short_name(self):
+        """Return the folder label without the parent path."""
+        sep = self.separator or '/'
+        if sep and sep in (self.name or ''):
+            return self.name.rsplit(sep, 1)[-1]
+        return self.name
+
     @staticmethod
     def get_folder_display_name(imap_name):
         """Convert IMAP folder name to display name."""

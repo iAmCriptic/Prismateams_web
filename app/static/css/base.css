@@ -375,42 +375,71 @@ body {
     }
 }
 
-/* Email specific mobile adjustments */
+/* Flex-/Grid-Kinder dürfen schrumpfen (lange URLs, Toolbar) */
+.min-width-0 {
+    min-width: 0;
+}
+
+/* Gemeinsame Mobile-Toolbar (Überschrift + Aktionen) */
+@media (max-width: 767.98px) {
+    .page-toolbar-row {
+        row-gap: 0.5rem;
+    }
+
+    .page-toolbar-row > [class*="col"] {
+        min-width: 0;
+    }
+
+    .page-toolbar-row h1 {
+        font-size: clamp(1.2rem, 5.5vw, 1.65rem);
+        word-break: break-word;
+    }
+}
+
+/* Mobile: Hauptbereich darf nicht über den Viewport hinausragen, aber Inhalte
+   (z. B. E-Mail-Zoom per transform) nicht global in .card abschneiden. */
 @media (max-width: 767.98px) {
     .main-content {
         padding-bottom: 100px; /* Extra space for mobile nav */
-        overflow-x: hidden; /* Prevent horizontal scrolling */
-        max-width: 100vw; /* Never exceed viewport width */
+        max-width: 100%;
+        box-sizing: border-box;
         margin-bottom: 60px; /* Ensure space for fixed nav */
     }
-    
+
     /* Chat-specific mobile adjustments */
     .main-content:has(.mobile-chat-header) {
         padding-top: 0; /* Remove top padding when chat header is present */
     }
-    
+
     .email-content {
-        padding-bottom: 20px; /* Additional space for email content */
-        overflow-x: hidden; /* Prevent horizontal scrolling */
-        max-width: 100vw; /* Never exceed viewport width */
+        padding-bottom: 20px;
+        max-width: 100%;
+        box-sizing: border-box;
     }
-    
-    /* Force email container to never scroll horizontally */
-    .card {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
+
+    .main-content > .container-fluid {
+        max-width: 100%;
+        box-sizing: border-box;
     }
-    
-    .list-group {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
+}
+
+/* E-Mail-Leseansicht: Zoom/Scroll für HTML und iframe */
+@media (max-width: 767.98px) {
+    .email-view-card.card {
+        max-width: 100%;
+        overflow-x: visible;
     }
-    
-    .list-group-item {
-        max-width: 100% !important;
-        overflow-x: hidden !important;
-        word-wrap: break-word !important;
-        word-break: break-word !important;
+
+    .email-view-card .card-body {
+        overflow-x: visible;
+    }
+
+    .email-mobile-zoom-host {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y pinch-zoom;
     }
 }
 

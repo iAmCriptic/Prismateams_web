@@ -64,10 +64,6 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
         {% endif %}
     {% endif %}
-    {% if _assess_scope or (request.endpoint and request.endpoint.startswith('assessment.')) %}
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
-    {% endif %}
-    
     {% if current_user.is_authenticated %}
     <style>
         :root {
@@ -572,7 +568,7 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'settings.index'] %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'settings.index', 'assessment.general.home'] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">

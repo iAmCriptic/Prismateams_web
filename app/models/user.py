@@ -147,7 +147,7 @@ class User(UserMixin, db.Model):
                 pass
         # Standard-Konfiguration - nur die wichtigsten Widgets aktiv
         return {
-            "enabled_widgets": ["termine", "nachrichten", "emails"],
+            "enabled_widgets": ["termine", "nachrichten", "emails", "passwoerter"],
             "quick_access_links": ["files", "credentials", "manuals"]
         }
     

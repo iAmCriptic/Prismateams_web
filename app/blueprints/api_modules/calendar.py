@@ -24,6 +24,7 @@ def register_calendar_routes(api_bp, require_api_auth):
                 "start_time": event.start_time.isoformat(),
                 "end_time": event.end_time.isoformat(),
                 "location": event.location,
+                "event_color": event.event_color,
                 "created_by": event.creator.full_name,
                 "participation_status": participation.status if participation else "pending",
             })
@@ -41,6 +42,7 @@ def register_calendar_routes(api_bp, require_api_auth):
             "start_time": event.start_time.isoformat(),
             "end_time": event.end_time.isoformat(),
             "location": event.location,
+            "event_color": event.event_color,
             "created_by": event.creator.full_name,
             "participants": [{
                 "user_id": p.user_id,

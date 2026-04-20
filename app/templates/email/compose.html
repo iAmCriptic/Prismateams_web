@@ -305,6 +305,22 @@
         align-items: center;
         gap: 0.25rem;
     }
+
+    /* Reply context banner – visible indicator of the email being replied to.
+       Looks subtle in both light and dark mode. */
+    .reply-context-banner {
+        background: var(--bs-tertiary-bg, var(--bs-secondary-bg));
+        border-left: 3px solid var(--accent-color, var(--bs-primary));
+        font-size: 0.875rem;
+    }
+
+    [data-bs-theme="dark"] .reply-context-banner {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .reply-context-banner .bi-reply-fill {
+        color: var(--accent-color, var(--bs-primary)) !important;
+    }
     
 </style>
 {% endblock %}
@@ -331,6 +347,11 @@
                     <input type="hidden" name="references" value="{{ references|default('') }}">
                     <input type="hidden" name="forward_attachment_ids" value="{{ forward_attachment_ids|default('') }}">
                     <input type="hidden" name="original_attachment_ids" id="originalAttachmentIds" value="{{ original_attachment_ids|default('') }}">
+                    <!-- Tells the server this is a reply; the quoted original is appended on send. -->
+                    <input type="hidden" name="reply_to_email_id" value="{{ reply_to_email_id|default('') }}">
+                    <input type="hidden" name="forward_from_email_id" id="forwardFromEmailId" value="{{ forward_from_email_id|default('', true) }}">
+                    {# Nach Versand wird dieser Entwurf serverseitig gelöscht (DB + IMAP) #}
+                    <input type="hidden" name="draft_id" id="composeDraftId" value="{{ draft_id|default('', true) }}">
                     <input type="hidden" name="body" id="bodyHtml" value="">
                     
                     <div class="p-3 border-bottom">
@@ -348,11 +369,68 @@
                         </div>
                         
                         <div class="mb-3">
+                            <label for="bccChipContainer" class="form-label fw-bold">{{ _('email.compose.form.bcc') }}</label>
+                            <div id="bccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.bcc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                            <input type="hidden" id="bccHidden" name="bcc" value="{{ bcc|default('') }}">
+                            <div class="form-text">{{ _('email.compose.form.bcc_help') }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
                             <label for="subject" class="form-label fw-bold">{{ _('email.compose.form.subject') }}</label>
                             <input type="text" class="form-control" id="subject" name="subject" value="{{ subject|default('') }}" required>
                         </div>
                     </div>
                     
+                    {% if is_reply and original_email %}
+                    <!-- Reply context banner: shows which email we are replying to.
+                         The quoted original is appended automatically on send. -->
+                    <div class="reply-context-banner px-3 py-2 border-bottom">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-reply-fill text-muted mt-1"></i>
+                            <div class="flex-grow-1 small">
+                                <div class="text-muted">
+                                    {{ _('email.compose.reply_context.prefix') }}
+                                    <strong>{{ original_email.sender|decode_email_header }}</strong>
+                                    <span class="text-muted">·</span>
+                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                </div>
+                                {% if original_first_line %}
+                                <div class="text-body-secondary text-truncate" style="max-width: 100%;">
+                                    {{ original_first_line }}
+                                </div>
+                                {% endif %}
+                                <div class="text-muted fst-italic mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>{{ _('email.compose.reply_context.hint') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if is_forward and original_email %}
+                    <div class="reply-context-banner px-3 py-2 border-bottom">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-forward-fill text-muted mt-1"></i>
+                            <div class="flex-grow-1 small">
+                                <div class="text-muted">
+                                    {{ _('email.compose.forward_context.prefix') }}
+                                    <strong>{{ original_email.sender|decode_email_header }}</strong>
+                                    <span class="text-muted">·</span>
+                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                </div>
+                                {% if original_first_line %}
+                                <div class="text-body-secondary text-truncate" style="max-width: 100%;">
+                                    {{ original_first_line }}
+                                </div>
+                                {% endif %}
+                                <div class="text-muted fst-italic mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>{{ _('email.compose.forward_context.hint') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Rich Text Editor -->
                     <div class="email-composer-toolbar">
                         <div id="toolbar-container"></div>
@@ -472,6 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isMobile) {
         var toInput = document.querySelector('#toChipContainer .contact-chip-input');
         var ccInput = document.querySelector('#ccChipContainer .contact-chip-input');
+        var bccInput = document.querySelector('#bccChipContainer .contact-chip-input');
         var footer = document.querySelector('.email-composer-footer');
         var sendButton = document.getElementById('sendEmailButton');
         
@@ -505,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Handle input focus for smooth keyboard
-        [toInput, ccInput, subjectInput].forEach(function(input) {
+        [toInput, ccInput, bccInput, subjectInput].forEach(function(input) {
             if (input) {
                 input.addEventListener('focus', function() {
                     // Scroll to input on mobile
@@ -593,9 +672,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var htmlContent = quill.root.innerHTML;
         setPreviewLoading();
+        var replyToEmailIdEl = document.querySelector('input[name="reply_to_email_id"]');
+        var forwardFromEl = document.getElementById('forwardFromEmailId');
         var body = {
             subject: subjectInput ? subjectInput.value : '',
-            body: htmlContent
+            body: htmlContent,
+            reply_to_email_id: replyToEmailIdEl ? replyToEmailIdEl.value : '',
+            forward_from_email_id: forwardFromEl ? forwardFromEl.value : ''
         };
         var requestId = ++previewRequestId;
         fetch(previewUrl, {
@@ -663,49 +746,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     {% endif %}
     
-    // Original E-Mail einfach am Ende einfügen
-    {% if is_reply and original_email %}
-    (function() {
-        setTimeout(function() {
-            try {
-                // Einfacher Header
-                var headerText = '{{ _('email.view.header.from') }} ' + {{ original_email.sender|decode_email_header|tojson|safe }} + '\n';
-                headerText += '{{ _('email.view.header.to') }} ' + {{ original_email.recipients|decode_email_header|tojson|safe }} + '\n';
-                {% if original_email.cc %}
-                headerText += '{{ _('email.view.header.cc') }} ' + {{ original_email.cc|decode_email_header|tojson|safe }} + '\n';
-                {% endif %}
-                headerText += '{{ _('email.view.header.date') }} {{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else original_email.sent_at.strftime('%d.%m.%Y %H:%M') }}\n';
-                headerText += '{{ _('email.view.header.subject') }} ' + {{ original_email.subject|decode_email_header|tojson|safe }} + '\n\n';
-                
-                // Trennlinie
-                var separator = '\n##- Bitte geben Sie Ihre Antwort über dieser Zeile ein. -##\n\n';
-                
-                // Original-E-Mail Text
-                var originalText = '';
-                {% if original_email.body_text %}
-                originalText = {{ original_email.body_text|tojson|safe }};
-                {% elif original_html %}
-                // HTML zu Text konvertieren (einfach)
-                var htmlContent = {{ original_html|tojson|safe }};
-                var tempDiv = document.createElement('div');
-                tempDiv.innerHTML = htmlContent;
-                originalText = tempDiv.textContent || tempDiv.innerText || '';
-                {% endif %}
-                
-                // Alles zusammenfügen: Header + Trennlinie + Original-Text
-                var fullText = headerText + separator + originalText;
-                
-                // Am Ende des Editors einfügen
-                var length = quill.getLength();
-                quill.insertText(length - 1, fullText, 'user');
-                
-                // Cursor an den Anfang setzen (vor dem Header)
-                quill.setSelection(0);
-            } catch (e) {
-                console.error('Fehler beim Einfügen der Original-E-Mail:', e);
-            }
-        }, 300);
-    })();
+    // Neue Reply-Logik: Der Original-Text wird NICHT mehr in den Editor eingefügt.
+    // Der Editor bleibt sauber – nur die eigene Antwort im CSS-Format wird dort geschrieben.
+    // Die Originalnachricht wird beim Senden serverseitig unterhalb unserer Karte
+    // (build_quoted_reply_html) angehängt. Der Cursor springt direkt in den Editor.
+    {% if (is_reply or is_forward) and original_email %}
+    setTimeout(function() {
+        try { quill.focus(); quill.setSelection(0, 0); } catch (e) { /* noop */ }
+    }, 150);
     {% endif %}
     
     // AJAX form submission with loading state
@@ -839,6 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var formData = new FormData();
         var to = document.getElementById('toHidden') ? document.getElementById('toHidden').value : '';
         var cc = document.getElementById('ccHidden') ? document.getElementById('ccHidden').value : '';
+        var bcc = document.getElementById('bccHidden') ? document.getElementById('bccHidden').value : '';
         var subject = subjectInput ? subjectInput.value : '';
         var htmlContent = quill.root.innerHTML;
         var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
@@ -846,6 +895,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         formData.append('to', to);
         formData.append('cc', cc);
+        formData.append('bcc', bcc);
         formData.append('subject', subject);
         formData.append('body', htmlContent);
         formData.append('in_reply_to', inReplyTo);
@@ -874,6 +924,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 hasUnsavedDraft = false;
                 console.log('Entwurf gespeichert');
+                // Neuer Entwurf pro Speichern — ID aktualisieren, damit beim Senden der aktuelle Entwurf gelöscht wird
+                if (data.draft_id) {
+                    var draftIdInput = document.getElementById('composeDraftId');
+                    if (draftIdInput) {
+                        draftIdInput.value = String(data.draft_id);
+                    }
+                }
             }
         }).catch(function(error) {
             console.error('Fehler beim Speichern des Entwurfs:', error);
@@ -888,8 +945,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (hasDraftContent()) {
             // Verwende fetch mit keepalive für zuverlässiges Speichern beim Verlassen
-            var to = document.getElementById('to') ? document.getElementById('to').value : '';
-            var cc = document.getElementById('cc') ? document.getElementById('cc').value : '';
+            var to = document.getElementById('toHidden') ? document.getElementById('toHidden').value : '';
+            var cc = document.getElementById('ccHidden') ? document.getElementById('ccHidden').value : '';
+            var bcc = document.getElementById('bccHidden') ? document.getElementById('bccHidden').value : '';
             var subject = subjectInput ? subjectInput.value : '';
             var htmlContent = quill.root.innerHTML;
             var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
@@ -899,6 +957,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var data = {
                 to: to,
                 cc: cc,
+                bcc: bcc,
                 subject: subject,
                 body: htmlContent,
                 in_reply_to: inReplyTo,

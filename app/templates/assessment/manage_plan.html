@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Lageplan verwalten{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/assessment_map.css') }}">
+{% endblock %}
 {% block content %}
 <div class="container-fluid py-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -7,7 +10,12 @@
             <h1 class="h4 mb-0">Lageplan verwalten</h1>
             <div class="text-muted small" id="currentPlanInfo">Kein aktiver Plan</div>
         </div>
-        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('assessment.map.print_plan') }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Drucken
+            </a>
+            <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+        </div>
     </div>
 
     <div class="row g-3 plan-editor-layout">
