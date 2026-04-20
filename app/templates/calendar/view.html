@@ -58,10 +58,7 @@
 
                 <div class="mb-3">
                     <strong><i class="bi bi-palette"></i> Farbe</strong><br>
-                    <span class="d-inline-flex align-items-center gap-2">
-                        <span style="display:inline-block;width:1rem;height:1rem;border-radius:50%;border:1px solid #ccc;background: {{ event.event_color or '#0d6efd' }};"></span>
-                        <code>{{ event.event_color or '#0d6efd' }}</code>
-                    </span>
+                    <span style="display:inline-block;width:1.25rem;height:1.25rem;border-radius:50%;border:1px solid var(--bs-border-color);background: {{ event.event_color or '#0d6efd' }};"></span>
                 </div>
                 
                 {% if booking_request %}

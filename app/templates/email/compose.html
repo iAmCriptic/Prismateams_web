@@ -349,6 +349,9 @@
                     <input type="hidden" name="original_attachment_ids" id="originalAttachmentIds" value="{{ original_attachment_ids|default('') }}">
                     <!-- Tells the server this is a reply; the quoted original is appended on send. -->
                     <input type="hidden" name="reply_to_email_id" value="{{ reply_to_email_id|default('') }}">
+                    <input type="hidden" name="forward_from_email_id" id="forwardFromEmailId" value="{{ forward_from_email_id|default('', true) }}">
+                    {# Nach Versand wird dieser Entwurf serverseitig gelöscht (DB + IMAP) #}
+                    <input type="hidden" name="draft_id" id="composeDraftId" value="{{ draft_id|default('', true) }}">
                     <input type="hidden" name="body" id="bodyHtml" value="">
                     
                     <div class="p-3 border-bottom">
@@ -363,6 +366,13 @@
                             <label for="ccChipContainer" class="form-label fw-bold">{{ _('email.compose.form.cc') }}</label>
                             <div id="ccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.cc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
                             <input type="hidden" id="ccHidden" name="cc" value="{{ cc|default('') }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="bccChipContainer" class="form-label fw-bold">{{ _('email.compose.form.bcc') }}</label>
+                            <div id="bccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.bcc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                            <input type="hidden" id="bccHidden" name="bcc" value="{{ bcc|default('') }}">
+                            <div class="form-text">{{ _('email.compose.form.bcc_help') }}</div>
                         </div>
                         
                         <div class="mb-3">
@@ -391,6 +401,30 @@
                                 {% endif %}
                                 <div class="text-muted fst-italic mt-1">
                                     <i class="bi bi-info-circle me-1"></i>{{ _('email.compose.reply_context.hint') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if is_forward and original_email %}
+                    <div class="reply-context-banner px-3 py-2 border-bottom">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-forward-fill text-muted mt-1"></i>
+                            <div class="flex-grow-1 small">
+                                <div class="text-muted">
+                                    {{ _('email.compose.forward_context.prefix') }}
+                                    <strong>{{ original_email.sender|decode_email_header }}</strong>
+                                    <span class="text-muted">·</span>
+                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                </div>
+                                {% if original_first_line %}
+                                <div class="text-body-secondary text-truncate" style="max-width: 100%;">
+                                    {{ original_first_line }}
+                                </div>
+                                {% endif %}
+                                <div class="text-muted fst-italic mt-1">
+                                    <i class="bi bi-info-circle me-1"></i>{{ _('email.compose.forward_context.hint') }}
                                 </div>
                             </div>
                         </div>
@@ -516,6 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isMobile) {
         var toInput = document.querySelector('#toChipContainer .contact-chip-input');
         var ccInput = document.querySelector('#ccChipContainer .contact-chip-input');
+        var bccInput = document.querySelector('#bccChipContainer .contact-chip-input');
         var footer = document.querySelector('.email-composer-footer');
         var sendButton = document.getElementById('sendEmailButton');
         
@@ -549,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Handle input focus for smooth keyboard
-        [toInput, ccInput, subjectInput].forEach(function(input) {
+        [toInput, ccInput, bccInput, subjectInput].forEach(function(input) {
             if (input) {
                 input.addEventListener('focus', function() {
                     // Scroll to input on mobile
@@ -638,10 +673,12 @@ document.addEventListener('DOMContentLoaded', function() {
         var htmlContent = quill.root.innerHTML;
         setPreviewLoading();
         var replyToEmailIdEl = document.querySelector('input[name="reply_to_email_id"]');
+        var forwardFromEl = document.getElementById('forwardFromEmailId');
         var body = {
             subject: subjectInput ? subjectInput.value : '',
             body: htmlContent,
-            reply_to_email_id: replyToEmailIdEl ? replyToEmailIdEl.value : ''
+            reply_to_email_id: replyToEmailIdEl ? replyToEmailIdEl.value : '',
+            forward_from_email_id: forwardFromEl ? forwardFromEl.value : ''
         };
         var requestId = ++previewRequestId;
         fetch(previewUrl, {
@@ -713,7 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Der Editor bleibt sauber – nur die eigene Antwort im CSS-Format wird dort geschrieben.
     // Die Originalnachricht wird beim Senden serverseitig unterhalb unserer Karte
     // (build_quoted_reply_html) angehängt. Der Cursor springt direkt in den Editor.
-    {% if is_reply and original_email %}
+    {% if (is_reply or is_forward) and original_email %}
     setTimeout(function() {
         try { quill.focus(); quill.setSelection(0, 0); } catch (e) { /* noop */ }
     }, 150);
@@ -850,6 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var formData = new FormData();
         var to = document.getElementById('toHidden') ? document.getElementById('toHidden').value : '';
         var cc = document.getElementById('ccHidden') ? document.getElementById('ccHidden').value : '';
+        var bcc = document.getElementById('bccHidden') ? document.getElementById('bccHidden').value : '';
         var subject = subjectInput ? subjectInput.value : '';
         var htmlContent = quill.root.innerHTML;
         var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
@@ -857,6 +895,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         formData.append('to', to);
         formData.append('cc', cc);
+        formData.append('bcc', bcc);
         formData.append('subject', subject);
         formData.append('body', htmlContent);
         formData.append('in_reply_to', inReplyTo);
@@ -885,6 +924,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 hasUnsavedDraft = false;
                 console.log('Entwurf gespeichert');
+                // Neuer Entwurf pro Speichern — ID aktualisieren, damit beim Senden der aktuelle Entwurf gelöscht wird
+                if (data.draft_id) {
+                    var draftIdInput = document.getElementById('composeDraftId');
+                    if (draftIdInput) {
+                        draftIdInput.value = String(data.draft_id);
+                    }
+                }
             }
         }).catch(function(error) {
             console.error('Fehler beim Speichern des Entwurfs:', error);
@@ -899,8 +945,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (hasDraftContent()) {
             // Verwende fetch mit keepalive für zuverlässiges Speichern beim Verlassen
-            var to = document.getElementById('to') ? document.getElementById('to').value : '';
-            var cc = document.getElementById('cc') ? document.getElementById('cc').value : '';
+            var to = document.getElementById('toHidden') ? document.getElementById('toHidden').value : '';
+            var cc = document.getElementById('ccHidden') ? document.getElementById('ccHidden').value : '';
+            var bcc = document.getElementById('bccHidden') ? document.getElementById('bccHidden').value : '';
             var subject = subjectInput ? subjectInput.value : '';
             var htmlContent = quill.root.innerHTML;
             var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
@@ -910,6 +957,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var data = {
                 to: to,
                 cc: cc,
+                bcc: bcc,
                 subject: subject,
                 body: htmlContent,
                 in_reply_to: inReplyTo,

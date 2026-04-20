@@ -3,9 +3,9 @@
 {% block title %}{{ _('files.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4 align-items-center g-3">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
+<div class="row mb-4 page-toolbar-row align-items-start g-3">
+    <div class="col-12 col-lg-8 min-width-0">
+        <h1 class="mb-3 text-break"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
         {% if breadcrumb_folders %}
         <nav aria-label="breadcrumb" class="mb-3 mb-md-0">
             <ol class="breadcrumb mb-0 files-breadcrumb-dropzone">
@@ -25,8 +25,9 @@
         </nav>
         {% endif %}
     </div>
-    <div class="col-auto">
-        <div class="btn-group me-2" role="group">
+    <div class="col-12 col-lg-auto">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group" role="group">
             <button class="btn btn-outline-secondary" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
                 <i class="bi bi-list"></i>
             </button>
@@ -83,6 +84,7 @@
             <!-- Hidden file input for direct upload -->
             <input type="file" id="directFileUpload" name="file" style="display: none;" multiple>
             <input type="file" id="directFolderUpload" name="folder_upload" style="display: none;" webkitdirectory directory multiple>
+        </div>
         </div>
     </div>
 </div>

@@ -46,8 +46,8 @@
 </div>
 {% endif %}
 
-<div class="row mb-4">
-    <div class="col">
+<div class="row mb-4 page-toolbar-row align-items-start">
+    <div class="col min-width-0">
         <div class="d-flex justify-content-between align-items-start">
             <div class="d-flex align-items-center">
                 <!-- Mobile Logo (neben Text) -->
@@ -75,7 +75,7 @@
     </div>
 </div>
 
-<div class="row g-3">
+<div class="row g-3 dashboard-page">
     {% set enabled_widgets = dashboard_config.get('enabled_widgets', []) %}
     
     <!-- Widgets werden für Gast-Accounts nicht angezeigt -->

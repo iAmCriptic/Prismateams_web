@@ -54,9 +54,10 @@ def _finalize_portal_login(user, remember=False, next_page=None):
         flash(translate('auth.flash.must_change_password'), 'warning')
         return redirect(url_for('auth.change_password'))
 
-    # Add user to main chat if not already a member and user has chat access
+    # Add user to main chat if not already a member and user has chat access.
+    # Gast-Accounts werden NICHT automatisch in den Haupt-Chat aufgenommen.
     from app.utils.access_control import has_module_access
-    if has_module_access(user, 'module_chat'):
+    if not user.is_guest and has_module_access(user, 'module_chat'):
         main_chat = Chat.query.filter_by(is_main_chat=True).first()
         if main_chat:
             existing_membership = ChatMember.query.filter_by(

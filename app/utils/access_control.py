@@ -326,6 +326,39 @@ def get_guest_accessible_items(user):
     return files, folders
 
 
+def get_guest_directly_shared_folders(user):
+    """
+    Gibt ausschließlich die direkt für den Gast freigegebenen Ordner zurück.
+
+    Das sind nur Ordner, für die ein expliziter Folder-Share beim Gast hinterlegt ist
+    (nicht rekursiv geerbte Unterordner).
+    """
+    if not hasattr(user, 'is_guest') or not user.is_guest:
+        return []
+
+    from app.models.guest import GuestShareAccess
+    from app.models.file import Folder
+
+    guest_accesses = GuestShareAccess.query.filter_by(user_id=user.id).all()
+    directly_shared_folders = []
+    processed_folder_ids = set()
+
+    for access in guest_accesses:
+        normalized_token = _normalize_guest_share_token(access.share_token)
+        if not normalized_token:
+            continue
+
+        folder = Folder.query.filter_by(
+            share_token=normalized_token,
+            share_enabled=True
+        ).first()
+        if folder and folder.id not in processed_folder_ids:
+            directly_shared_folders.append(folder)
+            processed_folder_ids.add(folder.id)
+
+    return directly_shared_folders
+
+
 def _normalize_guest_share_token(raw_token):
     """
     Normalisiert gespeicherte Share-Referenzen auf den reinen Token.

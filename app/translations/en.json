@@ -1615,24 +1615,43 @@
       },
       "buttons": {
         "compose": "New email",
-        "sync": "Sync"
+        "sync": "Sync",
+        "new_folder": "New folder",
+        "cancel": "Cancel"
       },
       "folder_default": "Inbox",
       "labels": {
         "new_badge": "New",
         "move_to_folder": "Move to folder",
         "empty": "No emails available",
-        "options_title": "Options"
+        "options_title": "Options",
+        "has_attachments": "Has attachments"
       },
       "actions": {
         "view": "View",
         "reply": "Reply",
         "reply_all": "Reply all",
         "forward": "Forward",
-        "delete": "Delete"
+        "delete": "Delete",
+        "mark_read": "Mark as read",
+        "mark_unread": "Mark as unread",
+        "set_color_dot": "Set colored dot",
+        "color_none": "No color",
+        "delete_folder": "Delete folder"
       },
       "confirm": {
-        "delete_email": "Really delete this email?"
+        "delete_email": "Really delete this email?",
+        "delete_folder": "Really delete folder '{folder}'?",
+        "delete_folder_force": "The folder is not empty. Delete it including all content?"
+      },
+      "folder_create": {
+        "title": "Create new folder",
+        "name_label": "Folder name",
+        "parent_label": "Parent folder",
+        "parent_none": "No parent (top level)",
+        "submit": "Create folder",
+        "hint": "Subfolders are nested under the selected parent folder.",
+        "error_name_required": "Please enter a folder name."
       },
       "folders": {
         "INBOX": "Inbox",
@@ -1647,7 +1666,11 @@
       },
       "messages": {
         "sync_failed": "Sync failed",
-        "sync_error": "Sync failed. Please try again."
+        "sync_error": "Sync failed. Please try again.",
+        "move_success": "Email moved",
+        "move_error": "Could not move email",
+        "folder_deleted": "Folder deleted",
+        "color_local_only": "Color dot stored locally only (IMAP does not support keywords)."
       }
     },
     "compose": {
@@ -1663,6 +1686,9 @@
         "to_help": "Separate multiple recipients with commas",
         "cc": "CC (optional)",
         "cc_placeholder": "cc@example.com",
+        "bcc": "BCC (optional)",
+        "bcc_placeholder": "bcc@example.com",
+        "bcc_help": "Blind carbon copy: these addresses stay hidden from other recipients.",
         "subject": "Subject"
       },
       "editor": {
@@ -1698,6 +1724,19 @@
       "reply_context": {
         "prefix": "Reply to",
         "hint": "The original message will be appended automatically below your reply."
+      },
+      "forward_context": {
+        "prefix": "Forwarding",
+        "hint": "The original message will be appended below your text, the same way as when replying."
+      },
+      "quoted": {
+        "forward_title": "Forwarded message",
+        "empty_subject": "(No subject)",
+        "forward_subject_label": "Subject:",
+        "forward_date_label": "Date:",
+        "forward_from_label": "From:",
+        "forward_to_label": "To:",
+        "forward_cc_label": "CC:"
       }
     },
     "view": {
@@ -1784,6 +1823,8 @@
         "move_error": "Could not move credential."
       },
       "folders": {
+        "open_button": "New folder",
+        "modal_title": "Create folder",
         "name": "Folder name",
         "color": "Color",
         "create": "Create folder",

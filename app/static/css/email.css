@@ -125,6 +125,13 @@
     line-height: 0;
 }
 
+@media (max-width: 767.98px) {
+    .email-html-frame-wrapper {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
 .email-html-iframe {
     width: 100%;
     min-height: 280px;
@@ -774,19 +781,42 @@ body {
 }
 
 /* Email Layout with Sidebar (Desktop ab 1024px) */
+/* Wichtig: min-width/max-width verhindert, dass die Mail-Liste in die Ordnerleiste überlappt */
+.email-content[data-module="email"] {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Flex-Eltern im Portal-Layout: min-width 0 erlaubt korrektes Schrumpfen neben fester App-Sidebar */
+.main-content > .container-fluid:has(.email-layout-desktop) {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 .email-layout-desktop {
     display: flex;
-    gap: 1.5rem;
+    flex-wrap: nowrap;
+    gap: 1.25rem;
     align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .email-folder-sidebar {
-    width: 240px;
+    /* Mehr Platz für lange Ordnernamen (Nutzerwunsch); obere Grenze für sehr breite Monitore */
+    flex: 0 0 clamp(260px, 28vw, 360px);
+    max-width: min(100%, 360px);
     flex-shrink: 0;
     padding: 1rem;
     background: var(--bs-body-bg);
     border-right: 1px solid var(--bs-border-color);
     min-height: calc(100vh - 120px);
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* OLED Mode - Email Folder Sidebar */
@@ -796,12 +826,22 @@ body {
 }
 
 .email-main-content {
-    flex: 1;
+    flex: 1 1 0%;
     min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 .email-folder-list {
     gap: 0.25rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.email-folder-node {
+    min-width: 0;
+    width: 100%;
 }
 
 .email-folder-link {
@@ -1345,3 +1385,213 @@ div.avatar-circle-mobile,
     aspect-ratio: 1 / 1 !important;
     overflow: hidden !important;
 }
+
+/* ==========================================================================
+   Mail Manager Großupdate: Drag&Drop, Ordnerbaum, Farbpunkte, Aktionen
+   ========================================================================== */
+
+:root {
+    --email-dot-red: #ef4444;
+    --email-dot-orange: #f97316;
+    --email-dot-yellow: #f59e0b;
+    --email-dot-green: #22c55e;
+    --email-dot-blue: #3b82f6;
+    --email-dot-purple: #8b5cf6;
+    --email-dot-pink: #ec4899;
+    --email-dot-gray: #6b7280;
+}
+
+/* Farbpunkt-Indikator in der Mailliste */
+.email-item .email-item-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--dot-color, transparent);
+    flex-shrink: 0;
+    margin-top: 0.6rem;
+    margin-right: 0.6rem;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.email-item .email-item-color-dot[hidden] {
+    display: none !important;
+}
+
+/* Drag & Drop States */
+.email-draggable {
+    cursor: grab;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.email-draggable:active {
+    cursor: grabbing;
+}
+
+.email-draggable.email-dragging {
+    opacity: 0.55;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.15);
+}
+
+.email-folder-droptarget {
+    position: relative;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.email-folder-droptarget.email-drop-ready {
+    outline: 1px dashed var(--bs-border-color);
+    outline-offset: -4px;
+}
+
+.email-folder-droptarget.email-drop-over {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 15%, transparent) !important;
+    outline: 2px solid var(--accent-color, var(--bs-primary));
+    outline-offset: -2px;
+}
+
+[data-bs-theme="dark"] .email-folder-droptarget.email-drop-over {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent) !important;
+}
+
+/* Folder tree structure in the sidebar */
+.email-folder-node .email-folder-link {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding-right: 0.5rem;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.email-folder-node .email-folder-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    /* Bis zu zwei Zeilen, damit lange Namen lesbar bleiben ohne die Spaltenbreite zu sprengen */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.25;
+}
+
+.email-folder-delete {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    padding: 0 0.25rem;
+    line-height: 1;
+}
+
+.email-folder-node:hover .email-folder-delete,
+.email-folder-node:focus-within .email-folder-delete {
+    opacity: 1;
+}
+
+[data-bs-theme="dark"] .email-folder-delete {
+    color: #fca5a5 !important;
+}
+
+/* Color picker in action menu */
+.email-action-colors {
+    padding: 0.5rem 1rem 0.25rem;
+}
+
+.email-color-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.35rem;
+}
+
+.email-color-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--swatch-color, transparent);
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(15, 23, 42, 0.55);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.email-color-swatch:hover {
+    transform: scale(1.1);
+}
+
+.email-color-swatch.is-active {
+    box-shadow: 0 0 0 2px var(--accent-color, var(--bs-primary));
+}
+
+.email-color-swatch:first-child {
+    background: transparent;
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .email-color-swatch {
+    border-color: rgba(226, 232, 240, 0.25);
+    color: rgba(226, 232, 240, 0.8);
+}
+
+/* Improved action menu visuals */
+.email-actions-menu {
+    min-width: 240px;
+    padding: 0.35rem 0;
+}
+
+.email-actions-menu .dropdown-header {
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color, var(--bs-body-color));
+    padding-bottom: 0.15rem;
+}
+
+.email-move-menu {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Hide empty-state helper */
+.email-empty-placeholder {
+    padding: 2.5rem 1rem;
+}
+
+/* Mobile refinement */
+@media (max-width: 767.98px) {
+    .email-draggable {
+        cursor: default;
+    }
+    .email-item .email-item-color-dot {
+        margin-top: 0.55rem;
+    }
+    .email-actions-menu .email-color-picker {
+        gap: 0.5rem;
+    }
+    .email-color-swatch {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Avoid layout squeeze on small width when dots/badges wrap */
+.email-item-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+}
+
+/* Folder tree in the modal dropdown */
+.email-folder-form .form-select {
+    font-family: var(--bs-body-font-family, sans-serif);
+}
+
+

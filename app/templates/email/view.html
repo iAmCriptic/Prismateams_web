@@ -28,7 +28,7 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card email-view-card">
     <div class="card-header d-none d-md-flex justify-content-between align-items-start gap-2">
         <h4 class="mb-0">{{ email.subject|decode_email_header }}</h4>
         <div class="d-flex align-items-center gap-2">
@@ -119,6 +119,7 @@
         {% endif %}
         
         {% if html_iframe_html %}
+        <div class="email-mobile-zoom-host">
         <div class="email-content-wrapper">
             <div class="email-content-header mb-3">
                 <div class="d-flex justify-content-between align-items-center gap-2">
@@ -161,7 +162,9 @@
             </div>
             {% endif %}
         </div>
+        </div>
         {% elif html_content %}
+        <div class="email-mobile-zoom-host">
         <div class="email-content-wrapper">
             <div class="email-content-header mb-3">
                 <div class="d-flex justify-content-between align-items-center gap-2">
@@ -195,6 +198,7 @@
                 <div class="email-plain-text">{{ email.body_text }}</div>
             </div>
             {% endif %}
+        </div>
         </div>
         {% elif email.body_text %}
         <div class="email-text-content email-content-isolated">
@@ -328,39 +332,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Mobile Zoom Controls
-    const zoomInBtn = document.getElementById('zoomInBtn') || document.getElementById('zoomInBtn2');
-    const zoomOutBtn = document.getElementById('zoomOutBtn') || document.getElementById('zoomOutBtn2');
-    const zoomResetBtn = document.getElementById('zoomResetBtn') || document.getElementById('zoomResetBtn2');
     const emailContent = htmlContent || document.querySelector('.email-html-content');
+    var supportsCssZoom = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('zoom', '1.5');
     
     // Zoom-Level aus localStorage laden oder Standard setzen
     let zoomLevel = parseFloat(localStorage.getItem('emailZoomLevel') || '1.0');
     
     function applyZoom(level) {
         if (!emailContent) return;
-        
-        // Zoom-Level begrenzen (0.5x bis 2.0x)
+
         level = Math.max(0.5, Math.min(2.0, level));
         zoomLevel = level;
-        
-        // Zoom nur auf den E-Mail-Inhalt anwenden
-        // Verwende transform: scale() für bessere Browser-Kompatibilität
-        emailContent.style.transform = `scale(${level})`;
-        emailContent.style.transformOrigin = 'top left';
-        emailContent.style.width = `${100 / level}%`;
-        emailContent.style.height = 'auto';
-        
-        // Zoom-Level speichern
-        localStorage.setItem('emailZoomLevel', level.toString());
-        
-        // Buttons aktivieren/deaktivieren bei Limits
-        if (zoomInBtn) {
-            zoomInBtn.disabled = (level >= 2.0);
-            zoomInBtn.classList.toggle('disabled', level >= 2.0);
+
+        if (supportsCssZoom) {
+            emailContent.style.zoom = String(level);
+            emailContent.style.transform = '';
+            emailContent.style.transformOrigin = '';
+            emailContent.style.width = '100%';
+        } else {
+            emailContent.style.zoom = '';
+            emailContent.style.transform = 'scale(' + level + ')';
+            emailContent.style.transformOrigin = 'top left';
+            emailContent.style.width = (100 / level) + '%';
         }
-        if (zoomOutBtn) {
-            zoomOutBtn.disabled = (level <= 0.5);
-            zoomOutBtn.classList.toggle('disabled', level <= 0.5);
+        emailContent.style.height = 'auto';
+
+        localStorage.setItem('emailZoomLevel', level.toString());
+
+        document.querySelectorAll('#zoomInBtn, #zoomInBtn2').forEach(function (btn) {
+            btn.disabled = (level >= 2.0);
+            btn.classList.toggle('disabled', level >= 2.0);
+        });
+        document.querySelectorAll('#zoomOutBtn, #zoomOutBtn2').forEach(function (btn) {
+            btn.disabled = (level <= 0.5);
+            btn.classList.toggle('disabled', level <= 0.5);
+        });
+
+        if (typeof resizeRichEmailIframe === 'function') {
+            setTimeout(resizeRichEmailIframe, 50);
         }
     }
     
@@ -372,26 +381,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     }
     
-    // Zoom-In Button
-    if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', function() {
+    document.querySelectorAll('#zoomInBtn, #zoomInBtn2').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             applyZoom(zoomLevel + 0.1);
         });
-    }
-    
-    // Zoom-Out Button
-    if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', function() {
+    });
+    document.querySelectorAll('#zoomOutBtn, #zoomOutBtn2').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             applyZoom(zoomLevel - 0.1);
         });
-    }
-    
-    // Zoom Reset Button
-    if (zoomResetBtn) {
-        zoomResetBtn.addEventListener('click', function() {
+    });
+    document.querySelectorAll('#zoomResetBtn, #zoomResetBtn2').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             applyZoom(1.0);
         });
-    }
+    });
 });
 </script>
 {% endblock %}

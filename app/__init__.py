@@ -552,33 +552,56 @@ def create_app(config_name='default'):
     
     @app.template_filter('email_sender_initials')
     def email_sender_initials_filter(sender):
-        """Extract initials from sender name or email."""
+        """Initialen für Avatar: Anzeigenamen ohne Anführungszeichen, Vorname+Nachname wenn möglich."""
         if not sender:
             return '??'
-        
+
+        def _strip_outer_quotes(s: str) -> str:
+            t = (s or '').strip()
+            while len(t) >= 2 and t[0] in '"\'' and t[-1] == t[0]:
+                t = t[1:-1].strip()
+            return t
+
+        def _initials_from_local_part(local: str) -> str:
+            alnum = ''.join(c for c in (local or '') if c.isalnum())
+            if len(alnum) >= 2:
+                return alnum[0:2].upper()
+            if len(alnum) == 1:
+                return (alnum[0] * 2).upper()
+            return '??'
+
         try:
-            decoded = decode_email_header_filter(sender)
-            
             import re
-            name_match = re.match(r'^(.+?)\s*<.*?>$', decoded)
-            if name_match:
-                name = name_match.group(1).strip()
+
+            decoded = decode_email_header_filter(sender).strip()
+            display = ''
+            addr = ''
+
+            m = re.match(r'^(?P<dn>.*?)\s*<(?P<em>[^>\s]+@[^>\s]+)>\s*$', decoded, re.DOTALL)
+            if m:
+                display = (m.group('dn') or '').strip()
+                addr = (m.group('em') or '').strip()
+            elif re.match(r'^[^\s<]+@[^\s>]+$', decoded):
+                addr = decoded.strip()
             else:
-                email_match = re.match(r'^(.+?)\s*<(.+?)>$', decoded)
-                if email_match:
-                    name = email_match.group(1).strip() or email_match.group(2).split('@')[0]
-                else:
-                    name = decoded.split('<')[0].strip() if '<' in decoded else decoded
-            
-            parts = name.split()
+                display = decoded
+
+            display = _strip_outer_quotes(display)
+
+            parts = [p for p in re.split(r'\s+', display) if p]
             if len(parts) >= 2:
-                return (parts[0][0] + parts[1][0]).upper()
-            elif len(parts) == 1 and len(parts[0]) >= 2:
-                return parts[0][0:2].upper()
-            elif len(parts) == 1 and len(parts[0]) == 1:
-                return parts[0][0].upper() + parts[0][0].upper()
-            else:
-                return name[0:2].upper() if len(name) >= 2 else (name[0].upper() + name[0].upper() if name else '??')
+                return (parts[0][0] + parts[-1][0]).upper()
+            if len(parts) == 1:
+                w = parts[0]
+                if len(w) >= 2:
+                    return w[0:2].upper()
+                if len(w) == 1:
+                    return (w[0] * 2).upper()
+            if addr and '@' in addr:
+                return _initials_from_local_part(addr.split('@', 1)[0])
+            if display and '@' in display:
+                return _initials_from_local_part(display.split('@', 1)[0])
+            return '??'
         except Exception:
             return '??'
     
@@ -1047,14 +1070,14 @@ def create_app(config_name='default'):
                             migrations_path = os.path.join(
                                 os.path.dirname(os.path.dirname(__file__)),
                                 'migrations',
-                                'migrate_security_features.py'
+                                'migrate_to_2.4.0.py'
                             )
                             if os.path.exists(migrations_path):
                                 env = os.environ.copy()
                                 env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
                                 try:
                                     result = subprocess.run(
-                                        [sys.executable, migrations_path],
+                                        [sys.executable, migrations_path, '--security-only'],
                                         capture_output=True,
                                         text=True,
                                         timeout=60,
@@ -1064,14 +1087,14 @@ def create_app(config_name='default'):
                                         print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
                                     else:
                                         print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
                                 except subprocess.TimeoutExpired:
                                     print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
                                 except Exception as exc:
                                     print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
                             else:
-                                print("[WARNUNG] Sicherheitsfeatures-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_security_features.py")
+                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2.4.0.py --security-only")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
@@ -1113,7 +1136,7 @@ def create_app(config_name='default'):
                                 print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_security_features.py")
+                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
 
                 try:
                     from sqlalchemy import inspect, text

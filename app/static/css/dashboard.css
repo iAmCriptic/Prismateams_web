@@ -56,3 +56,18 @@
     border-color: #2a2a2a !important;
     background-color: #000000 !important;
 }
+
+@media (max-width: 767.98px) {
+    .dashboard-page .widget {
+        padding: 1rem;
+    }
+
+    .dashboard-page .widget .card-title {
+        font-size: 1rem;
+    }
+
+    .dashboard-page .list-group-item {
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+    }
+}

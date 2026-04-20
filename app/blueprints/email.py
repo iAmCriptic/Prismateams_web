@@ -422,18 +422,15 @@ def plain_text_to_html(text: str) -> str:
     return ''.join(out)
 
 
-def build_quoted_reply_html(original_email) -> str:
-    """Build the HTML for the quoted original email that appears below our styled reply.
+def build_quoted_original_html(original_email, quote_kind: str = 'reply') -> str:
+    """HTML-Block für Originalnachricht unter unserem formatierten Text (Antwort oder Weiterleitung).
 
-    Produces a clean separator, a "<User> <<email>> schrieb am <date>:" header line
-    and the original message body. Kept intentionally simple so other mail clients
-    handle it gracefully and recipients can keep replying.
+    quote_kind: 'reply' | 'forward'
     """
     if original_email is None:
         return ''
 
     sender_raw = decode_header_field(original_email.sender) if original_email.sender else ''
-    # Split "Name <email>" into name + email parts, if possible
     name_part = sender_raw
     email_part = ''
     m = re.match(r'^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$', sender_raw)
@@ -450,7 +447,6 @@ def build_quoted_reply_html(original_email) -> str:
     except Exception:
         date_str = ''
 
-    # Body: prefer HTML, fall back to plain text
     body_inner = ''
     if original_email.body_html:
         try:
@@ -467,12 +463,48 @@ def build_quoted_reply_html(original_email) -> str:
         body_inner = '<p style="margin:0; color:#64748b; font-style:italic;">(leere Nachricht)</p>'
 
     from markupsafe import escape as _escape
-    header_line = f"Am {_escape(date_str)} schrieb {_escape(name_part)}"
-    if email_part and email_part.lower() != name_part.lower():
-        header_line += f" &lt;{_escape(email_part)}&gt;"
-    header_line += ":"
 
-    # Use inline styles only (email-safe). Keep this outside our branded container.
+    if quote_kind == 'forward':
+        title = translate('email.compose.quoted.forward_title')
+        subj_disp = decode_header_field(original_email.subject or '') or translate('email.compose.quoted.empty_subject')
+        to_disp = decode_header_field(original_email.recipients or '') if original_email.recipients else ''
+        cc_disp = decode_header_field(original_email.cc or '') if getattr(original_email, 'cc', None) else ''
+        sender_line = _escape(name_part)
+        if email_part and email_part.lower() != name_part.lower():
+            sender_line += f' &lt;{_escape(email_part)}&gt;'
+        inner = [
+            f'<p style="margin:0 0 6px 0; font-weight:600;">{_escape(title)}</p>',
+            f'<p style="margin:0 0 6px 0;"><strong>{_escape(translate("email.compose.quoted.forward_subject_label"))}</strong> '
+            f'{_escape(subj_disp)}</p>',
+            f'<p style="margin:0 0 6px 0;"><strong>{_escape(translate("email.compose.quoted.forward_date_label"))}</strong> '
+            f'{_escape(date_str)}</p>',
+            f'<p style="margin:0 0 6px 0;"><strong>{_escape(translate("email.compose.quoted.forward_from_label"))}</strong> '
+            f'{sender_line}</p>',
+        ]
+        if to_disp:
+            inner.append(
+                f'<p style="margin:0 0 6px 0;"><strong>{_escape(translate("email.compose.quoted.forward_to_label"))}</strong> '
+                f'{_escape(to_disp)}</p>'
+            )
+        if cc_disp:
+            inner.append(
+                f'<p style="margin:0;"><strong>{_escape(translate("email.compose.quoted.forward_cc_label"))}</strong> '
+                f'{_escape(cc_disp)}</p>'
+            )
+        header_block = (
+            '<div style="margin:0 0 12px 0; color:#64748b; font-size:13px; line-height:1.5;">'
+            + ''.join(inner)
+            + '</div>'
+        )
+    else:
+        header_line = f"Am {_escape(date_str)} schrieb {_escape(name_part)}"
+        if email_part and email_part.lower() != name_part.lower():
+            header_line += f" &lt;{_escape(email_part)}&gt;"
+        header_line += ":"
+        header_block = (
+            f'<p style="margin:0 0 12px 0; color:#64748b; font-size:13px; line-height:1.5;">{header_line}</p>'
+        )
+
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
         ' style="border-collapse:collapse; background-color:#f4f6f8; margin:0; padding:0;">'
@@ -482,7 +514,7 @@ def build_quoted_reply_html(original_email) -> str:
         ' font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;">'
         '<tr><td style="padding:8px 4px 0 4px;">'
         '<hr style="border:0; border-top:1px solid #cbd5e1; margin:0 0 16px 0;">'
-        f'<p style="margin:0 0 12px 0; color:#64748b; font-size:13px; line-height:1.5;">{header_line}</p>'
+        f'{header_block}'
         '<div class="quoted-original-body"'
         ' style="color:#475569; font-size:14px; line-height:1.6; word-break:break-word;'
         ' border-left:3px solid #cbd5e1; padding:4px 0 4px 14px;">'
@@ -490,6 +522,16 @@ def build_quoted_reply_html(original_email) -> str:
         '</div>'
         '</td></tr></table></td></tr></table>'
     )
+
+
+def build_quoted_reply_html(original_email) -> str:
+    """Zitat-Block für Antworten (Original unter dem Portal-Text)."""
+    return build_quoted_original_html(original_email, 'reply')
+
+
+def build_quoted_forward_html(original_email) -> str:
+    """Zitat-Block für Weiterleitungen (gleiche Darstellung wie Antwort, eigener Kopf)."""
+    return build_quoted_original_html(original_email, 'forward')
 
 
 def render_custom_email(subject: str, body_html: str, logo_cid: str = None, is_preview: bool = False,
@@ -2635,6 +2677,7 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
     return {
         'to': ', '.join(to_list),
         'cc': ', '.join(cc_list),
+        'bcc': '',
         'subject': subject,
         'body': body_prefill,
         'in_reply_to': email_msg.message_id or '',
@@ -2646,21 +2689,40 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
         # Used by the new reply flow: the compose form posts this id back so the
         # server can append the quoted original below our styled reply.
         'reply_to_email_id': email_msg.id,
+        'is_forward': False,
     }
 
 
 def build_forward_context(email_msg: EmailMessage, include_attachments: bool):
+    """Wie Antworten: Editor leer, Original wird beim Senden unter dem Portal-Text eingefügt."""
     subject = prefix_subject(email_msg.subject or '', 'Fwd')
-    body_prefill = quote_plain(email_msg)
+    first_line = ''
+    body_text = email_msg.body_text or ''
+    if not body_text and email_msg.body_html:
+        body_text = re.sub(r'<[^>]+>', '', email_msg.body_html)
+        body_text = body_text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+    if body_text:
+        lines = body_text.strip().split('\n')
+        first_line = lines[0].strip() if lines else ''
+        if len(first_line) > 100:
+            first_line = first_line[:100] + '...'
     attachment_ids = []
     if include_attachments:
         attachment_ids = [str(a.id) for a in email_msg.attachments]
     return {
         'to': '',
         'cc': '',
+        'bcc': '',
         'subject': subject,
-        'body': body_prefill,
-        'forward_attachment_ids': ','.join(attachment_ids)
+        'body': '',
+        'forward_attachment_ids': ','.join(attachment_ids),
+        'forward_from_email_id': email_msg.id,
+        'is_forward': True,
+        'is_reply': False,
+        'original_email': email_msg,
+        'original_first_line': first_line,
+        'in_reply_to': '',
+        'references': '',
     }
 
 
@@ -2792,6 +2854,7 @@ def compose():
         
         to = request.form.get('to', '').strip()
         cc = request.form.get('cc', '').strip()
+        bcc = request.form.get('bcc', '').strip()
         subject = request.form.get('subject', '').strip()
         body_html = request.form.get('body', '').strip()
         in_reply_to = request.form.get('in_reply_to', '').strip()
@@ -2801,6 +2864,8 @@ def compose():
         # New reply flow: client posts the id of the email we are replying to.
         # The server builds a quoted block and appends it below our styled reply.
         reply_to_email_id_raw = request.form.get('reply_to_email_id', '').strip()
+        forward_from_email_id_raw = request.form.get('forward_from_email_id', '').strip()
+        draft_id = request.form.get('draft_id', type=int)
         
         if not all([to, subject, body_html]):
             error_msg = 'Bitte füllen Sie alle Pflichtfelder aus.'
@@ -2828,8 +2893,7 @@ def compose():
             logo_cid = "portal_logo"
             # Logo-Bytes werden später als CID-Anhang hinzugefügt
         
-        # Build the quoted-original HTML when this is a reply so it can be
-        # embedded below our styled body.
+        # Zitiertes Original unter unserem Text (Antwort oder Weiterleitung)
         quoted_reply_html = None
         if reply_to_email_id_raw:
             try:
@@ -2840,6 +2904,15 @@ def compose():
                 logging.warning(f"Ungültige reply_to_email_id: {reply_to_email_id_raw}")
             except Exception as quote_exc:
                 logging.error(f"Fehler beim Aufbereiten der zitierten Original-E-Mail: {quote_exc}")
+        elif forward_from_email_id_raw:
+            try:
+                original_fwd = EmailMessage.query.get(int(forward_from_email_id_raw))
+                if original_fwd is not None:
+                    quoted_reply_html = build_quoted_forward_html(original_fwd)
+            except (ValueError, TypeError):
+                logging.warning(f"Ungültige forward_from_email_id: {forward_from_email_id_raw}")
+            except Exception as quote_exc:
+                logging.error(f"Fehler beim Aufbereiten der weitergeleiteten Original-E-Mail: {quote_exc}")
 
         full_body_html, full_body_plain = render_custom_email(
             subject, body_html, logo_cid=logo_cid, quoted_reply_html=quoted_reply_html
@@ -2876,7 +2949,9 @@ def compose():
                 msg.extra_headers['References'] = references
             
             if cc:
-                msg.cc = cc.split(',')
+                msg.cc = [a.strip() for a in cc.split(',') if a.strip()]
+            if bcc:
+                msg.bcc = [a.strip() for a in bcc.split(',') if a.strip()]
             
             # Füge Logo als ANHANG hinzu (wie andere Anhänge) - WICHTIG: Vor anderen Anhängen
             if logo_data and logo_mime_type and logo_cid:
@@ -3026,6 +3101,29 @@ def compose():
             
             send_email_with_lock(msg)
             
+            # Entwurf nach erfolgreichem Versand entfernen (lokal + IMAP), damit er nicht in Entwürfe bleibt
+            if draft_id:
+                draft_msg = EmailMessage.query.get(draft_id)
+                if (
+                    draft_msg
+                    and draft_msg.folder == 'Drafts'
+                    and draft_msg.sent_by_user_id == current_user.id
+                ):
+                    if draft_msg.imap_uid:
+                        imap_ok, imap_err = delete_email_from_imap(draft_msg.imap_uid, draft_msg.folder)
+                        if not imap_ok:
+                            logging.warning(
+                                'Entwurf %s konnte auf IMAP nicht gelöscht werden: %s',
+                                draft_id,
+                                imap_err,
+                            )
+                    db.session.delete(draft_msg)
+                elif draft_msg:
+                    logging.warning(
+                        'Ignoriere draft_id=%s beim Senden (kein Entwurf des Nutzers oder falscher Ordner).',
+                        draft_id,
+                    )
+            
             # E-Mail im IMAP Sent-Ordner speichern und Ordner-Namen ermitteln
             sent_folder_name = 'Sent'  # Fallback-Wert
             try:
@@ -3057,6 +3155,7 @@ def compose():
                 sender=sender,
                 recipients=to,
                 cc=cc,
+                bcc=bcc or None,
                 body_text=full_body_plain,
                 body_html=full_body_html,
                 folder=sent_folder_name,
@@ -3123,12 +3222,26 @@ def compose():
                     except:
                         cc_list = [draft_email.cc.strip()] if draft_email.cc and draft_email.cc.strip() else []
                     
+                    bcc_list = []
+                    raw_bcc = getattr(draft_email, 'bcc', None) or ''
+                    if raw_bcc:
+                        try:
+                            import json
+                            if isinstance(raw_bcc, str) and raw_bcc.startswith('['):
+                                bcc_data = json.loads(raw_bcc)
+                                bcc_list = [c.strip() for c in bcc_data if c and str(c).strip()]
+                            else:
+                                bcc_list = [str(raw_bcc).strip()] if str(raw_bcc).strip() else []
+                        except Exception:
+                            bcc_list = [str(raw_bcc).strip()] if str(raw_bcc).strip() else []
+                    
                     # Anhänge-IDs für Mitnahme
                     attachment_ids = [str(a.id) for a in draft_email.attachments]
                     
                     return render_template('email/compose.html',
                         to=', '.join(to_list) if to_list else '',
                         cc=', '.join(cc_list) if cc_list else '',
+                        bcc=', '.join(bcc_list) if bcc_list else '',
                         subject=draft_email.subject or '',
                         body=draft_email.body_html or '',
                         draft_id=draft_id,
@@ -3159,6 +3272,7 @@ def save_draft():
             data = request.get_json()
             to = (data.get('to') or '').strip()
             cc = (data.get('cc') or '').strip()
+            bcc = (data.get('bcc') or '').strip()
             subject = (data.get('subject') or '').strip()
             body_html = (data.get('body') or '').strip()
             in_reply_to = (data.get('in_reply_to') or '').strip()
@@ -3168,6 +3282,7 @@ def save_draft():
             data = request.form
             to = (data.get('to') or '').strip()
             cc = (data.get('cc') or '').strip()
+            bcc = (data.get('bcc') or '').strip()
             subject = (data.get('subject') or '').strip()
             body_html = (data.get('body') or '').strip()
             in_reply_to = (data.get('in_reply_to') or '').strip()
@@ -3219,6 +3334,7 @@ def save_draft():
             sender=sender,
             recipients=to or '',
             cc=cc,
+            bcc=bcc or None,
             body_text=body_text,
             body_html=body_html,
             folder='Drafts',
@@ -3323,19 +3439,26 @@ def preview_custom_email():
     subject = (data.get('subject') or '').strip()
     body_html = (data.get('body') or '').strip()
     reply_to_email_id_raw = str(data.get('reply_to_email_id') or '').strip()
+    forward_from_email_id_raw = str(data.get('forward_from_email_id') or '').strip()
 
     if not body_html:
         return jsonify({'error': translate('email.errors.message_missing')}), 400
 
     try:
-        # When the compose view is a reply, show the quoted original in the preview
-        # so the user sees exactly what the recipient will receive.
+        # Antwort oder Weiterleitung: zitiertes Original in der Vorschau
         quoted_reply_html = None
         if reply_to_email_id_raw:
             try:
                 original = EmailMessage.query.get(int(reply_to_email_id_raw))
                 if original is not None:
                     quoted_reply_html = build_quoted_reply_html(original)
+            except (ValueError, TypeError):
+                pass
+        elif forward_from_email_id_raw:
+            try:
+                original_fwd = EmailMessage.query.get(int(forward_from_email_id_raw))
+                if original_fwd is not None:
+                    quoted_reply_html = build_quoted_forward_html(original_fwd)
             except (ValueError, TypeError):
                 pass
 
@@ -3732,16 +3855,23 @@ def create_folder():
     })
 
 
-@email_bp.route('/folders/<path:folder_name>', methods=['DELETE'])
+@email_bp.route('/folders/delete', methods=['POST', 'DELETE'])
 @login_required
 @check_module_access('module_email')
-def delete_folder(folder_name):
-    """Delete a custom IMAP folder."""
+def delete_folder():
+    """Delete a custom IMAP folder (folder name in JSON body or query param)."""
     if not check_email_permission('read'):
         return jsonify({'success': False, 'error': translate('email.errors.unauthorized')}), 403
 
-    from urllib.parse import unquote
-    folder_name = unquote(folder_name or '').strip()
+    payload = request.get_json(silent=True) or {}
+    folder_name = (
+        payload.get('name')
+        or request.values.get('name')
+        or request.args.get('name')
+        or ''
+    ).strip()
+    if not folder_name:
+        return jsonify({'success': False, 'error': 'Ordnername fehlt'}), 400
 
     folder_obj = EmailFolder.query.filter_by(name=folder_name).first()
     if not folder_obj:
@@ -3749,7 +3879,7 @@ def delete_folder(folder_name):
     if folder_obj.is_system or folder_obj.folder_type == 'standard':
         return jsonify({'success': False, 'error': 'Systemordner können nicht gelöscht werden'}), 400
 
-    force = bool(request.args.get('force') or (request.get_json(silent=True) or {}).get('force'))
+    force = bool(request.args.get('force') or payload.get('force'))
 
     contained_children = EmailFolder.query.filter_by(parent_folder=folder_name).count()
     contained_emails = EmailMessage.query.filter_by(folder=folder_name).count()

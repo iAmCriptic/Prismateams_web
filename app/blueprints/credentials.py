@@ -101,7 +101,7 @@ def parse_folder_id(raw_folder_id):
 def index():
     """List all credentials."""
     credentials = Credential.query.order_by(Credential.website_name).all()
-    folders = CredentialFolder.query.order_by(Credential.position.asc(), Credential.name.asc()).all()
+    folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
 
     credentials_by_folder = {folder.id: [] for folder in folders}
     root_credentials = []

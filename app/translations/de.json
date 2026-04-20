@@ -1233,24 +1233,43 @@
       },
       "buttons": {
         "compose": "Neue E-Mail",
-        "sync": "Synchronisieren"
+        "sync": "Synchronisieren",
+        "new_folder": "Neuer Ordner",
+        "cancel": "Abbrechen"
       },
       "folder_default": "Posteingang",
       "labels": {
         "new_badge": "Neu",
         "move_to_folder": "In Ordner verschieben",
         "empty": "Keine E-Mails vorhanden",
-        "options_title": "Optionen"
+        "options_title": "Optionen",
+        "has_attachments": "Enthält Anhänge"
       },
       "actions": {
         "view": "Anzeigen",
         "reply": "Antworten",
         "reply_all": "Allen antworten",
         "forward": "Weiterleiten",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "mark_read": "Als gelesen markieren",
+        "mark_unread": "Als ungelesen markieren",
+        "set_color_dot": "Farbpunkt setzen",
+        "color_none": "Keine Farbe",
+        "delete_folder": "Ordner löschen"
       },
       "confirm": {
-        "delete_email": "E-Mail wirklich löschen?"
+        "delete_email": "E-Mail wirklich löschen?",
+        "delete_folder": "Ordner '{folder}' wirklich löschen?",
+        "delete_folder_force": "Der Ordner ist nicht leer. Soll er inklusive aller Inhalte gelöscht werden?"
+      },
+      "folder_create": {
+        "title": "Neuen Ordner erstellen",
+        "name_label": "Ordnername",
+        "parent_label": "Übergeordneter Ordner",
+        "parent_none": "Kein übergeordneter Ordner (oberste Ebene)",
+        "submit": "Ordner erstellen",
+        "hint": "Unterordner werden über den gewählten übergeordneten Ordner verschachtelt.",
+        "error_name_required": "Bitte geben Sie einen Ordnernamen ein."
       },
       "folders": {
         "INBOX": "Posteingang",
@@ -1265,7 +1284,11 @@
       },
       "messages": {
         "sync_failed": "Synchronisation fehlgeschlagen",
-        "sync_error": "Fehler bei der Synchronisation. Bitte versuchen Sie es erneut."
+        "sync_error": "Fehler bei der Synchronisation. Bitte versuchen Sie es erneut.",
+        "move_success": "E-Mail verschoben",
+        "move_error": "E-Mail konnte nicht verschoben werden",
+        "folder_deleted": "Ordner gelöscht",
+        "color_local_only": "Farbpunkt nur lokal gespeichert (IMAP unterstützt keine Keywords)."
       }
     },
     "compose": {
@@ -1281,6 +1304,9 @@
         "to_help": "Mehrere Empfänger mit Komma trennen",
         "cc": "CC (optional)",
         "cc_placeholder": "cc@example.com",
+        "bcc": "BCC (optional)",
+        "bcc_placeholder": "bcc@example.com",
+        "bcc_help": "Blindkopie: Adressen hier sind für andere Empfänger unsichtbar.",
         "subject": "Betreff"
       },
       "editor": {
@@ -1303,6 +1329,19 @@
       "reply_context": {
         "prefix": "Antwort an",
         "hint": "Die Originalnachricht wird automatisch unter Ihrer Antwort angehängt."
+      },
+      "forward_context": {
+        "prefix": "Weiterleitung von",
+        "hint": "Die Originalnachricht wird wie bei einer Antwort automatisch unter Ihrem Text angehängt."
+      },
+      "quoted": {
+        "forward_title": "Weitergeleitete Nachricht",
+        "empty_subject": "(Kein Betreff)",
+        "forward_subject_label": "Betreff:",
+        "forward_date_label": "Datum:",
+        "forward_from_label": "Von:",
+        "forward_to_label": "An:",
+        "forward_cc_label": "CC:"
       },
       "attachments": {
         "label": "Anhänge (optional)",
@@ -1402,6 +1441,8 @@
         "move_error": "Eintrag konnte nicht verschoben werden."
       },
       "folders": {
+        "open_button": "Ordner erstellen",
+        "modal_title": "Neuen Ordner anlegen",
         "name": "Ordnername",
         "color": "Farbe",
         "create": "Ordner erstellen",

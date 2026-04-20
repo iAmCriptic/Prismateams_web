@@ -158,7 +158,7 @@ def browse_folder(folder_id):
     """Browse a specific folder."""
     # Gast-Accounts: Nur Freigabelinks anzeigen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        from app.utils.access_control import get_guest_accessible_items
+        from app.utils.access_control import get_guest_accessible_items, get_guest_directly_shared_folders
         accessible_files, accessible_folders = get_guest_accessible_items(current_user)
         accessible_folder_ids = {folder.id for folder in accessible_folders}
         
@@ -176,13 +176,17 @@ def browse_folder(folder_id):
         if folder_id:
             subfolders = [f for f in accessible_folders if f.parent_id == folder_id]
         else:
-            # Root zeigt alle zugänglichen Einstiegspunkte:
-            # - echte Root-Ordner
-            # - freigegebene Unterordner, deren Parent nicht zugänglich ist
-            subfolders = [
+            # Root zeigt explizit freigegebene Ordner als Einstiegspunkte
+            # sowie Fallback-Roots (wenn ein Parent nicht zugänglich ist).
+            directly_shared_folders = get_guest_directly_shared_folders(current_user)
+            root_like_folders = [
                 f for f in accessible_folders
                 if f.parent_id is None or f.parent_id not in accessible_folder_ids
             ]
+            unique_folders = {}
+            for folder in directly_shared_folders + root_like_folders:
+                unique_folders[folder.id] = folder
+            subfolders = list(unique_folders.values())
         
         # Zeige nur zugängliche Dateien im aktuellen Ordner
         # (get_guest_accessible_items gibt bereits alle Dateien inkl. Unterordnern zurück)

@@ -1,4 +1,10 @@
 {% extends "assessment/print_base.html" %}
+{# Bei aktivem Plan: Seitenumbruch nach Legende; „Powered by“ erst am Dokumentende (nach Ständen). #}
+{% block print_footer %}
+{% if not plan %}
+{{ super() }}
+{% endif %}
+{% endblock %}
 {% block title %}Lageplan drucken{% endblock %}
 {% block document_title %}Lageplan{% endblock %}
 {% block document_subtitle %}
@@ -14,6 +20,21 @@
 {% block extra_style %}
 <style>
     @page { size: A4 landscape; margin: 14mm 12mm 16mm 12mm; }
+    /* Nach Legende: neue Seite für Stände (leerer Marker, damit der Umbruch zuverlässig greift) */
+    .print-lageplan-break-before-stands {
+        break-after: page;
+        page-break-after: always;
+        height: 1px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-size: 0;
+        line-height: 0;
+    }
+    .print-lageplan-stands {
+        break-before: auto;
+        page-break-before: auto;
+    }
     .plan-image-wrap {
         border: 1px solid #dee2e6;
         border-radius: 10px;
@@ -27,20 +48,28 @@
         display: block;
         margin: 0 auto;
     }
+    /* Legende immer in einer Zeile (auch im schmalen Vorschau-Fenster) */
     .legend-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: stretch;
         gap: 8px;
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
     .legend-item {
+        flex: 1 1 0;
+        min-width: 0;
         border: 1px solid #dee2e6;
         border-radius: 8px;
-        padding: 8px 10px;
-        font-size: 12px;
+        padding: 6px 8px;
+        font-size: 11px;
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
         background: #f8f9fa;
+        text-align: center;
     }
     .legend-item i {
         margin-right: 6px;
@@ -50,9 +79,12 @@
     .stand-table th {
         font-size: 11px !important;
     }
-    @media (max-width: 900px) {
+    @media print {
         .legend-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            flex-wrap: nowrap;
+        }
+        .plan-image {
+            max-height: 120mm;
         }
     }
 </style>
@@ -64,7 +96,6 @@
     Es ist aktuell kein aktiver Lageplan vorhanden.
 </div>
 {% else %}
-<h2 class="print-section-title">Planansicht</h2>
 <div class="plan-image-wrap mb-3">
     <img src="{{ plan.image_url }}" alt="Lageplan {{ plan.name }}" class="plan-image">
 </div>
@@ -77,6 +108,9 @@
     <div class="legend-item"><span><i class="bi bi-badge-wc"></i>WC</span></div>
 </div>
 
+<div class="print-lageplan-break-before-stands" aria-hidden="true">&nbsp;</div>
+
+<div class="print-lageplan-stands">
 <h2 class="print-section-title">Stände (mit Namen)</h2>
 {% if stand_entries %}
 <table class="print-table stand-table">
@@ -100,5 +134,11 @@
 {% else %}
 <div class="alert alert-secondary mb-0">Keine Stände im aktiven Lageplan vorhanden.</div>
 {% endif %}
+</div>
+
+<footer class="print-footer print-lageplan-final-footer">
+    <span></span>
+    <span class="powered">Powered by <strong>{{ assessment_portal_name }}</strong></span>
+</footer>
 {% endif %}
 {% endblock %}
