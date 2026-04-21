@@ -372,10 +372,9 @@ def create_app(config_name='default'):
             if chat.is_direct_message and not chat.is_main_chat:
                 from app.models.chat import ChatMember
                 from app.models.user import User
-                # Filter out guest accounts when getting members
+                from app.utils.chat_visibility import visible_chat_user_filters
                 members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                    ~User.is_guest,
-                    User.email != 'anonymous@system.local'
+                    *visible_chat_user_filters(),
                 ).all()
                 for member in members:
                     if member.user_id != current_user.id:
@@ -386,18 +385,17 @@ def create_app(config_name='default'):
             return chat.name
         
         def get_other_chat_user(chat):
-            """Returns the other user in a private chat (excluding guest accounts). Returns None if not a private chat or if other user is a guest account."""
+            """Returns the other user in a private chat."""
             from flask_login import current_user
             from app.models.chat import ChatMember
             from app.models.user import User
+            from app.utils.chat_visibility import visible_chat_user_filters
             
             if not chat or not chat.is_direct_message or chat.is_main_chat:
                 return None
             
-            # Filter out guest accounts when getting members
             members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                ~User.is_guest,
-                User.email != 'anonymous@system.local'
+                *visible_chat_user_filters(),
             ).all()
             
             for member in members:
@@ -1109,6 +1107,15 @@ def create_app(config_name='default'):
                                     "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
+
+                    # Chat-Messages: metadata_json für strukturierte Nachrichtentypen ergänzen
+                    if 'chat_messages' in inspector.get_table_names():
+                        chat_columns = {col['name'] for col in inspector.get_columns('chat_messages')}
+                        if 'metadata_json' not in chat_columns:
+                            print("[INFO] Ergänze chat_messages.metadata_json ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE chat_messages ADD COLUMN metadata_json TEXT"))
+                            print("[OK] chat_messages.metadata_json hinzugefügt")
 
                     # Kontakte: sort_name für flexible Sortierung ergänzen
                     if 'contacts' in inspector.get_table_names():

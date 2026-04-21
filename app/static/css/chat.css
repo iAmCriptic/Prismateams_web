@@ -11,6 +11,10 @@
     box-shadow: none;
 }
 
+.chat-input-container {
+    position: relative;
+}
+
 .chat-message.own {
     margin-left: auto;
     align-items: flex-end;
@@ -1487,6 +1491,201 @@
     flex-shrink: 0;
 }
 
+.message-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.message-card-icon {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background: var(--accent-style);
+    color: #fff;
+}
+
+.message-card-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.message-card-body a {
+    word-break: break-all;
+}
+
+.attachment-popup {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 0.5rem;
+    z-index: 1045;
+    border: 1px solid var(--chat-muted-border);
+    border-radius: 0.75rem;
+    background: var(--chat-elevated);
+    padding: 0.5rem;
+    min-width: 240px;
+}
+
+.attachment-popup.show {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.attachment-action {
+    text-align: left;
+    border: 1px solid var(--chat-muted-border);
+    background: var(--chat-surface);
+    color: var(--chat-text);
+}
+
+.attachment-action:hover,
+.attachment-action:focus-visible {
+    border-color: var(--bs-primary);
+    background: var(--chat-elevated);
+    color: var(--chat-text);
+}
+
+/* ===== Chat Theme Normalization (Light / Dark / OLED) ===== */
+:root {
+    --chat-surface: #f8f9fa;
+    --chat-elevated: #ffffff;
+    --chat-muted-border: #e9ecef;
+    --chat-text: #212529;
+    --chat-text-muted: #6c757d;
+    --chat-message-other-bg: #ffffff;
+    --chat-message-other-border: #e9ecef;
+    --chat-poll-fill: rgba(13, 110, 253, 0.16);
+}
+
+[data-bs-theme="dark"] {
+    --chat-surface: #12161b;
+    --chat-elevated: #1a2027;
+    --chat-muted-border: #2f3741;
+    --chat-text: #e6ecf2;
+    --chat-text-muted: #9aa7b5;
+    --chat-message-other-bg: #202833;
+    --chat-message-other-border: #343f4c;
+    --chat-poll-fill: rgba(72, 149, 239, 0.22);
+}
+
+[data-bs-theme="dark"][data-oled-mode="true"] {
+    --chat-surface: #000000;
+    --chat-elevated: #0a0a0a;
+    --chat-muted-border: #1d1d1d;
+    --chat-text: #f1f5f9;
+    --chat-text-muted: #94a3b8;
+    --chat-message-other-bg: #0d0d0d;
+    --chat-message-other-border: #222222;
+    --chat-poll-fill: rgba(99, 179, 237, 0.26);
+}
+
+.chat-container,
+.messages-area,
+.desktop-chat-sidebar,
+.desktop-chat-sidebar .sidebar-header,
+.chat-input-container,
+.mobile-input-group,
+.attachment-popup,
+.message-card {
+    background-color: var(--chat-elevated) !important;
+    border-color: var(--chat-muted-border) !important;
+    color: var(--chat-text) !important;
+}
+
+.messages-area {
+    background-color: var(--chat-surface) !important;
+}
+
+.chat-message.other .message-content {
+    background-color: var(--chat-message-other-bg) !important;
+    border-color: var(--chat-message-other-border) !important;
+    color: var(--chat-text) !important;
+}
+
+body .messages-area .message-content {
+    color: var(--chat-text) !important;
+}
+
+body .messages-area .chat-message.other .message-content {
+    background-color: var(--chat-message-other-bg) !important;
+    border-color: var(--chat-message-other-border) !important;
+}
+
+.message-header,
+.message-time,
+.member-count,
+.member-role,
+.member-card-email,
+.member-card-phone,
+.message-card small,
+.chat-info-details p,
+.chat-info-details strong {
+    color: var(--chat-text-muted) !important;
+}
+
+.member-name,
+.member-card-name,
+.chat-title,
+.message-content,
+.message-card-body,
+.message-card-body a {
+    color: var(--chat-text) !important;
+}
+
+/* Poll option bar with relative fill against top option */
+.poll-option-btn {
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+    border-color: var(--accent-color) !important;
+    color: var(--chat-text) !important;
+    background: transparent !important;
+}
+
+.poll-option-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
+    background: var(--chat-poll-fill);
+    pointer-events: none;
+}
+
+.poll-option-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.poll-vote-count {
+    min-width: 1.6rem;
+    text-align: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--chat-muted-border);
+    font-size: 0.75rem;
+    line-height: 1.2rem;
+    color: var(--chat-text);
+}
+
+[data-bs-theme="dark"] .poll-vote-count {
+    background: rgba(0, 0, 0, 0.28);
+}
+
 /* Mobile Chat Input - Modern Design (ONLY MOBILE) */
 @media (max-width: 767.98px) {
     .chat-input-container {
@@ -1580,6 +1779,33 @@
     }
 }
 
+/* Mobile hotfix: keep messages above composer (incl. safe-area) */
+@media (max-width: 767.98px) {
+    :root {
+        --chat-mobile-composer-space: 160px;
+    }
+
+    body .chat-input-container {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body .messages-area {
+        margin-bottom: 0 !important;
+        padding-bottom: calc(var(--chat-mobile-composer-space) + env(safe-area-inset-bottom, 0px)) !important;
+        scroll-padding-bottom: calc(var(--chat-mobile-composer-space) + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body .messages-area .chat-message:last-child {
+        margin-bottom: 0.8rem !important;
+    }
+
+    body .messages-area .message-time small {
+        display: inline-block;
+        line-height: 1.2;
+        padding-bottom: 2px;
+    }
+}
+
 @media (min-width: 768px) {
     .chat-input-container {
         position: fixed !important;
@@ -1596,6 +1822,7 @@
         z-index: 1000;
         height: auto;
         min-height: 70px;
+        overflow: visible;
     }
     
     /* Account for main navigation sidebar on larger screens */

@@ -959,6 +959,26 @@ def migrate_assessment_module():
     return True
 
 
+def migrate_chat_message_metadata():
+    """Erweitert chat_messages um metadata_json fuer strukturierte Nachrichtentypen."""
+    print("\n" + "=" * 60)
+    print("Migration: chat_messages metadata_json")
+    print("=" * 60)
+    if not table_exists("chat_messages"):
+        print("[INFO] Tabelle chat_messages existiert nicht - uebersprungen")
+        return True
+
+    columns = get_table_columns("chat_messages")
+    if "metadata_json" not in columns:
+        print("[INFO] Fuege metadata_json zu chat_messages hinzu...")
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE chat_messages ADD COLUMN metadata_json TEXT NULL"))
+        print("[OK] Spalte metadata_json hinzugefuegt")
+    else:
+        print("[INFO] Spalte metadata_json existiert bereits")
+    return True
+
+
 def migrate(security_only: bool = False):
     """Führt alle konsolidierten Migrationen aus (Reihenfolge: Kern → Sicherheit → Assessment).
 
@@ -995,6 +1015,7 @@ def migrate(security_only: bool = False):
                 ("contacts", migrate_contacts_table),
                 ("Passwort-Reset-Felder", migrate_password_reset_fields),
                 ("Sicherheitsfeatures", migrate_security_features),
+                ("Chat-Metadaten", migrate_chat_message_metadata),
                 ("Assessment-Modul", migrate_assessment_module),
             ]
             total = len(steps)

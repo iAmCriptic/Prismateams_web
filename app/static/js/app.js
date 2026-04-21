@@ -230,11 +230,9 @@ class PermissionManager {
     async init() {
         // Prüfe aktuelle Berechtigungen
         await this.checkPermissions();
-        
-        // Zeige Berechtigungsanfragen nach kurzer Verzögerung
-        setTimeout(() => {
-            this.requestPermissions();
-        }, 2000);
+
+        // Mikrofon-Berechtigung wird nur bei expliziter Benutzeraktion angefragt
+        this.setupMicrophonePermissionRequest();
     }
     
     async checkPermissions() {
@@ -257,12 +255,10 @@ class PermissionManager {
     }
     
     async requestPermissions() {
-        // Zeige Berechtigungsanfragen nur wenn nötig
+        // Berechtigungen nur bei Bedarf anfragen (manuell ausgelöst)
         if (this.permissions.notifications === 'default') {
             await this.requestNotificationPermission();
         }
-        
-        // Mikrofon-Berechtigung wird erst bei Bedarf angefragt
         this.setupMicrophonePermissionRequest();
     }
     
@@ -374,25 +370,26 @@ class ServerPushManager {
         this.pushStatus = null;
         this.isRegistering = false;
         this.registerDebounceTimer = null;
+        this.pushActivationPromptId = 'push-activation-prompt';
+        this.pushActivationPromptSessionKey = 'pushActivationPromptHandled';
         this.init();
     }
     
     init() {
         // Prüfe Push-Status beim Laden
         this.checkPushStatus().then((status) => {
-            // Automatisch registrieren, wenn:
-            // 1. Berechtigung bereits erteilt wurde UND keine Subscription existiert
-            // 2. ODER Berechtigung noch nicht angefragt wurde (default) UND keine Subscription existiert
-            if (status && !status.subscribed && isPushEnvironmentReady()) {
-                if (status.permission === 'granted') {
-                    // Berechtigung bereits erteilt - sofort registrieren
-                    this.debouncedRegister();
-                } else if (status.permission === 'default') {
-                    // Berechtigung noch nicht angefragt - nach kurzer Verzögerung anfragen und registrieren
-                    setTimeout(() => {
-                        this.debouncedRegister();
-                    }, 1000);
-                }
+            if (!status) {
+                return;
+            }
+
+            // Berechtigung bereits erteilt -> registrieren (nur wenn technisch möglich)
+            if (!status.subscribed && status.permission === 'granted' && isPushEnvironmentReady()) {
+                this.debouncedRegister();
+            }
+
+            // Berechtigung noch offen -> immer eigenes Portal-Prompt anbieten
+            if (status.permission === 'default') {
+                this.schedulePushActivationPrompt();
             }
         });
         
@@ -433,6 +430,80 @@ class ServerPushManager {
     isPushSupported() {
         return 'serviceWorker' in navigator && 'PushManager' in window;
     }
+
+    isPortalLayoutVisible() {
+        return !!(document.getElementById('desktopSidebar') || document.getElementById('mobileNav'));
+    }
+
+    showPushActivationPrompt() {
+        if (!document.body) {
+            return;
+        }
+        if (!('Notification' in window) || Notification.permission !== 'default') {
+            return;
+        }
+        if (sessionStorage.getItem(this.pushActivationPromptSessionKey) === '1') {
+            return;
+        }
+        if (document.getElementById(this.pushActivationPromptId)) {
+            return;
+        }
+
+        const prompt = document.createElement('div');
+        prompt.id = this.pushActivationPromptId;
+        prompt.className = 'card shadow-sm border-0';
+        prompt.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1080; max-width: 360px;';
+        prompt.innerHTML = `
+            <div class="card-body p-3">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-bell fs-5 text-primary mt-1"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-2">Push-Benachrichtigungen auf dem Gerät aktivieren?</h6>
+                        <p class="text-muted small mb-3">Sie erhalten dann neue Nachrichten direkt als Benachrichtigung.</p>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-primary" data-push-activate="yes">Ja</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-push-activate="later">Später</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(prompt);
+
+        const yesButton = prompt.querySelector('[data-push-activate="yes"]');
+        const laterButton = prompt.querySelector('[data-push-activate="later"]');
+
+        yesButton?.addEventListener('click', async () => {
+            sessionStorage.setItem(this.pushActivationPromptSessionKey, '1');
+            this.hidePushActivationPrompt();
+            await this.registerPushNotifications();
+        });
+
+        laterButton?.addEventListener('click', () => {
+            sessionStorage.setItem(this.pushActivationPromptSessionKey, '1');
+            this.hidePushActivationPrompt();
+        });
+    }
+
+    schedulePushActivationPrompt() {
+        // Kurz verzögert anzeigen, damit Layout/DOM sicher da sind
+        setTimeout(() => {
+            this.showPushActivationPrompt();
+        }, 600);
+
+        // Fallback: falls direkt nach Login noch etwas nachlädt
+        setTimeout(() => {
+            this.showPushActivationPrompt();
+        }, 1800);
+    }
+
+    hidePushActivationPrompt() {
+        const prompt = document.getElementById(this.pushActivationPromptId);
+        if (prompt) {
+            prompt.remove();
+        }
+    }
     
     debouncedRegister() {
         if (this.registerDebounceTimer) {
@@ -462,10 +533,13 @@ class ServerPushManager {
             }
             
             if (permission !== 'granted') {
+                this.hidePushActivationPrompt();
                 this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission });
                 this.showTestResult('warning', 'Push-Benachrichtigungen wurden verweigert. Bitte erlauben Sie Benachrichtigungen in den Browser-Einstellungen.');
                 return false;
             }
+
+            this.hidePushActivationPrompt();
             
             // Registriere Service Worker
             const registration = await navigator.serviceWorker.ready;

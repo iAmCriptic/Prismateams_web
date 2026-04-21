@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
-from app import db
+from app import db, socketio
 from app.models.user import User
 from app.models.notification import PushSubscription, NotificationLog, NotificationSettings, ChatNotificationSettings
 from app.models.chat import Chat, ChatMessage, ChatMember
@@ -353,6 +353,42 @@ def send_chat_notification(
             logging.warning(f"Chat-Push-Benachrichtigung fehlgeschlagen für Benutzer {user.id}")
     
     return sent_count
+
+
+def enqueue_chat_notification(
+    chat_id: int,
+    sender_id: int,
+    message_content: str,
+    chat_name: str = None,
+    message_id: int = None,
+):
+    """Startet den Chat-Push-Versand asynchron im Hintergrund."""
+    app = current_app._get_current_object()
+
+    def _run_in_background():
+        with app.app_context():
+            try:
+                send_chat_notification(
+                    chat_id=chat_id,
+                    sender_id=sender_id,
+                    message_content=message_content,
+                    chat_name=chat_name,
+                    message_id=message_id,
+                )
+            except Exception as exc:
+                logging.error(f"Asynchroner Chat-Push fehlgeschlagen: {exc}")
+
+    try:
+        socketio.start_background_task(_run_in_background)
+    except Exception as exc:
+        logging.warning(f"Background-Task konnte nicht gestartet werden, fallback synchron: {exc}")
+        send_chat_notification(
+            chat_id=chat_id,
+            sender_id=sender_id,
+            message_content=message_content,
+            chat_name=chat_name,
+            message_id=message_id,
+        )
 
 
 def send_file_notification(
@@ -774,20 +810,18 @@ def cleanup_inactive_subscriptions():
 def cleanup_failed_subscriptions():
     """Bereinigt fehlgeschlagene Push-Subscriptions basierend auf WebPush-Fehlern."""
     try:
-        old_subscriptions = PushSubscription.query.filter_by(is_active=True).all()
-        
-        deactivated_count = 0
-        for subscription in old_subscriptions:
-            if subscription.created_at < datetime.utcnow() - timedelta(hours=1):
-                subscription.is_active = False
-                deactivated_count += 1
-        
-        if deactivated_count > 0:
+        # Diese Routine entfernt nur bereits als inaktiv markierte Leichen.
+        stale_inactive = PushSubscription.query.filter(
+            PushSubscription.is_active == False,
+            PushSubscription.last_used < datetime.utcnow() - timedelta(days=60),
+        ).all()
+        if stale_inactive:
+            for subscription in stale_inactive:
+                db.session.delete(subscription)
             db.session.commit()
-            logging.info(f"{deactivated_count} alte Push-Subscriptions deaktiviert")
-            
+            logging.info(f"{len(stale_inactive)} inaktive Push-Subscriptions entfernt")
     except Exception as e:
-        logging.error(f"Fehler beim Bereinigen alter Subscriptions: {e}")
+        logging.error(f"Fehler beim Bereinigen fehlgeschlagener Subscriptions: {e}")
 
 def deactivate_failed_subscription(subscription_id, error_type="410"):
     """Deaktiviert eine spezifische fehlgeschlagene Subscription."""
