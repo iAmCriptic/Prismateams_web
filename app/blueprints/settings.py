@@ -1565,14 +1565,24 @@ def admin_modules():
                            module_assessment_enabled=module_assessment_enabled)
 
 
-@settings_bp.route('/admin/modules/assessment-admin', methods=['POST'])
+@settings_bp.route('/admin/modules/assessment-admin', methods=['GET', 'POST'])
 @login_required
 def admin_modules_create_assessment_admin():
     """Schnellanlegen eines Assessment-Modul-Administrators (nur Portal-Admins)."""
     from flask import jsonify
 
     if not current_user.is_admin:
+        if request.method == 'GET':
+            flash(translate('settings.admin.flash_unauthorized'), 'danger')
+            return redirect(url_for('settings.index'))
         return jsonify({'success': False, 'message': 'Nur Portal-Administratoren.'}), 403
+
+    if request.method == 'GET':
+        from app.utils.common import is_module_enabled
+        if not is_module_enabled('module_assessment'):
+            flash('Das Bewertungs-Modul ist aktuell deaktiviert.', 'warning')
+            return redirect(url_for('settings.admin'))
+        return render_template('settings/admin_assessment_admin.html')
 
     from app.models.assessment import AssessmentRole, AssessmentUser
 

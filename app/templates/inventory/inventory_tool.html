@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Inventurtool - Team Portal{% endblock %}
+{% block title %}Inventurtool - {{ app_name or 'Rpismateams' }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">

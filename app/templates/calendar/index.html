@@ -4,12 +4,12 @@
 
 {% block content %}
 <div class="row mb-3 page-toolbar-row align-items-start g-2">
-    <div class="col-12 col-lg-8 min-width-0">
+    <div class="col min-width-0">
         <h1 class="text-break"><i class="bi bi-calendar-event"></i> {{ _('calendar.index.heading') }}</h1>
     </div>
-    <div class="col-12 col-lg-4">
-        <div class="d-flex flex-wrap align-items-center gap-2">
-        <div class="btn-group mb-0" role="group">
+    <div class="col-auto">
+        <div class="d-flex flex-nowrap align-items-center gap-2 justify-content-end overflow-auto pb-1">
+        <div class="btn-group mb-0 flex-shrink-0" role="group">
             <button type="button" class="btn btn-accent active" id="monthViewBtn">
                 <i class="bi bi-calendar-month"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.month') }}</span>
             </button>
@@ -23,7 +23,7 @@
                 <i class="bi bi-list-ul"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.list') }}</span>
             </button>
         </div>
-        <div class="btn-group" role="group">
+        <div class="btn-group flex-shrink-0" role="group">
             <a href="{{ url_for('calendar.create_event') }}" class="btn btn-accent">
                 <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">{{ _('calendar.index.new_event') }}</span>
             </a>
@@ -220,6 +220,22 @@ function getMultiDayProgress(event, currentDateStr) {
 function formatMultiDayTitle(event, currentDateStr) {
     const { dayNumber, totalDays } = getMultiDayProgress(event, currentDateStr);
     return `${event.title} (Tag ${dayNumber} / ${totalDays})`;
+}
+
+const MULTI_DAY_EVENT_COLOR = '#334155';
+
+function isDarkThemeActive() {
+    const rootTheme = document.documentElement.getAttribute('data-bs-theme');
+    if (rootTheme) return rootTheme === 'dark';
+    const bodyTheme = document.body ? document.body.getAttribute('data-bs-theme') : null;
+    return bodyTheme === 'dark';
+}
+
+function applyEventColors(eventElement, eventColor, isMultiDay = false) {
+    const baseColor = eventColor || (isMultiDay ? MULTI_DAY_EVENT_COLOR : '#0d6efd');
+    eventElement.style.backgroundColor = hexToRgba(baseColor, 0.22);
+    eventElement.style.color = isDarkThemeActive() ? getContrastTextColor(baseColor) : '#1f2937';
+    eventElement.style.borderLeftColor = baseColor;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -501,7 +517,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     dayEvents.multi.forEach(({ event, day }) => {
                         const currentDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                         const eventElement = createEventElement(event, true);
-                        eventElement.classList.add('multi-day');
                         eventElement.textContent = formatMultiDayTitle(event, currentDateStr);
                         
                         dayCell.appendChild(eventElement);
@@ -531,10 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eventElement.textContent = event.title;
         const timeText = event.time || 'Ganztägig';
         eventElement.title = `${event.title} - ${timeText}${event.location ? ' - ' + event.location : ''}`;
-        const eventColor = event.event_color || '#0d6efd';
-        eventElement.style.backgroundColor = hexToRgba(eventColor, 0.22);
-        eventElement.style.borderLeftColor = eventColor;
-        eventElement.style.color = getContrastTextColor(eventColor);
+        applyEventColors(eventElement, event.event_color, isMultiDay);
         
         // Make event clickable
         eventElement.style.cursor = 'pointer';
@@ -690,9 +702,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
                         `;
                         eventElement.title = formatTooltip(event);
-                        eventElement.style.backgroundColor = hexToRgba(eventColor, 0.26);
-                        eventElement.style.borderLeftColor = eventColor;
-                        eventElement.style.color = getContrastTextColor(eventColor);
+                        applyEventColors(eventElement, eventColor, false);
                         eventElement.onclick = () => window.location.href = event.url;
                         timeSlot.appendChild(eventElement);
                     }
@@ -716,18 +726,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             if (multiDaySlot) {
                                 const eventElement = document.createElement('div');
-                                eventElement.className = `calendar-event multi-day ${event.participation_status || 'pending'}`;
-                                const eventColor = event.event_color || '#0d6efd';
+                                eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
                                 const titleText = formatMultiDayTitle(event, currentDateStr);
-                                
-                                eventElement.innerHTML = `
-                                    ${titleText}
-                                    ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
-                                `;
+                                eventElement.textContent = titleText;
                                 eventElement.title = `${event.title} - ${event.start_date} bis ${event.end_date}${event.location ? ' - ' + event.location : ''}`;
-                                eventElement.style.backgroundColor = hexToRgba(eventColor, 0.26);
-                                eventElement.style.borderLeftColor = eventColor;
-                                eventElement.style.color = getContrastTextColor(eventColor);
+                                applyEventColors(eventElement, event.event_color, true);
                                 eventElement.onclick = () => window.location.href = event.url;
                                 multiDaySlot.appendChild(eventElement);
                             }
@@ -806,18 +809,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Handle multi-day events - display above 0:00
                 multiDayEvents.forEach(event => {
                     const titleText = formatMultiDayTitle(event, dateStr);
-                    const eventColor = event.event_color || '#0d6efd';
                     
                     const eventElement = document.createElement('div');
-                    eventElement.className = `calendar-event multi-day ${event.participation_status || 'pending'}`;
-                    eventElement.innerHTML = `
-                        ${titleText}
-                        ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
-                    `;
+                    eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
+                    eventElement.textContent = titleText;
                     eventElement.title = `${event.title} - ${event.start_date} bis ${event.end_date}${event.location ? ' - ' + event.location : ''}`;
-                    eventElement.style.backgroundColor = hexToRgba(eventColor, 0.26);
-                    eventElement.style.borderLeftColor = eventColor;
-                    eventElement.style.color = getContrastTextColor(eventColor);
+                    applyEventColors(eventElement, event.event_color, true);
                     eventElement.onclick = () => window.location.href = event.url;
                     if (multiDaySlot) {
                         multiDaySlot.appendChild(eventElement);
@@ -841,9 +838,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
                         `;
                         eventElement.title = formatTooltip(event);
-                        eventElement.style.backgroundColor = hexToRgba(eventColor, 0.26);
-                        eventElement.style.borderLeftColor = eventColor;
-                        eventElement.style.color = getContrastTextColor(eventColor);
+                        applyEventColors(eventElement, eventColor, false);
                         eventElement.onclick = () => window.location.href = event.url;
                         timeSlot.appendChild(eventElement);
                     }

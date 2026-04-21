@@ -255,8 +255,24 @@
                             <div class="d-flex w-100 justify-content-between align-items-start gap-2">
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1 text-truncate">{{ credential.website_name }}</h6>
-                                    <small class="text-muted d-block" id="dashboard-user-{{ credential.id }}">••••••••</small>
-                                    <small class="text-muted d-block" id="dashboard-pwd-{{ credential.id }}">••••••••</small>
+                                    <button
+                                        type="button"
+                                        class="btn btn-link p-0 text-muted text-start text-decoration-none d-block"
+                                        id="dashboard-user-{{ credential.id }}"
+                                        onclick='event.stopPropagation(); copyDashboardCredentialField({{ credential.id }}, "username", {{ credential.username|tojson }})'
+                                        title="{{ _('dashboard.widgets.passwords.copy_username') }}"
+                                    >
+                                        ••••••••
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-link p-0 text-muted text-start text-decoration-none d-block"
+                                        id="dashboard-pwd-{{ credential.id }}"
+                                        onclick="event.stopPropagation(); copyDashboardCredentialField({{ credential.id }}, 'password')"
+                                        title="{{ _('dashboard.widgets.passwords.copy_password') }}"
+                                    >
+                                        ••••••••
+                                    </button>
                                 </div>
                                 <button
                                     type="button"
@@ -597,6 +613,7 @@
 {% block extra_js %}
 <script>
 const DASHBOARD_I18N = {{ current_translations.get('dashboard', {})|tojson }};
+const dashboardCredentialCache = {};
 
 // Dashboard Live-Updates
 class DashboardUpdater {
@@ -709,12 +726,83 @@ function revealDashboardCredential(id, username) {
             return response.json();
         })
         .then(data => {
+            dashboardCredentialCache[id] = {
+                username,
+                password: data.password
+            };
             if (usernameElement) {
                 usernameElement.textContent = `${userLabel}: ${username}`;
             }
             if (passwordElement) {
                 passwordElement.textContent = `${revealLabel}: ${data.password}`;
             }
+        })
+        .catch(() => {
+            alert(errorMessage);
+        });
+}
+
+function copyDashboardCredentialField(id, field, usernameValue = null) {
+    const copiedUsername = DASHBOARD_I18N.widgets?.passwords?.copied_username || 'Benutzername kopiert';
+    const copiedPassword = DASHBOARD_I18N.widgets?.passwords?.copied_password || 'Passwort kopiert';
+    const userLabel = DASHBOARD_I18N.widgets?.passwords?.labels?.username || 'Benutzername';
+    const revealLabel = DASHBOARD_I18N.widgets?.passwords?.labels?.password || 'Passwort';
+    const errorMessage = DASHBOARD_I18N.widgets?.passwords?.error || 'Passwort konnte nicht geladen werden.';
+    const usernameElement = document.getElementById(`dashboard-user-${id}`);
+    const passwordElement = document.getElementById(`dashboard-pwd-${id}`);
+
+    const writeClipboard = (value, successMessage) => {
+        navigator.clipboard.writeText(value)
+            .then(() => {
+                alert(successMessage);
+            })
+            .catch(() => {
+                alert(errorMessage);
+            });
+    };
+
+    if (field === 'username') {
+        const username = usernameValue || dashboardCredentialCache[id]?.username || '';
+        if (!username) {
+            alert(errorMessage);
+            return;
+        }
+        if (usernameElement) {
+            usernameElement.textContent = `${userLabel}: ${username}`;
+        }
+        dashboardCredentialCache[id] = {
+            ...dashboardCredentialCache[id],
+            username
+        };
+        writeClipboard(username, copiedUsername);
+        return;
+    }
+
+    const cachedPassword = dashboardCredentialCache[id]?.password;
+    if (cachedPassword) {
+        if (passwordElement) {
+            passwordElement.textContent = `${revealLabel}: ${cachedPassword}`;
+        }
+        writeClipboard(cachedPassword, copiedPassword);
+        return;
+    }
+
+    fetch(`{{ url_for('credentials.view_password', credential_id=0) }}`.replace('/0', '/' + id))
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('request_failed');
+            }
+            return response.json();
+        })
+        .then(data => {
+            dashboardCredentialCache[id] = {
+                ...dashboardCredentialCache[id],
+                password: data.password
+            };
+            if (passwordElement) {
+                passwordElement.textContent = `${revealLabel}: ${data.password}`;
+            }
+            writeClipboard(data.password, copiedPassword);
         })
         .catch(() => {
             alert(errorMessage);

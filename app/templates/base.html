@@ -54,6 +54,8 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
         {% elif 'email' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
+        {% elif 'contacts' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
         {% elif 'auth' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
         {% elif 'errors' in request.endpoint %}

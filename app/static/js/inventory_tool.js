@@ -7,6 +7,8 @@ class InventoryToolManager {
         this.items = new Map();
         this.pollingInterval = null;
         this.lastUpdateTime = null;
+        this.currentEditingProductId = null;
+        this.lockRefreshTimer = null;
     }
     
     init() {
@@ -54,6 +56,14 @@ class InventoryToolManager {
                 
                 // Scanner wieder aktivieren
                 this.resumeScannerIfActive();
+                if (this.currentEditingProductId) {
+                    this.releaseLock(this.currentEditingProductId);
+                    this.currentEditingProductId = null;
+                }
+                if (this.lockRefreshTimer) {
+                    clearInterval(this.lockRefreshTimer);
+                    this.lockRefreshTimer = null;
+                }
             });
         }
     }
@@ -80,11 +90,9 @@ class InventoryToolManager {
     
     async loadItems() {
         try {
-            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/items`);
-            if (!response.ok) {
-                throw new Error('Fehler beim Laden der Inventur-Items');
-            }
-            
+            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/items`);
+            if (!response.ok) throw new Error('Fehler beim Laden der Inventur-Items');
+
             const data = await response.json();
             
             // Speichere Items
@@ -188,15 +196,23 @@ class InventoryToolManager {
     
     async toggleCheck(productId, checked) {
         try {
-            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/item/${productId}/check`, {
-                method: 'POST',
+            const item = this.items.get(productId);
+            const payload = { checked: checked, version: item?.version };
+            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/item/${productId}`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ checked: checked })
+                body: JSON.stringify(payload)
             });
-            
+
             if (!response.ok) {
+                if (response.status === 409) {
+                    const conflict = await response.json();
+                    this.showConflictMessage(conflict);
+                    await this.loadItems();
+                    return;
+                }
                 throw new Error('Fehler beim Aktualisieren');
             }
             
@@ -205,8 +221,12 @@ class InventoryToolManager {
             // Update lokale Daten
             const item = this.items.get(productId);
             if (item) {
-                item.checked = data.checked;
-                item.checked_at = data.checked_at;
+                if (data.item) {
+                    Object.assign(item, data.item);
+                } else {
+                    item.checked = data.checked;
+                    item.checked_at = data.checked_at;
+                }
             }
             
             // Rendere Tabelle neu
@@ -216,16 +236,28 @@ class InventoryToolManager {
             this.loadItems();
         } catch (error) {
             console.error('Fehler beim Toggle Check:', error);
-            alert('Fehler beim Aktualisieren der Checkbox');
+            this.showError('Fehler beim Aktualisieren der Checkbox.');
         }
     }
     
     async showProductModal(productId) {
         const item = this.items.get(productId);
         if (!item) {
-            alert('Produkt nicht gefunden');
+            this.showError('Produkt nicht gefunden.');
             return;
         }
+
+        const lock = await this.acquireLock(productId);
+        if (!lock) {
+            return;
+        }
+        this.currentEditingProductId = productId;
+        if (this.lockRefreshTimer) {
+            clearInterval(this.lockRefreshTimer);
+        }
+        this.lockRefreshTimer = setInterval(() => {
+            this.refreshLock(productId);
+        }, 30000);
         
         const modalBody = document.getElementById('productEditModalBody');
         if (!modalBody) return;
@@ -241,10 +273,14 @@ class InventoryToolManager {
         modalBody.innerHTML = `
             <form id="productEditForm">
                 <input type="hidden" id="editProductId" value="${product.id}">
+                <input type="hidden" id="editProductVersion" value="${item.version || 1}">
                 
                 <div class="mb-3">
                     <h5>${this.escapeHtml(product.name)}</h5>
                     <small class="text-muted">${this.escapeHtml(product.category || 'Keine Kategorie')}</small>
+                    <div class="small text-muted mt-1">
+                        Letzte Aenderung: ${this.escapeHtml(item.last_changed_by || 'Unbekannt')} um ${this.escapeHtml(item.last_changed_at || '-')}
+                    </div>
                 </div>
                 
                 <div class="mb-3">
@@ -298,6 +334,7 @@ class InventoryToolManager {
     
     async saveProduct() {
         const productId = parseInt(document.getElementById('editProductId')?.value);
+        const version = parseInt(document.getElementById('editProductVersion')?.value || '1');
         if (!productId) return;
         
         const checked = document.getElementById('editChecked')?.checked || false;
@@ -306,8 +343,8 @@ class InventoryToolManager {
         const newCondition = document.getElementById('editCondition')?.value || null;
         
         try {
-            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/item/${productId}/update`, {
-                method: 'POST',
+            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/item/${productId}`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -315,11 +352,18 @@ class InventoryToolManager {
                     checked: checked,
                     notes: notes,
                     new_location: newLocation,
-                    new_condition: newCondition
+                    new_condition: newCondition,
+                    version: version
                 })
             });
-            
+
             if (!response.ok) {
+                if (response.status === 409) {
+                    const conflict = await response.json();
+                    this.showConflictMessage(conflict);
+                    await this.loadItems();
+                    return;
+                }
                 throw new Error('Fehler beim Speichern');
             }
             
@@ -360,7 +404,7 @@ class InventoryToolManager {
             this.resumeScannerIfActive();
         } catch (error) {
             console.error('Fehler beim Speichern:', error);
-            alert('Fehler beim Speichern der Änderungen');
+            this.showError('Fehler beim Speichern der Änderungen.');
         }
     }
     
@@ -389,7 +433,7 @@ class InventoryToolManager {
     
     async handleScan(qrData) {
         try {
-            const response = await fetch(`/inventory/api/inventory/${this.inventoryId}/scan`, {
+            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/scan`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -470,7 +514,7 @@ class InventoryToolManager {
                         return;
                     } catch (error) {
                         console.error('Fehler beim Scannen:', error);
-                        alert('Ungültiger QR-Code oder Produkt-ID: ' + trimmedInput + '\n\nBitte verwenden Sie:\n- Produkt-ID (z.B. 123)\n- QR-Code (z.B. PROD-123)');
+                        this.showError('Ungueltiger QR-Code oder Produkt-ID. Bitte PROD-123 oder eine numerische ID verwenden.');
                         return;
                     }
                 }
@@ -481,7 +525,7 @@ class InventoryToolManager {
                     return;
                 } catch (error) {
                     console.error('Fehler beim Scannen:', error);
-                    alert('Ungültiger QR-Code oder Produkt-ID: ' + trimmedInput + '\n\nBitte verwenden Sie:\n- Produkt-ID (z.B. 123)\n- QR-Code (z.B. PROD-123)');
+                    this.showError('Ungueltiger QR-Code oder Produkt-ID. Bitte PROD-123 oder eine numerische ID verwenden.');
                     return;
                 }
             }
@@ -494,7 +538,7 @@ class InventoryToolManager {
             await new Promise(resolve => setTimeout(resolve, 100));
             const retryItem = this.items.get(productId);
             if (!retryItem) {
-                alert('Produkt nicht in dieser Inventur gefunden: ' + productId);
+                this.showError('Produkt nicht in dieser Inventur gefunden: ' + productId);
                 return;
             }
             // Verwende retryItem
@@ -552,11 +596,64 @@ class InventoryToolManager {
     showError(message) {
         const errorDiv = document.getElementById('scannerError');
         if (errorDiv) {
+            errorDiv.className = 'alert alert-danger';
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
             }, 5000);
+        }
+    }
+
+    showConflictMessage(conflictPayload) {
+        const currentVersion = conflictPayload?.details?.current_version;
+        this.showError(`Konflikt erkannt: Datensatz wurde inzwischen geändert (Version ${currentVersion || 'neu'}). Bitte erneut pruefen.`);
+    }
+
+    async acquireLock(productId) {
+        try {
+            const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/acquire`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, ttl_seconds: 90, reason: 'modal_edit' })
+            });
+            if (!response.ok) {
+                if (response.status === 409) {
+                    const payload = await response.json();
+                    const lockUser = payload?.details?.locked_by || 'anderem Nutzer';
+                    this.showError(`Dieses Produkt wird gerade von ${lockUser} bearbeitet.`);
+                    return null;
+                }
+                return null;
+            }
+            return await response.json();
+        } catch (error) {
+            console.warn('Locking nicht verfügbar, fahre ohne Lock fort', error);
+            return { ok: true };
+        }
+    }
+
+    async releaseLock(productId) {
+        try {
+            await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/release`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId })
+            });
+        } catch (error) {
+            console.warn('Lock release fehlgeschlagen', error);
+        }
+    }
+
+    async refreshLock(productId) {
+        try {
+            await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, ttl_seconds: 90 })
+            });
+        } catch (error) {
+            console.warn('Lock refresh fehlgeschlagen', error);
         }
     }
     
@@ -592,7 +689,7 @@ class InventoryScannerManager {
     
     async startScanner() {
         if (!('getUserMedia' in navigator.mediaDevices)) {
-            alert('Ihr Browser unterstützt keine Kamera-API.');
+            this.toolManager?.showError('Ihr Browser unterstuetzt keine Kamera-API.');
             return;
         }
         
@@ -623,7 +720,7 @@ class InventoryScannerManager {
             }
         } catch (error) {
             console.error('Fehler beim Starten der Kamera:', error);
-            alert('Fehler beim Starten der Kamera: ' + error.message);
+            this.toolManager?.showError('Fehler beim Starten der Kamera: ' + error.message);
         }
     }
     

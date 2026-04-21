@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="row mb-4 page-toolbar-row align-items-start g-3">
-    <div class="col-12 col-lg-8 min-width-0">
+    <div class="col min-width-0">
         <h1 class="mb-3 text-break"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
         {% if breadcrumb_folders %}
         <nav aria-label="breadcrumb" class="mb-3 mb-md-0">
@@ -25,8 +25,8 @@
         </nav>
         {% endif %}
     </div>
-    <div class="col-12 col-lg-auto">
-        <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="col-12 col-lg-auto ms-lg-auto">
+        <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
         <div class="btn-group" role="group">
             <button class="btn btn-outline-secondary" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
                 <i class="bi bi-list"></i>

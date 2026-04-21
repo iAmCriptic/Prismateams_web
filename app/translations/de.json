@@ -249,6 +249,10 @@
         "title": "Passwörter",
         "empty": "Keine favorisierten Passwörter",
         "reveal": "Benutzername und Passwort anzeigen",
+        "copy_username": "Benutzername kopieren",
+        "copy_password": "Passwort kopieren",
+        "copied_username": "Benutzername wurde kopiert.",
+        "copied_password": "Passwort wurde kopiert.",
         "labels": {
           "username": "Benutzername",
           "password": "Passwort"
@@ -1509,28 +1513,76 @@
       "page_title": "Kontakte - Team Portal",
       "heading": "Kontakte",
       "new_button": "Neuer Kontakt",
+      "filters": {
+        "menu_button": "Filtern",
+        "name": "Name filtern",
+        "name_placeholder": "z.B. Mustermann",
+        "salutation_placeholder": "z.B. Frau oder Herr",
+        "email": "E-Mail filtern",
+        "email_placeholder": "z.B. max@example.com",
+        "phone": "Telefon filtern",
+        "phone_placeholder": "z.B. +49",
+        "notes": "Notiz filtern",
+        "notes_placeholder": "z.B. Vertrieb",
+        "apply": "Anwenden",
+        "reset": "Zurücksetzen"
+      },
+      "sort": {
+        "menu_button": "Sortieren",
+        "apply": "Sortierung anwenden",
+        "field": "Sortieren nach",
+        "direction": "Reihenfolge",
+        "options": {
+          "salutation": "Anrede",
+          "name": "Name",
+          "email": "E-Mail",
+          "phone": "Telefon",
+          "notes": "Notiz"
+        },
+        "directions": {
+          "asc": "Aufsteigend",
+          "desc": "Absteigend"
+        }
+      },
+      "views": {
+        "label": "Ansicht",
+        "grid": "Grid",
+        "list": "Liste"
+      },
+      "search": {
+        "placeholder": "Suche in Name, E-Mail, Telefon oder Notiz...",
+        "button": "Suchen"
+      },
       "labels": {
         "phone": "Telefon",
         "notes": "Notizen"
       },
       "actions": {
         "edit": "Bearbeiten",
+        "column": "Aktionen",
         "delete_confirm": "Kontakt wirklich löschen?"
       },
       "empty_message": "Keine Kontakte vorhanden."
     },
     "form": {
       "fields": {
+        "salutation": "Anrede",
         "name": "Name",
+        "sort_name": "Sortiername",
         "email": "E-Mail-Adresse",
         "phone": "Telefonnummer",
         "notes": "Notizen"
       },
       "placeholders": {
+        "salutation": "z.B. Frau, Herr, Divers",
         "name": "z.B. Max Mustermann",
+        "sort_name": "Optional, z.B. Mustermann, Max",
         "email": "max.mustermann@example.com",
         "phone": "+49 123 456789",
         "notes": "Zusätzliche Informationen..."
+      },
+      "hints": {
+        "sort_name": "Leer lassen, um den angezeigten Namen für die Sortierung zu verwenden."
       },
       "buttons": {
         "save": "Speichern",

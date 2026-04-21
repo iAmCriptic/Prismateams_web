@@ -207,3 +207,166 @@
         padding: 1rem;
     }
 }
+
+/* Kontakte-Index (Filter, Sortierung, View-Toggle) */
+.contacts-filter-card .form-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.35rem;
+}
+
+.contacts-toolbar .form-control {
+    min-width: 220px;
+    height: 36px;
+    min-height: 36px;
+    line-height: 1.2;
+}
+
+.contacts-toolbar-button {
+    min-width: 128px;
+    height: 36px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.1;
+}
+
+.contacts-dropdown-panel {
+    width: 320px;
+    max-width: calc(100vw - 2rem);
+}
+
+.contacts-view-toggle .btn {
+    white-space: nowrap;
+}
+
+.contacts-avatar-main {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.contacts-avatar-small {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.contacts-list-table th,
+.contacts-list-table td {
+    vertical-align: middle;
+    border-color: var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+}
+
+.contacts-list-table thead th {
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.contacts-list-table tbody tr:hover td {
+    background-color: var(--bs-tertiary-bg);
+}
+
+.contacts-notes-cell {
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contacts-one-line-table td,
+.contacts-one-line-table th {
+    white-space: nowrap;
+}
+
+.contacts-one-line-table {
+    --bs-table-bg: var(--bs-body-bg);
+    --bs-table-color: var(--bs-body-color);
+    --bs-table-hover-bg: var(--bs-tertiary-bg);
+    --bs-table-hover-color: var(--bs-body-color);
+    --bs-table-border-color: var(--bs-border-color);
+}
+
+/* Erzwingt echten Dark-Mode-Look für die Kontakte-Liste */
+.contacts-list-card {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+}
+
+.contacts-list-card .table {
+    color: var(--bs-body-color);
+}
+
+.contacts-list-card .table > :not(caption) > * > * {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-bottom-color: var(--bs-border-color);
+    box-shadow: none !important;
+}
+
+.contacts-list-card .table-hover > tbody > tr:hover > * {
+    background-color: var(--bs-tertiary-bg);
+}
+
+/* Normaler Dark-Mode (semi dark): leicht graue Abstufungen */
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card,
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table-responsive,
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table,
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table thead,
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table tbody,
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table tr {
+    background-color: #1b1f24 !important;
+}
+
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table > :not(caption) > * > * {
+    background-color: #1b1f24 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-table thead th {
+    background-color: #222831;
+    border-bottom-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-table tbody tr:hover td,
+[data-bs-theme="dark"]:not([data-oled-mode="true"]) .contacts-list-card .table-hover > tbody > tr:hover > * {
+    background-color: #262d36 !important;
+}
+
+/* OLED Dark Mode: reines Schwarz */
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card,
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table-responsive,
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table,
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table thead,
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table tbody,
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table tr {
+    background-color: #000 !important;
+}
+
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table > :not(caption) > * > * {
+    background-color: #000 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-table thead th {
+    background-color: #000;
+    border-bottom-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-table tbody tr:hover td,
+[data-bs-theme="dark"][data-oled-mode="true"] .contacts-list-card .table-hover > tbody > tr:hover > * {
+    background-color: #0a0a0a !important;
+}

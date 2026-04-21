@@ -19,6 +19,11 @@
             <div class="card-body">
                 <form method="POST">
                     <div class="mb-3">
+                        <label for="salutation" class="form-label">{{ _('contacts.form.fields.salutation') }}</label>
+                        <input type="text" class="form-control" id="salutation" name="salutation" placeholder="{{ _('contacts.form.placeholders.salutation') }}" value="{{ salutation|default('') }}">
+                    </div>
+
+                    <div class="mb-3">
                         <label for="name" class="form-label">{{ _('contacts.form.fields.name') }} <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name" placeholder="{{ _('contacts.form.placeholders.name') }}" value="{{ name|default('') }}" required>
                     </div>

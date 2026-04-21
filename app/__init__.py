@@ -742,6 +742,7 @@ def create_app(config_name='default'):
     from app.blueprints.api import api_bp
     from app.blueprints.errors import errors_bp
     from app.blueprints.inventory import inventory_bp
+    from app.blueprints.inventory_vnext import inventory_vnext_bp
     from app.blueprints.wiki import wiki_bp
     from app.blueprints.comments import comments_bp
     from app.blueprints.booking import booking_bp
@@ -763,6 +764,7 @@ def create_app(config_name='default'):
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(errors_bp, url_prefix='/test')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    app.register_blueprint(inventory_vnext_bp, url_prefix='/inventory')
     app.register_blueprint(wiki_bp)
     app.register_blueprint(comments_bp)
     app.register_blueprint(booking_bp, url_prefix='/booking')
@@ -867,7 +869,7 @@ def create_app(config_name='default'):
                 from app.models.settings import SystemSettings
                 from app.models.whitelist import WhitelistEntry
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
-                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
                 from app.models.api_token import ApiToken
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
@@ -1107,6 +1109,24 @@ def create_app(config_name='default'):
                                     "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
+
+                    # Kontakte: sort_name für flexible Sortierung ergänzen
+                    if 'contacts' in inspector.get_table_names():
+                        contact_columns = {col['name'] for col in inspector.get_columns('contacts')}
+                        if 'salutation' not in contact_columns:
+                            print("[INFO] Ergänze contacts.salutation ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE contacts ADD COLUMN salutation VARCHAR(50)"))
+                            print("[OK] contacts.salutation hinzugefügt")
+                        if 'sort_name' not in contact_columns:
+                            print("[INFO] Ergänze contacts.sort_name ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE contacts ADD COLUMN sort_name VARCHAR(255)"))
+                                connection.execute(text(
+                                    "UPDATE contacts SET sort_name = name "
+                                    "WHERE sort_name IS NULL OR TRIM(sort_name) = ''"
+                                ))
+                            print("[OK] contacts.sort_name hinzugefügt und initialisiert")
 
                     # E-Mail-Manager-Großupdate: Farbpunkt/Keyword-Sync-Spalten ergänzen
                     if 'email_messages' in inspector.get_table_names():

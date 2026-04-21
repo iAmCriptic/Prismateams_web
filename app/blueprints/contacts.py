@@ -5,11 +5,19 @@ from app.models.contact import Contact
 from app.models.email import EmailMessage
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
-from sqlalchemy import or_, func, distinct
+from sqlalchemy import or_, asc, desc
 import re
 import logging
 
 contacts_bp = Blueprint('contacts', __name__)
+
+CONTACT_SORT_FIELDS = {
+    'name': Contact.name,
+    'email': Contact.email,
+    'phone': Contact.phone,
+    'notes': Contact.notes,
+    'salutation': Contact.salutation,
+}
 
 
 def extract_email_addresses(text):
@@ -28,8 +36,68 @@ def extract_email_addresses(text):
 @check_module_access('module_contacts')
 def index():
     """Liste aller Kontakte."""
-    contacts = Contact.query.order_by(Contact.name).all()
-    return render_template('contacts/index.html', contacts=contacts)
+    view_mode = request.args.get('view', 'list')
+    if view_mode not in {'list', 'grid'}:
+        view_mode = 'list'
+
+    sort_field = request.args.get('sort', 'name')
+    if sort_field not in CONTACT_SORT_FIELDS:
+        sort_field = 'name'
+
+    sort_dir = request.args.get('dir', 'asc')
+    if sort_dir not in {'asc', 'desc'}:
+        sort_dir = 'asc'
+
+    filter_name = request.args.get('name', '').strip()
+    filter_email = request.args.get('email', '').strip()
+    filter_phone = request.args.get('phone', '').strip()
+    filter_notes = request.args.get('notes', '').strip()
+    filter_salutation = request.args.get('salutation', '').strip()
+    search_query = request.args.get('q', '').strip()
+
+    contacts_query = Contact.query
+
+    if search_query:
+        contacts_query = contacts_query.filter(
+            or_(
+                Contact.salutation.ilike(f'%{search_query}%'),
+                Contact.name.ilike(f'%{search_query}%'),
+                Contact.email.ilike(f'%{search_query}%'),
+                Contact.phone.ilike(f'%{search_query}%'),
+                Contact.notes.ilike(f'%{search_query}%')
+            )
+        )
+
+    if filter_name:
+        contacts_query = contacts_query.filter(Contact.name.ilike(f'%{filter_name}%'))
+    if filter_email:
+        contacts_query = contacts_query.filter(Contact.email.ilike(f'%{filter_email}%'))
+    if filter_phone:
+        contacts_query = contacts_query.filter(Contact.phone.ilike(f'%{filter_phone}%'))
+    if filter_notes:
+        contacts_query = contacts_query.filter(Contact.notes.ilike(f'%{filter_notes}%'))
+    if filter_salutation:
+        contacts_query = contacts_query.filter(Contact.salutation.ilike(f'%{filter_salutation}%'))
+
+    sort_column = CONTACT_SORT_FIELDS[sort_field]
+    order_by_clause = asc(sort_column) if sort_dir == 'asc' else desc(sort_column)
+    contacts = contacts_query.order_by(order_by_clause, asc(Contact.name), asc(Contact.email)).all()
+
+    return render_template(
+        'contacts/index.html',
+        contacts=contacts,
+        view_mode=view_mode,
+        search_query=search_query,
+        current_sort=sort_field,
+        current_dir=sort_dir,
+        current_filters={
+            'salutation': filter_salutation,
+            'name': filter_name,
+            'email': filter_email,
+            'phone': filter_phone,
+            'notes': filter_notes,
+        },
+    )
 
 
 @contacts_bp.route('/create', methods=['GET', 'POST'])
@@ -38,6 +106,7 @@ def index():
 def create():
     """Neuen Kontakt erstellen."""
     if request.method == 'POST':
+        salutation = request.form.get('salutation', '').strip()
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
         phone = request.form.get('phone', '').strip()
@@ -46,15 +115,36 @@ def create():
         # Validierung
         if not name:
             flash(translate('contacts.flash.name_required'), 'danger')
-            return render_template('contacts/create.html')
+            return render_template(
+                'contacts/create.html',
+                salutation=salutation,
+                name=name,
+                email=email,
+                phone=phone,
+                notes=notes
+            )
         
         if not email:
             flash(translate('contacts.flash.email_required'), 'danger')
-            return render_template('contacts/create.html')
+            return render_template(
+                'contacts/create.html',
+                salutation=salutation,
+                name=name,
+                email=email,
+                phone=phone,
+                notes=notes
+            )
         
         if not Contact.is_valid_email(email):
             flash(translate('contacts.flash.invalid_email'), 'danger')
-            return render_template('contacts/create.html', name=name, email=email, phone=phone, notes=notes)
+            return render_template(
+                'contacts/create.html',
+                salutation=salutation,
+                name=name,
+                email=email,
+                phone=phone,
+                notes=notes
+            )
         
         # Prüfe auf Duplikat (optional, nur Warnung)
         existing = Contact.query.filter_by(email=email).first()
@@ -63,7 +153,9 @@ def create():
         
         # Erstelle Kontakt
         contact = Contact(
+            salutation=salutation if salutation else None,
             name=name,
+            sort_name=name,
             email=email,
             phone=phone if phone else None,
             notes=notes if notes else None,
@@ -79,7 +171,14 @@ def create():
             db.session.rollback()
             logging.error(f"Fehler beim Erstellen des Kontakts: {e}")
             flash(translate('contacts.flash.create_error'), 'danger')
-            return render_template('contacts/create.html', name=name, email=email, phone=phone, notes=notes)
+            return render_template(
+                'contacts/create.html',
+                salutation=salutation,
+                name=name,
+                email=email,
+                phone=phone,
+                notes=notes
+            )
     
     return render_template('contacts/create.html')
 
@@ -92,6 +191,7 @@ def edit(contact_id):
     contact = Contact.query.get_or_404(contact_id)
     
     if request.method == 'POST':
+        salutation = request.form.get('salutation', '').strip()
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
         phone = request.form.get('phone', '').strip()
@@ -100,15 +200,29 @@ def edit(contact_id):
         # Validierung
         if not name:
             flash(translate('contacts.flash.name_required'), 'danger')
+            contact.salutation = salutation
+            contact.name = name
+            contact.sort_name = name
+            contact.email = email
+            contact.phone = phone
+            contact.notes = notes
             return render_template('contacts/edit.html', contact=contact)
         
         if not email:
             flash(translate('contacts.flash.email_required'), 'danger')
+            contact.salutation = salutation
+            contact.name = name
+            contact.sort_name = name
+            contact.email = email
+            contact.phone = phone
+            contact.notes = notes
             return render_template('contacts/edit.html', contact=contact)
         
         if not Contact.is_valid_email(email):
             flash(translate('contacts.flash.invalid_email'), 'danger')
+            contact.salutation = salutation
             contact.name = name
+            contact.sort_name = name
             contact.email = email
             contact.phone = phone
             contact.notes = notes
@@ -121,7 +235,9 @@ def edit(contact_id):
                 flash(translate('contacts.flash.duplicate_email'), 'warning')
         
         # Aktualisiere Kontakt
+        contact.salutation = salutation if salutation else None
         contact.name = name
+        contact.sort_name = name
         contact.email = email
         contact.phone = phone if phone else None
         contact.notes = notes if notes else None
@@ -177,6 +293,7 @@ def search():
     # 1. Suche in gespeicherten Kontakten
     contacts = Contact.query.filter(
         or_(
+            Contact.salutation.ilike(f'%{query}%'),
             Contact.name.ilike(f'%{query}%'),
             Contact.email.ilike(f'%{query}%')
         )
@@ -189,10 +306,10 @@ def search():
             results.append({
                 'type': 'contact',
                 'id': contact.id,
-                'name': contact.name,
+                'name': f"{(contact.salutation + ' ') if contact.salutation else ''}{contact.name}",
                 'email': contact.email,
                 'phone': contact.phone or '',
-                'display': f"{contact.name} <{contact.email}>"
+                'display': f"{((contact.salutation + ' ') if contact.salutation else '') + contact.name} <{contact.email}>"
             })
     
     # 2. Suche in E-Mail-Adressen aus empfangenen E-Mails

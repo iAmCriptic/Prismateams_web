@@ -213,6 +213,10 @@
         "title": "Passwords",
         "empty": "No favorite passwords",
         "reveal": "Reveal username and password",
+        "copy_username": "Copy username",
+        "copy_password": "Copy password",
+        "copied_username": "Username copied.",
+        "copied_password": "Password copied.",
         "labels": {
           "username": "Username",
           "password": "Password"
@@ -1902,28 +1906,76 @@
       "page_title": "Contacts - Team Portal",
       "heading": "Contacts",
       "new_button": "New Contact",
+      "filters": {
+        "menu_button": "Filter",
+        "name": "Filter name",
+        "name_placeholder": "e.g. Doe",
+        "salutation_placeholder": "e.g. Ms or Mr",
+        "email": "Filter email",
+        "email_placeholder": "e.g. john@example.com",
+        "phone": "Filter phone",
+        "phone_placeholder": "e.g. +1",
+        "notes": "Filter note",
+        "notes_placeholder": "e.g. sales",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
+      "sort": {
+        "menu_button": "Sort",
+        "apply": "Apply sorting",
+        "field": "Sort by",
+        "direction": "Direction",
+        "options": {
+          "salutation": "Salutation",
+          "name": "Name",
+          "email": "Email",
+          "phone": "Phone",
+          "notes": "Note"
+        },
+        "directions": {
+          "asc": "Ascending",
+          "desc": "Descending"
+        }
+      },
+      "views": {
+        "label": "View",
+        "grid": "Grid",
+        "list": "List"
+      },
+      "search": {
+        "placeholder": "Search in name, email, phone or notes...",
+        "button": "Search"
+      },
       "labels": {
         "phone": "Phone",
         "notes": "Notes"
       },
       "actions": {
         "edit": "Edit",
+        "column": "Actions",
         "delete_confirm": "Delete this contact?"
       },
       "empty_message": "No contacts available."
     },
     "form": {
       "fields": {
+        "salutation": "Salutation",
         "name": "Name",
+        "sort_name": "Sort name",
         "email": "Email Address",
         "phone": "Phone Number",
         "notes": "Notes"
       },
       "placeholders": {
+        "salutation": "e.g. Ms, Mr, Mx",
         "name": "e.g. John Doe",
+        "sort_name": "Optional, e.g. Doe, John",
         "email": "john.doe@example.com",
         "phone": "+1 234 567890",
         "notes": "Additional information..."
+      },
+      "hints": {
+        "sort_name": "Leave empty to use the display name for sorting."
       },
       "buttons": {
         "save": "Save",
