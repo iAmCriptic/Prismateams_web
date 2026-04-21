@@ -419,7 +419,7 @@ let favorites = new Set();
 
 async function loadFavorites() {
     try {
-        const response = await fetch('/inventory/api/favorites');
+        const response = await fetch('/inventory/vnext/api/favorites');
         if (response.ok) {
             const data = await response.json();
             favorites = new Set(data.map(p => p.id));
@@ -435,7 +435,7 @@ async function toggleFavorite(productId) {
         const isFavorite = favorites.has(productId);
         const method = isFavorite ? 'DELETE' : 'POST';
         
-        const response = await fetch(`/inventory/api/favorites/${productId}`, {
+        const response = await fetch(`/inventory/vnext/api/favorites/${productId}`, {
             method: method,
             headers: {
                 'Content-Type': 'application/json'

@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-from flask import current_app, g
+from flask import current_app, g, has_app_context, has_request_context
 from flask_login import current_user
 
 DEFAULT_LANGUAGE = "de"
@@ -84,6 +84,53 @@ def _get_system_setting(key: str, default: Optional[str] = None) -> Optional[str
     return default
 
 
+def _portal_display_name() -> str:
+    """Liefert den im Portal gesetzten Anzeigenamen mit robustem Fallback."""
+    if has_request_context():
+        cached_name = getattr(g, "_portal_display_name", None)
+        if cached_name:
+            return str(cached_name)
+
+    app_name = current_app.config.get("APP_NAME", "Rpismateams") if has_app_context() else "Rpismateams"
+    portal_name = str(app_name or "Rpismateams").strip() or "Rpismateams"
+
+    try:
+        from app.models.settings import SystemSettings
+
+        portal_name_setting = SystemSettings.query.filter_by(key="portal_name").first()
+        if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
+            portal_name = portal_name_setting.value.strip()
+        else:
+            organization_name_setting = SystemSettings.query.filter_by(key="organization_name").first()
+            if (
+                organization_name_setting
+                and organization_name_setting.value
+                and organization_name_setting.value.strip()
+            ):
+                portal_name = organization_name_setting.value.strip()
+    except Exception:
+        pass
+
+    if has_request_context():
+        g._portal_display_name = portal_name
+    return portal_name
+
+
+def _replace_legacy_portal_name(text: str) -> str:
+    """Ersetzt alte Team-Portal-Begriffe dynamisch durch den aktuellen Portalnamen."""
+    portal_name = _portal_display_name()
+    replacements = (
+        "Team Portal",
+        "Team portal",
+        "team portal",
+        "Teamportal",
+        "teamportal",
+    )
+    for old_value in replacements:
+        text = text.replace(old_value, portal_name)
+    return text
+
+
 def resolve_language(explicit_language: Optional[str] = None) -> str:
     """Bestimmt die aktuell zu verwendende Sprache."""
     if explicit_language:
@@ -137,12 +184,14 @@ def translate(key: str, language: Optional[str] = None, **kwargs: Any) -> str:
     if text is None:
         text = key
 
+    result = text
     if kwargs:
         try:
-            return text.format(**kwargs)
+            result = text.format(**kwargs)
         except Exception:
             current_app.logger.debug("Formatierung für Schlüssel '%s' fehlgeschlagen", key)
-    return text
+            result = text
+    return _replace_legacy_portal_name(str(result))
 
 
 def init_i18n(app) -> None:
@@ -353,7 +402,7 @@ def translate(key: str, language: Optional[str] = None, **kwargs: Any) -> str:
         except Exception:  # pylint: disable=broad-except
             pass
 
-    return str(text)
+    return _replace_legacy_portal_name(str(text))
 
 
 def register_i18n(app) -> None:

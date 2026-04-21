@@ -1,24 +1,111 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, current_app
 from flask_login import login_required, current_user
 from app import db
+from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import Chat, ChatMessage, ChatMember
 from app.models.user import User
-from app.utils.notifications import send_chat_notification
-from app.utils.access_control import check_module_access
+from app.models.file import Folder
+from app.utils.notifications import enqueue_chat_notification
+from app.utils.access_control import check_module_access, get_guest_accessible_items
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
+from app.utils.chat_visibility import visible_chat_user_filters, selectable_chat_user_filters
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
 import os
+import json
 
 chat_bp = Blueprint('chat', __name__)
 
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'm4a'}
+    ALLOWED_EXTENSIONS = {
+        'png', 'jpg', 'jpeg', 'gif', 'webp',
+        'mp4', 'webm', 'mov', 'avi',
+        'ogg', 'mp3', 'wav', 'm4a', 'aac',
+        'pdf', 'txt', 'csv', 'json', 'zip', '7z', 'rar',
+        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'
+    }
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _resolve_message_type(filename, mimetype):
+    ext = filename.rsplit('.', 1)[1].lower()
+    mimetype = (mimetype or '').lower()
+    if ext in {'png', 'jpg', 'jpeg', 'gif', 'webp'} or mimetype.startswith('image/'):
+        return 'image'
+    if ext in {'mp4', 'mov', 'avi'} or mimetype.startswith('video/'):
+        return 'video'
+    if ext in {'mp3', 'wav', 'm4a', 'aac', 'ogg'} or mimetype.startswith('audio/') or filename.startswith('voice_message'):
+        return 'voice'
+    if ext == 'webm':
+        return 'voice' if mimetype.startswith('audio/') or filename.startswith('voice_message') else 'video'
+    return 'file'
+
+
+def _has_structured_message_content(message_type, metadata):
+    if not isinstance(metadata, dict):
+        return False
+    if message_type == 'folder_link':
+        folder_id = metadata.get('folder_id')
+        folder_name = (metadata.get('folder_name') or '').strip()
+        try:
+            has_folder_id = int(folder_id) > 0
+        except (TypeError, ValueError):
+            has_folder_id = False
+        return has_folder_id or bool(folder_name)
+    if message_type == 'calendar_event':
+        return bool((metadata.get('title') or '').strip())
+    if message_type == 'poll':
+        question = (metadata.get('question') or '').strip()
+        options = metadata.get('options') if isinstance(metadata.get('options'), list) else []
+        valid_options = [
+            option for option in options
+            if isinstance(option, dict) and (option.get('text') or '').strip()
+        ]
+        return bool(question and len(valid_options) >= 2)
+    return False
+
+
+def _build_calendar_message_metadata(event, current_user_status='pending'):
+    is_all_day = False
+    if event.start_time and event.end_time:
+        starts_midnight = event.start_time.hour == 0 and event.start_time.minute == 0
+        ends_same_day_2359 = (
+            event.end_time.date() == event.start_time.date()
+            and event.end_time.hour == 23
+            and event.end_time.minute == 59
+        )
+        ends_next_day_midnight = (
+            event.end_time.date() > event.start_time.date()
+            and event.end_time.hour == 0
+            and event.end_time.minute == 0
+        )
+        is_all_day = bool(starts_midnight and (ends_same_day_2359 or ends_next_day_midnight))
+    participants = EventParticipant.query.filter_by(event_id=event.id).all()
+    accepted_count = sum(1 for participant in participants if participant.status == 'accepted')
+    declined_count = sum(1 for participant in participants if participant.status == 'declined')
+    pending_count = sum(1 for participant in participants if participant.status == 'pending')
+    from app.utils import get_local_time
+    return {
+        'event_id': event.id,
+        'title': event.title,
+        'description': event.description or '',
+        'location': event.location or '',
+        'start_time': event.start_time.isoformat() if event.start_time else None,
+        'end_time': event.end_time.isoformat() if event.end_time else None,
+        'start_time_label': 'Ganztägig' if is_all_day else (get_local_time(event.start_time).strftime('%H:%M') if event.start_time else ''),
+        'end_time_label': '' if is_all_day else (get_local_time(event.end_time).strftime('%H:%M') if event.end_time else ''),
+        'is_all_day': is_all_day,
+        'event_url': url_for('calendar.view_event', event_id=event.id),
+        'accepted_count': accepted_count,
+        'declined_count': declined_count,
+        'pending_count': pending_count,
+        'participant_count': len(participants),
+        'current_user_status': current_user_status or 'pending',
+    }
 
 
 @chat_bp.route('/')
@@ -86,14 +173,12 @@ def view_chat(chat_id):
     db.session.commit()
     
     # Get chat members - use ChatMember as base to ensure all members are included
-    # Filter out guest accounts (system accounts that should not be visible)
     chat_memberships = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
     if member_ids:
         members = User.query.filter(
             User.id.in_(member_ids),
-            ~User.is_guest,
-            User.email != 'anonymous@system.local'
+            *visible_chat_user_filters(),
         ).all()
     else:
         members = []
@@ -132,14 +217,29 @@ def send_message(chat_id):
     if not membership:
         return jsonify({'error': translate('chat.errors.unauthorized')}), 403
     
-    content = request.form.get('content', '').strip()
+    payload = request.get_json(silent=True) if request.is_json else {}
+    content = (payload.get('content') if payload else request.form.get('content', '')) or ''
+    content = content.strip()
     file = request.files.get('file')
+    requested_message_type = (payload.get('message_type') if payload else request.form.get('message_type', 'text')) or 'text'
+    requested_message_type = requested_message_type.strip().lower()
+    metadata = payload.get('metadata') if payload else None
+    if metadata is None:
+        metadata_raw = request.form.get('metadata')
+        if metadata_raw:
+            try:
+                metadata = json.loads(metadata_raw)
+            except Exception:
+                metadata = None
     
-    message_type = 'text'
+    message_type = requested_message_type if requested_message_type in {'text', 'folder_link', 'calendar_event', 'poll'} else 'text'
     media_url = None
     
     # Handle file upload
-    if file and allowed_file(file.filename):
+    if file and file.filename:
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Dateityp nicht erlaubt'}), 400
+        original_filename = secure_filename(file.filename)
         filename = secure_filename(file.filename)
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         filename = f"{timestamp}_{filename}"
@@ -154,16 +254,60 @@ def send_message(chat_id):
         # Store only the filename for URL generation
         media_url = filename
         
-        # Determine message type based on file extension
-        ext = filename.rsplit('.', 1)[1].lower()
-        if ext in {'png', 'jpg', 'jpeg', 'gif'}:
-            message_type = 'image'
-        elif ext in {'mp4', 'webm', 'ogg'}:
-            message_type = 'video'
-        elif ext in {'mp3', 'wav', 'm4a'}:
-            message_type = 'voice'
+        message_type = _resolve_message_type(filename, file.mimetype)
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata.setdefault('original_name', original_filename)
+        try:
+            metadata.setdefault('size_bytes', os.path.getsize(filepath))
+        except Exception:
+            pass
     
-    if not content and not media_url:
+    if message_type == 'folder_link':
+        if not isinstance(metadata, dict):
+            metadata = {}
+        raw_folder_id = metadata.get('folder_id')
+        try:
+            folder_id = int(raw_folder_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Bitte einen Ordner auswählen.'}), 400
+        folder = Folder.query.get(folder_id)
+        if not folder:
+            return jsonify({'error': 'Ordner wurde nicht gefunden.'}), 404
+
+        if current_user.is_guest:
+            _, guest_folders = get_guest_accessible_items(current_user)
+            accessible_folder_ids = {item.id for item in guest_folders}
+            if folder.id not in accessible_folder_ids:
+                return jsonify({'error': 'Gast Accounts haben keinen Zugriff auf diese Funktion'}), 403
+
+        metadata = {
+            'folder_id': folder.id,
+            'folder_name': folder.name,
+            'folder_path': folder.path,
+            'folder_url': url_for('files.browse_folder', folder_id=folder.id),
+        }
+    if message_type == 'calendar_event':
+        if not isinstance(metadata, dict):
+            metadata = {}
+        raw_event_id = metadata.get('event_id')
+        try:
+            event_id = int(raw_event_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Bitte einen Termin auswählen.'}), 400
+        event = CalendarEvent.query.get(event_id)
+        if not event:
+            return jsonify({'error': 'Termin wurde nicht gefunden.'}), 404
+        participation = EventParticipant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+        if participation and participation.status == 'removed':
+            return jsonify({'error': 'Sie wurden aus diesem Termin entfernt.'}), 403
+
+        metadata = _build_calendar_message_metadata(
+            event,
+            participation.status if participation else 'pending',
+        )
+
+    if not content and not media_url and not _has_structured_message_content(message_type, metadata):
         return jsonify({'error': translate('chat.errors.message_empty')}), 400
     
     # Create message
@@ -174,20 +318,22 @@ def send_message(chat_id):
         message_type=message_type,
         media_url=media_url
     )
+    if isinstance(metadata, dict):
+        message.set_metadata(metadata)
     
     db.session.add(message)
     db.session.commit()
     
     # Sende Push-Benachrichtigungen an andere Chat-Mitglieder
     try:
-        sent_count = send_chat_notification(
+        enqueue_chat_notification(
             chat_id=actual_chat_id,
             sender_id=current_user.id,
             message_content=content or f"[{message_type}]",
             chat_name=chat.name,
             message_id=message.id  # WICHTIG: Für Duplikat-Vermeidung
         )
-        print(f"Push-Benachrichtigungen gesendet: {sent_count}")
+        print("Chat-Push-Benachrichtigung asynchron eingeplant")
     except Exception as e:
         print(f"Fehler beim Senden der Push-Benachrichtigungen: {e}")
     
@@ -227,12 +373,52 @@ def send_message(chat_id):
             'content': message.content,
             'message_type': message.message_type,
             'media_url': message.media_url,
+            'metadata': message.get_metadata(),
             'created_at': get_local_time(message.created_at).isoformat()
         })
     
     # Always redirect to /chat/1 for main chat to keep URL consistent
     redirect_chat_id = 1 if chat.is_main_chat else chat_id
     return redirect(url_for('chat.view_chat', chat_id=redirect_chat_id))
+
+
+@chat_bp.route('/<int:chat_id>/folder-options', methods=['GET'])
+@login_required
+@check_module_access('module_chat')
+def get_chat_folder_options(chat_id):
+    """Liefert auswählbare Ordner für den Chat-Attachment-Dialog."""
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if not main_chat:
+            return jsonify({'error': 'Haupt-Chat nicht gefunden'}), 404
+        actual_chat_id = main_chat.id
+    else:
+        actual_chat_id = chat_id
+
+    membership = ChatMember.query.filter_by(chat_id=actual_chat_id, user_id=current_user.id).first()
+    if not membership:
+        return jsonify({'error': translate('chat.errors.unauthorized')}), 403
+
+    if current_user.is_guest:
+        _, folders = get_guest_accessible_items(current_user)
+    else:
+        folders = Folder.query.order_by(Folder.name.asc()).all()
+
+    unique_folders = {folder.id: folder for folder in folders}.values()
+    sorted_folders = sorted(unique_folders, key=lambda folder: (folder.path or folder.name).lower())
+
+    return jsonify({
+        'success': True,
+        'is_guest': bool(current_user.is_guest),
+        'folders': [
+            {
+                'id': folder.id,
+                'name': folder.name,
+                'path': folder.path,
+            }
+            for folder in sorted_folders
+        ],
+    }), 200
 
 
 @chat_bp.route('/create', methods=['GET', 'POST'])
@@ -257,11 +443,9 @@ def create_chat():
                 return redirect(url_for('chat.create_chat'))
             
             # Prüfe ob bereits ein privater Chat mit dieser Person existiert
-            # Verhindere private Chats mit Gast-Accounts
             other_user = User.query.filter(
                 User.id == member_id,
-                ~User.is_guest,
-                User.email != 'anonymous@system.local'
+                *visible_chat_user_filters(),
             ).first_or_404()
             existing_dm = Chat.query.filter_by(is_direct_message=True).join(ChatMember).filter(
                 ChatMember.user_id.in_([current_user.id, member_id])
@@ -323,14 +507,12 @@ def create_chat():
             )
             db.session.add(creator_member)
             
-            # Add selected members (excluding guest accounts)
+            # Add selected members
             for member_id in member_ids:
                 if int(member_id) != current_user.id:
-                    # Verify user is not a guest account
                     user = User.query.filter(
                         User.id == int(member_id),
-                        ~User.is_guest,
-                        User.email != 'anonymous@system.local'
+                        *visible_chat_user_filters(),
                     ).first()
                     if user:
                         member = ChatMember(
@@ -344,12 +526,8 @@ def create_chat():
             flash(translate('chat.flash.group_chat_created', name=name), 'success')
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
     
-    # Get all active users, excluding guest accounts
-    users = User.query.filter(
-        User.is_active == True,
-        ~User.is_guest,
-        User.email != 'anonymous@system.local'
-    ).all()
+    # Get all selectable users for chat creation, including guests.
+    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).all()
     return render_template('chat/create.html', users=users)
 
 
@@ -358,11 +536,9 @@ def create_chat():
 @check_module_access('module_chat')
 def direct_message(user_id):
     """Start or continue a direct message with a user."""
-    # Verhindere direkte Nachrichten mit Gast-Accounts
     other_user = User.query.filter(
         User.id == user_id,
-        ~User.is_guest,
-        User.email != 'anonymous@system.local'
+        *visible_chat_user_filters(),
     ).first_or_404()
     
     if user_id == current_user.id:
@@ -632,14 +808,13 @@ def chat_settings(chat_id):
     if request.method == 'POST':
         return update_chat(chat_id)
     
-    # Get chat members, excluding guest accounts
+    # Get chat members
     chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
     if member_ids:
         members = User.query.filter(
             User.id.in_(member_ids),
-            ~User.is_guest,
-            User.email != 'anonymous@system.local'
+            *visible_chat_user_filters(),
         ).all()
     else:
         members = []

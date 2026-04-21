@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Bewertungs-Modul - Admin anlegen{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">Bewertungs-Modul - Admin anlegen</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-clipboard2-check me-2"></i>Bewertungs-Modul - Admin anlegen</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    Legen Sie hier einen Modul-Administrator an. Dieser meldet sich an der normalen Login-Seite mit
+                    <strong>Benutzername</strong> statt E-Mail an und hat ausschließlich Zugriff auf das Bewertungs-Modul.
+                </p>
+                <form id="assessmentAdminForm" class="row g-2">
+                    <div class="col-md-4"><input class="form-control" name="username" placeholder="Benutzername" required></div>
+                    <div class="col-md-4"><input class="form-control" name="display_name" placeholder="Anzeigename" required></div>
+                    <div class="col-md-3"><input type="password" class="form-control" name="password" placeholder="Passwort" required></div>
+                    <div class="col-md-1"><button class="btn btn-accent w-100" title="Anlegen"><i class="bi bi-plus-lg"></i></button></div>
+                </form>
+                <p id="assessmentAdminStatus" class="text-muted small mt-2 mb-0"></p>
+                <hr>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Zum Bewertungs-Modul wechseln
+                    </a>
+                    <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">Zurück</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('assessmentAdminForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.target).entries());
+    const res = await fetch("{{ url_for('settings.admin_modules_create_assessment_admin') }}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    document.getElementById('assessmentAdminStatus').textContent = data.message || '';
+    if (data.success) e.target.reset();
+});
+</script>
+{% endblock %}

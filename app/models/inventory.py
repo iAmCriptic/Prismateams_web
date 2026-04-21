@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from app import db
 from app.utils.lengths import parse_length_to_meters
 
@@ -40,7 +40,10 @@ class Product(db.Model):
     location = db.Column(db.String(255), nullable=True)  # Lagerort
     length = db.Column(db.String(50), nullable=True)  # Länge (z.B. "5m", "120cm")
     purchase_date = db.Column(db.Date, nullable=True)  # Anschaffungsdatum
-    status = db.Column(db.String(20), default='available', nullable=False, index=True)  # 'available', 'borrowed', 'missing'
+    status = db.Column(db.String(20), default='available', nullable=False, index=True)  # 'available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired'
+    item_type = db.Column(db.String(20), default='asset', nullable=False, index=True)  # 'asset' oder 'consumable'
+    min_stock = db.Column(db.Integer, default=0, nullable=False)  # Reorder-Schwelle für Verbrauchsmaterial
+    reorder_note = db.Column(db.String(255), nullable=True)
     image_path = db.Column(db.String(500), nullable=True)  # Pfad zum Produktbild
     qr_code_data = db.Column(db.String(255), nullable=True)  # QR-Code-Wert (z.B. "PROD-{id}")
     folder_id = db.Column(db.Integer, db.ForeignKey('product_folders.id'), nullable=True, index=True)  # Ordner-Zuordnung
@@ -53,6 +56,9 @@ class Product(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by])
     folder = db.relationship('ProductFolder', back_populates='products')
     borrow_transactions = db.relationship('BorrowTransaction', back_populates='product', cascade='all, delete-orphan')
+    lots = db.relationship('ProductLot', back_populates='product', cascade='all, delete-orphan')
+    status_history = db.relationship('ProductStatusHistory', back_populates='product', cascade='all, delete-orphan')
+    stock_movements = db.relationship('StockMovement', back_populates='product', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Product {self.name}>'
@@ -79,6 +85,34 @@ class Product(db.Model):
             product_id=self.id,
             status='active'
         ).first()
+
+    @property
+    def total_on_hand(self):
+        """Summierter physischer Bestand über alle Lots."""
+        if self.item_type != 'consumable':
+            return 1 if self.status not in {'retired'} else 0
+        return int(sum((lot.quantity_on_hand or 0) for lot in self.lots))
+
+    @property
+    def total_reserved(self):
+        """Reservierter Bestand über alle Lots."""
+        if self.item_type != 'consumable':
+            return 0
+        return int(sum((lot.quantity_reserved or 0) for lot in self.lots))
+
+    @property
+    def total_available(self):
+        """Verfügbarer Bestand nach Reservierungen."""
+        if self.item_type != 'consumable':
+            return 1 if self.status == 'available' else 0
+        return max(0, self.total_on_hand - self.total_reserved)
+
+    @property
+    def needs_reorder(self):
+        """Ob Verbrauchsmaterial unter Mindestbestand liegt."""
+        if self.item_type != 'consumable':
+            return False
+        return self.total_available <= max(0, self.min_stock or 0)
 
 
 class BorrowTransaction(db.Model):
@@ -275,6 +309,7 @@ class InventoryItem(db.Model):
     new_condition = db.Column(db.String(50), nullable=True)
     checked_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     checked_at = db.Column(db.DateTime, nullable=True)
+    version = db.Column(db.Integer, default=1, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -301,3 +336,106 @@ class LengthColorMapping(db.Model):
     
     def __repr__(self):
         return f'<LengthColorMapping {self.length_meters}m -> {self.color_hex}>'
+
+
+class ProductLot(db.Model):
+    """Chargen-/Bestandslot für Verbrauchsmaterial."""
+    __tablename__ = 'product_lots'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    lot_code = db.Column(db.String(100), nullable=True, index=True)
+    supplier = db.Column(db.String(255), nullable=True)
+    expiration_date = db.Column(db.Date, nullable=True)
+    quantity_on_hand = db.Column(db.Integer, default=0, nullable=False)
+    quantity_reserved = db.Column(db.Integer, default=0, nullable=False)
+    unit_cost_cents = db.Column(db.Integer, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    product = db.relationship('Product', back_populates='lots')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    movements = db.relationship('StockMovement', back_populates='lot', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<ProductLot product={self.product_id} lot={self.lot_code or self.id}>'
+
+
+class StockMovement(db.Model):
+    """Bestandsbewegung für nachvollziehbare Mengenänderungen."""
+    __tablename__ = 'stock_movements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    lot_id = db.Column(db.Integer, db.ForeignKey('product_lots.id'), nullable=True, index=True)
+    movement_type = db.Column(db.String(20), nullable=False, index=True)  # IN, OUT, ADJUST, CONSUME, RETURN, RESERVE, RELEASE
+    quantity_delta = db.Column(db.Integer, nullable=False)
+    quantity_after = db.Column(db.Integer, nullable=True)
+    reason = db.Column(db.String(255), nullable=True)
+    context_type = db.Column(db.String(50), nullable=True)  # borrow, inventory, maintenance, manual
+    context_id = db.Column(db.String(64), nullable=True)
+    performed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    product = db.relationship('Product', back_populates='stock_movements')
+    lot = db.relationship('ProductLot', back_populates='movements')
+    performer = db.relationship('User', foreign_keys=[performed_by])
+
+    def __repr__(self):
+        return f'<StockMovement product={self.product_id} type={self.movement_type} delta={self.quantity_delta}>'
+
+
+class ProductStatusHistory(db.Model):
+    """Historie von Statuswechseln (Lifecycle)."""
+    __tablename__ = 'product_status_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    old_status = db.Column(db.String(20), nullable=True, index=True)
+    new_status = db.Column(db.String(20), nullable=False, index=True)
+    reason = db.Column(db.String(255), nullable=True)
+    note = db.Column(db.Text, nullable=True)
+    changed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    product = db.relationship('Product', back_populates='status_history')
+    changer = db.relationship('User', foreign_keys=[changed_by])
+
+    def __repr__(self):
+        return f'<ProductStatusHistory product={self.product_id} {self.old_status}->{self.new_status}>'
+
+
+class InventoryItemLock(db.Model):
+    """Soft-Lock für kollaborative Inventur."""
+    __tablename__ = 'inventory_item_locks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    inventory_id = db.Column(db.Integer, db.ForeignKey('inventories.id'), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    locked_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    lock_reason = db.Column(db.String(120), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    last_heartbeat_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    inventory = db.relationship('Inventory')
+    product = db.relationship('Product')
+    locker = db.relationship('User', foreign_keys=[locked_by])
+
+    __table_args__ = (
+        db.UniqueConstraint('inventory_id', 'product_id', name='uq_inventory_product_lock'),
+    )
+
+    @property
+    def is_active(self):
+        return self.expires_at > datetime.utcnow()
+
+    def refresh(self, ttl_seconds=90):
+        now = datetime.utcnow()
+        self.last_heartbeat_at = now
+        self.expires_at = now + timedelta(seconds=ttl_seconds)
+
+    def __repr__(self):
+        return f'<InventoryItemLock inv={self.inventory_id} product={self.product_id} by={self.locked_by}>'

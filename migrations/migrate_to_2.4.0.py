@@ -596,13 +596,85 @@ def migrate_must_change_password():
 
 
 def migrate_contacts_table():
-    """Tabelle contacts."""
+    """Tabelle contacts inkl. sort_name und salutation."""
     print("\n" + "=" * 60)
-    print("Migration: Erstelle contacts Tabelle")
+    print("Migration: contacts Tabelle, sort_name und salutation")
     print("=" * 60)
 
     if table_exists("contacts"):
-        print("✓ Tabelle 'contacts' existiert bereits. Migration übersprungen.")
+        print("✓ Tabelle 'contacts' existiert bereits.")
+
+        columns = {col["name"] for col in inspect(db.engine).get_columns("contacts")}
+        if "salutation" not in columns:
+            print("Füge Spalte 'salutation' zu contacts hinzu...")
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE contacts ADD COLUMN salutation VARCHAR(50)"))
+            print("✓ Spalte 'salutation' hinzugefügt")
+        else:
+            print("✓ Spalte 'salutation' existiert bereits")
+
+        if "sort_name" not in columns:
+            print("Füge Spalte 'sort_name' zu contacts hinzu...")
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE contacts ADD COLUMN sort_name VARCHAR(255)"))
+            print("✓ Spalte 'sort_name' hinzugefügt")
+        else:
+            print("✓ Spalte 'sort_name' existiert bereits")
+
+        print("Setze sort_name für bestehende Kontakte...")
+        with db.engine.begin() as conn:
+            conn.execute(
+                text(
+                    "UPDATE contacts SET sort_name = name WHERE sort_name IS NULL OR TRIM(sort_name) = ''"
+                )
+            )
+        print("✓ Bestehende Kontakte aktualisiert")
+
+        print("Migriere vorhandene Namen nach Anrede/Name (Frau/Herr)...")
+        with db.engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    UPDATE contacts
+                    SET salutation = CASE
+                        WHEN LOWER(TRIM(name)) LIKE 'frau %' THEN 'Frau'
+                        WHEN LOWER(TRIM(name)) LIKE 'herr %' THEN 'Herr'
+                        ELSE salutation
+                    END
+                    WHERE salutation IS NULL OR TRIM(salutation) = ''
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    UPDATE contacts
+                    SET name = TRIM(
+                        CASE
+                            WHEN LOWER(TRIM(name)) LIKE 'frau %' THEN SUBSTR(TRIM(name), 6)
+                            WHEN LOWER(TRIM(name)) LIKE 'herr %' THEN SUBSTR(TRIM(name), 6)
+                            ELSE name
+                        END
+                    )
+                    WHERE LOWER(TRIM(name)) LIKE 'frau %' OR LOWER(TRIM(name)) LIKE 'herr %'
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "UPDATE contacts SET sort_name = name WHERE sort_name IS NULL OR TRIM(sort_name) = ''"
+                )
+            )
+        print("✓ Anrede-Migration abgeschlossen")
+
+        inspector = inspect(db.engine)
+        if not index_exists(inspector, "contacts", "idx_contacts_sort_name"):
+            with db.engine.begin() as conn:
+                conn.execute(text("CREATE INDEX idx_contacts_sort_name ON contacts(sort_name)"))
+            print("✓ Index idx_contacts_sort_name erstellt")
+        else:
+            print("✓ Index idx_contacts_sort_name existiert bereits")
+
         return True
 
     print("Erstelle Tabelle 'contacts'...")
@@ -613,7 +685,9 @@ def migrate_contacts_table():
                 """
             CREATE TABLE contacts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                salutation VARCHAR(50),
                 name VARCHAR(255) NOT NULL,
+                sort_name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL,
                 phone VARCHAR(50),
                 notes TEXT,
@@ -628,6 +702,7 @@ def migrate_contacts_table():
         print("Erstelle Indizes...")
         conn.execute(text("CREATE INDEX idx_contacts_email ON contacts(email)"))
         conn.execute(text("CREATE INDEX idx_contacts_name ON contacts(name)"))
+        conn.execute(text("CREATE INDEX idx_contacts_sort_name ON contacts(sort_name)"))
     print("✓ Migration erfolgreich abgeschlossen!")
 
     print("  ✓ contacts Tabelle Migration abgeschlossen")
@@ -884,6 +959,26 @@ def migrate_assessment_module():
     return True
 
 
+def migrate_chat_message_metadata():
+    """Erweitert chat_messages um metadata_json fuer strukturierte Nachrichtentypen."""
+    print("\n" + "=" * 60)
+    print("Migration: chat_messages metadata_json")
+    print("=" * 60)
+    if not table_exists("chat_messages"):
+        print("[INFO] Tabelle chat_messages existiert nicht - uebersprungen")
+        return True
+
+    columns = get_table_columns("chat_messages")
+    if "metadata_json" not in columns:
+        print("[INFO] Fuege metadata_json zu chat_messages hinzu...")
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE chat_messages ADD COLUMN metadata_json TEXT NULL"))
+        print("[OK] Spalte metadata_json hinzugefuegt")
+    else:
+        print("[INFO] Spalte metadata_json existiert bereits")
+    return True
+
+
 def migrate(security_only: bool = False):
     """Führt alle konsolidierten Migrationen aus (Reihenfolge: Kern → Sicherheit → Assessment).
 
@@ -920,6 +1015,7 @@ def migrate(security_only: bool = False):
                 ("contacts", migrate_contacts_table),
                 ("Passwort-Reset-Felder", migrate_password_reset_fields),
                 ("Sicherheitsfeatures", migrate_security_features),
+                ("Chat-Metadaten", migrate_chat_message_metadata),
                 ("Assessment-Modul", migrate_assessment_module),
             ]
             total = len(steps)

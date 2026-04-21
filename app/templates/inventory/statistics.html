@@ -152,7 +152,7 @@
 <script>
 async function loadStatistics() {
     try {
-        const response = await fetch('/inventory/api/statistics');
+        const response = await fetch('/inventory/vnext/api/statistics');
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);

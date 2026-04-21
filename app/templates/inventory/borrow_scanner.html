@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Ausleihen geben - Team Portal{% endblock %}
+{% block title %}Ausleihen geben - {{ app_name or 'Rpismateams' }}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -44,6 +44,7 @@
                         </div>
                     </div>
                     <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+                    <div id="scannerFeedback" class="alert mt-2 d-none"></div>
                 </div>
                 
                 <hr>
@@ -170,6 +171,15 @@
         </div>
     </div>
 </div>
+
+<div class="d-flex gap-2 mt-3">
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="undoLastCartActionBtn" disabled>
+        <i class="bi bi-arrow-counterclockwise"></i> Letzte Aktion rueckgaengig
+    </button>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="retryLastCartActionBtn" disabled>
+        <i class="bi bi-arrow-repeat"></i> Letzten Request wiederholen
+    </button>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -189,7 +199,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function addToCart() {
         if (!manualInput || !manualInput.value.trim()) {
-            alert('Bitte geben Sie einen QR-Code oder eine Produkt-ID ein.');
+            if (window.borrowScannerManager) {
+                window.borrowScannerManager.showError('Bitte geben Sie einen QR-Code oder eine Produkt-ID ein.');
+            }
             return;
         }
         
@@ -212,23 +224,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.is_set && window.borrowScannerManager) {
                     window.borrowScannerManager.showSetScannedModal(result);
                 } else if (result.is_set) {
-                    // Fallback falls Manager nicht verfügbar
-                    let message = `Set "${result.set.name}" wurde gescannt.\n\n`;
-                    message += `${result.added_products.length} Produkt(e) wurden zum Warenkorb hinzugefügt:\n`;
-                    result.added_products.forEach(p => {
-                        message += `- ${p.name}${p.category ? ' (' + p.category + ')' : ''}\n`;
-                    });
-                    alert(message);
+                    console.log('Set gescannt, Manager-Fallback aktiv.');
                 } else {
                     // Einzelnes Produkt wurde hinzugefügt
                     const productName = result.product.name + (result.product.category ? ' (' + result.product.category + ')' : '');
-                    // Zeige kurze Erfolgsmeldung (optional)
-                    // alert(`Produkt "${productName}" wurde zum Warenkorb hinzugefügt.`);
+                    if (window.borrowScannerManager) {
+                        window.borrowScannerManager.showSuccess(`Produkt "${productName}" wurde hinzugefuegt.`);
+                    }
                 }
                 
                 // Verwende BorrowScannerManager statt Reload
                 if (window.borrowScannerManager) {
                     window.borrowScannerManager.updateCartFromJSON(result);
+                    window.borrowScannerManager.registerAddAction(result);
                     // Prüfe ob Checkout-Formular benötigt wird
                     const checkoutForm = document.getElementById('checkoutForm');
                     if (!checkoutForm && result.cart_count > 0) {
@@ -249,11 +257,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.reload();
                 }
             } else {
-                alert(result.error || 'Fehler beim Hinzufügen zum Warenkorb.');
+                if (window.borrowScannerManager) {
+                    window.borrowScannerManager.showError(result.error || 'Fehler beim Hinzufuegen zum Warenkorb.');
+                    window.borrowScannerManager.enableRetry(addToCart);
+                }
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler beim Hinzufügen zum Warenkorb.');
+            if (window.borrowScannerManager) {
+                window.borrowScannerManager.showError('Fehler beim Hinzufuegen zum Warenkorb.');
+                window.borrowScannerManager.enableRetry(addToCart);
+            }
         }
     }
     
@@ -272,34 +286,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Remove from cart buttons
     document.querySelectorAll('.remove-from-cart').forEach(btn => {
-        btn.addEventListener('click', async function(e) {
+        btn.addEventListener('click', function(e) {
             const productId = e.target.closest('.remove-from-cart').dataset.productId;
-            
-            try {
-                const formData = new FormData();
-                formData.append('action', 'remove_from_cart');
-                formData.append('product_id', productId);
-                
-                const response = await fetch('/inventory/borrow-scanner', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    // Verwende BorrowScannerManager statt Reload
-                    if (window.borrowScannerManager) {
-                        window.borrowScannerManager.removeFromCart(productId);
-                    } else {
-                        // Fallback: Seite neu laden nur wenn Manager nicht verfügbar
-                        window.location.reload();
-                    }
-                } else {
-                    alert('Fehler beim Entfernen aus dem Warenkorb.');
-                }
-            } catch (error) {
-                console.error('Fehler:', error);
-                alert('Fehler beim Entfernen aus dem Warenkorb.');
+            if (window.borrowScannerManager) {
+                window.borrowScannerManager.removeFromCart(productId);
             }
         });
     });
@@ -333,11 +323,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     body: formData
                 });
-                
-                // Die Checkout-Route gibt immer einen Redirect zurück (302)
-                // Daher ist response.ok möglicherweise false, aber die Ausleihe war erfolgreich
-                // Wir leiten zum Dashboard weiter - die Flash-Messages werden serverseitig gesetzt
-                window.location.href = '/inventory/';
+                if (!response.ok) {
+                    throw new Error('Checkout fehlgeschlagen');
+                }
+                if (window.borrowScannerManager) {
+                    window.borrowScannerManager.showSuccess('Ausleihe wurde erstellt. Weiterleitung...');
+                }
+                window.setTimeout(() => {
+                    window.location.href = '/inventory/';
+                }, 700);
                 
             } catch (error) {
                 console.error('Fehler:', error);
@@ -346,10 +340,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnText;
                 }
-                // Trotzdem weiterleiten - könnte erfolgreich gewesen sein
-                // Die Flash-Message wird serverseitig gesetzt
-                window.location.href = '/inventory/';
+                if (window.borrowScannerManager) {
+                    window.borrowScannerManager.showError('Checkout fehlgeschlagen. Bitte pruefen und erneut versuchen.');
+                    window.borrowScannerManager.enableRetry(() => checkoutForm.requestSubmit());
+                }
             }
+        });
+    }
+
+    const undoBtn = document.getElementById('undoLastCartActionBtn');
+    if (undoBtn) {
+        undoBtn.addEventListener('click', () => {
+            window.borrowScannerManager?.undoLastAction();
+        });
+    }
+    const retryBtn = document.getElementById('retryLastCartActionBtn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            window.borrowScannerManager?.retryLastAction();
         });
     }
 });

@@ -372,10 +372,9 @@ def create_app(config_name='default'):
             if chat.is_direct_message and not chat.is_main_chat:
                 from app.models.chat import ChatMember
                 from app.models.user import User
-                # Filter out guest accounts when getting members
+                from app.utils.chat_visibility import visible_chat_user_filters
                 members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                    ~User.is_guest,
-                    User.email != 'anonymous@system.local'
+                    *visible_chat_user_filters(),
                 ).all()
                 for member in members:
                     if member.user_id != current_user.id:
@@ -386,18 +385,17 @@ def create_app(config_name='default'):
             return chat.name
         
         def get_other_chat_user(chat):
-            """Returns the other user in a private chat (excluding guest accounts). Returns None if not a private chat or if other user is a guest account."""
+            """Returns the other user in a private chat."""
             from flask_login import current_user
             from app.models.chat import ChatMember
             from app.models.user import User
+            from app.utils.chat_visibility import visible_chat_user_filters
             
             if not chat or not chat.is_direct_message or chat.is_main_chat:
                 return None
             
-            # Filter out guest accounts when getting members
             members = ChatMember.query.filter_by(chat_id=chat.id).join(User).filter(
-                ~User.is_guest,
-                User.email != 'anonymous@system.local'
+                *visible_chat_user_filters(),
             ).all()
             
             for member in members:
@@ -742,6 +740,7 @@ def create_app(config_name='default'):
     from app.blueprints.api import api_bp
     from app.blueprints.errors import errors_bp
     from app.blueprints.inventory import inventory_bp
+    from app.blueprints.inventory_vnext import inventory_vnext_bp
     from app.blueprints.wiki import wiki_bp
     from app.blueprints.comments import comments_bp
     from app.blueprints.booking import booking_bp
@@ -763,6 +762,7 @@ def create_app(config_name='default'):
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(errors_bp, url_prefix='/test')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    app.register_blueprint(inventory_vnext_bp, url_prefix='/inventory')
     app.register_blueprint(wiki_bp)
     app.register_blueprint(comments_bp)
     app.register_blueprint(booking_bp, url_prefix='/booking')
@@ -867,7 +867,7 @@ def create_app(config_name='default'):
                 from app.models.settings import SystemSettings
                 from app.models.whitelist import WhitelistEntry
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
-                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
                 from app.models.api_token import ApiToken
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
@@ -1107,6 +1107,33 @@ def create_app(config_name='default'):
                                     "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
+
+                    # Chat-Messages: metadata_json für strukturierte Nachrichtentypen ergänzen
+                    if 'chat_messages' in inspector.get_table_names():
+                        chat_columns = {col['name'] for col in inspector.get_columns('chat_messages')}
+                        if 'metadata_json' not in chat_columns:
+                            print("[INFO] Ergänze chat_messages.metadata_json ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE chat_messages ADD COLUMN metadata_json TEXT"))
+                            print("[OK] chat_messages.metadata_json hinzugefügt")
+
+                    # Kontakte: sort_name für flexible Sortierung ergänzen
+                    if 'contacts' in inspector.get_table_names():
+                        contact_columns = {col['name'] for col in inspector.get_columns('contacts')}
+                        if 'salutation' not in contact_columns:
+                            print("[INFO] Ergänze contacts.salutation ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE contacts ADD COLUMN salutation VARCHAR(50)"))
+                            print("[OK] contacts.salutation hinzugefügt")
+                        if 'sort_name' not in contact_columns:
+                            print("[INFO] Ergänze contacts.sort_name ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE contacts ADD COLUMN sort_name VARCHAR(255)"))
+                                connection.execute(text(
+                                    "UPDATE contacts SET sort_name = name "
+                                    "WHERE sort_name IS NULL OR TRIM(sort_name) = ''"
+                                ))
+                            print("[OK] contacts.sort_name hinzugefügt und initialisiert")
 
                     # E-Mail-Manager-Großupdate: Farbpunkt/Keyword-Sync-Spalten ergänzen
                     if 'email_messages' in inspector.get_table_names():

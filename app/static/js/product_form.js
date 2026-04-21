@@ -21,8 +21,8 @@ const InventoryFormManager = (() => {
     let entryDeleteBtn;
 
     const routes = {
-        folders: '/inventory/api/folders',
-        categories: '/inventory/api/categories',
+        folders: '/inventory/vnext/api/folders',
+        categories: '/inventory/vnext/api/categories',
     };
 
     const sortByName = (items) => {

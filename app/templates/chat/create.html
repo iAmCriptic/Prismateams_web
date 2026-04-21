@@ -46,6 +46,9 @@
                             <label class="list-group-item">
                                 <input class="form-check-input me-2 member-checkbox" type="checkbox" name="members" value="{{ user.id }}">
                                 {{ user.full_name }}
+                                {% if user.is_guest %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1">Gast</span>
+                                {% endif %}
                                 <small class="text-muted">({{ user.email }})</small>
                             </label>
                             {% endif %}

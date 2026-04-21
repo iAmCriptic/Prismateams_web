@@ -1,17 +1,17 @@
-from flask import jsonify, url_for
+from flask import jsonify, request, url_for
 from flask_login import current_user, login_required
 
 from app.models.user import User
+from app.utils.chat_visibility import selectable_chat_user_filters
 
 
 def register_user_routes(api_bp, require_api_auth):
     @api_bp.route("/users", methods=["GET"])
     @login_required
     def get_users():
+        include_guests = request.args.get("include_guests", "0") == "1"
         users = User.query.filter(
-            User.is_active == True,
-            ~User.is_guest,
-            User.email != "anonymous@system.local",
+            *selectable_chat_user_filters(include_guests=include_guests)
         ).all()
         return jsonify([{
             "id": user.id,
@@ -20,6 +20,8 @@ def register_user_routes(api_bp, require_api_auth):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "is_admin": user.is_admin,
+            "is_guest": user.is_guest,
+            "guest_username": user.guest_username,
             "profile_picture": url_for("settings.profile_picture", filename=user.profile_picture) if user.profile_picture else None,
         } for user in users])
 

@@ -156,13 +156,14 @@
 }
 
 .calendar-day.today {
-    background-color: var(--accent-color);
-    color: white;
+    /* Light mode: nur dezente Hervorhebung, damit Event-Farben lesbar bleiben */
+    background-color: rgba(13, 110, 253, 0.10);
+    color: inherit;
 }
 
 .calendar-day.today:hover {
-    background-color: var(--accent-color);
-    opacity: 0.9;
+    background-color: rgba(13, 110, 253, 0.14);
+    opacity: 1;
 }
 
 .calendar-event {
@@ -708,15 +709,21 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.calendar-day.today .calendar-event {
-    background-color: rgba(255, 255, 255, 0.2);
+/* Dark mode: starke Heute-Markierung beibehalten */
+[data-bs-theme="dark"] .calendar-day.today {
+    background-color: var(--accent-color);
     color: white;
 }
 
-.calendar-day.today .calendar-event.multi-day {
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.2) 100%);
+[data-bs-theme="dark"] .calendar-day.today:hover {
+    background-color: var(--accent-color);
+    opacity: 0.9;
+}
+
+[data-bs-theme="dark"] .calendar-day.today .calendar-event {
+    background-color: rgba(255, 255, 255, 0.2);
     color: white;
-    border-color: rgba(255, 255, 255, 0.4);
+    border-left-color: rgba(255, 255, 255, 0.45);
 }
 
 /* Darkmode Calendar */

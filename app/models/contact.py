@@ -7,7 +7,9 @@ class Contact(db.Model):
     __tablename__ = 'contacts'
     
     id = db.Column(db.Integer, primary_key=True)
+    salutation = db.Column(db.String(50), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False, index=True)
+    sort_name = db.Column(db.String(255), nullable=False, index=True)
     email = db.Column(db.String(255), nullable=False, index=True)
     phone = db.Column(db.String(50), nullable=True)
     notes = db.Column(db.Text, nullable=True)
@@ -35,7 +37,9 @@ class Contact(db.Model):
         """Konvertiert Kontakt zu Dictionary für JSON-Responses."""
         return {
             'id': self.id,
+            'salutation': self.salutation or '',
             'name': self.name,
+            'sort_name': self.sort_name,
             'email': self.email,
             'phone': self.phone or '',
             'notes': self.notes or '',

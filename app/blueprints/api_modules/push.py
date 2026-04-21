@@ -128,10 +128,20 @@ def register_push_routes(api_bp, require_api_auth):
                     "action_required": "subscribe",
                 }), 400
 
+            portal_name = current_app.config.get("APP_NAME", "Rpismateams")
+            try:
+                from app.models.settings import SystemSettings
+
+                portal_name_setting = SystemSettings.query.filter_by(key="portal_name").first()
+                if portal_name_setting and portal_name_setting.value and portal_name_setting.value.strip():
+                    portal_name = portal_name_setting.value.strip()
+            except Exception:
+                pass
+
             success = send_push_notification(
                 user_id=current_user.id,
                 title="Test-Benachrichtigung",
-                body="Dies ist eine Test-Push-Benachrichtigung vom Team Portal.",
+                body=f"Dies ist eine Test-Push-Benachrichtigung vom {portal_name}.",
                 url="/dashboard/",
                 data={"type": "test", "timestamp": datetime.utcnow().isoformat()},
             )

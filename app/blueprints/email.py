@@ -11,6 +11,7 @@ from app.utils.i18n import translate
 from flask_mail import Message
 from datetime import datetime, timedelta
 from html import unescape
+from urllib.parse import unquote
 import imaplib
 import email as email_module
 from email.mime.text import MIMEText
@@ -86,26 +87,196 @@ def build_footer_html():
     return ''.join(f'<p>{line}</p>' for line in lines if line and line.strip())
 
 
+def backfill_inline_attachments_from_imap(email_msg) -> bool:
+    """
+    Lädt Inline-Bilder (cid:) nachträglich aus IMAP und speichert sie als EmailAttachment,
+    falls die HTML-Mail cid:-Referenzen enthält, aber keine passenden Inline-Attachments
+    in der DB vorliegen (z. B. bei Mails, die vor dem Sync-Fix importiert wurden).
+
+    Returns True, wenn mindestens ein neues Inline-Attachment persistiert wurde.
+    """
+    try:
+        if not email_msg or not email_msg.body_html:
+            return False
+
+        html = email_msg.body_html if isinstance(email_msg.body_html, str) else \
+            email_msg.body_html.decode('utf-8', errors='replace')
+
+        cid_refs = re.findall(r'src\s*=\s*["\']?cid:([^"\'\s>]+)', html, flags=re.IGNORECASE)
+        if not cid_refs:
+            return False
+
+        def _norm(v: str) -> str:
+            if not v:
+                return ""
+            v = unescape(unquote(str(v))).strip()
+            if v.lower().startswith("cid:"):
+                v = v[4:]
+            v = v.strip().strip('"').strip("'").strip()
+            if v.startswith('<') and v.endswith('>'):
+                v = v[1:-1].strip()
+            return v.lower()
+
+        needed = {_norm(c) for c in cid_refs if c}
+        needed = {k for k in needed if k}
+        if not needed:
+            return False
+
+        have = set()
+        for att in (email_msg.attachments or []):
+            if not att.is_inline or not (att.content_type or '').startswith('image/'):
+                continue
+            for raw in (att.content_id, att.filename):
+                key = _norm(raw)
+                if key:
+                    have.add(key)
+
+        missing = needed - have
+        if not missing:
+            return False
+
+        if not email_msg.imap_uid or not email_msg.folder:
+            return False
+
+        mail_conn = None
+        try:
+            mail_conn = connect_imap(folder=email_msg.folder)
+            if not mail_conn:
+                return False
+
+            status, data = mail_conn.uid('fetch', str(email_msg.imap_uid), '(RFC822)')
+            if status != 'OK' or not data or not data[0]:
+                return False
+
+            raw_bytes = None
+            for part in data:
+                if isinstance(part, tuple) and len(part) >= 2:
+                    raw_bytes = part[1]
+                    break
+            if not raw_bytes:
+                return False
+
+            fetched_msg = email_module.message_from_bytes(raw_bytes)
+        finally:
+            try:
+                if mail_conn:
+                    mail_conn.close()
+                    mail_conn.logout()
+            except Exception:
+                pass
+
+        created_any = False
+        if fetched_msg.is_multipart():
+            for part in fetched_msg.walk():
+                content_type = part.get_content_type()
+                if not content_type.startswith('image/'):
+                    continue
+                cid_hdr = (part.get('Content-ID', '') or '').strip().strip('<>')
+                filename = part.get_filename() or ''
+                keys = {_norm(cid_hdr), _norm(filename)} - {''}
+                if not (keys & missing):
+                    continue
+                try:
+                    payload = part.get_payload(decode=True)
+                except Exception:
+                    payload = None
+                if not payload:
+                    continue
+
+                if not filename:
+                    ext = content_type.split('/')[-1] if '/' in content_type else 'bin'
+                    filename = f"inline_{len(email_msg.attachments or [])}.{ext}"
+                try:
+                    filename = truncate_filename(filename, max_length=500)
+                except Exception:
+                    filename = filename[:500]
+
+                attachment = EmailAttachment(
+                    email_id=email_msg.id,
+                    filename=filename,
+                    content_type=content_type,
+                    size=len(payload),
+                    content=payload,
+                    file_path=None,
+                    is_inline=True,
+                    content_id=cid_hdr or None,
+                    is_large_file=False,
+                )
+                db.session.add(attachment)
+                created_any = True
+
+        if created_any:
+            try:
+                if not email_msg.has_attachments:
+                    email_msg.has_attachments = True
+            except Exception:
+                pass
+            db.session.commit()
+            try:
+                db.session.refresh(email_msg)
+            except Exception:
+                pass
+        return created_any
+    except Exception as e:
+        logging.error(f"backfill_inline_attachments_from_imap failed: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return False
+
+
 def replace_cid_images_in_email_html(html: str, email_msg) -> str:
     """Replace cid: image sources with data URLs from stored attachments."""
     if not html or not email_msg or not getattr(email_msg, 'attachments', None):
         return html
-    for attachment in email_msg.attachments:
-        if attachment.is_inline and attachment.content_type.startswith('image/'):
-            data_url = attachment.get_data_url()
-            if data_url:
-                cid_pattern = f'cid:{attachment.filename}'
-                html = html.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
-                html = html.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
-                content_id = attachment.content_id
-                if content_id:
-                    html = html.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
-                    html = html.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
-    placeholder_svg = (
-        'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"'
+
+    placeholder_data_url = (
+        "data:image/svg+xml;base64,"
+        "PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48"
+        "cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIg"
+        "Zm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlk"
+        "ZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"
     )
-    html = re.sub(r'src="cid:([^"]+)"', placeholder_svg, html)
-    return html
+
+    def normalize_cid_ref(value: str) -> str:
+        if not value:
+            return ""
+        normalized = unescape(unquote(str(value))).strip()
+        if normalized.lower().startswith("cid:"):
+            normalized = normalized[4:]
+        normalized = normalized.strip().strip('"').strip("'").strip()
+        if normalized.startswith("<") and normalized.endswith(">"):
+            normalized = normalized[1:-1].strip()
+        return normalized.lower()
+
+    cid_map = {}
+    for attachment in email_msg.attachments:
+        if not attachment.is_inline or not attachment.content_type.startswith('image/'):
+            continue
+        data_url = attachment.get_data_url()
+        if not data_url:
+            continue
+        for raw_ref in (attachment.content_id, attachment.filename):
+            key = normalize_cid_ref(raw_ref)
+            if key:
+                cid_map[key] = data_url
+
+    def replace_src(match):
+        prefix = match.group("prefix")
+        quote = match.group("quote") or '"'
+        cid_value = match.group("value") or ""
+        key = normalize_cid_ref(cid_value)
+        resolved = cid_map.get(key)
+        src_value = resolved if resolved else placeholder_data_url
+        return f"{prefix}{quote}{src_value}{quote}"
+
+    return re.sub(
+        r'(?P<prefix>\bsrc\s*=\s*)(?P<quote>["\']?)(?P<value>cid:[^"\'\s>]+)(?P=quote)',
+        replace_src,
+        html,
+        flags=re.IGNORECASE,
+    )
 
 
 def sanitize_email_iframe_html(html: str) -> str:
@@ -1315,18 +1486,6 @@ def sync_emails_from_folder(folder_name):
             email_ids = all_seq_numbers
             logging.info(f"First sync for folder '{folder_name}', processing all {len(email_ids)} emails")
         
-        if len(email_ids) == 0:
-            logging.info(f"No new emails to sync in folder '{folder_name}' (all {len(all_seq_numbers)} emails already in database or filtered out)")
-            try:
-                mail_conn.close()
-            except:
-                pass
-            try:
-                mail_conn.logout()
-            except:
-                pass
-            return True, f"Ordner '{folder_name}': Keine neuen E-Mails vorhanden"
-        
         # Für die Prüfung gelöschter E-Mails: Hole alle UIDs vom Server (nur wenn nicht erste Sync)
         # WICHTIG: Nur prüfen, wenn seq_to_uid vollständig ist (alle E-Mails haben UIDs)
         if highest_uid and len(seq_to_uid) > 0 and len(seq_to_uid) == len(all_seq_numbers):
@@ -1367,16 +1526,20 @@ def sync_emails_from_folder(folder_name):
             # (verhindert, dass E-Mails fälschlicherweise gelöscht werden)
             if highest_uid:
                 logging.debug(f"Skipping deleted email check for folder '{folder_name}' - UID mapping incomplete ({len(seq_to_uid)}/{len(all_seq_numbers)})")
-        
-        # Bei erster Synchronisation: Nur die letzten N E-Mails verarbeiten
-        if not highest_uid:
-            is_special_folder = folder_name in ['INBOX', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] or is_sent_folder(folder_name)
-            max_emails = 100 if not is_special_folder else 30
-            emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
-            logging.debug(f"First sync: Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
+
+        if len(email_ids) == 0:
+            logging.info(f"No new emails to sync in folder '{folder_name}' (all {len(all_seq_numbers)} emails already in database or filtered out)")
+            emails_to_process = []
         else:
-            emails_to_process = email_ids
-            logging.debug(f"Processing {len(emails_to_process)} new emails from folder '{folder_name}'")
+            # Bei erster Synchronisation: Nur die letzten N E-Mails verarbeiten
+            if not highest_uid:
+                is_special_folder = folder_name in ['INBOX', 'Drafts', 'Trash', 'Spam', 'Archive', 'Archives'] or is_sent_folder(folder_name)
+                max_emails = 100 if not is_special_folder else 30
+                emails_to_process = email_ids[-max_emails:] if len(email_ids) > max_emails else email_ids
+                logging.debug(f"First sync: Processing {len(emails_to_process)} emails from folder '{folder_name}' (max: {max_emails})")
+            else:
+                emails_to_process = email_ids
+                logging.debug(f"Processing {len(emails_to_process)} new emails from folder '{folder_name}'")
         
         for idx, email_id in enumerate(emails_to_process, 1):
             # Initialisiere Variablen für Exception-Handler
@@ -1477,15 +1640,20 @@ def sync_emails_from_folder(folder_name):
                 # imap_uid_str wurde bereits oben bestimmt
                 
                 if not message_id:
+                    # Wichtig für Move-Sync: Fallback-ID muss über Ordner hinweg stabil sein.
+                    # Sonst wird dieselbe Mail nach Verschieben als neue Mail erkannt.
                     try:
-                        from email.utils import parsedate_to_datetime
-                        parsed_date = parsedate_to_datetime(date_str) if date_str else datetime.utcnow()
-                        date_str_clean = parsed_date.strftime('%Y%m%d%H%M%S') if parsed_date else ''
-                    except:
-                        date_str_clean = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-                    
-                    message_id = f"<generated-{folder_name}-{imap_uid_str}-{date_str_clean}@local>"
-                    logging.debug(f"Generated message_id for email without Message-ID: {message_id}")
+                        stable_fingerprint = '|'.join([
+                            (sender or '').strip().lower(),
+                            (recipients or '').strip().lower(),
+                            (subject or '').strip().lower(),
+                            (date_str or '').strip().lower(),
+                        ])
+                        digest = hashlib.sha1(stable_fingerprint.encode('utf-8', errors='ignore')).hexdigest()
+                        message_id = f"<generated-{digest}@local>"
+                    except Exception:
+                        message_id = f"<generated-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}@local>"
+                    logging.debug(f"Generated stable message_id for email without Message-ID: {message_id}")
                 
                 received_at = datetime.utcnow()
                 try:
@@ -1615,9 +1783,26 @@ def sync_emails_from_folder(folder_name):
                     for part in email_msg.walk():
                         content_type = part.get_content_type()
                         content_disposition = part.get('Content-Disposition', '')
-                        
-                        if ('attachment' in content_disposition or 'inline' in content_disposition) and not content_type.startswith('text/'):
+                        content_id_header = (part.get('Content-ID', '') or '').strip()
+
+                        # Inline-Bilder aus multipart/related haben oft KEIN Content-Disposition,
+                        # nur einen Content-ID-Header. Diese Parts müssen trotzdem als Attachment
+                        # gespeichert werden, sonst können cid:-Referenzen im HTML nie aufgelöst werden.
+                        is_related_inline = (
+                            bool(content_id_header)
+                            and not content_type.startswith('text/')
+                            and not content_type.startswith('multipart/')
+                            and 'attachment' not in content_disposition
+                            and 'inline' not in content_disposition
+                        )
+
+                        if (
+                            ('attachment' in content_disposition or 'inline' in content_disposition)
+                            and not content_type.startswith('text/')
+                        ) or is_related_inline:
                             has_attachments = True
+                            if is_related_inline:
+                                content_disposition = (content_disposition or '') + '; inline'
                             
                             try:
                                 filename = part.get_filename()
@@ -2421,6 +2606,13 @@ def view_email(email_id):
             logging.error(f"HTML decode error: {e}")
             raw_html = None
 
+    # Inline-Bilder (cid:) nachladen, falls sie bei einem früheren Sync nicht erfasst wurden
+    if raw_html and re.search(r'src\s*=\s*["\']?cid:', raw_html, flags=re.IGNORECASE):
+        try:
+            backfill_inline_attachments_from_imap(email_msg)
+        except Exception as backfill_err:
+            logging.debug(f"Inline backfill skipped: {backfill_err}")
+
     is_simple_html = is_simple_html_email(raw_html) if raw_html else True
 
     html_iframe_html = None
@@ -2470,10 +2662,44 @@ def prefix_subject(subject: str, prefix: str) -> str:
 def normalize_addresses(addresses):
     if not addresses:
         return []
+    raw_values = []
     if isinstance(addresses, str):
-        parts = [p.strip() for p in addresses.split(',') if p.strip()]
+        raw_values = [addresses]
+    elif isinstance(addresses, (list, tuple, set)):
+        raw_values = [str(p).strip() for p in addresses if str(p).strip()]
     else:
-        parts = [str(p).strip() for p in addresses if str(p).strip()]
+        raw_values = [str(addresses).strip()]
+
+    parts = []
+    try:
+        # Unterstützt zuverlässig Formate wie:
+        # "Max Mustermann <max@firma.de>", "max@firma.de", gemischte Listen usw.
+        from email.utils import getaddresses
+
+        parsed = getaddresses(raw_values)
+        for name, addr in parsed:
+            candidate = (addr or '').strip()
+            if not candidate:
+                fallback = (name or '').strip()
+                if '@' in fallback and ' ' not in fallback:
+                    candidate = fallback
+            if candidate:
+                parts.append(candidate)
+    except Exception:
+        parts = []
+
+    # Fallback bei ungewöhnlichen Rohwerten
+    if not parts:
+        for raw in raw_values:
+            for token in str(raw).replace(';', ',').split(','):
+                token = token.strip()
+                if not token:
+                    continue
+                if '<' in token and '>' in token:
+                    token = token.split('<')[-1].split('>')[0].strip()
+                if token:
+                    parts.append(token)
+
     seen = set()
     result = []
     for a in parts:
@@ -2651,20 +2877,7 @@ def build_reply_context(email_msg: EmailMessage, mode: str):
             if not html_content.strip().startswith('<div class="email-original-content-inner">'):
                 html_content = f'<div class="email-original-content-inner">{html_content}</div>'
             
-            # Inline-Bilder ersetzen
-            for attachment in email_msg.attachments:
-                if attachment.is_inline and attachment.content_type.startswith('image/'):
-                    data_url = attachment.get_data_url()
-                    if data_url:
-                        cid_pattern = f'cid:{attachment.filename}'
-                        html_content = html_content.replace(f'src="{cid_pattern}"', f'src="{data_url}"')
-                        html_content = html_content.replace(f"src='{cid_pattern}'", f"src='{data_url}'")
-                        content_id = attachment.content_id
-                        if content_id:
-                            html_content = html_content.replace(f'src="cid:{content_id}"', f'src="{data_url}"')
-                            html_content = html_content.replace(f"src='cid:{content_id}'", f"src='{data_url}'")
-            
-            html_content = re.sub(r'src="cid:([^"]+)"', r'src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNmM3NTdkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+SW1hZ2U8L3RleHQ+PC9zdmc+"', html_content)
+            html_content = replace_cid_images_in_email_html(html_content, email_msg)
             
             original_html = html_content
         except Exception as e:
@@ -3189,6 +3402,12 @@ def compose():
             flash(error_msg, 'danger')
             return render_template('email/compose.html')
     
+    # GET Request - optionale Vorbelegung (z. B. aus Kontakte-Modul)
+    to_prefill = request.args.get('to', '').strip()
+    cc_prefill = request.args.get('cc', '').strip()
+    bcc_prefill = request.args.get('bcc', '').strip()
+    subject_prefill = request.args.get('subject', '').strip()
+
     # GET Request - Prüfe ob ein Entwurf geladen werden soll
     draft_id = request.args.get('draft_id', type=int)
     if draft_id:
@@ -3255,7 +3474,13 @@ def compose():
             logging.error(f"Fehler beim Laden des Entwurfs: {e}", exc_info=True)
             flash('Fehler beim Laden des Entwurfs.', 'danger')
     
-    return render_template('email/compose.html')
+    return render_template(
+        'email/compose.html',
+        to=to_prefill,
+        cc=cc_prefill,
+        bcc=bcc_prefill,
+        subject=subject_prefill,
+    )
 
 
 @email_bp.route('/save_draft', methods=['POST'])

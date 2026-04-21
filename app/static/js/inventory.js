@@ -49,7 +49,7 @@ class StockManager {
     
     async loadFolders() {
         try {
-            const response = await fetch('/inventory/api/folders');
+            const response = await fetch('/inventory/vnext/api/folders');
             if (response.ok) {
                 const foldersData = await response.json();
                 this.folders = foldersData;
@@ -69,7 +69,7 @@ class StockManager {
     
     async loadCategories() {
         try {
-            const response = await fetch('/inventory/api/categories');
+            const response = await fetch('/inventory/vnext/api/categories');
             if (response.ok) {
                 const categoriesData = await response.json();
                 // Füge alle Kategorien zum Set hinzu
@@ -89,7 +89,7 @@ class StockManager {
         try {
             // Baue URL mit optionalem folder_id Parameter
             // Wenn currentFolderId null ist (Root), verwende folder_id=0 für Produkte ohne Ordner
-            let url = '/inventory/api/inventory/filter-options';
+            let url = '/inventory/vnext/api/inventory/filter-options';
             if (this.currentFolderId !== null) {
                 url += `?folder_id=${this.currentFolderId}`;
             } else {
@@ -179,7 +179,7 @@ class StockManager {
                 sort_by: this.sortField || 'name',
                 sort_dir: this.sortDirection === 'desc' ? 'desc' : 'asc'
             });
-            const response = await fetch(`/inventory/api/products?${params.toString()}`);
+            const response = await fetch(`/inventory/vnext/api/products?${params.toString()}`);
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -1357,7 +1357,7 @@ class StockManager {
         }
         
         try {
-            const response = await fetch('/inventory/api/products/bulk-delete', {
+            const response = await fetch('/inventory/vnext/api/products/bulk-delete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1448,7 +1448,7 @@ class StockManager {
         }
         
         try {
-            const response = await fetch(`/inventory/api/products/${productId}`, {
+            const response = await fetch(`/inventory/vnext/api/products/${productId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1803,7 +1803,7 @@ class StockManager {
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Aktualisiere...';
                 
                 try {
-                    const response = await fetch('/inventory/api/products/bulk-update', {
+                    const response = await fetch('/inventory/vnext/api/products/bulk-update', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -2082,7 +2082,7 @@ class BorrowsManager {
             const urlParams = new URLSearchParams(window.location.search);
             const filterMy = urlParams.get('filter') === 'my';
             
-            const endpoint = filterMy ? '/inventory/api/borrows/my' : '/inventory/api/borrows';
+            const endpoint = filterMy ? '/inventory/vnext/api/borrows/my' : '/inventory/vnext/api/borrows';
             const response = await fetch(endpoint);
             
             if (response.ok) {
@@ -2157,7 +2157,7 @@ class BorrowsManager {
                            title="Zurückgeben">
                             <i class="bi bi-arrow-return-left"></i> Rückgabe
                         </a>
-                        <a href="/inventory/api/borrow/${borrow.id}/pdf" 
+                        <a href="/inventory/vnext/api/borrow/${borrow.id}/pdf"
                            class="btn btn-sm btn-outline-secondary" 
                            title="Ausleihschein herunterladen">
                             <i class="bi bi-file-pdf"></i>
@@ -2635,6 +2635,8 @@ class BorrowScannerManager {
     constructor() {
         this.stream = null;
         this.scanning = false;
+        this.lastAction = null;
+        this.lastRetryCallback = null;
     }
     
     init() {
@@ -2642,6 +2644,8 @@ class BorrowScannerManager {
         const stopBtn = document.getElementById('stopScannerBtn');
         const addBtn = document.getElementById('addToCartBtn');
         const manualInput = document.getElementById('manualQrInput');
+        const undoBtn = document.getElementById('undoLastCartActionBtn');
+        const retryBtn = document.getElementById('retryLastCartActionBtn');
         
         if (startBtn) {
             startBtn.addEventListener('click', () => this.startScanner());
@@ -2658,6 +2662,13 @@ class BorrowScannerManager {
                     this.addFromInput();
                 }
             });
+        }
+
+        if (undoBtn) {
+            undoBtn.addEventListener('click', () => this.undoLastAction());
+        }
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => this.retryLastAction());
         }
         
         // Remove from cart buttons
@@ -3396,19 +3407,8 @@ class BorrowScannerManager {
         // Zeige Modal mit Set-Informationen
         const modal = document.getElementById('setScannedModal');
         if (!modal) {
-            console.warn('Set-Modal nicht gefunden, verwende Alert als Fallback');
-            let message = `Set "${result.set.name}" wurde gescannt.\n\n`;
-            message += `${result.added_products.length} Produkt(e) wurden zum Warenkorb hinzugefügt:\n`;
-            result.added_products.forEach(p => {
-                message += `- ${p.name}${p.category ? ' (' + p.category + ')' : ''}\n`;
-            });
-            if (result.unavailable_products && result.unavailable_products.length > 0) {
-                message += `\n${result.unavailable_products.length} Produkt(e) konnten nicht hinzugefügt werden (nicht verfügbar):\n`;
-                result.unavailable_products.forEach(p => {
-                    message += `- ${p.name}\n`;
-                });
-            }
-            alert(message);
+            console.warn('Set-Modal nicht gefunden, zeige Inline-Feedback');
+            this.showSuccess(`Set "${result.set.name}" verarbeitet: ${result.added_products.length} Produkt(e) hinzugefuegt.`);
             return;
         }
         
@@ -3676,15 +3676,6 @@ class BorrowScannerManager {
         }
     }
     
-    showSuccess(message) {
-        const errorDiv = document.getElementById('scannerError');
-        if (errorDiv) {
-            errorDiv.className = 'alert alert-success mt-2';
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-    }
-    
     freezeAndAnimate() {
         return new Promise((resolve) => {
             const video = document.getElementById('scannerVideo');
@@ -3781,6 +3772,8 @@ class BorrowScannerManager {
             const result = await response.json();
             
             if (result.success) {
+                const removedItem = document.querySelector(`#cartItems .cart-item[data-product-id="${productId}"]`);
+                const removedSnapshot = removedItem ? removedItem.outerHTML : null;
                 // Entferne nur das spezifische Produkt aus dem DOM, nicht den gesamten Warenkorb
                 const cartItems = document.getElementById('cartItems');
                 if (cartItems) {
@@ -3814,25 +3807,125 @@ class BorrowScannerManager {
                         cartItems.innerHTML = '<p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>';
                     }
                 }
+                if (removedSnapshot) {
+                    this.lastAction = {
+                        type: 'remove_from_cart',
+                        productId: productId,
+                        snapshot: removedSnapshot,
+                    };
+                    this.toggleUndoButton(true);
+                }
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler beim Entfernen aus dem Warenkorb');
+            this.showError('Fehler beim Entfernen aus dem Warenkorb');
+            this.enableRetry();
         }
     }
     
     showError(message) {
         const errorDiv = document.getElementById('scannerError');
         if (errorDiv) {
+            errorDiv.className = 'alert alert-danger mt-2';
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
+        this.showFeedback(message, 'danger');
     }
     
     hideError() {
         const errorDiv = document.getElementById('scannerError');
         if (errorDiv) {
             errorDiv.style.display = 'none';
+        }
+    }
+
+    showSuccess(message) {
+        const errorDiv = document.getElementById('scannerError');
+        if (errorDiv) {
+            errorDiv.className = 'alert alert-success mt-2';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => this.hideError(), 2500);
+        }
+        this.showFeedback(message, 'success');
+    }
+
+    showFeedback(message, level) {
+        const feedback = document.getElementById('scannerFeedback');
+        if (!feedback) return;
+        feedback.className = `alert alert-${level} mt-2`;
+        feedback.textContent = message;
+        feedback.classList.remove('d-none');
+        setTimeout(() => feedback.classList.add('d-none'), 3000);
+    }
+
+    enableRetry(callback = null) {
+        if (callback) {
+            this.lastRetryCallback = callback;
+        }
+        const retryBtn = document.getElementById('retryLastCartActionBtn');
+        if (retryBtn) {
+            retryBtn.disabled = false;
+        }
+    }
+
+    async retryLastAction() {
+        if (this.lastRetryCallback) {
+            await this.lastRetryCallback();
+            return;
+        }
+        this.showError('Keine wiederholbare Aktion vorhanden.');
+    }
+
+    toggleUndoButton(enabled) {
+        const undoBtn = document.getElementById('undoLastCartActionBtn');
+        if (undoBtn) {
+            undoBtn.disabled = !enabled;
+        }
+    }
+
+    registerAddAction(result) {
+        const ids = [];
+        if (result?.product?.id) {
+            ids.push(String(result.product.id));
+        }
+        if (Array.isArray(result?.added_products)) {
+            result.added_products.forEach((p) => {
+                if (p?.id) ids.push(String(p.id));
+            });
+        }
+        if (ids.length > 0) {
+            this.lastAction = { type: 'add_to_cart', productIds: [...new Set(ids)] };
+            this.toggleUndoButton(true);
+        }
+    }
+
+    undoLastAction() {
+        if (!this.lastAction) {
+            this.showError('Keine rueckgaengige Aktion vorhanden.');
+            return;
+        }
+        if (this.lastAction.type === 'add_to_cart' && Array.isArray(this.lastAction.productIds)) {
+            this.lastAction.productIds.forEach((id) => {
+                this.removeFromCart(id);
+            });
+            this.showSuccess('Hinzugefuegte Produkte wieder aus dem Warenkorb entfernt.');
+            this.lastAction = null;
+            this.toggleUndoButton(false);
+            return;
+        }
+        if (this.lastAction.type === 'remove_from_cart' && this.lastAction.snapshot) {
+            const cartItems = document.getElementById('cartItems');
+            if (!cartItems) return;
+            cartItems.insertAdjacentHTML('beforeend', this.lastAction.snapshot);
+            const cartCount = document.getElementById('cartCount');
+            if (cartCount) {
+                cartCount.textContent = String((parseInt(cartCount.textContent || '0', 10) || 0) + 1);
+            }
+            this.showSuccess('Letzte Aktion rueckgaengig gemacht (nur UI).');
+            this.lastAction = null;
+            this.toggleUndoButton(false);
         }
     }
 }
@@ -3850,16 +3943,16 @@ async function markAsFound(productId) {
     }
     
     try {
-        const response = await fetch(`/inventory/products/${productId}/status`, {
+        const response = await fetch(`/inventory/vnext/api/products/${productId}/lifecycle`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ status: 'available' })
+            body: JSON.stringify({ status: 'available', reason: 'marked_found' })
         });
         
         const result = await response.json();
-        if (result.success) {
+        if (response.ok) {
             alert('Produkt wurde als gefunden markiert.');
             window.location.reload();
         } else {
@@ -3878,16 +3971,16 @@ async function markAsMissing(productId) {
     }
     
     try {
-        const response = await fetch(`/inventory/products/${productId}/status`, {
+        const response = await fetch(`/inventory/vnext/api/products/${productId}/lifecycle`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ status: 'missing' })
+            body: JSON.stringify({ status: 'missing', reason: 'marked_missing' })
         });
         
         const result = await response.json();
-        if (result.success) {
+        if (response.ok) {
             alert('Produkt wurde als fehlend markiert.');
             window.location.reload();
         } else {

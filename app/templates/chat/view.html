@@ -63,6 +63,7 @@
                              title="{{ member.full_name }}"
                              data-member-id="{{ member.id }}"
                              data-member-name="{{ member.full_name }}"
+                             data-member-is-guest="{{ 1 if member.is_guest else 0 }}"
                              data-member-email="{{ member.email }}"
                              data-member-phone="{{ member.phone or '' }}"
                              data-member-picture="{{ member.profile_picture or '' }}"
@@ -217,6 +218,7 @@
             <div class="sidebar-member clickable-member" 
                  data-member-id="{{ member.id }}"
                  data-member-name="{{ member.full_name }}"
+                 data-member-is-guest="{{ 1 if member.is_guest else 0 }}"
                  data-member-email="{{ member.email }}"
                  data-member-phone="{{ member.phone or '' }}"
                  data-member-picture="{{ member.profile_picture or '' }}"
@@ -231,6 +233,9 @@
                     {% endif %}
                     <div class="member-details">
                         <span class="member-name">{{ member.full_name }}</span>
+                        {% if member.is_guest %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1">Gast</span>
+                        {% endif %}
                         <small class="member-role text-muted">
                             {% if member.id == chat.created_by %}
                                 {{ _('chat.view.member_role_admin') }}
@@ -251,7 +256,10 @@
     <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column; min-height: 200px;">
         {% if messages %}
             {% for message in messages %}
-            <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}">
+            <div class="chat-message {% if message.sender_id == current_user.id %}own{% else %}other{% endif %}"
+                 data-message-id="{{ message.id }}"{% if message.message_type == 'poll' %}
+                 data-poll-updated-at="{{ message.get_metadata().get('updated_at') or '' }}"{% endif %}{% if message.message_type == 'calendar_event' %}
+                 data-calendar-updated-at="{{ message.get_metadata().get('updated_at') or '' }}"{% endif %}>
                 {% if message.message_type == 'text' %}
                     <div class="message-header">
                         <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
@@ -307,6 +315,141 @@
                             {{ message.created_at | smart_datetime }}
                         </small>
                     </div>
+                {% elif message.message_type == 'file' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
+                    </div>
+                    <div class="message-card message-card-file">
+                        <div class="message-card-icon"><i class="bi bi-file-earmark"></i></div>
+                        <div class="message-card-body">
+                            <a href="{{ url_for('chat.serve_media', filename=message.media_url) }}" target="_blank" rel="noopener">{{ message.get_metadata().get('original_name') or message.media_url }}</a>
+                        </div>
+                    </div>
+                    {% if message.content %}
+                    <p class="mt-2 mb-0">{{ message.content }}</p>
+                    {% endif %}
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | smart_datetime }}
+                        </small>
+                    </div>
+                {% elif message.message_type == 'folder_link' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
+                    </div>
+                    <div class="message-card message-card-folder">
+                        <div class="message-card-icon"><i class="bi bi-folder2-open"></i></div>
+                        <div class="message-card-body">
+                            <strong>{{ message.get_metadata().get('folder_name') or 'Ordner' }}</strong>
+                            {% if message.get_metadata().get('folder_path') %}
+                            <small class="text-muted">{{ message.get_metadata().get('folder_path') }}</small>
+                            {% endif %}
+                            {% set folder_target = message.get_metadata().get('folder_url') or (url_for('files.browse_folder', folder_id=message.get_metadata().get('folder_id')) if message.get_metadata().get('folder_id') else message.get_metadata().get('share_url')) %}
+                            {% if folder_target %}
+                            <a href="{{ folder_target }}" class="btn btn-sm btn-outline-secondary mt-2">Ordner öffnen</a>
+                            {% else %}
+                            <small class="text-muted fst-italic">Ordner konnte nicht geöffnet werden.</small>
+                            {% endif %}
+                            {% if message.content %}
+                            <p class="mt-2 mb-0">{{ message.content }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | smart_datetime }}
+                        </small>
+                    </div>
+                {% elif message.message_type == 'calendar_event' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
+                    </div>
+                    <div class="message-card message-card-calendar">
+                        <div class="message-card-icon"><i class="bi bi-calendar-event"></i></div>
+                        <div class="message-card-body">
+                            <strong>{{ message.get_metadata().get('title') or 'Termin' }}</strong>
+                            {% set meta = message.get_metadata() %}
+                            {% set start_iso = meta.get('start_time') or '' %}
+                            {% if meta.get('date_label') %}
+                            <div>{{ meta.get('date_label') }}</div>
+                            {% elif start_iso|length >= 10 %}
+                            <div>{{ start_iso[8:10] }}.{{ start_iso[5:7] }}.{{ start_iso[0:4] }}</div>
+                            {% endif %}
+                            <div>{{ message.get_metadata().get('start_time_label') or '' }}</div>
+                            {% if message.get_metadata().get('location') %}
+                            <small class="text-muted">{{ message.get_metadata().get('location') }}</small>
+                            {% endif %}
+                            {% if message.get_metadata().get('description') %}
+                            <p class="mt-2 mb-2">{{ message.get_metadata().get('description') }}</p>
+                            {% endif %}
+                            {% set current_status = message.get_metadata().get('current_user_status') or 'pending' %}
+                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                <span class="badge text-bg-success">Zugesagt: {{ message.get_metadata().get('accepted_count') or 0 }}</span>
+                                <span class="badge text-bg-danger">Abgesagt: {{ message.get_metadata().get('declined_count') or 0 }}</span>
+                            </div>
+                            <small class="text-muted d-block mt-1">Dein Status: {% if current_status == 'accepted' %}Zugesagt{% elif current_status == 'declined' %}Abgesagt{% else %}Offen{% endif %}</small>
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-sm {% if current_status == 'accepted' %}btn-success{% else %}btn-outline-success{% endif %} calendar-rsvp-btn" data-message-id="{{ message.id }}" data-status="accepted">Zusagen</button>
+                                <button type="button" class="btn btn-sm {% if current_status == 'declined' %}btn-danger{% else %}btn-outline-danger{% endif %} calendar-rsvp-btn" data-message-id="{{ message.id }}" data-status="declined">Absagen</button>
+                                {% if message.get_metadata().get('event_url') %}
+                                <a href="{{ message.get_metadata().get('event_url') }}" class="btn btn-sm btn-outline-secondary">Öffnen</a>
+                                {% endif %}
+                            </div>
+                            {% if message.content %}
+                            <p class="mt-2 mb-0">{{ message.content }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | smart_datetime }}
+                        </small>
+                    </div>
+                {% elif message.message_type == 'poll' %}
+                    <div class="message-header">
+                        <strong>{% if message.sender_id == current_user.id %}{{ _('chat.view.message.you') }}{% else %}{{ message.sender.full_name if message.sender else _('chat.view.message.unknown_user') }}{% endif %}</strong>
+                    </div>
+                    <div class="message-card message-card-poll">
+                        <div class="message-card-icon"><i class="bi bi-bar-chart"></i></div>
+                        <div class="message-card-body">
+                            <strong>{{ message.get_metadata().get('question') or 'Abstimmung' }}</strong>
+                            {% if message.get_metadata().get('description') %}
+                            <p class="mb-2">{{ message.get_metadata().get('description') }}</p>
+                            {% endif %}
+                            <small class="text-muted">
+                                {% if message.get_metadata().get('allow_multiple') %}
+                                Mehrfachauswahl erlaubt
+                                {% else %}
+                                Nur eine Antwort erlaubt
+                                {% endif %}
+                            </small>
+                            {% set poll_ns = namespace(max_votes=0) %}
+                            {% for option in message.get_metadata().get('options', []) %}
+                                {% set option_votes = option.get('votes', [])|length %}
+                                {% if option_votes > poll_ns.max_votes %}
+                                    {% set poll_ns.max_votes = option_votes %}
+                                {% endif %}
+                            {% endfor %}
+                            <div class="d-flex flex-column gap-2 mt-2">
+                                {% for option in message.get_metadata().get('options', []) %}
+                                {% set option_votes = option.get('votes', [])|length %}
+                                {% set fill_percent = (option_votes * 100 / poll_ns.max_votes) if poll_ns.max_votes > 0 else 0 %}
+                                <button class="btn btn-outline-secondary btn-sm poll-option-btn" data-message-id="{{ message.id }}" data-option-id="{{ option.get('id') }}">
+                                    <span class="poll-option-fill" style="width: {{ '%.2f'|format(fill_percent) }}%;"></span>
+                                    <span class="poll-option-content">
+                                        <span>{{ option.get('text') }}</span>
+                                        <span class="poll-vote-count">{{ option_votes }}</span>
+                                    </span>
+                                </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-time">
+                        <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
+                            {{ message.created_at | smart_datetime }}
+                        </small>
+                    </div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -326,13 +469,13 @@
 <div class="chat-input-container d-md-none">
     <form id="message-form" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
         <div class="mobile-input-group">
-            <button class="btn" type="button" onclick="document.getElementById('file-upload').click()" title="{{ _('chat.view.input.attach') }}">
+            <button class="btn" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
                 <i class="bi bi-paperclip"></i>
             </button>
             <button class="btn" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
                 <i class="bi bi-mic" id="mic-icon"></i>
             </button>
-            <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*">
+            <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
             <input type="text" id="message-input" class="form-control" name="content" 
                    placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
             <button class="btn" type="submit" id="send-button" title="{{ _('chat.view.input.send') }}">
@@ -343,19 +486,25 @@
             <small class="text-muted" id="file-name"></small>
         </div>
     </form>
+    <div class="attachment-popup shadow-sm">
+        <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
+    </div>
 </div>
 
 <!-- Desktop Message Input -->
 <div class="chat-input-container d-none d-md-block">
     <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
         <div class="input-group">
-            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-upload-desktop').click()" title="{{ _('chat.view.input.attach') }}">
+            <button class="btn btn-outline-secondary" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
                 <i class="bi bi-paperclip"></i>
             </button>
             <button class="btn btn-outline-secondary" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
                 <i class="bi bi-mic" id="mic-icon-desktop"></i>
             </button>
-            <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*">
+            <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
             <input type="text" id="message-input-desktop" class="form-control" name="content" placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
             <button class="btn btn-accent" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
                 <i class="bi bi-send"></i>
@@ -363,676 +512,35 @@
         </div>
         <small class="text-muted" id="file-name-desktop"></small>
     </form>
+    <div class="attachment-popup shadow-sm">
+        <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 {% set chat_view_js = current_translations.get('chat', {}).get('view', {}).get('js', {}) %}
 <script>
-    const chatId = {{ 1 if chat.is_main_chat else chat.id }};
-    const currentUserId = {{ current_user.id }};
-    let lastMessageId = {{ messages[-1].id if messages else 0 }};
-    let isPolling = true;
-    let currentMemberCount = {{ members|length }};
-    let isSendingMessage = false; // Flag to prevent duplicate message sending
-    const CHAT_I18N = {{ chat_view_js|tojson }};
-    const CHAT_TEXT = {
-        you: "{{ _('chat.view.message.you') }}",
-        unknownUser: "{{ _('chat.view.message.unknown_user') }}",
-        memberCount: "{{ _('chat.view.member_count') }}",
-        memberMore: "{{ _('chat.view.member_more') }}",
-        memberRoleAdmin: "{{ _('chat.view.member_role_admin') }}",
-        memberRoleMember: "{{ _('chat.view.member_role_member') }}"
+    window.ChatPageConfig = {
+        chatId: {{ 1 if chat.is_main_chat else chat.id }},
+        currentUserId: {{ current_user.id }},
+        lastMessageId: {{ messages[-1].id if messages else 0 }},
+        initialMemberCount: {{ members|length }},
+        language: "{{ current_language }}",
+        isGuest: {{ 'true' if current_user.is_guest else 'false' }},
+        i18n: {{ chat_view_js|tojson }},
+        profilePictureRoute: "{{ url_for('settings.profile_picture', filename='__FILENAME__') }}",
+        text: {
+            you: "{{ _('chat.view.message.you') }}",
+            unknownUser: "{{ _('chat.view.message.unknown_user') }}",
+            guestBadge: "Gast"
+        }
     };
-    
-    // Auto-scroll to bottom
-    function scrollToBottom() {
-        const container = document.getElementById('messages-container');
-        if (container) {
-            // Use requestAnimationFrame to ensure DOM is updated
-            requestAnimationFrame(() => {
-                container.scrollTop = container.scrollHeight;
-                // Double-check after a short delay to ensure it scrolled
-                setTimeout(() => {
-                    container.scrollTop = container.scrollHeight;
-                }, 50);
-            });
-        }
-    }
-    
-    // Initial scroll
-    setTimeout(scrollToBottom, 100);
-    
-    // Show selected file name
-    document.getElementById('file-upload').addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name;
-        document.getElementById('file-name').textContent = fileName ? CHAT_I18N.file_label.replace('{filename}', fileName) : '';
-    });
-    
-    // Send message via AJAX
-    document.getElementById('message-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Prevent duplicate submissions
-        if (isSendingMessage) {
-            return;
-        }
-        
-        const formData = new FormData(this);
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-        
-        if (!messageInput.value.trim() && !formData.get('file').name) {
-            return;
-        }
-        
-        // Set flag to prevent duplicate submissions
-        isSendingMessage = true;
-        
-        // Disable send button
-        sendButton.disabled = true;
-        sendButton.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-        
-        try {
-            const response = await fetch(`/chat/${chatId}/send`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                addMessageToChat(data);
-                messageInput.value = '';
-                document.getElementById('file-upload').value = '';
-                document.getElementById('file-name').textContent = '';
-                lastMessageId = data.id;
-                scrollToBottom();
-            } else {
-                const error = await response.json();
-                alert(CHAT_I18N.send_error_prefix.replace('{error}', error.error || ''));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert(CHAT_I18N.send_error_generic);
-        } finally {
-            // Re-enable send button and reset flag
-            isSendingMessage = false;
-            sendButton.disabled = false;
-            sendButton.innerHTML = '<i class="bi bi-send"></i>';
-        }
-    });
-    
-    // Add new message to chat
-    function formatTime(value) {
-        const messageDate = new Date(value);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const msgDate = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
-        
-        const diffTime = today - msgDate;
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        const localeMap = { de: 'de-DE', en: 'en-US' };
-        const currentLocale = "{{ current_language }}";
-        const locale = localeMap[currentLocale] || currentLocale || 'en-US';
-        
-        if (diffDays === 0) {
-            // Today: show only time
-            return messageDate.toLocaleTimeString(locale, {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } else if (diffDays === 1) {
-            // Yesterday: show "Gestern HH:MM"
-            const timeStr = messageDate.toLocaleTimeString(locale, {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            return `Gestern ${timeStr}`;
-        } else {
-            // Older: show date and time
-            return messageDate.toLocaleString(locale, {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-    }
-
-    function addMessageToChat(message) {
-        const container = document.getElementById('messages-container');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${parseInt(message.sender_id) === parseInt(currentUserId) ? 'own' : 'other'}`;
-        
-        // Parse the ISO string which should now be in local timezone
-        const time = formatTime(message.created_at);
-        const isOwnMessage = parseInt(message.sender_id) === parseInt(currentUserId);
-        const senderName = isOwnMessage ? CHAT_TEXT.you : (message.sender ? escapeHtml(message.sender) : CHAT_TEXT.unknownUser);
-        
-        let contentHtml = '';
-        if (message.message_type === 'text') {
-            contentHtml = `
-                <div class="message-header">
-                    <strong>${senderName}</strong>
-                </div>
-                <div class="message-content">
-                    ${escapeHtml(message.content)}
-                </div>
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        ${time}
-                    </small>
-                </div>
-            `;
-        } else if (message.message_type === 'image') {
-            const mediaUrl = `/chat/media/${encodeURIComponent(message.media_url)}`;
-            contentHtml = `
-                <div class="message-header">
-                    <strong>${senderName}</strong>
-                </div>
-                <img src="${mediaUrl}" class="img-fluid rounded" style="max-width: 300px;">
-                ${message.content ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ''}
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        ${time}
-                    </small>
-                </div>
-            `;
-        } else if (message.message_type === 'video') {
-            const mediaUrl = `/chat/media/${encodeURIComponent(message.media_url)}`;
-            contentHtml = `
-                <div class="message-header">
-                    <strong>${senderName}</strong>
-                </div>
-                <video controls class="rounded" style="max-width: 300px;"><source src="${mediaUrl}"></video>
-                ${message.content ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ''}
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        ${time}
-                    </small>
-                </div>
-            `;
-        } else if (message.message_type === 'voice') {
-            const mediaUrl = `/chat/media/${encodeURIComponent(message.media_url)}`;
-            contentHtml = `
-                <div class="message-header">
-                    <strong>${senderName}</strong>
-                </div>
-                <audio controls><source src="${mediaUrl}"></audio>
-                ${message.content ? `<p class="mt-2 mb-0">${escapeHtml(message.content)}</p>` : ''}
-                <div class="message-time">
-                    <small class="text-muted" style="font-size: 0.7rem; opacity: 0.7;">
-                        ${time}
-                    </small>
-                </div>
-            `;
-        }
-        
-        messageDiv.innerHTML = contentHtml;
-        
-        container.appendChild(messageDiv);
-    }
-    
-    // Escape HTML to prevent XSS
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // Update members list
-    async function updateMembersList() {
-        try {
-            const response = await fetch(`/api/chats/${chatId}/members`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const members = await response.json();
-                
-                // Update member count if it changed
-                if (members.length !== currentMemberCount) {
-                    currentMemberCount = members.length;
-                    
-                    // Update member count in header
-                    const memberCountElements = document.querySelectorAll('.member-count');
-                    memberCountElements.forEach(el => {
-                        el.textContent = CHAT_TEXT.memberCount.replace('{count}', members.length);
-                    });
-                    
-                    // Update desktop sidebar
-                    updateDesktopSidebar(members);
-                    
-                    // Update mobile member avatars
-                    updateMobileMemberAvatars(members);
-                    
-                    // Update all members modal
-                    updateAllMembersModal(members);
-                }
-            }
-        } catch (error) {
-            console.error('Error updating members:', error);
-        }
-    }
-    
-    // Update desktop sidebar members
-    function updateDesktopSidebar(members) {
-        const sidebar = document.querySelector('.sidebar-members');
-        if (!sidebar) return;
-        
-        sidebar.innerHTML = members.map(member => {
-            const avatarHtml = member.profile_picture 
-                ? `<img src="${escapeHtml(member.profile_picture)}" alt="${escapeHtml(member.full_name)}" class="member-avatar-small">`
-                : `<div class="member-avatar-small member-avatar-initial">${escapeHtml(member.full_name[0].toUpperCase())}</div>`;
-            
-            const role = member.is_creator ? CHAT_TEXT.memberRoleAdmin : CHAT_TEXT.memberRoleMember;
-            
-            const statusClass = member.is_online ? 'online' : 'offline';
-            return `
-                <div class="sidebar-member clickable-member" 
-                     data-member-id="${member.id}"
-                     data-member-name="${escapeHtml(member.full_name)}"
-                     data-member-email="${escapeHtml(member.email)}"
-                     data-member-phone="${escapeHtml(member.phone || '')}"
-                     data-member-picture="${escapeHtml(member.profile_picture || '')}"
-                     onclick="showMemberModal(this)">
-                    <div class="member-info">
-                        ${avatarHtml}
-                        <div class="member-details">
-                            <span class="member-name">${escapeHtml(member.full_name)}</span>
-                            <small class="member-role text-muted">${role}</small>
-                        </div>
-                    </div>
-                    <div class="member-status">
-                        <span class="status-indicator ${statusClass}"></span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-    
-    // Update mobile member avatars in header
-    function updateMobileMemberAvatars(members) {
-        const memberAvatars = document.querySelector('.member-avatars');
-        if (!memberAvatars) return;
-        
-        memberAvatars.innerHTML = members.slice(0, 4).map(member => {
-            const avatarHtml = member.profile_picture
-                ? `<img src="${escapeHtml(member.profile_picture)}" alt="${escapeHtml(member.full_name)}" class="rounded-circle">`
-                : `<div class="member-avatar-initial">${escapeHtml(member.full_name[0].toUpperCase())}</div>`;
-            
-            return `
-                <div class="member-avatar clickable-member" 
-                     title="${escapeHtml(member.full_name)}"
-                     data-member-id="${member.id}"
-                     data-member-name="${escapeHtml(member.full_name)}"
-                     data-member-email="${escapeHtml(member.email)}"
-                     data-member-phone="${escapeHtml(member.phone || '')}"
-                     data-member-picture="${escapeHtml(member.profile_picture || '')}"
-                     onclick="showMemberModal(this)">
-                    ${avatarHtml}
-                </div>
-            `;
-        }).join('') + (members.length > 4 ? `
-            <div class="member-avatar member-avatar-more clickable-member" 
-                 title="${CHAT_TEXT.memberMore}"
-                 onclick="showAllMembersModal()">
-                +${members.length - 4}
-            </div>
-        ` : '');
-    }
-    
-    // Update all members modal
-    function updateAllMembersModal(members) {
-        const membersGrid = document.querySelector('.members-grid');
-        if (!membersGrid) return;
-        
-        membersGrid.innerHTML = members.map(member => {
-            const avatarHtml = member.profile_picture
-                ? `<img src="${escapeHtml(member.profile_picture)}" alt="${escapeHtml(member.full_name)}" class="rounded-circle">`
-                : `<div class="member-avatar-initial">${escapeHtml(member.full_name[0].toUpperCase())}</div>`;
-            
-            return `
-                <div class="member-card clickable-member" 
-                     data-member-id="${member.id}"
-                     data-member-name="${escapeHtml(member.full_name)}"
-                     data-member-email="${escapeHtml(member.email)}"
-                     data-member-phone="${escapeHtml(member.phone || '')}"
-                     data-member-picture="${escapeHtml(member.profile_picture || '')}"
-                     onclick="showMemberModal(this)">
-                    <div class="member-card-avatar">
-                        ${avatarHtml}
-                    </div>
-                    <div class="member-card-info">
-                        <h6 class="member-card-name">${escapeHtml(member.full_name)}</h6>
-                        <small class="member-card-email">${escapeHtml(member.email)}</small>
-                        ${member.phone ? `<small class="member-card-phone text-muted d-block">${escapeHtml(member.phone)}</small>` : ''}
-                    </div>
-                    <div class="member-card-arrow">
-                        <i class="bi bi-chevron-right"></i>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-    
-    // Poll for new messages
-    async function pollForNewMessages() {
-        if (!isPolling) return;
-        
-        try {
-            const response = await fetch(`/api/chats/${chatId}/messages?since=${lastMessageId}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const messages = await response.json();
-                if (messages.length > 0) {
-                    messages.forEach(message => {
-                        if (message.id > lastMessageId) {
-                            addMessageToChat(message);
-                            lastMessageId = message.id;
-                        }
-                    });
-                    scrollToBottom();
-                }
-            }
-        } catch (error) {
-            console.error('Error polling messages:', error);
-        }
-        
-        // Poll again after 2 seconds
-        setTimeout(pollForNewMessages, 2000);
-    }
-    
-    // Poll for member updates
-    async function pollForMembers() {
-        if (!isPolling) return;
-        
-        await updateMembersList();
-        
-        // Poll again after 5 seconds
-        setTimeout(pollForMembers, 5000);
-    }
-    
-    // Update last_seen periodically
-    async function updateLastSeen() {
-        if (!isPolling) return;
-        
-        try {
-            await fetch('/api/users/update-last-seen', {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-        } catch (error) {
-            console.error('Error updating last_seen:', error);
-        }
-        
-        // Update every 2 minutes
-        setTimeout(updateLastSeen, 120000);
-    }
-    
-    // Start polling when page loads
-    pollForNewMessages();
-    pollForMembers();
-    updateLastSeen();
-    
-    // Stop polling when page is hidden
-    document.addEventListener('visibilitychange', function() {
-        isPolling = !document.hidden;
-        if (isPolling) {
-            pollForNewMessages();
-            pollForMembers();
-            updateLastSeen();
-        }
-    });
-    
-    // Send message on Enter key
-    document.getElementById('message-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            // Only trigger submit if not already sending
-            if (!isSendingMessage) {
-                document.getElementById('message-form').dispatchEvent(new Event('submit'));
-            }
-        }
-    });
-    
-    // Desktop form handling
-    document.getElementById('message-input-desktop').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            // Only trigger submit if not already sending
-            if (!isSendingMessage) {
-                document.getElementById('message-form-desktop').dispatchEvent(new Event('submit'));
-            }
-        }
-    });
-    
-    // Desktop file upload handling
-    document.getElementById('file-upload-desktop').addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name;
-        document.getElementById('file-name-desktop').textContent = fileName ? CHAT_I18N.file_label.replace('{filename}', fileName) : '';
-    });
-    
-    // Desktop form submission
-    document.getElementById('message-form-desktop').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Prevent duplicate submissions
-        if (isSendingMessage) {
-            return;
-        }
-        
-        const formData = new FormData(this);
-        const messageInput = document.getElementById('message-input-desktop');
-        const sendButton = document.getElementById('send-button-desktop');
-        
-        if (!messageInput.value.trim() && !formData.get('file').name) {
-            return;
-        }
-        
-        // Set flag to prevent duplicate submissions
-        isSendingMessage = true;
-        
-        // Disable send button
-        sendButton.disabled = true;
-        sendButton.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-        
-        try {
-            const response = await fetch(`/chat/${chatId}/send`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                addMessageToChat(data);
-                messageInput.value = '';
-                document.getElementById('file-upload-desktop').value = '';
-                document.getElementById('file-name-desktop').textContent = '';
-                lastMessageId = data.id;
-                scrollToBottom();
-            } else {
-                const error = await response.json();
-                alert(CHAT_I18N.send_error_prefix.replace('{error}', error.error || ''));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert(CHAT_I18N.send_error_generic);
-        } finally {
-            // Re-enable send button and reset flag
-            isSendingMessage = false;
-            sendButton.disabled = false;
-            sendButton.innerHTML = '<i class="bi bi-send"></i>';
-        }
-    });
-    
-    // Notification toggle functionality
-    let notificationsMuted = false;
-    function toggleNotifications() {
-        notificationsMuted = !notificationsMuted;
-        const icon = document.getElementById('notification-icon');
-        const text = document.getElementById('notification-text');
-        const iconMobile = document.getElementById('notification-icon-mobile');
-        const textMobile = document.getElementById('notification-text-mobile');
-        
-        if (notificationsMuted) {
-            if (icon) icon.className = 'bi bi-bell-slash me-2';
-            if (text) text.textContent = CHAT_I18N.unmute;
-            if (iconMobile) iconMobile.className = 'bi bi-bell-slash me-2';
-            if (textMobile) textMobile.textContent = CHAT_I18N.unmute;
-        } else {
-            if (icon) icon.className = 'bi bi-bell me-2';
-            if (text) text.textContent = CHAT_I18N.mute;
-            if (iconMobile) iconMobile.className = 'bi bi-bell me-2';
-            if (textMobile) textMobile.textContent = CHAT_I18N.mute;
-        }
-        
-        // Store preference in localStorage
-        localStorage.setItem(`chat_${chatId}_notifications_muted`, notificationsMuted);
-    }
-    
-    // Load notification preference
-    const savedMuteState = localStorage.getItem(`chat_${chatId}_notifications_muted`);
-    if (savedMuteState === 'true') {
-        toggleNotifications();
-    }
-    
-    // Voice recording functionality
-    let mediaRecorder;
-    let audioChunks = [];
-    
-    async function startVoiceRecording() {
-        const micIcon = document.getElementById('mic-icon');
-        const micIconDesktop = document.getElementById('mic-icon-desktop');
-        
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            // Stop recording
-            mediaRecorder.stop();
-            micIcon.className = 'bi bi-mic fs-5';
-            if (micIconDesktop) micIconDesktop.className = 'bi bi-mic';
-            return;
-        }
-        
-        try {
-            // Prüfe Mikrofon-Berechtigung
-            if (typeof permissionManager !== 'undefined') {
-                const hasPermission = await permissionManager.requestMicrophonePermission();
-                if (!hasPermission) {
-                    return;
-                }
-            }
-            
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // Determine the best MIME type for audio recording
-            let mimeType = 'audio/webm';
-            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                mimeType = 'audio/webm;codecs=opus';
-            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-                mimeType = 'audio/ogg;codecs=opus';
-            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-                mimeType = 'audio/webm';
-            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
-                mimeType = 'audio/ogg';
-            }
-            
-            mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-            audioChunks = [];
-            
-            mediaRecorder.ondataavailable = function(event) {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
-                }
-            };
-            
-            mediaRecorder.onstop = function() {
-                const audioBlob = new Blob(audioChunks, { type: mimeType });
-                sendVoiceMessage(audioBlob, mimeType);
-                stream.getTracks().forEach(track => track.stop());
-            };
-            
-            mediaRecorder.start();
-            micIcon.className = 'bi bi-stop-circle fs-5 text-danger';
-            if (micIconDesktop) micIconDesktop.className = 'bi bi-stop-circle text-danger';
-            
-        } catch (error) {
-            console.error('Error accessing microphone:', error);
-            
-            // Zeige benutzerfreundliche Fehlermeldung
-            if (typeof permissionManager !== 'undefined') {
-                permissionManager.showPermissionInfo(CHAT_I18N.permission_title, CHAT_I18N.permission_message);
-            } else {
-                alert(CHAT_I18N.microphone_denied);
-            }
-        }
-    }
-    
-    async function sendVoiceMessage(audioBlob, mimeType) {
-        // Prevent duplicate submissions
-        if (isSendingMessage) {
-            return;
-        }
-        
-        // Determine file extension based on MIME type
-        let extension = 'webm';
-        if (mimeType.includes('ogg')) {
-            extension = 'ogg';
-        } else if (mimeType.includes('wav')) {
-            extension = 'wav';
-        } else if (mimeType.includes('m4a')) {
-            extension = 'm4a';
-        }
-        
-        const formData = new FormData();
-        formData.append('file', audioBlob, `voice_message.${extension}`);
-        formData.append('content', '');
-        
-        // Set flag to prevent duplicate submissions
-        isSendingMessage = true;
-        
-        try {
-            const response = await fetch(`/chat/${chatId}/send`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                addMessageToChat(data);
-                lastMessageId = data.id;
-                scrollToBottom();
-            } else {
-                const error = await response.json();
-                alert(CHAT_I18N.send_error_prefix.replace('{error}', error.error || CHAT_I18N.voice_error));
-            }
-        } catch (error) {
-            console.error('Error sending voice message:', error);
-            alert(CHAT_I18N.voice_error);
-        } finally {
-            // Reset flag
-            isSendingMessage = false;
-        }
-    }
 </script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 
 <!-- Member Profile Modal -->
 <div class="modal fade" id="memberModal" tabindex="-1" aria-labelledby="memberModalLabel" aria-hidden="true">
@@ -1087,6 +595,7 @@
                     <div class="member-card clickable-member" 
                          data-member-id="{{ member.id }}"
                          data-member-name="{{ member.full_name }}"
+                         data-member-is-guest="{{ 1 if member.is_guest else 0 }}"
                          data-member-email="{{ member.email }}"
                          data-member-phone="{{ member.phone or '' }}"
                          data-member-picture="{{ member.profile_picture or '' }}"
@@ -1101,7 +610,12 @@
                             {% endif %}
                         </div>
                         <div class="member-card-info">
-                            <h6 class="member-card-name">{{ member.full_name }}</h6>
+                            <h6 class="member-card-name">
+                                {{ member.full_name }}
+                                {% if member.is_guest %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Gast</span>
+                                {% endif %}
+                            </h6>
                             <small class="member-card-email">{{ member.email }}</small>
                             {% if member.phone %}
                             <small class="member-card-phone text-muted d-block">{{ member.phone }}</small>
@@ -1121,103 +635,6 @@
     </div>
 </div>
 
-<script>
-// Member Modal Functions
-function showMemberModal(element) {
-    const memberId = element.getAttribute('data-member-id');
-    const memberName = element.getAttribute('data-member-name');
-    const memberEmail = element.getAttribute('data-member-email');
-    const memberPhone = element.getAttribute('data-member-phone');
-    const memberPicture = element.getAttribute('data-member-picture');
-    
-    // Set modal content
-    document.getElementById('modal-member-name').textContent = memberName;
-    document.getElementById('modal-member-email').textContent = memberEmail;
-    
-    // Handle profile picture
-    const avatarImg = document.getElementById('modal-member-avatar');
-    const avatarInitial = document.getElementById('modal-member-initial');
-    
-    if (memberPicture) {
-        // Verwende die richtige Route zum Ausliefern der Profilbilder
-        avatarImg.src = "{{ url_for('settings.profile_picture', filename='__FILENAME__') }}".replace('__FILENAME__', encodeURIComponent(memberPicture));
-        avatarImg.style.display = 'block';
-        avatarInitial.style.display = 'none';
-    } else {
-        avatarImg.style.display = 'none';
-        avatarInitial.style.display = 'flex';
-        avatarInitial.textContent = memberName[0].toUpperCase();
-    }
-    
-    // Handle phone number
-    const phoneContainer = document.getElementById('modal-member-phone-container');
-    if (memberPhone && memberPhone.trim() !== '') {
-        document.getElementById('modal-member-phone').textContent = memberPhone;
-        phoneContainer.style.display = 'block';
-    } else {
-        phoneContainer.style.display = 'none';
-    }
-    
-    // Close all members modal if it's open
-    const allMembersModalElement = document.getElementById('allMembersModal');
-    if (allMembersModalElement) {
-        const allMembersModal = bootstrap.Modal.getInstance(allMembersModalElement);
-        if (allMembersModal) {
-            allMembersModal.hide();
-            // Wait for the modal to close before opening the member modal
-            allMembersModalElement.addEventListener('hidden.bs.modal', function showMemberModalAfterClose() {
-                const memberModal = new bootstrap.Modal(document.getElementById('memberModal'));
-                memberModal.show();
-                // Remove event listener to avoid memory leaks
-                allMembersModalElement.removeEventListener('hidden.bs.modal', showMemberModalAfterClose);
-            }, { once: true });
-            return;
-        }
-    }
-    
-    // Show modal (if all members modal wasn't open)
-    const modal = new bootstrap.Modal(document.getElementById('memberModal'));
-    modal.show();
-}
-
-function showAllMembersModal() {
-    const modal = new bootstrap.Modal(document.getElementById('allMembersModal'));
-    modal.show();
-}
-
-function showChatInfoModal() {
-    const modal = new bootstrap.Modal(document.getElementById('chatInfoModal'));
-    modal.show();
-}
-
-async function deleteChat(chatId) {
-    if (!confirm('Möchten Sie diesen Chat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/chat/${chatId}/delete`, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                window.location.href = '/chat/';
-            }
-        } else {
-            const error = await response.json();
-            alert('Fehler beim Löschen: ' + (error.error || 'Unbekannter Fehler'));
-        }
-    } catch (error) {
-        console.error('Error deleting chat:', error);
-        alert('Fehler beim Löschen des Chats');
-    }
-}
-</script>
 
 <!-- Chat Info Modal -->
 <div class="modal fade" id="chatInfoModal" tabindex="-1" aria-labelledby="chatInfoModalLabel" aria-hidden="true">
@@ -1298,6 +715,104 @@ async function deleteChat(chatId) {
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="pollCreateModal" tabindex="-1" aria-labelledby="pollCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="poll-create-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pollCreateModalLabel"><i class="bi bi-bar-chart me-2"></i>Abstimmung erstellen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="poll-question" class="form-label">Überschrift</label>
+                        <input id="poll-question" class="form-control" required maxlength="250" placeholder="Kurzer Titel der Abstimmung">
+                    </div>
+                    <div class="mb-3">
+                        <label for="poll-description" class="form-label">Beschreibung</label>
+                        <textarea id="poll-description" class="form-control" rows="3" maxlength="1500" placeholder="Optional: Mehr Details zur Abstimmung"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="poll-options" class="form-label">Optionen (eine pro Zeile)</label>
+                        <textarea id="poll-options" class="form-control" rows="4" required placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="poll-allow-multiple">
+                        <label class="form-check-label" for="poll-allow-multiple">
+                            Mehrfachauswahl erlauben
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent">Abstimmung senden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="folderPickerModal" tabindex="-1" aria-labelledby="folderPickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="folder-picker-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="folderPickerModalLabel"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="folder-picker-select" class="form-label">Ordner aus Dateien wählen</label>
+                        <select id="folder-picker-select" class="form-select" required>
+                            <option value="">Bitte auswählen...</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label for="folder-picker-note" class="form-label">Nachricht (optional)</label>
+                        <input id="folder-picker-note" class="form-control" maxlength="250" placeholder="Kurzer Hinweis zum Ordner">
+                    </div>
+                    <small id="folder-picker-guest-note" class="text-muted fst-italic d-none mt-3 d-block">
+                        Gast Accounts haben keinen Zugriff auf diese Funktion
+                    </small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent">Ordner senden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="calendarPickerModal" tabindex="-1" aria-labelledby="calendarPickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="calendar-picker-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="calendarPickerModalLabel"><i class="bi bi-calendar-event me-2"></i>Termin auswählen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="calendar-picker-select" class="form-label">Kalendertermin wählen</label>
+                        <select id="calendar-picker-select" class="form-select" required>
+                            <option value="">Bitte auswählen...</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label for="calendar-picker-note" class="form-label">Kommentar (optional)</label>
+                        <textarea id="calendar-picker-note" class="form-control" rows="3" maxlength="1500" placeholder="Optionaler Kommentar zum Termin"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-accent">Termin senden</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -123,44 +123,6 @@
             </div>
         </div>
 
-        {% if module_assessment_enabled %}
-        <div class="card mt-4">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="bi bi-clipboard2-check me-2"></i>Bewertungs-Modul – Admin anlegen</h4>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">
-                    Legen Sie hier einen Modul-Administrator an. Dieser meldet sich an der normalen Login-Seite mit
-                    <strong>Benutzername</strong> statt E-Mail an und hat ausschließlich Zugriff auf das Bewertungs-Modul.
-                </p>
-                <form id="assessmentAdminForm" class="row g-2">
-                    <div class="col-md-4"><input class="form-control" name="username" placeholder="Benutzername" required></div>
-                    <div class="col-md-4"><input class="form-control" name="display_name" placeholder="Anzeigename" required></div>
-                    <div class="col-md-3"><input type="password" class="form-control" name="password" placeholder="Passwort" required></div>
-                    <div class="col-md-1"><button class="btn btn-accent w-100" title="Anlegen"><i class="bi bi-plus-lg"></i></button></div>
-                </form>
-                <p id="assessmentAdminStatus" class="text-muted small mt-2 mb-0"></p>
-                <hr>
-                <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-box-arrow-up-right me-1"></i>Zum Bewertungs-Modul wechseln
-                </a>
-            </div>
-        </div>
-        <script>
-        document.getElementById('assessmentAdminForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = Object.fromEntries(new FormData(e.target).entries());
-            const res = await fetch("{{ url_for('settings.admin_modules_create_assessment_admin') }}", {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            document.getElementById('assessmentAdminStatus').textContent = data.message || '';
-            if (data.success) e.target.reset();
-        });
-        </script>
-        {% endif %}
     </div>
 </div>
 {% endblock %}
