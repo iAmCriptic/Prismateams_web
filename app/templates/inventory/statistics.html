@@ -152,7 +152,25 @@
 <script>
 async function loadStatistics() {
     try {
-        const response = await fetch('/inventory/vnext/api/statistics');
+        const statsApiCandidates = ['/inventory/vnext/api/statistics', '/vnext/api/statistics'];
+        let response = null;
+        let lastError = null;
+
+        for (const url of statsApiCandidates) {
+            try {
+                const candidateResponse = await fetch(url);
+                response = candidateResponse;
+                if (candidateResponse.status !== 404) {
+                    break;
+                }
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        if (!response) {
+            throw lastError || new Error('Statistik-API nicht erreichbar');
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);

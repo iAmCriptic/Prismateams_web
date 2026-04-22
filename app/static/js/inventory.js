@@ -1,5 +1,47 @@
 // Inventory Management JavaScript
 
+const INVENTORY_API_BASES = ['/inventory/vnext/api', '/vnext/api'];
+let activeInventoryApiBase = INVENTORY_API_BASES[0];
+
+function normalizeInventoryApiPath(path) {
+    if (!path) return '';
+    return path.startsWith('/') ? path : `/${path}`;
+}
+
+function resolveInventoryApiUrl(path) {
+    return `${activeInventoryApiBase}${normalizeInventoryApiPath(path)}`;
+}
+
+async function fetchInventoryApi(path, options = {}) {
+    const normalizedPath = normalizeInventoryApiPath(path);
+    const candidateBases = [
+        activeInventoryApiBase,
+        ...INVENTORY_API_BASES.filter(base => base !== activeInventoryApiBase)
+    ];
+
+    let lastResponse = null;
+    let lastError = null;
+
+    for (const base of candidateBases) {
+        try {
+            const response = await fetch(`${base}${normalizedPath}`, options);
+            lastResponse = response;
+
+            if (response.status !== 404) {
+                activeInventoryApiBase = base;
+                return response;
+            }
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    if (lastResponse) {
+        return lastResponse;
+    }
+    throw lastError || new Error('API-Anfrage fehlgeschlagen');
+}
+
 // Stock Manager - Verwaltet die Bestandsübersicht
 class StockManager {
     constructor() {
@@ -49,7 +91,7 @@ class StockManager {
     
     async loadFolders() {
         try {
-            const response = await fetch('/inventory/vnext/api/folders');
+            const response = await fetchInventoryApi('/folders');
             if (response.ok) {
                 const foldersData = await response.json();
                 this.folders = foldersData;
@@ -69,7 +111,7 @@ class StockManager {
     
     async loadCategories() {
         try {
-            const response = await fetch('/inventory/vnext/api/categories');
+            const response = await fetchInventoryApi('/categories');
             if (response.ok) {
                 const categoriesData = await response.json();
                 // Füge alle Kategorien zum Set hinzu
@@ -89,7 +131,7 @@ class StockManager {
         try {
             // Baue URL mit optionalem folder_id Parameter
             // Wenn currentFolderId null ist (Root), verwende folder_id=0 für Produkte ohne Ordner
-            let url = '/inventory/vnext/api/inventory/filter-options';
+            let url = '/inventory/filter-options';
             if (this.currentFolderId !== null) {
                 url += `?folder_id=${this.currentFolderId}`;
             } else {
@@ -97,7 +139,7 @@ class StockManager {
                 url += '?folder_id=0';
             }
             
-            const response = await fetch(url);
+            const response = await fetchInventoryApi(url);
             if (response.ok) {
                 const filterData = await response.json();
                 
@@ -179,7 +221,7 @@ class StockManager {
                 sort_by: this.sortField || 'name',
                 sort_dir: this.sortDirection === 'desc' ? 'desc' : 'asc'
             });
-            const response = await fetch(`/inventory/vnext/api/products?${params.toString()}`);
+            const response = await fetchInventoryApi(`/products?${params.toString()}`);
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -1357,7 +1399,7 @@ class StockManager {
         }
         
         try {
-            const response = await fetch('/inventory/vnext/api/products/bulk-delete', {
+            const response = await fetchInventoryApi('/products/bulk-delete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1448,7 +1490,7 @@ class StockManager {
         }
         
         try {
-            const response = await fetch(`/inventory/vnext/api/products/${productId}`, {
+            const response = await fetchInventoryApi(`/products/${productId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1803,7 +1845,7 @@ class StockManager {
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Aktualisiere...';
                 
                 try {
-                    const response = await fetch('/inventory/vnext/api/products/bulk-update', {
+                    const response = await fetchInventoryApi('/products/bulk-update', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -2082,8 +2124,8 @@ class BorrowsManager {
             const urlParams = new URLSearchParams(window.location.search);
             const filterMy = urlParams.get('filter') === 'my';
             
-            const endpoint = filterMy ? '/inventory/vnext/api/borrows/my' : '/inventory/vnext/api/borrows';
-            const response = await fetch(endpoint);
+            const endpoint = filterMy ? '/borrows/my' : '/borrows';
+            const response = await fetchInventoryApi(endpoint);
             
             if (response.ok) {
                 this.borrows = await response.json();
@@ -2157,7 +2199,7 @@ class BorrowsManager {
                            title="Zurückgeben">
                             <i class="bi bi-arrow-return-left"></i> Rückgabe
                         </a>
-                        <a href="/inventory/vnext/api/borrow/${borrow.id}/pdf"
+                        <a href="${resolveInventoryApiUrl(`/borrow/${borrow.id}/pdf`)}"
                            class="btn btn-sm btn-outline-secondary" 
                            title="Ausleihschein herunterladen">
                             <i class="bi bi-file-pdf"></i>
@@ -3943,7 +3985,7 @@ async function markAsFound(productId) {
     }
     
     try {
-        const response = await fetch(`/inventory/vnext/api/products/${productId}/lifecycle`, {
+        const response = await fetchInventoryApi(`/products/${productId}/lifecycle`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3971,7 +4013,7 @@ async function markAsMissing(productId) {
     }
     
     try {
-        const response = await fetch(`/inventory/vnext/api/products/${productId}/lifecycle`, {
+        const response = await fetchInventoryApi(`/products/${productId}/lifecycle`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,4 +1,45 @@
 const InventoryFormManager = (() => {
+    const INVENTORY_API_BASES = ['/inventory/vnext/api', '/vnext/api'];
+    let activeInventoryApiBase = INVENTORY_API_BASES[0];
+
+    const normalizeApiPath = (path) => {
+        if (!path) return '';
+        return path.startsWith('/') ? path : `/${path}`;
+    };
+
+    const resolveApiUrl = (path, base = activeInventoryApiBase) => {
+        return `${base}${normalizeApiPath(path)}`;
+    };
+
+    const inventoryApiFetch = async (path, options = {}) => {
+        const normalizedPath = normalizeApiPath(path);
+        const candidateBases = [
+            activeInventoryApiBase,
+            ...INVENTORY_API_BASES.filter(base => base !== activeInventoryApiBase)
+        ];
+
+        let lastResponse = null;
+        let lastError = null;
+
+        for (const base of candidateBases) {
+            try {
+                const response = await fetch(resolveApiUrl(normalizedPath, base), options);
+                lastResponse = response;
+                if (response.status !== 404) {
+                    activeInventoryApiBase = base;
+                    return response;
+                }
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        if (lastResponse) {
+            return lastResponse;
+        }
+        throw lastError || new Error('API-Anfrage fehlgeschlagen.');
+    };
+
     const state = {
         folders: [],
         categories: [],
@@ -21,8 +62,8 @@ const InventoryFormManager = (() => {
     let entryDeleteBtn;
 
     const routes = {
-        folders: '/inventory/vnext/api/folders',
-        categories: '/inventory/vnext/api/categories',
+        folders: '/folders',
+        categories: '/categories',
     };
 
     const sortByName = (items) => {
@@ -156,7 +197,7 @@ const InventoryFormManager = (() => {
     };
 
     const requestCreateFolder = async (name) => {
-        const response = await fetch(routes.folders, {
+        const response = await inventoryApiFetch(routes.folders, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
@@ -169,7 +210,7 @@ const InventoryFormManager = (() => {
     };
 
     const requestUpdateFolder = async (id, name) => {
-        const response = await fetch(`${routes.folders}/${id}`, {
+        const response = await inventoryApiFetch(`${routes.folders}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
@@ -182,7 +223,7 @@ const InventoryFormManager = (() => {
     };
 
     const requestDeleteFolder = async (id) => {
-        const response = await fetch(`${routes.folders}/${id}`, {
+        const response = await inventoryApiFetch(`${routes.folders}/${id}`, {
             method: 'DELETE',
         });
         if (!response.ok) {
@@ -193,7 +234,7 @@ const InventoryFormManager = (() => {
     };
 
     const requestCreateCategory = async (name) => {
-        const response = await fetch(routes.categories, {
+        const response = await inventoryApiFetch(routes.categories, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
@@ -206,7 +247,7 @@ const InventoryFormManager = (() => {
     };
 
     const requestUpdateCategory = async (originalName, newName) => {
-        const response = await fetch(`${routes.categories}/${encodeURIComponent(originalName)}`, {
+        const response = await inventoryApiFetch(`${routes.categories}/${encodeURIComponent(originalName)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: newName }),
@@ -219,7 +260,7 @@ const InventoryFormManager = (() => {
     };
 
     const requestDeleteCategory = async (name) => {
-        const response = await fetch(`${routes.categories}/${encodeURIComponent(name)}`, {
+        const response = await inventoryApiFetch(`${routes.categories}/${encodeURIComponent(name)}`, {
             method: 'DELETE',
         });
         if (!response.ok) {
