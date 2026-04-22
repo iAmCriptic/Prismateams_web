@@ -740,7 +740,7 @@ def create_app(config_name='default'):
     from app.blueprints.api import api_bp
     from app.blueprints.errors import errors_bp
     from app.blueprints.inventory import inventory_bp
-    from app.blueprints.inventory_vnext import inventory_vnext_bp
+    from app.blueprints.inventory_vnext import inventory_vnext_bp, inventory_vnext_compat_bp
     from app.blueprints.wiki import wiki_bp
     from app.blueprints.comments import comments_bp
     from app.blueprints.booking import booking_bp
@@ -763,6 +763,7 @@ def create_app(config_name='default'):
     app.register_blueprint(errors_bp, url_prefix='/test')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_bp, url_prefix='/inventory')
+    app.register_blueprint(inventory_vnext_compat_bp)
     app.register_blueprint(wiki_bp)
     app.register_blueprint(comments_bp)
     app.register_blueprint(booking_bp, url_prefix='/booking')
