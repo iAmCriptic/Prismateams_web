@@ -103,7 +103,7 @@ def get_accessible_modules(user):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_assessment'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks',
         ]
         return [m for m in all_modules if is_module_enabled(m)]
     
@@ -121,7 +121,7 @@ def get_accessible_modules(user):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_assessment'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks',
         ]
         return [m for m in all_modules if is_module_enabled(m)]
     
@@ -131,13 +131,13 @@ def get_accessible_modules(user):
     if is_guest:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar',
-            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment'
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment', 'module_shortlinks'
         ]
     else:
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_assessment'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks',
         ]
     
     for module_key in all_modules:

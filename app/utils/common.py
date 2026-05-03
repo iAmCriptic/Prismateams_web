@@ -20,6 +20,7 @@ AVAILABLE_MODULES = [
     'module_booking',
     'module_music',
     'module_assessment',
+    'module_shortlinks',
 ]
 
 

@@ -241,7 +241,8 @@ def create_app(config_name='default'):
              request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo' or
              request.endpoint == 'music.public_wishlist' or
-             request.endpoint == 'music.public_search')):
+             request.endpoint == 'music.public_search' or
+             request.endpoint == 'shortlinks.resolve')):
             return
         
         if not current_user.is_authenticated:
@@ -499,6 +500,7 @@ def create_app(config_name='default'):
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
+                'shortlinks': 'shortlinks.index',
                 'settings': 'settings.index',
                 'assessment': 'assessment.general.home'
             }
@@ -747,6 +749,7 @@ def create_app(config_name='default'):
     from app.blueprints.music import music_bp
     from app.blueprints.sse import sse_bp
     from app.blueprints.assessment import assessment_bp
+    from app.blueprints.shortlinks import shortlinks_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -770,6 +773,7 @@ def create_app(config_name='default'):
     app.register_blueprint(music_bp)
     app.register_blueprint(sse_bp, url_prefix='/sse')
     app.register_blueprint(assessment_bp)
+    app.register_blueprint(shortlinks_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -873,6 +877,7 @@ def create_app(config_name='default'):
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
+                from app.models.shortlink import ShortLink
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
                 from app.models.user_session import UserSession
                 from app.models.assessment import (
@@ -1071,7 +1076,7 @@ def create_app(config_name='default'):
                             migrations_path = os.path.join(
                                 os.path.dirname(os.path.dirname(__file__)),
                                 'migrations',
-                                'migrate_to_2.4.0.py'
+                                'migrate_to_2_4_1.py'
                             )
                             if os.path.exists(migrations_path):
                                 env = os.environ.copy()
@@ -1088,14 +1093,14 @@ def create_app(config_name='default'):
                                         print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
                                     else:
                                         print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
+                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
                                 except subprocess.TimeoutExpired:
                                     print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
                                 except Exception as exc:
                                     print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
                             else:
-                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2.4.0.py --security-only")
+                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2_4_1.py --security-only")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
@@ -1164,7 +1169,7 @@ def create_app(config_name='default'):
                                 print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
+                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
 
                 try:
                     from sqlalchemy import inspect, text

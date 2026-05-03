@@ -4,6 +4,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, Flowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.utils import ImageReader
 from flask import current_app
 from io import BytesIO
 from datetime import datetime
@@ -39,6 +40,82 @@ class DashedLine(Flowable):
             self.canv.line(self.width / 2, 0, self.width / 2, self.height)
         
         self.canv.restoreState()
+
+
+class CableLabelFlowable(Flowable):
+    """
+    Kabel-Wickeletikett: [FARBSTREIFEN][QR weiß/schwarz][TEXT weiß/schwarz][FARBSTREIFEN]
+    Kann um ein Kabel gewickelt werden – eine Seite QR, andere Seite Text.
+    """
+    def __init__(self, product, qr_bytes, stripe_color_hex, label_width, label_height):
+        Flowable.__init__(self)
+        self.product = product
+        self.qr_bytes = qr_bytes
+        try:
+            self.stripe_color = colors.HexColor(stripe_color_hex)
+        except Exception:
+            self.stripe_color = colors.HexColor('#888888')
+        self.width = label_width
+        self.height = label_height
+
+    def draw(self):
+        c = self.canv
+        lw = self.width
+        lh = self.height
+        sw = 1.2 * cm  # Streifenbreite
+
+        # Linker Farbstreifen
+        c.setFillColor(self.stripe_color)
+        c.rect(0, 0, sw, lh, fill=1, stroke=0)
+
+        # Rechter Farbstreifen
+        c.setFillColor(self.stripe_color)
+        c.rect(lw - sw, 0, sw, lh, fill=1, stroke=0)
+
+        # Schwarzer Mittelteil
+        c.setFillColor(colors.black)
+        c.rect(sw, 0, lw - 2 * sw, lh, fill=1, stroke=0)
+
+        # QR-Code (weiß auf schwarz) – quadratisch, füllt fast die volle Höhe
+        qr_margin = 3
+        qr_size = lh - 2 * qr_margin
+        qr_x = sw + qr_margin
+        qr_y = qr_margin
+        c.drawImage(ImageReader(BytesIO(self.qr_bytes)), qr_x, qr_y, qr_size, qr_size)
+
+        # Textbereich (weiß auf schwarz)
+        c.setFillColor(colors.white)
+        text_x = sw + qr_size + qr_margin * 2 + 4
+
+        # Produktname (fett)
+        name = self.product.name or f'ID {self.product.id}'
+        if len(name) > 16:
+            name = name[:15] + u'…'
+        c.setFont('Helvetica-Bold', 8)
+        c.drawString(text_x, lh * 0.70, name)
+
+        # Produkt-ID
+        c.setFont('Helvetica', 6.5)
+        c.drawString(text_x, lh * 0.46, f'ID: {self.product.id}')
+
+        # Länge mit farbigem Punkt
+        if self.product.length:
+            length_str = _format_length(self.product.length)
+            dot_r = 3
+            dot_x = text_x + dot_r
+            dot_y = lh * 0.20 + dot_r
+            c.setFillColor(self.stripe_color)
+            c.circle(dot_x, dot_y, dot_r, fill=1, stroke=0)
+            c.setFillColor(colors.white)
+            c.setFont('Helvetica-Bold', 8)
+            c.drawString(text_x + dot_r * 2 + 4, lh * 0.17, length_str)
+
+        # Gestrichelter Schnittrahmen
+        c.setStrokeColor(colors.HexColor('#aaaaaa'))
+        c.setDash([2, 2])
+        c.setLineWidth(0.4)
+        c.rect(0, 0, lw, lh, fill=0, stroke=1)
+        c.setDash([])
 
 
 def _format_length(value):
@@ -267,9 +344,10 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
         fontName='Helvetica'
     )
     
+    display_ref = first_transaction.borrow_group_id or first_transaction.transaction_number
     details_data = [
         ['Ausleihdatum:', first_transaction.borrow_date.strftime('%d.%m.%Y %H:%M')],
-        ['Vorgangsnummer:', first_transaction.transaction_number],
+        ['Vorgangsnummer:', display_ref],
         ['Voraussichtliche Rückgabe:', first_transaction.expected_return_date.strftime('%d.%m.%Y')],
         ['Ausleiher:', f"{borrower.first_name} {borrower.last_name}"],
     ]
@@ -435,92 +513,130 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
         raise ValueError("Keine Produkte zum Generieren des QR-Code-Druckbogens vorhanden.")
     
     # A4-Seitengröße
-    doc = SimpleDocTemplate(output, pagesize=A4, 
+    doc = SimpleDocTemplate(output, pagesize=A4,
                            leftMargin=1*cm, rightMargin=1*cm,
                            topMargin=1*cm, bottomMargin=1*cm)
     story = []
-    
     styles = getSampleStyleSheet()
-    
-    # QR-Code-Größe basierend auf label_type
+
     if label_type == 'cable':
-        qr_size = 2.5*cm
-        items_per_row = 3
-        items_per_col = 8
+        # Wickeletiketten: [STREIFEN][QR][TEXT][STREIFEN]
+        try:
+            initialize_color_mappings()
+        except Exception:
+            pass
+
+        LABEL_W = 9.0 * cm
+        LABEL_H = 3.2 * cm
+        LABELS_PER_ROW = 2
+        GAP = 0.35 * cm
+
+        rows = []
+        row_data = []
+
+        for product in products:
+            stripe_hex = '#888888'
+            if product.length:
+                try:
+                    color = get_color_for_length(product.length)
+                    if color:
+                        stripe_hex = color
+                except Exception:
+                    pass
+
+            qr_url = generate_product_qr_code(product.id)
+            qr_bytes = generate_qr_code_inverted_bytes(qr_url, box_size=6, border=2)
+            label = CableLabelFlowable(product, qr_bytes, stripe_hex, LABEL_W, LABEL_H)
+            row_data.append(label)
+
+            if len(row_data) == LABELS_PER_ROW:
+                rows.append(list(row_data))
+                row_data = []
+
+        if row_data:
+            while len(row_data) < LABELS_PER_ROW:
+                row_data.append('')
+            rows.append(row_data)
+
+        col_widths = [LABEL_W + GAP] * LABELS_PER_ROW
+        row_heights = [LABEL_H + GAP] * len(rows)
+
+        table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
+        table.setStyle(TableStyle([
+            ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+            ('TOPPADDING',    (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(table)
+
     else:  # device
-        qr_size = 3*cm
+        qr_size = 3 * cm
         items_per_row = 2
         items_per_col = 6
-    
-    # Produkte in Blöcken anordnen
-    items_per_page = items_per_row * items_per_col
-    
-    for page_start in range(0, len(products), items_per_page):
-        page_products = products[page_start:page_start + items_per_page]
-        
-        # Erstelle Grid für QR-Codes
-        qr_data = []
-        for row in range(items_per_col):
-            row_data = []
-            for col in range(items_per_row):
-                idx = row * items_per_row + col
-                if idx < len(page_products):
-                    product = page_products[idx]
-                    qr_url = generate_product_qr_code(product.id)
-                    qr_bytes = generate_qr_code_bytes(qr_url, box_size=6, border=2)
-                    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
-                    
-                    # Produktname und ID unter dem QR-Code
-                    product_name = product.name[:20] if product.name else f"ID: {product.id}"
-                    name_style = ParagraphStyle(
-                        'ProductName',
-                        parent=styles['Normal'],
-                        fontSize=8,
-                        textColor=colors.black,
-                        alignment=TA_CENTER,
-                        fontName='Helvetica',
-                        spaceAfter=0.1*cm
-                    )
-                    
-                    id_style = ParagraphStyle(
-                        'ProductID',
-                        parent=styles['Normal'],
-                        fontSize=7,
-                        textColor=colors.grey,
-                        alignment=TA_CENTER,
-                        fontName='Helvetica'
-                    )
-                    
-                    # Kombiniere QR-Code und Text
-                    cell_content = [
-                        qr_image,
-                        Spacer(1, 0.1*cm),
-                        Paragraph(product_name, name_style),
-                        Paragraph(f"ID: {product.id}", id_style)
-                    ]
-                    row_data.append(cell_content)
-                else:
-                    row_data.append('')
-            qr_data.append(row_data)
-        
-        # Tabelle mit QR-Codes erstellen
-        col_widths = [A4[0] / items_per_row - 0.5*cm] * items_per_row
-        row_heights = [qr_size + 1.5*cm] * items_per_col
-        
-        qr_table = Table(qr_data, colWidths=col_widths, rowHeights=row_heights)
-        qr_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 5),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ]))
-        story.append(qr_table)
-        
-        # Seitenumbruch für weitere Seiten
-        if page_start + items_per_page < len(products):
-            story.append(Spacer(1, 0.5*cm))
+        items_per_page = items_per_row * items_per_col
+
+        for page_start in range(0, len(products), items_per_page):
+            page_products = products[page_start:page_start + items_per_page]
+
+            qr_data = []
+            for row in range(items_per_col):
+                row_cells = []
+                for col in range(items_per_row):
+                    idx = row * items_per_row + col
+                    if idx < len(page_products):
+                        product = page_products[idx]
+                        qr_url = generate_product_qr_code(product.id)
+                        qr_bytes = generate_qr_code_bytes(qr_url, box_size=6, border=2)
+                        qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+
+                        product_name = product.name[:20] if product.name else f"ID: {product.id}"
+                        name_style = ParagraphStyle(
+                            'ProductName',
+                            parent=styles['Normal'],
+                            fontSize=8,
+                            textColor=colors.black,
+                            alignment=TA_CENTER,
+                            fontName='Helvetica',
+                            spaceAfter=0.1 * cm
+                        )
+                        id_style = ParagraphStyle(
+                            'ProductID',
+                            parent=styles['Normal'],
+                            fontSize=7,
+                            textColor=colors.grey,
+                            alignment=TA_CENTER,
+                            fontName='Helvetica'
+                        )
+                        cell_content = [
+                            qr_image,
+                            Spacer(1, 0.1 * cm),
+                            Paragraph(product_name, name_style),
+                            Paragraph(f"ID: {product.id}", id_style)
+                        ]
+                        row_cells.append(cell_content)
+                    else:
+                        row_cells.append('')
+                qr_data.append(row_cells)
+
+            col_widths = [A4[0] / items_per_row - 0.5 * cm] * items_per_row
+            row_heights = [qr_size + 1.5 * cm] * items_per_col
+
+            qr_table = Table(qr_data, colWidths=col_widths, rowHeights=row_heights)
+            qr_table.setStyle(TableStyle([
+                ('ALIGN',   (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN',  (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
+                ('TOPPADDING',    (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ]))
+            story.append(qr_table)
+
+            if page_start + items_per_page < len(products):
+                story.append(Spacer(1, 0.5 * cm))
     
     doc.build(story)
     

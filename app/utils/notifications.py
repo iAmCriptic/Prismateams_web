@@ -602,6 +602,8 @@ def send_calendar_notification(
                     should_notify = True
                 elif participation.status == 'declined' and settings.calendar_not_participating:
                     should_notify = True
+                elif participation.status == 'pending' and settings.calendar_no_response:
+                    should_notify = True
             elif settings.calendar_no_response:
                 should_notify = True
         

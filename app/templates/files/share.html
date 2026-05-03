@@ -12,12 +12,16 @@
                         <i class="bi bi-file-earmark me-2"></i>
                         <h4 class="mb-0">{{ file.name }}</h4>
                     </div>
+                    {% if share_mode == 'edit' and guest_name %}
                     <p class="text-muted mb-4">Als Gast angemeldet: {{ guest_name }}</p>
+                    {% else %}
+                    <p class="text-muted mb-4">Freigabe im Betrachtungsmodus.</p>
+                    {% endif %}
                     <div class="d-flex gap-2">
                         <a href="{{ url_for('files.public_share_download', token=token) }}" class="btn btn-primary">
                             <i class="bi bi-download"></i> Herunterladen
                         </a>
-                        {% if onlyoffice_available %}
+                        {% if share_mode == 'edit' and onlyoffice_available %}
                             {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                             {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
                         <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success">
@@ -31,7 +35,11 @@
                         <i class="bi bi-folder2-open me-2"></i>
                         <h4 class="mb-0">{{ folder.name }}</h4>
                     </div>
+                    {% if share_mode == 'edit' and guest_name %}
                     <p class="text-muted mb-3">Als Gast angemeldet: {{ guest_name }}</p>
+                    {% else %}
+                    <p class="text-muted mb-3">Freigabe im Betrachtungsmodus.</p>
+                    {% endif %}
                     
                     <div class="mb-4">
                         <h5 class="mb-3">Dateien im Ordner</h5>
@@ -56,7 +64,7 @@
                                     <a href="{{ url_for('files.public_share_folder_file_download', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-download"></i> Herunterladen
                                     </a>
-                                    {% if onlyoffice_available %}
+                                    {% if share_mode == 'edit' and onlyoffice_available %}
                                         {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                                         {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
                                     <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}?file_id={{ file.id }}" class="btn btn-sm btn-outline-success">
@@ -75,16 +83,18 @@
                         {% endif %}
                     </div>
                     
-                    <hr class="my-4">
-                    
-                    <h5 class="mb-3">Dateien hochladen</h5>
-                    <form method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label">Dateien auswählen</label>
-                            <input type="file" class="form-control" name="file" multiple required>
-                        </div>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Hochladen</button>
-                    </form>
+                    {% if share_mode == 'edit' %}
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">Dateien hochladen</h5>
+                        <form method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label">Dateien auswählen</label>
+                                <input type="file" class="form-control" name="file" multiple required>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Hochladen</button>
+                        </form>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>

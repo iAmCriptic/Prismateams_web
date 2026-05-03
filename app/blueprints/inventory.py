@@ -91,7 +91,7 @@ def generate_borrow_group_id():
     """Generiert eine eindeutige Gruppierungs-ID für Mehrfachausleihen."""
     timestamp = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
     random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
-    return f"GRP-{timestamp}-{random_part}"
+    return f"INV-{timestamp}-{random_part}"
 
 
 # ========== Frontend Routes ==========
@@ -123,12 +123,39 @@ def public_product(product_id):
 @check_module_access('module_inventory')
 def dashboard():
     """Lager-Dashboard Hauptansicht."""
-    # Meine aktuellen Ausleihen
-    my_borrows = BorrowTransaction.query.filter_by(
+    from collections import OrderedDict
+    all_borrows = BorrowTransaction.query.filter_by(
         borrower_id=current_user.id,
         status='active'
     ).order_by(BorrowTransaction.borrow_date.desc()).all()
-    
+
+    # Group transactions by borrow_group_id so multi-item borrows appear as one entry
+    groups = OrderedDict()
+    for borrow in all_borrows:
+        key = borrow.borrow_group_id if borrow.borrow_group_id else f'_single_{borrow.id}'
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(borrow)
+
+    my_borrows = []
+    for txns in groups.values():
+        first = txns[0]
+        names = [t.product.name for t in txns if t.product]
+        display_names = ', '.join(names[:3])
+        if len(names) > 3:
+            display_names += f' (+{len(names) - 3})'
+        my_borrows.append({
+            'first': first,
+            'count': len(txns),
+            'is_group': len(txns) > 1,
+            'product_names': display_names,
+            'borrow_date': first.borrow_date,
+            'expected_return_date': first.expected_return_date,
+            'is_overdue': any(t.is_overdue for t in txns),
+            'ref_id': first.id,
+            'return_number': first.borrow_group_id or first.transaction_number,
+        })
+
     return render_template('inventory/dashboard.html', my_borrows=my_borrows)
 
 
@@ -605,7 +632,8 @@ def borrow_multiple():
                 status='active'
             )
             
-            qr_data = generate_borrow_qr_code(transaction_number)
+            # Gemeinsame Ausleihnummer für den gesamten Mehrfachvorgang
+            qr_data = generate_borrow_qr_code(borrow_group_id)
             borrow_transaction.qr_code_data = qr_data
             product.status = 'borrowed'
             
@@ -722,38 +750,120 @@ def return_item():
     preset_transaction_number = request.args.get('transaction_number', '')
     
     if request.method == 'POST':
+        selected_transaction_ids = request.form.getlist('return_transaction_ids')
+        borrow_ref = request.form.get('borrow_ref', '').strip()
+
+        if selected_transaction_ids:
+            try:
+                selected_ids_int = [int(tx_id) for tx_id in selected_transaction_ids]
+            except (TypeError, ValueError):
+                flash(_('inventory.flash.no_active_borrow'), 'danger')
+                return redirect(url_for('inventory.return_item'))
+
+            selected_transactions = BorrowTransaction.query.filter(
+                BorrowTransaction.id.in_(selected_ids_int),
+                BorrowTransaction.status == 'active'
+            ).all()
+
+            if borrow_ref:
+                ref_transactions = BorrowTransaction.query.filter(
+                    BorrowTransaction.status == 'active',
+                    or_(
+                        BorrowTransaction.borrow_group_id == borrow_ref,
+                        BorrowTransaction.transaction_number == borrow_ref
+                    )
+                ).all()
+
+                if len(ref_transactions) == 1 and ref_transactions[0].borrow_group_id:
+                    ref_transactions = BorrowTransaction.query.filter_by(
+                        borrow_group_id=ref_transactions[0].borrow_group_id,
+                        status='active'
+                    ).all()
+
+                ref_ids = {tx.id for tx in ref_transactions}
+                selected_ids = set(selected_ids_int)
+
+                # Wenn alle Positionen der Referenz markiert wurden, gib garantiert alle zurück.
+                if ref_ids and ref_ids.issubset(selected_ids):
+                    selected_transactions = ref_transactions
+                elif ref_ids:
+                    selected_transactions = [tx for tx in selected_transactions if tx.id in ref_ids]
+
+            if not selected_transactions:
+                flash(_('inventory.flash.no_active_borrow'), 'danger')
+                return redirect(url_for('inventory.return_item'))
+
+            for transaction in selected_transactions:
+                transaction.mark_as_returned()
+
+            db.session.commit()
+            flash(_('inventory.flash.return_success'), 'success')
+            return redirect(url_for('inventory.dashboard'))
+
         qr_code = request.form.get('qr_code', '').strip()
         transaction_number = request.form.get('transaction_number', '').strip()
         
-        borrow_transaction = None
+        borrow_transactions = []
         
         if qr_code:
             parsed = parse_qr_code(qr_code)
             if parsed:
                 qr_type, identifier = parsed
                 if qr_type == 'borrow':
-                    borrow_transaction = BorrowTransaction.query.filter_by(
-                        transaction_number=identifier,
-                        status='active'
-                    ).first()
+                    borrow_transactions = BorrowTransaction.query.filter(
+                        BorrowTransaction.status == 'active',
+                        or_(
+                            BorrowTransaction.transaction_number == identifier,
+                            BorrowTransaction.borrow_group_id == identifier
+                        )
+                    ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
+
+                    if len(borrow_transactions) == 1 and borrow_transactions[0].borrow_group_id:
+                        borrow_transactions = BorrowTransaction.query.filter_by(
+                            borrow_group_id=borrow_transactions[0].borrow_group_id,
+                            status='active'
+                        ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
                 elif qr_type == 'product':
                     product = Product.query.get(identifier)
                     if product:
-                        borrow_transaction = BorrowTransaction.query.filter_by(
+                        tx = BorrowTransaction.query.filter_by(
                             product_id=product.id,
                             status='active'
                         ).first()
+                        if tx:
+                            borrow_transactions = [tx]
         
         elif transaction_number:
-            borrow_transaction = BorrowTransaction.query.filter_by(
-                transaction_number=transaction_number,
-                status='active'
-            ).first()
+            borrow_transactions = BorrowTransaction.query.filter(
+                BorrowTransaction.status == 'active',
+                or_(
+                    BorrowTransaction.transaction_number == transaction_number,
+                    BorrowTransaction.borrow_group_id == transaction_number
+                )
+            ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
+
+            if len(borrow_transactions) == 1 and borrow_transactions[0].borrow_group_id:
+                borrow_transactions = BorrowTransaction.query.filter_by(
+                    borrow_group_id=borrow_transactions[0].borrow_group_id,
+                    status='active'
+                ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
         
-        if not borrow_transaction:
+        if not borrow_transactions:
             flash(_('inventory.flash.no_active_borrow'), 'danger')
             return render_template('inventory/return.html', preset_transaction_number=preset_transaction_number)
+
+        if len(borrow_transactions) > 1:
+            shared_group_id = borrow_transactions[0].borrow_group_id
+            if not shared_group_id or any(tx.borrow_group_id != shared_group_id for tx in borrow_transactions):
+                shared_group_id = transaction_number or borrow_transactions[0].transaction_number
+            return render_template(
+                'inventory/return.html',
+                preset_transaction_number=shared_group_id,
+                return_candidates=borrow_transactions,
+                borrow_ref=shared_group_id
+            )
         
+        borrow_transaction = borrow_transactions[0]
         borrow_transaction.mark_as_returned()
         db.session.commit()
         
@@ -767,6 +877,46 @@ def return_item():
         return redirect(url_for('inventory.dashboard'))
     
     return render_template('inventory/return.html', preset_transaction_number=preset_transaction_number)
+
+
+@inventory_bp.route('/return/complete', methods=['POST'])
+@login_required
+def return_complete_borrow():
+    """Komplette Rückgabe eines Ausleihvorgangs (inkl. Mehrfachausleihe)."""
+    borrow_ref = request.form.get('borrow_ref', '').strip()
+    if not borrow_ref:
+        flash(_('inventory.flash.no_active_borrow'), 'danger')
+        return redirect(url_for('inventory.dashboard'))
+
+    transactions = BorrowTransaction.query.filter_by(
+        borrow_group_id=borrow_ref,
+        status='active'
+    ).all()
+
+    if not transactions:
+        transaction = BorrowTransaction.query.filter_by(
+            transaction_number=borrow_ref,
+            status='active'
+        ).first()
+        if transaction:
+            if transaction.borrow_group_id:
+                transactions = BorrowTransaction.query.filter_by(
+                    borrow_group_id=transaction.borrow_group_id,
+                    status='active'
+                ).all()
+            else:
+                transactions = [transaction]
+
+    if not transactions:
+        flash(_('inventory.flash.no_active_borrow'), 'danger')
+        return redirect(url_for('inventory.dashboard'))
+
+    for transaction in transactions:
+        transaction.mark_as_returned()
+
+    db.session.commit()
+    flash(_('inventory.flash.return_success'), 'success')
+    return redirect(url_for('inventory.dashboard'))
 
 
 @inventory_bp.route('/borrow-scanner', methods=['GET', 'POST'])
@@ -993,7 +1143,8 @@ def borrow_scanner_checkout():
             status='active'
         )
         
-        qr_data = generate_borrow_qr_code(transaction_number)
+        # Gemeinsame Ausleihnummer für den gesamten Mehrfachvorgang
+        qr_data = generate_borrow_qr_code(borrow_group_id)
         borrow_transaction.qr_code_data = qr_data
         product.status = 'borrowed'
         
@@ -2495,6 +2646,11 @@ def api_return():
                     transaction_number=identifier,
                     status='active'
                 ).first()
+                if not borrow_transaction:
+                    borrow_transaction = BorrowTransaction.query.filter_by(
+                        borrow_group_id=identifier,
+                        status='active'
+                    ).first()
             elif qr_type == 'product':
                 product = Product.query.get(identifier)
                 if product:
@@ -2508,6 +2664,11 @@ def api_return():
             transaction_number=transaction_number,
             status='active'
         ).first()
+        if not borrow_transaction:
+            borrow_transaction = BorrowTransaction.query.filter_by(
+                borrow_group_id=transaction_number,
+                status='active'
+            ).first()
     
     if not borrow_transaction:
         return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
@@ -2532,12 +2693,22 @@ def api_return():
 def api_borrow_pdf(transaction_id):
     """API: Ausleihschein-PDF generieren."""
     borrow_transaction = BorrowTransaction.query.get_or_404(transaction_id)
-    
+
+    # For group borrows: combine all items of the group into one receipt
+    if borrow_transaction.borrow_group_id:
+        transactions = BorrowTransaction.query.filter_by(
+            borrow_group_id=borrow_transaction.borrow_group_id
+        ).order_by(BorrowTransaction.id).all()
+    else:
+        transactions = [borrow_transaction]
+
     pdf_buffer = BytesIO()
-    generate_borrow_receipt_pdf(borrow_transaction, pdf_buffer)
+    generate_borrow_receipt_pdf(transactions, pdf_buffer)
     pdf_buffer.seek(0)
-    
-    filename = f"Ausleihschein_{borrow_transaction.transaction_number}.pdf"
+
+    first = transactions[0]
+    ref = first.borrow_group_id or first.transaction_number
+    filename = f"Ausleihschein_{ref}.pdf"
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',

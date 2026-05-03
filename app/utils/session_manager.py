@@ -6,11 +6,66 @@ from datetime import datetime
 from app import db
 from app.models.user_session import UserSession
 import secrets
+import re
 
 
 def generate_session_id():
     """Generiert eine eindeutige Session-ID."""
     return secrets.token_urlsafe(32)
+
+
+def _detect_platform(user_agent):
+    """Erkennt das Betriebssystem aus dem User-Agent-String."""
+    ua = (user_agent or "").lower()
+
+    if "android" in ua:
+        return "Android"
+    if any(token in ua for token in ["iphone", "ipad", "ipod"]):
+        return "iOS"
+    if "windows" in ua:
+        return "Windows"
+    if any(token in ua for token in ["mac os x", "macintosh"]):
+        return "macOS"
+    if "linux" in ua:
+        return "Linux"
+
+    return "Unbekanntes OS"
+
+
+def _detect_browser(user_agent):
+    """Erkennt den Browser aus dem User-Agent-String."""
+    ua = user_agent or ""
+    ua_lower = ua.lower()
+
+    # Reihenfolge wichtig: Edge/Opera enthalten teils auch "Chrome"
+    if "edg/" in ua_lower:
+        return "Edge"
+    if "opr/" in ua_lower or "opera" in ua_lower:
+        return "Opera"
+    if "firefox/" in ua_lower:
+        return "Firefox"
+    if "safari/" in ua_lower and "chrome/" not in ua_lower and "chromium/" not in ua_lower:
+        return "Safari"
+    if "chrome/" in ua_lower or "chromium/" in ua_lower:
+        return "Chrome"
+
+    return "Unbekannter Browser"
+
+
+def format_device_label(user_agent):
+    """Formatiert einen lesbaren Gerätenamen aus dem User-Agent."""
+    if not user_agent:
+        return "Unbekanntes Gerät"
+
+    platform = _detect_platform(user_agent)
+    browser = _detect_browser(user_agent)
+
+    # Fallback: falls beides unbekannt ist, rohen UA gekürzt anzeigen
+    if platform == "Unbekanntes OS" and browser == "Unbekannter Browser":
+        sanitized = re.sub(r"\s+", " ", user_agent).strip()
+        return sanitized[:80] if sanitized else "Unbekanntes Gerät"
+
+    return f"{platform} · {browser}"
 
 
 def create_session(user_id):
@@ -67,6 +122,7 @@ def get_user_sessions(user_id, include_current=True):
 
     for sess in sessions:
         sess.is_current = (sess.session_id == current_session_id) if include_current else False
+        sess.device_label = format_device_label(sess.user_agent)
     
     return sessions
 

@@ -73,9 +73,12 @@
                             <label for="filter-notes" class="form-label mb-1">{{ _('contacts.index.filters.notes') }}</label>
                             <input id="filter-notes" name="notes" value="{{ current_filters.notes }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.notes_placeholder') }}">
                         </div>
+                        {% set has_filter_state = search_query or current_filters.salutation or current_filters.name or current_filters.email or current_filters.phone or current_filters.notes %}
                         <div class="d-flex gap-2 mt-1">
                             <button type="submit" class="btn btn-sm btn-accent flex-grow-1">{{ _('contacts.index.filters.apply') }}</button>
+                            {% if has_filter_state %}
                             <a href="{{ url_for('contacts.index', view=view_mode, q=search_query, sort=current_sort, dir=current_dir) }}" class="btn btn-sm btn-outline-secondary">{{ _('contacts.index.filters.reset') }}</a>
+                            {% endif %}
                         </div>
                     </form>
                 </div>

@@ -70,9 +70,11 @@
                             {% for borrow in my_borrows[:5] %}
                             <tr {% if borrow.is_overdue %}class="table-danger"{% endif %}>
                                 <td>
-                                    <strong>{{ borrow.product.name }}</strong>
-                                    {% if borrow.product.serial_number %}
-                                    <br><small class="text-muted">{{ _('inventory.dashboard.my_borrows.table.serial_number') }} {{ borrow.product.serial_number }}</small>
+                                    <strong>{{ borrow.product_names }}</strong>
+                                    {% if borrow.is_group %}
+                                    <br><small class="text-muted"><i class="bi bi-stack"></i> {{ borrow.count }} Artikel</small>
+                                    {% elif borrow.first.product.serial_number %}
+                                    <br><small class="text-muted">{{ _('inventory.dashboard.my_borrows.table.serial_number') }} {{ borrow.first.product.serial_number }}</small>
                                     {% endif %}
                                 </td>
                                 <td>{{ borrow.borrow_date.strftime('%d.%m.%Y') }}</td>
@@ -87,13 +89,18 @@
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ borrow.transaction_number }}" 
-                                           class="btn btn-sm btn-success" 
-                                           title="{{ _('inventory.dashboard.my_borrows.table.return_button') }}">
-                                            <i class="bi bi-arrow-return-left"></i> {{ _('inventory.dashboard.my_borrows.table.return_button') }}
-                                        </a>
-                                        <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.id) }}" 
-                                           class="btn btn-sm btn-outline-secondary" 
+                                        <form method="post"
+                                              action="{{ url_for('inventory.return_complete_borrow') }}"
+                                              class="d-inline">
+                                            <input type="hidden" name="borrow_ref" value="{{ borrow.return_number }}">
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-success"
+                                                    title="{{ _('inventory.dashboard.my_borrows.table.return_button') }}">
+                                                <i class="bi bi-arrow-return-left"></i> {{ _('inventory.dashboard.my_borrows.table.return_button') }}
+                                            </button>
+                                        </form>
+                                        <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.ref_id) }}"
+                                           class="btn btn-sm btn-outline-secondary"
                                            title="{{ _('inventory.dashboard.my_borrows.table.download_receipt') }}">
                                             <i class="bi bi-file-pdf"></i>
                                         </a>

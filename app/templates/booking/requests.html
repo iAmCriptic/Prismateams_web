@@ -3,17 +3,11 @@
 {% block title %}{{ _('booking.requests.page_title') }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">{{ _('booking.requests.breadcrumb_dashboard') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('booking.requests.breadcrumb_requests') }}</li>
-    </ol>
-</nav>
-
-<h2>{{ _('booking.requests.heading') }}</h2>
+<div class="booking-page">
+<h2><i class="bi bi-calendar-check"></i> {{ _('booking.requests.heading') }}</h2>
 
 <div class="mb-3">
-    <div class="btn-group" role="group">
+    <div class="btn-group booking-status-filters" role="group">
         <a href="{{ url_for('booking.requests', status='pending') }}" 
            class="btn btn-outline-{% if status_filter == 'pending' %}primary{% else %}secondary{% endif %}">
             {{ _('booking.requests.filters.pending') }}
@@ -99,6 +93,7 @@
         <p class="text-muted text-center py-5">{{ _('booking.requests.empty') }}</p>
         {% endif %}
     </div>
+</div>
 </div>
 {% endblock %}
 

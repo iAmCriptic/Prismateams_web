@@ -16,6 +16,7 @@ from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
 from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
+from .shortlink import ShortLink
 from .assessment import (
     AssessmentUser,
     AssessmentRole,
@@ -52,6 +53,7 @@ __all__ = [
     'Comment', 'CommentMention',
     'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings',
     'GuestShareAccess',
+    'ShortLink',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
     'AssessmentEvaluation', 'AssessmentEvaluationScore',

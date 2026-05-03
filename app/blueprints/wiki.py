@@ -172,7 +172,8 @@ def create():
         absolute_filepath = os.path.abspath(filepath)
         
         # Speichere Markdown-Datei
-        with open(absolute_filepath, 'w', encoding='utf-8') as f:
+        # Kein Newline-Transform auf Windows, sonst entstehen doppelte Leerzeilen.
+        with open(absolute_filepath, 'w', encoding='utf-8', newline='') as f:
             f.write(content)
         
         # Erstelle Wiki-Seite
@@ -291,7 +292,8 @@ def edit(slug):
         filepath = os.path.join(upload_dir, filename)
         absolute_filepath = os.path.abspath(filepath)
         
-        with open(absolute_filepath, 'w', encoding='utf-8') as f:
+        # Kein Newline-Transform auf Windows, sonst entstehen doppelte Leerzeilen.
+        with open(absolute_filepath, 'w', encoding='utf-8', newline='') as f:
             f.write(content)
         
         page.file_path = absolute_filepath
@@ -357,20 +359,6 @@ def history(slug):
     ).all()
     
     return render_template('wiki/history.html', page=page, versions=versions)
-
-
-@wiki_bp.route('/preview', methods=['POST'])
-@login_required
-@check_module_access('module_wiki')
-def preview():
-    """Vorschau-Endpoint für Editor (nutzt gleiche Logik wie /view/)."""
-    if not check_wiki_module():
-        return jsonify({'error': _('wiki.api.module_disabled')}), 403
-    
-    content = request.form.get('content', '')
-    processed_content = process_markdown(content, wiki_mode=True)
-    
-    return jsonify({'html': processed_content})
 
 
 @wiki_bp.route('/search')

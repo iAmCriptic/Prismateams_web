@@ -21,6 +21,7 @@ class Folder(db.Model):
     share_password_hash = db.Column(db.String(255), nullable=True)
     share_expires_at = db.Column(db.DateTime, nullable=True)
     share_name = db.Column(db.String(255), nullable=True)
+    share_mode = db.Column(db.String(16), nullable=False, default='edit')
     color = db.Column(db.String(16), nullable=True)
     
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
@@ -60,6 +61,7 @@ class File(db.Model):
     share_password_hash = db.Column(db.String(255), nullable=True)
     share_expires_at = db.Column(db.DateTime, nullable=True)
     share_name = db.Column(db.String(255), nullable=True)
+    share_mode = db.Column(db.String(16), nullable=False, default='edit')
 
     folder = db.relationship('Folder', back_populates='files')
     uploader = db.relationship('User', back_populates='uploaded_files')

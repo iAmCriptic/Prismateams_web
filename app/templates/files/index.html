@@ -930,6 +930,27 @@
     </div>
 </div>
 
+<!-- Upload-Konflikt Modal -->
+<div class="modal fade" id="uploadConflictModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Dateikonflikt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Datei mit gleichem Namen gefunden.</p>
+                <p class="mb-0 small text-muted" id="uploadConflictNames"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="uploadConflictCancelBtn">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-outline-primary" id="uploadConflictSeparateBtn">Als separate Datei</button>
+                <button type="button" class="btn btn-accent" id="uploadConflictVersionBtn">Als neue Version</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 /* Dropdown Menu Positioning */
 #newButtonDropdown {
@@ -987,13 +1008,25 @@
 const FILES_I18N = {{ current_translations.get('files', {}).get('index', {})|tojson }};
 const CURRENT_FOLDER_ID = {{ current_folder.id if current_folder else 'null' }};
 document.addEventListener('DOMContentLoaded', function() {
+    function isExternalFileDrag(event) {
+        const types = Array.from(event?.dataTransfer?.types || []);
+        return types.includes('Files');
+    }
+
     // NEU Button Dropdown mit Hover-Funktionalität
     const newButton = document.getElementById('newButton');
+    const newButtonDropdown = document.getElementById('newButtonDropdown');
     const newDropdownMenu = document.getElementById('newDropdownMenu');
     const uploadFileMenuItem = document.getElementById('uploadFileMenuItem');
     const uploadFolderMenuItem = document.getElementById('uploadFolderMenuItem');
     const directFileUpload = document.getElementById('directFileUpload');
     const directFolderUpload = document.getElementById('directFolderUpload');
+    const uploadConflictModalEl = document.getElementById('uploadConflictModal');
+    const uploadConflictNamesEl = document.getElementById('uploadConflictNames');
+    const uploadConflictVersionBtn = document.getElementById('uploadConflictVersionBtn');
+    const uploadConflictSeparateBtn = document.getElementById('uploadConflictSeparateBtn');
+    const uploadConflictCancelBtn = document.getElementById('uploadConflictCancelBtn');
+    const uploadConflictModal = uploadConflictModalEl ? new bootstrap.Modal(uploadConflictModalEl) : null;
     
     let hoverTimeout = null;
     let isMenuOpen = false;
@@ -1081,6 +1114,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 isMenuOpen = false;
             }
         });
+
+        // Wenn das globale Module-Menü geöffnet wird, NEU-Button vollständig ausblenden
+        // damit er nicht in das Offcanvas hineinragt.
+        const globalMoreMenu = document.getElementById('moreMenu');
+        if (globalMoreMenu && newButtonDropdown) {
+            globalMoreMenu.addEventListener('show.bs.offcanvas', function() {
+                newDropdownMenu.style.display = 'none';
+                isMenuOpen = false;
+                newButtonDropdown.style.visibility = 'hidden';
+            });
+
+            globalMoreMenu.addEventListener('hidden.bs.offcanvas', function() {
+                newButtonDropdown.style.visibility = '';
+            });
+        }
     }
     
     // Position beim Resize anpassen
@@ -1134,40 +1182,129 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    function openUploadConflictDialog(conflicts) {
+        if (!uploadConflictModal || !uploadConflictNamesEl) {
+            return Promise.resolve('cancel');
+        }
+
+        const conflictPreview = conflicts.slice(0, 8).join(', ');
+        uploadConflictNamesEl.textContent = `${conflictPreview}${conflicts.length > 8 ? ', ...' : ''}`;
+
+        return new Promise(resolve => {
+            let resolved = false;
+
+            const cleanup = () => {
+                uploadConflictVersionBtn?.removeEventListener('click', onVersion);
+                uploadConflictSeparateBtn?.removeEventListener('click', onSeparate);
+                uploadConflictCancelBtn?.removeEventListener('click', onCancel);
+                uploadConflictModalEl?.removeEventListener('hidden.bs.modal', onHidden);
+            };
+
+            const settle = (value) => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                resolve(value);
+            };
+
+            const onVersion = () => {
+                uploadConflictModal.hide();
+                settle('version');
+            };
+            const onSeparate = () => {
+                uploadConflictModal.hide();
+                settle('separate');
+            };
+            const onCancel = () => {
+                uploadConflictModal.hide();
+                settle('cancel');
+            };
+            const onHidden = () => settle('cancel');
+
+            uploadConflictVersionBtn?.addEventListener('click', onVersion);
+            uploadConflictSeparateBtn?.addEventListener('click', onSeparate);
+            uploadConflictCancelBtn?.addEventListener('click', onCancel);
+            uploadConflictModalEl?.addEventListener('hidden.bs.modal', onHidden, { once: true });
+            uploadConflictModal.show();
+        });
+    }
+
+    async function resolveConflictStrategy(fileNames) {
+        if (!Array.isArray(fileNames) || fileNames.length === 0) {
+            return '';
+        }
+
+        try {
+            const response = await fetch('{{ url_for("files.upload_conflicts") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    folder_id: CURRENT_FOLDER_ID,
+                    filenames: fileNames
+                })
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                return '';
+            }
+
+            const conflicts = Array.isArray(result.conflicts) ? result.conflicts : [];
+            if (conflicts.length === 0) {
+                return '';
+            }
+
+            return await openUploadConflictDialog(conflicts);
+        } catch (error) {
+            console.error('Conflict check error:', error);
+            return '';
+        }
+    }
+
+    async function submitUploadFormData(formData, fileNames) {
+        const strategy = await resolveConflictStrategy(fileNames);
+        if (strategy === 'cancel') {
+            return;
+        }
+        if (strategy) {
+            formData.append('conflict_strategy', strategy);
+        }
+
+        const response = await fetch('{{ url_for("files.upload_file") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+
+        const html = await response.text();
+        if (html) {
+            window.location.reload();
+        }
+    }
+
     // Handle file upload - verwende FormData für direkten Upload
     if (directFileUpload) {
-        directFileUpload.addEventListener('change', function() {
+        directFileUpload.addEventListener('change', async function() {
             if (this.files.length > 0) {
-                // Erstelle FormData für Upload
                 const formData = new FormData();
                 formData.append('folder_id', '{{ current_folder.id if current_folder else "" }}');
-                
-                // Füge alle Dateien hinzu
+                const fileNames = [];
+
                 for (let i = 0; i < this.files.length; i++) {
-                    formData.append('file', this.files[i]);
+                    const nextFile = this.files[i];
+                    formData.append('file', nextFile);
+                    fileNames.push(nextFile.name);
                 }
-                
-                // Sende via Fetch
-                fetch('{{ url_for("files.upload_file") }}', {
-                    method: 'POST',
-                    body: formData
-                }).then(response => {
-                    if (response.redirected) {
-                        window.location.href = response.url;
-                    } else {
-                        return response.text();
-                    }
-                }).then(html => {
-                    if (html) {
-                        // Wenn keine Weiterleitung, Seite neu laden
-                        window.location.reload();
-                    }
-                }).catch(error => {
+
+                submitUploadFormData(formData, fileNames).catch(error => {
                     console.error('Upload error:', error);
                     alert(FILES_I18N.messages.upload_error);
                 });
-                
-                // Reset input
+
                 this.value = '';
             }
         });
@@ -1175,38 +1312,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle folder upload - verwende FormData für direkten Upload
     if (directFolderUpload) {
-        directFolderUpload.addEventListener('change', function() {
+        directFolderUpload.addEventListener('change', async function() {
             if (this.files.length > 0) {
-                // Erstelle FormData für Upload
                 const formData = new FormData();
                 formData.append('folder_id', '{{ current_folder.id if current_folder else "" }}');
-                
-                // Füge alle Dateien hinzu (Ordner-Upload)
+                const fileNames = [];
+
                 for (let i = 0; i < this.files.length; i++) {
-                    formData.append('folder_upload', this.files[i]);
+                    const nextFile = this.files[i];
+                    formData.append('folder_upload', nextFile);
+                    fileNames.push(nextFile.name);
                 }
-                
-                // Sende via Fetch
-                fetch('{{ url_for("files.upload_file") }}', {
-                    method: 'POST',
-                    body: formData
-                }).then(response => {
-                    if (response.redirected) {
-                        window.location.href = response.url;
-                    } else {
-                        return response.text();
-                    }
-                }).then(html => {
-                    if (html) {
-                        // Wenn keine Weiterleitung, Seite neu laden
-                        window.location.reload();
-                    }
-                }).catch(error => {
+
+                submitUploadFormData(formData, fileNames).catch(error => {
                     console.error('Upload error:', error);
                     alert(FILES_I18N.messages.upload_folder_error);
                 });
-                
-                // Reset input
+
                 this.value = '';
             }
         });
@@ -1319,6 +1441,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!dataTransfer) return;
         const formData = new FormData();
         formData.append('folder_id', CURRENT_FOLDER_ID ?? '');
+        const fileNames = Array.from(dataTransfer.files || []).map(file => file.name);
 
         const items = Array.from(dataTransfer.items || []);
         let hasDirectoryEntries = false;
@@ -1338,15 +1461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch('{{ url_for("files.upload_file") }}', {
-                method: 'POST',
-                body: formData
-            });
-            if (response.redirected) {
-                window.location.href = response.url;
-                return;
-            }
-            window.location.reload();
+            await submitUploadFormData(formData, fileNames);
         } catch (error) {
             showDnDMessage(FILES_I18N.messages.upload_drag_error || FILES_I18N.messages.upload_error, 'danger');
         }
@@ -1432,6 +1547,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 await uploadDroppedContent(event);
             }
         });
+    });
+
+    document.addEventListener('dragover', event => {
+        if (isExternalFileDrag(event)) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+        }
+    });
+
+    document.addEventListener('drop', async event => {
+        if (event.defaultPrevented) {
+            return;
+        }
+        if (!isExternalFileDrag(event)) {
+            return;
+        }
+
+        const droppedInInternalZone = event.target.closest('.files-drop-target, #foldersGridView, #foldersListView, #gridView, #listView');
+        if (droppedInInternalZone) {
+            return;
+        }
+
+        event.preventDefault();
+        await uploadDroppedContent(event);
+    });
+
+    // Sicherheitsnetz: verhindert Browser-"Datei öffnen" überall im sichtbaren Bereich.
+    window.addEventListener('dragover', event => {
+        if (isExternalFileDrag(event)) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+        }
+    });
+
+    window.addEventListener('drop', async event => {
+        if (!isExternalFileDrag(event)) {
+            return;
+        }
+
+        const alreadyHandled = event.defaultPrevented;
+        event.preventDefault();
+
+        // Interne Drop-Zonen wurden bereits behandelt.
+        if (alreadyHandled) {
+            return;
+        }
+
+        await uploadDroppedContent(event);
     });
     
     // Inline-Erstellung Funktionen
@@ -2278,6 +2441,13 @@ function openShareDialog(type, id) {
     const html = `
         <form method="POST" action="${formAction}">
             <div class="mb-3">
+                <label class="form-label">Freigabe-Modus</label>
+                <select class="form-select" name="share_mode">
+                    <option value="view">Betrachten (ohne Name)</option>
+                    <option value="edit" selected>Bearbeiten (mit Name)</option>
+                </select>
+            </div>
+            <div class="mb-3">
                 <label class="form-label">${shareLabels.password_label}</label>
                 <input type="password" name="password" class="form-control">
                 <div class="form-text">${shareLabels.password_help}</div>
@@ -2319,6 +2489,13 @@ function openShareSettings(type, id) {
                     <div class="mb-3">
                         <label class="form-label">${shareLabels.password_keep_label}</label>
                         <input type="password" class="form-control" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Freigabe-Modus</label>
+                        <select class="form-select" name="share_mode">
+                            <option value="view" ${item.share_mode === 'view' ? 'selected' : ''}>Betrachten (ohne Name)</option>
+                            <option value="edit" ${item.share_mode !== 'view' ? 'selected' : ''}>Bearbeiten (mit Name)</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">${shareLabels.expires_label_compact}</label>

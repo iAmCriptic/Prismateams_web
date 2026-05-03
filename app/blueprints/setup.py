@@ -334,7 +334,8 @@ def setup_complete():
                 'module_wiki': request.form.get('module_wiki') == 'on',
                 'module_booking': request.form.get('module_booking') == 'on',
                 'module_music': request.form.get('module_music') == 'on',
-                'module_assessment': request.form.get('module_assessment') == 'on'
+                'module_assessment': request.form.get('module_assessment') == 'on',
+                'module_shortlinks': request.form.get('module_shortlinks') == 'on'
             }
             
             for module_key, enabled in modules.items():
@@ -570,7 +571,7 @@ def setup_step2():
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_credentials', 'module_manuals', 'module_inventory',
-            'module_wiki', 'module_booking', 'module_music'
+            'module_wiki', 'module_booking', 'module_music', 'module_contacts', 'module_assessment', 'module_shortlinks',
         ]
         
         default_roles = {
@@ -615,9 +616,11 @@ def setup_step3():
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
             'module_music': request.form.get('module_music') == 'on',
-            'module_assessment': request.form.get('module_assessment') == 'on'
+            'module_contacts': request.form.get('module_contacts') == 'on',
+            'module_assessment': request.form.get('module_assessment') == 'on',
+            'module_shortlinks': request.form.get('module_shortlinks') == 'on',
         }
-        
+
         session['setup_modules'] = modules
         return redirect(url_for('setup.setup_step4'))
     
@@ -650,15 +653,15 @@ def setup_step4():
         # Validierung
         if not all([email, password, first_name, last_name]):
             flash(translate('setup.flash.fill_all_fields'), 'danger')
-            return render_template('setup/step3.html')
-        
+            return render_template('setup/step4.html', color_gradient=session.get('setup_color_gradient'))
+
         if password != password_confirm:
             flash(translate('setup.flash.passwords_dont_match'), 'danger')
-            return render_template('setup/step3.html')
-        
+            return render_template('setup/step4.html', color_gradient=session.get('setup_color_gradient'))
+
         if len(password) < 8:
             flash(translate('setup.flash.password_too_short'), 'danger')
-            return render_template('setup/step3.html')
+            return render_template('setup/step4.html', color_gradient=session.get('setup_color_gradient'))
         
         try:
             logging.info(f"Creating admin user with email: {email}")
@@ -840,7 +843,9 @@ def setup_step4():
                 'module_wiki': True,
                 'module_booking': True,
                 'module_music': True,
-                'module_assessment': True
+                'module_contacts': True,
+                'module_assessment': True,
+                'module_shortlinks': True,
             })
             
             for module_key, enabled in modules.items():

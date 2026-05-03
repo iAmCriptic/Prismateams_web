@@ -26,6 +26,64 @@ MAX_FILE_VERSIONS = 3
 MAX_FILE_PREVIEW_CHARS = 240
 
 
+def _split_filename_parts(filename):
+    """Split filename into base and extension."""
+    base, extension = os.path.splitext(filename or '')
+    return base or (filename or ''), extension
+
+
+def _generate_unique_filename_in_folder(filename, folder_id):
+    """Generate a non-conflicting filename for a folder."""
+    base, extension = _split_filename_parts(filename)
+    candidate = filename
+    suffix = 1
+
+    while File.query.filter_by(name=candidate, folder_id=folder_id, is_current=True).first():
+        candidate = f"{base} ({suffix}){extension}"
+        suffix += 1
+
+    return candidate
+
+
+def _create_new_file_version(existing_file, uploaded_file, user_id):
+    """Create a new version for an existing file."""
+    version_number = existing_file.version_number + 1
+
+    old_version = FileVersion(
+        file_id=existing_file.id,
+        version_number=existing_file.version_number,
+        file_path=os.path.abspath(existing_file.file_path),
+        file_size=existing_file.file_size,
+        uploaded_by=existing_file.uploaded_by
+    )
+    db.session.add(old_version)
+
+    versions = FileVersion.query.filter_by(file_id=existing_file.id).order_by(
+        FileVersion.version_number.desc()
+    ).all()
+
+    if len(versions) >= MAX_FILE_VERSIONS:
+        oldest = versions[-1]
+        if os.path.exists(oldest.file_path):
+            os.remove(oldest.file_path)
+        db.session.delete(oldest)
+
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"{timestamp}_{existing_file.name}"
+    filepath = os.path.join('uploads', 'files', filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    uploaded_file.save(filepath)
+
+    absolute_filepath = os.path.abspath(filepath)
+    existing_file.file_path = absolute_filepath
+    existing_file.file_size = os.path.getsize(absolute_filepath)
+    existing_file.version_number = version_number
+    existing_file.uploaded_by = user_id
+    existing_file.updated_at = datetime.utcnow()
+
+    return version_number
+
+
 def _resolve_absolute_file_path(file_path):
     """Resolve file path to absolute path."""
     if not file_path:
@@ -143,6 +201,45 @@ def _render_view_content(content, file_ext):
     return content
 
 
+def _normalize_share_mode(raw_mode):
+    """Normalize share mode input to supported values."""
+    mode = (raw_mode or '').strip().lower()
+    return 'view' if mode == 'view' else 'edit'
+
+
+def _is_guest_user():
+    return bool(getattr(current_user, 'is_guest', False))
+
+
+def _get_guest_accessible_folder_ids():
+    """Return accessible folder ids for current guest user."""
+    if not _is_guest_user():
+        return set()
+    from app.utils.access_control import get_guest_accessible_items
+    _, accessible_folders = get_guest_accessible_items(current_user)
+    return {folder.id for folder in accessible_folders}
+
+
+def _get_safe_folder_url(folder_id, accessible_folder_ids=None):
+    """Resolve safe folder redirect target for user/guest context."""
+    if not folder_id:
+        return url_for('files.index')
+
+    if _is_guest_user():
+        accessible_ids = accessible_folder_ids
+        if accessible_ids is None:
+            accessible_ids = _get_guest_accessible_folder_ids()
+        if folder_id not in accessible_ids:
+            return url_for('files.index')
+
+    return url_for('files.browse_folder', folder_id=folder_id)
+
+
+def _get_safe_file_back_url(file_obj, accessible_folder_ids=None):
+    """Resolve safe return URL from file views/editors."""
+    return _get_safe_folder_url(file_obj.folder_id, accessible_folder_ids=accessible_folder_ids)
+
+
 @files_bp.route('/')
 @login_required
 @check_module_access('module_files')
@@ -156,8 +253,10 @@ def index():
 @check_module_access('module_files')
 def browse_folder(folder_id):
     """Browse a specific folder."""
+    accessible_folder_ids = set()
+
     # Gast-Accounts: Nur Freigabelinks anzeigen
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+    if _is_guest_user():
         from app.utils.access_control import get_guest_accessible_items, get_guest_directly_shared_folders
         accessible_files, accessible_folders = get_guest_accessible_items(current_user)
         accessible_folder_ids = {folder.id for folder in accessible_folders}
@@ -246,6 +345,8 @@ def browse_folder(folder_id):
             ancestors.append(node)
             node = node.parent
         ancestors.reverse()
+        if _is_guest_user():
+            ancestors = [folder for folder in ancestors if folder.id in accessible_folder_ids]
         breadcrumb_folders = [
             {
                 'id': folder.id,
@@ -756,6 +857,7 @@ def upload_file():
     
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
+    conflict_strategy = request.form.get('conflict_strategy', '').strip().lower()
     
     max_size = 100 * 1024 * 1024  # 100MB in bytes
     
@@ -818,7 +920,24 @@ def upload_file():
                 
                 # Process file upload
                 try:
-                    _process_file_upload(file, file_name, target_folder_id, current_user.id)
+                    existing_file = File.query.filter_by(
+                        name=file_name,
+                        folder_id=target_folder_id,
+                        is_current=True
+                    ).first()
+
+                    if existing_file:
+                        if conflict_strategy == 'version':
+                            _create_new_file_version(existing_file, file, current_user.id)
+                        elif conflict_strategy == 'separate':
+                            unique_name = _generate_unique_filename_in_folder(file_name, target_folder_id)
+                            _process_file_upload(file, unique_name, target_folder_id, current_user.id)
+                        else:
+                            skipped_count += 1
+                            skipped_files.append(file_name)
+                            continue
+                    else:
+                        _process_file_upload(file, file_name, target_folder_id, current_user.id)
                     uploaded_count += 1
                 except Exception as e:
                     logging.error(f"Fehler beim Hochladen von {file_name}: {e}")
@@ -891,6 +1010,16 @@ def upload_file():
             ).first()
 
             if existing_file:
+                if conflict_strategy == 'version':
+                    _create_new_file_version(existing_file, uploaded_file, current_user.id)
+                    uploaded_count += 1
+                    continue
+                if conflict_strategy == 'separate':
+                    unique_name = _generate_unique_filename_in_folder(original_name, folder_id)
+                    _process_file_upload(uploaded_file, unique_name, folder_id, current_user.id)
+                    uploaded_count += 1
+                    continue
+
                 skipped_count += 1
                 skipped_files.append(original_name)
                 continue
@@ -961,82 +1090,76 @@ def upload_file():
         ).first()
 
         if existing_file:
-            overwrite = request.form.get('overwrite')
-            if overwrite != 'yes':
-                flash(f'Datei "{original_name}" existiert bereits. Möchten Sie sie überschreiben?', 'warning')
-                return render_template(
-                    'files/confirm_overwrite.html',
-                    filename=original_name,
-                    folder_id=folder_id
-                )
+            if conflict_strategy == 'version':
+                version_number = _create_new_file_version(existing_file, file, current_user.id)
+                db.session.commit()
 
-            # Create new version
-            version_number = existing_file.version_number + 1
+                try:
+                    send_file_notification(existing_file.id, 'modified')
+                except Exception as e:
+                    logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
 
-            # Save old version to version history
-            old_version = FileVersion(
-                file_id=existing_file.id,
-                version_number=existing_file.version_number,
-                file_path=os.path.abspath(existing_file.file_path),
-                file_size=existing_file.file_size,
-                uploaded_by=existing_file.uploaded_by
-            )
-            db.session.add(old_version)
+                try:
+                    recent_files = File.query.filter_by(
+                        uploaded_by=current_user.id
+                    ).order_by(File.updated_at.desc()).limit(3).all()
 
-            # Delete oldest version if we have more than MAX_FILE_VERSIONS
-            versions = FileVersion.query.filter_by(file_id=existing_file.id).order_by(
-                FileVersion.version_number.desc()
-            ).all()
+                    files_data = [{
+                        'id': file.id,
+                        'name': file.name,
+                        'original_name': file.original_name,
+                        'updated_at': file.updated_at.isoformat(),
+                        'mime_type': file.mime_type,
+                        'url': flask_url_for('files.view_file', file_id=file.id)
+                    } for file in recent_files]
 
-            if len(versions) >= MAX_FILE_VERSIONS:
-                oldest = versions[-1]
-                if os.path.exists(oldest.file_path):
-                    os.remove(oldest.file_path)
-                db.session.delete(oldest)
+                    emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+                except Exception as e:
+                    logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
 
-            # Update existing file
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-            filename = f"{timestamp}_{original_name}"
-            filepath = os.path.join('uploads', 'files', filename)
-            file.save(filepath)
+                flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
+            elif conflict_strategy == 'separate':
+                unique_name = _generate_unique_filename_in_folder(original_name, folder_id)
+                _process_file_upload(file, unique_name, folder_id, current_user.id)
+                db.session.commit()
+                flash(f'Datei "{unique_name}" wurde als separate Datei hochgeladen.', 'success')
+            else:
+                overwrite = request.form.get('overwrite')
+                if overwrite != 'yes':
+                    flash(f'Datei "{original_name}" existiert bereits. Möchten Sie sie überschreiben?', 'warning')
+                    return render_template(
+                        'files/confirm_overwrite.html',
+                        filename=original_name,
+                        folder_id=folder_id
+                    )
 
-            # Store absolute path in database
-            absolute_filepath = os.path.abspath(filepath)
+                version_number = _create_new_file_version(existing_file, file, current_user.id)
+                db.session.commit()
 
-            existing_file.file_path = absolute_filepath
-            existing_file.file_size = os.path.getsize(absolute_filepath)
-            existing_file.version_number = version_number
-            existing_file.uploaded_by = current_user.id
-            existing_file.updated_at = datetime.utcnow()
+                try:
+                    send_file_notification(existing_file.id, 'modified')
+                except Exception as e:
+                    logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
 
-            db.session.commit()
+                try:
+                    recent_files = File.query.filter_by(
+                        uploaded_by=current_user.id
+                    ).order_by(File.updated_at.desc()).limit(3).all()
 
-            # Sende Benachrichtigung für geänderte Datei
-            try:
-                send_file_notification(existing_file.id, 'modified')
-            except Exception as e:
-                logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+                    files_data = [{
+                        'id': file.id,
+                        'name': file.name,
+                        'original_name': file.original_name,
+                        'updated_at': file.updated_at.isoformat(),
+                        'mime_type': file.mime_type,
+                        'url': flask_url_for('files.view_file', file_id=file.id)
+                    } for file in recent_files]
 
-            # Sende Dashboard-Update an den Benutzer
-            try:
-                recent_files = File.query.filter_by(
-                    uploaded_by=current_user.id
-                ).order_by(File.updated_at.desc()).limit(3).all()
+                    emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
+                except Exception as e:
+                    logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
 
-                files_data = [{
-                    'id': file.id,
-                    'name': file.name,
-                    'original_name': file.original_name,
-                    'updated_at': file.updated_at.isoformat(),
-                    'mime_type': file.mime_type,
-                    'url': flask_url_for('files.view_file', file_id=file.id)
-                } for file in recent_files]
-
-                emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
-            except Exception as e:
-                logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
-
-            flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
+                flash(f'Datei "{original_name}" wurde aktualisiert (Version {version_number}).', 'success')
         else:
             # Create new file
             _process_file_upload(file, original_name, folder_id, current_user.id)
@@ -1079,6 +1202,39 @@ def upload_file():
     if folder_id:
         return redirect(url_for('files.browse_folder', folder_id=folder_id))
     return redirect(url_for('files.index'))
+
+
+@files_bp.route('/upload-conflicts', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def upload_conflicts():
+    """Return file names that already exist in target folder."""
+    payload = request.get_json(silent=True) or {}
+    raw_folder_id = payload.get('folder_id')
+    raw_names = payload.get('filenames') or []
+
+    try:
+        folder_id = int(raw_folder_id) if raw_folder_id not in (None, '', 'null') else None
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Ungültiger Ordner.'}), 400
+
+    candidate_names = []
+    for raw_name in raw_names:
+        clean_name = secure_filename(str(raw_name or ''))
+        if clean_name:
+            candidate_names.append(clean_name)
+
+    if not candidate_names:
+        return jsonify({'success': True, 'conflicts': []})
+
+    query = File.query.filter(File.is_current.is_(True), File.name.in_(candidate_names))
+    if folder_id is None:
+        query = query.filter(File.folder_id.is_(None))
+    else:
+        query = query.filter(File.folder_id == folder_id)
+
+    conflicts = sorted({file.name for file in query.all()})
+    return jsonify({'success': True, 'conflicts': conflicts})
 
 
 def _process_file_upload(file, original_name, folder_id, user_id):
@@ -1240,11 +1396,13 @@ def edit_file(file_id):
     file = File.query.get_or_404(file_id)
     
     # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+    guest_accessible_folder_ids = None
+    if _is_guest_user():
         from app.utils.access_control import guest_has_file_access
         if not guest_has_file_access(current_user, file):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
+        guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
     
     # Check if file is editable (text file)
     editable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
@@ -1252,10 +1410,7 @@ def edit_file(file_id):
     
     if file_ext not in editable_extensions:
         flash('Dieser Dateityp kann nicht online bearbeitet werden.', 'warning')
-        if file.folder_id:
-            return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-        else:
-            return redirect(url_for('files.index'))
+        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     if request.method == 'POST':
         content = request.form.get('content', '')
@@ -1286,7 +1441,8 @@ def edit_file(file_id):
         filename = f"{timestamp}_{file.original_name}"
         filepath = os.path.join('uploads', 'files', filename)
         
-        with open(filepath, 'w', encoding='utf-8') as f:
+        # Kein Newline-Transform auf Windows, sonst entstehen doppelte Leerzeilen.
+        with open(filepath, 'w', encoding='utf-8', newline='') as f:
             f.write(content)
         
         # Store absolute path in database
@@ -1301,10 +1457,7 @@ def edit_file(file_id):
         db.session.commit()
         
         flash('Datei wurde gespeichert.', 'success')
-        if file.folder_id:
-            return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-        else:
-            return redirect(url_for('files.index'))
+        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     # Read file content
     try:
@@ -1318,32 +1471,30 @@ def edit_file(file_id):
             content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
-        if file.folder_id:
-            return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-        else:
-            return redirect(url_for('files.index'))
+        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
-    return render_template('files/edit.html', file=file, content=content)
+    return render_template(
+        'files/edit.html',
+        file=file,
+        content=content,
+        back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids)
+    )
 
 
 @files_bp.route('/preview/<int:file_id>', methods=['POST'])
 @login_required
 @check_module_access('module_files')
 def preview_file(file_id):
-    """Vorschau-Endpoint für Editor (nutzt gleiche Logik wie /view/)."""
+    """Vorschau fuer Editor mit demselben Interpreter wie /view."""
     file = File.query.get_or_404(file_id)
-    
-    # Check if file is viewable
     viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     file_ext = os.path.splitext(file.original_name)[1].lower()
-    
+
     if file_ext not in viewable_extensions:
         return jsonify({'error': translate('files.errors.file_type_not_supported')}), 400
-    
+
     content = request.form.get('content', '')
-    
     processed_content = _render_view_content(content, file_ext)
-    
     return jsonify({'html': processed_content})
 
 
@@ -1355,11 +1506,13 @@ def view_file(file_id):
     file = File.query.get_or_404(file_id)
     
     # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+    guest_accessible_folder_ids = None
+    if _is_guest_user():
         from app.utils.access_control import guest_has_file_access
         if not guest_has_file_access(current_user, file):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
+        guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
     
     file_ext = os.path.splitext(file.original_name)[1].lower()
     
@@ -1374,23 +1527,22 @@ def view_file(file_id):
         # Check if file exists
         if not os.path.exists(file_path):
             flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
-            if file.folder_id:
-                return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-            else:
-                return redirect(url_for('files.index'))
+            return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
         
         # Return PDF for inline viewing (similar to manuals)
-        return render_template('files/view.html', file=file, is_pdf=True)
+        return render_template(
+            'files/view.html',
+            file=file,
+            is_pdf=True,
+            back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids)
+        )
     
     # Handle text/markdown files (existing logic)
     viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     
     if file_ext not in viewable_extensions:
         flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
-        if file.folder_id:
-            return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-        else:
-            return redirect(url_for('files.index'))
+        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     # Read file content
     try:
@@ -1404,10 +1556,7 @@ def view_file(file_id):
             content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
-        if file.folder_id:
-            return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-        else:
-            return redirect(url_for('files.index'))
+        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     is_markdown = _is_markdown_extension(file_ext)
     processed_content = _render_view_content(content, file_ext)
@@ -1420,7 +1569,8 @@ def view_file(file_id):
         content=content,
         processed_content=processed_content,
         is_markdown=is_markdown,
-        is_pdf=False
+        is_pdf=False,
+        back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids)
     )
 
 
@@ -1826,12 +1976,14 @@ def _check_share_access(token):
         if not session.get(session_key):
             return None, None
     
+    share_mode = _normalize_share_mode(getattr(item, 'share_mode', 'edit'))
+
     # Get guest name from session
     guest_name_key = f'share_guest_name_{token}'
     guest_name = session.get(guest_name_key)
     
-    # Wenn kein Name in Session, ist Zugriff verweigert (muss vorher eingegeben werden)
-    if not guest_name:
+    # Im Bearbeiten-Modus ist ein Name Pflicht.
+    if share_mode == 'edit' and not guest_name:
         return None, None
     
     return item, guest_name
@@ -1847,12 +1999,14 @@ def create_file_share(file_id):
     file = File.query.get_or_404(file_id)
     password = request.form.get('password', '').strip()
     expires_at = request.form.get('expires_at', '').strip()
+    share_mode = _normalize_share_mode(request.form.get('share_mode'))
 
     file.share_enabled = True
     file.share_token = _generate_unique_share_token()
     file.share_password_hash = generate_password_hash(password) if password else None
     file.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
     file.share_name = None  # Wird beim ersten Zugriff vom Gast eingegeben
+    file.share_mode = share_mode
     db.session.commit()
 
     flash('Freigabe erstellt.', 'success')
@@ -1869,12 +2023,14 @@ def create_folder_share(folder_id):
     folder = Folder.query.get_or_404(folder_id)
     password = request.form.get('password', '').strip()
     expires_at = request.form.get('expires_at', '').strip()
+    share_mode = _normalize_share_mode(request.form.get('share_mode'))
 
     folder.share_enabled = True
     folder.share_token = _generate_unique_share_token()
     folder.share_password_hash = generate_password_hash(password) if password else None
     folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
     folder.share_name = None  # Wird beim ersten Zugriff vom Gast eingegeben
+    folder.share_mode = share_mode
     db.session.commit()
 
     flash('Freigabe erstellt.', 'success')
@@ -1889,7 +2045,7 @@ def file_share_settings(file_id):
     if not file.share_enabled or not file.share_token:
         return jsonify({'success': False}), 404
     share_url = url_for('files.public_share', token=file.share_token, _external=True)
-    return jsonify({'success': True, 'item': {'type': 'file', 'id': file.id, 'name': file.name, 'share_url': share_url, 'has_password': file.share_password_hash is not None, 'expires_at': file.share_expires_at.isoformat() if file.share_expires_at else None, 'share_name': file.share_name}})
+    return jsonify({'success': True, 'item': {'type': 'file', 'id': file.id, 'name': file.name, 'share_url': share_url, 'has_password': file.share_password_hash is not None, 'expires_at': file.share_expires_at.isoformat() if file.share_expires_at else None, 'share_name': file.share_name, 'share_mode': _normalize_share_mode(file.share_mode)}})
 
 
 @files_bp.route('/folder/<int:folder_id>/share-settings')
@@ -1900,7 +2056,7 @@ def folder_share_settings(folder_id):
     if not folder.share_enabled or not folder.share_token:
         return jsonify({'success': False}), 404
     share_url = url_for('files.public_share', token=folder.share_token, _external=True)
-    return jsonify({'success': True, 'item': {'type': 'folder', 'id': folder.id, 'name': folder.name, 'share_url': share_url, 'has_password': folder.share_password_hash is not None, 'expires_at': folder.share_expires_at.isoformat() if folder.share_expires_at else None, 'share_name': folder.share_name}})
+    return jsonify({'success': True, 'item': {'type': 'folder', 'id': folder.id, 'name': folder.name, 'share_url': share_url, 'has_password': folder.share_password_hash is not None, 'expires_at': folder.share_expires_at.isoformat() if folder.share_expires_at else None, 'share_name': folder.share_name, 'share_mode': _normalize_share_mode(folder.share_mode)}})
 
 
 @files_bp.route('/file/<int:file_id>/share-settings', methods=['POST'])
@@ -1915,11 +2071,14 @@ def update_file_share(file_id):
         file.share_password_hash = None
         file.share_expires_at = None
         file.share_name = None
+        file.share_mode = 'edit'
     else:
         password = request.form.get('password', '').strip()
         expires_at = request.form.get('expires_at', '').strip()
+        share_mode = _normalize_share_mode(request.form.get('share_mode'))
         file.share_password_hash = generate_password_hash(password) if password else file.share_password_hash
         file.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
+        file.share_mode = share_mode
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
     return redirect(request.referrer or url_for('files.index'))
@@ -1937,11 +2096,14 @@ def update_folder_share(folder_id):
         folder.share_password_hash = None
         folder.share_expires_at = None
         folder.share_name = None
+        folder.share_mode = 'edit'
     else:
         password = request.form.get('password', '').strip()
         expires_at = request.form.get('expires_at', '').strip()
+        share_mode = _normalize_share_mode(request.form.get('share_mode'))
         folder.share_password_hash = generate_password_hash(password) if password else folder.share_password_hash
         folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
+        folder.share_mode = share_mode
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
     return redirect(request.referrer or url_for('files.index'))
@@ -1957,6 +2119,7 @@ def public_share(token):
         return redirect(url_for('files.index'))
 
     item = shared_file or shared_folder
+    share_mode = _normalize_share_mode(getattr(item, 'share_mode', 'edit'))
     # Check expiry
     if item.share_expires_at and datetime.utcnow() > item.share_expires_at:
         flash('Freigabe ist abgelaufen.', 'danger')
@@ -1974,7 +2137,7 @@ def public_share(token):
         elif not session.get(session_key):
             return render_template('files/share_auth.html', token=token, item=item)
 
-    # Name-Eingabe verpflichtend (Gast-Name)
+    # Name-Eingabe nur im Bearbeiten-Modus verpflichtend (Gast-Name)
     # Name wird in Session gespeichert, damit er innerhalb derselben Browser-Session wiederverwendet wird
     guest_name_key = f'share_guest_name_{token}'
     
@@ -1982,7 +2145,7 @@ def public_share(token):
     guest_name = session.get(guest_name_key)
     
     # Wenn POST-Request mit neuem Namen
-    if request.method == 'POST' and 'guest_name' in request.form:
+    if share_mode == 'edit' and request.method == 'POST' and 'guest_name' in request.form:
         guest_name = request.form.get('guest_name', '').strip()
         if guest_name:
             # Speichere in Session für diese Browser-Session
@@ -1993,7 +2156,7 @@ def public_share(token):
             flash('Bitte geben Sie einen Namen ein.', 'danger')
     
     # Wenn kein Name in Session, zeige Eingabe-Formular
-    if not guest_name:
+    if share_mode == 'edit' and not guest_name:
         return render_template('files/share_name.html', token=token, item=item)
 
     # Check ONLYOFFICE availability
@@ -2003,7 +2166,7 @@ def public_share(token):
     # Render file or folder view
     if shared_file:
         # Provide download and edit option
-        return render_template('files/share.html', item_type='file', file=shared_file, token=token, guest_name=guest_name, onlyoffice_available=onlyoffice_available)
+        return render_template('files/share.html', item_type='file', file=shared_file, token=token, guest_name=guest_name, onlyoffice_available=onlyoffice_available, share_mode=share_mode)
     else:
         # Get files in the shared folder
         folder_files = File.query.filter_by(
@@ -2012,7 +2175,7 @@ def public_share(token):
         ).order_by(File.name).all()
         
         # Show upload list and files in folder
-        return render_template('files/share.html', item_type='folder', folder=shared_folder, folder_files=folder_files, token=token, guest_name=guest_name, onlyoffice_available=onlyoffice_available)
+        return render_template('files/share.html', item_type='folder', folder=shared_folder, folder_files=folder_files, token=token, guest_name=guest_name, onlyoffice_available=onlyoffice_available, share_mode=share_mode)
 
 
 @files_bp.route('/share/<token>/download', methods=['GET'])
@@ -2022,7 +2185,7 @@ def public_share_download(token):
     
     # Prüfe Zugriff (Passwort, Ablaufdatum, Name)
     item, guest_name = _check_share_access(token)
-    if not item or not guest_name:
+    if not item:
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
     
@@ -2042,7 +2205,7 @@ def public_share_folder_file_download(token, file_id):
     
     # Prüfe Zugriff (Passwort, Ablaufdatum, Name)
     item, guest_name = _check_share_access(token)
-    if not item or not guest_name:
+    if not item:
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
     
@@ -2054,6 +2217,15 @@ def public_share_folder_file_download(token, file_id):
 @files_bp.route('/share/<token>/upload', methods=['POST'])
 def public_share_upload(token):
     shared_folder = Folder.query.filter_by(share_token=token, share_enabled=True).first_or_404()
+    if _normalize_share_mode(shared_folder.share_mode) != 'edit':
+        flash('Upload ist fuer diese Freigabe nicht erlaubt.', 'warning')
+        return redirect(url_for('files.public_share', token=token))
+
+    item, guest_name = _check_share_access(token)
+    if not item:
+        flash('Zugriff verweigert.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
     # Password gate
     if shared_folder.share_password_hash:
         if not session.get(f'share_auth_{token}'):
@@ -2282,11 +2454,13 @@ def edit_onlyoffice(file_id):
     file = File.query.get_or_404(file_id)
     
     # Für Gast-Accounts: Prüfe ob Zugriff über Freigabelink besteht
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+    guest_accessible_folder_ids = None
+    if _is_guest_user():
         from app.utils.access_control import guest_has_file_access
         if not guest_has_file_access(current_user, file):
             flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
             return redirect(url_for('files.index'))
+        guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
     
     # Check if file type is supported by ONLYOFFICE
     from app.utils.onlyoffice import is_onlyoffice_file_type, get_onlyoffice_document_type, get_onlyoffice_file_type, generate_onlyoffice_token
@@ -2294,10 +2468,7 @@ def edit_onlyoffice(file_id):
     
     if not is_onlyoffice_file_type(file_ext):
         flash('Dieser Dateityp wird von ONLYOFFICE nicht unterstützt.', 'warning')
-        if file.folder_id:
-            return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-        else:
-            return redirect(url_for('files.index'))
+        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     # Get document type and file type
     document_type = get_onlyoffice_document_type(file_ext)
@@ -2390,10 +2561,7 @@ def edit_onlyoffice(file_id):
             logging.debug(f"ONLYOFFICE token not generated for file {file.id} (no secret key configured)")
     
     # Calculate return URL
-    if file.folder_id:
-        return_url = url_for('files.browse_folder', folder_id=file.folder_id)
-    else:
-        return_url = url_for('files.index')
+    return_url = _get_safe_file_back_url(file, guest_accessible_folder_ids)
     
     # Get user accent color/style
     accent_color = current_user.accent_color if current_user.is_authenticated else '#0d6efd'
@@ -2429,8 +2597,11 @@ def share_edit_onlyoffice(token):
         return redirect(url_for('files.public_share', token=token))
     
     item, guest_name = _check_share_access(token)
-    if not item or not guest_name:
+    if not item:
         flash('Bitte geben Sie zuerst Ihren Namen ein.', 'warning')
+        return redirect(url_for('files.public_share', token=token))
+    if _normalize_share_mode(getattr(item, 'share_mode', 'edit')) != 'edit':
+        flash('Bearbeiten ist fuer diese Freigabe nicht erlaubt.', 'warning')
         return redirect(url_for('files.public_share', token=token))
     
     # Prüfe ob eine spezifische Datei aus einem Ordner bearbeitet werden soll

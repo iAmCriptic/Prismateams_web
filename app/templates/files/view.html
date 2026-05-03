@@ -475,7 +475,7 @@
 
 <script>
 function closeViewer() {
-    window.history.back();
+    window.location.href = '{{ back_url|default(url_for("files.index")) }}';
 }
 
 // Close with Escape key
