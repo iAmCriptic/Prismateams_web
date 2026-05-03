@@ -1076,7 +1076,7 @@ def create_app(config_name='default'):
                             migrations_path = os.path.join(
                                 os.path.dirname(os.path.dirname(__file__)),
                                 'migrations',
-                                'migrate_to_2.4.0.py'
+                                'migrate_to_2_4_1.py'
                             )
                             if os.path.exists(migrations_path):
                                 env = os.environ.copy()
@@ -1093,14 +1093,14 @@ def create_app(config_name='default'):
                                         print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
                                     else:
                                         print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
+                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
                                 except subprocess.TimeoutExpired:
                                     print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
                                 except Exception as exc:
                                     print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
+                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
                             else:
-                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2.4.0.py --security-only")
+                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2_4_1.py --security-only")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
@@ -1169,7 +1169,7 @@ def create_app(config_name='default'):
                                 print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
                     print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2.4.0.py --security-only")
+                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
 
                 try:
                     from sqlalchemy import inspect, text
