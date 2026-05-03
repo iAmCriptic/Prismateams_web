@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}URL-Shortener{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-0"><i class="bi bi-link-45deg"></i> URL-Shortener</h1>
+        <p class="text-muted mb-0">Verwalte deine kurzen Weiterleitungslinks.</p>
+    </div>
+    <a href="{{ url_for('shortlinks.create') }}" class="btn btn-accent">
+        <i class="bi bi-plus-circle me-1"></i>Neuer Kurzlink
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if links %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Kurzlink</th>
+                        <th>Ziel</th>
+                        <th>Status</th>
+                        <th>Klicks</th>
+                        <th>Ablauf</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for link in links %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('shortlinks.resolve', slug=link.slug, _external=True) }}" target="_blank" rel="noopener">
+                                {{ url_for('shortlinks.resolve', slug=link.slug, _external=True) }}
+                            </a>
+                        </td>
+                        <td class="text-truncate" style="max-width: 300px;">{{ link.target_url }}</td>
+                        <td>
+                            {% if link.is_accessible() %}
+                            <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inaktiv/Abgelaufen</span>
+                            {% endif %}
+                            {% if link.password_hash %}
+                            <span class="badge bg-warning text-dark">Passwort</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
+                        <td>{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '-' }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('shortlinks.edit', link_id=link.id) }}" class="btn btn-sm btn-outline-primary">Bearbeiten</a>
+                            <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}" class="d-inline" onsubmit="return confirm('Kurzlink wirklich löschen?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Noch keine Kurzlinks vorhanden.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

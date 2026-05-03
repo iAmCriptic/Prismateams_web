@@ -411,6 +411,8 @@ def register_files_routes(api_bp, require_api_auth):
         data = request.get_json(silent=True) or {}
         password = (data.get("password") or "").strip()
         expires_at = (data.get("expires_at") or "").strip()
+        share_mode = (data.get("share_mode") or "").strip().lower()
+        share_mode = "view" if share_mode == "view" else "edit"
 
         file_obj = File.query.get_or_404(file_id)
         file_obj.share_enabled = True
@@ -418,6 +420,7 @@ def register_files_routes(api_bp, require_api_auth):
         file_obj.share_password_hash = generate_password_hash(password) if password else None
         file_obj.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
         file_obj.share_name = None
+        file_obj.share_mode = share_mode
         db.session.commit()
 
         share_url = url_for("files.public_share", token=file_obj.share_token, _external=True)
@@ -437,6 +440,8 @@ def register_files_routes(api_bp, require_api_auth):
         data = request.get_json(silent=True) or {}
         password = (data.get("password") or "").strip()
         expires_at = (data.get("expires_at") or "").strip()
+        share_mode = (data.get("share_mode") or "").strip().lower()
+        share_mode = "view" if share_mode == "view" else "edit"
 
         folder = Folder.query.get_or_404(folder_id)
         folder.share_enabled = True
@@ -444,6 +449,7 @@ def register_files_routes(api_bp, require_api_auth):
         folder.share_password_hash = generate_password_hash(password) if password else None
         folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
         folder.share_name = None
+        folder.share_mode = share_mode
         db.session.commit()
 
         share_url = url_for("files.public_share", token=folder.share_token, _external=True)
@@ -468,6 +474,7 @@ def register_files_routes(api_bp, require_api_auth):
                 "has_password": file_obj.share_password_hash is not None,
                 "expires_at": file_obj.share_expires_at.isoformat() if file_obj.share_expires_at else None,
                 "share_name": file_obj.share_name,
+                "share_mode": "view" if file_obj.share_mode == "view" else "edit",
             },
         }), 200
 
@@ -490,6 +497,7 @@ def register_files_routes(api_bp, require_api_auth):
                 "has_password": folder.share_password_hash is not None,
                 "expires_at": folder.share_expires_at.isoformat() if folder.share_expires_at else None,
                 "share_name": folder.share_name,
+                "share_mode": "view" if folder.share_mode == "view" else "edit",
             },
         }), 200
 
@@ -511,12 +519,16 @@ def register_files_routes(api_bp, require_api_auth):
             file_obj.share_password_hash = None
             file_obj.share_expires_at = None
             file_obj.share_name = None
+            file_obj.share_mode = "edit"
         else:
             password = (data.get("password") or "").strip()
             expires_at = (data.get("expires_at") or "").strip()
+            share_mode = (data.get("share_mode") or "").strip().lower()
+            share_mode = "view" if share_mode == "view" else "edit"
             if password:
                 file_obj.share_password_hash = generate_password_hash(password)
             file_obj.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
+            file_obj.share_mode = share_mode
         db.session.commit()
         return jsonify({"success": True}), 200
 
@@ -538,12 +550,16 @@ def register_files_routes(api_bp, require_api_auth):
             folder.share_password_hash = None
             folder.share_expires_at = None
             folder.share_name = None
+            folder.share_mode = "edit"
         else:
             password = (data.get("password") or "").strip()
             expires_at = (data.get("expires_at") or "").strip()
+            share_mode = (data.get("share_mode") or "").strip().lower()
+            share_mode = "view" if share_mode == "view" else "edit"
             if password:
                 folder.share_password_hash = generate_password_hash(password)
             folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
+            folder.share_mode = share_mode
         db.session.commit()
         return jsonify({"success": True}), 200
 

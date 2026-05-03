@@ -56,3 +56,9 @@ Thumbs.db
 
 .key
 credential_key.key
+
+# Tools & Config
+.obsidian/
+graphify-out/
+.graphify_python
+claude.md

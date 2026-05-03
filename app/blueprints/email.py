@@ -2124,7 +2124,14 @@ def sync_emails_from_folder(folder_name):
                     emit_dashboard_update(user_id, 'email_update', {'count': unread_count})
             except Exception as e:
                 logging.error(f"Fehler beim Senden der Dashboard-Updates für E-Mails: {e}")
-        
+
+            try:
+                last_email = EmailMessage.query.filter_by(is_sent=False).order_by(EmailMessage.id.desc()).first()
+                if last_email:
+                    send_email_notification(last_email.id)
+            except Exception as e:
+                logging.error(f"Fehler beim Senden der E-Mail-Benachrichtigung: {e}")
+
         sync_details = []
         if stats['new_emails'] > 0:
             sync_details.append(f"{stats['new_emails']} neu")

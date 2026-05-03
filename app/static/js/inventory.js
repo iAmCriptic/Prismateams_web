@@ -1,6 +1,6 @@
 // Inventory Management JavaScript
 
-const INVENTORY_API_BASES = ['/inventory/vnext/api', '/vnext/api'];
+const INVENTORY_API_BASES = ['/inventory/api', '/inventory/vnext/api', '/vnext/api'];
 let activeInventoryApiBase = INVENTORY_API_BASES[0];
 
 function normalizeInventoryApiPath(path) {
@@ -130,13 +130,9 @@ class StockManager {
     async loadFilterOptions() {
         try {
             // Baue URL mit optionalem folder_id Parameter
-            // Wenn currentFolderId null ist (Root), verwende folder_id=0 für Produkte ohne Ordner
             let url = '/inventory/filter-options';
             if (this.currentFolderId !== null) {
                 url += `?folder_id=${this.currentFolderId}`;
-            } else {
-                // Root: nur Produkte ohne Ordner
-                url += '?folder_id=0';
             }
             
             const response = await fetchInventoryApi(url);
@@ -244,6 +240,11 @@ class StockManager {
                 return;
             }
             
+            // Unterstütze sowohl Legacy-Format (Array) als auch vNext-Format ({ products: [...] })
+            if (!Array.isArray(data) && data && Array.isArray(data.products)) {
+                data = data.products;
+            }
+
             if (!Array.isArray(data)) {
                 console.error('Ungültige API-Antwort:', data);
                 this.showError('Ungültige Daten vom Server erhalten');
@@ -644,11 +645,11 @@ class StockManager {
             // Erweiterte Suche - durchsucht alle Attribute
             const matchesSearch = !search || this.matchesSearch(p, searchLower);
             
-            // Ordner-Filter: 
+            // Ordner-Filter:
             // - Wenn eine Suche aktiv ist: IGNORIERE Ordner-Filterung (durchsuche alle Ordner)
             // - Wenn keine Suche aktiv ist:
             //   - Wenn currentFolderId gesetzt ist: zeige nur Produkte aus diesem Ordner
-            //   - Wenn kein currentFolderId (Root): zeige nur Produkte ohne Ordner (folder_id === null oder undefined)
+            //   - Wenn kein currentFolderId (Root): zeige alle Produkte
             let matchesFolder = true;
             if (!search) {
                 // Nur Ordner-Filterung anwenden, wenn keine Suche aktiv ist
@@ -656,8 +657,8 @@ class StockManager {
                     // Wir sind in einem Ordner: zeige nur Produkte aus diesem Ordner
                     matchesFolder = p.folder_id === this.currentFolderId;
                 } else {
-                    // Wir sind im Root: zeige NUR Produkte ohne Ordner (folder_id ist null, undefined oder nicht gesetzt)
-                    matchesFolder = !p.folder_id || p.folder_id === null || p.folder_id === undefined;
+                    // Wir sind im Root: keine Ordner-Einschränkung
+                    matchesFolder = true;
                 }
             }
             // Wenn search aktiv ist, bleibt matchesFolder = true (alle Ordner durchsuchen)
@@ -2222,7 +2223,6 @@ class ReturnManager {
         const startBtn = document.getElementById('startScannerBtn');
         const stopBtn = document.getElementById('stopScannerBtn');
         const video = document.getElementById('scannerVideo');
-        const form = document.getElementById('returnForm');
         
         if (startBtn) {
             startBtn.addEventListener('click', () => this.startScanner());
@@ -2232,9 +2232,8 @@ class ReturnManager {
             stopBtn.addEventListener('click', () => this.stopScanner());
         }
         
-        if (form) {
-            form.addEventListener('submit', (e) => this.handleSubmit(e));
-        }
+        // Wichtig: Kein AJAX-Submit hier.
+        // Die Rückgabe-Seite nutzt Server-Rendering (inkl. Artikelauswahl bei Gruppen-Ausleihe).
     }
     
     async startScanner() {
@@ -2504,12 +2503,11 @@ class ReturnManager {
                         // Automatisch Formular absenden
                         const form = document.getElementById('returnForm');
                         if (form) {
-                            // Verwende dispatchEvent mit korrekten Optionen
-                            const submitEvent = new Event('submit', { 
-                                cancelable: true, 
-                                bubbles: true 
-                            });
-                            form.dispatchEvent(submitEvent);
+                            if (typeof form.requestSubmit === 'function') {
+                                form.requestSubmit();
+                            } else {
+                                form.submit();
+                            }
                         }
                     }, 500);
                 });
@@ -2521,56 +2519,6 @@ class ReturnManager {
             console.error('Fehler beim Scannen:', error);
             // Bei Fehler weiter versuchen
             setTimeout(() => this.scanForQR(), 200);
-        }
-    }
-    
-    async handleSubmit(e) {
-        e.preventDefault();
-        
-        const form = e.target;
-        const formData = new FormData(form);
-        
-        try {
-            const response = await fetch('/inventory/return', {
-                method: 'POST',
-                body: formData
-            });
-            
-            // Prüfe die Antwort
-            if (response.ok || response.status === 200) {
-                const result = await response.text();
-                
-                // Wenn die Antwort erfolgreich war ODER ein Redirect erfolgt ist, zum Dashboard leiten
-                // (Bei einem Redirect wird die Dashboard-HTML zurückgegeben)
-                if (result.includes('erfolgreich') || 
-                    result.includes('Rückgabe erfolgreich') || 
-                    result.includes('Lagerverwaltung') ||
-                    response.redirected ||
-                    response.url.includes('/inventory/')) {
-                    // Erfolgreiche Rückgabe - Zum Dashboard leiten
-                    window.location.href = '/inventory/';
-                } else if (result.includes('Keine aktive Ausleihe') || result.includes('fehlgeschlagen')) {
-                    // Fehler - Seite neu laden um Fehlermeldung zu sehen
-                    window.location.reload();
-                } else {
-                    // Unbekannte Antwort, aber Status OK - trotzdem zum Dashboard
-                    window.location.href = '/inventory/';
-                }
-            } else {
-                // HTTP Fehler
-                const result = await response.text();
-                if (result.includes('Keine aktive Ausleihe')) {
-                    this.showError('QR Code Nicht erkannt');
-                    setTimeout(() => this.hideError(), 5000);
-                } else {
-                    this.showError('QR Code Nicht erkannt');
-                    setTimeout(() => this.hideError(), 5000);
-                }
-            }
-        } catch (error) {
-            console.error('Fehler:', error);
-            this.showError('QR Code Nicht erkannt');
-            setTimeout(() => this.hideError(), 5000);
         }
     }
     

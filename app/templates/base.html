@@ -56,6 +56,8 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
         {% elif 'contacts' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
+        {% elif 'booking' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
         {% elif 'auth' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
         {% elif 'errors' in request.endpoint %}
@@ -363,6 +365,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if is_module_enabled('module_shortlinks') and (not current_user.is_authenticated or has_module_access(current_user, 'module_shortlinks')) %}
+            <li class="nav-item sidebar-nav-item" data-nav-id="shortlinks" data-nav-priority="9.5">
+                <a href="{{ url_for('shortlinks.index') }}" class="nav-link {% if request.endpoint and 'shortlinks' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-link-45deg me-2"></i>
+                    Kurzlinks
+                </a>
+            </li>
+            {% endif %}
             {% if is_module_enabled('module_booking') and (not current_user.is_authenticated or has_module_access(current_user, 'module_booking')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="booking" data-nav-priority="10">
                 <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
@@ -424,7 +434,7 @@
                     <strong>{{ current_user.full_name }}</strong>
                 </a>
                 <ul class="dropdown-menu text-small shadow">
-                    {% if session.get('user_scope') != 'assessment' and not current_user.is_guest %}
+                    {% if session.get('user_scope') != 'assessment' %}
                     <li><a class="dropdown-item" href="{{ url_for('settings.profile') }}">{{ _('layout.nav.profile') }}</a></li>
                     <li><hr class="dropdown-divider"></li>
                     {% endif %}
@@ -514,6 +524,14 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('module_shortlinks') and (not current_user.is_authenticated or has_module_access(current_user, 'module_shortlinks')) %}
+                <li>
+                    <a href="{{ url_for('shortlinks.index') }}" class="nav-link {% if request.endpoint and 'shortlinks' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-link-45deg me-2"></i>
+                        Kurzlinks
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_booking') %}
                 <li>
                     <a href="{{ url_for('booking.requests') }}" class="nav-link {% if request.endpoint and 'booking' in request.endpoint and 'settings' not in request.endpoint %}active{% endif %}">
@@ -546,14 +564,12 @@
                 </li>
                 {% endif %}{# end user_scope != assessment #}
                 <li><hr></li>
-                {% if not current_user.is_guest %}
                 <li>
                     <a href="{{ url_for('settings.profile') }}" class="nav-link">
                         <i class="bi bi-person me-2"></i>
                         {{ _('layout.nav.profile') }}
                     </a>
                 </li>
-                {% endif %}
                 <li>
                     <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
                         <i class="bi bi-box-arrow-right me-2"></i>
@@ -570,7 +586,7 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'settings.index', 'assessment.general.home'] %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'shortlinks.index', 'booking.requests', 'music.index', 'settings.index', 'assessment.general.home'] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">

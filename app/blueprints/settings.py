@@ -33,11 +33,6 @@ def index():
 @login_required
 def profile():
     """Edit user profile."""
-    # Gast-Accounts können ihr Profil nicht bearbeiten
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.profile.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     if request.method == 'POST':
         current_user.first_name = request.form.get('first_name', '').strip()
         current_user.last_name = request.form.get('last_name', '').strip()
@@ -105,11 +100,6 @@ def profile():
 @login_required
 def remove_profile_picture():
     """Remove user's profile picture."""
-    # Gast-Accounts können ihr Profil nicht bearbeiten
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.profile.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     if current_user.profile_picture:
         try:
             project_root = os.path.dirname(current_app.root_path)
@@ -329,7 +319,8 @@ def admin_users():
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
         ('module_music', 'Musik'),
-        ('module_assessment', 'Bewertung')
+        ('module_assessment', 'Bewertung'),
+        ('module_shortlinks', 'Kurzlinks')
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -477,7 +468,7 @@ def create_user():
                         all_modules = [
                             'module_chat', 'module_files', 'module_calendar', 'module_email',
                             'module_credentials', 'module_manuals',
-                            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment'
+                            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks'
                         ]
                         
                         for module_key in all_modules:
@@ -721,7 +712,7 @@ def create_user():
             # Diese werden automatisch über Freigabelinks/Chats gesteuert
             allowed_modules = [
                 'module_calendar',
-                'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment'
+                'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment', 'module_shortlinks'
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -773,7 +764,8 @@ def create_user():
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_music', 'Musik'),
-        ('module_assessment', 'Bewertung')
+        ('module_assessment', 'Bewertung'),
+        ('module_shortlinks', 'Kurzlinks')
     ]
     
     # Hole alle verfügbaren Freigabelinks
@@ -961,7 +953,7 @@ def edit_guest_user(user_id):
         # Erlaubte Module für Gäste
         allowed_modules = [
             'module_calendar',
-            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment'
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment', 'module_shortlinks'
         ]
         
         # Entferne alle bestehenden Modul-Rollen (außer automatisch gesetzte)
@@ -1121,7 +1113,8 @@ def edit_guest_user(user_id):
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_music', 'Musik'),
-        ('module_assessment', 'Bewertung')
+        ('module_assessment', 'Bewertung'),
+        ('module_shortlinks', 'Kurzlinks')
     ]
     
     # Hole alle verfügbaren Freigabelinks
@@ -1523,7 +1516,8 @@ def admin_modules():
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
             'module_music': request.form.get('module_music') == 'on',
-            'module_assessment': request.form.get('module_assessment') == 'on'
+            'module_assessment': request.form.get('module_assessment') == 'on',
+            'module_shortlinks': request.form.get('module_shortlinks') == 'on'
         }
         
         for module_key, enabled in modules.items():
@@ -1550,6 +1544,7 @@ def admin_modules():
     module_booking_enabled = is_module_enabled('module_booking')
     module_music_enabled = is_module_enabled('module_music')
     module_assessment_enabled = is_module_enabled('module_assessment')
+    module_shortlinks_enabled = is_module_enabled('module_shortlinks')
     
     return render_template('settings/admin_modules.html',
                            module_chat_enabled=module_chat_enabled,
@@ -1562,7 +1557,8 @@ def admin_modules():
                            module_wiki_enabled=module_wiki_enabled,
                            module_booking_enabled=module_booking_enabled,
                            module_music_enabled=module_music_enabled,
-                           module_assessment_enabled=module_assessment_enabled)
+                           module_assessment_enabled=module_assessment_enabled,
+                           module_shortlinks_enabled=module_shortlinks_enabled)
 
 
 @settings_bp.route('/admin/modules/assessment-admin', methods=['GET', 'POST'])
@@ -2178,7 +2174,7 @@ def admin_roles_user_update(user_id):
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment'
+            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks'
         ]
         
         # Aktualisiere Modul-Rollen
@@ -2268,7 +2264,8 @@ def admin_roles_default():
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
         ('module_music', 'Musik'),
-        ('module_assessment', 'Bewertung')
+        ('module_assessment', 'Bewertung'),
+        ('module_shortlinks', 'Kurzlinks')
     ]
     
     if request.method == 'POST':
@@ -2787,11 +2784,6 @@ def booking_roles(form_id):
 @login_required
 def security():
     """Sicherheits-Einstellungen Hauptseite."""
-    # Gast-Accounts können Sicherheitseinstellungen nicht ändern
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     return _render_security_page(active_tab='passwords')
 
 
@@ -2834,11 +2826,6 @@ def _render_security_page(active_tab='passwords'):
 @login_required
 def security_passwords():
     """Passwörter & 2FA Einstellungen."""
-    # Gast-Accounts können Sicherheitseinstellungen nicht ändern
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -2901,10 +2888,6 @@ def security_passwords():
 @login_required
 def enable_2fa():
     """Aktiviere 2FA für den Benutzer."""
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     from flask import session as flask_session
     totp_code = request.form.get('totp_code', '').strip()
     secret = flask_session.get('2fa_setup_secret')
@@ -2934,10 +2917,6 @@ def enable_2fa():
 @login_required
 def disable_2fa():
     """Deaktiviere 2FA für den Benutzer."""
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     password = request.form.get('password', '')
     
     if not password:
@@ -2960,10 +2939,6 @@ def disable_2fa():
 @login_required
 def security_devices():
     """Angemeldete Geräte anzeigen."""
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     return _render_security_page(active_tab='devices')
 
 
@@ -2971,10 +2946,6 @@ def security_devices():
 @login_required
 def revoke_session_route():
     """Meldet eine spezifische Session ab."""
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     session_id = request.form.get('session_id', '')
     
     if not session_id:
@@ -2993,10 +2964,6 @@ def revoke_session_route():
 @login_required
 def revoke_all_sessions_route():
     """Meldet alle anderen Sessions ab."""
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
-        flash(translate('settings.security.flash_guests_cannot_edit'), 'danger')
-        return redirect(url_for('settings.index'))
-    
     revoked_count = revoke_all_sessions(current_user.id, exclude_current=True)
     
     if revoked_count > 0:

@@ -241,7 +241,8 @@ def create_app(config_name='default'):
              request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo' or
              request.endpoint == 'music.public_wishlist' or
-             request.endpoint == 'music.public_search')):
+             request.endpoint == 'music.public_search' or
+             request.endpoint == 'shortlinks.resolve')):
             return
         
         if not current_user.is_authenticated:
@@ -499,6 +500,7 @@ def create_app(config_name='default'):
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
+                'shortlinks': 'shortlinks.index',
                 'settings': 'settings.index',
                 'assessment': 'assessment.general.home'
             }
@@ -747,6 +749,7 @@ def create_app(config_name='default'):
     from app.blueprints.music import music_bp
     from app.blueprints.sse import sse_bp
     from app.blueprints.assessment import assessment_bp
+    from app.blueprints.shortlinks import shortlinks_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -770,6 +773,7 @@ def create_app(config_name='default'):
     app.register_blueprint(music_bp)
     app.register_blueprint(sse_bp, url_prefix='/sse')
     app.register_blueprint(assessment_bp)
+    app.register_blueprint(shortlinks_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -873,6 +877,7 @@ def create_app(config_name='default'):
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
+                from app.models.shortlink import ShortLink
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
                 from app.models.user_session import UserSession
                 from app.models.assessment import (

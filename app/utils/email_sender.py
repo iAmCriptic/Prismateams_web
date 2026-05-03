@@ -1164,6 +1164,8 @@ def send_borrow_receipt_email(borrow_transactions):
         borrow_date = first_transaction.borrow_date.strftime('%d.%m.%Y %H:%M')
         expected_return_date = first_transaction.expected_return_date.strftime('%d.%m.%Y')
         
+        display_ref = first_transaction.borrow_group_id or first_transaction.transaction_number
+
         html_content = render_template(
             'emails/borrow_receipt.html',
             app_name=portal_name,
@@ -1171,7 +1173,7 @@ def send_borrow_receipt_email(borrow_transactions):
             transactions=borrow_transactions,
             borrow_date=borrow_date,
             expected_return_date=expected_return_date,
-            transaction_number=first_transaction.transaction_number,
+            transaction_number=display_ref,
             current_year=datetime.utcnow().year,
             logo_base64=logo_base64
         )
@@ -1184,13 +1186,13 @@ def send_borrow_receipt_email(borrow_transactions):
         pdf_buffer.seek(0)
         
         # PDF als Anhang hinzufügen
-        filename = f"Ausleihschein_{first_transaction.transaction_number}.pdf"
+        filename = f"Ausleihschein_{display_ref}.pdf"
         msg.attach(filename, "application/pdf", pdf_buffer.read())
         
         # E-Mail senden
         try:
             send_email_with_lock(msg)
-            logging.info(f"Borrow receipt email sent to {borrower.email} for transaction {first_transaction.transaction_number}")
+            logging.info(f"Borrow receipt email sent to {borrower.email} for transaction {display_ref}")
             return True
         except Exception as send_error:
             logging.error(f"Failed to send borrow receipt email to {borrower.email}: {str(send_error)}")

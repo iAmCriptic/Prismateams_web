@@ -369,37 +369,7 @@ function formatText(type) {
 }
 
 function openPreview() {
-    const form = document.getElementById('editForm');
-    const formData = new FormData(form);
-    
-    fetch('{{ url_for("wiki.preview") }}', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        const previewWindow = window.open('', '_blank');
-        const previewTitle = {{ current_translations.get('wiki', {}).get('create', {}).get('editor', {})|tojson }}.preview_title || 'Preview';
-        previewWindow.document.write(`
-            <html>
-                <head>
-                    <title>${previewTitle}</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                    <style>
-                        body { padding: 2rem; max-width: 1200px; margin: 0 auto; }
-                        .markdown-content { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
-                    </style>
-                </head>
-                <body>
-                    <div class="markdown-content">${data.html}</div>
-                </body>
-            </html>
-        `);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert(WIKI_EDIT_ALERTS.preview_error || WIKI_CREATE_ALERTS.preview_error || 'Failed to load preview.');
-    });
+    window.open('{{ url_for("wiki.view", slug=page.slug) }}', '_blank');
 }
 
 document.addEventListener('keydown', function(e) {

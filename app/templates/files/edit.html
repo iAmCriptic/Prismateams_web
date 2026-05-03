@@ -102,7 +102,7 @@
         
         <div class="ms-auto">
             <div class="btn-group" role="group">
-                <button type="button" class="btn btn-outline-secondary" onclick="togglePreview()" id="previewBtn">
+                <button type="button" class="btn btn-outline-secondary" onclick="openViewer()" id="previewBtn">
                     <i class="bi bi-eye"></i> Vorschau
                 </button>
             </div>
@@ -121,9 +121,7 @@
                 </form>
             </div>
             <div class="col-12" id="previewColumn" style="display: none;">
-                <div class="markdown-editor-preview markdown-content" id="markdownPreview">
-                    <!-- Vorschau wird hier angezeigt -->
-                </div>
+                <div class="markdown-editor-preview markdown-content" id="markdownPreview"></div>
             </div>
         </div>
     </div>
@@ -178,11 +176,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function goBack() {
     if (hasUnsavedChanges) {
         if (confirm('Sie haben ungespeicherte Änderungen. Möchten Sie wirklich zurückgehen?')) {
-            window.location.href = '{{ url_for("files.browse_folder", folder_id=file.folder_id) if file.folder_id else url_for("files.index") }}';
+            window.location.href = '{{ back_url }}';
         }
     } else {
-        window.location.href = '{{ url_for("files.browse_folder", folder_id=file.folder_id) if file.folder_id else url_for("files.index") }}';
+        window.location.href = '{{ back_url }}';
     }
+}
+
+function openViewer() {
+    togglePreview();
 }
 
 function saveFile(silent = false) {
@@ -386,35 +388,43 @@ function insertHorizontalRule() {
     editor.dispatchEvent(new Event('input'));
 }
 
+// Escape key zum Schließen
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (isPreviewMode) {
+            togglePreview();
+            return;
+        }
+        goBack();
+    }
+});
+
 function togglePreview() {
     const editorColumn = document.getElementById('editorColumn');
     const previewColumn = document.getElementById('previewColumn');
     const previewBtn = document.getElementById('previewBtn');
-    
+
     if (isPreviewMode) {
-        // Zurück zum Editor
         editorColumn.style.display = 'block';
         previewColumn.style.display = 'none';
         previewBtn.innerHTML = '<i class="bi bi-eye"></i> Vorschau';
         isPreviewMode = false;
-    } else {
-        // Zeige Vorschau
-        updatePreview();
-        editorColumn.style.display = 'none';
-        previewColumn.style.display = 'block';
-        previewBtn.innerHTML = '<i class="bi bi-pencil"></i> Bearbeiten';
-        isPreviewMode = true;
+        return;
     }
+
+    updatePreview();
+    editorColumn.style.display = 'none';
+    previewColumn.style.display = 'block';
+    previewBtn.innerHTML = '<i class="bi bi-pencil"></i> Bearbeiten';
+    isPreviewMode = true;
 }
 
 function updatePreview() {
     const editor = document.getElementById('markdownEditor');
     const preview = document.getElementById('markdownPreview');
-    
-    // Nutze Preview-Endpoint für korrekte Markdown-Verarbeitung
     const formData = new FormData();
     formData.append('content', editor.value);
-    
+
     fetch('{{ url_for("files.preview_file", file_id=file.id) }}', {
         method: 'POST',
         body: formData
@@ -425,45 +435,13 @@ function updatePreview() {
             throw new Error(data.error);
         }
         preview.innerHTML = data.html;
-        
-        // Triggere MathJax-Rendering nach Preview-Update
-        if (window.MathJax && window.MathJax.typesetPromise) {
-            window.MathJax.typesetPromise([preview]).catch(function(err) {
-                console.error('MathJax rendering error:', err);
-            });
-        }
     })
     .catch(error => {
         console.error('Error:', error);
-        preview.innerHTML = '<div class="alert alert-danger">Vorschau konnte nicht geladen werden. Bitte speichern oder Seite neu laden.</div>';
+        preview.innerHTML = '<div class="alert alert-danger">Vorschau konnte nicht geladen werden.</div>';
     });
 }
-
-// Escape key zum Schließen
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        goBack();
-    }
-});
 </script>
-
-<!-- MathJax für LaTeX-Formeln in Preview -->
-<script>
-window.MathJax = {
-    tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']],
-        processEscapes: true,
-        processEnvironments: true
-    },
-    options: {
-        ignoreHtmlClass: 'tex2jax_ignore',
-        processHtmlClass: 'tex2jax_process'
-    }
-};
-</script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
 
 

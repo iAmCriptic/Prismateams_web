@@ -3,6 +3,7 @@
 {% block title %}{% if form %}Formular bearbeiten{% else %}Neues Formular{% endif %} - Admin{% endblock %}
 
 {% block content %}
+<div class="booking-page">
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
@@ -407,5 +408,6 @@ function manageRoleUsers(roleId, roleName) {
 }
 </script>
 {% endif %}
+</div>
 {% endblock %}
 

@@ -19,12 +19,7 @@
                 {% for sess in sessions %}
                 <tr {% if sess.is_current %}class="table-info"{% endif %}>
                     <td>
-                        {% if sess.user_agent %}
-                            {% set ua = sess.user_agent.split(' ') %}
-                            {{ ua[0] if ua else sess.user_agent[:50] }}
-                        {% else %}
-                            {{ _('settings.security.devices.unknown_device') }}
-                        {% endif %}
+                        {{ sess.device_label if sess.device_label else _('settings.security.devices.unknown_device') }}
                         {% if sess.is_current %}
                             <span class="badge bg-primary ms-2">{{ _('settings.security.devices.current_session') }}</span>
                         {% endif %}

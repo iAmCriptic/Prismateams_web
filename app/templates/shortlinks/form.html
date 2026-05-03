@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{% if link %}Kurzlink bearbeiten{% else %}Kurzlink erstellen{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{% if link %}Kurzlink bearbeiten{% else %}Kurzlink erstellen{% endif %}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="target_url" class="form-label">Ziel-URL</label>
+                        <input type="text" class="form-control" id="target_url" name="target_url" required value="{{ (link.target_url if link else request.form.get('target_url', '')) }}">
+                        <div class="form-text">Mit oder ohne http(s) möglich.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="slug" class="form-label">Kürzel (optional)</label>
+                        <input type="text" class="form-control" id="slug" name="slug" value="{{ (link.slug if link else request.form.get('slug', '')) }}">
+                        <div class="form-text">Leer lassen für zufälliges Kürzel. Erlaubt: Buchstaben, Zahlen, - und _ (3-64 Zeichen).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Passwort (optional)</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        {% if link and link.password_hash %}
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="clear_password" name="clear_password">
+                            <label class="form-check-label" for="clear_password">Passwortschutz entfernen</label>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="expires_at" class="form-label">Ablaufdatum (optional)</label>
+                            <input type="datetime-local" class="form-control" id="expires_at" name="expires_at" value="{% if link and link.expires_at %}{{ link.expires_at.strftime('%Y-%m-%dT%H:%M') }}{% else %}{{ request.form.get('expires_at', '') }}{% endif %}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="max_clicks" class="form-label">Maximale Aufrufe (optional)</label>
+                            <input type="number" min="1" class="form-control" id="max_clicks" name="max_clicks" value="{{ (link.max_clicks if link and link.max_clicks else request.form.get('max_clicks', '')) }}">
+                        </div>
+                    </div>
+
+                    {% if link %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if link.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">Link aktiv</label>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-accent">Speichern</button>
+                        <a href="{{ url_for('shortlinks.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

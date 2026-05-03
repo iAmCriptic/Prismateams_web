@@ -307,8 +307,9 @@
         font-size: 0.8rem !important;
     }
     
-    /* Force all text to stay within bounds */
-    * {
+    /* Nur innerhalb des E-Mail-Moduls begrenzen, sonst kollidiert es mit globaler Navigation */
+    .email-content,
+    .email-content * {
         max-width: 100% !important;
         overflow-x: hidden !important;
         word-wrap: break-word !important;

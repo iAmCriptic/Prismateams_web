@@ -989,6 +989,7 @@ const CURRENT_FOLDER_ID = {{ current_folder.id if current_folder else 'null' }};
 document.addEventListener('DOMContentLoaded', function() {
     // NEU Button Dropdown mit Hover-Funktionalität
     const newButton = document.getElementById('newButton');
+    const newButtonDropdown = document.getElementById('newButtonDropdown');
     const newDropdownMenu = document.getElementById('newDropdownMenu');
     const uploadFileMenuItem = document.getElementById('uploadFileMenuItem');
     const uploadFolderMenuItem = document.getElementById('uploadFolderMenuItem');
@@ -1081,6 +1082,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 isMenuOpen = false;
             }
         });
+
+        // Wenn das globale Module-Menü geöffnet wird, NEU-Button vollständig ausblenden
+        // damit er nicht in das Offcanvas hineinragt.
+        const globalMoreMenu = document.getElementById('moreMenu');
+        if (globalMoreMenu && newButtonDropdown) {
+            globalMoreMenu.addEventListener('show.bs.offcanvas', function() {
+                newDropdownMenu.style.display = 'none';
+                isMenuOpen = false;
+                newButtonDropdown.style.visibility = 'hidden';
+            });
+
+            globalMoreMenu.addEventListener('hidden.bs.offcanvas', function() {
+                newButtonDropdown.style.visibility = '';
+            });
+        }
     }
     
     // Position beim Resize anpassen
@@ -2278,6 +2294,13 @@ function openShareDialog(type, id) {
     const html = `
         <form method="POST" action="${formAction}">
             <div class="mb-3">
+                <label class="form-label">Freigabe-Modus</label>
+                <select class="form-select" name="share_mode">
+                    <option value="view">Betrachten (ohne Name)</option>
+                    <option value="edit" selected>Bearbeiten (mit Name)</option>
+                </select>
+            </div>
+            <div class="mb-3">
                 <label class="form-label">${shareLabels.password_label}</label>
                 <input type="password" name="password" class="form-control">
                 <div class="form-text">${shareLabels.password_help}</div>
@@ -2319,6 +2342,13 @@ function openShareSettings(type, id) {
                     <div class="mb-3">
                         <label class="form-label">${shareLabels.password_keep_label}</label>
                         <input type="password" class="form-control" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Freigabe-Modus</label>
+                        <select class="form-select" name="share_mode">
+                            <option value="view" ${item.share_mode === 'view' ? 'selected' : ''}>Betrachten (ohne Name)</option>
+                            <option value="edit" ${item.share_mode !== 'view' ? 'selected' : ''}>Bearbeiten (mit Name)</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">${shareLabels.expires_label_compact}</label>

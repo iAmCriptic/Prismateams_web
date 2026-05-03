@@ -189,7 +189,7 @@ def register():
                     all_modules = [
                         'module_chat', 'module_files', 'module_calendar', 'module_email',
                         'module_credentials', 'module_manuals',
-                        'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment'
+                        'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks'
                     ]
                     
                     for module_key in all_modules:
