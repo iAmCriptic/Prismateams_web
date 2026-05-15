@@ -1454,6 +1454,89 @@ def admin_system():
                          color_gradient=color_gradient)
 
 
+@settings_bp.route('/admin/registration', methods=['GET', 'POST'])
+@login_required
+def admin_registration():
+    """Registration and login bot protection settings (admin only)."""
+    from app.utils.bot_protection import (
+        SETTING_KEYS,
+        VALID_PROVIDERS,
+        VALID_RECAPTCHA_VERSIONS,
+        generate_honeypot_field_name,
+        get_config,
+        is_configured,
+        upsert_setting,
+    )
+
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    if request.method == 'POST':
+        provider = request.form.get('portal_bot_protection', 'none').strip()
+        if provider not in VALID_PROVIDERS:
+            provider = 'none'
+
+        recaptcha_version = request.form.get('portal_recaptcha_version', 'v2').strip()
+        if recaptcha_version not in VALID_RECAPTCHA_VERSIONS:
+            recaptcha_version = 'v2'
+
+        register_enabled = request.form.get('portal_bot_protection_register') == 'on'
+        login_enabled = request.form.get('portal_bot_protection_login') == 'on'
+
+        recaptcha_site_key = request.form.get('portal_recaptcha_site_key', '').strip()
+        recaptcha_secret_key = request.form.get('portal_recaptcha_secret_key', '').strip()
+        turnstile_site_key = request.form.get('portal_turnstile_site_key', '').strip()
+        turnstile_secret_key = request.form.get('portal_turnstile_secret_key', '').strip()
+
+        existing = get_config()
+        if not recaptcha_secret_key:
+            recaptcha_secret_key = existing.get('recaptcha_secret_key', '')
+        if not turnstile_secret_key:
+            turnstile_secret_key = existing.get('turnstile_secret_key', '')
+
+        pending_config = {
+            'provider': provider,
+            'register_enabled': register_enabled,
+            'login_enabled': login_enabled,
+            'recaptcha_version': recaptcha_version,
+            'recaptcha_site_key': recaptcha_site_key,
+            'recaptcha_secret_key': recaptcha_secret_key,
+            'turnstile_site_key': turnstile_site_key,
+            'turnstile_secret_key': turnstile_secret_key,
+            'honeypot_field': _get_setting_value_for_admin(SETTING_KEYS['honeypot_field']),
+        }
+
+        if provider in {'recaptcha', 'turnstile'} and not is_configured(pending_config):
+            flash(translate('settings.admin.registration.flash_keys_required'), 'danger')
+            return redirect(url_for('settings.admin_registration'))
+
+        upsert_setting(SETTING_KEYS['provider'], provider)
+        upsert_setting(SETTING_KEYS['register_enabled'], 'true' if register_enabled else 'false')
+        upsert_setting(SETTING_KEYS['login_enabled'], 'true' if login_enabled else 'false')
+        upsert_setting(SETTING_KEYS['recaptcha_version'], recaptcha_version)
+        upsert_setting(SETTING_KEYS['recaptcha_site_key'], recaptcha_site_key)
+        upsert_setting(SETTING_KEYS['recaptcha_secret_key'], recaptcha_secret_key)
+        upsert_setting(SETTING_KEYS['turnstile_site_key'], turnstile_site_key)
+        upsert_setting(SETTING_KEYS['turnstile_secret_key'], turnstile_secret_key)
+
+        if provider == 'honeypot':
+            honeypot_field = pending_config['honeypot_field'] or generate_honeypot_field_name()
+            upsert_setting(SETTING_KEYS['honeypot_field'], honeypot_field)
+
+        db.session.commit()
+        flash(translate('settings.admin.registration.flash_updated'), 'success')
+        return redirect(url_for('settings.admin_registration'))
+
+    config = get_config()
+    return render_template('settings/admin_registration.html', config=config)
+
+
+def _get_setting_value_for_admin(key: str) -> str:
+    setting = SystemSettings.query.filter_by(key=key).first()
+    return setting.value.strip() if setting and setting.value else ''
+
+
 @settings_bp.route('/admin/file-settings', methods=['GET', 'POST'])
 @login_required
 def admin_file_settings():

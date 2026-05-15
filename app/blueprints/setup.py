@@ -584,6 +584,26 @@ def setup_step2():
         
         # Speichere in Session
         session['setup_default_roles'] = default_roles
+
+        from app.utils.bot_protection import VALID_PROVIDERS, VALID_RECAPTCHA_VERSIONS
+
+        bot_provider = request.form.get('portal_bot_protection', 'none').strip()
+        if bot_provider not in VALID_PROVIDERS:
+            bot_provider = 'none'
+        recaptcha_version = request.form.get('portal_recaptcha_version', 'v2').strip()
+        if recaptcha_version not in VALID_RECAPTCHA_VERSIONS:
+            recaptcha_version = 'v2'
+
+        session['setup_bot_protection'] = {
+            'provider': bot_provider,
+            'register_enabled': request.form.get('portal_bot_protection_register') == 'on',
+            'login_enabled': request.form.get('portal_bot_protection_login') == 'on',
+            'recaptcha_version': recaptcha_version,
+            'recaptcha_site_key': request.form.get('portal_recaptcha_site_key', '').strip(),
+            'recaptcha_secret_key': request.form.get('portal_recaptcha_secret_key', '').strip(),
+            'turnstile_site_key': request.form.get('portal_turnstile_site_key', '').strip(),
+            'turnstile_secret_key': request.form.get('portal_turnstile_secret_key', '').strip(),
+        }
         
         return redirect(url_for('setup.setup_step3'))
     
@@ -591,7 +611,12 @@ def setup_step2():
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     current_gradient = gradient_setting.value if gradient_setting else session.get('setup_color_gradient')
     
-    return render_template('setup/step2.html', color_gradient=current_gradient)
+    setup_bot = session.get('setup_bot_protection', {})
+    return render_template(
+        'setup/step2.html',
+        color_gradient=current_gradient,
+        setup_bot=setup_bot,
+    )
 
 
 @setup_bp.route('/setup/step3', methods=['GET', 'POST'])
@@ -856,6 +881,12 @@ def setup_step4():
                 )
                 db.session.add(module_setting)
                 logging.info(f"Module setting created: {module_key}={enabled}")
+
+            from app.utils.bot_protection import apply_bot_protection_settings
+            bot_data = session.get('setup_bot_protection')
+            if bot_data:
+                apply_bot_protection_settings(bot_data)
+                logging.info("Bot protection settings created from setup")
             
             logging.info("Committing all changes to database")
             db.session.commit()
@@ -884,6 +915,7 @@ def setup_step4():
             session.pop('setup_color_gradient', None)
             session.pop('setup_whitelist_entries', None)
             session.pop('setup_modules', None)
+            session.pop('setup_bot_protection', None)
             logging.info("Session data cleared")
             
             # Admin automatisch einloggen

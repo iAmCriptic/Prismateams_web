@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('settings.admin.registration.page_title') }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.admin.registration.breadcrumb') }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ _('settings.admin.registration.heading') }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    {{ _('settings.admin.registration.recommendation_alert') }}
+                </div>
+
+                <form method="POST" id="bot-protection-form">
+                    <div class="mb-3">
+                        <label for="portal_bot_protection" class="form-label">{{ _('settings.admin.registration.provider_label') }}</label>
+                        <select class="form-select" id="portal_bot_protection" name="portal_bot_protection">
+                            <option value="none" {% if config.provider == 'none' %}selected{% endif %}>{{ _('settings.admin.registration.provider_none') }}</option>
+                            <option value="honeypot" {% if config.provider == 'honeypot' %}selected{% endif %}>{{ _('settings.admin.registration.provider_honeypot') }}</option>
+                            <option value="recaptcha" {% if config.provider == 'recaptcha' %}selected{% endif %}>{{ _('settings.admin.registration.provider_recaptcha') }}</option>
+                            <option value="turnstile" {% if config.provider == 'turnstile' %}selected{% endif %}>{{ _('settings.admin.registration.provider_turnstile') }}</option>
+                        </select>
+                        <div class="form-text">{{ _('settings.admin.registration.provider_help') }}</div>
+                    </div>
+
+                    <div class="mb-4" id="scope-section">
+                        <label class="form-label">{{ _('settings.admin.registration.scope_label') }}</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="portal_bot_protection_register" name="portal_bot_protection_register" {% if config.register_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="portal_bot_protection_register">{{ _('settings.admin.registration.scope_register') }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="portal_bot_protection_login" name="portal_bot_protection_login" {% if config.login_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="portal_bot_protection_login">{{ _('settings.admin.registration.scope_login') }}</label>
+                        </div>
+                        <div class="form-text">{{ _('settings.admin.registration.scope_login_help') }}</div>
+                    </div>
+
+                    <div id="recaptcha-section" class="border rounded p-3 mb-3" style="display: none;">
+                        <h6 class="mb-3">{{ _('settings.admin.registration.recaptcha_heading') }}</h6>
+                        <div class="mb-3">
+                            <label for="portal_recaptcha_version" class="form-label">{{ _('settings.admin.registration.recaptcha_version_label') }}</label>
+                            <select class="form-select" id="portal_recaptcha_version" name="portal_recaptcha_version">
+                                <option value="v2" {% if config.recaptcha_version == 'v2' %}selected{% endif %}>{{ _('settings.admin.registration.recaptcha_v2') }}</option>
+                                <option value="v3" {% if config.recaptcha_version == 'v3' %}selected{% endif %}>{{ _('settings.admin.registration.recaptcha_v3') }}</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="portal_recaptcha_site_key" class="form-label">{{ _('settings.admin.registration.site_key_label') }}</label>
+                            <input type="text" class="form-control" id="portal_recaptcha_site_key" name="portal_recaptcha_site_key" value="{{ config.recaptcha_site_key }}">
+                        </div>
+                        <div class="mb-0">
+                            <label for="portal_recaptcha_secret_key" class="form-label">{{ _('settings.admin.registration.secret_key_label') }}</label>
+                            <input type="password" class="form-control" id="portal_recaptcha_secret_key" name="portal_recaptcha_secret_key" value="" placeholder="{% if config.recaptcha_secret_key %}{{ _('settings.admin.registration.secret_key_placeholder_set') }}{% else %}{{ _('settings.admin.registration.secret_key_placeholder') }}{% endif %}" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div id="turnstile-section" class="border rounded p-3 mb-3" style="display: none;">
+                        <h6 class="mb-3">{{ _('settings.admin.registration.turnstile_heading') }}</h6>
+                        <div class="mb-3">
+                            <label for="portal_turnstile_site_key" class="form-label">{{ _('settings.admin.registration.site_key_label') }}</label>
+                            <input type="text" class="form-control" id="portal_turnstile_site_key" name="portal_turnstile_site_key" value="{{ config.turnstile_site_key }}">
+                        </div>
+                        <div class="mb-0">
+                            <label for="portal_turnstile_secret_key" class="form-label">{{ _('settings.admin.registration.secret_key_label') }}</label>
+                            <input type="password" class="form-control" id="portal_turnstile_secret_key" name="portal_turnstile_secret_key" value="" placeholder="{% if config.turnstile_secret_key %}{{ _('settings.admin.registration.secret_key_placeholder_set') }}{% else %}{{ _('settings.admin.registration.secret_key_placeholder') }}{% endif %}" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <div id="honeypot-section" class="border rounded p-3 mb-3" style="display: none;">
+                        <h6 class="mb-3">{{ _('settings.admin.registration.honeypot_heading') }}</h6>
+                        <p class="text-muted small">{{ _('settings.admin.registration.honeypot_help') }}</p>
+                        {% if config.honeypot_field %}
+                        <div class="mb-0">
+                            <label class="form-label">{{ _('settings.admin.registration.honeypot_field_label') }}</label>
+                            <input type="text" class="form-control" value="{{ config.honeypot_field }}" readonly>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-accent">{{ _('settings.admin.registration.save_button') }}</button>
+                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('settings.admin.registration.back_button') }}</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const providerSelect = document.getElementById('portal_bot_protection');
+    const recaptchaSection = document.getElementById('recaptcha-section');
+    const turnstileSection = document.getElementById('turnstile-section');
+    const honeypotSection = document.getElementById('honeypot-section');
+    const scopeSection = document.getElementById('scope-section');
+
+    function updateSections() {
+        const provider = providerSelect.value;
+        recaptchaSection.style.display = provider === 'recaptcha' ? 'block' : 'none';
+        turnstileSection.style.display = provider === 'turnstile' ? 'block' : 'none';
+        honeypotSection.style.display = provider === 'honeypot' ? 'block' : 'none';
+        scopeSection.style.display = provider === 'none' ? 'none' : 'block';
+    }
+
+    providerSelect.addEventListener('change', updateSections);
+    updateSections();
+});
+</script>
+{% endblock %}

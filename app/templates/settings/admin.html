@@ -109,6 +109,20 @@
                 </div>
             </div>
         </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-shield-lock text-secondary"></i>
+                        {{ _('settings.admin.cards.registration_options.title') }}
+                    </h5>
+                    <p class="card-text">{{ _('settings.admin.cards.registration_options.description') }}</p>
+                    <a href="{{ url_for('settings.admin_registration') }}" class="btn btn-outline-primary">
+                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

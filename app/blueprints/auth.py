@@ -10,9 +10,18 @@ from app.utils.i18n import translate
 from app.utils.session_manager import create_session, revoke_session_by_id
 from app.utils.totp import verify_totp
 from app.utils.password_policy import validate_password
+from app.utils.bot_protection import get_template_context, validate_bot_protection
 from datetime import datetime, timedelta
 
 auth_bp = Blueprint('auth', __name__)
+
+
+def _auth_template_kwargs(**extra):
+    """Common template context for auth pages including bot protection."""
+    kwargs = {'color_gradient': get_color_gradient()}
+    kwargs.update(get_template_context())
+    kwargs.update(extra)
+    return kwargs
 
 
 def get_color_gradient():
@@ -97,6 +106,7 @@ def index():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("10 per 15 minutes")
 def register():
     """User registration."""
     # Prüfe ob Setup nötig ist
@@ -108,6 +118,11 @@ def register():
         return redirect(url_for('dashboard.index'))
     
     if request.method == 'POST':
+        bot_ok, _ = validate_bot_protection(request, 'register')
+        if not bot_ok:
+            flash(translate('auth.flash.bot_protection_failed'), 'danger')
+            return render_template('auth/register.html', **_auth_template_kwargs())
+
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         password_confirm = request.form.get('password_confirm', '')
@@ -119,20 +134,20 @@ def register():
         # Validation
         if not all([email, password, first_name, last_name]):
             flash(translate('auth.flash.fill_all_fields'), 'danger')
-            return render_template('auth/register.html', color_gradient=get_color_gradient())
+            return render_template('auth/register.html', **_auth_template_kwargs())
         
         if password != password_confirm:
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
-            return render_template('auth/register.html', color_gradient=get_color_gradient())
+            return render_template('auth/register.html', **_auth_template_kwargs())
         
         if len(password) < 8:
             flash(translate('auth.flash.password_too_short'), 'danger')
-            return render_template('auth/register.html', color_gradient=get_color_gradient())
+            return render_template('auth/register.html', **_auth_template_kwargs())
         
         # Check if user already exists
         if User.query.filter_by(email=email).first():
             flash(translate('auth.flash.email_already_registered'), 'danger')
-            return render_template('auth/register.html', color_gradient=get_color_gradient())
+            return render_template('auth/register.html', **_auth_template_kwargs())
         
         # Check if email is whitelisted
         is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
@@ -241,7 +256,7 @@ def register():
                 flash(translate('auth.flash.register_pending_admin_no_email'), 'warning')
             return redirect(url_for('auth.login'))
     
-    return render_template('auth/register.html', color_gradient=get_color_gradient())
+    return render_template('auth/register.html', **_auth_template_kwargs())
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -261,6 +276,11 @@ def login():
         _clear_pending_2fa_login()
 
     if request.method == 'POST':
+        bot_ok, _ = validate_bot_protection(request, 'login')
+        if not bot_ok:
+            flash(translate('auth.flash.bot_protection_failed'), 'danger')
+            return render_template('auth/login.html', **_auth_template_kwargs())
+
         login_input = request.form.get('email', '').strip()
         email = login_input.lower()
         password = request.form.get('password', '')
@@ -269,7 +289,7 @@ def login():
         
         if not email or not password:
             flash(translate('auth.flash.enter_email_password'), 'danger')
-            return render_template('auth/login.html', color_gradient=get_color_gradient())
+            return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Assessment-Login: gleicher Login-Endpunkt, aber Username statt E-Mail.
         if '@' not in login_input:
@@ -278,11 +298,11 @@ def login():
             assessment_user = AssessmentUser.query.filter_by(username=login_input.lower()).first()
             if not assessment_user or not assessment_user.check_password(password):
                 flash('Ungültiger Benutzername oder Passwort.', 'danger')
-                return render_template('auth/login.html', color_gradient=get_color_gradient())
+                return render_template('auth/login.html', **_auth_template_kwargs())
 
             if not assessment_user.is_active:
                 flash('Konto ist deaktiviert.', 'warning')
-                return render_template('auth/login.html', color_gradient=get_color_gradient())
+                return render_template('auth/login.html', **_auth_template_kwargs())
 
             assessment_user.last_login = datetime.utcnow()
             db.session.commit()
@@ -306,7 +326,7 @@ def login():
         if user and user.failed_login_until and datetime.utcnow() < user.failed_login_until:
             remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
             flash(translate('auth.flash.account_locked', seconds=remaining_seconds), 'danger')
-            return render_template('auth/login.html', color_gradient=get_color_gradient())
+            return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Prüfe Credentials
         if not user or not user.check_password(password):
@@ -318,7 +338,7 @@ def login():
                     user.failed_login_attempts = 0
                 db.session.commit()
             flash(translate('auth.flash.invalid_credentials'), 'danger')
-            return render_template('auth/login.html', color_gradient=get_color_gradient())
+            return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Reset fehlgeschlagene Versuche bei erfolgreichem Passwort-Check
         user.failed_login_attempts = 0
@@ -332,11 +352,11 @@ def login():
                 db.session.delete(user)
                 db.session.commit()
                 flash(translate('auth.flash.guest_account_expired'), 'danger')
-                return render_template('auth/login.html', color_gradient=get_color_gradient())
+                return render_template('auth/login.html', **_auth_template_kwargs())
         
         if not user.is_active:
             flash(translate('auth.flash.account_not_activated'), 'warning')
-            return render_template('auth/login.html', color_gradient=get_color_gradient())
+            return render_template('auth/login.html', **_auth_template_kwargs())
         
         # 2FA-Verifizierung in separatem Schritt
         if user.totp_enabled and user.totp_secret:
@@ -351,7 +371,7 @@ def login():
 
         return _finalize_portal_login(user, remember=remember, next_page=next_page)
     
-    return render_template('auth/login.html', color_gradient=get_color_gradient())
+    return render_template('auth/login.html', **_auth_template_kwargs())
 
 
 @auth_bp.route('/login/2fa', methods=['GET', 'POST'])

@@ -63,6 +63,9 @@
                         </div>
                         <div class="form-text">{{ _('auth.register.dark_mode_help') }}</div>
                     </div>
+
+                    {% set bot_context = 'register' %}
+                    {% include 'auth/_bot_protection.html' %}
                     
                     <button type="submit" class="btn btn-accent w-100">{{ _('auth.register.submit') }}</button>
                 </form>

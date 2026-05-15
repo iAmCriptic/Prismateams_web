@@ -159,7 +159,11 @@
       "password_reset_success": "Passwort wurde erfolgreich zurückgesetzt. Sie können sich jetzt anmelden.",
       "enter_2fa_code": "Bitte geben Sie Ihren 2FA-Code ein.",
       "invalid_2fa_code": "Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.",
-      "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt."
+      "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt.",
+      "bot_protection_failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut."
+    },
+    "bot_protection": {
+      "recaptcha_required": "Bitte bestätigen Sie, dass Sie kein Roboter sind."
     }
   },
   "dashboard": {
@@ -680,6 +684,7 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_admin": "Administration",
       "heading": "Administration",
+      "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
       "admin_modules": {
         "page_title": "Module - Administration",
         "breadcrumb_settings": "Einstellungen",
@@ -839,7 +844,43 @@
         "file_settings": {
           "title": "Datei-Einstellungen",
           "description": "Briefkästen und Freigaben aktivieren oder deaktivieren"
+        },
+        "registration_options": {
+          "title": "Registrierungsoptionen",
+          "description": "Bot-Schutz für Registrierung und optional Login konfigurieren"
         }
+      },
+      "registration": {
+        "page_title": "Registrierungsoptionen - Administration",
+        "breadcrumb": "Registrierungsoptionen",
+        "heading": "Registrierungsoptionen",
+        "recommendation_alert": "Wir empfehlen ein Bot-Filter-System (Google reCAPTCHA oder Cloudflare Turnstile), um automatisierte Registrierungen und Login-Angriffe zu reduzieren.",
+        "provider_label": "Schutzmethode",
+        "provider_help": "Wählen Sie die Methode zum Schutz vor automatisierten Zugriffen.",
+        "provider_none": "Keine menschliche Verifizierung",
+        "provider_honeypot": "Honeypot (einfach, für Eigenentwicklungen)",
+        "provider_recaptcha": "Google reCAPTCHA (empfohlen)",
+        "provider_turnstile": "Cloudflare Turnstile (empfohlen)",
+        "scope_label": "Anwenden auf",
+        "scope_register": "Bei Registrierung verwenden",
+        "scope_login": "Bei Login verwenden",
+        "scope_login_help": "Für den Login werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist möglich, aber weniger verbreitet.",
+        "recaptcha_heading": "Google reCAPTCHA",
+        "recaptcha_version_label": "reCAPTCHA-Version",
+        "recaptcha_v2": "v2 (Checkbox „Ich bin kein Roboter“)",
+        "recaptcha_v3": "v3 (unsichtbar, score-basiert)",
+        "turnstile_heading": "Cloudflare Turnstile",
+        "honeypot_heading": "Honeypot",
+        "honeypot_help": "Ein für Menschen unsichtbares Feld wird ins Formular eingefügt. Bots füllen es oft aus und werden abgewiesen.",
+        "honeypot_field_label": "Feldname (automatisch generiert)",
+        "site_key_label": "Site Key",
+        "secret_key_label": "Secret Key",
+        "secret_key_placeholder": "Secret Key eingeben",
+        "secret_key_placeholder_set": "Leer lassen, um den bestehenden Secret Key zu behalten",
+        "save_button": "Änderungen speichern",
+        "back_button": "Zurück",
+        "flash_updated": "Registrierungsoptionen wurden gespeichert.",
+        "flash_keys_required": "Bitte geben Sie Site Key und Secret Key an, bevor Sie reCAPTCHA oder Turnstile aktivieren."
       },
       "file_settings": {
         "page_title": "Datei-Einstellungen - Administration",

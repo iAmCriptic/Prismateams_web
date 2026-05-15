@@ -45,6 +45,9 @@
                             {{ _('auth.login.remember_me') }}
                         </label>
                     </div>
+
+                    {% set bot_context = 'login' %}
+                    {% include 'auth/_bot_protection.html' %}
                     
                     <button type="submit" class="btn btn-accent w-100 mb-3">{{ _('auth.login.submit') }}</button>
                 </form>

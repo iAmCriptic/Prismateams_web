@@ -1,0 +1,63 @@
+{% set show_bot = (bot_context == 'register' and bot_enabled_register) or (bot_context == 'login' and bot_enabled_login) %}
+{% if show_bot and bot_config.provider != 'none' %}
+<div class="auth-bot-protection mb-3">
+    {% if bot_config.provider == 'honeypot' and bot_config.honeypot_field %}
+    <input type="text"
+           name="{{ bot_config.honeypot_field }}"
+           value=""
+           class="auth-bot-honeypot"
+           tabindex="-1"
+           autocomplete="off"
+           aria-hidden="true">
+    {% elif bot_config.provider == 'recaptcha' and bot_config.recaptcha_site_key %}
+        {% if bot_config.recaptcha_version == 'v3' %}
+        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response-{{ bot_context }}">
+        {% else %}
+        <div class="g-recaptcha" data-sitekey="{{ bot_config.recaptcha_site_key }}"></div>
+        {% endif %}
+    {% elif bot_config.provider == 'turnstile' and bot_config.turnstile_site_key %}
+    <div class="cf-turnstile" data-sitekey="{{ bot_config.turnstile_site_key }}"></div>
+    {% endif %}
+</div>
+
+<style>
+.auth-bot-honeypot {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+</style>
+
+{% if bot_config.provider == 'recaptcha' and bot_config.recaptcha_site_key %}
+    {% if bot_config.recaptcha_version == 'v3' %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ bot_config.recaptcha_site_key }}"></script>
+    <script>
+    (function() {
+        const form = document.querySelector('.auth-bot-protection')?.closest('form');
+        if (!form) return;
+        const siteKey = {{ bot_config.recaptcha_site_key | tojson }};
+        const tokenInput = document.getElementById('g-recaptcha-response-{{ bot_context }}');
+        const action = {{ bot_context | tojson }};
+
+        form.addEventListener('submit', function(e) {
+            if (tokenInput.value) return;
+            e.preventDefault();
+            grecaptcha.ready(function() {
+                grecaptcha.execute(siteKey, { action: action }).then(function(token) {
+                    tokenInput.value = token;
+                    HTMLFormElement.prototype.submit.call(form);
+                });
+            });
+        });
+    })();
+    </script>
+    {% else %}
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    {% endif %}
+{% elif bot_config.provider == 'turnstile' and bot_config.turnstile_site_key %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
+{% endif %}

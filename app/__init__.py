@@ -1326,6 +1326,9 @@ def create_app(config_name='default'):
                             setting.value = value
                         if description and not setting.description:
                             setting.description = description
+
+                from app.utils.bot_protection import ensure_default_settings
+                ensure_default_settings()
                 
                 try:
                     inspector = inspect(db.engine)
