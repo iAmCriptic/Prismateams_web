@@ -144,6 +144,61 @@
                         </div>
                     </div>
                     
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="bi bi-shield-lock me-2"></i>Bot-Schutz</h6>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Wir empfehlen ein Bot-Filter-System (Google reCAPTCHA oder Cloudflare Turnstile), um automatisierte Registrierungen und Login-Angriffe zu reduzieren.
+                        </div>
+                        <div class="mb-3">
+                            <label for="portal_bot_protection" class="form-label">Schutzmethode</label>
+                            <select class="form-select" id="portal_bot_protection" name="portal_bot_protection">
+                                <option value="none" {% if setup_bot.get('provider', 'none') == 'none' %}selected{% endif %}>Keine menschliche Verifizierung</option>
+                                <option value="honeypot" {% if setup_bot.get('provider') == 'honeypot' %}selected{% endif %}>Honeypot (einfach)</option>
+                                <option value="recaptcha" {% if setup_bot.get('provider') == 'recaptcha' %}selected{% endif %}>Google reCAPTCHA (empfohlen)</option>
+                                <option value="turnstile" {% if setup_bot.get('provider') == 'turnstile' %}selected{% endif %}>Cloudflare Turnstile (empfohlen)</option>
+                            </select>
+                            <div class="form-text">API-Schlüssel können Sie jetzt oder später unter Admin → Registrierungsoptionen hinterlegen.</div>
+                        </div>
+                        <div class="mb-3" id="setup-bot-scope">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="portal_bot_protection_register" name="portal_bot_protection_register" {% if setup_bot.get('register_enabled', True) %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_bot_protection_register">Bei Registrierung verwenden</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="portal_bot_protection_login" name="portal_bot_protection_login" {% if setup_bot.get('login_enabled') %}checked{% endif %}>
+                                <label class="form-check-label" for="portal_bot_protection_login">Bei Login verwenden</label>
+                            </div>
+                        </div>
+                        <div id="setup-recaptcha-keys" class="border rounded p-3 mb-3" style="display: none;">
+                            <div class="mb-2">
+                                <label class="form-label">reCAPTCHA-Version</label>
+                                <select class="form-select" name="portal_recaptcha_version">
+                                    <option value="v2" {% if setup_bot.get('recaptcha_version', 'v2') == 'v2' %}selected{% endif %}>v2 (Checkbox)</option>
+                                    <option value="v3" {% if setup_bot.get('recaptcha_version') == 'v3' %}selected{% endif %}>v3 (unsichtbar)</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">reCAPTCHA Site Key</label>
+                                <input type="text" class="form-control" name="portal_recaptcha_site_key" value="{{ setup_bot.get('recaptcha_site_key', '') }}">
+                            </div>
+                            <div>
+                                <label class="form-label">reCAPTCHA Secret Key</label>
+                                <input type="password" class="form-control" name="portal_recaptcha_secret_key" value="{{ setup_bot.get('recaptcha_secret_key', '') }}" autocomplete="new-password">
+                            </div>
+                        </div>
+                        <div id="setup-turnstile-keys" class="border rounded p-3 mb-3" style="display: none;">
+                            <div class="mb-2">
+                                <label class="form-label">Turnstile Site Key</label>
+                                <input type="text" class="form-control" name="portal_turnstile_site_key" value="{{ setup_bot.get('turnstile_site_key', '') }}">
+                            </div>
+                            <div>
+                                <label class="form-label">Turnstile Secret Key</label>
+                                <input type="password" class="form-control" name="portal_turnstile_secret_key" value="{{ setup_bot.get('turnstile_secret_key', '') }}" autocomplete="new-password">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="setup-info">
                         <i class="bi bi-info-circle icon"></i>
                         <strong>Hinweis:</strong> Sie können später jederzeit weitere E-Mail-Adressen oder Domains zur Whitelist hinzufügen oder entfernen, sowie die Standardrollen in den Admin-Einstellungen ändern.
@@ -236,6 +291,24 @@ function toggleDefaultModuleRoles() {
 // Initial aufrufen beim Laden
 document.addEventListener('DOMContentLoaded', function() {
     toggleDefaultModuleRoles();
+
+    const providerSelect = document.getElementById('portal_bot_protection');
+    const scopeSection = document.getElementById('setup-bot-scope');
+    const recaptchaKeys = document.getElementById('setup-recaptcha-keys');
+    const turnstileKeys = document.getElementById('setup-turnstile-keys');
+
+    function updateSetupBotSections() {
+        if (!providerSelect) return;
+        const provider = providerSelect.value;
+        if (scopeSection) scopeSection.style.display = provider === 'none' ? 'none' : 'block';
+        if (recaptchaKeys) recaptchaKeys.style.display = provider === 'recaptcha' ? 'block' : 'none';
+        if (turnstileKeys) turnstileKeys.style.display = provider === 'turnstile' ? 'block' : 'none';
+    }
+
+    if (providerSelect) {
+        providerSelect.addEventListener('change', updateSetupBotSections);
+        updateSetupBotSections();
+    }
 });
 </script>
 

@@ -1614,11 +1614,13 @@ print_summary() {
             echo "5. Öffnen Sie die Anwendung über Ihren konfigurierten Webserver"
         fi
         echo "6. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+        echo "7. Optional: Bot-Schutz unter Einstellungen → Administration → Registrierungsoptionen konfigurieren"
     else
         echo "2. Warten Sie etwa 1 Minute, damit die Datenbank beim ersten Start initialisiert wird"
         echo "3. Prüfen Sie die Logs: journalctl -u teamportal -n 50"
         echo "4. Öffnen Sie http://$DOMAIN (oder https://$DOMAIN wenn SSL eingerichtet)"
         echo "5. Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten"
+        echo "6. Optional: Bot-Schutz unter Einstellungen → Administration → Registrierungsoptionen konfigurieren"
     fi
     echo
     echo "WICHTIG: Nach erfolgreichem ersten Start können Sie auf mehrere Worker umstellen:"

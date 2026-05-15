@@ -127,7 +127,11 @@
       "test_email_sent": "Test email successfully sent!",
       "test_email_success_message": "Email was successfully sent.",
       "test_email_error": "Error sending test email: {error}",
-      "logout_success": "You have been successfully logged out."
+      "logout_success": "You have been successfully logged out.",
+      "bot_protection_failed": "Security verification failed. Please try again."
+    },
+    "bot_protection": {
+      "recaptcha_required": "Please confirm that you are not a robot."
     }
   },
   "dashboard": {
@@ -562,6 +566,7 @@
       "breadcrumb_settings": "Settings",
       "breadcrumb_admin": "Administration",
       "heading": "Administration",
+      "flash_unauthorized": "Only administrators have access to this page.",
       "admin_modules": {
         "page_title": "Modules - Administration",
         "breadcrumb_settings": "Settings",
@@ -668,7 +673,43 @@
         "file_settings": {
           "title": "File Settings",
           "description": "Enable or disable mailboxes and shares"
+        },
+        "registration_options": {
+          "title": "Registration options",
+          "description": "Configure bot protection for registration and optional login"
         }
+      },
+      "registration": {
+        "page_title": "Registration options - Administration",
+        "breadcrumb": "Registration options",
+        "heading": "Registration options",
+        "recommendation_alert": "We recommend a bot filter system (Google reCAPTCHA or Cloudflare Turnstile) to reduce automated registrations and login attacks.",
+        "provider_label": "Protection method",
+        "provider_help": "Choose how to protect against automated access.",
+        "provider_none": "No human verification",
+        "provider_honeypot": "Honeypot (simple, for custom setups)",
+        "provider_recaptcha": "Google reCAPTCHA (recommended)",
+        "provider_turnstile": "Cloudflare Turnstile (recommended)",
+        "scope_label": "Apply to",
+        "scope_register": "Use on registration",
+        "scope_login": "Use on login",
+        "scope_login_help": "reCAPTCHA or Turnstile are recommended for login. Honeypot is possible but less common.",
+        "recaptcha_heading": "Google reCAPTCHA",
+        "recaptcha_version_label": "reCAPTCHA version",
+        "recaptcha_v2": "v2 (\"I'm not a robot\" checkbox)",
+        "recaptcha_v3": "v3 (invisible, score-based)",
+        "turnstile_heading": "Cloudflare Turnstile",
+        "honeypot_heading": "Honeypot",
+        "honeypot_help": "An invisible field is added to the form. Bots often fill it in and are rejected.",
+        "honeypot_field_label": "Field name (auto-generated)",
+        "site_key_label": "Site Key",
+        "secret_key_label": "Secret Key",
+        "secret_key_placeholder": "Enter secret key",
+        "secret_key_placeholder_set": "Leave blank to keep the existing secret key",
+        "save_button": "Save changes",
+        "back_button": "Back",
+        "flash_updated": "Registration options have been saved.",
+        "flash_keys_required": "Please provide Site Key and Secret Key before enabling reCAPTCHA or Turnstile."
       },
       "file_settings": {
         "page_title": "File Settings - Administration",
