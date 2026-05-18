@@ -93,7 +93,7 @@
     
     <div class="desktop-chat-actions">
         <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}">
+            <button type="button" class="btn btn-sm chat-header-menu-btn" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}" aria-label="{{ _('chat.view.dropdown.menu') }}">
                 <i class="bi bi-three-dots-vertical"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" data-bs-popper-config='{"strategy":"fixed"}'>
@@ -120,7 +120,7 @@
 
 <!-- Mobile Header - New Design -->
 <div class="mobile-chat-header d-md-none">
-    <a href="{{ url_for('chat.index') }}" class="btn btn-link text-white p-1 me-2">
+    <a href="{{ url_for('chat.index') }}" class="btn btn-link chat-header-back-btn p-1 me-2" aria-label="{{ _('chat.view.breadcrumb_chats') }}">
         <i class="bi bi-arrow-left fs-4"></i>
     </a>
     
@@ -171,14 +171,14 @@
         {% endif %}
         
         <div>
-            <h6 class="mb-0 fw-bold text-white">{{ get_chat_display_name(chat) }}</h6>
-            <small class="text-white-50">{{ _('chat.view.member_count').format(count=members|length) }}</small>
+            <h6 class="mb-0 fw-bold mobile-chat-title">{{ get_chat_display_name(chat) }}</h6>
+            <small class="mobile-chat-subtitle">{{ _('chat.view.member_count').format(count=members|length) }}</small>
         </div>
     </div>
     
     <!-- Actions -->
     <div class="dropdown">
-        <button type="button" class="btn btn-link text-white p-1" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}">
+        <button type="button" class="btn chat-header-menu-btn p-1" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}" aria-label="{{ _('chat.view.dropdown.menu') }}">
             <i class="bi bi-three-dots-vertical fs-5"></i>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" data-bs-popper-config='{"strategy":"fixed"}'>
