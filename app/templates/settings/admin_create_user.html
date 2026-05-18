@@ -107,35 +107,20 @@
                         <small class="text-muted">Wählen Sie die Freigabelinks, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Freigabeordnern wird automatisch Zugriff auf das Dateien-Modul gewährt.</small>
                     </div>
                     
-                    {% if shared_files %}
+                    {% if assignable_shares %}
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Dateien:</label>
-                        {% for file in shared_files %}
+                        {% for share in assignable_shares %}
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ file.share_token }}" id="share_file_{{ file.id }}">
-                            <label class="form-check-label" for="share_file_{{ file.id }}">
-                                {{ file.original_name }} ({{ file.share_token[:8] }}...)
+                            <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ share.token }}" id="share_{{ share.token_prefix }}_{{ loop.index }}">
+                            <label class="form-check-label" for="share_{{ share.token_prefix }}_{{ loop.index }}">
+                                {{ share.label }} ({{ share.token_prefix }}…)
                             </label>
                         </div>
                         {% endfor %}
                     </div>
                     {% endif %}
-                    
-                    {% if shared_folders %}
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Ordner:</label>
-                        {% for folder in shared_folders %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ folder.share_token }}" id="share_folder_{{ folder.id }}">
-                            <label class="form-check-label" for="share_folder_{{ folder.id }}">
-                                {{ folder.name }} ({{ folder.share_token[:8] }}...)
-                            </label>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    
-                    {% if not shared_files and not shared_folders %}
+
+                    {% if not assignable_shares %}
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i> Keine Freigabelinks verfügbar. Erstellen Sie zuerst Freigabelinks für Dateien oder Ordner.
                     </div>

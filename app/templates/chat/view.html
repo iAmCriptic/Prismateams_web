@@ -3,6 +3,7 @@
 {% block title %}{{ get_chat_display_name(chat) }} - {{ _('chat.view.page_title_suffix') }}{% endblock %}
 
 {% block content %}
+{% set chat_settings_url = url_for('chat.chat_settings', chat_id=chat.id) %}
 <!-- Desktop Header -->
 <div class="desktop-chat-header d-none d-md-flex">
     <div class="desktop-chat-info">
@@ -92,21 +93,25 @@
     
     <div class="desktop-chat-actions">
         <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="dropdown">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}">
                 <i class="bi bi-three-dots-vertical"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="#" onclick="toggleNotifications()">
+            <ul class="dropdown-menu dropdown-menu-end" data-bs-popper-config='{"strategy":"fixed"}'>
+                <li><a class="dropdown-item" href="#" onclick="toggleNotifications(); return false;">
                     <i class="bi bi-bell me-2" id="notification-icon"></i>
                     <span id="notification-text">{{ _('chat.view.dropdown.mute') }}</span>
                 </a></li>
                 <li><a class="dropdown-item" href="#" onclick="showChatInfoModal(); return false;"><i class="bi bi-info-circle me-2"></i>{{ _('chat.view.dropdown.info') }}</a></li>
+                <li><a class="dropdown-item" href="#" onclick="showAllMembersModal(); return false;"><i class="bi bi-people me-2"></i>{{ _('chat.view.mobile_members') }}</a></li>
                 {% if not chat.is_main_chat and not chat.is_direct_message %}
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=chat.id) }}"><i class="bi bi-gear me-2"></i>{{ _('chat.view.dropdown.settings') }}</a></li>
+                <li><a class="dropdown-item" href="{{ chat_settings_url }}#chat-name"><i class="bi bi-pencil me-2"></i>{{ _('chat.view.dropdown.rename') }}</a></li>
+                <li><a class="dropdown-item" href="{{ chat_settings_url }}#chat-avatar"><i class="bi bi-image me-2"></i>{{ _('chat.view.dropdown.avatar') }}</a></li>
+                <li><a class="dropdown-item" href="{{ chat_settings_url }}#chat-members"><i class="bi bi-person-gear me-2"></i>{{ _('chat.view.dropdown.manage_members') }}</a></li>
                 {% endif %}
                 {% if not chat.is_main_chat %}
-                <li><a class="dropdown-item text-danger" href="#" onclick="deleteChat({{ chat.id }}); return false;"><i class="bi bi-trash me-2"></i>Chat löschen</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="deleteChat({{ chat.id }}); return false;"><i class="bi bi-trash me-2"></i>{{ _('chat.view.dropdown.delete') }}</a></li>
                 {% endif %}
             </ul>
         </div>
@@ -173,11 +178,11 @@
     
     <!-- Actions -->
     <div class="dropdown">
-        <button class="btn btn-link text-white p-1" data-bs-toggle="dropdown">
+        <button type="button" class="btn btn-link text-white p-1" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}">
             <i class="bi bi-three-dots-vertical fs-5"></i>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="#" onclick="toggleNotifications()">
+        <ul class="dropdown-menu dropdown-menu-end" data-bs-popper-config='{"strategy":"fixed"}'>
+            <li><a class="dropdown-item" href="#" onclick="toggleNotifications(); return false;">
                 <i class="bi bi-bell me-2" id="notification-icon-mobile"></i>
                 <span id="notification-text-mobile">{{ _('chat.view.dropdown.mute') }}</span>
             </a></li>
@@ -185,22 +190,30 @@
                 <i class="bi bi-info-circle me-2"></i>
                 <span>{{ _('chat.view.dropdown.info') }}</span>
             </a></li>
-            <li><a class="dropdown-item" href="#" onclick="showAllMembersModal()">
+            <li><a class="dropdown-item" href="#" onclick="showAllMembersModal(); return false;">
                 <i class="bi bi-people me-2"></i>
                 <span>{{ _('chat.view.mobile_members') }}</span>
             </a></li>
             {% if not chat.is_main_chat and not chat.is_direct_message %}
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{{ url_for('chat.chat_settings', chat_id=chat.id) }}">
-                <i class="bi bi-gear me-2"></i>
-                <span>{{ _('chat.view.dropdown.settings') }}</span>
+            <li><a class="dropdown-item" href="{{ chat_settings_url }}#chat-name">
+                <i class="bi bi-pencil me-2"></i>
+                <span>{{ _('chat.view.dropdown.rename') }}</span>
+            </a></li>
+            <li><a class="dropdown-item" href="{{ chat_settings_url }}#chat-avatar">
+                <i class="bi bi-image me-2"></i>
+                <span>{{ _('chat.view.dropdown.avatar') }}</span>
+            </a></li>
+            <li><a class="dropdown-item" href="{{ chat_settings_url }}#chat-members">
+                <i class="bi bi-person-gear me-2"></i>
+                <span>{{ _('chat.view.dropdown.manage_members') }}</span>
             </a></li>
             {% endif %}
             {% if not chat.is_main_chat %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item text-danger" href="#" onclick="deleteChat({{ chat.id }}); return false;">
                 <i class="bi bi-trash me-2"></i>
-                <span>Chat löschen</span>
+                <span>{{ _('chat.view.dropdown.delete') }}</span>
             </a></li>
             {% endif %}
         </ul>

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session, abort
 from flask_login import login_required, current_user
 from app.utils.i18n import get_current_language, translate
 from app import db
@@ -8,6 +8,20 @@ from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update
+from app.models.public_share import PublicShare
+from app.utils.public_share import (
+    generate_unique_share_token,
+    get_share_by_token,
+    get_share_for_mode,
+    get_shares_for_resource,
+    is_resource_shared,
+    log_share_access,
+    normalize_share_mode,
+    resolve_resource,
+    serialize_share_settings,
+    share_is_expired,
+    sync_legacy_share_flags,
+)
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -203,8 +217,76 @@ def _render_view_content(content, file_ext):
 
 def _normalize_share_mode(raw_mode):
     """Normalize share mode input to supported values."""
-    mode = (raw_mode or '').strip().lower()
-    return 'view' if mode == 'view' else 'edit'
+    return normalize_share_mode(raw_mode)
+
+
+def _parse_share_expires(raw_value):
+    if not raw_value or not str(raw_value).strip():
+        return None
+    return datetime.fromisoformat(str(raw_value).strip())
+
+
+def _share_bot_session_key(token):
+    return f'share_bot_verified_{token}'
+
+
+def _validate_share_edit_bot(token):
+    from app.utils.bot_protection import is_enabled_for, validate_bot_protection
+
+    if not is_enabled_for('share_edit'):
+        return True
+    if session.get(_share_bot_session_key(token)):
+        return True
+    ok, _err = validate_bot_protection(request, 'share_edit')
+    if ok:
+        session[_share_bot_session_key(token)] = True
+    return ok
+
+
+def _get_public_share_context(token):
+    """Return (share, item) for an enabled, non-expired public share."""
+    share = get_share_by_token(token)
+    if not share or share_is_expired(share):
+        return None, None
+    item = resolve_resource(share)
+    if not item:
+        return None, None
+    return share, item
+
+
+def _upsert_public_share(resource_type, resource, mode, *, password='', expires_at_raw=''):
+    mode = normalize_share_mode(mode)
+    password = (password or '').strip()
+    expires_at = _parse_share_expires(expires_at_raw)
+    created_by = resource.uploaded_by if resource_type == 'file' else resource.created_by
+
+    share = get_share_for_mode(resource_type, resource.id, mode)
+    if share:
+        share.enabled = True
+        if password:
+            share.password_hash = generate_password_hash(password)
+        share.expires_at = expires_at
+    else:
+        share = PublicShare(
+            resource_type=resource_type,
+            resource_id=resource.id,
+            mode=mode,
+            token=generate_unique_share_token(),
+            enabled=True,
+            password_hash=generate_password_hash(password) if password else None,
+            expires_at=expires_at,
+            created_by=created_by,
+        )
+        db.session.add(share)
+    sync_legacy_share_flags(resource_type, resource)
+    return share
+
+
+def _disable_public_share(resource_type, resource, mode):
+    share = get_share_for_mode(resource_type, resource.id, mode)
+    if share:
+        share.enabled = False
+    sync_legacy_share_flags(resource_type, resource)
 
 
 def _is_guest_user():
@@ -1947,46 +2029,21 @@ def _is_sharing_enabled() -> bool:
     return (setting and str(setting.value).lower() == 'true') or False
 
 
-def _generate_unique_share_token():
-    token = secrets.token_urlsafe(32)
-    while File.query.filter_by(share_token=token).first() or Folder.query.filter_by(share_token=token).first():
-        token = secrets.token_urlsafe(32)
-    return token
-
-
 def _check_share_access(token):
-    """Prüft ob ein Share-Token gültig ist und gibt (item, guest_name) zurück.
-    Der guest_name wird aus der Session gelesen (wird beim ersten Zugriff eingegeben).
-    """
-    shared_file = File.query.filter_by(share_token=token, share_enabled=True).first()
-    shared_folder = None if shared_file else Folder.query.filter_by(share_token=token, share_enabled=True).first()
-    
-    if not shared_file and not shared_folder:
-        return None, None
-    
-    item = shared_file or shared_folder
-    
-    # Check expiry
-    if item.share_expires_at and datetime.utcnow() > item.share_expires_at:
-        return None, None
-    
-    # Check password if set
-    if item.share_password_hash:
-        session_key = f'share_auth_{token}'
-        if not session.get(session_key):
-            return None, None
-    
-    share_mode = _normalize_share_mode(getattr(item, 'share_mode', 'edit'))
+    """Prüft PublicShare-Token; gibt (item, guest_name, share) zurück."""
+    share, item = _get_public_share_context(token)
+    if not share or not item:
+        return None, None, None
 
-    # Get guest name from session
-    guest_name_key = f'share_guest_name_{token}'
-    guest_name = session.get(guest_name_key)
-    
-    # Im Bearbeiten-Modus ist ein Name Pflicht.
+    if share.password_hash and not session.get(f'share_auth_{token}'):
+        return None, None, share
+
+    share_mode = normalize_share_mode(share.mode)
+    guest_name = session.get(f'share_guest_name_{token}')
     if share_mode == 'edit' and not guest_name:
-        return None, None
-    
-    return item, guest_name
+        return None, None, share
+
+    return item, guest_name, share
 
 
 @files_bp.route('/file/<int:file_id>/share', methods=['POST'])
@@ -1997,18 +2054,21 @@ def create_file_share(file_id):
         flash('Freigaben sind deaktiviert.', 'warning')
         return redirect(request.referrer or url_for('files.index'))
     file = File.query.get_or_404(file_id)
-    password = request.form.get('password', '').strip()
-    expires_at = request.form.get('expires_at', '').strip()
-    share_mode = _normalize_share_mode(request.form.get('share_mode'))
+    modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
+    modes = list(dict.fromkeys(m for m in modes if m in ('view', 'edit')))
+    if not modes:
+        flash('Bitte mindestens einen Link-Typ auswählen.', 'warning')
+        return redirect(request.referrer or url_for('files.index'))
 
-    file.share_enabled = True
-    file.share_token = _generate_unique_share_token()
-    file.share_password_hash = generate_password_hash(password) if password else None
-    file.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-    file.share_name = None  # Wird beim ersten Zugriff vom Gast eingegeben
-    file.share_mode = share_mode
+    for mode in modes:
+        _upsert_public_share(
+            'file',
+            file,
+            mode,
+            password=request.form.get(f'password_{mode}', ''),
+            expires_at_raw=request.form.get(f'expires_at_{mode}', ''),
+        )
     db.session.commit()
-
     flash('Freigabe erstellt.', 'success')
     return redirect(request.referrer or url_for('files.index'))
 
@@ -2021,18 +2081,21 @@ def create_folder_share(folder_id):
         flash('Freigaben sind deaktiviert.', 'warning')
         return redirect(request.referrer or url_for('files.index'))
     folder = Folder.query.get_or_404(folder_id)
-    password = request.form.get('password', '').strip()
-    expires_at = request.form.get('expires_at', '').strip()
-    share_mode = _normalize_share_mode(request.form.get('share_mode'))
+    modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
+    modes = list(dict.fromkeys(m for m in modes if m in ('view', 'edit')))
+    if not modes:
+        flash('Bitte mindestens einen Link-Typ auswählen.', 'warning')
+        return redirect(request.referrer or url_for('files.index'))
 
-    folder.share_enabled = True
-    folder.share_token = _generate_unique_share_token()
-    folder.share_password_hash = generate_password_hash(password) if password else None
-    folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-    folder.share_name = None  # Wird beim ersten Zugriff vom Gast eingegeben
-    folder.share_mode = share_mode
+    for mode in modes:
+        _upsert_public_share(
+            'folder',
+            folder,
+            mode,
+            password=request.form.get(f'password_{mode}', ''),
+            expires_at_raw=request.form.get(f'expires_at_{mode}', ''),
+        )
     db.session.commit()
-
     flash('Freigabe erstellt.', 'success')
     return redirect(request.referrer or url_for('files.index'))
 
@@ -2042,10 +2105,9 @@ def create_folder_share(folder_id):
 @check_module_access('module_files')
 def file_share_settings(file_id):
     file = File.query.get_or_404(file_id)
-    if not file.share_enabled or not file.share_token:
+    if not is_resource_shared('file', file.id):
         return jsonify({'success': False}), 404
-    share_url = url_for('files.public_share', token=file.share_token, _external=True)
-    return jsonify({'success': True, 'item': {'type': 'file', 'id': file.id, 'name': file.name, 'share_url': share_url, 'has_password': file.share_password_hash is not None, 'expires_at': file.share_expires_at.isoformat() if file.share_expires_at else None, 'share_name': file.share_name, 'share_mode': _normalize_share_mode(file.share_mode)}})
+    return jsonify({'success': True, 'item': serialize_share_settings('file', file.id, file.name)})
 
 
 @files_bp.route('/folder/<int:folder_id>/share-settings')
@@ -2053,10 +2115,46 @@ def file_share_settings(file_id):
 @check_module_access('module_files')
 def folder_share_settings(folder_id):
     folder = Folder.query.get_or_404(folder_id)
-    if not folder.share_enabled or not folder.share_token:
+    if not is_resource_shared('folder', folder.id):
         return jsonify({'success': False}), 404
-    share_url = url_for('files.public_share', token=folder.share_token, _external=True)
-    return jsonify({'success': True, 'item': {'type': 'folder', 'id': folder.id, 'name': folder.name, 'share_url': share_url, 'has_password': folder.share_password_hash is not None, 'expires_at': folder.share_expires_at.isoformat() if folder.share_expires_at else None, 'share_name': folder.share_name, 'share_mode': _normalize_share_mode(folder.share_mode)}})
+    return jsonify({'success': True, 'item': serialize_share_settings('folder', folder.id, folder.name)})
+
+
+def _handle_share_settings_update(resource_type, resource):
+    action = (request.form.get('action') or '').strip().lower()
+    if action == 'disable_all':
+        for share in get_shares_for_resource(resource_type, resource.id):
+            share.enabled = False
+        sync_legacy_share_flags(resource_type, resource)
+        return
+
+    if action in ('disable_view', 'disable_edit'):
+        mode = 'view' if action == 'disable_view' else 'edit'
+        _disable_public_share(resource_type, resource, mode)
+        return
+
+    if action in ('create_view', 'create_edit'):
+        mode = 'view' if action == 'create_view' else 'edit'
+        _upsert_public_share(
+            resource_type,
+            resource,
+            mode,
+            password=request.form.get(f'password_{mode}', ''),
+            expires_at_raw=request.form.get(f'expires_at_{mode}', ''),
+        )
+        return
+
+    for mode in ('view', 'edit'):
+        share = get_share_for_mode(resource_type, resource.id, mode)
+        if not share or not share.enabled:
+            continue
+        password = request.form.get(f'password_{mode}', '').strip()
+        expires_raw = request.form.get(f'expires_at_{mode}', '')
+        if password:
+            share.password_hash = generate_password_hash(password)
+        if expires_raw is not None:
+            share.expires_at = _parse_share_expires(expires_raw)
+    sync_legacy_share_flags(resource_type, resource)
 
 
 @files_bp.route('/file/<int:file_id>/share-settings', methods=['POST'])
@@ -2064,21 +2162,7 @@ def folder_share_settings(folder_id):
 @check_module_access('module_files')
 def update_file_share(file_id):
     file = File.query.get_or_404(file_id)
-    action = request.form.get('action')
-    if action == 'disable':
-        file.share_enabled = False
-        file.share_token = None
-        file.share_password_hash = None
-        file.share_expires_at = None
-        file.share_name = None
-        file.share_mode = 'edit'
-    else:
-        password = request.form.get('password', '').strip()
-        expires_at = request.form.get('expires_at', '').strip()
-        share_mode = _normalize_share_mode(request.form.get('share_mode'))
-        file.share_password_hash = generate_password_hash(password) if password else file.share_password_hash
-        file.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-        file.share_mode = share_mode
+    _handle_share_settings_update('file', file)
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
     return redirect(request.referrer or url_for('files.index'))
@@ -2089,21 +2173,7 @@ def update_file_share(file_id):
 @check_module_access('module_files')
 def update_folder_share(folder_id):
     folder = Folder.query.get_or_404(folder_id)
-    action = request.form.get('action')
-    if action == 'disable':
-        folder.share_enabled = False
-        folder.share_token = None
-        folder.share_password_hash = None
-        folder.share_expires_at = None
-        folder.share_name = None
-        folder.share_mode = 'edit'
-    else:
-        password = request.form.get('password', '').strip()
-        expires_at = request.form.get('expires_at', '').strip()
-        share_mode = _normalize_share_mode(request.form.get('share_mode'))
-        folder.share_password_hash = generate_password_hash(password) if password else folder.share_password_hash
-        folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-        folder.share_mode = share_mode
+    _handle_share_settings_update('folder', folder)
     db.session.commit()
     flash('Freigabe aktualisiert.', 'success')
     return redirect(request.referrer or url_for('files.index'))
@@ -2111,85 +2181,119 @@ def update_folder_share(folder_id):
 
 @files_bp.route('/share/<token>', methods=['GET', 'POST'])
 def public_share(token):
-    # Find file or folder by token
-    shared_file = File.query.filter_by(share_token=token, share_enabled=True).first()
-    shared_folder = None if shared_file else Folder.query.filter_by(share_token=token, share_enabled=True).first()
-    if not shared_file and not shared_folder:
-        flash('Freigabe existiert nicht mehr.', 'danger')
+    share, item = _get_public_share_context(token)
+    if not share or not item:
+        flash('Freigabe existiert nicht mehr oder ist abgelaufen.', 'danger')
         return redirect(url_for('files.index'))
 
-    item = shared_file or shared_folder
-    share_mode = _normalize_share_mode(getattr(item, 'share_mode', 'edit'))
-    # Check expiry
-    if item.share_expires_at and datetime.utcnow() > item.share_expires_at:
-        flash('Freigabe ist abgelaufen.', 'danger')
-        return redirect(url_for('files.index'))
+    share_mode = normalize_share_mode(share.mode)
+    from app.utils.bot_protection import get_template_context as get_bot_template_context
 
-    # Password gate
-    if item.share_password_hash:
+    bot_ctx = get_bot_template_context()
+    bot_ctx['bot_context'] = 'share_edit'
+    bot_ctx['show_bot'] = bot_ctx.get('bot_enabled_share_edit', False) and share_mode == 'edit'
+
+    if share.password_hash:
         session_key = f'share_auth_{token}'
         if request.method == 'POST' and 'password' in request.form:
-            if check_password_hash(item.share_password_hash, request.form.get('password','')):
+            if share_mode == 'edit' and not _validate_share_edit_bot(token):
+                flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+                return render_template(
+                    'files/share_auth.html',
+                    token=token,
+                    item=item,
+                    share_mode=share_mode,
+                    **bot_ctx,
+                )
+            if check_password_hash(share.password_hash, request.form.get('password', '')):
                 session[session_key] = True
+                log_share_access(share, 'password_auth', request)
+                db.session.commit()
                 return redirect(url_for('files.public_share', token=token))
-            else:
-                flash('Ungültiges Passwort.', 'danger')
+            flash('Ungültiges Passwort.', 'danger')
         elif not session.get(session_key):
-            return render_template('files/share_auth.html', token=token, item=item)
+            return render_template(
+                'files/share_auth.html',
+                token=token,
+                item=item,
+                share_mode=share_mode,
+                **bot_ctx,
+            )
 
-    # Name-Eingabe nur im Bearbeiten-Modus verpflichtend (Gast-Name)
-    # Name wird in Session gespeichert, damit er innerhalb derselben Browser-Session wiederverwendet wird
     guest_name_key = f'share_guest_name_{token}'
-    
-    # Prüfe ob Name bereits in Session vorhanden
     guest_name = session.get(guest_name_key)
-    
-    # Wenn POST-Request mit neuem Namen
+
     if share_mode == 'edit' and request.method == 'POST' and 'guest_name' in request.form:
+        if not _validate_share_edit_bot(token):
+            flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+            return render_template(
+                'files/share_name.html',
+                token=token,
+                item=item,
+                share_mode=share_mode,
+                **bot_ctx,
+            )
         guest_name = request.form.get('guest_name', '').strip()
         if guest_name:
-            # Speichere in Session für diese Browser-Session
             session[guest_name_key] = guest_name
-            # Weiterleitung zur Freigabe-Seite
+            log_share_access(share, 'guest_name', request, guest_name=guest_name)
+            db.session.commit()
             return redirect(url_for('files.public_share', token=token))
-        else:
-            flash('Bitte geben Sie einen Namen ein.', 'danger')
-    
-    # Wenn kein Name in Session, zeige Eingabe-Formular
-    if share_mode == 'edit' and not guest_name:
-        return render_template('files/share_name.html', token=token, item=item)
+        flash('Bitte geben Sie einen Namen ein.', 'danger')
 
-    # Check ONLYOFFICE availability
+    if share_mode == 'edit' and not guest_name:
+        return render_template(
+            'files/share_name.html',
+            token=token,
+            item=item,
+            share_mode=share_mode,
+            **bot_ctx,
+        )
+
+    log_share_access(share, 'page_view', request, guest_name=guest_name)
+    db.session.commit()
+
     from app.utils.onlyoffice import is_onlyoffice_enabled
     onlyoffice_available = is_onlyoffice_enabled()
-    
-    # Render file or folder view
-    if shared_file:
-        # Provide download and edit option
-        return render_template('files/share.html', item_type='file', file=shared_file, token=token, guest_name=guest_name, onlyoffice_available=onlyoffice_available, share_mode=share_mode)
-    else:
-        # Get files in the shared folder
-        folder_files = File.query.filter_by(
-            folder_id=shared_folder.id,
-            is_current=True
-        ).order_by(File.name).all()
-        
-        # Show upload list and files in folder
-        return render_template('files/share.html', item_type='folder', folder=shared_folder, folder_files=folder_files, token=token, guest_name=guest_name, onlyoffice_available=onlyoffice_available, share_mode=share_mode)
+
+    if share.resource_type == 'file':
+        return render_template(
+            'files/share.html',
+            item_type='file',
+            file=item,
+            token=token,
+            guest_name=guest_name,
+            onlyoffice_available=onlyoffice_available,
+            share_mode=share_mode,
+            **bot_ctx,
+        )
+
+    folder_files = File.query.filter_by(folder_id=item.id, is_current=True).order_by(File.name).all()
+    return render_template(
+        'files/share.html',
+        item_type='folder',
+        folder=item,
+        folder_files=folder_files,
+        token=token,
+        guest_name=guest_name,
+        onlyoffice_available=onlyoffice_available,
+        share_mode=share_mode,
+        **bot_ctx,
+    )
 
 
 @files_bp.route('/share/<token>/download', methods=['GET'])
 def public_share_download(token):
     """Download für direkt freigegebene Datei."""
-    shared_file = File.query.filter_by(share_token=token, share_enabled=True).first_or_404()
-    
-    # Prüfe Zugriff (Passwort, Ablaufdatum, Name)
-    item, guest_name = _check_share_access(token)
-    if not item:
+    share = get_share_by_token(token) or abort(404)
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item or share.resource_type != 'file':
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
-    
-    # Ensure path
+
+    shared_file = item
+    log_share_access(share, 'download', request, guest_name=guest_name)
+    db.session.commit()
     file_path = shared_file.file_path if os.path.isabs(shared_file.file_path) else os.path.join(os.getcwd(), shared_file.file_path)
     return send_file(file_path, as_attachment=True, download_name=shared_file.original_name)
 
@@ -2197,45 +2301,47 @@ def public_share_download(token):
 @files_bp.route('/share/<token>/file/<int:file_id>/download', methods=['GET'])
 def public_share_folder_file_download(token, file_id):
     """Download für Datei in freigegebenem Ordner."""
-    # Prüfe ob Ordner freigegeben ist
-    shared_folder = Folder.query.filter_by(share_token=token, share_enabled=True).first_or_404()
-    
-    # Prüfe ob Datei im Ordner ist
+    share = get_share_by_token(token) or abort(404)
+    if share.resource_type != 'folder':
+        abort(404)
+    shared_folder = resolve_resource(share) or abort(404)
     file = File.query.filter_by(id=file_id, folder_id=shared_folder.id, is_current=True).first_or_404()
-    
-    # Prüfe Zugriff (Passwort, Ablaufdatum, Name)
-    item, guest_name = _check_share_access(token)
+
+    item, guest_name, _access_share = _check_share_access(token)
     if not item:
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
-    
-    # Ensure path
+
+    log_share_access(share, 'download', request, guest_name=guest_name)
+    db.session.commit()
     file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
     return send_file(file_path, as_attachment=True, download_name=file.original_name)
 
 
 @files_bp.route('/share/<token>/upload', methods=['POST'])
 def public_share_upload(token):
-    shared_folder = Folder.query.filter_by(share_token=token, share_enabled=True).first_or_404()
-    if _normalize_share_mode(shared_folder.share_mode) != 'edit':
+    share = get_share_by_token(token) or abort(404)
+    if normalize_share_mode(share.mode) != 'edit':
         flash('Upload ist fuer diese Freigabe nicht erlaubt.', 'warning')
         return redirect(url_for('files.public_share', token=token))
+    if not _validate_share_edit_bot(token):
+        flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
 
-    item, guest_name = _check_share_access(token)
-    if not item:
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item or share.resource_type != 'folder':
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
 
-    # Password gate
-    if shared_folder.share_password_hash:
-        if not session.get(f'share_auth_{token}'):
-            password = request.form.get('password', '')
-            if not check_password_hash(shared_folder.share_password_hash, password):
-                flash('Ungültiges Passwort.', 'danger')
-                return redirect(url_for('files.public_share', token=token))
-            session[f'share_auth_{token}'] = True
+    shared_folder = item
+    if share.password_hash and not session.get(f'share_auth_{token}'):
+        password = request.form.get('password', '')
+        if not check_password_hash(share.password_hash, password):
+            flash('Ungültiges Passwort.', 'danger')
+            return redirect(url_for('files.public_share', token=token))
+        session[f'share_auth_{token}'] = True
 
-    uploader_name = request.form.get('uploader_name', '').strip() or 'Anonym'
+    uploader_name = request.form.get('uploader_name', '').strip() or guest_name or 'Anonym'
     if 'file' in request.files:
         files = request.files.getlist('file')
         for f in files:
@@ -2263,6 +2369,7 @@ def public_share_upload(token):
                 db.session.add(anonymous_user)
                 db.session.flush()
             _process_file_upload(f, name, shared_folder.id, anonymous_user.id)
+        log_share_access(share, 'upload', request, guest_name=uploader_name)
         db.session.commit()
         flash('Upload abgeschlossen.', 'success')
     return redirect(url_for('files.public_share', token=token))
@@ -2596,13 +2703,21 @@ def share_edit_onlyoffice(token):
         flash('ONLYOFFICE ist nicht aktiviert.', 'warning')
         return redirect(url_for('files.public_share', token=token))
     
-    item, guest_name = _check_share_access(token)
+    share = get_share_by_token(token)
+    if not share or normalize_share_mode(share.mode) != 'edit':
+        flash('Bearbeiten ist fuer diese Freigabe nicht erlaubt.', 'warning')
+        return redirect(url_for('files.public_share', token=token))
+    if not _validate_share_edit_bot(token):
+        flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    item, guest_name, _access_share = _check_share_access(token)
     if not item:
         flash('Bitte geben Sie zuerst Ihren Namen ein.', 'warning')
         return redirect(url_for('files.public_share', token=token))
-    if _normalize_share_mode(getattr(item, 'share_mode', 'edit')) != 'edit':
-        flash('Bearbeiten ist fuer diese Freigabe nicht erlaubt.', 'warning')
-        return redirect(url_for('files.public_share', token=token))
+
+    log_share_access(share, 'onlyoffice_edit', request, guest_name=guest_name)
+    db.session.commit()
     
     # Prüfe ob eine spezifische Datei aus einem Ordner bearbeitet werden soll
     file_id = request.args.get('file_id')
@@ -2910,23 +3025,12 @@ def share_onlyoffice_document(token, file_id):
         logging.warning(f"ONLYOFFICE share document request rejected - OnlyOffice not enabled")
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
     
-    # IMPORTANT: OnlyOffice callbacks don't have session cookies, so we need to validate
-    # the token differently. We'll check if the share token is valid by querying the database.
-    # Don't use _check_share_access as it requires session data.
-    shared_file = File.query.filter_by(share_token=token, share_enabled=True).first()
-    shared_folder = None
-    if not shared_file:
-        shared_folder = Folder.query.filter_by(share_token=token, share_enabled=True).first()
-    
-    if not shared_file and not shared_folder:
+    share, item = _get_public_share_context(token)
+    if not share or not item:
         logging.warning(f"ONLYOFFICE share document access denied - Invalid share token: {token[:8]}...")
         return jsonify({'error': 'Invalid share token'}), 403
-    
-    # Determine which item was shared (file or folder)
-    item = shared_file if shared_file else shared_folder
-    
-    # Prüfe ob es eine Datei aus einem Ordner ist oder direkt freigegebene Datei
-    if isinstance(item, Folder):
+
+    if share.resource_type == 'folder':
         file = File.query.filter_by(id=file_id, folder_id=item.id, is_current=True).first_or_404()
     else:
         # Direkt freigegebene Datei
@@ -3365,21 +3469,12 @@ def share_onlyoffice_callback(token):
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
     
-    # IMPORTANT: OnlyOffice callbacks don't have session cookies, so we need to validate
-    # the token differently. We'll check if the share token is valid by querying the database.
-    # Don't use _check_share_access as it requires session data.
-    shared_file = File.query.filter_by(share_token=token, share_enabled=True).first()
-    shared_folder = None
-    if not shared_file:
-        shared_folder = Folder.query.filter_by(share_token=token, share_enabled=True).first()
-    
-    if not shared_file and not shared_folder:
+    share, item = _get_public_share_context(token)
+    if not share or not item:
         logging.warning(f"ONLYOFFICE share callback: Invalid share token: {token}")
         return jsonify({'error': 'Invalid share token'}), 403
-    
-    # Use a default guest name for callbacks (OnlyOffice doesn't send session info)
-    guest_name = 'Gast' if not shared_file else (shared_file.share_name or 'Gast')
-    item = shared_file if shared_file else shared_folder
+
+    guest_name = session.get(f'share_guest_name_{token}') or 'Gast'
     
     # Get file_id from callback URL parameter
     file_id = request.args.get('file_id')

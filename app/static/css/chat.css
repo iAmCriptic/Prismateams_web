@@ -877,7 +877,7 @@
         padding: 0.75rem 1.25rem !important;
         margin-bottom: 0.75rem !important;
         max-height: 140px;
-        overflow: hidden;
+        overflow: visible;
     }
     
     .desktop-chat-header .breadcrumb {
@@ -1066,10 +1066,35 @@
     justify-content: center;
 }
 
+.desktop-chat-header {
+    overflow: visible;
+}
+
 .desktop-chat-actions {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 5;
+}
+
+.desktop-chat-header .desktop-chat-actions .btn {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.desktop-chat-header .desktop-chat-actions .btn:hover,
+.desktop-chat-header .desktop-chat-actions .btn:focus,
+.desktop-chat-header .desktop-chat-actions .btn.show {
+    color: #fff;
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.desktop-chat-header .desktop-chat-actions .dropdown-menu {
+    z-index: 1100;
 }
 
 /* Desktop Chat Sidebar - Only for chat view page, not main sidebar */
@@ -1080,6 +1105,9 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
+    height: 100%;
+    flex-shrink: 0;
 }
 
 [data-bs-theme="dark"] .desktop-chat-sidebar {
@@ -1124,9 +1152,12 @@
 
 /* Chat sidebar members - ONLY for chat view sidebar */
 .desktop-chat-sidebar .sidebar-members {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 0.5rem 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Chat sidebar member - ONLY for chat view sidebar */
@@ -1957,7 +1988,13 @@ body .messages-area .chat-message.other .message-content {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
-    max-height: 400px;
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#allMembersModal .modal-body {
+    max-height: min(70vh, 640px);
     overflow-y: auto;
 }
 

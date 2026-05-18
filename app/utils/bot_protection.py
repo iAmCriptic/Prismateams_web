@@ -11,7 +11,7 @@ import requests
 from app import db
 from app.models.settings import SystemSettings
 
-BotContext = Literal['register', 'login']
+BotContext = Literal['register', 'login', 'share_edit']
 VALID_PROVIDERS = frozenset({'none', 'honeypot', 'recaptcha', 'turnstile'})
 VALID_RECAPTCHA_VERSIONS = frozenset({'v2', 'v3'})
 
@@ -19,6 +19,7 @@ SETTING_KEYS = {
     'provider': 'portal_bot_protection',
     'register_enabled': 'portal_bot_protection_register',
     'login_enabled': 'portal_bot_protection_login',
+    'share_edit_enabled': 'portal_bot_protection_share_edit',
     'recaptcha_version': 'portal_recaptcha_version',
     'recaptcha_site_key': 'portal_recaptcha_site_key',
     'recaptcha_secret_key': 'portal_recaptcha_secret_key',
@@ -31,6 +32,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEYS['provider']: ('none', 'Bot-Schutz-Methode für Registrierung/Login'),
     SETTING_KEYS['register_enabled']: ('true', 'Bot-Schutz bei Registrierung'),
     SETTING_KEYS['login_enabled']: ('false', 'Bot-Schutz bei Login'),
+    SETTING_KEYS['share_edit_enabled']: ('false', 'Bot-Schutz bei Freigabe (Bearbeiten)'),
     SETTING_KEYS['recaptcha_version']: ('v2', 'reCAPTCHA-Version (v2 oder v3)'),
     SETTING_KEYS['recaptcha_site_key']: ('', 'reCAPTCHA Site Key'),
     SETTING_KEYS['recaptcha_secret_key']: ('', 'reCAPTCHA Secret Key'),
@@ -106,6 +108,10 @@ def get_config() -> dict[str, Any]:
             _get_setting_value(SETTING_KEYS['login_enabled'], 'false'),
             default=False,
         ),
+        'share_edit_enabled': _as_bool(
+            _get_setting_value(SETTING_KEYS['share_edit_enabled'], 'false'),
+            default=False,
+        ),
         'recaptcha_version': recaptcha_version,
         'recaptcha_site_key': _get_setting_value(SETTING_KEYS['recaptcha_site_key'], ''),
         'recaptcha_secret_key': _get_setting_value(SETTING_KEYS['recaptcha_secret_key'], ''),
@@ -139,6 +145,8 @@ def is_enabled_for(context: BotContext, config: dict[str, Any] | None = None) ->
         return config['register_enabled']
     if context == 'login':
         return config['login_enabled']
+    if context == 'share_edit':
+        return config['share_edit_enabled']
     return False
 
 
@@ -148,6 +156,7 @@ def get_template_context() -> dict[str, Any]:
         'bot_config': config,
         'bot_enabled_register': is_enabled_for('register', config),
         'bot_enabled_login': is_enabled_for('login', config),
+        'bot_enabled_share_edit': is_enabled_for('share_edit', config),
     }
 
 
@@ -235,6 +244,10 @@ def apply_bot_protection_settings(data: dict[str, Any]) -> None:
     upsert_setting(
         SETTING_KEYS['login_enabled'],
         'true' if data.get('login_enabled', False) else 'false',
+    )
+    upsert_setting(
+        SETTING_KEYS['share_edit_enabled'],
+        'true' if data.get('share_edit_enabled', False) else 'false',
     )
     upsert_setting(SETTING_KEYS['recaptcha_version'], recaptcha_version)
     upsert_setting(SETTING_KEYS['recaptcha_site_key'], data.get('recaptcha_site_key', '') or '')

@@ -3,6 +3,7 @@ Backup- und Restore-Funktionalität für PrismaTeams
 """
 import json
 import os
+import secrets
 import shutil
 import tempfile
 from datetime import datetime
@@ -99,6 +100,7 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['folders'] = export_folders()
         backup_data['data']['files'] = export_files()
         backup_data['data']['file_versions'] = export_file_versions()
+        backup_data['data']['public_shares'] = export_public_shares()
     
     # Wiki exportieren
     if 'wiki' in categories or 'all' in categories:
@@ -568,6 +570,36 @@ def export_file_versions() -> List[Dict]:
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Lesen von Dateiversion {v.file_path}: {str(e)}")
         result.append(version_data)
+    return result
+
+
+def export_public_shares() -> List[Dict]:
+    """Exportiert öffentliche Freigabe-Links."""
+    from app.models.public_share import PublicShare
+
+    result = []
+    for share in PublicShare.query.all():
+        entry = {
+            'resource_type': share.resource_type,
+            'mode': share.mode,
+            'token': share.token,
+            'enabled': share.enabled,
+            'password_hash': share.password_hash,
+            'expires_at': share.expires_at.isoformat() if share.expires_at else None,
+            'created_by_email': User.query.get(share.created_by).email if User.query.get(share.created_by) else None,
+        }
+        if share.resource_type == 'file':
+            file_obj = File.query.get(share.resource_id)
+            if file_obj:
+                entry['file_name'] = file_obj.name
+                if file_obj.folder_id:
+                    folder = Folder.query.get(file_obj.folder_id)
+                    entry['folder_name'] = folder.name if folder else None
+        else:
+            folder = Folder.query.get(share.resource_id)
+            if folder:
+                entry['folder_name'] = folder.name
+        result.append(entry)
     return result
 
 
@@ -1048,6 +1080,10 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'file_versions' in backup_data.get('data', {}):
                 import_file_versions(backup_data['data']['file_versions'], user_map, current_user_id)
                 results['imported'].append('file_versions')
+
+            if 'public_shares' in backup_data.get('data', {}):
+                import_public_shares(backup_data['data']['public_shares'], user_map, current_user_id)
+                results['imported'].append('public_shares')
         
         # Wiki importieren
         if 'wiki' in categories or 'all' in categories:
@@ -2033,6 +2069,53 @@ def import_folders(folders_data: List[Dict], user_map: Dict[str, int], current_u
             folder_map[f_data['name']] = folder.id
     
     return folder_map
+
+
+def import_public_shares(shares_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+    """Importiert öffentliche Freigabe-Links."""
+    from app.models.public_share import PublicShare
+    from app.utils.public_share import sync_legacy_share_flags
+
+    for s_data in shares_data:
+        resource_type = s_data.get('resource_type')
+        resource = None
+        if resource_type == 'file' and s_data.get('file_name'):
+            folder_id = None
+            if s_data.get('folder_name'):
+                folder = Folder.query.filter_by(name=s_data['folder_name']).first()
+                folder_id = folder.id if folder else None
+            resource = File.query.filter_by(name=s_data['file_name'], folder_id=folder_id, is_current=True).first()
+        elif resource_type == 'folder' and s_data.get('folder_name'):
+            resource = Folder.query.filter_by(name=s_data['folder_name']).first()
+
+        if not resource:
+            continue
+
+        created_by_email = s_data.get('created_by_email')
+        created_by_id = user_map.get(created_by_email) if created_by_email else current_user_id
+        if not created_by_id:
+            continue
+
+        share = PublicShare.query.filter_by(
+            resource_type=resource_type,
+            resource_id=resource.id,
+            mode=s_data.get('mode', 'edit'),
+        ).first()
+        if not share:
+            share = PublicShare(
+                resource_type=resource_type,
+                resource_id=resource.id,
+                mode=s_data.get('mode', 'edit'),
+                token=s_data.get('token') or secrets.token_urlsafe(32),
+                created_by=created_by_id,
+            )
+            db.session.add(share)
+
+        share.enabled = s_data.get('enabled', True)
+        share.password_hash = s_data.get('password_hash')
+        if s_data.get('expires_at'):
+            share.expires_at = datetime.fromisoformat(s_data['expires_at'])
+        sync_legacy_share_flags(resource_type, resource)
 
 
 def import_files(files_data: List[Dict], folder_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):

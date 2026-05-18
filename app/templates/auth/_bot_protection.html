@@ -1,4 +1,4 @@
-{% set show_bot = (bot_context == 'register' and bot_enabled_register) or (bot_context == 'login' and bot_enabled_login) %}
+{% set show_bot = (bot_context == 'register' and bot_enabled_register) or (bot_context == 'login' and bot_enabled_login) or (bot_context == 'share_edit' and bot_enabled_share_edit) %}
 {% if show_bot and bot_config.provider != 'none' %}
 <div class="auth-bot-protection mb-3">
     {% if bot_config.provider == 'honeypot' and bot_config.honeypot_field %}

@@ -25,6 +25,9 @@
                 {% endwith %}
                 
                 <form method="POST" action="{{ url_for('files.public_share', token=token) }}">
+                    {% if show_bot %}
+                    {% include 'auth/_bot_protection.html' %}
+                    {% endif %}
                     <div class="mb-3">
                         <label for="guest_name" class="form-label">Ihr Name</label>
                         <input type="text" class="form-control" id="guest_name" name="guest_name" required autofocus placeholder="Max Mustermann">

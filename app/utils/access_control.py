@@ -214,19 +214,32 @@ def guest_has_file_access(user, file):
     
     from app.models.file import Folder
     
-    # Prüfe direkte Datei-Freigabe
+    from app.models.public_share import PublicShare
+    from app.models.guest import GuestShareAccess
+
+    for access in GuestShareAccess.query.filter_by(user_id=user.id).all():
+        token = _normalize_guest_share_token(access.share_token)
+        if not token:
+            continue
+        share = PublicShare.query.filter_by(token=token, enabled=True).first()
+        if share and share.resource_type == 'file' and share.resource_id == file.id:
+            return True
+        if share and share.resource_type == 'folder' and file.folder_id:
+            folder = Folder.query.get(file.folder_id)
+            while folder:
+                if folder.id == share.resource_id:
+                    return True
+                folder = Folder.query.get(folder.parent_id) if folder.parent_id else None
+
     if file.share_token and file.share_enabled:
         if has_guest_share_access(user, file.share_token, 'file'):
             return True
-    
-    # Prüfe ob Datei in einem freigegebenen Ordner ist
+
     if file.folder_id:
         folder = Folder.query.get(file.folder_id)
         if folder and folder.share_token and folder.share_enabled:
             if has_guest_share_access(user, folder.share_token, 'folder'):
                 return True
-        
-        # Prüfe rekursiv alle übergeordneten Ordner
         current_folder = folder
         while current_folder and current_folder.parent_id:
             current_folder = Folder.query.get(current_folder.parent_id)
@@ -284,11 +297,20 @@ def get_guest_accessible_items(user):
         if not normalized_token:
             continue
 
+        from app.models.public_share import PublicShare
+        from app.utils.public_share import resolve_resource, share_is_expired
+
         file_item = None
         folder_item = None
 
-        # Primär über den gespeicherten Typ auflösen, sekundär tolerant fallbacken.
-        if normalized_type == 'file':
+        share = PublicShare.query.filter_by(token=normalized_token, enabled=True).first()
+        if share and not share_is_expired(share):
+            resolved = resolve_resource(share)
+            if share.resource_type == 'file' and resolved:
+                file_item = resolved
+            elif share.resource_type == 'folder' and resolved:
+                folder_item = resolved
+        elif normalized_type == 'file':
             file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
             if not file_item:
                 folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
@@ -297,7 +319,6 @@ def get_guest_accessible_items(user):
             if not folder_item:
                 file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
         else:
-            # Legacy-Daten ohne konsistenten share_type
             file_item = File.query.filter_by(share_token=normalized_token, share_enabled=True).first()
             if not file_item:
                 folder_item = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
@@ -348,10 +369,15 @@ def get_guest_directly_shared_folders(user):
         if not normalized_token:
             continue
 
-        folder = Folder.query.filter_by(
-            share_token=normalized_token,
-            share_enabled=True
-        ).first()
+        from app.models.public_share import PublicShare
+        from app.utils.public_share import resolve_resource, share_is_expired
+
+        folder = None
+        share = PublicShare.query.filter_by(token=normalized_token, enabled=True).first()
+        if share and share.resource_type == 'folder' and not share_is_expired(share):
+            folder = resolve_resource(share)
+        if not folder:
+            folder = Folder.query.filter_by(share_token=normalized_token, share_enabled=True).first()
         if folder and folder.id not in processed_folder_ids:
             directly_shared_folders.append(folder)
             processed_folder_ids.add(folder.id)
