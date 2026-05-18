@@ -22,6 +22,12 @@
       "more": "More",
       "module": "Modules",
       "back": "Back"
+    },
+    "notification_center": {
+      "open": "Open notifications",
+      "title": "Notifications",
+      "mark_all_read": "Mark all as read",
+      "delete_all": "Delete all"
     }
   },
   "common": {
@@ -442,6 +448,7 @@
           "description": "Server-side notifications for chat, files and email",
           "activate": "Enable push",
           "test": "Send test",
+          "reset": "Reset",
           "cooldown_label": "Cooldown active",
           "cooldown_timer": "2:00"
         },
@@ -620,6 +627,31 @@
         },
         "inventory": {
           "title": "Inventory management"
+        }
+      },
+      "push_subscriptions": {
+        "page_title": "Web push subscriptions - Administration",
+        "breadcrumb": "Web push",
+        "heading": "Web push subscriptions",
+        "description": "All registered browser push endpoints with their users.",
+        "stats": "{active} active of {total} entries total.",
+        "empty": "No push subscriptions found.",
+        "confirm_delete": "Really delete this subscription?",
+        "confirm_deactivate_user": "Deactivate all active subscriptions for this user?",
+        "flash_deactivated": "Subscription deactivated.",
+        "flash_deleted": "Subscription deleted.",
+        "flash_user_deactivated": "Deactivated {count} subscription(s) for the user.",
+        "table": {
+          "user": "User",
+          "endpoint": "Endpoint",
+          "user_agent": "Browser/device",
+          "created": "Created",
+          "last_used": "Last used",
+          "status": "Status"
+        },
+        "actions": {
+          "deactivate": "Deactivate",
+          "deactivate_all_user": "Deactivate all"
         }
       },
       "cards": {

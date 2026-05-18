@@ -338,15 +338,11 @@ def setup_complete():
                 'module_shortlinks': request.form.get('module_shortlinks') == 'on'
             }
             
+            from app.utils.bot_protection import upsert_setting
             for module_key, enabled in modules.items():
-                module_setting = SystemSettings(
-                    key=module_key,
-                    value=str(enabled),
-                    description=f'Modul {module_key} aktiviert'
-                )
-                db.session.add(module_setting)
-                logging.info(f"Module setting created: {module_key}={enabled}")
-            
+                upsert_setting(module_key, str(enabled), f'Modul {module_key} aktiviert')
+                logging.info(f"Module setting saved: {module_key}={enabled}")
+
             db.session.commit()
             logging.info("All data committed successfully")
             
@@ -847,15 +843,16 @@ def setup_step4():
             # Standardrollen speichern (aus Session)
             import json
             default_roles = session.get('setup_default_roles', {})
+            from app.utils.bot_protection import apply_bot_protection_settings, upsert_setting
+
             if default_roles:
-                default_roles_setting = SystemSettings(
-                    key='default_module_roles',
-                    value=json.dumps(default_roles),
-                    description='Standardrollen für neue Benutzer'
+                upsert_setting(
+                    'default_module_roles',
+                    json.dumps(default_roles),
+                    'Standardrollen für neue Benutzer',
                 )
-                db.session.add(default_roles_setting)
-                logging.info("Default module roles setting created")
-            
+                logging.info("Default module roles setting saved")
+
             # Module-Einstellungen speichern (aus Session)
             modules = session.get('setup_modules', {
                 'module_chat': True,
@@ -874,15 +871,9 @@ def setup_step4():
             })
             
             for module_key, enabled in modules.items():
-                module_setting = SystemSettings(
-                    key=module_key,
-                    value=str(enabled),
-                    description=f'Modul {module_key} aktiviert'
-                )
-                db.session.add(module_setting)
-                logging.info(f"Module setting created: {module_key}={enabled}")
+                upsert_setting(module_key, str(enabled), f'Modul {module_key} aktiviert')
+                logging.info(f"Module setting saved: {module_key}={enabled}")
 
-            from app.utils.bot_protection import apply_bot_protection_settings
             bot_data = session.get('setup_bot_protection')
             if bot_data:
                 apply_bot_protection_settings(bot_data)

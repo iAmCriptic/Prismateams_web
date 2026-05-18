@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('settings.admin.push_subscriptions.page_title') }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.admin.push_subscriptions.breadcrumb') }}</li>
+    </ol>
+</nav>
+
+<h1 class="mb-4"><i class="bi bi-bell"></i> {{ _('settings.admin.push_subscriptions.heading') }}</h1>
+
+<p class="text-muted mb-4">{{ _('settings.admin.push_subscriptions.description') }}</p>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    {{ _('settings.admin.push_subscriptions.stats', active=active_count, total=subscriptions|length) }}
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ _('settings.admin.push_subscriptions.table.user') }}</th>
+                        <th>{{ _('settings.admin.push_subscriptions.table.endpoint') }}</th>
+                        <th>{{ _('settings.admin.push_subscriptions.table.user_agent') }}</th>
+                        <th>{{ _('settings.admin.push_subscriptions.table.created') }}</th>
+                        <th>{{ _('settings.admin.push_subscriptions.table.last_used') }}</th>
+                        <th>{{ _('settings.admin.push_subscriptions.table.status') }}</th>
+                        <th>{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in subscriptions %}
+                    {% set user = users_by_id.get(sub.user_id) %}
+                    <tr>
+                        <td>
+                            {% if user %}
+                            <strong>{{ user.full_name }}</strong><br>
+                            <small class="text-muted">{{ user.email }}</small>
+                            {% else %}
+                            <span class="text-muted">ID {{ sub.user_id }}</span>
+                            {% endif %}
+                        </td>
+                        <td><small class="font-monospace text-break">{{ sub.endpoint[:80] }}{% if sub.endpoint|length > 80 %}…{% endif %}</small></td>
+                        <td><small>{{ sub.user_agent or '—' }}</small></td>
+                        <td><small>{{ sub.created_at.strftime('%d.%m.%Y %H:%M') if sub.created_at else '—' }}</small></td>
+                        <td><small>{{ sub.last_used.strftime('%d.%m.%Y %H:%M') if sub.last_used else '—' }}</small></td>
+                        <td>
+                            {% if sub.is_active %}
+                            <span class="badge bg-success">{{ _('common.active') }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ _('common.inactive') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" class="d-inline">
+                                <input type="hidden" name="subscription_id" value="{{ sub.id }}">
+                                {% if sub.is_active %}
+                                <button type="submit" name="action" value="deactivate" class="btn btn-sm btn-outline-warning">
+                                    {{ _('settings.admin.push_subscriptions.actions.deactivate') }}
+                                </button>
+                                {% endif %}
+                                <button type="submit" name="action" value="delete" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('{{ _('settings.admin.push_subscriptions.confirm_delete') }}')">
+                                    {{ _('common.delete') }}
+                                </button>
+                            </form>
+                            {% if user and sub.is_active %}
+                            <form method="post" class="d-inline ms-1">
+                                <input type="hidden" name="user_id" value="{{ sub.user_id }}">
+                                <button type="submit" name="action" value="deactivate_user" class="btn btn-sm btn-outline-secondary"
+                                        onclick="return confirm('{{ _('settings.admin.push_subscriptions.confirm_deactivate_user') }}')">
+                                    {{ _('settings.admin.push_subscriptions.actions.deactivate_all_user') }}
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            {{ _('settings.admin.push_subscriptions.empty') }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary mt-3">
+    <i class="bi bi-arrow-left"></i> {{ _('settings.admin.breadcrumb_admin') }}
+</a>
+{% endblock %}

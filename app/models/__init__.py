@@ -9,7 +9,7 @@ from .credential import Credential, CredentialFolder
 from .manual import Manual
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
-from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
+from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog, PushDeliveryLog
 from .inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
 from .api_token import ApiToken
 from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
@@ -46,7 +46,7 @@ __all__ = [
     'Manual',
     'SystemSettings',
     'WhitelistEntry',
-    'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog',
+    'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog', 'PushDeliveryLog',
     'Product', 'BorrowTransaction', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem', 'ProductLot', 'StockMovement', 'ProductStatusHistory', 'InventoryItemLock',
     'ApiToken',
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',

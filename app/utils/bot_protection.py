@@ -54,7 +54,9 @@ def _as_bool(value: str | None, default: bool = False) -> bool:
 
 
 def upsert_setting(key: str, value: str, description: str | None = None) -> SystemSettings:
-    setting = SystemSettings.query.filter_by(key=key).first()
+    # no_autoflush: verhindert vorzeitiges Flushen anderer pending Inserts (z. B. beim Setup)
+    with db.session.no_autoflush:
+        setting = SystemSettings.query.filter_by(key=key).first()
     if setting:
         setting.value = value
         if description and not setting.description:

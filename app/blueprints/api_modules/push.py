@@ -144,6 +144,7 @@ def register_push_routes(api_bp, require_api_auth):
                 body=f"Dies ist eine Test-Push-Benachrichtigung vom {portal_name}.",
                 url="/dashboard/",
                 data={"type": "test", "timestamp": datetime.utcnow().isoformat()},
+                dedup_key=f"test:{datetime.utcnow().timestamp()}",
             )
             if success:
                 return jsonify({"success": True, "message": f"Test-Benachrichtigung erfolgreich gesendet an {len(subscriptions)} Gerät(e)"})

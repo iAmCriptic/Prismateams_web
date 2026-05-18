@@ -723,7 +723,52 @@ class ServerPushManager {
                 event.preventDefault();
                 await this.testPushNotification();
             }
+
+            if (event.target.matches('#reset-push-btn') ||
+                event.target.closest('#reset-push-btn')) {
+                event.preventDefault();
+                await this.resetPushRegistration();
+            }
         });
+    }
+
+    async resetPushRegistration() {
+        if (!confirm('Push-Benachrichtigungen wirklich zurücksetzen? Sie müssen sich danach erneut registrieren.')) {
+            return false;
+        }
+        try {
+            const resetResponse = await fetch('/api/notifications/reset-push', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'include',
+            });
+            if (!resetResponse.ok) {
+                throw new Error('Server-Reset fehlgeschlagen');
+            }
+
+            if (this.isPushSupported()) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.getSubscription();
+                    if (subscription) {
+                        await subscription.unsubscribe();
+                    }
+                } catch (e) {
+                    console.warn('Browser-Unsubscribe fehlgeschlagen:', e);
+                }
+            }
+
+            await this.checkPushStatus();
+            this.showTestResult('success', 'Push-Benachrichtigungen wurden zurückgesetzt. Bitte aktivieren Sie Push erneut.');
+            return true;
+        } catch (error) {
+            console.error('Reset fehlgeschlagen:', error);
+            this.showTestResult('error', 'Zurücksetzen fehlgeschlagen: ' + error.message);
+            return false;
+        }
     }
     
     async testPushNotification() {

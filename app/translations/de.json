@@ -22,6 +22,12 @@
       "more": "Mehr",
       "module": "Module",
       "back": "Zurück"
+    },
+    "notification_center": {
+      "open": "Benachrichtigungen öffnen",
+      "title": "Benachrichtigungen",
+      "mark_all_read": "Alle als gelesen",
+      "delete_all": "Alle löschen"
     }
   },
   "common": {
@@ -560,6 +566,7 @@
           "description": "Serverbasierte Benachrichtigungen für Chat, Dateien und E-Mails",
           "activate": "Push aktivieren",
           "test": "Test senden",
+          "reset": "Zurücksetzen",
           "cooldown_label": "Cooldown aktiv",
           "cooldown_timer": "2:00"
         },
@@ -791,6 +798,31 @@
         },
         "inventory": {
           "title": "Lagerverwaltung"
+        }
+      },
+      "push_subscriptions": {
+        "page_title": "Web-Push-Abonnements - Administration",
+        "breadcrumb": "Web-Push",
+        "heading": "Web-Push-Abonnements",
+        "description": "Alle registrierten Browser-Push-Endpoints mit zugehörigen Nutzern.",
+        "stats": "{active} aktiv von {total} Einträgen gesamt.",
+        "empty": "Keine Push-Abonnements vorhanden.",
+        "confirm_delete": "Dieses Abonnement wirklich löschen?",
+        "confirm_deactivate_user": "Alle aktiven Abonnements dieses Nutzers deaktivieren?",
+        "flash_deactivated": "Abonnement deaktiviert.",
+        "flash_deleted": "Abonnement gelöscht.",
+        "flash_user_deactivated": "{count} Abonnement(s) des Nutzers deaktiviert.",
+        "table": {
+          "user": "Nutzer",
+          "endpoint": "Endpoint",
+          "user_agent": "Browser/Gerät",
+          "created": "Erstellt",
+          "last_used": "Zuletzt genutzt",
+          "status": "Status"
+        },
+        "actions": {
+          "deactivate": "Deaktivieren",
+          "deactivate_all_user": "Alle deaktivieren"
         }
       },
       "cards": {

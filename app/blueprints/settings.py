@@ -192,20 +192,17 @@ def notifications():
         reminder_times = request.form.getlist('reminder_times')
         settings.set_reminder_times([int(t) for t in reminder_times])
         
-        # Chat-spezifische Einstellungen
-        # Lösche alle bestehenden Chat-Einstellungen
+        # Chat-spezifische Einstellungen: nur deaktivierte Chats speichern
         ChatNotificationSettings.query.filter_by(user_id=current_user.id).delete()
-        
-        # Erstelle neue Chat-Einstellungen
-        for key, value in request.form.items():
-            if key.startswith('chat_') and key != 'chat_notifications_enabled':
-                chat_id = int(key.split('_')[1])
-                chat_setting = ChatNotificationSettings(
+        memberships = ChatMember.query.filter_by(user_id=current_user.id).all()
+        for membership in memberships:
+            field_name = f'chat_{membership.chat_id}'
+            if field_name not in request.form:
+                db.session.add(ChatNotificationSettings(
                     user_id=current_user.id,
-                    chat_id=chat_id,
-                    notifications_enabled=True
-                )
-                db.session.add(chat_setting)
+                    chat_id=membership.chat_id,
+                    notifications_enabled=False,
+                ))
         
         db.session.commit()
         flash(translate('settings.notifications.flash_saved'), 'success')
@@ -1698,6 +1695,62 @@ def admin_modules_create_assessment_admin():
     db.session.commit()
 
     return jsonify({'success': True, 'message': f"Assessment-Admin '{username}' wurde erfolgreich angelegt."})
+
+
+@settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])
+@login_required
+def admin_push_subscriptions():
+    """Web-Push-Abonnements verwalten (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.notification import PushSubscription
+    from app.models.user import User
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        subscription_id = request.form.get('subscription_id', type=int)
+        user_id = request.form.get('user_id', type=int)
+
+        if action == 'deactivate' and subscription_id:
+            sub = PushSubscription.query.get(subscription_id)
+            if sub:
+                sub.is_active = False
+                db.session.commit()
+                flash(translate('settings.admin.push_subscriptions.flash_deactivated'), 'success')
+        elif action == 'delete' and subscription_id:
+            sub = PushSubscription.query.get(subscription_id)
+            if sub:
+                db.session.delete(sub)
+                db.session.commit()
+                flash(translate('settings.admin.push_subscriptions.flash_deleted'), 'success')
+        elif action == 'deactivate_user' and user_id:
+            subs = PushSubscription.query.filter_by(user_id=user_id, is_active=True).all()
+            for sub in subs:
+                sub.is_active = False
+            db.session.commit()
+            flash(translate('settings.admin.push_subscriptions.flash_user_deactivated', count=len(subs)), 'success')
+
+        return redirect(url_for('settings.admin_push_subscriptions'))
+
+    subscriptions = (
+        PushSubscription.query
+        .join(User, PushSubscription.user_id == User.id)
+        .order_by(PushSubscription.last_used.desc())
+        .all()
+    )
+    users_by_id = {}
+    if subscriptions:
+        user_ids = {s.user_id for s in subscriptions}
+        users_by_id = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()}
+
+    return render_template(
+        'settings/admin_push_subscriptions.html',
+        subscriptions=subscriptions,
+        users_by_id=users_by_id,
+        active_count=sum(1 for s in subscriptions if s.is_active),
+    )
 
 
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])
