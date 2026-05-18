@@ -162,7 +162,7 @@
                 <a href="{{ url_for('wiki.history', slug=page.slug) }}" class="btn btn-outline-primary">
                     <i class="bi bi-clock-history"></i> {{ _('wiki.view.buttons.history') }}
                 </a>
-                <div class="btn-group">
+                <div class="btn-group" data-context-zone data-context-menu="dropdown">
                     <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>

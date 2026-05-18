@@ -126,8 +126,26 @@
 {% if view_mode == 'grid' %}
 <div class="row g-3">
     {% for contact in contacts %}
-    <div class="col-12 col-md-6 col-lg-4">
+    <div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}">
         <div class="card h-100">
+            <div class="context-menu-source d-none" id="context-menu-contact-{{ contact.id }}">
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('contacts.edit', contact_id=contact.id) }}"><i class="bi bi-pencil me-2"></i>{{ _('contacts.index.actions.edit') }}</a></li>
+                    <li>
+                        <button type="button" class="dropdown-item" data-copy-text="{{ ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name }}{{ '\n' ~ contact.email }}{% if contact.phone %}{{ '\n' ~ contact.phone }}{% endif %}{% if contact.notes %}{{ '\n' ~ contact.notes }}{% endif %}">
+                            <i class="bi bi-clipboard me-2"></i>{{ _('context_menu.copy_info') }}
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
+                            <button type="submit" class="dropdown-item text-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
+                                <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
             <div class="card-body">
                 <h5 class="card-title mb-1">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</h5>
                 <a
@@ -182,8 +200,28 @@
             </thead>
             <tbody>
                 {% for contact in contacts %}
-                <tr>
-                    <td>{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</td>
+                <tr data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}">
+                    <td>
+                        <div class="context-menu-source d-none" id="context-menu-contact-{{ contact.id }}">
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('contacts.edit', contact_id=contact.id) }}"><i class="bi bi-pencil me-2"></i>{{ _('contacts.index.actions.edit') }}</a></li>
+                                <li>
+                                    <button type="button" class="dropdown-item" data-copy-text="{{ ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name }}{{ '\n' ~ contact.email }}{% if contact.phone %}{{ '\n' ~ contact.phone }}{% endif %}{% if contact.notes %}{{ '\n' ~ contact.notes }}{% endif %}">
+                                        <i class="bi bi-clipboard me-2"></i>{{ _('context_menu.copy_info') }}
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
+                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
+                                            <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                        {{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}
+                    </td>
                     <td class="text-nowrap">
                         <a href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" class="text-decoration-none">
                             {{ contact.email }}

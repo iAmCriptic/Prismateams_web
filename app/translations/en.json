@@ -53,6 +53,20 @@
     "select_language": "Select language",
     "unknown_error": "Unknown error"
   },
+  "context_menu": {
+    "show_browser_menu": "Show browser menu",
+    "native_hint": "Right-click again now",
+    "copy_info": "Copy info",
+    "dashboard_remove_widget": "Remove widget",
+    "dashboard_manage_widgets": "Manage widgets",
+    "format": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strike": "Strikethrough",
+      "color": "Text color"
+    }
+  },
   "auth": {
     "login": {
       "title": "Log in",
@@ -1515,6 +1529,7 @@
         "list": "Agenda"
       },
       "new_event": "New event",
+      "context_create_event": "Create event",
       "dropdown": {
         "toggle": "Open menu",
         "export": "Export calendar",

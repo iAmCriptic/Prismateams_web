@@ -5,7 +5,7 @@
 {% block content %}
 {% set chat_settings_url = url_for('chat.chat_settings', chat_id=chat.id) %}
 <!-- Desktop Header -->
-<div class="desktop-chat-header d-none d-md-flex">
+<div class="desktop-chat-header d-none d-md-flex" data-context-zone data-context-menu="dropdown">
     <div class="desktop-chat-info">
         <nav aria-label="breadcrumb" class="mb-2">
             <ol class="breadcrumb">

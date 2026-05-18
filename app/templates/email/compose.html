@@ -436,7 +436,7 @@
                         <div id="toolbar-container"></div>
                     </div>
                     <div class="email-composer-body">
-                        <div class="quill-editor-container">
+                        <div class="quill-editor-container" data-context-zone data-context-menu="quill">
                             <div id="editor"></div>
                         </div>
                     </div>
@@ -536,6 +536,9 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         placeholder: EDITOR_I18N.placeholder || ''
     });
+    if (window.PrismateamsContextMenu) {
+        window.PrismateamsContextMenu.setQuill(quill);
+    }
     var previewContent = document.getElementById('emailPreviewContent');
     var previewStatus = document.getElementById('emailPreviewStatus');
     var subjectInput = document.getElementById('subject');

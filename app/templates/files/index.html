@@ -89,9 +89,27 @@
     </div>
 </div>
 
+<div class="context-menu-source d-none" id="files-browser-context-menu">
+    <ul class="dropdown-menu">
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-folder-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</button></li>
+        {% if onlyoffice_available %}
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</button></li>
+        {% endif %}
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#newButton"><i class="bi bi-plus-circle me-2"></i>{{ _('files.index.new_button') }}</button></li>
+    </ul>
+</div>
+
 <!-- ============================================ -->
 <!-- GRID VIEW - ORDNER Sektion (IMMER sichtbar) -->
 <!-- ============================================ -->
+<div id="filesBrowserContextZone" data-context-zone data-context-menu="template" data-context-menu-id="files-browser-context-menu">
 <div id="gridViewContainer" style="display: none;">
     <!-- Ordner Überschrift - IMMER anzeigen -->
     <h5 class="mb-3">{{ _('files.index.sections.folders') }}</h5>
@@ -125,7 +143,7 @@
     <div id="foldersGridView" class="row g-3 mb-4">
         {% if subfolders %}
         {% for folder in subfolders %}
-        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}">
+        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-context-zone data-context-menu="dropdown">
             <div class="card folder-item files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -246,7 +264,7 @@
     <div id="gridView" class="row g-3">
         {% if files %}
         {% for file in files %}
-        <div class="col-12 col-md-6 col-lg-4" data-item-wrapper="file" data-item-id="{{ file.id }}">
+        <div class="col-12 col-md-6 col-lg-4" data-item-wrapper="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
             <div class="card file-item h-100 files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}"
                  {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                  {% if file.name.endswith(('.md', '.markdown')) %}
@@ -463,7 +481,7 @@
     <div id="foldersListView" class="list-group mb-4">
         {% if subfolders %}
         {% for folder in subfolders %}
-        <div class="list-group-item d-flex justify-content-between align-items-center files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder">
+        <div class="list-group-item d-flex justify-content-between align-items-center files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
             <div class="d-flex align-items-center" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'" style="cursor: pointer;">
                 <i class="bi bi-folder-fill fs-4 me-3 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
                 <span class="fw-medium">{{ folder.name }}</span>
@@ -553,7 +571,7 @@
     <div id="listView" class="list-group">
     {% if files %}
     {% for file in files %}
-        <div class="list-group-item files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}">
+        <div class="list-group-item files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
             <div class="d-flex w-100 justify-content-between align-items-center">
                 <div class="d-flex align-items-center flex-grow-1" 
                  {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
@@ -698,6 +716,7 @@
     {{ _('files.index.labels.empty_folder') }}
 </div>
 {% endif %}
+</div>
 
 <!-- Create Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
