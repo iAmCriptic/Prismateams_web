@@ -1345,6 +1345,7 @@ def _process_file_upload(file, original_name, folder_id, user_id):
         is_current=True
     )
     db.session.add(new_file)
+    return new_file
 
 
 @files_bp.route('/serve-pdf/<int:file_id>')
@@ -1905,6 +1906,38 @@ def disable_dropbox(folder_id):
     return redirect(url_for('files.browse_folder', folder_id=folder_id))
 
 
+def _dropbox_name_session_key(token):
+    return f'dropbox_guest_name_{token}'
+
+
+def _dropbox_upload_ids_session_key(token):
+    return f'dropbox_uploaded_ids_{token}'
+
+
+def _get_dropbox_session_uploads(token, folder_id):
+    raw_ids = session.get(_dropbox_upload_ids_session_key(token), [])
+    if not isinstance(raw_ids, list):
+        return []
+
+    ids = []
+    for value in raw_ids:
+        try:
+            ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        return []
+
+    files = File.query.filter(
+        File.id.in_(ids),
+        File.folder_id == folder_id,
+        File.is_current.is_(True)
+    ).all()
+    by_id = {f.id: f for f in files}
+    ordered = [by_id[file_id] for file_id in reversed(ids) if file_id in by_id]
+    return ordered
+
+
 @files_bp.route('/dropbox/<token>', methods=['GET', 'POST'])
 def dropbox_upload(token):
     """Öffentliche Upload-Seite für Briefkasten (ohne Login)."""
@@ -1922,9 +1955,27 @@ def dropbox_upload(token):
                 flash('Ungültiges Passwort.', 'danger')
         elif not session.get(f'dropbox_auth_{token}'):
             return render_template('files/dropbox_auth.html', token=token, folder_name=folder.name)
-    
-    # Show upload form
-    return render_template('files/dropbox_upload.html', token=token, folder=folder)
+
+    name_session_key = _dropbox_name_session_key(token)
+    guest_name = session.get(name_session_key)
+    if request.method == 'POST' and 'guest_name' in request.form:
+        submitted_name = request.form.get('guest_name', '').strip()
+        if not submitted_name:
+            flash('Bitte geben Sie einen Namen ein.', 'danger')
+        else:
+            session[name_session_key] = submitted_name
+            guest_name = submitted_name
+            return redirect(url_for('files.dropbox_upload', token=token))
+
+    session_uploads = _get_dropbox_session_uploads(token, folder.id)
+    return render_template(
+        'files/dropbox_upload.html',
+        token=token,
+        folder=folder,
+        guest_name=guest_name,
+        require_name_overlay=not bool(guest_name),
+        session_uploads=session_uploads,
+    )
 
 
 @files_bp.route('/dropbox/<token>/upload', methods=['POST'])
@@ -1944,7 +1995,8 @@ def dropbox_upload_file(token):
     max_size = 100 * 1024 * 1024  # 100MB in bytes
     uploaded_count = 0
     skipped_count = 0
-    uploader_name = request.form.get('uploader_name', '').strip() or 'Anonym'
+    uploader_name = session.get(_dropbox_name_session_key(token)) or request.form.get('uploader_name', '').strip() or 'Anonym'
+    uploaded_file_ids = []
     
     # Handle single file or multiple files
     if 'file' in request.files:
@@ -2004,13 +2056,24 @@ def dropbox_upload_file(token):
                     db.session.add(anonymous_user)
                     db.session.flush()
                 
-                _process_file_upload(file, file_name, folder.id, anonymous_user.id)
+                new_file = _process_file_upload(file, file_name, folder.id, anonymous_user.id)
+                db.session.flush()
+                if new_file and new_file.id:
+                    uploaded_file_ids.append(new_file.id)
                 uploaded_count += 1
             except Exception as e:
                 logging.error(f"Fehler beim Hochladen von {file_name}: {e}")
                 skipped_count += 1
         
         db.session.commit()
+        if uploaded_file_ids:
+            upload_ids_key = _dropbox_upload_ids_session_key(token)
+            current_ids = session.get(upload_ids_key, [])
+            if not isinstance(current_ids, list):
+                current_ids = []
+            current_ids.extend(uploaded_file_ids)
+            # Keep list bounded to avoid oversized sessions.
+            session[upload_ids_key] = current_ids[-200:]
         
         if uploaded_count > 0:
             flash(f'{uploaded_count} Datei(en) wurden erfolgreich hochgeladen.', 'success')
@@ -2044,6 +2107,62 @@ def _check_share_access(token):
         return None, None, share
 
     return item, guest_name, share
+
+
+def _is_descendant_folder(candidate_folder, root_folder):
+    """Prüft, ob candidate_folder innerhalb root_folder liegt (inkl. root)."""
+    current = candidate_folder
+    while current:
+        if current.id == root_folder.id:
+            return True
+        if not current.parent_id:
+            break
+        current = Folder.query.get(current.parent_id)
+    return False
+
+
+def _build_public_share_breadcrumb(root_folder, current_folder, token):
+    """Baut Breadcrumbs relativ zum freigegebenen Root-Ordner."""
+    chain = []
+    cursor = current_folder
+    while cursor:
+        chain.append(cursor)
+        if cursor.id == root_folder.id:
+            break
+        if not cursor.parent_id:
+            chain = []
+            break
+        cursor = Folder.query.get(cursor.parent_id)
+
+    chain.reverse()
+    breadcrumbs = []
+    for folder in chain:
+        breadcrumbs.append({
+            'id': folder.id,
+            'name': folder.name,
+            'url': url_for('files.public_share', token=token, folder_id=folder.id),
+        })
+    return breadcrumbs
+
+
+def _build_share_gate_preview_context(share, item):
+    """Vorschau-Kontext für vorgeschaltete Freigabe-Seiten (Name/Passwort)."""
+    if share.resource_type == 'folder':
+        preview_subfolders = Folder.query.filter_by(parent_id=item.id).order_by(Folder.name).limit(12).all()
+        preview_files = File.query.filter_by(folder_id=item.id, is_current=True).order_by(File.name).limit(24).all()
+        return {
+            'preview_item_type': 'folder',
+            'preview_folder': item,
+            'preview_subfolders': preview_subfolders,
+            'preview_files': preview_files,
+        }
+
+    return {
+        'preview_item_type': 'file',
+        'preview_folder': None,
+        'preview_subfolders': [],
+        'preview_files': [item],
+    }
 
 
 @files_bp.route('/file/<int:file_id>/share', methods=['POST'])
@@ -2192,6 +2311,7 @@ def public_share(token):
     bot_ctx = get_bot_template_context()
     bot_ctx['bot_context'] = 'share_edit'
     bot_ctx['show_bot'] = bot_ctx.get('bot_enabled_share_edit', False) and share_mode == 'edit'
+    gate_preview_ctx = _build_share_gate_preview_context(share, item)
 
     if share.password_hash:
         session_key = f'share_auth_{token}'
@@ -2231,6 +2351,7 @@ def public_share(token):
                 token=token,
                 item=item,
                 share_mode=share_mode,
+                **gate_preview_ctx,
                 **bot_ctx,
             )
         guest_name = request.form.get('guest_name', '').strip()
@@ -2247,6 +2368,7 @@ def public_share(token):
             token=token,
             item=item,
             share_mode=share_mode,
+            **gate_preview_ctx,
             **bot_ctx,
         )
 
@@ -2268,16 +2390,34 @@ def public_share(token):
             **bot_ctx,
         )
 
-    folder_files = File.query.filter_by(folder_id=item.id, is_current=True).order_by(File.name).all()
+    requested_folder_id = request.args.get('folder_id', type=int)
+    active_folder = item
+    if requested_folder_id:
+        requested_folder = Folder.query.get_or_404(requested_folder_id)
+        if _is_descendant_folder(requested_folder, item):
+            active_folder = requested_folder
+        else:
+            flash('Der angeforderte Unterordner ist nicht Teil dieser Freigabe.', 'warning')
+            return redirect(url_for('files.public_share', token=token))
+
+    folder_files = File.query.filter_by(folder_id=active_folder.id, is_current=True).order_by(File.name).all()
+    subfolders = Folder.query.filter_by(parent_id=active_folder.id).order_by(Folder.name).all()
+    breadcrumb_folders = _build_public_share_breadcrumb(item, active_folder, token)
+    can_edit = share_mode == 'edit'
+
     return render_template(
         'files/share.html',
         item_type='folder',
         folder=item,
+        current_share_folder=active_folder,
+        subfolders=subfolders,
+        breadcrumb_folders=breadcrumb_folders,
         folder_files=folder_files,
         token=token,
         guest_name=guest_name,
         onlyoffice_available=onlyoffice_available,
         share_mode=share_mode,
+        can_edit=can_edit,
         **bot_ctx,
     )
 
@@ -2296,6 +2436,73 @@ def public_share_download(token):
     db.session.commit()
     file_path = shared_file.file_path if os.path.isabs(shared_file.file_path) else os.path.join(os.getcwd(), shared_file.file_path)
     return send_file(file_path, as_attachment=True, download_name=shared_file.original_name)
+
+
+@files_bp.route('/share/<token>/view', methods=['GET'])
+def public_share_view(token):
+    """Browser-Ansicht für direkt freigegebene Datei (PDF/Text/Markdown)."""
+    share = get_share_by_token(token) or abort(404)
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item or share.resource_type != 'file':
+        flash('Zugriff verweigert.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    file = item
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext == '.pdf':
+        log_share_access(share, 'view_pdf', request, guest_name=guest_name)
+        db.session.commit()
+        return render_template(
+            'files/view.html',
+            file=file,
+            is_pdf=True,
+            back_url=url_for('files.public_share', token=token)
+        )
+
+    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
+    if file_ext not in viewable_extensions:
+        flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
+        return redirect(url_for('files.public_share', token=token))
+
+    try:
+        file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    processed_content = _render_view_content(content, file_ext)
+    log_share_access(share, 'view_file', request, guest_name=guest_name)
+    db.session.commit()
+    return render_template(
+        'files/view.html',
+        file=file,
+        content=content,
+        processed_content=processed_content,
+        is_markdown=_is_markdown_extension(file_ext),
+        is_pdf=False,
+        back_url=url_for('files.public_share', token=token)
+    )
+
+
+@files_bp.route('/share/<token>/pdf', methods=['GET'])
+def public_share_pdf(token):
+    """PDF-Stream für direkt freigegebene Datei."""
+    share = get_share_by_token(token) or abort(404)
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item or share.resource_type != 'file':
+        abort(404)
+    file = item
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext != '.pdf':
+        abort(404)
+    file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
+    if not os.path.exists(file_path):
+        abort(404)
+    log_share_access(share, 'view_pdf', request, guest_name=guest_name)
+    db.session.commit()
+    return send_file(file_path, mimetype='application/pdf')
 
 
 @files_bp.route('/share/<token>/file/<int:file_id>/download', methods=['GET'])
@@ -2318,6 +2525,80 @@ def public_share_folder_file_download(token, file_id):
     return send_file(file_path, as_attachment=True, download_name=file.original_name)
 
 
+@files_bp.route('/share/<token>/file/<int:file_id>/view', methods=['GET'])
+def public_share_folder_file_view(token, file_id):
+    """Browser-Ansicht für Datei in freigegebenem Ordner."""
+    share = get_share_by_token(token) or abort(404)
+    if share.resource_type != 'folder':
+        abort(404)
+    shared_root = resolve_resource(share) or abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
+
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item:
+        flash('Zugriff verweigert.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    back_url = url_for('files.public_share', token=token, folder_id=file.folder_id)
+    if file_ext == '.pdf':
+        log_share_access(share, 'view_pdf', request, guest_name=guest_name)
+        db.session.commit()
+        return render_template('files/view.html', file=file, is_pdf=True, back_url=back_url)
+
+    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
+    if file_ext not in viewable_extensions:
+        flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
+        return redirect(back_url)
+
+    try:
+        file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
+        return redirect(back_url)
+
+    processed_content = _render_view_content(content, file_ext)
+    log_share_access(share, 'view_file', request, guest_name=guest_name)
+    db.session.commit()
+    return render_template(
+        'files/view.html',
+        file=file,
+        content=content,
+        processed_content=processed_content,
+        is_markdown=_is_markdown_extension(file_ext),
+        is_pdf=False,
+        back_url=back_url
+    )
+
+
+@files_bp.route('/share/<token>/file/<int:file_id>/pdf', methods=['GET'])
+def public_share_folder_file_pdf(token, file_id):
+    """PDF-Stream für Datei in freigegebenem Ordner."""
+    share = get_share_by_token(token) or abort(404)
+    if share.resource_type != 'folder':
+        abort(404)
+    shared_root = resolve_resource(share) or abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext != '.pdf':
+        abort(404)
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item:
+        abort(404)
+    file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
+    if not os.path.exists(file_path):
+        abort(404)
+    log_share_access(share, 'view_pdf', request, guest_name=guest_name)
+    db.session.commit()
+    return send_file(file_path, mimetype='application/pdf')
+
+
 @files_bp.route('/share/<token>/upload', methods=['POST'])
 def public_share_upload(token):
     share = get_share_by_token(token) or abort(404)
@@ -2333,7 +2614,14 @@ def public_share_upload(token):
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
 
+    requested_folder_id = request.form.get('folder_id', type=int)
     shared_folder = item
+    if requested_folder_id:
+        target_folder = Folder.query.get_or_404(requested_folder_id)
+        if not _is_descendant_folder(target_folder, item):
+            flash('Ungültiger Zielordner für Upload.', 'danger')
+            return redirect(url_for('files.public_share', token=token))
+        shared_folder = target_folder
     if share.password_hash and not session.get(f'share_auth_{token}'):
         password = request.form.get('password', '')
         if not check_password_hash(share.password_hash, password):
@@ -2373,6 +2661,72 @@ def public_share_upload(token):
         db.session.commit()
         flash('Upload abgeschlossen.', 'success')
     return redirect(url_for('files.public_share', token=token))
+
+
+@files_bp.route('/share/<token>/create-folder', methods=['POST'])
+def public_share_create_folder(token):
+    share = get_share_by_token(token) or abort(404)
+    if normalize_share_mode(share.mode) != 'edit':
+        flash('Ordner erstellen ist fuer diese Freigabe nicht erlaubt.', 'warning')
+        return redirect(url_for('files.public_share', token=token))
+    if not _validate_share_edit_bot(token):
+        flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item or share.resource_type != 'folder':
+        flash('Zugriff verweigert.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    folder_name = request.form.get('folder_name', '').strip()
+    if not folder_name:
+        flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+    if '/' in folder_name or '\\' in folder_name:
+        flash('Ungültiger Ordnername.', 'danger')
+        return redirect(url_for('files.public_share', token=token))
+
+    parent_id = request.form.get('parent_id', type=int)
+    parent_folder = item
+    if parent_id:
+        requested_parent = Folder.query.get_or_404(parent_id)
+        if not _is_descendant_folder(requested_parent, item):
+            flash('Ungültiger Zielordner.', 'danger')
+            return redirect(url_for('files.public_share', token=token))
+        parent_folder = requested_parent
+
+    existing_folder = Folder.query.filter_by(parent_id=parent_folder.id, name=folder_name).first()
+    if existing_folder:
+        flash(f'Ein Ordner mit dem Namen "{folder_name}" existiert bereits.', 'warning')
+        return redirect(url_for('files.public_share', token=token, folder_id=parent_folder.id))
+
+    uploader_name = request.form.get('uploader_name', '').strip() or guest_name or 'Anonym'
+    anonymous_user = User.query.filter_by(email='anonymous@system.local').first()
+    if not anonymous_user:
+        anonymous_user = User(
+            email='anonymous@system.local',
+            first_name=uploader_name,
+            last_name='',
+            password_hash='',
+            is_active=True,
+            is_admin=False,
+            is_email_confirmed=True
+        )
+        db.session.add(anonymous_user)
+        db.session.flush()
+    elif uploader_name:
+        anonymous_user.first_name = uploader_name
+
+    new_folder = Folder(
+        name=folder_name,
+        parent_id=parent_folder.id,
+        created_by=anonymous_user.id
+    )
+    db.session.add(new_folder)
+    log_share_access(share, 'create_folder', request, guest_name=uploader_name)
+    db.session.commit()
+    flash(f'Ordner "{folder_name}" wurde erstellt.', 'success')
+    return redirect(url_for('files.public_share', token=token, folder_id=parent_folder.id))
 
 # ONLYOFFICE Routes
 @files_bp.route('/api/onlyoffice-debug', methods=['GET'])

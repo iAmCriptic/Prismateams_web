@@ -2,140 +2,205 @@
 
 {% block title %}Briefkasten - Dateien hochladen{% endblock %}
 
+{% block extra_css %}
+<style>
+.dropbox-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.dropbox-brand-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid var(--bs-border-color);
+}
+
+.dropbox-upload-card {
+    border-radius: 0.9rem;
+}
+
+.dropbox-gate-page {
+    position: relative;
+    min-height: calc(100vh - 2rem);
+}
+
+.dropbox-gate-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.dropbox-gate-modal {
+    width: 100%;
+    max-width: 460px;
+    border-radius: 1rem;
+}
+
+.dropbox-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 0.75rem;
+}
+
+.dropbox-preview-item {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bs-body-bg);
+}
+
+#dropboxListView {
+    display: none;
+}
+
+#dropboxListView:not(.d-none) {
+    display: block;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <i class="bi bi-mailbox fs-1 text-primary mb-3"></i>
-                    <h3>Briefkasten</h3>
-                    <p class="text-muted">{{ folder.name }}</p>
-                </div>
-                
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<div class="dropbox-shell">
+    <div class="row justify-content-center">
+    <div class="col-xl-11 col-12">
+    <div class="dropbox-brand">
+        {% if portal_logo_filename %}
+        <img class="dropbox-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+        {% elif app_logo %}
+        <img class="dropbox-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+        {% endif %}
+        <div>
+            <div class="fw-semibold">{{ app_name or 'Prismateams' }}</div>
+            <small class="text-muted">Briefkasten</small>
+        </div>
+    </div>
+
+    <div class="dropbox-gate-page">
+        {% if require_name_overlay %}
+        <div class="dropbox-gate-overlay">
+            <div class="card shadow dropbox-gate-modal">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-circle fs-1 text-primary mb-3"></i>
+                        <h3>Briefkasten</h3>
+                        <p class="text-muted mb-0">{{ folder.name }}</p>
+                        <small class="text-muted">Bitte Namen eingeben, um hochzuladen</small>
+                    </div>
+                    <form method="POST" action="{{ url_for('files.dropbox_upload', token=token) }}">
+                        <div class="mb-3">
+                            <label for="guest_name" class="form-label">Ihr Name</label>
+                            <input type="text" class="form-control" id="guest_name" name="guest_name" required autofocus placeholder="Max Mustermann">
                         </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                <form method="POST" action="{{ url_for('files.dropbox_upload_file', token=token) }}" enctype="multipart/form-data" id="uploadForm">
-                    <div class="mb-3">
-                        <label for="uploader_name" class="form-label">Ihr Name (optional)</label>
-                        <input type="text" class="form-control" id="uploader_name" name="uploader_name" placeholder="Anonym">
-                        <div class="form-text">Ihr Name wird als Ersteller angezeigt. Lassen Sie das Feld leer für anonyme Uploads.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="file" class="form-label">Dateien auswählen</label>
-                        <input type="file" class="form-control" id="file" name="file" multiple required>
-                        <div class="form-text">Maximale Dateigröße: 100MB pro Datei. Mehrere Dateien können gleichzeitig ausgewählt werden.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="folder_upload" class="form-label">Oder Ordner auswählen</label>
-                        <input type="file" class="form-control" id="folder_upload" name="file" webkitdirectory directory multiple>
-                        <div class="form-text">Dateien größer als 100MB werden automatisch übersprungen.</div>
-                    </div>
-                    
-                    <div class="progress mb-3" style="display: none;" id="uploadProgress">
-                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary w-100" id="uploadBtn">
-                        <i class="bi bi-upload"></i> Dateien hochladen
-                    </button>
-                </form>
-                
-                <div class="mt-4 text-center text-muted small">
-                    <i class="bi bi-info-circle"></i>
-                    Sie können die hochgeladenen Dateien nicht sehen. Sie werden nur dem Besitzer des Briefkastens angezeigt.
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-check-circle"></i> Weiter
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
+        {% else %}
+        <div class="card shadow dropbox-upload-card">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <div>
+                        <h4 class="mb-0">{{ folder.name }}</h4>
+                        <small class="text-muted">Als Gast angemeldet: {{ guest_name }}</small>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-secondary" id="dropboxListViewBtn" type="button" title="Listenansicht">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary active" id="dropboxGridViewBtn" type="button" title="Rasteransicht">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('files.dropbox_upload_file', token=token) }}" enctype="multipart/form-data" id="uploadForm">
+                    <input type="hidden" name="uploader_name" value="{{ guest_name }}">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-primary" id="chooseFilesBtn">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Dateien auswählen
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="chooseFolderBtn">
+                            <i class="bi bi-folder2-open"></i> Ordner auswählen
+                        </button>
+                    </div>
+                    <input type="file" class="d-none" id="file" name="file" multiple>
+                    <input type="file" class="d-none" id="folder_upload" name="file" webkitdirectory directory multiple>
+                    <div class="small text-muted mb-2" id="selectionInfo">Wählen Sie Dateien oder einen Ordner aus. Upload startet automatisch.</div>
+                    <div class="progress mb-3" style="display: none;" id="uploadProgress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </form>
+
+                <h5 class="mt-4 mb-3">Ihre Uploads in dieser Sitzung</h5>
+                <div id="dropboxGridViewContainer">
+                    {% if session_uploads %}
+                    <div class="row g-3" id="dropboxGridView">
+                        {% for file in session_uploads %}
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <i class="bi bi-file-earmark fs-3"></i>
+                                    <div class="mt-2 fw-semibold text-break">{{ file.name }}</div>
+                                    <small class="text-muted">
+                                        {% if file.file_size > 1024*1024 %}
+                                            {{ (file.file_size / (1024*1024))|round(1) }} MB
+                                        {% else %}
+                                            {{ (file.file_size / 1024)|round(1) }} KB
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary mb-0">Noch keine Uploads in dieser Sitzung.</div>
+                    {% endif %}
+                </div>
+                <div id="dropboxListViewContainer" class="d-none">
+                    {% if session_uploads %}
+                    <div class="list-group" id="dropboxListView">
+                        {% for file in session_uploads %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                            <div class="d-flex align-items-center min-width-0">
+                                <i class="bi bi-file-earmark me-2"></i>
+                                <span class="text-truncate">{{ file.name }}</span>
+                            </div>
+                            <small class="text-muted flex-shrink-0">
+                                {% if file.file_size > 1024*1024 %}
+                                    {{ (file.file_size / (1024*1024))|round(1) }} MB
+                                {% else %}
+                                    {{ (file.file_size / 1024)|round(1) }} KB
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary mb-0">Noch keine Uploads in dieser Sitzung.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+</div>
+</div>
+{% endblock %}
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fileInput = document.getElementById('file');
-    const folderInput = document.getElementById('folder_upload');
-    const uploadForm = document.getElementById('uploadForm');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const uploadProgress = document.getElementById('uploadProgress');
-    const maxSize = 100 * 1024 * 1024; // 100MB
-    
-    function validateUpload() {
-        let hasValidInput = false;
-        
-        if (fileInput && fileInput.files.length > 0) {
-            // Check all files
-            for (let i = 0; i < fileInput.files.length; i++) {
-                if (fileInput.files[i].size > maxSize) {
-                    alert(`Die Datei "${fileInput.files[i].name}" ist zu groß. Maximale Größe: 100MB pro Datei`);
-                    fileInput.value = '';
-                    uploadBtn.disabled = true;
-                    return;
-                }
-            }
-            hasValidInput = true;
-        }
-        
-        if (folderInput && folderInput.files.length > 0) {
-            hasValidInput = true;
-        }
-        
-        uploadBtn.disabled = !hasValidInput;
-    }
-    
-    if (fileInput) {
-        fileInput.addEventListener('change', function() {
-            if (folderInput && folderInput.files.length > 0) {
-                folderInput.value = '';
-            }
-            validateUpload();
-        });
-    }
-    
-    if (folderInput) {
-        folderInput.addEventListener('change', function() {
-            if (fileInput && fileInput.files.length > 0) {
-                fileInput.value = '';
-            }
-            validateUpload();
-        });
-    }
-    
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', function(e) {
-            if ((!fileInput || fileInput.files.length === 0) && 
-                (!folderInput || folderInput.files.length === 0)) {
-                e.preventDefault();
-                alert('Bitte wählen Sie eine Datei oder einen Ordner aus.');
-                return;
-            }
-            
-            uploadProgress.style.display = 'block';
-            uploadBtn.disabled = true;
-            uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Hochladen...';
-            
-            let progress = 0;
-            const interval = setInterval(function() {
-                progress += Math.random() * 15;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                }
-                uploadProgress.querySelector('.progress-bar').style.width = progress + '%';
-            }, 200);
-        });
-    }
-});
-</script>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dropbox-browser.js') }}"></script>
 {% endblock %}
 

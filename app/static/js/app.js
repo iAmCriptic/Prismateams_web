@@ -1,4 +1,5 @@
 // Team Portal JavaScript
+const disablePublicPrompts = !!window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS;
 
 // Status-Meldung beim Laden der Seite
 function showStatusInfo() {
@@ -43,6 +44,10 @@ let installButtonHideTimeout = null;
 let lastUserActivity = Date.now();
 
 window.addEventListener('beforeinstallprompt', function(e) {
+    if (disablePublicPrompts) {
+        e.preventDefault();
+        return;
+    }
     // Verhindere Standard-Browser-Prompt, da wir unseren eigenen Install-Button zeigen
     e.preventDefault();
     window.deferredPrompt = e;
@@ -64,6 +69,9 @@ window.addEventListener('beforeinstallprompt', function(e) {
 });
 
 function showInstallButton() {
+    if (disablePublicPrompts) {
+        return;
+    }
     // Erstelle Install-Button falls noch nicht vorhanden
     if (!document.getElementById('pwa-install-btn')) {
         const installBtn = document.createElement('button');
@@ -376,6 +384,10 @@ class ServerPushManager {
     }
     
     init() {
+        if (disablePublicPrompts) {
+            this.hidePushActivationPrompt();
+            return;
+        }
         // Prüfe Push-Status beim Laden
         this.checkPushStatus().then((status) => {
             if (!status) {

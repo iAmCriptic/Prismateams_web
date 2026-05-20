@@ -184,6 +184,11 @@
                                     </a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item" href="#" onclick="openShareActivity('folder', {{ folder.id }}); return false;">
+                                        <i class="bi bi-clock-history"></i> Aktivitätsverlauf
+                                    </a>
+                                </li>
+                                <li>
                                     <form method="POST" action="{{ url_for('files.update_folder_share', folder_id=folder.id) }}" class="d-inline">
                                         <input type="hidden" name="action" value="disable">
                                         <button type="submit" class="dropdown-item">
@@ -516,6 +521,11 @@
                     <li>
                         <a class="dropdown-item" href="#" onclick="openShareSettings('folder', {{ folder.id }}); return false;">
                             <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.share_edit') }}
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="openShareActivity('folder', {{ folder.id }}); return false;">
+                            <i class="bi bi-clock-history"></i> Aktivitätsverlauf
                         </a>
                     </li>
                     <li>
@@ -2231,6 +2241,7 @@ function closeFileDetails() {
 
 // Briefkasten Einstellungen
 function openDropboxSettings(folderId) {
+    closeActiveMenus();
     const modal = new bootstrap.Modal(document.getElementById('dropboxSettingsModal'));
     const content = document.getElementById('dropboxSettingsContent');
     const dropboxLabels = FILES_I18N.modals.dropbox;
@@ -2482,6 +2493,7 @@ function bindShareModeToggles(form) {
 }
 
 function openShareDialog(type, id) {
+    closeActiveMenus();
     const shareLabels = FILES_I18N.modals.share;
     const title = type === 'file' ? shareLabels.title_file : shareLabels.title_folder;
     const formAction = type === 'file' ? `/files/file/${id}/share` : `/files/folder/${id}/share`;
@@ -2547,7 +2559,31 @@ function formatAccessLogAction(action) {
     return labels[action] || action;
 }
 
+function closeActiveMenus() {
+    document.querySelectorAll('.dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
+    document.querySelectorAll('.dropdown.show').forEach(dropdown => dropdown.classList.remove('show'));
+    if (window.PrismateamsContextMenu && typeof window.PrismateamsContextMenu.close === 'function') {
+        window.PrismateamsContextMenu.close();
+    }
+}
+
+function renderShareAccessLogsTable(logs, shareLabels) {
+    if (!logs.length) {
+        return `<p class="text-muted small">${shareLabels.access_log_empty || 'Noch keine Zugriffe protokolliert.'}</p>`;
+    }
+    return `
+        <div class="table-responsive" style="max-height:320px;overflow:auto;">
+            <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>${shareLabels.access_log_time || 'Zeit'}</th><th>${shareLabels.access_log_action || 'Aktion'}</th><th>IP</th><th>${shareLabels.access_log_guest || 'Gast'}</th></tr></thead>
+                <tbody>
+                    ${logs.map(log => `<tr><td>${(log.accessed_at || '').replace('T', ' ').substring(0, 16)}</td><td>${formatAccessLogAction(log.action)}</td><td>${log.ip_address || '–'}</td><td>${log.guest_name || '–'}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
 function openShareSettings(type, id) {
+    closeActiveMenus();
     const shareLabels = FILES_I18N.modals.share;
     const endpoint = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
     fetch(endpoint)
@@ -2558,16 +2594,10 @@ function openShareSettings(type, id) {
             const formAction = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
             const linksHtml = (item.links || []).map(link => renderShareLinkSection(shareLabels, formAction, link)).join('');
             const logs = item.access_logs || [];
-            const logsHtml = logs.length ? `
+            const logsHtml = `
                 <h6 class="mt-3">${shareLabels.access_log_title || 'Letzte Zugriffe'}</h6>
-                <div class="table-responsive" style="max-height:200px;overflow:auto;">
-                    <table class="table table-sm table-striped mb-0">
-                        <thead><tr><th>${shareLabels.access_log_time || 'Zeit'}</th><th>${shareLabels.access_log_action || 'Aktion'}</th><th>IP</th><th>${shareLabels.access_log_guest || 'Gast'}</th></tr></thead>
-                        <tbody>
-                            ${logs.map(log => `<tr><td>${(log.accessed_at || '').replace('T', ' ').substring(0, 16)}</td><td>${formatAccessLogAction(log.action)}</td><td>${log.ip_address || '–'}</td><td>${log.guest_name || '–'}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>` : `<p class="text-muted small">${shareLabels.access_log_empty || 'Noch keine Zugriffe protokolliert.'}</p>`;
+                ${renderShareAccessLogsTable(logs, shareLabels)}
+            `;
             const html = `
                 <form method="POST" action="${formAction}">
                     ${linksHtml}
@@ -2579,6 +2609,21 @@ function openShareSettings(type, id) {
                     </div>
                 </form>`;
             showSimpleModal(shareLabels.edit_title, html);
+        });
+}
+
+function openShareActivity(type, id) {
+    closeActiveMenus();
+    const shareLabels = FILES_I18N.modals.share;
+    const endpoint = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
+    fetch(endpoint)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { return; }
+            const logs = data.item?.access_logs || [];
+            const title = `${shareLabels.access_log_title || 'Aktivitätsverlauf'}${data.item?.name ? ` – ${data.item.name}` : ''}`;
+            const html = renderShareAccessLogsTable(logs, shareLabels);
+            showSimpleModal(title, html);
         });
 }
 

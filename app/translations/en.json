@@ -54,8 +54,6 @@
     "unknown_error": "Unknown error"
   },
   "context_menu": {
-    "show_browser_menu": "Show browser menu",
-    "native_hint": "Right-click again now",
     "copy_info": "Copy info",
     "dashboard_remove_widget": "Remove widget",
     "dashboard_manage_widgets": "Manage widgets",

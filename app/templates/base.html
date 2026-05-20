@@ -640,9 +640,13 @@
     <!-- Custom JS -->
     <script>
     window.PRISMATEAMS_I18N = window.PRISMATEAMS_I18N || {};
+    window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS = {{ (
+        request.endpoint and (
+            request.endpoint.startswith('files.public_share') or
+            request.endpoint.startswith('files.dropbox_')
+        )
+    ) | tojson }};
     window.PRISMATEAMS_I18N.context_menu = {{ {
-        'show_browser_menu': _('context_menu.show_browser_menu'),
-        'native_hint': _('context_menu.native_hint'),
         'copy_info': _('context_menu.copy_info'),
         'dashboard_remove_widget': _('context_menu.dashboard_remove_widget'),
         'dashboard_manage_widgets': _('context_menu.dashboard_manage_widgets'),

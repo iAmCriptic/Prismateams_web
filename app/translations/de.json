@@ -54,8 +54,6 @@
     "unknown_error": "Unbekannter Fehler"
   },
   "context_menu": {
-    "show_browser_menu": "Browser-Menü anzeigen",
-    "native_hint": "Jetzt erneut rechtsklicken",
     "copy_info": "Infos kopieren",
     "dashboard_remove_widget": "Widget entfernen",
     "dashboard_manage_widgets": "Widgets verwalten",

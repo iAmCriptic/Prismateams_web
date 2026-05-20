@@ -2,17 +2,119 @@
 
 {% block title %}Freigabe - Name eingeben{% endblock %}
 
+{% block extra_css %}
+<style>
+.share-gate-page {
+    position: relative;
+    min-height: calc(100vh - 2rem);
+}
+
+.share-gate-preview {
+    pointer-events: none;
+    filter: blur(1px);
+    opacity: 0.95;
+}
+
+.share-gate-preview .card {
+    border-radius: 0.75rem;
+}
+
+.share-gate-preview .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+
+.share-gate-preview .preview-item {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bs-body-bg);
+    min-height: 96px;
+}
+
+.share-gate-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(1px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.share-gate-modal {
+    width: 100%;
+    max-width: 460px;
+    border-radius: 1rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
+<div class="share-gate-page">
+    <div class="share-gate-preview">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                {% if preview_item_type == 'folder' %}
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-folder2-open me-2"></i>
+                    <h5 class="mb-0">{{ preview_folder.name }}</h5>
+                </div>
+                {% if preview_subfolders %}
+                <h6 class="text-muted mb-2">Ordner</h6>
+                <div class="preview-grid mb-4">
+                    {% for folder in preview_subfolders %}
+                    <div class="preview-item">
+                        <i class="bi bi-folder-fill text-warning fs-4"></i>
+                        <div class="mt-2 text-break">{{ folder.name }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <h6 class="text-muted mb-2">Dateien</h6>
+                <div class="preview-grid">
+                    {% for file in preview_files %}
+                    <div class="preview-item">
+                        <i class="bi bi-file-earmark fs-4"></i>
+                        <div class="mt-2 text-break">{{ file.name }}</div>
+                        {% if file.file_size %}
+                        <small class="text-muted">
+                            {% if file.file_size > 1024*1024 %}
+                                {{ (file.file_size / (1024*1024))|round(1) }} MB
+                            {% else %}
+                                {{ (file.file_size / 1024)|round(1) }} KB
+                            {% endif %}
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="preview-grid">
+                    {% for file in preview_files %}
+                    <div class="preview-item">
+                        <i class="bi bi-file-earmark fs-4"></i>
+                        <div class="mt-2 text-break">{{ file.name }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="share-gate-overlay">
+        <div class="card shadow share-gate-modal">
             <div class="card-body p-4">
                 <div class="text-center mb-4">
                     <i class="bi bi-person-circle fs-1 text-primary mb-3"></i>
                     <h3>Freigabe</h3>
-                    <p class="text-muted">{{ item.name }}</p>
+                    <p class="text-muted mb-0">{{ item.name }}</p>
+                    <small class="text-muted">Name eingeben und weiter zu den Dateien</small>
                 </div>
-                
+
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
@@ -23,7 +125,7 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
-                
+
                 <form method="POST" action="{{ url_for('files.public_share', token=token) }}">
                     {% if show_bot %}
                     {% include 'auth/_bot_protection.html' %}

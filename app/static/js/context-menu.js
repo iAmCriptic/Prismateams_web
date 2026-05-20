@@ -9,8 +9,6 @@
     function i18n() {
         const c = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.context_menu) || {};
         return {
-            show_browser_menu: c.show_browser_menu || 'Browser-Menü anzeigen',
-            native_hint: c.native_hint || 'Erneut rechtsklicken für Browser-Menü',
             copy_info: c.copy_info || 'Infos kopieren',
             dashboard_remove_widget: c.dashboard_remove_widget || 'Widget entfernen',
             dashboard_manage_widgets: c.dashboard_manage_widgets || 'Widgets verwalten',
@@ -29,8 +27,6 @@
 
     let activeMenu = null;
     let quillInstance = null;
-    let awaitingNative = null;
-    let nativeHintEl = null;
     const dynamicMatchers = [];
 
     function isEnabled() {
@@ -44,39 +40,9 @@
         }
     }
 
-    function hideNativeHint() {
-        if (nativeHintEl) {
-            nativeHintEl.remove();
-            nativeHintEl = null;
-        }
-    }
-
-    function showNativeHint(x, y) {
-        hideNativeHint();
-        nativeHintEl = document.createElement(String.fromCharCode(100, 105, 118));
-        nativeHintEl.className = 'pt-native-hint alert alert-secondary shadow-sm py-1 px-2 small mb-0';
-        nativeHintEl.textContent = i18n().native_hint;
-        nativeHintEl.style.cssText =
-            'position:fixed;z-index:1090;max-width:240px;pointer-events:none;';
-        document.body.appendChild(nativeHintEl);
-        const rect = nativeHintEl.getBoundingClientRect();
-        let left = x + 8;
-        let top = y + 8;
-        if (left + rect.width > window.innerWidth - 8) left = x - rect.width - 8;
-        if (top + rect.height > window.innerHeight - 8) top = y - rect.height - 8;
-        nativeHintEl.style.left = left + 'px';
-        nativeHintEl.style.top = top + 'px';
-    }
-
-    function requestNativeContextMenu(x, y) {
-        closeMenu();
-        awaitingNative = {
-            until: Date.now() + 8000,
-            x,
-            y,
-            tolerance: 28
-        };
-        showNativeHint(x, y);
+    /** Shift/Ctrl/Cmd + Rechtsklick → natives Browser-Menü (kein Custom-Menü). */
+    function isNativeBrowserMenuShortcut(e) {
+        return e.shiftKey || e.ctrlKey || e.metaKey;
     }
 
     function shouldIgnoreTarget(target) {
@@ -155,9 +121,13 @@
             el.innerHTML =
                 (action.icon ? '<i class="bi ' + action.icon + ' me-2"></i>' : '') + (action.label || '');
             el.addEventListener('click', (ev) => {
-                ev.preventDefault();
                 ev.stopPropagation();
                 closeMenu();
+                if (action.href) {
+                    window.location.assign(action.href);
+                    return;
+                }
+                ev.preventDefault();
                 if (action.triggerClick) {
                     const trigger = document.querySelector(action.triggerClick);
                     if (trigger) trigger.click();
@@ -219,25 +189,6 @@
         }
     }
 
-    function appendBrowserMenuItem(menu, zone, originalEvent) {
-        const divider = document.createElement('li');
-        divider.innerHTML = '<hr class="dropdown-divider">';
-        menu.appendChild(divider);
-
-        const li = document.createElement('li');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'dropdown-item text-muted pt-native-menu-trigger';
-        btn.innerHTML = '<i class="bi bi-window me-2"></i>' + i18n().show_browser_menu;
-        btn.addEventListener('click', (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            requestNativeContextMenu(originalEvent.clientX, originalEvent.clientY);
-        });
-        li.appendChild(btn);
-        menu.appendChild(li);
-    }
-
     function wireMenuInteractions(menu, container) {
         menu.querySelectorAll('[data-confirm-delete]').forEach((button) => {
             button.addEventListener('click', function (e) {
@@ -274,7 +225,7 @@
                 return;
             }
             const item = e.target.closest('a.dropdown-item, button.dropdown-item');
-            if (!item || item.classList.contains('pt-native-menu-trigger')) return;
+            if (!item) return;
             const copyText = item.getAttribute('data-copy-text');
             if (copyText) {
                 e.preventDefault();
@@ -286,7 +237,7 @@
         });
     }
 
-    function showFloatingMenu(clientX, clientY, menu, zone, originalEvent) {
+    function showFloatingMenu(clientX, clientY, menu) {
         closeMenu();
 
         const container = document.createElement(String.fromCharCode(100, 105, 118));
@@ -294,7 +245,6 @@
         container.className = 'pt-context-menu';
         container.setAttribute('role', 'menu');
         container.appendChild(menu);
-        appendBrowserMenuItem(menu, zone, originalEvent);
         document.body.appendChild(container);
 
         wireMenuInteractions(menu, container);
@@ -361,84 +311,58 @@
         return null;
     }
 
-    document.addEventListener(
-        'contextmenu',
-        (e) => {
-            if (!isEnabled()) return;
+    function onContextMenu(e) {
+        if (!isEnabled()) return;
 
-            if (awaitingNative && Date.now() < awaitingNative.until) {
-                const { x, y, tolerance } = awaitingNative;
-                const near =
-                    Math.abs(e.clientX - x) <= tolerance && Math.abs(e.clientY - y) <= tolerance;
-                if (near) {
-                    awaitingNative = null;
-                    hideNativeHint();
-                    return;
-                }
-            } else if (awaitingNative) {
-                awaitingNative = null;
-                hideNativeHint();
-            }
+        if (isNativeBrowserMenuShortcut(e)) return;
 
-            if (e.shiftKey) return;
+        if (shouldIgnoreTarget(e.target)) return;
 
-            if (shouldIgnoreTarget(e.target)) return;
-
-            const dynamic = tryDynamicMenu(e.target, e);
-            if (dynamic) {
-                e.preventDefault();
-                e.stopPropagation();
-                showFloatingMenu(e.clientX, e.clientY, dynamic.menu, dynamic.zone, e);
-                return;
-            }
-
-            const zone = findZone(e.target);
-            if (!zone) return;
-
-            const menuType = zone.getAttribute('data-context-menu');
-            if (!menuType || menuType === 'none') return;
-
+        const dynamic = tryDynamicMenu(e.target, e);
+        if (dynamic) {
             e.preventDefault();
             e.stopPropagation();
+            showFloatingMenu(e.clientX, e.clientY, dynamic.menu);
+            return;
+        }
 
-            if (menuType === 'quill') {
-                if (!quillInstance) return;
-                showFloatingMenu(e.clientX, e.clientY, buildQuillMenu(), zone, e);
-                return;
-            }
+        const zone = findZone(e.target);
+        if (!zone) return;
 
-            if (menuType === 'dashboard-widget') {
-                const widgetId = zone.getAttribute('data-widget-id');
-                if (!widgetId) return;
-                showFloatingMenu(
-                    e.clientX,
-                    e.clientY,
-                    buildDashboardWidgetMenu(widgetId),
-                    zone,
-                    e
-                );
-                return;
-            }
+        const menuType = zone.getAttribute('data-context-menu');
+        if (!menuType || menuType === 'none') return;
 
-            const sourceMenu = resolveSourceMenu(zone, menuType);
-            if (!sourceMenu || !sourceMenu.children.length) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-            const menu = prepareClonedMenu(sourceMenu);
-            showFloatingMenu(e.clientX, e.clientY, menu, zone, e);
-        },
-        true
-    );
+        if (menuType === 'quill') {
+            if (!quillInstance) return;
+            showFloatingMenu(e.clientX, e.clientY, buildQuillMenu());
+            return;
+        }
+
+        if (menuType === 'dashboard-widget') {
+            const widgetId = zone.getAttribute('data-widget-id');
+            if (!widgetId) return;
+            showFloatingMenu(e.clientX, e.clientY, buildDashboardWidgetMenu(widgetId));
+            return;
+        }
+
+        const sourceMenu = resolveSourceMenu(zone, menuType);
+        if (!sourceMenu || !sourceMenu.children.length) return;
+
+        const menu = prepareClonedMenu(sourceMenu);
+        showFloatingMenu(e.clientX, e.clientY, menu);
+    }
+
+    document.addEventListener('contextmenu', onContextMenu, true);
 
     document.addEventListener('click', (e) => {
         if (activeMenu && !activeMenu.contains(e.target)) closeMenu();
     });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeMenu();
-            awaitingNative = null;
-            hideNativeHint();
-        }
+        if (e.key === 'Escape') closeMenu();
     });
 
     window.addEventListener('resize', closeMenu);

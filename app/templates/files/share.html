@@ -2,10 +2,88 @@
 
 {% block title %}Freigabe{% endblock %}
 
+{% block extra_css %}
+<style>
+.share-shell #desktopSidebar,
+.share-shell #mobileNav,
+.share-shell .mobile-menu-toggle {
+    display: none !important;
+}
+
+.share-shell main.main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+.share-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.share-brand-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid var(--bs-border-color);
+}
+
+.share-browser-card .file-item,
+.share-browser-card .folder-item {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.share-browser-card .file-item:hover,
+.share-browser-card .folder-item:hover {
+    border-color: var(--accent-color);
+    background: var(--bs-tertiary-bg);
+}
+
+.share-browser-card #listView {
+    display: none;
+}
+
+.share-browser-card #listView:not(.d-none) {
+    display: block;
+}
+
+.share-browser-card .pdf-mini-preview {
+    height: 150px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.share-browser-card .pdf-mini-preview iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    pointer-events: none;
+}
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="share-shell">
 <div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card shadow-sm">
+    <div class="col-xl-11 col-12">
+        <div class="share-brand">
+            {% if portal_logo_filename %}
+            <img class="share-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% elif app_logo %}
+            <img class="share-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% endif %}
+            <div>
+                <div class="fw-semibold">{{ app_name or 'Prismateams' }}</div>
+                <small class="text-muted">Freigabe</small>
+            </div>
+        </div>
+        <div class="card shadow-sm share-browser-card">
             <div class="card-body">
                 {% if item_type == 'file' %}
                     <div class="d-flex align-items-center mb-3">
@@ -18,11 +96,16 @@
                     <p class="text-muted mb-4">Freigabe im Betrachtungsmodus.</p>
                     {% endif %}
                     <div class="d-flex gap-2">
+                        {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                        {% if file_ext.lower() in ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'] %}
+                        <a href="{{ url_for('files.public_share_view', token=token) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-eye"></i> Im Browser öffnen
+                        </a>
+                        {% endif %}
                         <a href="{{ url_for('files.public_share_download', token=token) }}" class="btn btn-primary">
                             <i class="bi bi-download"></i> Herunterladen
                         </a>
                         {% if share_mode == 'edit' and onlyoffice_available %}
-                            {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                             {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
                         <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success">
                             <i class="bi bi-file-earmark-text"></i> Mit ONLYOFFICE bearbeiten
@@ -40,69 +123,195 @@
                     {% else %}
                     <p class="text-muted mb-3">Freigabe im Betrachtungsmodus.</p>
                     {% endif %}
-                    
-                    <div class="mb-4">
-                        <h5 class="mb-3">Dateien im Ordner</h5>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-secondary" id="listViewBtn" title="Listenansicht">
+                                <i class="bi bi-list"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary active" id="gridViewBtn" title="Rasteransicht">
+                                <i class="bi bi-grid-3x3-gap"></i>
+                            </button>
+                        </div>
+                        {% if can_edit %}
+                        <div class="btn-group">
+                            <div class="dropdown" id="newButtonDropdown">
+                                <button class="btn btn-accent" type="button" id="newButton">
+                                    <i class="bi bi-plus-circle"></i> Neu
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" id="newDropdownMenu">
+                                    <li><a class="dropdown-item" href="#" id="uploadFileMenuItem"><i class="bi bi-upload me-2"></i>Dateien hochladen</a></li>
+                                    <li><a class="dropdown-item" href="#" id="uploadFolderMenuItem"><i class="bi bi-folder-upload me-2"></i>Ordner hochladen</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="#" id="createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>Ordner erstellen</a></li>
+                                </ul>
+                            </div>
+                            <input type="file" id="directFileUpload" name="file" form="shareUploadForm" style="display:none;" multiple>
+                            <input type="file" id="directFolderUpload" name="file" form="shareUploadForm" style="display:none;" webkitdirectory directory multiple>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if breadcrumb_folders and breadcrumb_folders|length > 1 %}
+                    <nav aria-label="breadcrumb" class="mb-3">
+                        <ol class="breadcrumb mb-0">
+                            {% for breadcrumb in breadcrumb_folders %}
+                                {% if loop.last %}
+                                <li class="breadcrumb-item active" aria-current="page">{{ breadcrumb.name }}</li>
+                                {% else %}
+                                <li class="breadcrumb-item"><a href="{{ breadcrumb.url }}">{{ breadcrumb.name }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                        </ol>
+                    </nav>
+                    {% endif %}
+
+                    <div id="gridViewContainer">
+                        {% if subfolders %}
+                        <h6 class="mb-3">Ordner</h6>
+                        <div class="row g-3 mb-4">
+                            {% for subfolder in subfolders %}
+                            <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                                <a class="text-decoration-none text-reset" href="{{ url_for('files.public_share', token=token, folder_id=subfolder.id) }}">
+                                    <div class="card folder-item h-100">
+                                        <div class="card-body">
+                                            <i class="bi bi-folder-fill text-warning fs-2"></i>
+                                            <div class="fw-semibold mt-2 text-break">{{ subfolder.name }}</div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <h6 class="mb-3">Dateien</h6>
                         {% if folder_files %}
-                        <div class="list-group">
+                        <div class="row g-3" id="gridView">
                             {% for file in folder_files %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-file-earmark me-2"></i>
-                                    <span>{{ file.name }}</span>
-                                    {% if file.file_size %}
-                                    <small class="text-muted ms-2">
-                                        {% if file.file_size > 1024*1024 %}
-                                            {{ (file.file_size / (1024*1024))|round(1) }} MB
-                                        {% else %}
-                                            {{ (file.file_size / 1024)|round(1) }} KB
+                            {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                            <div class="col-12 col-md-6 col-xl-4">
+                                <div class="card file-item h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="fw-semibold text-break">{{ file.name }}</div>
+                                        </div>
+                                        {% if file.name.endswith('.pdf') %}
+                                        <div class="pdf-mini-preview mb-2">
+                                            <iframe src="{{ url_for('files.public_share_folder_file_pdf', token=token, file_id=file.id) }}#toolbar=0&navpanes=0&scrollbar=0&page=1" title="PDF Vorschau"></iframe>
+                                        </div>
                                         {% endif %}
-                                    </small>
-                                    {% endif %}
-                                </div>
-                                <div class="btn-group">
-                                    <a href="{{ url_for('files.public_share_folder_file_download', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-download"></i> Herunterladen
-                                    </a>
-                                    {% if share_mode == 'edit' and onlyoffice_available %}
-                                        {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
-                                        {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
-                                    <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}?file_id={{ file.id }}" class="btn btn-sm btn-outline-success">
-                                        <i class="bi bi-file-earmark-text"></i> Bearbeiten
-                                    </a>
-                                        {% endif %}
-                                    {% endif %}
+                                        <small class="text-muted d-block mb-2">
+                                            {% if file.file_size > 1024*1024 %}
+                                                {{ (file.file_size / (1024*1024))|round(1) }} MB
+                                            {% else %}
+                                                {{ (file.file_size / 1024)|round(1) }} KB
+                                            {% endif %}
+                                        </small>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            {% if file_ext.lower() in ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'] %}
+                                            <a href="{{ url_for('files.public_share_folder_file_view', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-eye"></i> Öffnen
+                                            </a>
+                                            {% endif %}
+                                            <a href="{{ url_for('files.public_share_folder_file_download', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-download"></i> Download
+                                            </a>
+                                            {% if share_mode == 'edit' and onlyoffice_available and file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
+                                            <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}?file_id={{ file.id }}" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-file-earmark-text"></i> Bearbeiten
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                         {% else %}
-                        <div class="alert alert-info">
+                        <div class="alert alert-info mb-0">
                             <i class="bi bi-info-circle"></i> Dieser Ordner ist noch leer.
                         </div>
                         {% endif %}
                     </div>
-                    
-                    {% if share_mode == 'edit' %}
-                        <hr class="my-4">
-                        
-                        <h5 class="mb-3">Dateien hochladen</h5>
-                        <form method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data">
-                            {% if show_bot %}
-                            {% include 'auth/_bot_protection.html' %}
-                            {% endif %}
-                            <div class="mb-3">
-                                <label class="form-label">Dateien auswählen</label>
-                                <input type="file" class="form-control" name="file" multiple required>
+
+                    <div id="listViewContainer" class="d-none">
+                        {% if subfolders %}
+                        <h6 class="mb-3">Ordner</h6>
+                        <div class="list-group mb-4">
+                            {% for subfolder in subfolders %}
+                            <a class="list-group-item list-group-item-action d-flex align-items-center" href="{{ url_for('files.public_share', token=token, folder_id=subfolder.id) }}">
+                                <i class="bi bi-folder-fill text-warning me-2"></i>
+                                <span>{{ subfolder.name }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <h6 class="mb-3">Dateien</h6>
+                        {% if folder_files %}
+                        <div class="list-group" id="listView">
+                            {% for file in folder_files %}
+                            {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                                <div class="d-flex align-items-center min-width-0">
+                                    <i class="bi bi-file-earmark me-2"></i>
+                                    <span class="text-truncate">{{ file.name }}</span>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% if file_ext.lower() in ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'] %}
+                                    <a href="{{ url_for('files.public_share_folder_file_view', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('files.public_share_folder_file_download', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Hochladen</button>
-                        </form>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i> Dieser Ordner ist noch leer.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if can_edit %}
+                    <form id="shareUploadForm" method="POST" action="{{ url_for('files.public_share_upload', token=token) }}" enctype="multipart/form-data" class="d-none">
+                        {% if show_bot %}
+                        {% include 'auth/_bot_protection.html' %}
+                        {% endif %}
+                        <input type="hidden" name="folder_id" value="{{ current_share_folder.id if current_share_folder else folder.id }}">
+                        <input type="hidden" name="uploader_name" value="{{ guest_name or 'Anonym' }}">
+                    </form>
+                    <form id="shareCreateFolderForm" method="POST" action="{{ url_for('files.public_share_create_folder', token=token) }}" class="d-none">
+                        {% if show_bot %}
+                        {% include 'auth/_bot_protection.html' %}
+                        {% endif %}
+                        <input type="hidden" name="parent_id" value="{{ current_share_folder.id if current_share_folder else folder.id }}">
+                        <input type="hidden" name="uploader_name" value="{{ guest_name or 'Anonym' }}">
+                        <input type="hidden" name="folder_name" id="shareCreateFolderName">
+                    </form>
                     {% endif %}
+                    
+                    {% if can_edit and folder_files|length == 0 and subfolders|length == 0 %}
+                    <div class="mt-4">
+                        <p class="text-muted mb-1">Mit dem Button <strong>Neu</strong> kannst du Dateien hochladen und Ordner erstellen.</p>
+                    </div>
+                    {% endif %}
+                    
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+</div>
 {% endblock %}
 
-
+{% block extra_js %}
+{% if item_type == 'folder' %}
+<script src="{{ url_for('static', filename='js/share-browser.js') }}"></script>
+{% endif %}
+{% endblock %}
