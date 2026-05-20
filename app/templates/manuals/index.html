@@ -19,8 +19,24 @@
 {% if manuals %}
 <div class="row g-3">
     {% for manual in manuals %}
-    <div class="col-12 col-md-6 col-lg-4">
+    <div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-manual-{{ manual.id }}">
         <div class="card h-100">
+            <div class="context-menu-source d-none" id="context-menu-manual-{{ manual.id }}">
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('manuals.view', manual_id=manual.id) }}" target="_blank"><i class="bi bi-eye me-2"></i>{{ _('manuals.index.actions.view') }}</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('manuals.download', manual_id=manual.id) }}"><i class="bi bi-download me-2"></i>{{ _('manuals.index.actions.view') }}</a></li>
+                    {% if current_user.is_admin %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="{{ url_for('manuals.delete', manual_id=manual.id) }}" class="d-inline">
+                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('manuals.index.actions.delete_confirm') }}">
+                                <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                            </button>
+                        </form>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
             <div class="card-body">
                 <div class="text-center mb-3">
                     <i class="bi bi-file-pdf text-danger" style="font-size: 4rem;"></i>

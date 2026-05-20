@@ -22,6 +22,12 @@
       "more": "More",
       "module": "Modules",
       "back": "Back"
+    },
+    "notification_center": {
+      "open": "Open notifications",
+      "title": "Notifications",
+      "mark_all_read": "Mark all as read",
+      "delete_all": "Delete all"
     }
   },
   "common": {
@@ -46,6 +52,18 @@
     "language": "Language",
     "select_language": "Select language",
     "unknown_error": "Unknown error"
+  },
+  "context_menu": {
+    "copy_info": "Copy info",
+    "dashboard_remove_widget": "Remove widget",
+    "dashboard_manage_widgets": "Manage widgets",
+    "format": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strike": "Strikethrough",
+      "color": "Text color"
+    }
   },
   "auth": {
     "login": {
@@ -442,6 +460,7 @@
           "description": "Server-side notifications for chat, files and email",
           "activate": "Enable push",
           "test": "Send test",
+          "reset": "Reset",
           "cooldown_label": "Cooldown active",
           "cooldown_timer": "2:00"
         },
@@ -622,6 +641,31 @@
           "title": "Inventory management"
         }
       },
+      "push_subscriptions": {
+        "page_title": "Web push subscriptions - Administration",
+        "breadcrumb": "Web push",
+        "heading": "Web push subscriptions",
+        "description": "All registered browser push endpoints with their users.",
+        "stats": "{active} active of {total} entries total.",
+        "empty": "No push subscriptions found.",
+        "confirm_delete": "Really delete this subscription?",
+        "confirm_deactivate_user": "Deactivate all active subscriptions for this user?",
+        "flash_deactivated": "Subscription deactivated.",
+        "flash_deleted": "Subscription deleted.",
+        "flash_user_deactivated": "Deactivated {count} subscription(s) for the user.",
+        "table": {
+          "user": "User",
+          "endpoint": "Endpoint",
+          "user_agent": "Browser/device",
+          "created": "Created",
+          "last_used": "Last used",
+          "status": "Status"
+        },
+        "actions": {
+          "deactivate": "Deactivate",
+          "deactivate_all_user": "Deactivate all"
+        }
+      },
       "cards": {
         "open_button": "Open",
         "test_button": "Test",
@@ -675,15 +719,15 @@
           "description": "Enable or disable mailboxes and shares"
         },
         "registration_options": {
-          "title": "Registration options",
-          "description": "Configure bot protection for registration and optional login"
+          "title": "Bot protection",
+          "description": "Configure bot protection for registration, login, and edit shares"
         }
       },
       "registration": {
-        "page_title": "Registration options - Administration",
-        "breadcrumb": "Registration options",
-        "heading": "Registration options",
-        "recommendation_alert": "We recommend a bot filter system (Google reCAPTCHA or Cloudflare Turnstile) to reduce automated registrations and login attacks.",
+        "page_title": "Bot protection - Administration",
+        "breadcrumb": "Bot protection",
+        "heading": "Bot protection",
+        "recommendation_alert": "We recommend a bot filter system (Google reCAPTCHA or Cloudflare Turnstile) to reduce automated registrations, login attacks, and abuse of edit share links.",
         "provider_label": "Protection method",
         "provider_help": "Choose how to protect against automated access.",
         "provider_none": "No human verification",
@@ -693,7 +737,8 @@
         "scope_label": "Apply to",
         "scope_register": "Use on registration",
         "scope_login": "Use on login",
-        "scope_login_help": "reCAPTCHA or Turnstile are recommended for login. Honeypot is possible but less common.",
+        "scope_share_edit": "Use on share (edit)",
+        "scope_login_help": "reCAPTCHA or Turnstile are recommended for login and edit shares. Honeypot is possible but less common.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA version",
         "recaptcha_v2": "v2 (\"I'm not a robot\" checkbox)",
@@ -708,7 +753,7 @@
         "secret_key_placeholder_set": "Leave blank to keep the existing secret key",
         "save_button": "Save changes",
         "back_button": "Back",
-        "flash_updated": "Registration options have been saved.",
+        "flash_updated": "Bot protection settings have been saved.",
         "flash_keys_required": "Please provide Site Key and Secret Key before enabling reCAPTCHA or Turnstile."
       },
       "file_settings": {
@@ -832,9 +877,14 @@
       "member_count": "{count} members",
       "member_more": "Show all members",
       "dropdown": {
+        "menu": "Chat menu",
         "mute": "Mute notifications",
         "info": "Chat info",
-        "settings": "Settings"
+        "settings": "Settings",
+        "rename": "Rename",
+        "avatar": "Chat image",
+        "manage_members": "Manage members",
+        "delete": "Delete group"
       },
       "mobile_members": "Members",
       "no_messages": {
@@ -871,6 +921,17 @@
         "permission_title": "Microphone",
         "permission_message": "Microphone access is required for voice messages.",
         "microphone_denied": "Microphone access was denied. Please allow it in your browser settings."
+      }
+    },
+    "settings": {
+      "members": {
+        "label": "Members",
+        "help": "Choose who participates in this group chat. You always remain a member."
+      },
+      "delete": {
+        "title": "Danger zone",
+        "help": "Deleting this chat permanently removes all messages and memberships.",
+        "confirm": "Do you really want to delete this chat? This cannot be undone."
       }
     },
     "create": {
@@ -1076,7 +1137,26 @@
           "expires_label_compact": "Expiration date",
           "edit_title": "Edit share",
           "password_help": "Protects the share with a password.",
-          "expires_help": "After this date the share is no longer available."
+          "expires_help": "After this date the share is no longer available.",
+          "choose_modes": "Select at least one link type.",
+          "mode_view": "View link",
+          "mode_edit": "Edit link",
+          "link_inactive": "inactive",
+          "create_link_button": "Create link",
+          "disable_link_button": "Disable link",
+          "access_log_title": "Recent access",
+          "access_log_time": "Time",
+          "access_log_action": "Action",
+          "access_log_guest": "Guest",
+          "access_log_empty": "No access logged yet.",
+          "access_actions": {
+            "page_view": "Page view",
+            "download": "Download",
+            "upload": "Upload",
+            "onlyoffice_edit": "Edit",
+            "password_auth": "Password",
+            "guest_name": "Name entered"
+          }
         },
         "rename_file": {
           "title": "Rename file",
@@ -1447,6 +1527,7 @@
         "list": "Agenda"
       },
       "new_event": "New event",
+      "context_create_event": "Create event",
       "dropdown": {
         "toggle": "Open menu",
         "export": "Export calendar",

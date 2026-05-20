@@ -1,0 +1,25 @@
+﻿{# Benachrichtigungszentrum – Overlay, kein Seitenwechsel #}
+<div class="notification-center-backdrop d-none" id="notificationCenterBackdrop" aria-hidden="true"></div>
+
+<div class="notification-center-panel d-none" id="notificationCenterPanel" role="dialog" aria-modal="true" aria-labelledby="notificationCenterTitle">
+    <div class="notification-center-header">
+        <h5 class="mb-0" id="notificationCenterTitle">
+            <i class="bi bi-bell me-2"></i>{{ _('layout.notification_center.title') }}
+        </h5>
+        <button type="button" class="btn-close" id="notificationCenterClose" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="notification-center-actions border-bottom">
+        <button type="button" class="btn btn-sm btn-link text-decoration-none" id="notificationMarkAllRead">
+            {{ _('layout.notification_center.mark_all_read') }}
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none" id="notificationDeleteAll">
+            {{ _('layout.notification_center.delete_all') }}
+        </button>
+    </div>
+    <div class="notification-center-body" id="notificationCenterList">
+        <div class="text-center text-muted py-4" id="notificationCenterLoading">
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            {{ _('common.loading') }}
+        </div>
+    </div>
+</div>

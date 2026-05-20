@@ -697,6 +697,38 @@ def update_chat(chat_id):
                     pass
             chat.group_avatar = None
     
+    # Update group chat members when submitted from settings form
+    if not chat.is_direct_message and not chat.is_main_chat and request.method == 'POST':
+        selected_member_ids = set()
+        for member_id in request.form.getlist('members'):
+            try:
+                selected_member_ids.add(int(member_id))
+            except (TypeError, ValueError):
+                continue
+        selected_member_ids.add(current_user.id)
+
+        other_member_ids = selected_member_ids - {current_user.id}
+        if not other_member_ids:
+            flash(translate('chat.flash.select_member'), 'danger')
+            redirect_chat_id = 1 if chat.is_main_chat else chat_id
+            return redirect(url_for('chat.chat_settings', chat_id=redirect_chat_id))
+
+        existing_member_ids = {
+            cm.user_id for cm in ChatMember.query.filter_by(chat_id=actual_chat_id).all()
+        }
+
+        for user_id in existing_member_ids - selected_member_ids:
+            if user_id != current_user.id:
+                ChatMember.query.filter_by(chat_id=actual_chat_id, user_id=user_id).delete()
+
+        for user_id in selected_member_ids - existing_member_ids:
+            user = User.query.filter(
+                User.id == user_id,
+                *visible_chat_user_filters(),
+            ).first()
+            if user:
+                db.session.add(ChatMember(chat_id=actual_chat_id, user_id=user_id))
+
     chat.updated_at = datetime.utcnow()
     db.session.commit()
     
@@ -809,7 +841,7 @@ def chat_settings(chat_id):
         return update_chat(chat_id)
     
     # Get chat members
-    chat_memberships = ChatMember.query.filter_by(chat_id=chat_id).all()
+    chat_memberships = ChatMember.query.filter_by(chat_id=actual_chat_id).all()
     member_ids = [cm.user_id for cm in chat_memberships]
     if member_ids:
         members = User.query.filter(
@@ -818,11 +850,14 @@ def chat_settings(chat_id):
         ).all()
     else:
         members = []
+
+    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).all()
     
     return render_template(
         'chat/settings.html',
         chat=chat,
-        members=members
+        members=members,
+        users=users,
     )
 
 

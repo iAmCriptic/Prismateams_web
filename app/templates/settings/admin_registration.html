@@ -45,6 +45,10 @@
                             <input class="form-check-input" type="checkbox" id="portal_bot_protection_login" name="portal_bot_protection_login" {% if config.login_enabled %}checked{% endif %}>
                             <label class="form-check-label" for="portal_bot_protection_login">{{ _('settings.admin.registration.scope_login') }}</label>
                         </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="portal_bot_protection_share_edit" name="portal_bot_protection_share_edit" {% if config.share_edit_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="portal_bot_protection_share_edit">{{ _('settings.admin.registration.scope_share_edit') }}</label>
+                        </div>
                         <div class="form-text">{{ _('settings.admin.registration.scope_login_help') }}</div>
                     </div>
 

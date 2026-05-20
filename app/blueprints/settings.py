@@ -192,20 +192,17 @@ def notifications():
         reminder_times = request.form.getlist('reminder_times')
         settings.set_reminder_times([int(t) for t in reminder_times])
         
-        # Chat-spezifische Einstellungen
-        # Lösche alle bestehenden Chat-Einstellungen
+        # Chat-spezifische Einstellungen: nur deaktivierte Chats speichern
         ChatNotificationSettings.query.filter_by(user_id=current_user.id).delete()
-        
-        # Erstelle neue Chat-Einstellungen
-        for key, value in request.form.items():
-            if key.startswith('chat_') and key != 'chat_notifications_enabled':
-                chat_id = int(key.split('_')[1])
-                chat_setting = ChatNotificationSettings(
+        memberships = ChatMember.query.filter_by(user_id=current_user.id).all()
+        for membership in memberships:
+            field_name = f'chat_{membership.chat_id}'
+            if field_name not in request.form:
+                db.session.add(ChatNotificationSettings(
                     user_id=current_user.id,
-                    chat_id=chat_id,
-                    notifications_enabled=True
-                )
-                db.session.add(chat_setting)
+                    chat_id=membership.chat_id,
+                    notifications_enabled=False,
+                ))
         
         db.session.commit()
         flash(translate('settings.notifications.flash_saved'), 'success')
@@ -651,16 +648,25 @@ def create_user():
             # Freigabelink-Zuweisungen - aktiviert automatisch Dateien-Modul
             share_tokens = request.form.getlist('share_tokens')
             has_file_access = False
+            from app.models.public_share import PublicShare
             for share_token in share_tokens:
-                # Prüfe ob es ein File oder Folder ist
+                share = PublicShare.query.filter_by(token=share_token, enabled=True).first()
+                if share:
+                    share_access = GuestShareAccess(
+                        user_id=new_user.id,
+                        share_token=share_token,
+                        share_type=share.resource_type,
+                    )
+                    db.session.add(share_access)
+                    has_file_access = True
+                    continue
                 file_item = File.query.filter_by(share_token=share_token, share_enabled=True).first()
                 folder_item = Folder.query.filter_by(share_token=share_token, share_enabled=True).first()
-                
                 if file_item:
                     share_access = GuestShareAccess(
                         user_id=new_user.id,
                         share_token=share_token,
-                        share_type='file'
+                        share_type='file',
                     )
                     db.session.add(share_access)
                     has_file_access = True
@@ -668,7 +674,7 @@ def create_user():
                     share_access = GuestShareAccess(
                         user_id=new_user.id,
                         share_token=share_token,
-                        share_type='folder'
+                        share_type='folder',
                     )
                     db.session.add(share_access)
                     has_file_access = True
@@ -768,11 +774,9 @@ def create_user():
         ('module_shortlinks', 'Kurzlinks')
     ]
     
-    # Hole alle verfügbaren Freigabelinks
-    from app.models.file import File, Folder
-    shared_files = File.query.filter_by(share_enabled=True).all()
-    shared_folders = Folder.query.filter_by(share_enabled=True).all()
-    
+    from app.utils.public_share import get_assignable_public_shares
+    assignable_shares = get_assignable_public_shares()
+
     # Hole alle verfügbaren Chats (ohne Duplikate)
     # Nur einen Haupt-Chat zeigen (auch wenn mehrere existieren, zeige nur den ersten/ältesten)
     # Hole alle Chats und filtere nach is_main_chat
@@ -798,8 +802,7 @@ def create_user():
     
     return render_template('settings/admin_create_user.html',
                          guest_modules=guest_modules,
-                         shared_files=shared_files,
-                         shared_folders=shared_folders,
+                         assignable_shares=assignable_shares,
                          all_chats=all_chats)
 
 
@@ -1043,16 +1046,25 @@ def edit_guest_user(user_id):
         # Füge neue Freigabelink-Zuweisungen hinzu
         share_tokens = request.form.getlist('share_tokens')
         has_file_access = False
+        from app.models.public_share import PublicShare
         for share_token in share_tokens:
-            # Prüfe ob es ein File oder Folder ist
+            share = PublicShare.query.filter_by(token=share_token, enabled=True).first()
+            if share:
+                share_access = GuestShareAccess(
+                    user_id=user.id,
+                    share_token=share_token,
+                    share_type=share.resource_type,
+                )
+                db.session.add(share_access)
+                has_file_access = True
+                continue
             file_item = File.query.filter_by(share_token=share_token, share_enabled=True).first()
             folder_item = Folder.query.filter_by(share_token=share_token, share_enabled=True).first()
-            
             if file_item:
                 share_access = GuestShareAccess(
                     user_id=user.id,
                     share_token=share_token,
-                    share_type='file'
+                    share_type='file',
                 )
                 db.session.add(share_access)
                 has_file_access = True
@@ -1060,7 +1072,7 @@ def edit_guest_user(user_id):
                 share_access = GuestShareAccess(
                     user_id=user.id,
                     share_token=share_token,
-                    share_type='folder'
+                    share_type='folder',
                 )
                 db.session.add(share_access)
                 has_file_access = True
@@ -1117,12 +1129,9 @@ def edit_guest_user(user_id):
         ('module_shortlinks', 'Kurzlinks')
     ]
     
-    # Hole alle verfügbaren Freigabelinks
-    from app.models.file import File, Folder
-    shared_files = File.query.filter_by(share_enabled=True).all()
-    shared_folders = Folder.query.filter_by(share_enabled=True).all()
-    
-    # Hole alle verfügbaren Chats
+    from app.utils.public_share import get_assignable_public_shares
+    assignable_shares = get_assignable_public_shares()
+
     from app.models.chat import Chat
     all_chats_list = Chat.query.order_by(Chat.created_at).all()
     
@@ -1145,8 +1154,7 @@ def edit_guest_user(user_id):
                          user=user,
                          guest_modules=guest_modules,
                          current_modules=current_modules,
-                         shared_files=shared_files,
-                         shared_folders=shared_folders,
+                         assignable_shares=assignable_shares,
                          current_share_tokens=current_share_tokens,
                          all_chats=all_chats,
                          current_chat_ids=current_chat_ids)
@@ -1483,6 +1491,7 @@ def admin_registration():
 
         register_enabled = request.form.get('portal_bot_protection_register') == 'on'
         login_enabled = request.form.get('portal_bot_protection_login') == 'on'
+        share_edit_enabled = request.form.get('portal_bot_protection_share_edit') == 'on'
 
         recaptcha_site_key = request.form.get('portal_recaptcha_site_key', '').strip()
         recaptcha_secret_key = request.form.get('portal_recaptcha_secret_key', '').strip()
@@ -1499,6 +1508,7 @@ def admin_registration():
             'provider': provider,
             'register_enabled': register_enabled,
             'login_enabled': login_enabled,
+            'share_edit_enabled': share_edit_enabled,
             'recaptcha_version': recaptcha_version,
             'recaptcha_site_key': recaptcha_site_key,
             'recaptcha_secret_key': recaptcha_secret_key,
@@ -1514,6 +1524,7 @@ def admin_registration():
         upsert_setting(SETTING_KEYS['provider'], provider)
         upsert_setting(SETTING_KEYS['register_enabled'], 'true' if register_enabled else 'false')
         upsert_setting(SETTING_KEYS['login_enabled'], 'true' if login_enabled else 'false')
+        upsert_setting(SETTING_KEYS['share_edit_enabled'], 'true' if share_edit_enabled else 'false')
         upsert_setting(SETTING_KEYS['recaptcha_version'], recaptcha_version)
         upsert_setting(SETTING_KEYS['recaptcha_site_key'], recaptcha_site_key)
         upsert_setting(SETTING_KEYS['recaptcha_secret_key'], recaptcha_secret_key)
@@ -1698,6 +1709,62 @@ def admin_modules_create_assessment_admin():
     db.session.commit()
 
     return jsonify({'success': True, 'message': f"Assessment-Admin '{username}' wurde erfolgreich angelegt."})
+
+
+@settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])
+@login_required
+def admin_push_subscriptions():
+    """Web-Push-Abonnements verwalten (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.notification import PushSubscription
+    from app.models.user import User
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        subscription_id = request.form.get('subscription_id', type=int)
+        user_id = request.form.get('user_id', type=int)
+
+        if action == 'deactivate' and subscription_id:
+            sub = PushSubscription.query.get(subscription_id)
+            if sub:
+                sub.is_active = False
+                db.session.commit()
+                flash(translate('settings.admin.push_subscriptions.flash_deactivated'), 'success')
+        elif action == 'delete' and subscription_id:
+            sub = PushSubscription.query.get(subscription_id)
+            if sub:
+                db.session.delete(sub)
+                db.session.commit()
+                flash(translate('settings.admin.push_subscriptions.flash_deleted'), 'success')
+        elif action == 'deactivate_user' and user_id:
+            subs = PushSubscription.query.filter_by(user_id=user_id, is_active=True).all()
+            for sub in subs:
+                sub.is_active = False
+            db.session.commit()
+            flash(translate('settings.admin.push_subscriptions.flash_user_deactivated', count=len(subs)), 'success')
+
+        return redirect(url_for('settings.admin_push_subscriptions'))
+
+    subscriptions = (
+        PushSubscription.query
+        .join(User, PushSubscription.user_id == User.id)
+        .order_by(PushSubscription.last_used.desc())
+        .all()
+    )
+    users_by_id = {}
+    if subscriptions:
+        user_ids = {s.user_id for s in subscriptions}
+        users_by_id = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()}
+
+    return render_template(
+        'settings/admin_push_subscriptions.html',
+        subscriptions=subscriptions,
+        users_by_id=users_by_id,
+        active_count=sum(1 for s in subscriptions if s.is_active),
+    )
 
 
 @settings_bp.route('/admin/backup', methods=['GET', 'POST'])

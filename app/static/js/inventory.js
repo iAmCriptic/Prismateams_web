@@ -876,6 +876,34 @@ class StockManager {
         }
     }
     
+    buildProductContextMenuHtml(product) {
+        const id = product.id;
+        let items = '';
+        if (product.status === 'available') {
+            items += `<li><a class="dropdown-item" href="/inventory/products/${id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>`;
+        }
+        items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
+        items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${id})"><i class="bi bi-star me-2"></i>Favorit</button></li>`;
+        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu">${items}</ul></div>`;
+    }
+
+    buildFolderContextMenuHtml(folder) {
+        const id = folder.id;
+        const name = this.escapeHtml(folder.name);
+        return `<div class="context-menu-source d-none" id="context-menu-folder-${id}">
+            <ul class="dropdown-menu">
+                <li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${id});}"><i class="bi bi-folder2-open me-2"></i>Öffnen</button></li>
+                <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="POST" action="/inventory/folders/${id}/delete" class="d-inline" onsubmit="return confirm('Ordner &quot;${name}&quot; wirklich löschen? Produkte bleiben erhalten.');">
+                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Löschen</button>
+                    </form>
+                </li>
+            </ul>
+        </div>`;
+    }
+
     renderProductListItem(product) {
         let statusBadge = '';
         if (product.status === 'available') {
@@ -923,7 +951,8 @@ class StockManager {
         }
         
         return `
-            <div class="list-group-item list-group-item-action ${selectionModeClass}" style="cursor: pointer;">
+            <div class="list-group-item list-group-item-action ${selectionModeClass}" style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+                ${this.buildProductContextMenuHtml(product)}
                 <div class="d-flex align-items-center">
                     <div class="form-check me-2" style="z-index: 10; position: relative;">
                         ${checkbox}
@@ -1069,7 +1098,8 @@ class StockManager {
         const selectionModeClass = isSelected ? 'selection-mode' : '';
         
         return `
-            <div class="card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;">
+            <div class="card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+                ${this.buildProductContextMenuHtml(product)}
                 <div class="position-relative">
                     ${imageContainer}
                     ${checkbox}
@@ -1983,7 +2013,8 @@ class StockManager {
         const productCount = folder.product_count || 0;
         return `
             <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-                <div class="card folder-item h-100" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                <div class="card folder-item h-100" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                    ${this.buildFolderContextMenuHtml(folder)}
                     <div class="card-body text-center">
                         <i class="bi bi-folder-fill text-warning fs-1 mb-2"></i>
                         <h6 class="mb-1">${this.escapeHtml(folder.name)}</h6>
@@ -1997,7 +2028,8 @@ class StockManager {
     renderFolderListItem(folder) {
         const productCount = folder.product_count || 0;
         return `
-            <a href="#" class="list-group-item list-group-item-action" onclick="event.preventDefault(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+            <div class="list-group-item list-group-item-action" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
+                ${this.buildFolderContextMenuHtml(folder)}
                 <div class="d-flex align-items-center">
                     <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
                     <div class="flex-grow-1">
@@ -2005,7 +2037,7 @@ class StockManager {
                         <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
                     </div>
                 </div>
-            </a>
+            </div>
         `;
     }
     

@@ -99,6 +99,20 @@
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">
+                        <i class="bi bi-bell text-primary"></i>
+                        Web-Push-Abonnements
+                    </h5>
+                    <p class="card-text">Aktive Browser-Push-Registrierungen aller Nutzer einsehen und verwalten.</p>
+                    <a href="{{ url_for('settings.admin_push_subscriptions') }}" class="btn btn-outline-primary">
+                        {{ _('settings.admin.cards.open_button') }} <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
                         <i class="bi bi-archive text-secondary"></i>
                         {{ _('settings.admin.cards.backup.title') }}
                     </h5>

@@ -9,13 +9,14 @@ from .credential import Credential, CredentialFolder
 from .manual import Manual
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
-from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
+from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog, PushDeliveryLog
 from .inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
 from .api_token import ApiToken
 from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
 from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
+from .public_share import PublicShare, ShareAccessLog
 from .shortlink import ShortLink
 from .assessment import (
     AssessmentUser,
@@ -46,13 +47,14 @@ __all__ = [
     'Manual',
     'SystemSettings',
     'WhitelistEntry',
-    'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog',
+    'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog', 'PushDeliveryLog',
     'Product', 'BorrowTransaction', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem', 'ProductLot', 'StockMovement', 'ProductStatusHistory', 'InventoryItemLock',
     'ApiToken',
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
     'Comment', 'CommentMention',
     'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings',
     'GuestShareAccess',
+    'PublicShare', 'ShareAccessLog',
     'ShortLink',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',

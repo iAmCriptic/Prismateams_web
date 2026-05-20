@@ -64,11 +64,13 @@ def _is_sharing_enabled():
     return bool(setting and str(setting.value).lower() == "true")
 
 
-def _generate_unique_share_token():
-    token = secrets.token_urlsafe(32)
-    while File.query.filter_by(share_token=token).first() or Folder.query.filter_by(share_token=token).first():
-        token = secrets.token_urlsafe(32)
-    return token
+from app.utils.public_share import (
+    disable_share_link,
+    is_resource_shared,
+    normalize_share_mode,
+    serialize_share_settings,
+    upsert_share_link,
+)
 
 
 def _generate_unique_dropbox_token():
@@ -409,22 +411,29 @@ def register_files_routes(api_bp, require_api_auth):
             return guest_error
 
         data = request.get_json(silent=True) or {}
-        password = (data.get("password") or "").strip()
-        expires_at = (data.get("expires_at") or "").strip()
-        share_mode = (data.get("share_mode") or "").strip().lower()
-        share_mode = "view" if share_mode == "view" else "edit"
+        modes = data.get("share_modes") or [data.get("share_mode") or "edit"]
+        if isinstance(modes, str):
+            modes = [modes]
+        modes = list(dict.fromkeys(normalize_share_mode(m) for m in modes if m))
+        if not modes:
+            return jsonify({"success": False, "error": "Mindestens ein Link-Typ erforderlich"}), 400
 
         file_obj = File.query.get_or_404(file_id)
-        file_obj.share_enabled = True
-        file_obj.share_token = _generate_unique_share_token()
-        file_obj.share_password_hash = generate_password_hash(password) if password else None
-        file_obj.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-        file_obj.share_name = None
-        file_obj.share_mode = share_mode
+        links = []
+        for mode in modes:
+            passwords = data.get(f"password_{mode}") or data.get("password") or ""
+            expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
+            share = upsert_share_link(
+                "file",
+                file_obj,
+                mode,
+                created_by=current_user.id,
+                password=passwords,
+                expires_at_raw=expires,
+            )
+            links.append({"mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
         db.session.commit()
-
-        share_url = url_for("files.public_share", token=file_obj.share_token, _external=True)
-        return jsonify({"success": True, "share_url": share_url}), 200
+        return jsonify({"success": True, "links": links}), 200
 
     @api_bp.route("/folders/<int:folder_id>/share", methods=["POST"])
     @require_api_auth
@@ -438,22 +447,29 @@ def register_files_routes(api_bp, require_api_auth):
             return guest_error
 
         data = request.get_json(silent=True) or {}
-        password = (data.get("password") or "").strip()
-        expires_at = (data.get("expires_at") or "").strip()
-        share_mode = (data.get("share_mode") or "").strip().lower()
-        share_mode = "view" if share_mode == "view" else "edit"
+        modes = data.get("share_modes") or [data.get("share_mode") or "edit"]
+        if isinstance(modes, str):
+            modes = [modes]
+        modes = list(dict.fromkeys(normalize_share_mode(m) for m in modes if m))
+        if not modes:
+            return jsonify({"success": False, "error": "Mindestens ein Link-Typ erforderlich"}), 400
 
         folder = Folder.query.get_or_404(folder_id)
-        folder.share_enabled = True
-        folder.share_token = _generate_unique_share_token()
-        folder.share_password_hash = generate_password_hash(password) if password else None
-        folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-        folder.share_name = None
-        folder.share_mode = share_mode
+        links = []
+        for mode in modes:
+            passwords = data.get(f"password_{mode}") or data.get("password") or ""
+            expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
+            share = upsert_share_link(
+                "folder",
+                folder,
+                mode,
+                created_by=current_user.id,
+                password=passwords,
+                expires_at_raw=expires,
+            )
+            links.append({"mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
         db.session.commit()
-
-        share_url = url_for("files.public_share", token=folder.share_token, _external=True)
-        return jsonify({"success": True, "share_url": share_url}), 200
+        return jsonify({"success": True, "links": links}), 200
 
     @api_bp.route("/files/<int:file_id>/share-settings", methods=["GET"])
     @require_api_auth
@@ -461,22 +477,9 @@ def register_files_routes(api_bp, require_api_auth):
         if not _check_files_access():
             return _files_access_denied_response()
         file_obj = File.query.get_or_404(file_id)
-        if not file_obj.share_enabled or not file_obj.share_token:
+        if not is_resource_shared("file", file_obj.id):
             return jsonify({"success": False, "error": "Keine aktive Freigabe"}), 404
-        share_url = url_for("files.public_share", token=file_obj.share_token, _external=True)
-        return jsonify({
-            "success": True,
-            "item": {
-                "type": "file",
-                "id": file_obj.id,
-                "name": file_obj.name,
-                "share_url": share_url,
-                "has_password": file_obj.share_password_hash is not None,
-                "expires_at": file_obj.share_expires_at.isoformat() if file_obj.share_expires_at else None,
-                "share_name": file_obj.share_name,
-                "share_mode": "view" if file_obj.share_mode == "view" else "edit",
-            },
-        }), 200
+        return jsonify({"success": True, "item": serialize_share_settings("file", file_obj.id, file_obj.name)}), 200
 
     @api_bp.route("/folders/<int:folder_id>/share-settings", methods=["GET"])
     @require_api_auth
@@ -484,22 +487,9 @@ def register_files_routes(api_bp, require_api_auth):
         if not _check_files_access():
             return _files_access_denied_response()
         folder = Folder.query.get_or_404(folder_id)
-        if not folder.share_enabled or not folder.share_token:
+        if not is_resource_shared("folder", folder.id):
             return jsonify({"success": False, "error": "Keine aktive Freigabe"}), 404
-        share_url = url_for("files.public_share", token=folder.share_token, _external=True)
-        return jsonify({
-            "success": True,
-            "item": {
-                "type": "folder",
-                "id": folder.id,
-                "name": folder.name,
-                "share_url": share_url,
-                "has_password": folder.share_password_hash is not None,
-                "expires_at": folder.share_expires_at.isoformat() if folder.share_expires_at else None,
-                "share_name": folder.share_name,
-                "share_mode": "view" if folder.share_mode == "view" else "edit",
-            },
-        }), 200
+        return jsonify({"success": True, "item": serialize_share_settings("folder", folder.id, folder.name)}), 200
 
     @api_bp.route("/files/<int:file_id>/share-settings", methods=["POST"])
     @require_api_auth
@@ -510,25 +500,29 @@ def register_files_routes(api_bp, require_api_auth):
         if guest_error:
             return guest_error
 
+        from app.models.public_share import PublicShare
+        from app.utils.public_share import get_share_for_mode, sync_legacy_share_flags
+
         file_obj = File.query.get_or_404(file_id)
         data = request.get_json(silent=True) or {}
         action = (data.get("action") or "").strip().lower()
-        if action == "disable":
-            file_obj.share_enabled = False
-            file_obj.share_token = None
-            file_obj.share_password_hash = None
-            file_obj.share_expires_at = None
-            file_obj.share_name = None
-            file_obj.share_mode = "edit"
+        if action == "disable_all":
+            for share in PublicShare.query.filter_by(resource_type="file", resource_id=file_obj.id).all():
+                share.enabled = False
+            sync_legacy_share_flags("file", file_obj)
+        elif action in ("disable_view", "disable_edit"):
+            disable_share_link("file", file_obj, "view" if action == "disable_view" else "edit")
         else:
-            password = (data.get("password") or "").strip()
-            expires_at = (data.get("expires_at") or "").strip()
-            share_mode = (data.get("share_mode") or "").strip().lower()
-            share_mode = "view" if share_mode == "view" else "edit"
-            if password:
-                file_obj.share_password_hash = generate_password_hash(password)
-            file_obj.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-            file_obj.share_mode = share_mode
+            for mode in ("view", "edit"):
+                if data.get(f"update_{mode}") or data.get("share_mode") == mode:
+                    upsert_share_link(
+                        "file",
+                        file_obj,
+                        mode,
+                        created_by=current_user.id,
+                        password=data.get(f"password_{mode}") or data.get("password") or "",
+                        expires_at_raw=data.get(f"expires_at_{mode}") or data.get("expires_at") or "",
+                    )
         db.session.commit()
         return jsonify({"success": True}), 200
 
@@ -541,25 +535,29 @@ def register_files_routes(api_bp, require_api_auth):
         if guest_error:
             return guest_error
 
+        from app.models.public_share import PublicShare
+        from app.utils.public_share import sync_legacy_share_flags
+
         folder = Folder.query.get_or_404(folder_id)
         data = request.get_json(silent=True) or {}
         action = (data.get("action") or "").strip().lower()
-        if action == "disable":
-            folder.share_enabled = False
-            folder.share_token = None
-            folder.share_password_hash = None
-            folder.share_expires_at = None
-            folder.share_name = None
-            folder.share_mode = "edit"
+        if action == "disable_all":
+            for share in PublicShare.query.filter_by(resource_type="folder", resource_id=folder.id).all():
+                share.enabled = False
+            sync_legacy_share_flags("folder", folder)
+        elif action in ("disable_view", "disable_edit"):
+            disable_share_link("folder", folder, "view" if action == "disable_view" else "edit")
         else:
-            password = (data.get("password") or "").strip()
-            expires_at = (data.get("expires_at") or "").strip()
-            share_mode = (data.get("share_mode") or "").strip().lower()
-            share_mode = "view" if share_mode == "view" else "edit"
-            if password:
-                folder.share_password_hash = generate_password_hash(password)
-            folder.share_expires_at = datetime.fromisoformat(expires_at) if expires_at else None
-            folder.share_mode = share_mode
+            for mode in ("view", "edit"):
+                if data.get(f"update_{mode}") or data.get("share_mode") == mode:
+                    upsert_share_link(
+                        "folder",
+                        folder,
+                        mode,
+                        created_by=current_user.id,
+                        password=data.get(f"password_{mode}") or data.get("password") or "",
+                        expires_at_raw=data.get(f"expires_at_{mode}") or data.get("expires_at") or "",
+                    )
         db.session.commit()
         return jsonify({"success": True}), 200
 

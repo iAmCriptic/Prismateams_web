@@ -3,8 +3,17 @@ from flask_login import current_user, login_required
 
 from app import db
 from app.models.chat import ChatMember
-from app.models.notification import NotificationLog
+from app.models.notification import NotificationLog, PushSubscription
 from app.utils.i18n import translate
+
+NOTIFICATION_TYPE_ICONS = {
+    'chat': 'bi-chat-dots',
+    'email': 'bi-envelope',
+    'calendar': 'bi-calendar-event',
+    'file': 'bi-folder',
+    'test': 'bi-bell',
+    'generic': 'bi-bell',
+}
 
 
 def register_notification_routes(api_bp, require_api_auth):
@@ -27,14 +36,17 @@ def register_notification_routes(api_bp, require_api_auth):
 
             items = []
             for n in notifications:
+                ntype = n.notification_type or 'generic'
                 items.append({
                     "id": n.id,
                     "title": n.title,
                     "body": n.body or "",
                     "icon": n.icon,
                     "url": n.url,
-                    # optional für App-Mapping auf Symbole/Deep-Link-Logik
-                    "type": "generic",
+                    "type": ntype,
+                    "icon_class": NOTIFICATION_TYPE_ICONS.get(ntype, 'bi-bell'),
+                    "source_id": n.source_id,
+                    "dedup_key": n.dedup_key,
                     "sent_at": n.sent_at.isoformat() if n.sent_at else None,
                 })
 
@@ -133,11 +145,20 @@ def register_notification_routes(api_bp, require_api_auth):
     @require_api_auth
     def mark_notification_read(notification_id):
         try:
-            notification = NotificationLog.query.filter_by(id=notification_id, user_id=current_user.id).first()
+            notification = NotificationLog.query.filter_by(
+                id=notification_id, user_id=current_user.id
+            ).first()
             if not notification:
-                return jsonify({"success": False, "error": translate("api.errors.notification_not_found")}), 404
-            notification.mark_as_read()
-            unread_count = NotificationLog.query.filter_by(user_id=current_user.id, is_read=False).count()
+                return jsonify({
+                    "success": False,
+                    "error": translate("api.errors.notification_not_found"),
+                }), 404
+            notification.is_read = True
+            notification.read_at = db.func.now()
+            db.session.commit()
+            unread_count = NotificationLog.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).count()
             return jsonify({
                 "success": True,
                 "message": "Benachrichtigung als gelesen markiert",
@@ -149,16 +170,12 @@ def register_notification_routes(api_bp, require_api_auth):
     @api_bp.route("/notifications/mark-all-read", methods=["POST"])
     @require_api_auth
     def mark_all_notifications_read():
-        """Markiert alle ungelesenen Benachrichtigungen des Nutzers als gelesen."""
         try:
             updated = NotificationLog.query.filter_by(
                 user_id=current_user.id,
                 is_read=False,
             ).update(
-                {
-                    NotificationLog.is_read: True,
-                    NotificationLog.read_at: db.func.now(),
-                },
+                {NotificationLog.is_read: True, NotificationLog.read_at: db.func.now()},
                 synchronize_session=False,
             )
             db.session.commit()
@@ -170,3 +187,53 @@ def register_notification_routes(api_bp, require_api_auth):
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @api_bp.route("/notifications/<int:notification_id>", methods=["DELETE"])
+    @require_api_auth
+    def delete_notification(notification_id):
+        try:
+            notification = NotificationLog.query.filter_by(
+                id=notification_id, user_id=current_user.id
+            ).first()
+            if not notification:
+                return jsonify({
+                    "success": False,
+                    "error": translate("api.errors.notification_not_found"),
+                }), 404
+            db.session.delete(notification)
+            db.session.commit()
+            unread_count = NotificationLog.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).count()
+            return jsonify({"success": True, "unread_count": unread_count}), 200
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @api_bp.route("/notifications/delete-all", methods=["POST"])
+    @require_api_auth
+    def delete_all_notifications():
+        try:
+            deleted = NotificationLog.query.filter_by(user_id=current_user.id).delete()
+            db.session.commit()
+            return jsonify({
+                "success": True,
+                "deleted": int(deleted or 0),
+                "unread_count": 0,
+            }), 200
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @api_bp.route("/notifications/reset-push", methods=["POST"])
+    @require_api_auth
+    def reset_push_notifications():
+        """Deaktiviert alle Web-Push-Subscriptions des aktuellen Nutzers."""
+        try:
+            from app.utils.notifications import reset_user_push_subscriptions
+
+            count = reset_user_push_subscriptions(current_user.id)
+            return jsonify({
+                "success": True,
+                "deactivated": count,
+                "message": "Push-Abonnements wurden zurückgesetzt",
+            }), 200
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500

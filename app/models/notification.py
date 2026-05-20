@@ -105,6 +105,9 @@ class NotificationLog(db.Model):
     body = db.Column(db.Text, nullable=True)
     icon = db.Column(db.String(255), nullable=True)
     url = db.Column(db.String(255), nullable=True)
+    notification_type = db.Column(db.String(32), nullable=True)
+    dedup_key = db.Column(db.String(255), nullable=True, index=True)
+    source_id = db.Column(db.Integer, nullable=True)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     success = db.Column(db.Boolean, default=True, nullable=False)
     error_message = db.Column(db.Text, nullable=True)
@@ -121,3 +124,24 @@ class NotificationLog(db.Model):
         self.is_read = True
         self.read_at = datetime.utcnow()
         db.session.commit()
+
+
+class PushDeliveryLog(db.Model):
+    """Pro Push-Subscription und dedup_key maximal ein Web-Push."""
+    __tablename__ = 'push_delivery_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('push_subscriptions.id'), nullable=False)
+    dedup_key = db.Column(db.String(255), nullable=False)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='push_delivery_logs')
+    subscription = db.relationship('PushSubscription', backref='delivery_logs')
+
+    __table_args__ = (
+        db.UniqueConstraint('subscription_id', 'dedup_key', name='unique_push_delivery_per_subscription'),
+    )
+
+    def __repr__(self):
+        return f'<PushDeliveryLog sub={self.subscription_id} key={self.dedup_key}>'

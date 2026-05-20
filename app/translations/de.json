@@ -22,6 +22,12 @@
       "more": "Mehr",
       "module": "Module",
       "back": "Zurück"
+    },
+    "notification_center": {
+      "open": "Benachrichtigungen öffnen",
+      "title": "Benachrichtigungen",
+      "mark_all_read": "Alle als gelesen",
+      "delete_all": "Alle löschen"
     }
   },
   "common": {
@@ -46,6 +52,18 @@
     "language": "Sprache",
     "select_language": "Sprache auswählen",
     "unknown_error": "Unbekannter Fehler"
+  },
+  "context_menu": {
+    "copy_info": "Infos kopieren",
+    "dashboard_remove_widget": "Widget entfernen",
+    "dashboard_manage_widgets": "Widgets verwalten",
+    "format": {
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "underline": "Unterstrichen",
+      "strike": "Durchgestrichen",
+      "color": "Textfarbe"
+    }
   },
   "auth": {
     "login": {
@@ -560,6 +578,7 @@
           "description": "Serverbasierte Benachrichtigungen für Chat, Dateien und E-Mails",
           "activate": "Push aktivieren",
           "test": "Test senden",
+          "reset": "Zurücksetzen",
           "cooldown_label": "Cooldown aktiv",
           "cooldown_timer": "2:00"
         },
@@ -793,6 +812,31 @@
           "title": "Lagerverwaltung"
         }
       },
+      "push_subscriptions": {
+        "page_title": "Web-Push-Abonnements - Administration",
+        "breadcrumb": "Web-Push",
+        "heading": "Web-Push-Abonnements",
+        "description": "Alle registrierten Browser-Push-Endpoints mit zugehörigen Nutzern.",
+        "stats": "{active} aktiv von {total} Einträgen gesamt.",
+        "empty": "Keine Push-Abonnements vorhanden.",
+        "confirm_delete": "Dieses Abonnement wirklich löschen?",
+        "confirm_deactivate_user": "Alle aktiven Abonnements dieses Nutzers deaktivieren?",
+        "flash_deactivated": "Abonnement deaktiviert.",
+        "flash_deleted": "Abonnement gelöscht.",
+        "flash_user_deactivated": "{count} Abonnement(s) des Nutzers deaktiviert.",
+        "table": {
+          "user": "Nutzer",
+          "endpoint": "Endpoint",
+          "user_agent": "Browser/Gerät",
+          "created": "Erstellt",
+          "last_used": "Zuletzt genutzt",
+          "status": "Status"
+        },
+        "actions": {
+          "deactivate": "Deaktivieren",
+          "deactivate_all_user": "Alle deaktivieren"
+        }
+      },
       "cards": {
         "open_button": "Öffnen",
         "test_button": "Testen",
@@ -846,15 +890,15 @@
           "description": "Briefkästen und Freigaben aktivieren oder deaktivieren"
         },
         "registration_options": {
-          "title": "Registrierungsoptionen",
-          "description": "Bot-Schutz für Registrierung und optional Login konfigurieren"
+          "title": "Bot-Schutz-Funktionen",
+          "description": "Bot-Schutz für Registrierung, Login und Freigabe-Bearbeitung konfigurieren"
         }
       },
       "registration": {
-        "page_title": "Registrierungsoptionen - Administration",
-        "breadcrumb": "Registrierungsoptionen",
-        "heading": "Registrierungsoptionen",
-        "recommendation_alert": "Wir empfehlen ein Bot-Filter-System (Google reCAPTCHA oder Cloudflare Turnstile), um automatisierte Registrierungen und Login-Angriffe zu reduzieren.",
+        "page_title": "Bot-Schutz-Funktionen - Administration",
+        "breadcrumb": "Bot-Schutz-Funktionen",
+        "heading": "Bot-Schutz-Funktionen",
+        "recommendation_alert": "Wir empfehlen ein Bot-Filter-System (Google reCAPTCHA oder Cloudflare Turnstile), um automatisierte Registrierungen, Login-Angriffe und Missbrauch von Bearbeiten-Links zu reduzieren.",
         "provider_label": "Schutzmethode",
         "provider_help": "Wählen Sie die Methode zum Schutz vor automatisierten Zugriffen.",
         "provider_none": "Keine menschliche Verifizierung",
@@ -864,7 +908,8 @@
         "scope_label": "Anwenden auf",
         "scope_register": "Bei Registrierung verwenden",
         "scope_login": "Bei Login verwenden",
-        "scope_login_help": "Für den Login werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist möglich, aber weniger verbreitet.",
+        "scope_share_edit": "Bei Freigabe (Bearbeiten) verwenden",
+        "scope_login_help": "Für Login und Bearbeiten-Links werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist möglich, aber weniger verbreitet.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA-Version",
         "recaptcha_v2": "v2 (Checkbox „Ich bin kein Roboter“)",
@@ -879,7 +924,7 @@
         "secret_key_placeholder_set": "Leer lassen, um den bestehenden Secret Key zu behalten",
         "save_button": "Änderungen speichern",
         "back_button": "Zurück",
-        "flash_updated": "Registrierungsoptionen wurden gespeichert.",
+        "flash_updated": "Bot-Schutz-Einstellungen wurden gespeichert.",
         "flash_keys_required": "Bitte geben Sie Site Key und Secret Key an, bevor Sie reCAPTCHA oder Turnstile aktivieren."
       },
       "file_settings": {
@@ -986,9 +1031,14 @@
       "member_count": "{count} Mitglieder",
       "member_more": "Alle Mitglieder anzeigen",
       "dropdown": {
+        "menu": "Chat-Menü",
         "mute": "Benachrichtigungen stummschalten",
         "info": "Chat-Info",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "rename": "Umbenennen",
+        "avatar": "Chat-Bild",
+        "manage_members": "Mitglieder verwalten",
+        "delete": "Gruppe löschen"
       },
       "mobile_members": "Mitglieder",
       "no_messages": {
@@ -1025,6 +1075,17 @@
         "permission_title": "Mikrofon",
         "permission_message": "Mikrofon-Zugriff ist für Sprachnachrichten erforderlich.",
         "microphone_denied": "Mikrofonzugriff wurde verweigert. Bitte erlauben Sie den Zugriff in Ihren Browser-Einstellungen."
+      }
+    },
+    "settings": {
+      "members": {
+        "label": "Mitglieder",
+        "help": "Wählen Sie die Teilnehmer dieses Gruppen-Chats. Sie selbst bleiben immer Mitglied."
+      },
+      "delete": {
+        "title": "Gefährliche Aktion",
+        "help": "Wenn Sie diesen Chat löschen, werden alle Nachrichten und Mitgliedschaften unwiderruflich gelöscht.",
+        "confirm": "Möchten Sie diesen Chat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
       }
     },
     "create": {
@@ -1209,7 +1270,26 @@
           "expires_label_compact": "Ablaufdatum",
           "edit_title": "Freigabe bearbeiten",
           "password_help": "Schützt die Freigabe mit einem Passwort.",
-          "expires_help": "Nach diesem Datum ist die Freigabe nicht mehr verfügbar."
+          "expires_help": "Nach diesem Datum ist die Freigabe nicht mehr verfügbar.",
+          "choose_modes": "Wählen Sie mindestens einen Link-Typ.",
+          "mode_view": "Betrachten-Link",
+          "mode_edit": "Bearbeiten-Link",
+          "link_inactive": "inaktiv",
+          "create_link_button": "Link anlegen",
+          "disable_link_button": "Link deaktivieren",
+          "access_log_title": "Letzte Zugriffe",
+          "access_log_time": "Zeit",
+          "access_log_action": "Aktion",
+          "access_log_guest": "Gast",
+          "access_log_empty": "Noch keine Zugriffe protokolliert.",
+          "access_actions": {
+            "page_view": "Seitenaufruf",
+            "download": "Download",
+            "upload": "Upload",
+            "onlyoffice_edit": "Bearbeitung",
+            "password_auth": "Passwort",
+            "guest_name": "Name eingegeben"
+          }
         },
         "rename_file": {
           "title": "Datei umbenennen",
@@ -1999,6 +2079,7 @@
         "list": "Terminübersicht"
       },
       "new_event": "Neuer Termin",
+      "context_create_event": "Termin anlegen",
       "dropdown": {
         "toggle": "Menü öffnen",
         "export": "Kalender exportieren",

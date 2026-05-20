@@ -140,6 +140,7 @@
 
 {% macro email_list_item(email, variant, folder_tree, current_folder) %}
 <div class="list-group-item email-item {% if not email.is_read %}fw-bold{% endif %} email-draggable"
+     data-context-zone data-context-menu="dropdown"
      data-email-id="{{ email.id }}"
      data-folder="{{ email.folder }}"
      data-is-read="{{ 'true' if email.is_read else 'false' }}"

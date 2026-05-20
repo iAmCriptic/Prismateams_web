@@ -89,9 +89,27 @@
     </div>
 </div>
 
+<div class="context-menu-source d-none" id="files-browser-context-menu">
+    <ul class="dropdown-menu">
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-folder-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</button></li>
+        {% if onlyoffice_available %}
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</button></li>
+        {% endif %}
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click="#newButton"><i class="bi bi-plus-circle me-2"></i>{{ _('files.index.new_button') }}</button></li>
+    </ul>
+</div>
+
 <!-- ============================================ -->
 <!-- GRID VIEW - ORDNER Sektion (IMMER sichtbar) -->
 <!-- ============================================ -->
+<div id="filesBrowserContextZone" data-context-zone data-context-menu="template" data-context-menu-id="files-browser-context-menu">
 <div id="gridViewContainer" style="display: none;">
     <!-- Ordner Überschrift - IMMER anzeigen -->
     <h5 class="mb-3">{{ _('files.index.sections.folders') }}</h5>
@@ -125,7 +143,7 @@
     <div id="foldersGridView" class="row g-3 mb-4">
         {% if subfolders %}
         {% for folder in subfolders %}
-        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}">
+        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-context-zone data-context-menu="dropdown">
             <div class="card folder-item files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -163,6 +181,11 @@
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="openShareSettings('folder', {{ folder.id }}); return false;">
                                         <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.share_edit') }}
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="openShareActivity('folder', {{ folder.id }}); return false;">
+                                        <i class="bi bi-clock-history"></i> Aktivitätsverlauf
                                     </a>
                                 </li>
                                 <li>
@@ -246,7 +269,7 @@
     <div id="gridView" class="row g-3">
         {% if files %}
         {% for file in files %}
-        <div class="col-12 col-md-6 col-lg-4" data-item-wrapper="file" data-item-id="{{ file.id }}">
+        <div class="col-12 col-md-6 col-lg-4" data-item-wrapper="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
             <div class="card file-item h-100 files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}"
                  {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                  {% if file.name.endswith(('.md', '.markdown')) %}
@@ -463,7 +486,7 @@
     <div id="foldersListView" class="list-group mb-4">
         {% if subfolders %}
         {% for folder in subfolders %}
-        <div class="list-group-item d-flex justify-content-between align-items-center files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder">
+        <div class="list-group-item d-flex justify-content-between align-items-center files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
             <div class="d-flex align-items-center" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'" style="cursor: pointer;">
                 <i class="bi bi-folder-fill fs-4 me-3 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
                 <span class="fw-medium">{{ folder.name }}</span>
@@ -498,6 +521,11 @@
                     <li>
                         <a class="dropdown-item" href="#" onclick="openShareSettings('folder', {{ folder.id }}); return false;">
                             <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.share_edit') }}
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#" onclick="openShareActivity('folder', {{ folder.id }}); return false;">
+                            <i class="bi bi-clock-history"></i> Aktivitätsverlauf
                         </a>
                     </li>
                     <li>
@@ -553,7 +581,7 @@
     <div id="listView" class="list-group">
     {% if files %}
     {% for file in files %}
-        <div class="list-group-item files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}">
+        <div class="list-group-item files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
             <div class="d-flex w-100 justify-content-between align-items-center">
                 <div class="d-flex align-items-center flex-grow-1" 
                  {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
@@ -698,6 +726,7 @@
     {{ _('files.index.labels.empty_folder') }}
 </div>
 {% endif %}
+</div>
 
 <!-- Create Modal -->
 <div class="modal fade" id="createModal" tabindex="-1">
@@ -2212,6 +2241,7 @@ function closeFileDetails() {
 
 // Briefkasten Einstellungen
 function openDropboxSettings(folderId) {
+    closeActiveMenus();
     const modal = new bootstrap.Modal(document.getElementById('dropboxSettingsModal'));
     const content = document.getElementById('dropboxSettingsContent');
     const dropboxLabels = FILES_I18N.modals.dropbox;
@@ -2434,29 +2464,52 @@ function openFolderColorModal(folderId, folderName, currentColor) {
 }
 
 // ===== Umbenennen & Freigaben =====
+function shareModeFieldsHtml(shareLabels, mode) {
+    const modeLabel = mode === 'view' ? (shareLabels.mode_view || 'Betrachten') : (shareLabels.mode_edit || 'Bearbeiten');
+    return `
+        <div class="border rounded p-3 mb-3 share-mode-fields" data-mode="${mode}" style="display:none;">
+            <h6 class="mb-2">${modeLabel}</h6>
+            <div class="mb-2">
+                <label class="form-label">${shareLabels.password_label}</label>
+                <input type="password" name="password_${mode}" class="form-control">
+            </div>
+            <div class="mb-0">
+                <label class="form-label">${shareLabels.expires_label}</label>
+                <input type="datetime-local" name="expires_at_${mode}" class="form-control">
+            </div>
+        </div>`;
+}
+
+function bindShareModeToggles(form) {
+    const toggles = form.querySelectorAll('.share-mode-toggle');
+    const update = () => {
+        toggles.forEach(cb => {
+            const block = form.querySelector(`.share-mode-fields[data-mode="${cb.value}"]`);
+            if (block) block.style.display = cb.checked ? 'block' : 'none';
+        });
+    };
+    toggles.forEach(cb => cb.addEventListener('change', update));
+    update();
+}
+
 function openShareDialog(type, id) {
+    closeActiveMenus();
     const shareLabels = FILES_I18N.modals.share;
     const title = type === 'file' ? shareLabels.title_file : shareLabels.title_folder;
     const formAction = type === 'file' ? `/files/file/${id}/share` : `/files/folder/${id}/share`;
     const html = `
-        <form method="POST" action="${formAction}">
-            <div class="mb-3">
-                <label class="form-label">Freigabe-Modus</label>
-                <select class="form-select" name="share_mode">
-                    <option value="view">Betrachten (ohne Name)</option>
-                    <option value="edit" selected>Bearbeiten (mit Name)</option>
-                </select>
+        <form method="POST" action="${formAction}" id="shareCreateForm">
+            <p class="text-muted small">${shareLabels.choose_modes || 'Wählen Sie mindestens einen Link-Typ.'}</p>
+            <div class="form-check mb-2">
+                <input class="form-check-input share-mode-toggle" type="checkbox" name="share_modes" value="view" id="share_mode_view">
+                <label class="form-check-label" for="share_mode_view">${shareLabels.mode_view || 'Betrachten-Link'}</label>
             </div>
-            <div class="mb-3">
-                <label class="form-label">${shareLabels.password_label}</label>
-                <input type="password" name="password" class="form-control">
-                <div class="form-text">${shareLabels.password_help}</div>
+            <div class="form-check mb-3">
+                <input class="form-check-input share-mode-toggle" type="checkbox" name="share_modes" value="edit" id="share_mode_edit" checked>
+                <label class="form-check-label" for="share_mode_edit">${shareLabels.mode_edit || 'Bearbeiten-Link'}</label>
             </div>
-            <div class="mb-3">
-                <label class="form-label">${shareLabels.expires_label}</label>
-                <input type="datetime-local" name="expires_at" class="form-control">
-                <div class="form-text">${shareLabels.expires_help}</div>
-            </div>
+            ${shareModeFieldsHtml(shareLabels, 'view')}
+            ${shareModeFieldsHtml(shareLabels, 'edit')}
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i> ${shareLabels.info_text}
             </div>
@@ -2466,9 +2519,71 @@ function openShareDialog(type, id) {
             </div>
         </form>`;
     showSimpleModal(title, html);
+    const form = document.getElementById('simpleModal')?.querySelector('#shareCreateForm');
+    if (form) bindShareModeToggles(form);
+}
+
+function renderShareLinkSection(shareLabels, formAction, link) {
+    if (!link.enabled) {
+        return `
+            <div class="border rounded p-3 mb-3">
+                <h6>${link.mode === 'view' ? (shareLabels.mode_view || 'Betrachten') : (shareLabels.mode_edit || 'Bearbeiten')} – ${shareLabels.link_inactive || 'inaktiv'}</h6>
+                <button type="submit" name="action" value="create_${link.mode}" class="btn btn-sm btn-outline-primary">${shareLabels.create_link_button || 'Link anlegen'}</button>
+            </div>`;
+    }
+    const exp = link.expires_at ? link.expires_at.substring(0, 16) : '';
+    return `
+        <div class="border rounded p-3 mb-3">
+            <h6>${link.mode === 'view' ? (shareLabels.mode_view || 'Betrachten') : (shareLabels.mode_edit || 'Bearbeiten')}</h6>
+            <div class="mb-2">
+                <label class="form-label">${shareLabels.link_label}</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" value="${link.share_url}" readonly>
+                    <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText('${link.share_url}')"><i class="bi bi-clipboard"></i></button>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">${shareLabels.password_keep_label}</label>
+                <input type="password" class="form-control" name="password_${link.mode}">
+            </div>
+            <div class="mb-2">
+                <label class="form-label">${shareLabels.expires_label_compact}</label>
+                <input type="datetime-local" class="form-control" name="expires_at_${link.mode}" value="${exp}">
+            </div>
+            <button type="submit" name="action" value="disable_${link.mode}" class="btn btn-sm btn-outline-danger">${shareLabels.disable_link_button || 'Link deaktivieren'}</button>
+        </div>`;
+}
+
+function formatAccessLogAction(action) {
+    const labels = FILES_I18N.modals.share.access_actions || {};
+    return labels[action] || action;
+}
+
+function closeActiveMenus() {
+    document.querySelectorAll('.dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
+    document.querySelectorAll('.dropdown.show').forEach(dropdown => dropdown.classList.remove('show'));
+    if (window.PrismateamsContextMenu && typeof window.PrismateamsContextMenu.close === 'function') {
+        window.PrismateamsContextMenu.close();
+    }
+}
+
+function renderShareAccessLogsTable(logs, shareLabels) {
+    if (!logs.length) {
+        return `<p class="text-muted small">${shareLabels.access_log_empty || 'Noch keine Zugriffe protokolliert.'}</p>`;
+    }
+    return `
+        <div class="table-responsive" style="max-height:320px;overflow:auto;">
+            <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>${shareLabels.access_log_time || 'Zeit'}</th><th>${shareLabels.access_log_action || 'Aktion'}</th><th>IP</th><th>${shareLabels.access_log_guest || 'Gast'}</th></tr></thead>
+                <tbody>
+                    ${logs.map(log => `<tr><td>${(log.accessed_at || '').replace('T', ' ').substring(0, 16)}</td><td>${formatAccessLogAction(log.action)}</td><td>${log.ip_address || '–'}</td><td>${log.guest_name || '–'}</td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
 }
 
 function openShareSettings(type, id) {
+    closeActiveMenus();
     const shareLabels = FILES_I18N.modals.share;
     const endpoint = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
     fetch(endpoint)
@@ -2477,38 +2592,38 @@ function openShareSettings(type, id) {
             if (!data.success) { return; }
             const item = data.item;
             const formAction = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
+            const linksHtml = (item.links || []).map(link => renderShareLinkSection(shareLabels, formAction, link)).join('');
+            const logs = item.access_logs || [];
+            const logsHtml = `
+                <h6 class="mt-3">${shareLabels.access_log_title || 'Letzte Zugriffe'}</h6>
+                ${renderShareAccessLogsTable(logs, shareLabels)}
+            `;
             const html = `
-                <div class="mb-3">
-                    <label class="form-label">${shareLabels.link_label}</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" value="${item.share_url}" readonly>
-                        <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText('${item.share_url}')"><i class="bi bi-clipboard"></i></button>
-                    </div>
-                </div>
                 <form method="POST" action="${formAction}">
-                    <div class="mb-3">
-                        <label class="form-label">${shareLabels.password_keep_label}</label>
-                        <input type="password" class="form-control" name="password">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Freigabe-Modus</label>
-                        <select class="form-select" name="share_mode">
-                            <option value="view" ${item.share_mode === 'view' ? 'selected' : ''}>Betrachten (ohne Name)</option>
-                            <option value="edit" ${item.share_mode !== 'view' ? 'selected' : ''}>Bearbeiten (mit Name)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">${shareLabels.expires_label_compact}</label>
-                        <input type="datetime-local" class="form-control" name="expires_at" value="${item.expires_at ? item.expires_at.substring(0,16) : ''}">
-                    </div>
-                    ${item.share_name ? `<div class="alert alert-info mb-3"><i class="bi bi-info-circle"></i> ${shareLabels.guest_info.replace('{name}', item.share_name)}</div>` : ''}
-                    <div class="d-flex gap-2">
+                    ${linksHtml}
+                    ${logsHtml}
+                    <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> ${shareLabels.save_button}</button>
-                        <button type="submit" name="action" value="disable" class="btn btn-outline-danger"><i class="bi bi-slash-circle"></i> ${shareLabels.disable_button}</button>
+                        <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger"><i class="bi bi-slash-circle"></i> ${shareLabels.disable_button}</button>
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">${shareLabels.close_button}</button>
                     </div>
                 </form>`;
             showSimpleModal(shareLabels.edit_title, html);
+        });
+}
+
+function openShareActivity(type, id) {
+    closeActiveMenus();
+    const shareLabels = FILES_I18N.modals.share;
+    const endpoint = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
+    fetch(endpoint)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { return; }
+            const logs = data.item?.access_logs || [];
+            const title = `${shareLabels.access_log_title || 'Aktivitätsverlauf'}${data.item?.name ? ` – ${data.item.name}` : ''}`;
+            const html = renderShareAccessLogsTable(logs, shareLabels);
+            showSimpleModal(title, html);
         });
 }
 

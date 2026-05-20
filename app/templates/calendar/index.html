@@ -893,6 +893,103 @@ document.addEventListener('DOMContentLoaded', function() {
         currentDayDate = new Date();
         generateDayView();
     });
+
+    if (window.PrismateamsContextMenu && window.PrismateamsContextMenu.isEnabled()) {
+        const createEventLabel = CAL_I18N.context_create_event || CAL_I18N.new_event || 'Termin anlegen';
+        const createEventBase = "{{ url_for('calendar.create_event') }}";
+
+        function openCreateEvent(dateStr, hour) {
+            const params = new URLSearchParams();
+            if (dateStr) params.set('date', dateStr);
+            if (hour !== undefined && hour !== null && hour !== '') {
+                params.set('time', String(hour).padStart(2, '0') + ':00');
+            }
+            const qs = params.toString();
+            window.location.href = qs ? createEventBase + '?' + qs : createEventBase;
+        }
+
+        window.PrismateamsContextMenu.registerMatcher(
+            (target) => target.closest('.calendar-day:not(.empty)'),
+            (e, el) => [
+                {
+                    label: createEventLabel,
+                    icon: 'bi-plus-circle',
+                    onClick: () => openCreateEvent(el.dataset.date)
+                }
+            ]
+        );
+
+        window.PrismateamsContextMenu.registerMatcher(
+            (target) => target.closest('.time-slot[data-date]'),
+            (e, el) => [
+                {
+                    label: createEventLabel,
+                    icon: 'bi-plus-circle',
+                    onClick: () => openCreateEvent(el.dataset.date, el.dataset.hour)
+                }
+            ]
+        );
+
+        window.PrismateamsContextMenu.registerMatcher(
+            (target) => target.closest('.week-multi-day-slot[data-date]'),
+            (e, el) => [
+                {
+                    label: createEventLabel,
+                    icon: 'bi-plus-circle',
+                    onClick: () => openCreateEvent(el.dataset.date)
+                }
+            ]
+        );
+
+        window.PrismateamsContextMenu.registerMatcher(
+            (target) => target.closest('.day-time-slot'),
+            (e, el) => {
+                const dateStr = currentDayDate.toISOString().split('T')[0];
+                return [
+                    {
+                        label: createEventLabel,
+                        icon: 'bi-plus-circle',
+                        onClick: () => openCreateEvent(dateStr, el.dataset.hour)
+                    }
+                ];
+            }
+        );
+
+        window.PrismateamsContextMenu.registerMatcher(
+            (target, e) => {
+                const listView = document.getElementById('listView');
+                if (!listView || listView.style.display === 'none') return null;
+                if (target.closest('.event-list-item')) return null;
+                return target.closest('#listView');
+            },
+            () => [
+                {
+                    label: createEventLabel,
+                    icon: 'bi-plus-circle',
+                    onClick: () => openCreateEvent()
+                }
+            ]
+        );
+
+        ['monthView', 'weekView', 'dayView'].forEach((viewId) => {
+            window.PrismateamsContextMenu.registerMatcher(
+                (target, e) => {
+                    const view = document.getElementById(viewId);
+                    if (!view || view.style.display === 'none') return null;
+                    if (target.closest('[data-context-zone]')) return null;
+                    if (target.closest('.calendar-event')) return null;
+                    return target.closest('#' + viewId);
+                },
+                () => [
+                    {
+                        label: createEventLabel,
+                        icon: 'bi-plus-circle',
+                        onClick: () => openCreateEvent()
+                    }
+                ]
+            );
+        });
+    }
 });
 </script>
 {% endblock %}

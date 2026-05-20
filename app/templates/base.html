@@ -43,6 +43,7 @@
     
     <!-- Base CSS (always loaded) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/context-menu.css') }}">
     
     <!-- Page-specific CSS -->
     {% if request.endpoint %}
@@ -266,20 +267,35 @@
         </div>
     </nav>
 
+    {% if session.get('user_scope') != 'assessment' %}
+    <button type="button" class="btn btn-light notification-bell-btn notification-bell-btn-mobile d-lg-none position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
+        <i class="bi bi-bell"></i>
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge d-none">0</span>
+    </button>
+    {% endif %}
+
     <!-- Desktop Sidebar -->
     <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 bg-light sidebar" id="desktopSidebar">
         <div class="sidebar-header flex-shrink-0">
-            <a href="{% if session.get('user_scope') == 'assessment' %}{{ url_for('assessment.general.home') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
-                {% if portal_logo_filename %}
-                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
-                {% elif app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                <a href="{% if session.get('user_scope') == 'assessment' %}{{ url_for('assessment.general.home') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}" class="d-flex align-items-center link-dark text-decoration-none flex-grow-1 min-width-0">
+                    {% if portal_logo_filename %}
+                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2 flex-shrink-0">
+                    {% elif app_logo %}
+                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2 flex-shrink-0">
+                    {% endif %}
+                    {% if assessment_logo_url and session.get('user_scope') == 'assessment' %}
+                    <img src="{{ assessment_logo_url }}" alt="{{ assessment_module_label or 'Bewertung' }}" height="32" class="me-2 flex-shrink-0">
+                    {% endif %}
+                    <span class="fs-4 text-truncate">{% if session.get('user_scope') == 'assessment' %}{{ assessment_module_label or 'Bewertung' }}{% else %}{{ app_name or 'Prismateams' }}{% endif %}</span>
+                </a>
+                {% if session.get('user_scope') != 'assessment' %}
+                <button type="button" class="btn btn-outline-secondary position-relative notification-bell-btn flex-shrink-0" id="notificationBellBtn" aria-label="{{ _('layout.notification_center.open') }}">
+                    <i class="bi bi-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge d-none">0</span>
+                </button>
                 {% endif %}
-                {% if assessment_logo_url and session.get('user_scope') == 'assessment' %}
-                <img src="{{ assessment_logo_url }}" alt="{{ assessment_module_label or 'Bewertung' }}" height="32" class="me-2">
-                {% endif %}
-                <span class="fs-4">{% if session.get('user_scope') == 'assessment' %}{{ assessment_module_label or 'Bewertung' }}{% else %}{{ app_name or 'Prismateams' }}{% endif %}</span>
-            </a>
+            </div>
             <hr>
         </div>
         <div class="sidebar-nav flex-grow-1 overflow-y-auto" id="sidebarNavList">
@@ -431,7 +447,7 @@
                     {% else %}
                     <i class="bi bi-person-circle fs-4 me-2"></i>
                     {% endif %}
-                    <strong>{{ current_user.full_name }}</strong>
+                    <strong class="text-truncate">{{ current_user.full_name }}</strong>
                 </a>
                 <ul class="dropdown-menu text-small shadow">
                     {% if session.get('user_scope') != 'assessment' %}
@@ -581,6 +597,11 @@
     </div>
     {% endif %}
 
+    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
+    {% include 'partials/notification_center.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notification-center.css') }}">
+    {% endif %}
+
     <!-- Main Content -->
     <main class="{% if current_user.is_authenticated %}main-content{% endif %}">
         <div class="container-fluid py-3">
@@ -617,7 +638,32 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Custom JS -->
+    <script>
+    window.PRISMATEAMS_I18N = window.PRISMATEAMS_I18N || {};
+    window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS = {{ (
+        request.endpoint and (
+            request.endpoint.startswith('files.public_share') or
+            request.endpoint.startswith('files.dropbox_')
+        )
+    ) | tojson }};
+    window.PRISMATEAMS_I18N.context_menu = {{ {
+        'copy_info': _('context_menu.copy_info'),
+        'dashboard_remove_widget': _('context_menu.dashboard_remove_widget'),
+        'dashboard_manage_widgets': _('context_menu.dashboard_manage_widgets'),
+        'format': {
+            'bold': _('context_menu.format.bold'),
+            'italic': _('context_menu.format.italic'),
+            'underline': _('context_menu.format.underline'),
+            'strike': _('context_menu.format.strike'),
+            'color': _('context_menu.format.color')
+        }
+    } | tojson }};
+    </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/context-menu.js') }}"></script>
+    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
+    <script src="{{ url_for('static', filename='js/notification-center.js') }}"></script>
+    {% endif %}
 
     {% if session.get('user_scope') == 'assessment' %}
     <script>
