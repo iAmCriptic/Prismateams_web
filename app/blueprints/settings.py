@@ -17,6 +17,7 @@ from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
 from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
 from app.utils.password_policy import validate_password
+from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE
 from datetime import datetime
 
 settings_bp = Blueprint('settings', __name__)
@@ -1439,6 +1440,23 @@ def admin_system():
             # If empty, remove existing gradient setting (use default)
             if gradient_setting:
                 db.session.delete(gradient_setting)
+
+        # Update portal timezone
+        timezone_choices = dict(get_timezone_choices())
+        portal_timezone = request.form.get('portal_timezone', DEFAULT_TIMEZONE).strip()
+        if portal_timezone not in timezone_choices:
+            portal_timezone = DEFAULT_TIMEZONE
+
+        timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
+        if timezone_setting:
+            timezone_setting.value = portal_timezone
+        else:
+            timezone_setting = SystemSettings(
+                key='portal_timezone',
+                value=portal_timezone,
+                description='Globale Zeitzone für Datums- und Zeitangaben'
+            )
+            db.session.add(timezone_setting)
         
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
@@ -1449,17 +1467,21 @@ def admin_system():
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
     accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
     
     portal_name = portal_name_setting.value if portal_name_setting else ''
     portal_logo = portal_logo_setting.value if portal_logo_setting else None
     default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
     color_gradient = gradient_setting.value if gradient_setting else ''
+    portal_timezone = timezone_setting.value if timezone_setting and timezone_setting.value else DEFAULT_TIMEZONE
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
                          portal_logo=portal_logo,
                          default_accent_color=default_accent_color,
-                         color_gradient=color_gradient)
+                         color_gradient=color_gradient,
+                         portal_timezone=portal_timezone,
+                         timezone_choices=get_timezone_choices())
 
 
 @settings_bp.route('/admin/registration', methods=['GET', 'POST'])

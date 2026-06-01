@@ -795,7 +795,9 @@
         "color_gradient_pink_yellow": "Pink-Yellow",
         "color_gradient_pastel": "Pastel",
         "color_gradient_rose_pastel": "Rose-Pastel",
-        "color_gradient_orange_pastel": "Orange-Pastel"
+        "color_gradient_orange_pastel": "Orange-Pastel",
+        "timezone_label": "Timezone",
+        "timezone_help": "Global timezone for timestamps in the portal and emails."
       },
       "booking_forms": {
         "flash_unauthorized": "Only administrators have access to this page.",

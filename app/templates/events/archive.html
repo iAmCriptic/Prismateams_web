@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Archivierte Veranstaltungen{% endblock %}
+
+{% block content %}
+<h1 class="mb-3"><i class="bi bi-archive"></i> Archivierte Veranstaltungen</h1>
+<div class="list-group">
+    {% for event in events %}
+    <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="list-group-item list-group-item-action">
+        <div class="d-flex justify-content-between">
+            <strong>{{ event.name }}</strong>
+            <span class="text-muted">
+                {% if event.archived_at %}Archiviert: {{ event.archived_at.strftime('%d.%m.%Y') }}{% else %}Archiviert{% endif %}
+            </span>
+        </div>
+    </a>
+    {% else %}
+    <div class="alert alert-info">Noch keine archivierten Veranstaltungen vorhanden.</div>
+    {% endfor %}
+</div>
+{% endblock %}

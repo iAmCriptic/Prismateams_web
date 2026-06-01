@@ -49,7 +49,7 @@
     {% if request.endpoint %}
         {% if 'chat' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
-        {% elif 'calendar' in request.endpoint %}
+        {% elif 'calendar' in request.endpoint or 'events' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
         {% elif 'files' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
@@ -332,6 +332,12 @@
                     {{ _('layout.nav.calendar') }}
                 </a>
             </li>
+            <li class="nav-item sidebar-nav-item" data-nav-id="events" data-nav-priority="3.2">
+                <a href="{{ url_for('events.index') }}" class="nav-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-calendar2-week me-2"></i>
+                    Veranstaltungen
+                </a>
+            </li>
             {% endif %}
             {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="email" data-nav-priority="4">
@@ -500,6 +506,14 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('events.index') }}" class="nav-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-calendar2-week me-2"></i>
+                        Veranstaltungen
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_contacts') and (not current_user.is_authenticated or has_module_access(current_user, 'module_contacts')) %}
                 <li class="nav-item">
                     <a href="{{ url_for('contacts.index') }}" class="nav-link {% if request.endpoint and 'contacts' in request.endpoint %}active{% endif %}">
@@ -607,7 +621,7 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'email.index', 'email.folder_view', 'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'shortlinks.index', 'booking.requests', 'music.index', 'settings.index', 'assessment.general.home'] %}
+                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'events.index', 'events.my_events', 'events.people_overview', 'email.index', 'email.folder_view', 'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'shortlinks.index', 'booking.requests', 'music.index', 'settings.index', 'assessment.general.home'] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">

@@ -2,7 +2,8 @@
 Utility functions for the Team Portal application.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from flask import current_app
 import requests
 import os
@@ -23,6 +24,40 @@ AVAILABLE_MODULES = [
     'module_shortlinks',
 ]
 
+DEFAULT_TIMEZONE = 'Europe/Berlin'
+SUPPORTED_TIMEZONES = (
+    'Europe/Berlin',
+    'Europe/Zurich',
+    'Europe/Vienna',
+    'UTC',
+    'Europe/London',
+    'America/New_York',
+    'America/Los_Angeles',
+    'Asia/Tokyo',
+)
+
+
+def get_timezone_choices():
+    """Zeitzonenliste für Auswahlfelder in den Admin-Einstellungen."""
+    return [(tz, tz) for tz in SUPPORTED_TIMEZONES]
+
+
+def get_system_timezone():
+    """Liefert die im Portal konfigurierte Zeitzone (mit Fallback)."""
+    timezone_name = current_app.config.get('PORTAL_TIMEZONE', DEFAULT_TIMEZONE)
+    try:
+        from app.models.settings import SystemSettings
+        timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
+        if timezone_setting and timezone_setting.value:
+            timezone_name = timezone_setting.value.strip()
+    except Exception:
+        # Während Setup/Migrationen ggf. keine Settings-Tabelle verfügbar
+        pass
+
+    if timezone_name not in SUPPORTED_TIMEZONES:
+        timezone_name = DEFAULT_TIMEZONE
+    return timezone_name
+
 
 def get_local_time(utc_datetime):
     """
@@ -36,10 +71,14 @@ def get_local_time(utc_datetime):
     """
     if utc_datetime is None:
         return None
-    
-    # For now, just return the datetime as-is
-    # TODO: Implement proper timezone conversion when pytz is available
-    return utc_datetime
+
+    timezone_name = get_system_timezone()
+    tz = ZoneInfo(timezone_name)
+
+    # Naive Datumswerte aus DB werden als UTC interpretiert.
+    if utc_datetime.tzinfo is None:
+        utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
+    return utc_datetime.astimezone(tz)
 
 
 def format_datetime(dt, format_string='%d.%m.%Y %H:%M'):

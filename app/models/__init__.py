@@ -18,6 +18,7 @@ from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
 from .public_share import PublicShare, ShareAccessLog
 from .shortlink import ShortLink
+from .event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
 from .assessment import (
     AssessmentUser,
     AssessmentRole,
@@ -56,6 +57,7 @@ __all__ = [
     'GuestShareAccess',
     'PublicShare', 'ShareAccessLog',
     'ShortLink',
+    'Event', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
     'AssessmentEvaluation', 'AssessmentEvaluationScore',

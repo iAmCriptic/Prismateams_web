@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Veranstaltungen{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1><i class="bi bi-calendar2-week"></i> Veranstaltungen</h1>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('events.people_overview') }}">Personenübersicht</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('events.my_events') }}">Meine Veranstaltungen</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('events.archive') }}">Archiv</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('events.overview_pdf') }}">PDF Übersicht</a>
+        <a class="btn btn-primary" href="{{ url_for('events.create_event') }}"><i class="bi bi-plus-circle"></i> Neu</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for event in events %}
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ event.name }}</h5>
+                <p class="text-muted mb-2">{{ event.description or 'Keine Beschreibung' }}</p>
+                <div class="small mb-2">Ort: <strong>{{ event.default_location or '-' }}</strong></div>
+                <div class="small mb-3">Termine: <strong>{{ event.appointments|length }}</strong> | Personen: <strong>{{ event.assignments|length }}</strong></div>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('events.view_event', event_id=event.id) }}">Öffnen</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('events.edit_event', event_id=event.id) }}">Bearbeiten</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info">Noch keine Veranstaltungen vorhanden.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

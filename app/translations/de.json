@@ -964,6 +964,8 @@
         "color_gradient_pastel": "Pastell",
         "color_gradient_rose_pastel": "Rosa-Pastell",
         "color_gradient_orange_pastel": "Orange-Pastell",
+        "timezone_label": "Zeitzone",
+        "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
         "save_button": "Änderungen speichern",
         "back_button": "Zurück",
         "flash_updated": "System-Einstellungen wurden aktualisiert."

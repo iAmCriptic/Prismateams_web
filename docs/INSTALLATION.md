@@ -892,7 +892,7 @@ Falls Sie von einer älteren Version aktualisieren, müssen Sie nach dem Update 
 ```bash
 cd /var/www/teamportal
 # Migration zu Version 2.3.3:
-sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.3.3.py"
+sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2_4_3.py"
 ```
 
 **Hinweis:** Prüfen Sie die verfügbaren Migrationsdateien im `migrations/` Verzeichnis und führen Sie die entsprechende Migration für Ihre Zielversion aus (z.B. `migrate_to_2.3.3.py`).

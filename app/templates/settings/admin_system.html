@@ -62,6 +62,16 @@
                         </select>
                         <div class="form-text">{{ _('settings.admin.system.color_gradient_help') }}</div>
                     </div>
+
+                    <div class="mb-3">
+                        <label for="portal_timezone" class="form-label">{{ _('settings.admin.system.timezone_label') }}</label>
+                        <select class="form-select" id="portal_timezone" name="portal_timezone">
+                            {% for tz_value, tz_label in timezone_choices %}
+                            <option value="{{ tz_value }}" {% if portal_timezone == tz_value %}selected{% endif %}>{{ tz_label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">{{ _('settings.admin.system.timezone_help') }}</div>
+                    </div>
                     
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-accent">{{ _('settings.admin.system.save_button') }}</button>

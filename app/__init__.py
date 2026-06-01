@@ -458,6 +458,9 @@ def create_app(config_name='default'):
                 'calendar.view': 'calendar.index',
                 'calendar.edit_event': 'calendar.index',
                 'calendar.create': 'calendar.index',
+                'events.view_event': 'events.index',
+                'events.edit_event': 'events.index',
+                'events.create_event': 'events.index',
                 'email.view_email': 'email.index',
                 'email.compose': 'email.index',
                 'email.reply': 'email.index',
@@ -497,6 +500,7 @@ def create_app(config_name='default'):
                 'chat': 'chat.index',
                 'files': 'files.index',
                 'calendar': 'calendar.index',
+                'events': 'events.index',
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
@@ -750,6 +754,7 @@ def create_app(config_name='default'):
     from app.blueprints.sse import sse_bp
     from app.blueprints.assessment import assessment_bp
     from app.blueprints.shortlinks import shortlinks_bp
+    from app.blueprints.events import events_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -774,6 +779,7 @@ def create_app(config_name='default'):
     app.register_blueprint(sse_bp, url_prefix='/sse')
     app.register_blueprint(assessment_bp)
     app.register_blueprint(shortlinks_bp)
+    app.register_blueprint(events_bp, url_prefix='/events')
     
     @app.route('/manifest.json')
     def manifest():
@@ -879,6 +885,7 @@ def create_app(config_name='default'):
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
                 from app.models.shortlink import ShortLink
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
+                from app.models.event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
                 from app.models.user_session import UserSession
                 from app.models.assessment import (
                     AssessmentUser,
@@ -1114,6 +1121,36 @@ def create_app(config_name='default'):
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
 
+                    # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
+                    table_names = set(inspector.get_table_names())
+                    if 'events' in table_names:
+                        event_columns = {col['name'] for col in inspector.get_columns('events')}
+                        with db.engine.begin() as connection:
+                            if 'is_archived' not in event_columns:
+                                connection.execute(
+                                    text("ALTER TABLE events ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0")
+                                )
+                                print("[OK] events.is_archived hinzugefügt")
+                            if 'archived_at' not in event_columns:
+                                connection.execute(
+                                    text("ALTER TABLE events ADD COLUMN archived_at DATETIME NULL")
+                                )
+                                print("[OK] events.archived_at hinzugefügt")
+
+                    if 'event_timeline_items' in table_names:
+                        timeline_columns = {
+                            col['name'] for col in inspector.get_columns('event_timeline_items')
+                        }
+                        if 'appointment_id' not in timeline_columns:
+                            with db.engine.begin() as connection:
+                                connection.execute(
+                                    text(
+                                        "ALTER TABLE event_timeline_items "
+                                        "ADD COLUMN appointment_id INTEGER NULL"
+                                    )
+                                )
+                            print("[OK] event_timeline_items.appointment_id hinzugefügt")
+
                     # Chat-Messages: metadata_json für strukturierte Nachrichtentypen ergänzen
                     if 'chat_messages' in inspector.get_table_names():
                         chat_columns = {col['name'] for col in inspector.get_columns('chat_messages')}
@@ -1300,6 +1337,13 @@ def create_app(config_name='default'):
                         key='available_languages',
                         value='["de","en","pt","es","ru"]',
                         description='Liste der aktivierten Sprachen'
+                    ))
+
+                if not SystemSettings.query.filter_by(key='portal_timezone').first():
+                    db.session.add(SystemSettings(
+                        key='portal_timezone',
+                        value='Europe/Berlin',
+                        description='Globale Zeitzone für Datums- und Zeitangaben'
                     ))
                 
                 language_settings = {
