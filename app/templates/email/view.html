@@ -55,7 +55,7 @@
             {% if email.cc %}
             <strong>{{ _('email.view.header.cc') }}</strong> {{ email.cc|decode_email_header }}<br>
             {% endif %}
-            <strong>{{ _('email.view.header.date') }}</strong> {{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else email.sent_at.strftime('%d.%m.%Y %H:%M') }}
+            <strong>{{ _('email.view.header.date') }}</strong> {{ (email.received_at or email.sent_at)|localdatetime }}
     </div>
     <div class="card-body">
         {% if email.attachments %}

@@ -19,7 +19,9 @@
       "logout": "Sair",
       "more": "Mais",
       "module": "Módulos",
-      "back": "Voltar"
+      "back": "Voltar",
+      "notifications": "Notificações",
+      "booking": "Reservas"
     }
   },
   "common": {

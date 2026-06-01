@@ -165,7 +165,7 @@
                             {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
                             <span class="badge bg-accent email-unread-badge d-inline-block">{{ _('email.index.labels.new_badge') }}</span>
                             {% endif %}
-                            <small class="text-muted d-block">{{ email.received_at.strftime('%d.%m.%Y %H:%M') if email.received_at else '' }}</small>
+                            <small class="text-muted d-block">{{ email.received_at|localdatetime if email.received_at else '' }}</small>
                         </div>
                     </div>
                     <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>

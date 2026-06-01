@@ -517,6 +517,18 @@ def create_app(config_name='default'):
             
             return url_for('dashboard.index')
         
+        mobile_nav_slots = None
+        mobile_nav_left = None
+        mobile_nav_right = None
+        if current_user.is_authenticated:
+            from app.utils.navigation import (
+                get_mobile_nav_slots,
+                resolve_nav_link,
+            )
+            mobile_nav_slots = get_mobile_nav_slots(current_user)
+            mobile_nav_left = resolve_nav_link(mobile_nav_slots['left'], current_user)
+            mobile_nav_right = resolve_nav_link(mobile_nav_slots['right'], current_user)
+
         return {
             'app_name': app_name,
             'app_logo': app_logo,
@@ -527,7 +539,10 @@ def create_app(config_name='default'):
             'has_module_access': has_module_access,
             'get_back_url': get_back_url,
             'get_chat_display_name': get_chat_display_name,
-            'get_other_chat_user': get_other_chat_user
+            'get_other_chat_user': get_other_chat_user,
+            'mobile_nav_slots': mobile_nav_slots,
+            'mobile_nav_left': mobile_nav_left,
+            'mobile_nav_right': mobile_nav_right,
         }
     
     @app.template_filter('decode_email_header')
@@ -628,8 +643,7 @@ def create_app(config_name='default'):
         if not dt:
             return ''
         
-        from datetime import datetime, date
-        from app.utils.common import get_local_time
+        from app.utils.common import get_local_time, now_in_portal_timezone
         
         local_dt = get_local_time(dt)
         if isinstance(local_dt, str):
@@ -638,8 +652,8 @@ def create_app(config_name='default'):
             except:
                 return str(dt)
         
-        now = datetime.now()
-        today = date.today()
+        now = now_in_portal_timezone()
+        today = now.date()
         message_date = local_dt.date()
         
         days_diff = (today - message_date).days

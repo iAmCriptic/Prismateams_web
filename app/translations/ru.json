@@ -19,7 +19,9 @@
       "logout": "Выйти",
       "more": "Ещё",
       "module": "Модули",
-      "back": "Назад"
+      "back": "Назад",
+      "notifications": "Уведомления",
+      "booking": "Бронирования"
     }
   },
   "common": {

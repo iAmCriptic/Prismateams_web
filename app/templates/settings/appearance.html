@@ -148,17 +148,46 @@
                     </div>
                     
                     <div class="mb-4">
-                        <label for="preferred_layout" class="form-label">Layout-Präferenz</label>
+                        <label for="preferred_layout" class="form-label">{{ _('settings.appearance.layout_preference_label') }}</label>
                         <select class="form-select" id="preferred_layout" name="preferred_layout">
-                            <option value="auto" {% if (user.preferred_layout or 'auto') == 'auto' %}selected{% endif %}>Automatisch (empfohlen)</option>
-                            <option value="mobile" {% if user.preferred_layout == 'mobile' %}selected{% endif %}>Mobile-Layout</option>
-                            <option value="desktop" {% if user.preferred_layout == 'desktop' %}selected{% endif %}>Desktop-Layout</option>
+                            <option value="auto" {% if (user.preferred_layout or 'auto') == 'auto' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_auto') }}</option>
+                            <option value="mobile" {% if user.preferred_layout == 'mobile' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_mobile') }}</option>
+                            <option value="desktop" {% if user.preferred_layout == 'desktop' %}selected{% endif %}>{{ _('settings.appearance.layout_preference_desktop') }}</option>
                         </select>
                         <div class="form-text">
-                            Wählen Sie Ihr bevorzugtes Layout. "Automatisch" passt das Layout an die Bildschirmgröße an. 
-                            "Desktop-Layout" ist besonders für Tablets nützlich, wenn Sie die Sidebar-Navigation bevorzugen.
+                            {{ _('settings.appearance.layout_preference_help') }}
                         </div>
                     </div>
+
+                    {% if not is_guest %}
+                    <div class="mb-4">
+                        <label class="form-label">{{ _('settings.appearance.mobile_nav.title') }}</label>
+                        <p class="text-muted small">{{ _('settings.appearance.mobile_nav.description') }}</p>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="mobile_nav_left" class="form-label">{{ _('settings.appearance.mobile_nav.left_label') }}</label>
+                                <select class="form-select" id="mobile_nav_left" name="mobile_nav_left">
+                                    {% for option in mobile_nav_options %}
+                                    <option value="{{ option.key }}" {% if option.key == mobile_nav_slots.left %}selected{% endif %}>
+                                        {{ _(option.label_key) }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="mobile_nav_right" class="form-label">{{ _('settings.appearance.mobile_nav.right_label') }}</label>
+                                <select class="form-select" id="mobile_nav_right" name="mobile_nav_right">
+                                    {% for option in mobile_nav_options %}
+                                    <option value="{{ option.key }}" {% if option.key == mobile_nav_slots.right %}selected{% endif %}>
+                                        {{ _(option.label_key) }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-text mt-2">{{ _('settings.appearance.mobile_nav.help') }}</div>
+                    </div>
+                    {% endif %}
                     
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-accent">{{ _('settings.appearance.save_button') }}</button>

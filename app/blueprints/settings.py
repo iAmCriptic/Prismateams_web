@@ -17,7 +17,7 @@ from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
 from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
 from app.utils.password_policy import validate_password
-from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE
+from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone
 from datetime import datetime
 
 settings_bp = Blueprint('settings', __name__)
@@ -237,8 +237,16 @@ def notifications():
 @login_required
 def appearance():
     """Edit appearance settings."""
+    from app.utils.navigation import (
+        get_available_mobile_nav_options,
+        get_mobile_nav_slots,
+        validate_mobile_nav_slot,
+        MOBILE_NAV_DEFAULT_SLOTS,
+    )
+
     language_codes = list(available_languages())
     selected_language = request.form.get('language') if request.method == 'POST' else current_user.language
+    is_guest = hasattr(current_user, 'is_guest') and current_user.is_guest
 
     if request.method == 'POST':
         color_type = request.form.get('color_type', 'solid')
@@ -269,6 +277,20 @@ def appearance():
             current_user.language = selected_language
             g.language = selected_language
 
+        if not is_guest:
+            nav_left = validate_mobile_nav_slot(
+                request.form.get('mobile_nav_left', MOBILE_NAV_DEFAULT_SLOTS['left']),
+                current_user,
+            )
+            nav_right = validate_mobile_nav_slot(
+                request.form.get('mobile_nav_right', MOBILE_NAV_DEFAULT_SLOTS['right']),
+                current_user,
+            )
+            if nav_left and nav_right:
+                config = current_user.get_dashboard_config()
+                config['mobile_nav_slots'] = {'left': nav_left, 'right': nav_right}
+                current_user.set_dashboard_config(config)
+
         db.session.commit()
         flash(translate('settings.appearance.flash_success'), 'success')
         return redirect(url_for('settings.appearance'))
@@ -281,7 +303,17 @@ def appearance():
             label = LANGUAGE_FALLBACK_NAMES.get(code, code.upper())
         language_options.append({'code': code, 'label': label})
 
-    return render_template('settings/appearance.html', user=current_user, language_options=language_options)
+    mobile_nav_slots = get_mobile_nav_slots(current_user)
+    mobile_nav_options = get_available_mobile_nav_options(current_user)
+
+    return render_template(
+        'settings/appearance.html',
+        user=current_user,
+        language_options=language_options,
+        mobile_nav_slots=mobile_nav_slots,
+        mobile_nav_options=mobile_nav_options,
+        is_guest=is_guest,
+    )
 
 
 @settings_bp.route('/admin')
@@ -1280,7 +1312,13 @@ Ihr Team
 Gesendet von <user> (<email>)
 <app_name> - <date> um <time>"""
     
-    return render_template('settings/admin_email_footer.html', footer_template=current_template)
+    now = now_in_portal_timezone()
+    return render_template(
+        'settings/admin_email_footer.html',
+        footer_template=current_template,
+        footer_preview_date=now.strftime('%d.%m.%Y'),
+        footer_preview_time=now.strftime('%H:%M'),
+    )
 
 
 @settings_bp.route('/admin/email-permissions')
@@ -2046,10 +2084,15 @@ Gesendet von <user> (<email>)
     sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
     sync_interval = int(sync_setting.value) if sync_setting and sync_setting.value else 30
     
-    return render_template('settings/admin_email_module.html', 
-                         footer_template=current_footer,
-                         storage_days=storage_days,
-                         sync_interval=sync_interval)
+    now = now_in_portal_timezone()
+    return render_template(
+        'settings/admin_email_module.html',
+        footer_template=current_footer,
+        storage_days=storage_days,
+        sync_interval=sync_interval,
+        footer_preview_date=now.strftime('%d.%m.%Y'),
+        footer_preview_time=now.strftime('%H:%M'),
+    )
 
 
 @settings_bp.route('/admin/email-settings', methods=['GET', 'POST'])

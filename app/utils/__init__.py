@@ -1,4 +1,4 @@
-from .common import format_time, format_datetime, get_local_time, is_module_enabled
+from .common import format_time, format_datetime, get_local_time, now_in_portal_timezone, is_module_enabled
 from .i18n import (
     _,
     get_available_languages,
@@ -11,6 +11,7 @@ __all__ = [
     'format_time',
     'format_datetime',
     'get_local_time',
+    'now_in_portal_timezone',
     'is_module_enabled',
     '_',
     'translate',

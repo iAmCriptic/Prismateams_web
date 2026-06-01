@@ -1,144 +1,31 @@
-# Team Portal - Installationsanleitung
+﻿# Team Portal - Installationsanleitung
 
-## ✅ Empfohlene Installation: Automatische Installation (Ubuntu 24.04)
+**Dokumentation:** [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · [WARTUNG.md](WARTUNG.md) · [ERROR_HANDLING.md](ERROR_HANDLING.md)
 
-**Diese Methode wird für Ubuntu Server empfohlen.** Das Installationsskript übernimmt alle Schritte automatisch und konfiguriert das System vollständig.
+## Hinweis zu VAPID- und Encryption-Keys
 
-⚠️⚠️ Zurzeit kann eine Nachträgliche eintarung der Vapid & Secret keys für Benarichtigungen, Passwörter und Music erfordlich sein. 
-   ```bash
-    # Encryption Keys (aus generate_encryption_keys.py kopieren)
-    CREDENTIAL_ENCRYPTION_KEY=your-credential-encryption-key-here
-    MUSIC_ENCRYPTION_KEY=your-music-encryption-key-here
+Zurzeit kann eine nachträgliche Eintragung der VAPID- und Secret Keys für Benachrichtigungen, Passwörter und Music erforderlich sein:
 
-    VAPID_PUBLIC_KEY=your-vapid-public-key-here
-    VAPID_PRIVATE_KEY=your-vapid-private-key-here
-   ```
+```bash
+# Encryption Keys (aus generate_encryption_keys.py kopieren)
+CREDENTIAL_ENCRYPTION_KEY=your-credential-encryption-key-here
+MUSIC_ENCRYPTION_KEY=your-music-encryption-key-here
 
+VAPID_PUBLIC_KEY=your-vapid-public-key-here
+VAPID_PRIVATE_KEY=your-vapid-private-key-here
+```
 
-### Voraussetzungen
+## Empfohlene Installation (Ubuntu)
 
-- Ubuntu 24.04.3 LTS (oder kompatibel)
-- Root-Zugriff (sudo)
-- Internet-Verbindung
-- Mindestens 4GB RAM empfohlen (für OnlyOffice und Excalidraw)
+Für Ubuntu Server 24.04 existiert ein automatisches Installationsskript: `scripts/install_ubuntu.sh`
 
-### Installation
+```bash
+sudo bash scripts/install_ubuntu.sh
+```
 
-1. **Repository klonen oder Dateien kopieren**
-   ```bash
-   # Option 1: Repository klonen
-   git clone <repository-url>
-   cd Prismateams_web
-   
-   # Option 2: Dateien bereits vorhanden
-   cd /pfad/zum/projekt
-   ```
-
-2. **Skript ausführbar machen**
-   ```bash
-   chmod +x scripts/install_ubuntu.sh
-   ```
-
-3. **Skript als root ausführen**
-   ```bash
-   sudo ./scripts/install_ubuntu.sh
-   ```
-
-### Was wird installiert?
-
-Das Skript installiert und konfiguriert automatisch:
-
-- ✅ System-Updates und Basis-Pakete
-- ✅ Python 3.12+ und pip
-- ✅ MySQL/MariaDB mit automatischer Datenbank- und Benutzererstellung
-- ✅ Nginx mit vollständiger Konfiguration
-- ✅ Gunicorn als WSGI-Server
-- ✅ Docker und Docker Compose (optional)
-- ✅ OnlyOffice Document Server (Docker, optional)
-- ✅ Excalidraw Client und Room Server (Docker, optional)
-- ✅ Python Virtual Environment
-- ✅ Automatische Generierung aller Keys:
-  - Flask SECRET_KEY
-  - VAPID Keys (für Push-Benachrichtigungen)
-  - Encryption Keys (für Credentials und Music-Modul)
-  - OnlyOffice Secret Key
-- ✅ Automatische .env-Konfiguration
-- ✅ Datenbank-Initialisierung (automatisch beim ersten Start)
-- ✅ Systemd Service für Gunicorn
-- ✅ Firewall-Konfiguration (UFW)
-- ✅ Optional: SSL mit Let's Encrypt
-
-### Interaktive Abfragen
-
-Das Skript fragt Sie nach:
-
-1. **Installationspfad** (Standard: `/var/www/teamportal`)
-   - Wo soll die Anwendung installiert werden?
-
-2. **Domain oder IP-Adresse**
-   - Für Nginx-Konfiguration und optional SSL
-
-3. **SSL mit Let's Encrypt**
-   - Soll SSL automatisch eingerichtet werden?
-   - E-Mail-Adresse für Let's Encrypt
-
-4. **MySQL Root-Passwort**
-   - Lassen Sie leer für automatische Generierung
-   - Oder geben Sie ein sicheres Passwort ein
-
-5. **E-Mail-Konfiguration**
-   - SMTP-Server, Port, Benutzername, Passwort
-   - IMAP-Server, Port (falls benötigt)
-
-### Automatisch generierte Werte
-
-Das Skript generiert automatisch:
-
-- MySQL Root-Passwort (falls nicht angegeben)
-- Datenbank-Benutzer-Passwort
-- Flask SECRET_KEY
-- VAPID Keys
-- Encryption Keys
-- OnlyOffice Secret Key
-
-**⚠️ WICHTIG:** Speichern Sie die am Ende ausgegebenen Passwörter und Keys sicher!
-
-### Nach der Installation
-
-1. **E-Mail-Konfiguration prüfen**
-   - Das Skript hat bereits die E-Mail-Einstellungen in `$INSTALL_DIR/.env` konfiguriert
-   - Sie können diese bei Bedarf anpassen
-
-2. **Anwendung öffnen**
-   - Öffnen Sie `http://ihre-domain.de` (oder `https://` wenn SSL eingerichtet)
-   - Erstellen Sie einen Admin-Benutzer über den Setup-Assistenten
-
-3. **Service-Status prüfen**
-   ```bash
-   systemctl status teamportal
-   systemctl status nginx
-   docker ps  # Falls Docker-Services installiert wurden
-   ```
-
-### Vorteile der automatischen Installation
-
-- ✅ **Vollautomatisch:** Alle Schritte werden automatisch ausgeführt
-- ✅ **Fehlerfrei:** Reduziert menschliche Fehler
-- ✅ **Schnell:** Installation in wenigen Minuten
-- ✅ **Konsistent:** Gleiche Konfiguration bei jeder Installation
-- ✅ **Sicher:** Automatische Generierung sicherer Passwörter und Keys
-
-### Troubleshooting
-
-Bei Problemen mit der automatischen Installation:
-
-- Prüfen Sie die Logs während der Installation
-- Überprüfen Sie die `.env`-Datei
-- Siehe auch den Abschnitt [Troubleshooting](#troubleshooting) weiter unten
-- Für manuelle Anpassungen siehe [Produktionsinstallation (Ubuntu Server)](#produktionsinstallation-ubuntu-server) (manuelle Methode)
+Alle Details, CLI-Optionen und interaktive Abfragen: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
 
 ---
-
 ## Produktionsinstallation (Ubuntu Server) - Manuelle Methode
 
 Diese Anleitung führt Sie Schritt für Schritt durch die vollständige Installation von Prismateams auf einem Ubuntu Server, inklusive optionaler Integrationen für Excalidraw und OnlyOffice.
@@ -483,7 +370,7 @@ sudo journalctl -u teamportal -n 50 -f
 sudo nano /etc/systemd/system/teamportal.service
 ```
 
-Ändern Sie die `--workers 1` Zeile zu `--workers 4` (oder mehr, siehe Performance-Optimierung):
+Ändern Sie die `--workers 1` Zeile zu `--workers 4` (oder mehr, siehe [WARTUNG.md – Performance](WARTUNG.md#performance-optimierung)):
 
 ```ini
 [Unit]
@@ -814,453 +701,34 @@ sudo ufw status
 
 **Hinweis:** Falls der Setup-Assistent nicht automatisch erscheint, können Sie direkt zur Registrierungsseite navigieren und sich dort registrieren. Der erste registrierte Benutzer wird automatisch als Admin eingerichtet.
 
-## Wartung
-
-### Logs überprüfen
-```bash
-# Team Portal Service Logs (Systemd)
-sudo journalctl -u teamportal -f
-sudo journalctl -u teamportal -n 100
-
-# Nginx Logs
-sudo tail -f /var/log/nginx/access.log
-sudo tail -f /var/log/nginx/error.log
-
-# Redis Logs
-sudo journalctl -u redis-server -f
-
-# OnlyOffice Logs (falls installiert)
-sudo docker logs -f onlyoffice-documentserver
-
-# Excalidraw Logs (falls installiert)
-sudo docker logs -f excalidraw
-sudo docker logs -f excalidraw-room
-```
-
-### Anwendung neu starten
-```bash
-sudo systemctl restart teamportal
-sudo systemctl status teamportal
-```
-
-### Docker-Container neu starten (falls installiert)
-```bash
-# OnlyOffice neu starten (falls installiert)
-sudo docker restart onlyoffice-documentserver
-
-# Excalidraw neu starten (falls installiert)
-sudo docker restart excalidraw
-sudo docker restart excalidraw-room
-```
-
-### Updates einspielen
-
-**⚠️ WICHTIG:** Erstellen Sie vor jedem Update ein Backup der Datenbank und des Upload-Verzeichnisses! (siehe Backup erstellen)
-
-**Option 1: Force Update (empfohlen, überschreibt lokale Änderungen)**
-
-Diese Variante ist die **empfohlene Update-Methode**, da nichts verloren gehen kann, außer man hat eigene Änderungen im system vorgenommen. dann am Besten mit git stash arbeiten. 
-
-```bash
-cd /var/www/teamportal
-
-# Aktuelle Änderungen vom Remote-Repository abrufen
-sudo -u www-data git fetch origin
-
-# Lokale Änderungen verwerfen und auf den neuesten Stand bringen
-# Ersetzen Sie "main" durch "master", falls Sie den master-Branch verwenden
-sudo -u www-data git reset --hard origin/main
-
-# Dependencies aktualisieren
-sudo ./venv/bin/pip install -r requirements.txt
-
-# Anwendung neu starten
-sudo systemctl restart teamportal
-```
-
-**Hinweis:** Wenn Sie den `master`-Branch statt `main` verwenden, ersetzen Sie `origin/main` durch `origin/master` im `git reset`-Befehl.
-
-
-### Datenbank-Migrationen ausführen
-
-**Wichtig:** Bei einer Neuinstallation werden die Datenbank und alle Tabellen **automatisch** beim ersten Start der Anwendung angelegt. Sie müssen **KEINE** Tabellen manuell erstellen!
-
-**Migrationen sind nur erforderlich, wenn Sie von einer älteren Version aktualisieren.**
-
-Falls Sie von einer älteren Version aktualisieren, müssen Sie nach dem Update die entsprechende Migrationsdatei ausführen:
-
-```bash
-cd /var/www/teamportal
-# Migration zu Version 2.3.3:
-sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2_4_3.py"
-```
-
-**Hinweis:** Prüfen Sie die verfügbaren Migrationsdateien im `migrations/` Verzeichnis und führen Sie die entsprechende Migration für Ihre Zielversion aus (z.B. `migrate_to_2.3.3.py`).
-
-### Docker-Container aktualisieren (falls installiert)
-
-```bash
-# OnlyOffice aktualisieren (falls installiert)
-sudo docker stop onlyoffice-documentserver
-sudo docker rm onlyoffice-documentserver
-sudo docker pull onlyoffice/documentserver:latest
-sudo docker run -i -t -d -p 8080:80 --restart=always \
-    --name onlyoffice-documentserver \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
-    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
-    -e JWT_SECRET=dein-jwt-secret-key-hier \
-    onlyoffice/documentserver
-
-# Excalidraw aktualisieren (falls installiert)
-sudo docker stop excalidraw excalidraw-room
-sudo docker rm excalidraw excalidraw-room
-sudo docker pull excalidraw/excalidraw:latest
-sudo docker pull excalidraw/excalidraw-room:latest
-sudo docker run -i -t -d -p 8081:80 --restart=always \
-    --name excalidraw \
-    excalidraw/excalidraw:latest
-sudo docker run -i -t -d -p 8082:80 --restart=always \
-    --name excalidraw-room \
-    -e PORT=80 \
-    excalidraw/excalidraw-room:latest
-```
-
-### Backup erstellen
-```bash
-# Datenbank-Backup
-sudo mysqldump -u teamportal -p teamportal > backup_$(date +%Y%m%d).sql
-
-# Upload-Verzeichnis sichern
-sudo tar -czf uploads_backup_$(date +%Y%m%d).tar.gz /var/www/teamportal/uploads/
-
-# OnlyOffice Daten sichern (falls installiert)
-sudo tar -czf onlyoffice_backup_$(date +%Y%m%d).tar.gz /var/lib/onlyoffice/
-```
-
-## Troubleshooting
-
-### Anwendung startet nicht
-```bash
-# Logs prüfen
-sudo journalctl -u teamportal -n 100
-sudo journalctl -u teamportal -f
-
-# Service-Status prüfen
-sudo systemctl status teamportal
-
-# Manuell starten zum Testen
-cd /var/www/teamportal
-sudo -u www-data ./venv/bin/python app.py
-```
-
-### Datenbankverbindung schlägt fehl
-```bash
-# MariaDB-Status prüfen
-sudo systemctl status mariadb
-
-# Verbindung testen
-mysql -u teamportal -p teamportal
-
-# Prüfe die .env-Datei
-sudo cat /var/www/teamportal/.env | grep DATABASE_URI
-```
-
-### Upload schlägt fehl
-```bash
-# Berechtigungen prüfen
-ls -la /var/www/teamportal/uploads
-
-# Berechtigungen korrigieren
-sudo chown -R www-data:www-data /var/www/teamportal/uploads
-sudo chmod -R 775 /var/www/teamportal/uploads
-```
-
-### Nginx zeigt 502 Bad Gateway
-```bash
-# Prüfen ob Gunicorn läuft
-sudo systemctl status teamportal
-
-# Neu starten
-sudo systemctl restart teamportal
-
-# Prüfe die Logs
-sudo journalctl -u teamportal -n 100
-```
-
-### OnlyOffice nicht erreichbar (falls installiert)
-```bash
-# Prüfe ob OnlyOffice Container läuft
-sudo docker ps | grep onlyoffice
-
-# Prüfe Port 8080
-sudo netstat -tlnp | grep 8080
-
-# Prüfe OnlyOffice Logs
-sudo docker logs onlyoffice-documentserver
-
-# OnlyOffice neu starten
-sudo docker restart onlyoffice-documentserver
-
-# Teste ob OnlyOffice direkt auf Port 8080 erreichbar ist
-curl http://127.0.0.1:8080/welcome/
-
-# Teste ob OnlyOffice API über Nginx erreichbar ist
-curl http://192.168.188.142/onlyoffice/web-apps/apps/api/documents/api.js | head -20
-
-# Wenn die API HTML statt JavaScript zurückgibt, ist die Nginx-Konfiguration fehlerhaft
-# Überprüfen Sie:
-# 1. proxy_pass sollte KEINEN trailing slash haben: proxy_pass http://127.0.0.1:8080;
-# 2. Nginx-Konfiguration neu laden: sudo nginx -t && sudo systemctl reload nginx
-
-# Prüfe OnlyOffice Logs
-sudo docker logs onlyoffice-documentserver
-
-# OnlyOffice neu starten
-sudo docker restart onlyoffice-documentserver
-```
-
-### OnlyOffice JWT-Fehler (falls installiert)
-- Stellen Sie sicher, dass `ONLYOFFICE_SECRET_KEY` in `.env` mit dem OnlyOffice JWT_SECRET übereinstimmt
-- Prüfen Sie die OnlyOffice-Logs: `sudo docker logs onlyoffice-documentserver`
-- Wenn OnlyOffice ohne JWT läuft, lassen Sie `ONLYOFFICE_SECRET_KEY` in der `.env` leer
-
-### Excalidraw lädt nicht (falls installiert)
-```bash
-# Prüfe ob Container laufen
-sudo docker ps | grep excalidraw
-
-# Prüfe Container-Logs
-sudo docker logs excalidraw
-sudo docker logs excalidraw-room
-
-# Prüfe Ports
-sudo netstat -tlnp | grep 8081
-sudo netstat -tlnp | grep 8082
-
-# Container neu starten
-sudo docker restart excalidraw
-sudo docker restart excalidraw-room
-```
-
-### Excalidraw-Room funktioniert nicht (falls installiert)
-- Stellen Sie sicher, dass WebSocket-Support in Nginx aktiviert ist
-- Prüfen Sie die Nginx-Logs: `sudo tail -f /var/log/nginx/error.log`
-- Prüfen Sie die Room-Server-Logs: `sudo docker logs excalidraw-room`
-
-### Canvas-Modul kann nicht aktiviert werden (falls Excalidraw installiert)
-- Prüfen Sie ob `EXCALIDRAW_ENABLED=True` in `.env` gesetzt ist
-- Prüfen Sie ob Excalidraw unter `/excalidraw` erreichbar ist
-- Starten Sie die Anwendung neu: `sudo systemctl restart teamportal`
-- Führen Sie die entsprechende Migrationsdatei aus (z.B. `migrate_to_2.3.3.py`): `sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2.3.3.py"`
-
-### Redis-Probleme
-```bash
-# Prüfe ob Redis läuft
-sudo systemctl status redis-server
-
-# Redis neu starten
-sudo systemctl restart redis-server
-
-# Redis-Verbindung testen
-redis-cli ping
-# Sollte "PONG" zurückgeben
-
-# Prüfe Redis-Konfiguration in .env
-sudo cat /var/www/teamportal/.env | grep REDIS
-
-# Redis-Logs prüfen
-sudo journalctl -u redis-server -n 50
-```
-
-**Häufige Probleme:**
-- **SocketIO funktioniert nicht mit mehreren Workern:** Stellen Sie sicher, dass Redis installiert ist und `REDIS_ENABLED=True` in `.env` gesetzt ist
-- **Redis startet nicht:** Prüfen Sie die Logs mit `sudo journalctl -u redis-server -n 50`
-- **Verbindungsfehler:** Stellen Sie sicher, dass `REDIS_URL=redis://localhost:6379/0` in `.env` korrekt ist
-
-### Socket.IO 400-Fehler (Bad Request) bei mehreren Workern
-
-Wenn Sie viele 400-Fehler in der Browser-Konsole sehen (z.B. bei `/socket.io/?EIO=4&transport=polling`), kann das folgende Ursachen haben:
-
-1. **Redis nicht korrekt konfiguriert:**
-```bash
-# Prüfen Sie die .env-Datei
-sudo cat /var/www/teamportal/.env | grep REDIS
-
-# Sollte zeigen:
-# REDIS_ENABLED=True
-# REDIS_URL=redis://localhost:6379/0
-
-# Redis-Verbindung testen
-redis-cli ping
-# Sollte "PONG" zurückgeben
-```
-
-2. **Nginx-Konfiguration fehlt Socket.IO Location:**
-   - Stellen Sie sicher, dass die Nginx-Konfiguration den `/socket.io/` Location-Block enthält (siehe Schritt 11)
-   - Nginx neu starten: `sudo systemctl restart nginx`
-
-3. **Eventlet nicht installiert:**
-```bash
-cd /var/www/teamportal
-source venv/bin/activate
-pip install eventlet
-# Oder alle Dependencies neu installieren:
-pip install -r requirements.txt
-```
-
-4. **Application neu starten:**
-```bash
-# Systemd-Service neu starten
-sudo systemctl daemon-reload
-sudo systemctl restart teamportal
-
-# Prüfen Sie die Logs auf Socket.IO-Initialisierung
-sudo journalctl -u teamportal -f | grep -i socket
-# Sollte zeigen: "SocketIO mit Redis Message Queue konfiguriert: redis://..."
-```
-
-5. **Browser-Cache leeren:**
-   - Leeren Sie den Browser-Cache und versuchen Sie es erneut
-   - Oder verwenden Sie einen Inkognito-Modus für Tests
-
-**Wichtig:** Nach Änderungen an der Socket.IO-Konfiguration müssen Sie die Anwendung **immer neu starten**, damit die Änderungen wirksam werden!
-
-### WebSocket-Verbindungsfehler (wss:// fehlgeschlagen)
-
-Wenn Sie Fehler wie "WebSocket connection to 'wss://...' failed" sehen:
-
-1. **Nginx Connection-Header-Map prüfen:**
-```bash
-# Prüfen Sie ob die Map in nginx.conf definiert ist
-sudo grep -A 3 "map \$http_upgrade" /etc/nginx/nginx.conf
-
-# Sollte zeigen:
-# map $http_upgrade $connection_upgrade {
-#     default upgrade;
-#     '' close;
-# }
-
-# Falls nicht vorhanden, fügen Sie es hinzu (siehe Nginx-Konfiguration oben)
-```
-
-2. **Nginx-Konfiguration testen:**
-```bash
-sudo nginx -t
-```
-
-3. **Nginx neu starten:**
-```bash
-sudo systemctl restart nginx
-```
-
-4. **Socket.IO verwendet Polling als Fallback:**
-   - Wenn WebSocket fehlschlägt, sollte Socket.IO automatisch auf Polling zurückfallen
-   - Das ist normalerweise kein kritisches Problem, aber weniger effizient
-   - Prüfen Sie die Browser-Console - Sie sollten sehen: "SocketIO verbunden" trotz des WebSocket-Fehlers
-
-5. **Firewall/Proxy prüfen:**
-   - Stellen Sie sicher, dass WebSocket-Upgrades nicht blockiert werden
-   - Bei Cloudflare oder anderen Proxies: Prüfen Sie die WebSocket-Einstellungen
-
-### Optionalen Service deaktivieren
-
-#### OnlyOffice deaktivieren
-```bash
-# 1. Container stoppen
-sudo docker stop onlyoffice-documentserver
-
-# 2. .env-Datei bearbeiten
-sudo nano /var/www/teamportal/.env
-# Setzen Sie: ONLYOFFICE_ENABLED=False
-
-# 3. Nginx-Konfiguration bearbeiten
-sudo nano /etc/nginx/sites-available/teamportal
-# Entfernen Sie den /onlyoffice Location-Block
-
-# 4. Nginx neu laden
-sudo nginx -t
-sudo systemctl reload nginx
-
-# 5. Anwendung neu starten
-sudo systemctl restart teamportal
-```
-
-#### Excalidraw deaktivieren
-```bash
-# 1. Container stoppen
-sudo docker stop excalidraw excalidraw-room
-
-# 2. .env-Datei bearbeiten
-sudo nano /var/www/teamportal/.env
-# Setzen Sie: EXCALIDRAW_ENABLED=False
-
-# 3. Nginx-Konfiguration bearbeiten
-sudo nano /etc/nginx/sites-available/teamportal
-# Entfernen Sie die /excalidraw und /excalidraw-room Location-Blöcke
-
-# 4. Nginx neu laden
-sudo nginx -t
-sudo systemctl reload nginx
-
-# 5. Anwendung neu starten
-sudo systemctl restart teamportal
-```
-
-## Performance-Optimierung
-
-### Gunicorn-Worker anpassen
-```bash
-# In /etc/systemd/system/teamportal.service
-# Faustregel: (2 x CPU-Kerne) + 1
-# Für 4 CPU-Kerne: --workers 9
-sudo nano /etc/systemd/system/teamportal.service
-# Ändern Sie die Zeile: --workers 1 zu --workers 9
-sudo systemctl daemon-reload
-sudo systemctl restart teamportal
-```
-
-### Nginx Caching
-```bash
-sudo nano /etc/nginx/sites-available/teamportal
-```
-
-Füge hinzu:
-```nginx
-# Cache für statische Dateien
-location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
-    expires 30d;
-    add_header Cache-Control "public, immutable";
-}
-```
-
-### OnlyOffice Performance (falls installiert)
-OnlyOffice kann viel Speicherplatz und RAM benötigen. Überwachen Sie regelmäßig:
-
-```bash
-# Speicherplatz prüfen
-df -h
-du -sh /var/lib/onlyoffice/DocumentServer/data
-
-# RAM-Verbrauch prüfen
-sudo docker stats onlyoffice-documentserver
-```
-
-**Empfohlene Systemanforderungen für OnlyOffice:**
-- Mindestens 4 GB RAM (8 GB empfohlen)
-- Mindestens 20 GB freier Speicherplatz
-- Mehrere CPU-Kerne für bessere Performance
-
-### Excalidraw Performance (falls installiert)
-Excalidraw ist relativ leichtgewichtig, benötigt aber WebSocket-Support für Echtzeit-Kollaboration:
-
-```bash
-# Container-Status prüfen
-sudo docker stats excalidraw excalidraw-room
-```
-
-**Empfohlene Systemanforderungen für Excalidraw:**
-- Mindestens 2 GB RAM
-- WebSocket-Support in Nginx (bereits konfiguriert)
+## Zusammenfassung der Installation
+
+### Pflichtschritte (immer erforderlich)
+
+1. System vorbereiten (Pakete installieren)
+2. MariaDB einrichten (nur leere Datenbank erstellen - Tabellen werden automatisch erstellt!)
+3. Anwendung von GitHub installieren
+4. Konfiguration (.env-Datei)
+5. Berechtigungen setzen
+6. Redis installieren (erforderlich für Multi-Worker-Setups)
+7. Systemd-Service konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
+8. Nginx konfigurieren
+9. SSL mit Let's Encrypt (empfohlen)
+10. Firewall konfigurieren
+11. Ersten Admin erstellen
+
+### Optionale Schritte (nur bei Bedarf)
+
+- **Docker installieren:** Nur erforderlich für OnlyOffice oder Excalidraw
+- **OnlyOffice installieren:** Optional, für Dokumentenbearbeitung
+- **Excalidraw installieren:** Optional, für Canvas-Modul
+
+### Wichtige Hinweise
+
+1. **.env-Konfiguration:** `ONLYOFFICE_ENABLED=False` / `EXCALIDRAW_ENABLED=False` wenn nicht installiert
+2. **Nginx-Konfiguration:** OnlyOffice- und Excalidraw-Location-Blöcke entfernen wenn nicht genutzt
+3. **Datenbank:** Nur leere DB anlegen; Tabellen beim ersten Gunicorn-Start; `--workers 1` für ersten Start
+4. **Redis:** Erforderlich für Multi-Worker mit SocketIO
 
 ## Sicherheits-Checkliste
 
@@ -1268,71 +736,13 @@ sudo docker stats excalidraw excalidraw-room
 - [ ] Datenbank-Passwort ist sicher
 - [ ] SSL/HTTPS ist aktiviert
 - [ ] Firewall ist konfiguriert
-- [ ] Regelmäßige Backups sind eingerichtet
+- [ ] Regelmäßige Backups sind eingerichtet ([WARTUNG.md](WARTUNG.md))
 - [ ] Standard-Ports sind geschützt
 - [ ] Nur notwendige Services laufen
 - [ ] System-Updates sind aktuell
 - [ ] OnlyOffice JWT ist aktiviert (falls OnlyOffice installiert)
 - [ ] `.env`-Datei hat korrekte Berechtigungen (nicht öffentlich lesbar)
 - [ ] Docker-Container laufen mit `--restart=always` (falls installiert)
-
-## Zusammenfassung der Installation
-
-### Pflichtschritte (immer erforderlich)
-1. ✅ System vorbereiten (Pakete installieren)
-2. ✅ MariaDB einrichten (nur leere Datenbank erstellen - Tabellen werden automatisch erstellt!)
-3. ✅ Anwendung von GitHub installieren
-4. ✅ Konfiguration (.env-Datei)
-5. ✅ Berechtigungen setzen
-6. ✅ Redis installieren (erforderlich für Multi-Worker-Setups)
-7. ✅ Systemd-Service konfigurieren und starten (Datenbank wird beim ersten Start automatisch erstellt!)
-8. ✅ Nginx konfigurieren
-9. ✅ SSL mit Let's Encrypt (empfohlen)
-10. ✅ Firewall konfigurieren
-11. ✅ Ersten Admin erstellen
-
-### Optionale Schritte (nur bei Bedarf)
-- **Docker installieren:** Nur erforderlich für OnlyOffice oder Excalidraw
-- **OnlyOffice installieren:** Optional, für Dokumentenbearbeitung
-- **Excalidraw installieren:** Optional, für Canvas-Modul
-- **Excalidraw-Migration:** Nur erforderlich, wenn Excalidraw installiert ist
-
-### Wichtige Hinweise
-
-1. **.env-Konfiguration:**
-   - Setzen Sie `ONLYOFFICE_ENABLED=False`, wenn OnlyOffice NICHT installiert ist
-   - Setzen Sie `EXCALIDRAW_ENABLED=False`, wenn Excalidraw NICHT installiert ist
-   - Diese Einstellungen sind bereits in `docs/env.example` auf `False` gesetzt
-
-2. **Nginx-Konfiguration:**
-   - Entfernen Sie die OnlyOffice-Location-Blöcke, wenn OnlyOffice NICHT installiert ist
-   - Entfernen Sie die Excalidraw-Location-Blöcke, wenn Excalidraw NICHT installiert ist
-
-3. **Docker-Container:**
-   - Nur starten, wenn die entsprechenden Features benötigt werden
-   - Container können jederzeit gestoppt und entfernt werden
-
-4. **Datenbank-Erstellung:**
-   - Die Datenbank wird **automatisch** beim ersten Start erstellt
-   - Sie müssen **KEINE** Tabellen manuell anlegen
-   - Erstellen Sie nur die leere Datenbank in MariaDB
-   - Beim ersten Start mit Systemd-Service wird alles automatisch initialisiert
-   - Verwenden Sie `--workers 1` (1 Worker) für den ersten Start
-   - Nach erfolgreichem Start können Sie auf mehrere Worker umstellen
-
-5. **Redis-Konfiguration:**
-   - Redis wird automatisch installiert und konfiguriert
-   - Erforderlich für Multi-Worker-Setups mit SocketIO (Echtzeit-Updates)
-   - Ohne Redis funktionieren SocketIO-Events nur mit einem Worker
-   - Redis wird automatisch in `.env` konfiguriert (`REDIS_ENABLED=True`, `REDIS_URL=redis://localhost:6379/0`)
-
-## Support
-
-Bei Problemen:
-1. Logs überprüfen (siehe Wartung)
-2. Troubleshooting-Abschnitt durchgehen
-3. GitHub Issues durchsuchen
-4. Neues Issue erstellen mit detaillierter Fehlerbeschreibung
 
 ## Weitere Informationen
 
@@ -1341,5 +751,10 @@ Bei Problemen:
 - **Docker Hub Excalidraw:** https://hub.docker.com/r/excalidraw/excalidraw
 - **Docker Hub OnlyOffice:** https://hub.docker.com/r/onlyoffice/documentserver
 
+## Support
 
+Bei Problemen:
 
+1. [ERROR_HANDLING.md](ERROR_HANDLING.md) durchgehen
+2. [WARTUNG.md](WARTUNG.md) für Logs und Updates
+3. GitHub Issues durchsuchen oder neues Issue erstellen

@@ -21,7 +21,11 @@
       "logout": "Abmelden",
       "more": "Mehr",
       "module": "Module",
-      "back": "Zurück"
+      "back": "Zurück",
+      "notifications": "Benachrichtigungen",
+      "notifications_short": "Info",
+      "home": "Home",
+      "booking": "Buchungen"
     },
     "notification_center": {
       "open": "Benachrichtigungen öffnen",
@@ -402,7 +406,19 @@
       "oled_help": "Nutzt echtes Schwarz (#000000) für OLED-Displays. Erfordert aktivierten Dark Mode.",
       "save_button": "Änderungen speichern",
       "flash_success": "Darstellungseinstellungen wurden aktualisiert.",
-      "flash_invalid_language": "Die ausgewählte Sprache ist nicht verfügbar."
+      "flash_invalid_language": "Die ausgewählte Sprache ist nicht verfügbar.",
+      "layout_preference_label": "Layout-Präferenz",
+      "layout_preference_auto": "Automatisch (empfohlen)",
+      "layout_preference_mobile": "Mobile-Layout",
+      "layout_preference_desktop": "Desktop-Layout",
+      "layout_preference_help": "Wählen Sie Ihr bevorzugtes Layout. „Automatisch“ passt das Layout an die Bildschirmgröße an. „Desktop-Layout“ ist besonders für Tablets nützlich, wenn Sie die Sidebar-Navigation bevorzugen.",
+      "mobile_nav": {
+        "title": "Mobile Navigation",
+        "description": "Wählen Sie die Module für die beiden freien Plätze in der unteren Navigationsleiste (links und rechts neben dem Dashboard).",
+        "left_label": "Linkes Icon",
+        "right_label": "Rechtes Icon",
+        "help": "Benachrichtigungen, Dashboard und Module sind fest und können nicht geändert werden."
+      }
     },
     "index": {
       "page_title": "Einstellungen - Team Portal",

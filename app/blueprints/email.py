@@ -30,7 +30,7 @@ import re
 
 from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
 from app.utils.lock_manager import acquire_email_sync_lock
-from app.utils.common import format_datetime
+from app.utils.common import format_datetime, now_in_portal_timezone
 
 email_bp = Blueprint('email', __name__)
 
@@ -57,8 +57,9 @@ def build_footer_html():
     portal_name = get_portal_display_name()
 
     if footer_template and footer_template.value:
-        now_local = format_datetime(datetime.utcnow(), '%d.%m.%Y %H:%M')
-        date_part, time_part = now_local.split(' ') if ' ' in now_local else (now_local, '')
+        now = now_in_portal_timezone()
+        date_part = now.strftime('%d.%m.%Y')
+        time_part = now.strftime('%H:%M')
         footer_html = footer_template.value
         replacements = {
             '<user>': current_user.full_name or '',
@@ -617,7 +618,7 @@ def build_quoted_original_html(original_email, quote_kind: str = 'reply') -> str
 
     sent_dt = original_email.received_at or original_email.sent_at or datetime.utcnow()
     try:
-        date_str = sent_dt.strftime('%d.%m.%Y %H:%M')
+        date_str = format_datetime(sent_dt, '%d.%m.%Y %H:%M')
     except Exception:
         date_str = ''
 
@@ -2726,7 +2727,7 @@ def build_plain_quote_header(email_msg: EmailMessage) -> str:
         f"Von: {email_msg.sender}\n"
         f"An: {email_msg.recipients or ''}\n"
         f"{'CC: ' + email_msg.cc + '\n' if email_msg.cc else ''}"
-        f"Datum: {sent_at.strftime('%d.%m.%Y %H:%M')}\n"
+        f"Datum: {format_datetime(sent_at, '%d.%m.%Y %H:%M')}\n"
         f"Betreff: {email_msg.subject}\n\n"
     )
     return header

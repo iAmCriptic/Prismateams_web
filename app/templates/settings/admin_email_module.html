@@ -102,7 +102,7 @@
                     <div class="mb-3">
                         <h6>Vorschau:</h6>
                         <div class="border rounded p-3 bg-light">
-                            <pre id="footerPreview" style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ footer_template.replace('<user>', 'Max Mustermann').replace('<email>', 'max@example.com').replace('<app_name>', 'Prismateams').replace('<date>', '29.10.2025').replace('<time>', '19:15') }}</pre>
+                            <pre id="footerPreview" style="white-space: pre-wrap; font-family: inherit; margin: 0;" data-preview-date="{{ footer_preview_date }}" data-preview-time="{{ footer_preview_time }}">{{ footer_template.replace('<user>', 'Max Mustermann').replace('<email>', 'max@example.com').replace('<app_name>', 'Prismateams').replace('<date>', footer_preview_date).replace('<time>', footer_preview_time) }}</pre>
                         </div>
                     </div>
 
@@ -198,14 +198,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const footerPreview = document.getElementById('footerPreview');
     
     if (footerTextarea && footerPreview) {
+        const previewDate = footerPreview.dataset.previewDate || '';
+        const previewTime = footerPreview.dataset.previewTime || '';
+
         function updateFooterPreview() {
             let content = footerTextarea.value;
-            // Replace variables with sample data for preview
             content = content.replace(/<user>/g, 'Max Mustermann');
             content = content.replace(/<email>/g, 'max@example.com');
             content = content.replace(/<app_name>/g, 'Prismateams');
-            content = content.replace(/<date>/g, '29.10.2025');
-            content = content.replace(/<time>/g, '19:15');
+            content = content.replace(/<date>/g, previewDate);
+            content = content.replace(/<time>/g, previewTime);
             footerPreview.textContent = content;
         }
         

@@ -169,6 +169,12 @@
             -webkit-text-fill-color: transparent !important;
             background-clip: text !important;
         }
+        .mobile-nav-home-fab {
+            background: var(--accent-style) !important;
+        }
+        .mobile-nav-home-fab.active {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+        }
         /* Desktop sidebar active */
         .sidebar .nav-link.active {
             color: var(--accent-color) !important;
@@ -233,46 +239,55 @@
     {% if current_user.is_authenticated %}
     <!-- Mobile Bottom Navigation -->
     <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
-        <div class="container-fluid">
-            <div class="row w-100 text-center" id="mobileNavRow">
-                <div class="col mobile-nav-item">
-                    <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">
-                        <i class="bi bi-house-door fs-4"></i>
-                        <div class="small">{{ _('layout.nav.dashboard') }}</div>
-                    </a>
-                </div>
-                {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
-                <div class="col mobile-nav-item">
-                    <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-chat-dots fs-4"></i>
-                        <div class="small">{{ _('layout.nav.chats') }}</div>
-                    </a>
-                </div>
+        <div class="mobile-nav-grid" id="mobileNavRow">
+            {# 1: Benachrichtigungen #}
+            <div class="mobile-nav-item">
+                {% if session.get('user_scope') != 'assessment' %}
+                <button type="button" class="nav-link notification-bell-btn border-0 bg-transparent position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
+                    <i class="bi bi-bell"></i>
+                    <span class="badge rounded-pill bg-danger notification-badge d-none">0</span>
+                    <span class="mobile-nav-label">{{ _('layout.nav.notifications_short') }}</span>
+                </button>
                 {% endif %}
-                {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
-                <div class="col mobile-nav-item">
-                    <a href="{{ url_for('calendar.index') }}" class="nav-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
-                        <i class="bi bi-calendar-event fs-4"></i>
-                        <div class="small">{{ _('layout.nav.calendar') }}</div>
-                    </a>
-                </div>
+            </div>
+
+            {# 2: Linker personalisierbarer Slot #}
+            <div class="mobile-nav-item">
+                {% if mobile_nav_left %}
+                <a href="{{ mobile_nav_left.url }}" class="nav-link {% if request.endpoint and mobile_nav_left.active_prefix in request.endpoint %}active{% endif %}">
+                    <i class="bi {{ mobile_nav_left.icon }}"></i>
+                    <span class="mobile-nav-label">{{ _(mobile_nav_left.label_key) }}</span>
+                </a>
                 {% endif %}
-                <div class="col mobile-nav-item">
-                    <a href="javascript:void(0)" role="button" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#moreMenu">
-                        <i class="bi bi-grid-3x3-gap fs-4"></i>
-                        <div class="small">{{ _('layout.nav.module') }}</div>
-                    </a>
-                </div>
+            </div>
+
+            {# 3: Home (erhaben) #}
+            <div class="mobile-nav-item mobile-nav-item-home">
+                <a href="{{ url_for('dashboard.index') }}" class="mobile-nav-home-fab {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}" aria-label="{{ _('layout.nav.dashboard') }}">
+                    <i class="bi bi-house-door"></i>
+                </a>
+                <span class="mobile-nav-label mobile-nav-home-label {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">{{ _('layout.nav.home') }}</span>
+            </div>
+
+            {# 4: Rechter personalisierbarer Slot #}
+            <div class="mobile-nav-item">
+                {% if mobile_nav_right %}
+                <a href="{{ mobile_nav_right.url }}" class="nav-link {% if request.endpoint and mobile_nav_right.active_prefix in request.endpoint %}active{% endif %}">
+                    <i class="bi {{ mobile_nav_right.icon }}"></i>
+                    <span class="mobile-nav-label">{{ _(mobile_nav_right.label_key) }}</span>
+                </a>
+                {% endif %}
+            </div>
+
+            {# 5: Module #}
+            <div class="mobile-nav-item">
+                <a href="javascript:void(0)" role="button" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#moreMenu">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <span class="mobile-nav-label">{{ _('layout.nav.module') }}</span>
+                </a>
             </div>
         </div>
     </nav>
-
-    {% if session.get('user_scope') != 'assessment' %}
-    <button type="button" class="btn btn-light notification-bell-btn notification-bell-btn-mobile d-lg-none position-relative" id="notificationBellBtnMobile" aria-label="{{ _('layout.notification_center.open') }}">
-        <i class="bi bi-bell"></i>
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge d-none">0</span>
-    </button>
-    {% endif %}
 
     <!-- Desktop Sidebar -->
     <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 bg-light sidebar" id="desktopSidebar">

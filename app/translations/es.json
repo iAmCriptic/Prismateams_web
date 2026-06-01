@@ -19,7 +19,9 @@
       "logout": "Cerrar sesión",
       "more": "Más",
       "module": "Módulos",
-      "back": "Volver"
+      "back": "Volver",
+      "notifications": "Notificaciones",
+      "booking": "Reservas"
     }
   },
   "common": {

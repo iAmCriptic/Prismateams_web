@@ -8,16 +8,19 @@
 }
 
 .notification-bell-btn-mobile {
-    position: fixed;
-    top: calc(0.75rem + env(safe-area-inset-top, 0px));
-    right: 0.75rem;
-    left: auto;
-    bottom: auto;
-    z-index: 1040;
-    width: 2.75rem;
-    height: 2.75rem;
-    border-radius: 50%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    /* Legacy: floating mobile bell removed – bell lives in bottom nav */
+}
+
+.mobile-nav .notification-bell-btn .notification-badge {
+    position: absolute;
+    top: 0;
+    left: calc(50% + 0.35rem);
+    right: auto !important;
+    bottom: auto !important;
+    transform: none;
+    font-size: 0.6rem;
+    min-width: 1rem;
+    padding: 0.15em 0.4em;
 }
 
 .sidebar-header .notification-bell-btn {

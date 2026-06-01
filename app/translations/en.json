@@ -21,7 +21,11 @@
       "logout": "Log out",
       "more": "More",
       "module": "Modules",
-      "back": "Back"
+      "back": "Back",
+      "notifications": "Notifications",
+      "notifications_short": "Alerts",
+      "home": "Home",
+      "booking": "Bookings"
     },
     "notification_center": {
       "open": "Open notifications",
@@ -370,7 +374,19 @@
       "oled_help": "Uses true black (#000000) for OLED displays. Requires dark mode.",
       "save_button": "Save changes",
       "flash_success": "Appearance settings updated.",
-      "flash_invalid_language": "The selected language is not available."
+      "flash_invalid_language": "The selected language is not available.",
+      "layout_preference_label": "Layout preference",
+      "layout_preference_auto": "Automatic (recommended)",
+      "layout_preference_mobile": "Mobile layout",
+      "layout_preference_desktop": "Desktop layout",
+      "layout_preference_help": "Choose your preferred layout. \"Automatic\" adapts to screen size. \"Desktop layout\" is useful on tablets if you prefer sidebar navigation.",
+      "mobile_nav": {
+        "title": "Mobile navigation",
+        "description": "Choose modules for the two customizable slots in the bottom bar (left and right of the dashboard).",
+        "left_label": "Left icon",
+        "right_label": "Right icon",
+        "help": "Notifications, dashboard and modules are fixed and cannot be changed."
+      }
     },
     "index": {
       "page_title": "Settings - Team Portal",

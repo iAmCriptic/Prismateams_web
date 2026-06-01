@@ -392,7 +392,7 @@
                                     {{ _('email.compose.reply_context.prefix') }}
                                     <strong>{{ original_email.sender|decode_email_header }}</strong>
                                     <span class="text-muted">·</span>
-                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                    <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
                                 </div>
                                 {% if original_first_line %}
                                 <div class="text-body-secondary text-truncate" style="max-width: 100%;">
@@ -416,7 +416,7 @@
                                     {{ _('email.compose.forward_context.prefix') }}
                                     <strong>{{ original_email.sender|decode_email_header }}</strong>
                                     <span class="text-muted">·</span>
-                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                    <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
                                 </div>
                                 {% if original_first_line %}
                                 <div class="text-body-secondary text-truncate" style="max-width: 100%;">

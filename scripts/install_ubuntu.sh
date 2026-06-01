@@ -18,10 +18,21 @@
 # - Optional: SSL mit Let's Encrypt
 #
 # Verwendung:
-#   sudo bash scripts/install_ubuntu.sh
+#   sudo bash scripts/install_ubuntu.sh [OPTIONEN]
+#
+# Optionen (optional, interaktive Abfragen bleiben Standard):
+#   --port PORT              Gunicorn-Port (Standard: 5000)
+#   --no-webserver           Kein Nginx/Apache vHost einrichten
+#   --webserver TYPE         Webserver-Typ: nginx oder apache
+#   --skip-docker            Docker, OnlyOffice und Excalidraw nicht installieren
+#   --skip-onlyoffice        OnlyOffice nicht installieren
+#   --skip-excalidraw        Excalidraw nicht installieren
+#   --help                   Hilfe anzeigen
 #
 # Das Skript fragt interaktiv nach allen benötigten Konfigurationen,
 # einschließlich E-Mail-Einstellungen (SMTP/IMAP).
+# Übersprungene Schritte werden mit kurzen Hinweisen für die manuelle
+# Einrichtung (Standardwerte des Skripts) ausgegeben.
 ###############################################################################
 
 set -e  # Beende bei Fehlern
@@ -58,6 +69,160 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_manual() {
+    echo -e "${YELLOW}[MANUELL]${NC} $1"
+}
+
+# Standardwerte für optionale Komponenten
+GUNICORN_PORT=""
+SETUP_WEBSERVER=""
+WEBSERVER_TYPE=""
+DOMAIN=""
+SETUP_SSL=""
+LETSENCRYPT_EMAIL=""
+INSTALL_ONLYOFFICE=""
+INSTALL_EXCALIDRAW=""
+INSTALL_DOCKER=""
+
+show_help() {
+    cat <<'EOF'
+Team Portal - Ubuntu Installationsskript
+
+Verwendung:
+  sudo bash scripts/install_ubuntu.sh [OPTIONEN]
+
+Optionen:
+  --port PORT              Gunicorn-Port (Standard: 5000)
+  --no-webserver           Kein Nginx/Apache vHost einrichten
+  --webserver TYPE         Webserver-Typ: nginx oder apache
+  --skip-docker            Docker, OnlyOffice und Excalidraw überspringen
+  --skip-onlyoffice        OnlyOffice Document Server überspringen
+  --skip-excalidraw        Excalidraw Client und Room Server überspringen
+  --help                   Diese Hilfe anzeigen
+
+Beispiele:
+  sudo bash scripts/install_ubuntu.sh --port 8000
+  sudo bash scripts/install_ubuntu.sh --no-webserver --port 8000
+  sudo bash scripts/install_ubuntu.sh --webserver nginx --skip-excalidraw
+
+Ohne Optionen führt das Skript interaktive Abfragen durch.
+EOF
+}
+
+parse_arguments() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --port)
+                [ -n "${2:-}" ] || error_exit "--port erfordert einen Wert"
+                GUNICORN_PORT="$2"
+                shift 2
+                ;;
+            --no-webserver)
+                SETUP_WEBSERVER="n"
+                shift
+                ;;
+            --webserver)
+                [ -n "${2:-}" ] || error_exit "--webserver erfordert nginx oder apache"
+                WEBSERVER_TYPE="$2"
+                SETUP_WEBSERVER="j"
+                shift 2
+                ;;
+            --skip-docker)
+                INSTALL_DOCKER="n"
+                INSTALL_ONLYOFFICE="n"
+                INSTALL_EXCALIDRAW="n"
+                shift
+                ;;
+            --skip-onlyoffice)
+                INSTALL_ONLYOFFICE="n"
+                shift
+                ;;
+            --skip-excalidraw)
+                INSTALL_EXCALIDRAW="n"
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                error_exit "Unbekannte Option: $1 (verwenden Sie --help)"
+                ;;
+        esac
+    done
+}
+
+validate_gunicorn_port() {
+    if ! [[ "$GUNICORN_PORT" =~ ^[0-9]+$ ]]; then
+        log_error "Ungültiger Port: $GUNICORN_PORT (nur Ziffern erlaubt)"
+        exit 1
+    fi
+    if [ "$GUNICORN_PORT" -lt 1024 ] || [ "$GUNICORN_PORT" -gt 65535 ]; then
+        log_error "Port muss zwischen 1024 und 65535 liegen (angegeben: $GUNICORN_PORT)"
+        exit 1
+    fi
+    if command -v ss &>/dev/null; then
+        if ss -tln | grep -q ":${GUNICORN_PORT} "; then
+            log_warning "Port ${GUNICORN_PORT} ist bereits belegt. Gunicorn-Start könnte fehlschlagen."
+        fi
+    fi
+}
+
+is_yes() {
+    [[ "$1" =~ ^[JjYy]$ ]]
+}
+
+print_manual_webserver_hint() {
+    echo
+    log_manual "=== Webserver manuell einrichten (Standard-Konfiguration des Skripts) ==="
+    log_manual "Gunicorn laeuft auf: http://127.0.0.1:${GUNICORN_PORT}"
+    log_manual "Systemd-Service: /etc/systemd/system/teamportal.service"
+    echo
+    log_manual "Nginx (Standard):"
+    log_manual "  1. apt install nginx"
+    log_manual "  2. VHost: /etc/nginx/sites-available/teamportal"
+    log_manual "  3. Upstream: server 127.0.0.1:${GUNICORN_PORT};"
+    log_manual "  4. Proxy-Pfade: / -> Gunicorn, /onlyoffice -> :8080, /excalidraw -> :8081, /excalidraw-room -> :8082"
+    log_manual "  5. ln -sf /etc/nginx/sites-available/teamportal /etc/nginx/sites-enabled/"
+    log_manual "  6. nginx -t && systemctl enable nginx && systemctl restart nginx"
+    log_manual "  7. Firewall: ufw allow 'Nginx Full'"
+    log_manual "  8. SSL (optional): certbot --nginx -d IHRE-DOMAIN"
+    echo
+    log_manual "Details und vollstaendige Beispiel-Konfiguration: docs/INSTALLATION.md (Schritt 11-13)"
+    echo
+}
+
+print_manual_onlyoffice_hint() {
+    echo
+    log_manual "=== OnlyOffice manuell einrichten (Standard-Konfiguration des Skripts) ==="
+    log_manual "  1. Docker installieren (siehe docs/INSTALLATION.md Schritt 2)"
+    log_manual "  2. Container: docker run -d -p 8080:80 --restart=always --name onlyoffice-documentserver \\"
+    log_manual "       -e JWT_SECRET=IHR-SECRET -e JWT_ENABLED=true onlyoffice/documentserver:latest"
+    log_manual "  3. In .env: ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice"
+    log_manual "  4. Webserver-Proxy fuer /onlyoffice und /cache auf Port 8080 einrichten"
+    echo
+}
+
+print_manual_excalidraw_hint() {
+    echo
+    log_manual "=== Excalidraw manuell einrichten (Standard-Konfiguration des Skripts) ==="
+    log_manual "  1. Client:  docker run -d -p 8081:80 --restart=always --name excalidraw excalidraw/excalidraw:latest"
+    log_manual "  2. Room:    docker run -d -p 8082:80 --restart=always --name excalidraw-room -e PORT=80 excalidraw/excalidraw-room:latest"
+    log_manual "  3. In .env: EXCALIDRAW_ENABLED=True, EXCALIDRAW_URL=/excalidraw, EXCALIDRAW_ROOM_URL=/excalidraw-room"
+    log_manual "  4. Webserver-Proxy fuer /excalidraw und /excalidraw-room einrichten"
+    echo
+}
+
+print_manual_custom_port_hint() {
+    if [ "$GUNICORN_PORT" != "5000" ]; then
+        echo
+        log_manual "=== Abweichender Gunicorn-Port: ${GUNICORN_PORT} ==="
+        log_manual "Der Webserver muss auf http://127.0.0.1:${GUNICORN_PORT} weiterleiten (nicht 5000)."
+        log_manual "Pruefen: curl -I http://127.0.0.1:${GUNICORN_PORT}/"
+        echo
+    fi
 }
 
 # Überprüfung auf Root-Rechte
@@ -111,64 +276,110 @@ gather_information() {
     read -p "Installationspfad [/var/www/teamportal]: " INSTALL_DIR
     INSTALL_DIR=${INSTALL_DIR:-/var/www/teamportal}
     
-    # Gunicorn-Port
-    read -p "Gunicorn-Port [5000]: " GUNICORN_PORT
-    GUNICORN_PORT=${GUNICORN_PORT:-5000}
+    # Gunicorn-Port (optional per CLI vorgegeben)
+    if [ -z "$GUNICORN_PORT" ]; then
+        read -p "Gunicorn-Port [5000]: " GUNICORN_PORT
+        GUNICORN_PORT=${GUNICORN_PORT:-5000}
+    else
+        log_info "Gunicorn-Port (via Option): ${GUNICORN_PORT}"
+    fi
+    validate_gunicorn_port
     
-    # Webserver-Setup-Option
+    # Webserver-Setup-Option (optional per CLI vorgegeben)
     log_info ""
     log_info "=== Webserver-Konfiguration ==="
-    read -p "Möchten Sie, dass der Webserver automatisch eingerichtet wird? (j/n) [j]: " SETUP_WEBSERVER
-    SETUP_WEBSERVER=${SETUP_WEBSERVER:-j}
+    if [ -z "$SETUP_WEBSERVER" ]; then
+        read -p "Webserver automatisch einrichten (Nginx/Apache vHost)? (j/n) [j]: " SETUP_WEBSERVER
+        SETUP_WEBSERVER=${SETUP_WEBSERVER:-j}
+    elif is_yes "$SETUP_WEBSERVER"; then
+        log_info "Webserver-Einrichtung: ja (via Option)"
+    else
+        log_info "Webserver-Einrichtung: nein (via Option --no-webserver)"
+    fi
     
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         # Webserver-Typ-Auswahl
-        read -p "Welchen Webserver möchten Sie verwenden? (nginx/apache) [nginx]: " WEBSERVER_TYPE
-        WEBSERVER_TYPE=${WEBSERVER_TYPE:-nginx}
+        if [ -z "$WEBSERVER_TYPE" ]; then
+            read -p "Welchen Webserver verwenden? (nginx/apache) [nginx]: " WEBSERVER_TYPE
+            WEBSERVER_TYPE=${WEBSERVER_TYPE:-nginx}
+        else
+            log_info "Webserver-Typ (via Option): ${WEBSERVER_TYPE}"
+        fi
         
-        # Validiere Webserver-Typ
         if [[ "$WEBSERVER_TYPE" != "nginx" && "$WEBSERVER_TYPE" != "apache" ]]; then
-            log_warning "Ungültiger Webserver-Typ. Verwende nginx."
+            log_warning "Ungueltiger Webserver-Typ. Verwende nginx."
             WEBSERVER_TYPE="nginx"
         fi
         
-        # Domain/IP (erforderlich bei automatischer Webserver-Einrichtung)
-        read -p "Domain oder IP-Adresse für ${WEBSERVER_TYPE}: " DOMAIN
+        read -p "Domain oder IP-Adresse fuer ${WEBSERVER_TYPE}: " DOMAIN
         if [ -z "$DOMAIN" ]; then
-            log_error "Domain/IP ist erforderlich für automatische Webserver-Einrichtung!"
+            log_error "Domain/IP ist erforderlich fuer automatische Webserver-Einrichtung!"
             exit 1
         fi
         
-        # SSL
         read -p "SSL mit Let's Encrypt einrichten? (j/n) [n]: " SETUP_SSL
         SETUP_SSL=${SETUP_SSL:-n}
         
-        if [[ $SETUP_SSL =~ ^[JjYy]$ ]]; then
-            read -p "E-Mail-Adresse für Let's Encrypt: " LETSENCRYPT_EMAIL
+        if is_yes "$SETUP_SSL"; then
+            read -p "E-Mail-Adresse fuer Let's Encrypt: " LETSENCRYPT_EMAIL
             if [ -z "$LETSENCRYPT_EMAIL" ]; then
                 log_warning "Keine E-Mail angegeben. Verwende webmaster@$DOMAIN"
                 LETSENCRYPT_EMAIL="webmaster@$DOMAIN"
             fi
         fi
     else
-        # Manuelle Webserver-Einrichtung
         WEBSERVER_TYPE=""
         SETUP_SSL="n"
         LETSENCRYPT_EMAIL=""
         
-        # Domain/IP optional bei manueller Einrichtung
-        read -p "Domain oder IP-Adresse (optional, für Dokumentation): " DOMAIN
+        read -p "Domain oder IP-Adresse (optional, fuer Dokumentation): " DOMAIN
         
-        log_info ""
-        log_warning "=== WICHTIGER HINWEIS ==="
-        log_info "Sie haben sich für die manuelle Webserver-Einrichtung entschieden."
-        log_info "Bitte beachten Sie den Einrichtungsprozess ab Schritt 11 in der INSTALLATION.md"
-        log_info "Schritt 11: Nginx/Apache konfigurieren"
-        log_info "Schritt 12: SSL mit Let's Encrypt (optional)"
-        log_info "Schritt 13: Firewall konfigurieren"
-        log_info ""
-        log_info "Gunicorn läuft auf Port ${GUNICORN_PORT} und muss im Webserver konfiguriert werden."
-        log_info ""
+        print_manual_webserver_hint
+        print_manual_custom_port_hint
+    fi
+    
+    # Optionale Docker-Services
+    log_info ""
+    log_info "=== Optionale Docker-Services ==="
+    if [ -z "$INSTALL_DOCKER" ]; then
+        read -p "Docker, OnlyOffice und Excalidraw installieren? (j/n) [j]: " INSTALL_DOCKER
+        INSTALL_DOCKER=${INSTALL_DOCKER:-j}
+    elif is_yes "$INSTALL_DOCKER"; then
+        log_info "Docker-Services: ja (Standard/Option)"
+    else
+        log_info "Docker-Services: nein (via Option --skip-docker)"
+    fi
+    
+    if is_yes "$INSTALL_DOCKER"; then
+        if [ -z "$INSTALL_ONLYOFFICE" ]; then
+            read -p "OnlyOffice Document Server installieren? (j/n) [j]: " INSTALL_ONLYOFFICE
+            INSTALL_ONLYOFFICE=${INSTALL_ONLYOFFICE:-j}
+        elif is_yes "$INSTALL_ONLYOFFICE"; then
+            log_info "OnlyOffice: ja"
+        else
+            log_info "OnlyOffice: nein (via Option --skip-onlyoffice)"
+        fi
+        
+        if [ -z "$INSTALL_EXCALIDRAW" ]; then
+            read -p "Excalidraw (Client + Room Server) installieren? (j/n) [j]: " INSTALL_EXCALIDRAW
+            INSTALL_EXCALIDRAW=${INSTALL_EXCALIDRAW:-j}
+        elif is_yes "$INSTALL_EXCALIDRAW"; then
+            log_info "Excalidraw: ja"
+        else
+            log_info "Excalidraw: nein (via Option --skip-excalidraw)"
+        fi
+        
+        if ! is_yes "$INSTALL_ONLYOFFICE"; then
+            print_manual_onlyoffice_hint
+        fi
+        if ! is_yes "$INSTALL_EXCALIDRAW"; then
+            print_manual_excalidraw_hint
+        fi
+    else
+        INSTALL_ONLYOFFICE="n"
+        INSTALL_EXCALIDRAW="n"
+        print_manual_onlyoffice_hint
+        print_manual_excalidraw_hint
     fi
     
     # Datenbank-Root-Passwort
@@ -268,7 +479,7 @@ setup_system() {
         mysql-server mysql-client redis-server openssl certbot"
     
     # Webserver-Pakete bedingt hinzufügen
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             BASE_PACKAGES="$BASE_PACKAGES nginx python3-certbot-nginx"
             log_info "Installiere NGINX und Certbot für NGINX..."
@@ -296,7 +507,7 @@ setup_system() {
     fi
     
     # Webserver-Validierung nur wenn automatisch eingerichtet
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             if ! command -v nginx &> /dev/null; then
                 error_exit "Nginx wurde nicht korrekt installiert"
@@ -457,6 +668,11 @@ install_docker() {
 
 # OnlyOffice Installation
 install_onlyoffice() {
+    if ! is_yes "$INSTALL_ONLYOFFICE"; then
+        log_info "OnlyOffice-Installation uebersprungen"
+        return
+    fi
+    
     log_info "=== OnlyOffice Document Server Installation ==="
     
     # OnlyOffice Secret Key generieren
@@ -507,6 +723,11 @@ install_onlyoffice() {
 
 # Excalidraw Installation
 install_excalidraw() {
+    if ! is_yes "$INSTALL_EXCALIDRAW"; then
+        log_info "Excalidraw-Installation uebersprungen"
+        return
+    fi
+    
     log_info "=== Excalidraw Installation ==="
     
     # Excalidraw Client
@@ -806,57 +1027,67 @@ configure_env() {
     sed -i "s|CREDENTIAL_ENCRYPTION_KEY=.*|CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_KEY_ESC}|" .env
     sed -i "s|MUSIC_ENCRYPTION_KEY=.*|MUSIC_ENCRYPTION_KEY=${MUSIC_KEY_ESC}|" .env
     
-    # OnlyOffice - Entferne Kommentare (#) am Zeilenanfang und setze Werte
-    # Entferne # am Anfang und Kommentare am Ende, dann setze Werte
-    sed -i "s|^#.*ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
-    sed -i "s|^ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
-    # Entferne Kommentare am Ende der Zeile für ONLYOFFICE_DOCUMENT_SERVER_URL
-    sed -i "s|^#.*ONLYOFFICE_DOCUMENT_SERVER_URL=\([^#]*\).*|ONLYOFFICE_DOCUMENT_SERVER_URL=\1|" .env
-    sed -i "s|^ONLYOFFICE_DOCUMENT_SERVER_URL=\([^#]*\).*|ONLYOFFICE_DOCUMENT_SERVER_URL=\1|" .env
-    sed -i "s|^ONLYOFFICE_DOCUMENT_SERVER_URL=.*|ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice|" .env
-    if [ -n "$ONLYOFFICE_SECRET" ]; then
-        # Entferne Kommentare am Ende der Zeile für ONLYOFFICE_SECRET_KEY
-        sed -i "s|^#.*ONLYOFFICE_SECRET_KEY=\([^#]*\).*|ONLYOFFICE_SECRET_KEY=\1|" .env
-        sed -i "s|^ONLYOFFICE_SECRET_KEY=\([^#]*\).*|ONLYOFFICE_SECRET_KEY=\1|" .env
-        sed -i "s|^ONLYOFFICE_SECRET_KEY=.*|ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}|" .env
-    fi
-    # Stelle sicher, dass ONLYOFFICE-Einstellungen gesetzt sind (falls nicht in env.example vorhanden)
-    if ! grep -q "^ONLYOFFICE_ENABLED=" .env; then
-        echo "ONLYOFFICE_ENABLED=True" >> .env
-    fi
-    if ! grep -q "^ONLYOFFICE_DOCUMENT_SERVER_URL=" .env; then
-        echo "ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice" >> .env
-    fi
-    if [ -n "$ONLYOFFICE_SECRET" ] && ! grep -q "^ONLYOFFICE_SECRET_KEY=" .env; then
-        echo "ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}" >> .env
+    # OnlyOffice
+    if is_yes "$INSTALL_ONLYOFFICE"; then
+        sed -i "s|^#.*ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
+        sed -i "s|^ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=True|" .env
+        sed -i "s|^#.*ONLYOFFICE_DOCUMENT_SERVER_URL=\([^#]*\).*|ONLYOFFICE_DOCUMENT_SERVER_URL=\1|" .env
+        sed -i "s|^ONLYOFFICE_DOCUMENT_SERVER_URL=\([^#]*\).*|ONLYOFFICE_DOCUMENT_SERVER_URL=\1|" .env
+        sed -i "s|^ONLYOFFICE_DOCUMENT_SERVER_URL=.*|ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice|" .env
+        if [ -n "$ONLYOFFICE_SECRET" ]; then
+            sed -i "s|^#.*ONLYOFFICE_SECRET_KEY=\([^#]*\).*|ONLYOFFICE_SECRET_KEY=\1|" .env
+            sed -i "s|^ONLYOFFICE_SECRET_KEY=\([^#]*\).*|ONLYOFFICE_SECRET_KEY=\1|" .env
+            sed -i "s|^ONLYOFFICE_SECRET_KEY=.*|ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}|" .env
+        fi
+        if ! grep -q "^ONLYOFFICE_ENABLED=" .env; then
+            echo "ONLYOFFICE_ENABLED=True" >> .env
+        fi
+        if ! grep -q "^ONLYOFFICE_DOCUMENT_SERVER_URL=" .env; then
+            echo "ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice" >> .env
+        fi
+        if [ -n "$ONLYOFFICE_SECRET" ] && ! grep -q "^ONLYOFFICE_SECRET_KEY=" .env; then
+            echo "ONLYOFFICE_SECRET_KEY=${ONLYOFFICE_SECRET}" >> .env
+        fi
+    else
+        log_info "OnlyOffice uebersprungen - setze ONLYOFFICE_ENABLED=False in .env"
+        sed -i "s|^#.*ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=False|" .env
+        sed -i "s|^ONLYOFFICE_ENABLED=.*|ONLYOFFICE_ENABLED=False|" .env
+        if ! grep -q "^ONLYOFFICE_ENABLED=" .env; then
+            echo "ONLYOFFICE_ENABLED=False" >> .env
+        fi
     fi
     
-    # Excalidraw - Entferne Kommentare (#) am Zeilenanfang und setze Werte
-    sed -i "s|^#.*EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
-    sed -i "s|^EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
-    # Entferne Kommentare am Ende der Zeile für EXCALIDRAW_URL
-    sed -i "s|^#.*EXCALIDRAW_URL=\([^#]*\).*|EXCALIDRAW_URL=\1|" .env
-    sed -i "s|^EXCALIDRAW_URL=\([^#]*\).*|EXCALIDRAW_URL=\1|" .env
-    sed -i "s|^EXCALIDRAW_URL=.*|EXCALIDRAW_URL=/excalidraw|" .env
-    # Entferne Kommentare am Ende der Zeile für EXCALIDRAW_ROOM_URL
-    sed -i "s|^#.*EXCALIDRAW_ROOM_URL=\([^#]*\).*|EXCALIDRAW_ROOM_URL=\1|" .env
-    sed -i "s|^EXCALIDRAW_ROOM_URL=\([^#]*\).*|EXCALIDRAW_ROOM_URL=\1|" .env
-    sed -i "s|^EXCALIDRAW_ROOM_URL=.*|EXCALIDRAW_ROOM_URL=/excalidraw-room|" .env
-    # EXCALIDRAW_PUBLIC_URL (optional, leer lassen wenn nicht benötigt)
-    sed -i "s|^#.*EXCALIDRAW_PUBLIC_URL=.*|EXCALIDRAW_PUBLIC_URL=|" .env
-    sed -i "s|^EXCALIDRAW_PUBLIC_URL=.*|EXCALIDRAW_PUBLIC_URL=|" .env
-    # Stelle sicher, dass Excalidraw-Einstellungen gesetzt sind (falls nicht in env.example vorhanden)
-    if ! grep -q "^EXCALIDRAW_ENABLED=" .env; then
-        echo "EXCALIDRAW_ENABLED=True" >> .env
-    fi
-    if ! grep -q "^EXCALIDRAW_URL=" .env; then
-        echo "EXCALIDRAW_URL=/excalidraw" >> .env
-    fi
-    if ! grep -q "^EXCALIDRAW_ROOM_URL=" .env; then
-        echo "EXCALIDRAW_ROOM_URL=/excalidraw-room" >> .env
-    fi
-    if ! grep -q "^EXCALIDRAW_PUBLIC_URL=" .env; then
-        echo "EXCALIDRAW_PUBLIC_URL=" >> .env
+    # Excalidraw
+    if is_yes "$INSTALL_EXCALIDRAW"; then
+        sed -i "s|^#.*EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
+        sed -i "s|^EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=True|" .env
+        sed -i "s|^#.*EXCALIDRAW_URL=\([^#]*\).*|EXCALIDRAW_URL=\1|" .env
+        sed -i "s|^EXCALIDRAW_URL=\([^#]*\).*|EXCALIDRAW_URL=\1|" .env
+        sed -i "s|^EXCALIDRAW_URL=.*|EXCALIDRAW_URL=/excalidraw|" .env
+        sed -i "s|^#.*EXCALIDRAW_ROOM_URL=\([^#]*\).*|EXCALIDRAW_ROOM_URL=\1|" .env
+        sed -i "s|^EXCALIDRAW_ROOM_URL=\([^#]*\).*|EXCALIDRAW_ROOM_URL=\1|" .env
+        sed -i "s|^EXCALIDRAW_ROOM_URL=.*|EXCALIDRAW_ROOM_URL=/excalidraw-room|" .env
+        sed -i "s|^#.*EXCALIDRAW_PUBLIC_URL=.*|EXCALIDRAW_PUBLIC_URL=|" .env
+        sed -i "s|^EXCALIDRAW_PUBLIC_URL=.*|EXCALIDRAW_PUBLIC_URL=|" .env
+        if ! grep -q "^EXCALIDRAW_ENABLED=" .env; then
+            echo "EXCALIDRAW_ENABLED=True" >> .env
+        fi
+        if ! grep -q "^EXCALIDRAW_URL=" .env; then
+            echo "EXCALIDRAW_URL=/excalidraw" >> .env
+        fi
+        if ! grep -q "^EXCALIDRAW_ROOM_URL=" .env; then
+            echo "EXCALIDRAW_ROOM_URL=/excalidraw-room" >> .env
+        fi
+        if ! grep -q "^EXCALIDRAW_PUBLIC_URL=" .env; then
+            echo "EXCALIDRAW_PUBLIC_URL=" >> .env
+        fi
+    else
+        log_info "Excalidraw uebersprungen - setze EXCALIDRAW_ENABLED=False in .env"
+        sed -i "s|^#.*EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=False|" .env
+        sed -i "s|^EXCALIDRAW_ENABLED=.*|EXCALIDRAW_ENABLED=False|" .env
+        if ! grep -q "^EXCALIDRAW_ENABLED=" .env; then
+            echo "EXCALIDRAW_ENABLED=False" >> .env
+        fi
     fi
     
     # Production Settings
@@ -993,7 +1224,7 @@ Group=www-data
 WorkingDirectory=${INSTALL_DIR}
 Environment="PATH=${INSTALL_DIR}/venv/bin"
 Environment="FLASK_ENV=production"
-    ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
+ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
     --workers 1 \\
     --bind 127.0.0.1:${GUNICORN_PORT} \\
     --timeout 600 \\
@@ -1454,7 +1685,7 @@ setup_firewall() {
     ufw allow 22/tcp
     
     # Webserver-spezifische Firewall-Regeln
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             ufw allow 'Nginx Full'
             log_info "NGINX Firewall-Regeln hinzugefügt"
@@ -1478,12 +1709,12 @@ setup_firewall() {
 # SSL Setup
 setup_ssl() {
     # SSL-Setup nur durchführen, wenn Webserver automatisch eingerichtet wird
-    if [[ ! $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if ! is_yes "$SETUP_WEBSERVER"; then
         log_info "SSL-Setup übersprungen (Webserver wird manuell eingerichtet)"
         return
     fi
     
-    if [[ ! $SETUP_SSL =~ ^[JjYy]$ ]]; then
+    if ! is_yes "$SETUP_SSL"; then
         return
     fi
     
@@ -1564,7 +1795,7 @@ print_summary() {
     echo "==============="
     echo "Installationspfad: $INSTALL_DIR"
     echo "Gunicorn-Port: $GUNICORN_PORT"
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         echo "Webserver: ${WEBSERVER_TYPE} (automatisch eingerichtet)"
         echo "Domain: $DOMAIN"
     else
@@ -1577,6 +1808,16 @@ print_summary() {
     echo "Datenbank-Benutzer: $DB_USER"
     echo "Datenbank-Passwort: $DB_PASS"
     echo "MySQL Root-Passwort: $MYSQL_ROOT_PASS"
+    if is_yes "$INSTALL_ONLYOFFICE"; then
+        echo "OnlyOffice: installiert"
+    else
+        echo "OnlyOffice: nicht installiert (manuell moeglich)"
+    fi
+    if is_yes "$INSTALL_EXCALIDRAW"; then
+        echo "Excalidraw: installiert"
+    else
+        echo "Excalidraw: nicht installiert (manuell moeglich)"
+    fi
     echo
     if [ -n "$ONLYOFFICE_SECRET" ]; then
         echo "OnlyOffice Secret Key: $ONLYOFFICE_SECRET"
@@ -1602,7 +1843,7 @@ print_summary() {
     else
         echo "1. E-Mail-Einstellungen wurden bereits konfiguriert"
     fi
-    if [[ ! $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if ! is_yes "$SETUP_WEBSERVER"; then
         echo "2. Richten Sie den Webserver manuell ein (siehe INSTALLATION.md, Schritt 11-13)"
         echo "   - Gunicorn läuft auf Port ${GUNICORN_PORT}"
         echo "   - Konfigurieren Sie den Webserver so, dass er auf http://127.0.0.1:${GUNICORN_PORT} weiterleitet"
@@ -1634,7 +1875,7 @@ print_summary() {
     echo
     echo "Service-Status prüfen:"
     echo "  systemctl status teamportal"
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             echo "  systemctl status nginx"
         elif [ "$WEBSERVER_TYPE" = "apache" ]; then
@@ -1645,25 +1886,41 @@ print_summary() {
     echo
     echo "Logs ansehen:"
     echo "  journalctl -u teamportal -f"
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             echo "  journalctl -u nginx -f"
         elif [ "$WEBSERVER_TYPE" = "apache" ]; then
             echo "  journalctl -u apache2 -f"
         fi
     fi
-    echo "  docker logs onlyoffice-documentserver"
-    echo "  docker logs excalidraw"
-    echo "  docker logs excalidraw-room"
+    if is_yes "$INSTALL_ONLYOFFICE"; then
+        echo "  docker logs onlyoffice-documentserver"
+    fi
+    if is_yes "$INSTALL_EXCALIDRAW"; then
+        echo "  docker logs excalidraw"
+        echo "  docker logs excalidraw-room"
+    fi
     echo
     echo "Bei Problemen:"
     echo "  - Prüfe Logs: journalctl -u teamportal -n 100"
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             echo "  - Prüfe Nginx: nginx -t && systemctl status nginx"
         elif [ "$WEBSERVER_TYPE" = "apache" ]; then
             echo "  - Prüfe Apache: apache2ctl configtest && systemctl status apache2"
         fi
+    fi
+    if ! is_yes "$SETUP_WEBSERVER"; then
+        print_manual_webserver_hint
+    fi
+    if ! is_yes "$INSTALL_ONLYOFFICE"; then
+        print_manual_onlyoffice_hint
+    fi
+    if ! is_yes "$INSTALL_EXCALIDRAW"; then
+        print_manual_excalidraw_hint
+    fi
+    if [ "$GUNICORN_PORT" != "5000" ] && is_yes "$SETUP_WEBSERVER"; then
+        print_manual_custom_port_hint
     fi
     echo "  - Prüfe Datenbank: mysql -u $DB_USER -p$DB_PASS $DB_NAME -e 'SHOW TABLES;'"
     echo
@@ -1671,6 +1928,8 @@ print_summary() {
 
 # Hauptfunktion
 main() {
+    parse_arguments "$@"
+    
     echo "=========================================="
     echo "Team Portal - Automatische Installation"
     echo "Ubuntu 24.04.3 LTS"
@@ -1684,7 +1943,13 @@ main() {
     setup_system
     setup_mysql
     setup_redis
-    install_docker
+    
+    if is_yes "$INSTALL_ONLYOFFICE" || is_yes "$INSTALL_EXCALIDRAW"; then
+        install_docker
+    else
+        log_info "Docker-Installation uebersprungen (keine Docker-Services gewaehlt)"
+    fi
+    
     install_onlyoffice
     install_excalidraw
     setup_project_directory
@@ -1696,7 +1961,7 @@ main() {
     setup_gunicorn_service
     
     # Webserver-Setup (bedingt)
-    if [[ $SETUP_WEBSERVER =~ ^[JjYy]$ ]]; then
+    if is_yes "$SETUP_WEBSERVER"; then
         if [ "$WEBSERVER_TYPE" = "nginx" ]; then
             setup_nginx
         elif [ "$WEBSERVER_TYPE" = "apache" ]; then
@@ -1704,8 +1969,8 @@ main() {
         fi
     else
         log_info ""
-        log_info "=== Webserver-Setup übersprungen ==="
-        log_info "Bitte richten Sie den Webserver manuell ein (siehe INSTALLATION.md, Schritt 11-13)"
+        log_info "=== Webserver-Setup uebersprungen ==="
+        print_manual_webserver_hint
     fi
     
     setup_firewall
