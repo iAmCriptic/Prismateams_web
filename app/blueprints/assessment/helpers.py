@@ -1,8 +1,6 @@
-import hashlib
-import uuid
 from datetime import datetime
 
-from flask import abort, current_app, request
+from flask import abort, request
 
 from app.models.assessment import (
     AssessmentAppSetting,
@@ -32,18 +30,6 @@ def set_setting(key, value):
     else:
         entry.setting_value = str(value)
     return entry
-
-
-def create_visitor_token():
-    token = request.cookies.get("assessment_visitor_id")
-    if token:
-        return token, False
-    return str(uuid.uuid4()), True
-
-
-def hash_visitor_token(raw_token):
-    secret = current_app.config.get("SECRET_KEY", "assessment-default-secret")
-    return hashlib.sha256(f"{secret}|{raw_token}".encode("utf-8")).hexdigest()
 
 
 def utcnow():
@@ -100,8 +86,6 @@ def list_to_dict(evaluation_list, include_filter=False):
         "subject_mode": evaluation_list.subject_mode,
         "is_active": evaluation_list.is_active,
         "sort_order": evaluation_list.sort_order,
-        "enable_visitor_rating": evaluation_list.enable_visitor_rating,
-        "ranking_mode": evaluation_list.ranking_mode,
         "ranking_sort": evaluation_list.ranking_sort,
         "welcome_label": evaluation_list.welcome_label,
     }

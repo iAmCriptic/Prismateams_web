@@ -130,7 +130,7 @@ def _migrate_default_data():
             subject_mode="stand",
             is_active=True,
             sort_order=0,
-            enable_visitor_rating=True,
+            enable_visitor_rating=False,
             ranking_mode=ranking_mode,
             ranking_sort=ranking_sort,
         )

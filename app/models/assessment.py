@@ -147,7 +147,7 @@ class AssessmentList(db.Model):
     stand_type_ids = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     sort_order = db.Column(db.Integer, default=0, nullable=False)
-    enable_visitor_rating = db.Column(db.Boolean, default=True, nullable=False)
+    enable_visitor_rating = db.Column(db.Boolean, default=False, nullable=False)
     ranking_mode = db.Column(db.String(32), default="standard", nullable=False)
     ranking_sort = db.Column(db.String(32), default="total", nullable=False)
     welcome_label = db.Column(db.String(120), nullable=True)

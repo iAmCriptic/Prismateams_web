@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import func, or_
 
 from app import db
@@ -12,15 +12,11 @@ from app.models.assessment import (
     AssessmentListSubject,
     AssessmentStand,
     AssessmentStandType,
-    AssessmentVisitorEvaluation,
-    AssessmentVisitorEvaluationScore,
 )
 from app.utils.assessment_auth import assessment_role_required
 
 from .helpers import (
-    create_visitor_token,
     current_actor,
-    hash_visitor_token,
     list_to_dict,
     resolve_evaluation_list_from_request,
     stands_for_list,
@@ -263,92 +259,3 @@ def print_evaluation(evaluation_id):
         stand_name=target_name,
         score_rows=score_rows,
     )
-
-
-@evaluations_bp.route("/visitor_rate/<list_slug>/<int:target_id>", methods=["GET", "POST"])
-def visitor_rate_list(list_slug, target_id):
-    evaluation_list = AssessmentList.query.filter_by(slug=list_slug, is_active=True).first_or_404()
-    if not evaluation_list.enable_visitor_rating:
-        return render_template("assessment/visitor_rate.html", error="Besucherbewertung ist für diese Liste deaktiviert."), 403
-
-    criteria = (
-        AssessmentCriterion.query.filter_by(list_id=evaluation_list.id).order_by(AssessmentCriterion.id.asc()).all()
-    )
-
-    if evaluation_list.subject_mode == "stand":
-        valid, target = validate_evaluation_target(evaluation_list, stand_id=target_id)
-        target_name = target.name if valid else "Unbekannt"
-    else:
-        valid, target = validate_evaluation_target(evaluation_list, subject_id=target_id)
-        target_name = target.name if valid else "Unbekannt"
-
-    if request.method == "GET":
-        if not valid:
-            return render_template("assessment/visitor_rate.html", error=target), 404
-        return render_template(
-            "assessment/visitor_rate.html",
-            stand=target if evaluation_list.subject_mode == "stand" else None,
-            subject=target if evaluation_list.subject_mode == "custom" else None,
-            target_name=target_name,
-            criteria=criteria,
-            evaluation_list=evaluation_list,
-        )
-
-    if not valid:
-        return jsonify({"success": False, "message": target}), 400
-
-    data = request.get_json(silent=True) or {}
-    scores = data.get("scores") or {}
-    token, should_set_cookie = create_visitor_token()
-    token_hash = hash_visitor_token(token)
-
-    filters = {"list_id": evaluation_list.id, "visitor_token_hash": token_hash}
-    if evaluation_list.subject_mode == "stand":
-        filters["stand_id"] = target_id
-    else:
-        filters["subject_id"] = target_id
-
-    existing = AssessmentVisitorEvaluation.query.filter_by(**filters).first()
-    if existing:
-        return jsonify({"success": False, "message": "Sie haben dieses Ziel bereits bewertet."}), 409
-
-    visitor_eval = AssessmentVisitorEvaluation(
-        list_id=evaluation_list.id,
-        stand_id=target_id if evaluation_list.subject_mode == "stand" else None,
-        subject_id=target_id if evaluation_list.subject_mode == "custom" else None,
-        visitor_token_hash=token_hash,
-    )
-    db.session.add(visitor_eval)
-    db.session.flush()
-
-    criterion_map = {c.id: c.max_score for c in criteria}
-    for criterion_id_raw, score_value in scores.items():
-        criterion_id = int(criterion_id_raw)
-        if criterion_id not in criterion_map:
-            continue
-        value = int(score_value)
-        if 0 <= value <= criterion_map[criterion_id]:
-            db.session.add(
-                AssessmentVisitorEvaluationScore(
-                    visitor_evaluation_id=visitor_eval.id,
-                    criterion_id=criterion_id,
-                    score=value,
-                )
-            )
-
-    db.session.commit()
-    response = make_response(jsonify({"success": True, "message": "Vielen Dank für Ihre Bewertung."}))
-    if should_set_cookie:
-        response.set_cookie("assessment_visitor_id", token, max_age=60 * 60 * 24 * 365, samesite="Lax")
-    return response
-
-
-@evaluations_bp.route("/visitor_rate/<int:stand_id>", methods=["GET", "POST"])
-def visitor_rate_legacy(stand_id):
-    default_list = AssessmentList.query.filter_by(slug="hauptbewertung").first()
-    if not default_list:
-        default_list = AssessmentList.query.filter_by(subject_mode="stand", is_active=True).first()
-    if default_list:
-        return redirect(url_for("assessment.evaluations.visitor_rate_list", list_slug=default_list.slug, target_id=stand_id))
-    stand = AssessmentStand.query.get_or_404(stand_id)
-    return render_template("assessment/visitor_rate.html", stand=stand, criteria=[], error="Keine Bewertungsliste konfiguriert."), 404

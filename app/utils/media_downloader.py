@@ -143,6 +143,23 @@ def run_download(job):
         'no_warnings': True,
         'restrictfilenames': True,
         'max_filesize': max_bytes,
+        # Reduce YouTube 403 issues by preferring modern clients and headers.
+        'http_headers': {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/125.0.0.0 Safari/537.36'
+            ),
+            'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+        },
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web'],
+                'skip': ['hls', 'dash'],
+            }
+        },
+        'retries': 3,
+        'fragment_retries': 3,
     }
 
     if ffmpeg_path:
@@ -190,7 +207,16 @@ def run_download(job):
         return True, None
     except Exception as exc:
         logger.error('Media download failed for job %s: %s', job.id, exc, exc_info=True)
-        return False, str(exc)
+        message = str(exc).lower()
+        if 'http error 403' in message or 'forbidden' in message:
+            return False, 'err_http_403'
+        if 'sign in to confirm your age' in message:
+            return False, 'err_age_restricted'
+        if 'video is unavailable' in message:
+            return False, 'err_video_unavailable'
+        if 'output_not_found' in message:
+            return False, 'output_not_found'
+        return False, 'err_download_failed'
 
 
 def delete_job_file(job):

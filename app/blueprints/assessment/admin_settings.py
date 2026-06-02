@@ -10,7 +10,6 @@ admin_settings_bp = Blueprint("admin_settings", __name__)
 EDITABLE_KEYS = {
     "welcome_title",
     "welcome_subtitle",
-    "ranking_active_mode",
     "ranking_sort_mode",
 }
 

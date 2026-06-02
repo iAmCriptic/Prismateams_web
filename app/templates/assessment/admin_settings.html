@@ -19,15 +19,7 @@
                         <input class="form-control" name="welcome_subtitle">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Standard-Ranking-Modus</label>
-                        <select class="form-select" name="ranking_active_mode">
-                            <option value="standard">Standard (Jury)</option>
-                            <option value="visitor">Besucherrangliste</option>
-                            <option value="combined">Kombiniert (50/50)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Standard-Sortierung</label>
+                        <label class="form-label">Standard-Sortierung der Rangliste</label>
                         <select class="form-select" name="ranking_sort_mode">
                             <option value="total">Gesamtpunktzahl</option>
                             <option value="avg">Ø-Punktzahl</option>
@@ -77,7 +69,7 @@ async function loadSettings() {
     const res = await fetch('/assessment/api/admin_settings');
     const data = await res.json();
     const s = data.settings || {};
-    for (const key of ['welcome_title', 'welcome_subtitle', 'ranking_active_mode', 'ranking_sort_mode']) {
+    for (const key of ['welcome_title', 'welcome_subtitle', 'ranking_sort_mode']) {
         const el = document.querySelector(`#settingsForm [name="${key}"]`);
         if (el) el.value = s[key] ?? '';
     }

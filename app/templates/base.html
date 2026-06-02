@@ -464,7 +464,16 @@
         </div>
         <div class="sidebar-footer flex-shrink-0">
             <hr>
-            <div class="dropdown">
+            <div class="d-flex align-items-center gap-2">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm d-none d-lg-inline-flex align-items-center justify-content-center"
+                        id="cookieConsentDesktopBtn"
+                        data-cookie-consent-open
+                        aria-label="{{ _('layout.cookie_consent.open_settings') }}"
+                        title="{{ _('layout.cookie_consent.open_settings') }}">
+                    <i class="bi bi-shield-check"></i>
+                </button>
+                <div class="dropdown flex-grow-1">
                 <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
                     {% if current_user.profile_picture %}
                     <img src="{{ url_for('settings.profile_picture', filename=current_user.profile_picture) }}" alt="" width="32" height="32" class="rounded-circle me-2">
@@ -480,6 +489,7 @@
                     {% endif %}
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ _('layout.nav.logout') }}</a></li>
                 </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -620,6 +630,12 @@
                 </li>
                 {% endif %}{# end user_scope != assessment #}
                 <li><hr></li>
+                <li>
+                    <button type="button" class="nav-link w-100 text-start border-0 bg-transparent" data-cookie-consent-open>
+                        <i class="bi bi-shield-check me-2"></i>
+                        {{ _('layout.cookie_consent.open_settings') }}
+                    </button>
+                </li>
                 <li>
                     <a href="{{ url_for('settings.profile') }}" class="nav-link">
                         <i class="bi bi-person me-2"></i>

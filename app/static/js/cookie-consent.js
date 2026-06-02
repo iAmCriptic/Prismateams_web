@@ -6,6 +6,7 @@
 
     const banner = document.getElementById('cookieConsentBanner');
     const fab = document.getElementById('cookieConsentFab');
+    const openSettingsButtons = Array.from(document.querySelectorAll('[data-cookie-consent-open]'));
     if (!banner) return;
 
     const details = document.getElementById('cookieConsentDetails');
@@ -110,12 +111,23 @@
         toggleDetails(isHidden);
     });
 
-    fab?.addEventListener('click', function () {
+    function openConsentSettings() {
         const existing = readConsent();
         loadTogglesFromConsent(existing);
         toggleDetails(true);
         showBanner();
         hideFab();
+    }
+
+    openSettingsButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const offcanvasEl = btn.closest('.offcanvas');
+            if (offcanvasEl && window.bootstrap?.Offcanvas) {
+                const instance = window.bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
+                instance.hide();
+            }
+            openConsentSettings();
+        });
     });
 
     window.getCookieConsent = function () {

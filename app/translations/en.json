@@ -3006,6 +3006,10 @@
       "too_many_jobs": "Maximum %(max)s concurrent downloads allowed.",
       "started": "Download started.",
       "expired": "This file is no longer available.",
+      "err_http_403": "Download blocked by YouTube (HTTP 403). Please retry later or use a different quality/URL.",
+      "err_age_restricted": "This video is age-restricted and cannot be downloaded without sign-in/cookies.",
+      "err_video_unavailable": "This video is unavailable.",
+      "err_download_failed": "Download failed. Please try again.",
       "file_missing": "File not found."
     }
   }

@@ -54,7 +54,18 @@ def _process_download(app, job_id):
             job.error_message = None
         else:
             job.status = 'failed'
-            job.error_message = error_message
+            if error_message == 'err_http_403':
+                job.error_message = translate('media_downloader.flash.err_http_403')
+            elif error_message == 'err_age_restricted':
+                job.error_message = translate('media_downloader.flash.err_age_restricted')
+            elif error_message == 'err_video_unavailable':
+                job.error_message = translate('media_downloader.flash.err_video_unavailable')
+            elif error_message == 'err_download_failed':
+                job.error_message = translate('media_downloader.flash.err_download_failed')
+            elif error_message == 'output_not_found':
+                job.error_message = translate('media_downloader.flash.file_missing')
+            else:
+                job.error_message = error_message
             job.expires_at = datetime.utcnow() + get_retention_timedelta()
 
         db.session.commit()

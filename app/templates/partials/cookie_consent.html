@@ -69,10 +69,13 @@
     </div>
 </div>
 
+{% if not current_user.is_authenticated %}
 <button type="button"
-        class="cookie-consent-fab d-none{% if current_user.is_authenticated %} cookie-consent-fab--with-nav{% endif %}"
+        class="cookie-consent-fab d-none"
         id="cookieConsentFab"
+        data-cookie-consent-open
         aria-label="{{ _('layout.cookie_consent.open_settings') }}"
         title="{{ _('layout.cookie_consent.open_settings') }}">
     <i class="bi bi-shield-check" aria-hidden="true"></i>
 </button>
+{% endif %}

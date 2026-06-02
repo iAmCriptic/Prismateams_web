@@ -25,26 +25,12 @@
                         <label class="form-label">Stand-Typen (leer = alle)</label>
                         <select class="form-select" id="standTypeIds" multiple size="4"></select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Ranglisten-Modus</label>
-                        <select class="form-select" id="rankingMode">
-                            <option value="standard">Jury</option>
-                            <option value="visitor">Besucher</option>
-                            <option value="combined">Kombiniert</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Sortierung</label>
+                    <div class="col-md-6">
+                        <label class="form-label">Ranglisten-Sortierung</label>
                         <select class="form-select" id="rankingSort">
                             <option value="total">Gesamtpunktzahl</option>
                             <option value="avg">Durchschnitt</option>
                         </select>
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="enableVisitor" checked>
-                            <label class="form-check-label" for="enableVisitor">Besucherbewertung</label>
-                        </div>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Beschreibung</label>
@@ -157,9 +143,7 @@ function editList(l) {
     document.getElementById('listId').value = l.id;
     document.getElementById('listName').value = l.name;
     document.getElementById('subjectMode').value = l.subject_mode;
-    document.getElementById('rankingMode').value = l.ranking_mode;
-    document.getElementById('rankingSort').value = l.ranking_sort;
-    document.getElementById('enableVisitor').checked = l.enable_visitor_rating;
+    document.getElementById('rankingSort').value = l.ranking_sort || 'total';
     document.getElementById('listDescription').value = l.description || '';
     const ids = l.stand_type_ids || [];
     [...document.getElementById('standTypeIds').options].forEach(o => o.selected = ids.includes(Number(o.value)));
@@ -187,9 +171,7 @@ form.addEventListener('submit', async (e) => {
         name: document.getElementById('listName').value,
         subject_mode: document.getElementById('subjectMode').value,
         stand_type_ids,
-        ranking_mode: document.getElementById('rankingMode').value,
         ranking_sort: document.getElementById('rankingSort').value,
-        enable_visitor_rating: document.getElementById('enableVisitor').checked,
         description: document.getElementById('listDescription').value,
         is_active: true,
     };

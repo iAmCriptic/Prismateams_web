@@ -209,59 +209,20 @@ sudo -u www-data bash -c "source venv/bin/activate && python scripts/generate_en
 sudo nano .env
 ```
 
-**Wichtige Konfiguration in `.env`:**
+`docs/env.example` ist bewusst minimal gehalten. Tragen Sie mindestens folgende Werte ein:
 
 ```env
-# Flask Configuration
 SECRET_KEY=GeneriereSicherenSchlüsselMit32ZeichenOderMehr
 FLASK_ENV=production
-
-# Database Configuration
 DATABASE_URI=mysql+pymysql://teamportal:IhrSicheresPasswort123!@localhost/teamportal
-
-# Encryption Keys (aus generate_encryption_keys.py kopieren)
 CREDENTIAL_ENCRYPTION_KEY=your-credential-encryption-key-here
 MUSIC_ENCRYPTION_KEY=your-music-encryption-key-here
-
-# VAPID Keys (aus generate_vapid_keys.py kopieren)
-# Erforderlich für Push-Benachrichtigungen
+TOTP_ENCRYPTION_KEY=your-fernet-key-here
 VAPID_PUBLIC_KEY=your-vapid-public-key-here
 VAPID_PRIVATE_KEY=your-vapid-private-key-here
-
-# ONLYOFFICE Configuration (OPTIONAL)
-# Setzen Sie ONLYOFFICE_ENABLED=False, wenn OnlyOffice NICHT installiert ist
 ONLYOFFICE_ENABLED=True
-ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice
-ONLYOFFICE_SECRET_KEY=dein-jwt-secret-key-von-onlyoffice
-# Wenn OnlyOffice ohne JWT läuft, lassen Sie ONLYOFFICE_SECRET_KEY leer
-
-# Excalidraw Configuration (OPTIONAL)
-# Setzen Sie EXCALIDRAW_ENABLED=False, wenn Excalidraw NICHT installiert ist
 EXCALIDRAW_ENABLED=True
-EXCALIDRAW_URL=/excalidraw
-EXCALIDRAW_ROOM_URL=/excalidraw-room
-
-# Media Downloader Configuration (OPTIONAL)
-# Aktivierung im Portal: Einstellungen → Administration → Module
-# MEDIA_DOWNLOADER_RETENTION_HOURS=1
-# MEDIA_DOWNLOADER_MAX_CONCURRENT=2
-
-# Email Configuration (falls benötigt)
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=ihr-email@gmail.com
-MAIL_PASSWORD=ihr-app-passwort
-
-# IMAP Configuration (falls benötigt)
-IMAP_SERVER=imap.gmail.com
-IMAP_PORT=993
-IMAP_USE_SSL=True
-
-# Production Settings
-SESSION_COOKIE_SECURE=True
-SESSION_COOKIE_HTTPONLY=True
-SESSION_COOKIE_SAMESITE=Lax
+REDIS_ENABLED=True
 ```
 
 **Wichtige Hinweise zur Konfiguration:**
@@ -271,18 +232,32 @@ SESSION_COOKIE_SAMESITE=Lax
 - **MUSIC_ENCRYPTION_KEY:** Kopieren Sie den Key aus der Ausgabe von `generate_encryption_keys.py`
 - **VAPID_PUBLIC_KEY:** Kopieren Sie den Public Key aus der Ausgabe von `generate_vapid_keys.py`
 - **VAPID_PRIVATE_KEY:** Kopieren Sie den Private Key aus der Ausgabe von `generate_vapid_keys.py`
+- **TOTP_ENCRYPTION_KEY:** Optional, aber empfohlen für stabile 2FA/TOTP-Verschlüsselung
 - **ONLYOFFICE_ENABLED:** 
   - Setzen Sie auf `True`, wenn OnlyOffice installiert ist (Schritt 5)
   - Setzen Sie auf `False`, wenn OnlyOffice NICHT installiert ist
 - **EXCALIDRAW_ENABLED:**
   - Setzen Sie auf `True`, wenn Excalidraw installiert ist (Schritt 6)
   - Setzen Sie auf `False`, wenn Excalidraw NICHT installiert ist
-- **ONLYOFFICE_SECRET_KEY:** Muss mit dem JWT_SECRET übereinstimmen, den Sie in Schritt 5 gesetzt haben (oder leer lassen, wenn ohne JWT)
+- **REDIS_ENABLED:** Setzen Sie auf `True`, wenn mehrere Gunicorn-Worker genutzt werden
 
 **Wichtig zu den Encryption Keys:**
 - Die Keys werden verwendet, um sensible Daten zu verschlüsseln (Passwörter im Credentials-Modul, OAuth-Tokens im Music-Modul)
 - Wenn Sie die Keys ändern, können bereits verschlüsselte Daten nicht mehr entschlüsselt werden
 - Bewahren Sie die Keys sicher auf und teilen Sie sie niemals öffentlich
+
+**Weitere optionale `.env`-Variablen (nicht in `env.example`):**
+
+- **OnlyOffice:** `ONLYOFFICE_DOCUMENT_SERVER_URL`, `ONLYOFFICE_SECRET_KEY`, `ONLYOFFICE_PUBLIC_URL`
+- **Excalidraw:** `EXCALIDRAW_URL`, `EXCALIDRAW_ROOM_URL`, `EXCALIDRAW_PUBLIC_URL`
+- **Redis:** `REDIS_URL` (Standard: `redis://localhost:6379/0`)
+- **Portal-Fallbacks:** `APP_NAME`, `APP_LOGO` (optional, wenn nicht über Setup/System-Einstellungen gesetzt)
+- **E-Mail (SMTP):** `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USE_SSL`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`, `MAIL_SENDER_NAME`
+- **E-Mail-Speicherlimits:** `EMAIL_HTML_MAX_LENGTH`, `EMAIL_TEXT_MAX_LENGTH`, `EMAIL_HTML_STORAGE_TYPE`
+- **IMAP:** `IMAP_SERVER`, `IMAP_PORT`, `IMAP_USE_SSL`
+- **Uploads/Limits:** `UPLOAD_FOLDER`, `MAX_CONTENT_LENGTH`
+- **Media Downloader:** `MEDIA_DOWNLOADER_RETENTION_HOURS`, `MEDIA_DOWNLOADER_MAX_CONCURRENT`, `FFMPEG_PATH`
+- **Session/Cookies (Produktion):** `SESSION_COOKIE_SECURE`, `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`
 
 ### Schritt 8: Berechtigungen setzen
 
@@ -777,7 +752,7 @@ Das Bewertungsmodul (`module_assessment`) unterstützt mehrere **Bewertungsliste
 ### Konzepte
 
 - **Stand-Typen:** Jeder Stand hat genau einen Typ (Essen, Aktivität, …), verwaltbar unter *Bewertung → Stand-Typen*.
-- **Bewertungslisten:** Eigene Kriterien, Rangliste und optional Besucherbewertung pro Liste. Modus *Stände* filtert nach Stand-Typen; Modus *Eigene Ziele* für frei definierbare Einträge (z. B. Maskottchen).
+- **Bewertungslisten:** Eigene Kriterien und Jury-Rangliste pro Liste. Modus *Stände* filtert nach Stand-Typen; Modus *Eigene Ziele* für frei definierbare Einträge (z. B. Maskottchen).
 - **Portal-Zugriff:** Benutzer mit freigeschaltetem Modul `module_assessment` haben im Bewertungsmodul Administrator-Rechte. Zusätzliche Assessment-Accounts (Benutzername-Login) eignen sich für Jury-Rollen ohne Portal-Konto.
 - **Migration:** Beim App-Start werden bestehende Daten einer Default-Liste „Hauptbewertung“ zugeordnet. Vor Updates auf Produktivsystemen Backup anlegen.
 
@@ -796,11 +771,7 @@ Das Bewertungsmodul (`module_assessment`) unterstützt mehrere **Bewertungsliste
 - **Bewertungsziele:** nur für Custom-Listen, auf *Bewertungslisten* oder unter *Bewertungsziele* der jeweiligen Liste.
 - Abhängigkeit: `openpyxl` (wie für Excel-Erstellung im Dateien-Modul).
 
-### Besucherbewertung (URL)
-
-`/assessment/visitor_rate/<listen-slug>/<ziel-id>` — ältere Links `/assessment/visitor_rate/<stand-id>` leiten auf die Hauptliste um.
-
-Der frühere **Lageplan-Editor** wurde entfernt.
+Der frühere **Lageplan-Editor** und die **Besucherbewertung / Besucherrangliste** wurden entfernt. Die Rangliste basiert nur noch auf Jury-Bewertungen.
 
 ## Weitere Informationen
 

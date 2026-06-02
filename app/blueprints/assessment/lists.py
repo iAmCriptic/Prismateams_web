@@ -75,8 +75,8 @@ def api_lists(list_id=None):
             subject_mode=subject_mode,
             is_active=bool(data.get("is_active", True)),
             sort_order=int(data.get("sort_order") or 0),
-            enable_visitor_rating=bool(data.get("enable_visitor_rating", True)),
-            ranking_mode=(data.get("ranking_mode") or "standard").strip(),
+            enable_visitor_rating=False,
+            ranking_mode="standard",
             ranking_sort=(data.get("ranking_sort") or "total").strip(),
             welcome_label=(data.get("welcome_label") or "").strip() or None,
         )
@@ -105,10 +105,8 @@ def api_lists(list_id=None):
             evaluation_list.is_active = bool(data.get("is_active"))
         if "sort_order" in data:
             evaluation_list.sort_order = int(data.get("sort_order") or 0)
-        if "enable_visitor_rating" in data:
-            evaluation_list.enable_visitor_rating = bool(data.get("enable_visitor_rating"))
-        if data.get("ranking_mode"):
-            evaluation_list.ranking_mode = data["ranking_mode"].strip()
+        evaluation_list.enable_visitor_rating = False
+        evaluation_list.ranking_mode = "standard"
         if data.get("ranking_sort"):
             evaluation_list.ranking_sort = data["ranking_sort"].strip()
         evaluation_list.welcome_label = (data.get("welcome_label") or "").strip() or None
