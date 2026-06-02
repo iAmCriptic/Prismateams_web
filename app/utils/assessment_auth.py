@@ -13,7 +13,6 @@ SECTION_ROLE_MAP = {
     "my_evaluations": {"Administrator", "Bewerter", "Betrachter"},
     "print_blank": {"Administrator", "Bewerter", "Betrachter"},
     "ranking": {"Administrator", "Bewerter", "Betrachter"},
-    "map_view": {"Administrator", "Bewerter", "Betrachter", "Inspektor", "Verwarner"},
     "inspections": {"Administrator", "Inspektor"},
     "warnings": {"Administrator", "Verwarner"},
     "admin": {"Administrator"},

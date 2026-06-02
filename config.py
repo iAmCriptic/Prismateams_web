@@ -70,6 +70,10 @@ class Config:
     EXCALIDRAW_ROOM_URL = os.environ.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
     EXCALIDRAW_PUBLIC_URL = os.environ.get('EXCALIDRAW_PUBLIC_URL', '')
 
+    MEDIA_DOWNLOADER_RETENTION_HOURS = int(os.environ.get('MEDIA_DOWNLOADER_RETENTION_HOURS', '1'))
+    MEDIA_DOWNLOADER_MAX_CONCURRENT = int(os.environ.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', '2'))
+    FFMPEG_PATH = os.environ.get('FFMPEG_PATH', '')
+
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'

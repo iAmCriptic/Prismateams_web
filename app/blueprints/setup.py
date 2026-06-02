@@ -334,6 +334,7 @@ def setup_complete():
                 'module_wiki': request.form.get('module_wiki') == 'on',
                 'module_booking': request.form.get('module_booking') == 'on',
                 'module_music': request.form.get('module_music') == 'on',
+                'module_media_downloader': request.form.get('module_media_downloader') == 'on',
                 'module_assessment': request.form.get('module_assessment') == 'on',
                 'module_shortlinks': request.form.get('module_shortlinks') == 'on'
             }
@@ -567,7 +568,7 @@ def setup_step2():
         all_modules = [
             'module_chat', 'module_files', 'module_calendar', 'module_email',
             'module_credentials', 'module_manuals', 'module_inventory',
-            'module_wiki', 'module_booking', 'module_music', 'module_contacts', 'module_assessment', 'module_shortlinks',
+            'module_wiki', 'module_booking', 'module_music', 'module_media_downloader', 'module_contacts', 'module_assessment', 'module_shortlinks',
         ]
         
         default_roles = {
@@ -637,6 +638,7 @@ def setup_step3():
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
             'module_music': request.form.get('module_music') == 'on',
+            'module_media_downloader': request.form.get('module_media_downloader') == 'on',
             'module_contacts': request.form.get('module_contacts') == 'on',
             'module_assessment': request.form.get('module_assessment') == 'on',
             'module_shortlinks': request.form.get('module_shortlinks') == 'on',
@@ -865,6 +867,7 @@ def setup_step4():
                 'module_wiki': True,
                 'module_booking': True,
                 'module_music': True,
+                'module_media_downloader': False,
                 'module_contacts': True,
                 'module_assessment': True,
                 'module_shortlinks': True,

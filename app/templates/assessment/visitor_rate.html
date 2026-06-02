@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Besucherbewertung{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-7">
-            <div class="card">
-                <div class="card-body">
-                    <h1 class="h4 mb-3">Bewerte {{ stand.name }}</h1>
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                {% if error %}
+                <p class="text-danger mb-0">{{ error }}</p>
+                {% else %}
+                <h1 class="h4 mb-1"><i class="bi bi-star text-primary me-2"></i>Bewerte {{ target_name }}</h1>
+                    {% if evaluation_list %}<p class="text-muted small">{{ evaluation_list.name }}</p>{% endif %}
                     <div id="fields" class="row g-2">
                         {% for c in criteria %}
                         <div class="col-md-6">
@@ -17,11 +20,12 @@
                     </div>
                     <button class="btn btn-accent mt-3" onclick="submitRating()">Absenden</button>
                     <p id="status" class="text-muted mt-2 mb-0"></p>
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% if not error %}
 <script>
 async function submitRating() {
     const scores = {};
@@ -31,4 +35,5 @@ async function submitRating() {
     document.getElementById('status').textContent = data.message || '';
 }
 </script>
+{% endif %}
 {% endblock %}

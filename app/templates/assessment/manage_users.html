@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Benutzerverwaltung - Bewertung{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0">Benutzerverwaltung</h1>
-        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
-    </div>
+{{ assessment_page_header('Benutzerverwaltung', icon='people') }}
 
-    <div class="card shadow-sm mb-4">
+    <div class="card mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-person-plus me-2"></i>Neuen Benutzer anlegen</h2>
             <form id="userForm">
@@ -38,26 +35,14 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Benutzer per Excel hochladen</h2>
-            <form id="excelForm">
-                <div class="mb-3">
-                    <label class="form-label">Excel-Datei auswählen (.xlsx)</label>
-                    <input type="file" class="form-control" accept=".xlsx" name="file" required>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success"><i class="bi bi-upload me-1"></i>Excel hochladen</button>
-                    <a class="btn btn-outline-secondary" href="{{ url_for('assessment.excel_uploads.download_sample', which='users') }}">
-                        <i class="bi bi-download me-1"></i>Beispiel-Excel herunterladen
-                    </a>
-                </div>
-                <p class="text-muted small mt-2 mb-0">Pflicht-Spalten: <code>Benutzername</code>, <code>Password</code>, <code>Anzeigename</code>, <code>Rollen</code> (kommagetrennt).</p>
-            </form>
-        </div>
-    </div>
+    {{ assessment_excel_upload(
+        'Benutzer per Excel hochladen',
+        'excelForm',
+        'users',
+        'Pflicht-Spalten: <code>Benutzername</code>, <code>Password</code>, <code>Anzeigename</code>, <code>Rollen</code> (kommagetrennt).'
+    ) }}
 
-    <div class="card shadow-sm">
+    <div class="card">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-people me-2"></i>Vorhandene Benutzer</h2>
             <div class="table-responsive">
@@ -68,7 +53,6 @@
             </div>
         </div>
     </div>
-</div>
 
 <script>
 let roles = [];
@@ -155,7 +139,8 @@ document.getElementById('excelForm').addEventListener('submit', async (e) => {
     const fd = new FormData(e.target);
     const res = await fetch('/assessment/api/import/users', { method: 'POST', body: fd });
     const data = await res.json();
-    alert(data.message || 'Fertig');
+    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+    if (!data.success) return;
     e.target.reset();
     loadUsers();
 });

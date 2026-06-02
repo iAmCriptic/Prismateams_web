@@ -11,6 +11,7 @@
 # - Gunicorn als WSGI-Server
 # - OnlyOffice Document Server (Docker)
 # - Excalidraw (Docker)
+# - Media Downloader (FFmpeg, optional)
 # - Automatische Generierung aller Keys
 # - Automatische .env-Konfiguration (inkl. E-Mail-Einstellungen)
 # - Systemd Service für Gunicorn (mit 1 Worker für ersten Start)
@@ -84,6 +85,7 @@ SETUP_SSL=""
 LETSENCRYPT_EMAIL=""
 INSTALL_ONLYOFFICE=""
 INSTALL_EXCALIDRAW=""
+INSTALL_MEDIA_DOWNLOADER=""
 INSTALL_DOCKER=""
 
 show_help() {
@@ -100,6 +102,7 @@ Optionen:
   --skip-docker            Docker, OnlyOffice und Excalidraw überspringen
   --skip-onlyoffice        OnlyOffice Document Server überspringen
   --skip-excalidraw        Excalidraw Client und Room Server überspringen
+  --skip-media-downloader  Media Downloader (FFmpeg) überspringen
   --help                   Diese Hilfe anzeigen
 
 Beispiele:
@@ -141,6 +144,10 @@ parse_arguments() {
                 ;;
             --skip-excalidraw)
                 INSTALL_EXCALIDRAW="n"
+                shift
+                ;;
+            --skip-media-downloader)
+                INSTALL_MEDIA_DOWNLOADER="n"
                 shift
                 ;;
             --help|-h)
@@ -212,6 +219,15 @@ print_manual_excalidraw_hint() {
     log_manual "  2. Room:    docker run -d -p 8082:80 --restart=always --name excalidraw-room -e PORT=80 excalidraw/excalidraw-room:latest"
     log_manual "  3. In .env: EXCALIDRAW_ENABLED=True, EXCALIDRAW_URL=/excalidraw, EXCALIDRAW_ROOM_URL=/excalidraw-room"
     log_manual "  4. Webserver-Proxy fuer /excalidraw und /excalidraw-room einrichten"
+    echo
+}
+
+print_manual_media_downloader_hint() {
+    echo
+    log_manual "=== Media Downloader manuell einrichten ==="
+    log_manual "  1. FFmpeg installieren: apt install -y ffmpeg"
+    log_manual "  2. Modul im Portal aktivieren: Einstellungen -> Administration -> Module -> Media Downloader"
+    log_manual "  3. pip install yt-dlp (wird ueber requirements.txt im venv installiert)"
     echo
 }
 
@@ -380,6 +396,20 @@ gather_information() {
         INSTALL_EXCALIDRAW="n"
         print_manual_onlyoffice_hint
         print_manual_excalidraw_hint
+    fi
+    
+    log_info ""
+    log_info "=== Optionale Komponente: Media Downloader ==="
+    if [ -z "$INSTALL_MEDIA_DOWNLOADER" ]; then
+        read -p "Media Downloader (FFmpeg) installieren? (j/n) [n]: " INSTALL_MEDIA_DOWNLOADER
+        INSTALL_MEDIA_DOWNLOADER=${INSTALL_MEDIA_DOWNLOADER:-n}
+    elif is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+        log_info "Media Downloader: ja"
+    else
+        log_info "Media Downloader: nein (via Option --skip-media-downloader)"
+    fi
+    if ! is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+        print_manual_media_downloader_hint
     fi
     
     # Datenbank-Root-Passwort
@@ -764,6 +794,29 @@ install_excalidraw() {
     sleep 5
     
     log_success "Excalidraw installiert"
+}
+
+# Media Downloader (FFmpeg)
+install_media_downloader() {
+    if ! is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+        log_info "Media Downloader-Installation uebersprungen"
+        return
+    fi
+
+    log_info "=== Media Downloader Installation (FFmpeg) ==="
+
+    export DEBIAN_FRONTEND=noninteractive
+    if ! apt-get install -y ffmpeg; then
+        log_error "FFmpeg konnte nicht installiert werden"
+        exit 1
+    fi
+
+    if command -v ffmpeg &>/dev/null; then
+        log_success "FFmpeg installiert: $(ffmpeg -version | head -n 1)"
+    else
+        log_error "FFmpeg wurde installiert, ist aber nicht im PATH"
+        exit 1
+    fi
 }
 
 # Projekt-Verzeichnis erstellen
@@ -1818,6 +1871,11 @@ print_summary() {
     else
         echo "Excalidraw: nicht installiert (manuell moeglich)"
     fi
+    if is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+        echo "Media Downloader: installiert (FFmpeg)"
+    else
+        echo "Media Downloader: nicht installiert (manuell moeglich)"
+    fi
     echo
     if [ -n "$ONLYOFFICE_SECRET" ]; then
         echo "OnlyOffice Secret Key: $ONLYOFFICE_SECRET"
@@ -1919,6 +1977,9 @@ print_summary() {
     if ! is_yes "$INSTALL_EXCALIDRAW"; then
         print_manual_excalidraw_hint
     fi
+    if ! is_yes "$INSTALL_MEDIA_DOWNLOADER"; then
+        print_manual_media_downloader_hint
+    fi
     if [ "$GUNICORN_PORT" != "5000" ] && is_yes "$SETUP_WEBSERVER"; then
         print_manual_custom_port_hint
     fi
@@ -1952,6 +2013,7 @@ main() {
     
     install_onlyoffice
     install_excalidraw
+    install_media_downloader
     setup_project_directory
     setup_venv
     generate_keys

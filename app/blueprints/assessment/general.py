@@ -5,15 +5,15 @@ from app import db
 from app.models.assessment import (
     AssessmentEvaluation,
     AssessmentEvaluationScore,
+    AssessmentList,
     AssessmentRoomInspection,
-    AssessmentUser,
     AssessmentVisitorEvaluation,
     AssessmentVisitorEvaluationScore,
     AssessmentWarning,
 )
-from app.utils.assessment_auth import assessment_role_required, is_assessment_user
+from app.utils.assessment_auth import assessment_role_required
 
-from .helpers import current_actor
+from .helpers import current_actor, list_to_dict
 
 general_bp = Blueprint("general", __name__)
 
@@ -45,25 +45,53 @@ def api_session_data():
 @general_bp.route("/manage_list", methods=["GET"])
 @assessment_role_required(["Administrator"])
 def manage_list_page():
-    return render_template("assessment/manage_list.html")
+    lists = AssessmentList.query.order_by(AssessmentList.sort_order.asc(), AssessmentList.name.asc()).all()
+    return render_template("assessment/manage_list.html", evaluation_lists=lists)
 
 
 @general_bp.route("/api/reset_data", methods=["POST"])
 @assessment_role_required(["Administrator"])
 def api_reset_data():
-    action = (request.get_json(silent=True) or {}).get("action")
+    data = request.get_json(silent=True) or {}
+    action = data.get("action")
+    list_id = data.get("list_id")
     if not action:
         return jsonify({"success": False, "message": "Aktion nicht angegeben."}), 400
 
+    list_filter = {}
+    if list_id:
+        evaluation_list = AssessmentList.query.get(list_id)
+        if not evaluation_list:
+            return jsonify({"success": False, "message": "Bewertungsliste nicht gefunden."}), 404
+        list_filter = {"list_id": list_id}
+
     if action == "reset_ranking":
-        AssessmentEvaluationScore.query.delete()
-        AssessmentEvaluation.query.delete()
-        AssessmentVisitorEvaluationScore.query.delete()
-        AssessmentVisitorEvaluation.query.delete()
+        eval_query = AssessmentEvaluation.query
+        visitor_query = AssessmentVisitorEvaluation.query
+        if list_filter:
+            eval_query = eval_query.filter_by(**list_filter)
+            visitor_query = visitor_query.filter_by(**list_filter)
+        eval_ids = [e.id for e in eval_query.all()]
+        visitor_ids = [v.id for v in visitor_query.all()]
+        if eval_ids:
+            AssessmentEvaluationScore.query.filter(
+                AssessmentEvaluationScore.evaluation_id.in_(eval_ids)
+            ).delete(synchronize_session=False)
+        if visitor_ids:
+            AssessmentVisitorEvaluationScore.query.filter(
+                AssessmentVisitorEvaluationScore.visitor_evaluation_id.in_(visitor_ids)
+            ).delete(synchronize_session=False)
+        eval_query.delete(synchronize_session=False)
+        visitor_query.delete(synchronize_session=False)
     elif action == "reset_room_inspections":
+        if list_filter:
+            return jsonify({"success": False, "message": "Rauminspektionen sind nicht listenbezogen."}), 400
         AssessmentRoomInspection.query.delete()
     elif action == "reset_warnings":
-        AssessmentWarning.query.delete()
+        warning_query = AssessmentWarning.query
+        if list_filter:
+            warning_query = warning_query.filter_by(**list_filter)
+        warning_query.delete(synchronize_session=False)
     else:
         return jsonify({"success": False, "message": "Ungültige Aktion."}), 400
 
@@ -71,27 +99,13 @@ def api_reset_data():
     return jsonify({"success": True, "message": "Daten erfolgreich zurückgesetzt."})
 
 
-@general_bp.route("/api/theme", methods=["POST"])
+@general_bp.route("/api/lists/active", methods=["GET"])
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter", "Inspektor", "Verwarner"])
-def api_theme():
-    mode = ((request.get_json(silent=True) or {}).get("mode") or "").lower()
-    if mode not in ("light", "dark", "oled"):
-        return jsonify({"success": False, "message": "Ungültiger Modus."}), 400
-    if is_assessment_user():
-        user = AssessmentUser.query.get(current_user.id)
-        if user:
-            user.theme_mode = mode
-            db.session.commit()
-        session["user_scope_theme_mode"] = mode
-    else:
-        try:
-            current_user.dark_mode = mode in ("dark", "oled")
-            if hasattr(current_user, "oled_mode"):
-                current_user.oled_mode = mode == "oled"
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-    return jsonify({"success": True, "mode": mode})
+def api_active_lists():
+    lists = AssessmentList.query.filter_by(is_active=True).order_by(
+        AssessmentList.sort_order.asc(), AssessmentList.name.asc()
+    ).all()
+    return jsonify({"success": True, "lists": [list_to_dict(item) for item in lists]})
 
 
 @general_bp.route("/static_files/<path:filename>")

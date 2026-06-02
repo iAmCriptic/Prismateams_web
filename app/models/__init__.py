@@ -23,6 +23,9 @@ from .assessment import (
     AssessmentUser,
     AssessmentRole,
     AssessmentUserRole,
+    AssessmentStandType,
+    AssessmentList,
+    AssessmentListSubject,
     AssessmentRoom,
     AssessmentStand,
     AssessmentCriterion,
@@ -33,9 +36,8 @@ from .assessment import (
     AssessmentWarning,
     AssessmentRoomInspection,
     AssessmentAppSetting,
-    AssessmentFloorPlan,
-    AssessmentFloorPlanObject,
 )
+from .media_downloader import MediaDownloadJob
 
 __all__ = [
     'User', 'UserSession',
@@ -59,11 +61,13 @@ __all__ = [
     'ShortLink',
     'Event', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',
+    'AssessmentStandType', 'AssessmentList', 'AssessmentListSubject',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
     'AssessmentEvaluation', 'AssessmentEvaluationScore',
     'AssessmentVisitorEvaluation', 'AssessmentVisitorEvaluationScore',
     'AssessmentWarning', 'AssessmentRoomInspection',
-    'AssessmentAppSetting', 'AssessmentFloorPlan', 'AssessmentFloorPlanObject'
+    'AssessmentAppSetting',
+    'MediaDownloadJob',
 ]
 
 

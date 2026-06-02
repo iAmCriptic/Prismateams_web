@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
+{% block title %}Bewertungslisten - Bewertung{% endblock %}
+{% block content %}
+{{ assessment_page_header('Bewertungslisten', icon='list-check') }}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3">Neue Bewertungsliste</h2>
+            <form id="listForm">
+                <input type="hidden" id="listId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Name</label>
+                        <input class="form-control" id="listName" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Modus</label>
+                        <select class="form-select" id="subjectMode">
+                            <option value="stand">Stände bewerten</option>
+                            <option value="custom">Eigene Ziele (z. B. Maskottchen)</option>
+                        </select>
+                    </div>
+                    <div class="col-12" id="standTypeFilterWrap">
+                        <label class="form-label">Stand-Typen (leer = alle)</label>
+                        <select class="form-select" id="standTypeIds" multiple size="4"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Ranglisten-Modus</label>
+                        <select class="form-select" id="rankingMode">
+                            <option value="standard">Jury</option>
+                            <option value="visitor">Besucher</option>
+                            <option value="combined">Kombiniert</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sortierung</label>
+                        <select class="form-select" id="rankingSort">
+                            <option value="total">Gesamtpunktzahl</option>
+                            <option value="avg">Durchschnitt</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enableVisitor" checked>
+                            <label class="form-check-label" for="enableVisitor">Besucherbewertung</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="listDescription" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary" id="resetFormBtn" hidden>Abbrechen</button>
+                    <button type="submit" class="btn btn-accent" id="saveBtn">Liste anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>Excel-Import pro Bewertungsliste</h2>
+            <label class="form-label" for="excelListSelect">Bewertungsliste</label>
+            <select class="form-select mb-0" id="excelListSelect"></select>
+        </div>
+    </div>
+
+    {{ assessment_excel_upload(
+        'Kriterien importieren',
+        'listsCriteriaExcelForm',
+        'criteria',
+        'Pflicht-Spalten: <code>Name</code>, <code>Maximale Punktzahl</code>, <code>Beschreibung</code>',
+        'Gilt für die gewählte Bewertungsliste.'
+    ) }}
+
+    <div id="listsSubjectsExcelWrap" hidden>
+        {{ assessment_excel_upload(
+            'Bewertungsziele importieren (Custom-Listen)',
+            'listsSubjectsExcelForm',
+            'subjects',
+            'Pflicht-Spalten: <code>Name</code>, <code>Beschreibung</code>',
+            'Nur für Listen im Modus „Eigene Ziele“.'
+        ) }}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h5 mb-3">Vorhandene Listen</h2>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead><tr><th>Name</th><th>Modus</th><th>Aktiv</th><th class="text-end">Aktion</th></tr></thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<script>
+let standTypes = [];
+let loadedLists = [];
+const form = document.getElementById('listForm');
+
+function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function toggleStandFilter() {
+    document.getElementById('standTypeFilterWrap').hidden = document.getElementById('subjectMode').value !== 'stand';
+}
+
+async function loadStandTypes() {
+    const res = await fetch('/assessment/api/stand_types');
+    const data = await res.json();
+    standTypes = data.stand_types || [];
+    document.getElementById('standTypeIds').innerHTML = standTypes.map(t =>
+        `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+}
+
+function syncExcelListSelect() {
+    const sel = document.getElementById('excelListSelect');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = (loadedLists || []).map(l =>
+        `<option value="${l.id}" data-mode="${l.subject_mode}">${escapeHtml(l.name)}</option>`
+    ).join('');
+    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+    toggleSubjectsExcel();
+}
+
+function toggleSubjectsExcel() {
+    const sel = document.getElementById('excelListSelect');
+    const wrap = document.getElementById('listsSubjectsExcelWrap');
+    if (!sel || !wrap) return;
+    const opt = sel.selectedOptions[0];
+    wrap.hidden = !opt || opt.dataset.mode !== 'custom';
+}
+
+async function loadLists() {
+    const res = await fetch('/assessment/api/lists');
+    const data = await res.json();
+    loadedLists = data.lists || [];
+    syncExcelListSelect();
+    document.getElementById('rows').innerHTML = loadedLists.map(l => `
+        <tr>
+            <td>${escapeHtml(l.name)}<br><small class="text-muted">${escapeHtml(l.slug)}</small></td>
+            <td>${l.subject_mode === 'stand' ? 'Stände' : 'Eigene Ziele'}</td>
+            <td>${l.is_active ? 'Ja' : 'Nein'}</td>
+            <td class="text-end">
+                ${l.subject_mode === 'custom' ? `<a class="btn btn-sm btn-outline-primary" href="/assessment/manage_lists/${l.id}/subjects"><i class="bi bi-stars"></i></a>` : ''}
+                <button class="btn btn-sm btn-outline-primary" onclick='editList(${JSON.stringify(l)})'><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteList(${l.id})"><i class="bi bi-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function editList(l) {
+    document.getElementById('listId').value = l.id;
+    document.getElementById('listName').value = l.name;
+    document.getElementById('subjectMode').value = l.subject_mode;
+    document.getElementById('rankingMode').value = l.ranking_mode;
+    document.getElementById('rankingSort').value = l.ranking_sort;
+    document.getElementById('enableVisitor').checked = l.enable_visitor_rating;
+    document.getElementById('listDescription').value = l.description || '';
+    const ids = l.stand_type_ids || [];
+    [...document.getElementById('standTypeIds').options].forEach(o => o.selected = ids.includes(Number(o.value)));
+    toggleStandFilter();
+    document.getElementById('resetFormBtn').hidden = false;
+    document.getElementById('saveBtn').textContent = 'Änderungen speichern';
+}
+
+function resetForm() {
+    form.reset();
+    document.getElementById('listId').value = '';
+    document.getElementById('resetFormBtn').hidden = true;
+    document.getElementById('saveBtn').textContent = 'Liste anlegen';
+    toggleStandFilter();
+}
+
+document.getElementById('subjectMode').addEventListener('change', toggleStandFilter);
+document.getElementById('resetFormBtn').addEventListener('click', resetForm);
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('listId').value;
+    const stand_type_ids = [...document.getElementById('standTypeIds').selectedOptions].map(o => Number(o.value));
+    const payload = {
+        name: document.getElementById('listName').value,
+        subject_mode: document.getElementById('subjectMode').value,
+        stand_type_ids,
+        ranking_mode: document.getElementById('rankingMode').value,
+        ranking_sort: document.getElementById('rankingSort').value,
+        enable_visitor_rating: document.getElementById('enableVisitor').checked,
+        description: document.getElementById('listDescription').value,
+        is_active: true,
+    };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/assessment/api/lists/${id}` : '/assessment/api/lists';
+    await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    resetForm();
+    loadLists();
+});
+
+async function deleteList(id) {
+    if (!confirm('Liste wirklich löschen? Alle Kriterien und Bewertungen dieser Liste werden entfernt.')) return;
+    await fetch(`/assessment/api/lists/${id}`, { method: 'DELETE' });
+    loadLists();
+}
+
+document.getElementById('excelListSelect')?.addEventListener('change', toggleSubjectsExcel);
+
+document.getElementById('listsCriteriaExcelForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const listId = document.getElementById('excelListSelect')?.value;
+    if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
+    const fd = new FormData(e.target);
+    fd.append('list_id', listId);
+    const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
+    const data = await res.json();
+    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+    if (data.success) e.target.reset();
+});
+
+document.getElementById('listsSubjectsExcelForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const listId = document.getElementById('excelListSelect')?.value;
+    if (!listId) { alert('Bitte zuerst eine Bewertungsliste wählen.'); return; }
+    const fd = new FormData(e.target);
+    const res = await fetch(`/assessment/api/import/subjects?list_id=${listId}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+    if (data.success) e.target.reset();
+});
+
+loadStandTypes();
+loadLists();
+toggleStandFilter();
+</script>
+{% endblock %}

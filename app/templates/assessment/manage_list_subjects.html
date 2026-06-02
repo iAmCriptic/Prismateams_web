@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
+{% block title %}Bewertungsziele – {{ evaluation_list.name }}{% endblock %}
+{% block content %}
+{{ assessment_page_header('Bewertungsziele: ' ~ evaluation_list.name, subtitle='Eigene Ziele für diese Bewertungsliste', icon='stars') }}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Bewertungsziel</h2>
+            <form id="subjectForm" class="row g-3">
+                <input type="hidden" id="subjectId">
+                <div class="col-md-5"><label class="form-label">Name</label><input class="form-control" id="subjectName" required></div>
+                <div class="col-md-5"><label class="form-label">Beschreibung</label><input class="form-control" id="subjectDesc"></div>
+                <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-accent w-100">Speichern</button></div>
+            </form>
+        </div>
+    </div>
+
+    {{ assessment_excel_upload(
+        'Bewertungsziele per Excel hochladen',
+        'excelForm',
+        'subjects',
+        'Pflicht-Spalten: <code>Name</code>, <code>Beschreibung</code>',
+        'Import für diese Bewertungsliste (' ~ evaluation_list.name ~ ').'
+    ) }}
+
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h5 mb-3"><i class="bi bi-list-check me-2 text-primary"></i>Vorhandene Ziele</h2>
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead><tr><th>Name</th><th>Beschreibung</th><th class="text-end">Aktion</th></tr></thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+<script>
+const LIST_ID = {{ evaluation_list.id }};
+function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function load() {
+    const res = await fetch(`/assessment/api/lists/${LIST_ID}/subjects`);
+    const data = await res.json();
+    document.getElementById('rows').innerHTML = (data.subjects||[]).map(s=>`
+        <tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.description||'')}</td>
+        <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" onclick='editSub(${JSON.stringify(s)})'><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="delSub(${s.id})"><i class="bi bi-trash"></i></button>
+        </td></tr>`).join('');
+}
+function editSub(s) {
+    document.getElementById('subjectId').value=s.id;
+    document.getElementById('subjectName').value=s.name;
+    document.getElementById('subjectDesc').value=s.description||'';
+}
+document.getElementById('subjectForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id=document.getElementById('subjectId').value;
+    const payload={name:document.getElementById('subjectName').value, description:document.getElementById('subjectDesc').value};
+    const url=id?`/assessment/api/lists/${LIST_ID}/subjects/${id}`:`/assessment/api/lists/${LIST_ID}/subjects`;
+    await fetch(url,{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    document.getElementById('subjectForm').reset();
+    document.getElementById('subjectId').value='';
+    load();
+});
+async function delSub(id) {
+    if(!confirm('Löschen?')) return;
+    await fetch(`/assessment/api/lists/${LIST_ID}/subjects/${id}`,{method:'DELETE'});
+    load();
+}
+document.getElementById('excelForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const res = await fetch(`/assessment/api/import/subjects?list_id=${LIST_ID}`, {method:'POST', body: fd});
+    const data = await res.json();
+    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+    if (!data.success) return;
+    e.target.reset();
+    load();
+});
+load();
+</script>
+{% endblock %}

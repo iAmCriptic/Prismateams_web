@@ -16,6 +16,7 @@
       "inventory": "Inventory",
       "wiki": "Wiki",
       "music": "Music",
+      "media_downloader": "Media Downloader",
       "settings": "Settings",
       "profile": "Profile",
       "logout": "Log out",
@@ -32,6 +33,22 @@
       "title": "Notifications",
       "mark_all_read": "Mark all as read",
       "delete_all": "Delete all"
+    },
+    "cookie_consent": {
+      "title": "Cookies & Privacy",
+      "description": "We use cookies to provide login and essential features. Optional cookies improve comfort features such as PWA installation. You can change your choice at any time.",
+      "accept_all": "Accept all",
+      "essential_only": "Essential only",
+      "settings": "Settings",
+      "save_preferences": "Save preferences",
+      "open_settings": "Cookie settings",
+      "always_active": "Always active",
+      "category_necessary_title": "Necessary",
+      "category_necessary_desc": "Session cookies for login, security and core portal functionality.",
+      "category_functional_title": "Functional",
+      "category_functional_desc": "Stores local preferences and enables PWA features.",
+      "category_analytics_title": "Analytics",
+      "category_analytics_desc": "Anonymous usage statistics to improve the portal (currently not active)."
     }
   },
   "common": {
@@ -591,6 +608,9 @@
       "onlyoffice_label": "OnlyOffice integration:",
       "onlyoffice_active": "Active",
       "onlyoffice_inactive": "Inactive",
+      "media_downloader_label": "Media Downloader (system compatibility):",
+      "media_downloader_compatible": "Compatible (FFmpeg available)",
+      "media_downloader_not_compatible": "Not compatible (FFmpeg missing)",
       "excalidraw_label": "Excalidraw integration:",
       "excalidraw_active": "Active",
       "excalidraw_inactive": "Inactive",
@@ -611,6 +631,7 @@
         "description": "Enable or disable modules for all users. Disabled modules will be hidden in the navigation.",
         "module_booking": "Bookings",
         "module_music": "Music",
+        "module_media_downloader": "Media Downloader",
         "save": "Save changes",
         "cancel": "Back",
         "flash_updated": "Module settings have been updated."
@@ -2930,6 +2951,62 @@
       "completed_emoji": "🎉 Setup successfully completed! Welcome to your team portal.",
       "add_users_info": "You can now add more users via the settings.",
       "admin_account_created": "Your administrator account has been created and you are automatically logged in."
+    }
+  },
+  "media_downloader": {
+    "page_title": "Media Downloader",
+    "heading": "Media Downloader",
+    "description": "Download content from YouTube and YouTube Music as MP3 or MP4.",
+    "legal_notice": "You are responsible for complying with copyright and platform terms of service. Downloaded files are automatically deleted after one hour.",
+    "form": {
+      "title": "New download",
+      "url_label": "URL",
+      "url_placeholder": "https://www.youtube.com/watch?v=...",
+      "url_hint": "Supported: YouTube and YouTube Music",
+      "format_label": "Format",
+      "format_audio": "Audio (MP3)",
+      "format_video": "Video (MP4)",
+      "start_label": "Start (optional)",
+      "end_label": "End (optional)",
+      "time_placeholder": "M:SS",
+      "segment_hint": "Optional: Download only a segment (provide both start and end, e.g. 1:30 and 3:45).",
+      "submit": "Start download"
+    },
+    "jobs": {
+      "title": "My downloads",
+      "column_title": "Title",
+      "column_format": "Format",
+      "column_status": "Status",
+      "column_expires": "Available until",
+      "column_actions": "Actions",
+      "download": "Download",
+      "empty": "No downloads yet."
+    },
+    "format": {
+      "audio": "MP3",
+      "video": "MP4"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "flash": {
+      "unavailable": "Media Downloader is not available.",
+      "incompatible": "Media Downloader is not available on this server. FFmpeg must be installed.",
+      "invalid_format": "Invalid format selected.",
+      "empty_url": "Please enter a URL.",
+      "invalid_scheme": "Invalid URL scheme.",
+      "invalid_host": "Only YouTube and YouTube Music URLs are allowed.",
+      "invalid_url": "Invalid YouTube URL.",
+      "incomplete_segment": "Please provide both start and end time or leave both empty.",
+      "invalid_time_format": "Invalid time format. Use M:SS or H:MM:SS.",
+      "invalid_time_range": "Start time must be before end time.",
+      "too_many_jobs": "Maximum %(max)s concurrent downloads allowed.",
+      "started": "Download started.",
+      "expired": "This file is no longer available.",
+      "file_missing": "File not found."
     }
   }
 }

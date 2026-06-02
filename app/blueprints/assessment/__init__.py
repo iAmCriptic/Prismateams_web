@@ -8,8 +8,9 @@ from .evaluations import evaluations_bp
 from .excel_uploads import excel_uploads_bp
 from .general import general_bp
 from .inspections import inspections_bp
-from .map import map_bp
+from .lists import lists_bp
 from .ranking import ranking_bp
+from .stand_types import stand_types_bp
 from .rooms import rooms_bp
 from .stands import stands_bp
 from .users import users_bp
@@ -30,7 +31,8 @@ assessment_bp.register_blueprint(inspections_bp)
 assessment_bp.register_blueprint(ranking_bp)
 assessment_bp.register_blueprint(general_bp)
 assessment_bp.register_blueprint(excel_uploads_bp)
-assessment_bp.register_blueprint(map_bp)
+assessment_bp.register_blueprint(lists_bp)
+assessment_bp.register_blueprint(stand_types_bp)
 
 
 @assessment_bp.app_context_processor

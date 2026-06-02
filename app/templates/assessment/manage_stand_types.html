@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header %}
+{% block title %}Stand-Typen - Bewertung{% endblock %}
+{% block content %}
+{{ assessment_page_header('Stand-Typen', icon='tags') }}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="typeForm" class="row g-3 align-items-end">
+                <input type="hidden" id="typeId">
+                <div class="col-md-5">
+                    <label class="form-label">Name</label>
+                    <input class="form-control" id="typeName" required placeholder="z. B. Essen, Aktivität">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Sortierung</label>
+                    <input type="number" class="form-control" id="typeSort" value="0">
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="button" class="btn btn-outline-secondary" id="resetBtn" hidden>Abbrechen</button>
+                    <button type="submit" class="btn btn-accent" id="saveBtn">Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped mb-0">
+                <thead><tr><th>Name</th><th>Stände</th><th class="text-end">Aktion</th></tr></thead>
+                <tbody id="rows"></tbody>
+            </table>
+        </div>
+    </div>
+<script>
+const form = document.getElementById('typeForm');
+function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function load() {
+    const res = await fetch('/assessment/api/stand_types');
+    const data = await res.json();
+    document.getElementById('rows').innerHTML = (data.stand_types||[]).map(t=>`
+        <tr><td>${escapeHtml(t.name)}</td><td>${t.stand_count}</td>
+        <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" onclick='editType(${JSON.stringify(t)})'><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="delType(${t.id})"><i class="bi bi-trash"></i></button>
+        </td></tr>`).join('');
+}
+function editType(t) {
+    document.getElementById('typeId').value=t.id;
+    document.getElementById('typeName').value=t.name;
+    document.getElementById('typeSort').value=t.sort_order;
+    document.getElementById('resetBtn').hidden=false;
+    document.getElementById('saveBtn').textContent='Speichern';
+}
+function reset() {
+    form.reset(); document.getElementById('typeId').value='';
+    document.getElementById('resetBtn').hidden=true;
+    document.getElementById('saveBtn').textContent='Anlegen';
+}
+document.getElementById('resetBtn').addEventListener('click', reset);
+form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const id=document.getElementById('typeId').value;
+    const payload={name:document.getElementById('typeName').value, sort_order:Number(document.getElementById('typeSort').value)};
+    await fetch(id?`/assessment/api/stand_types/${id}`:'/assessment/api/stand_types',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    reset(); load();
+});
+async function delType(id) {
+    if(!confirm('Stand-Typ löschen?')) return;
+    const res=await fetch(`/assessment/api/stand_types/${id}`,{method:'DELETE'});
+    const data=await res.json();
+    alert(data.message||'Fertig');
+    load();
+}
+load();
+</script>
+{% endblock %}

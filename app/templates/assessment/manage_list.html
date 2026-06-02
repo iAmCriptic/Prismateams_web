@@ -1,26 +1,42 @@
 {% extends "base.html" %}
-{% block title %}Reset - Bewertung{% endblock %}
+{% from "assessment/_macros.html" import assessment_page_header %}
+{% block title %}Daten zurücksetzen - Bewertung{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1 class="h4 mb-3">Daten zurücksetzen</h1>
+{{ assessment_page_header('Daten zurücksetzen', subtitle='Bewertungen, Verwarnungen oder Inspektionen gezielt leeren', icon='arrow-counterclockwise') }}
     <div class="card">
         <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Bewertungsliste</label>
+                <select class="form-select" id="listSelect">
+                    <option value="">— Global (nur Inspektionen) —</option>
+                    {% for lst in evaluation_lists %}
+                    <option value="{{ lst.id }}">{{ lst.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="d-flex flex-wrap gap-2">
-                <button class="btn btn-outline-danger" data-action="reset_ranking">Rangliste zurücksetzen</button>
-                <button class="btn btn-outline-danger" data-action="reset_room_inspections">Inspektionen zurücksetzen</button>
-                <button class="btn btn-outline-danger" data-action="reset_warnings">Verwarnungen zurücksetzen</button>
+                <button class="btn btn-outline-danger" data-action="reset_ranking">Bewertungen dieser Liste zurücksetzen</button>
+                <button class="btn btn-outline-danger" data-action="reset_warnings">Verwarnungen dieser Liste zurücksetzen</button>
+                <button class="btn btn-outline-danger" data-action="reset_room_inspections">Alle Rauminspektionen zurücksetzen</button>
             </div>
             <p class="text-muted mt-3 mb-0" id="status"></p>
         </div>
     </div>
-</div>
 <script>
 document.querySelectorAll('button[data-action]').forEach((btn) => {
     btn.addEventListener('click', async () => {
+        const listId = document.getElementById('listSelect').value;
+        const action = btn.dataset.action;
+        if ((action === 'reset_ranking' || action === 'reset_warnings') && !listId) {
+            document.getElementById('status').textContent = 'Bitte zuerst eine Bewertungsliste wählen.';
+            return;
+        }
+        const payload = { action };
+        if (listId) payload.list_id = Number(listId);
         const result = await fetch('/assessment/api/reset_data', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ action: btn.dataset.action })
+            body: JSON.stringify(payload)
         });
         const data = await result.json();
         document.getElementById('status').textContent = data.message || 'Fertig';

@@ -77,6 +77,16 @@
                                 {% endif %}
                             </p>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <p class="mb-1"><strong>{{ _('settings.about.media_downloader_label') }}</strong></p>
+                            <p class="text-muted">
+                                {% if media_downloader_compatible %}
+                                    <span class="badge bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
                     </div>
                 </div>
                 

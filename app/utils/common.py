@@ -20,6 +20,7 @@ AVAILABLE_MODULES = [
     'module_wiki',
     'module_booking',
     'module_music',
+    'module_media_downloader',
     'module_assessment',
     'module_shortlinks',
 ]

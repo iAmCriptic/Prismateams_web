@@ -32,6 +32,7 @@ Diese Anleitung führt Sie Schritt für Schritt durch die vollständige Installa
 
 **⚠️ Wichtiger Hinweis zu optionalen Features:**
 - **OnlyOffice** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
+- **Media Downloader** ist **OPTIONAL** (benötigt FFmpeg, kein Docker)
 - Wenn Sie diese Features **NICHT** benötigen, können Sie die entsprechenden Schritte überspringen
 - In der `.env`-Datei müssen Sie dann `ONLYOFFICE_ENABLED=False` und/oder `EXCALIDRAW_ENABLED=False` setzen
 - Die Nginx-Konfiguration muss entsprechend angepasst werden (optionalen Location-Blöcke entfernen)
@@ -175,6 +176,25 @@ sudo docker ps | grep excalidraw-room
 curl http://localhost:8082/
 ```
 
+### Schritt 6b: Optionale Installation - Media Downloader
+
+**⚠️ OPTIONAL:** Dieser Schritt ist nur erforderlich, wenn Sie YouTube-/YouTube-Music-Downloads im Portal nutzen möchten.
+
+```bash
+# FFmpeg installieren (von yt-dlp für Konvertierung benötigt)
+sudo apt install -y ffmpeg
+
+# Installation prüfen
+ffmpeg -version
+```
+
+**Hinweise:**
+- Kein Docker oder Nginx-Proxy erforderlich
+- Python-Paket `yt-dlp` wird über `requirements.txt` im Virtual Environment installiert
+- **Aktivierung im Portal:** Einstellungen → Administration → Module → **Media Downloader**
+- Heruntergeladene Dateien werden standardmäßig nach **1 Stunde** automatisch gelöscht (`MEDIA_DOWNLOADER_RETENTION_HOURS` in `.env`, optional)
+- **Rechtlicher Hinweis:** Nutzer sind für die Einhaltung von Urheberrecht und Plattform-Nutzungsbedingungen verantwortlich
+
 ### Schritt 7: Konfiguration (.env-Datei)
 
 ```bash
@@ -220,6 +240,11 @@ ONLYOFFICE_SECRET_KEY=dein-jwt-secret-key-von-onlyoffice
 EXCALIDRAW_ENABLED=True
 EXCALIDRAW_URL=/excalidraw
 EXCALIDRAW_ROOM_URL=/excalidraw-room
+
+# Media Downloader Configuration (OPTIONAL)
+# Aktivierung im Portal: Einstellungen → Administration → Module
+# MEDIA_DOWNLOADER_RETENTION_HOURS=1
+# MEDIA_DOWNLOADER_MAX_CONCURRENT=2
 
 # Email Configuration (falls benötigt)
 MAIL_SERVER=smtp.gmail.com
@@ -722,6 +747,7 @@ sudo ufw status
 - **Docker installieren:** Nur erforderlich für OnlyOffice oder Excalidraw
 - **OnlyOffice installieren:** Optional, für Dokumentenbearbeitung
 - **Excalidraw installieren:** Optional, für Canvas-Modul
+- **Media Downloader installieren:** Optional, FFmpeg installieren und Modul in Admin aktivieren
 
 ### Wichtige Hinweise
 
@@ -743,6 +769,38 @@ sudo ufw status
 - [ ] OnlyOffice JWT ist aktiviert (falls OnlyOffice installiert)
 - [ ] `.env`-Datei hat korrekte Berechtigungen (nicht öffentlich lesbar)
 - [ ] Docker-Container laufen mit `--restart=always` (falls installiert)
+
+## Bewertungsmodul
+
+Das Bewertungsmodul (`module_assessment`) unterstützt mehrere **Bewertungslisten** parallel (z. B. Stände nach Typ „Essen“ / „Aktivität“ oder eine separate Liste für Maskottchen).
+
+### Konzepte
+
+- **Stand-Typen:** Jeder Stand hat genau einen Typ (Essen, Aktivität, …), verwaltbar unter *Bewertung → Stand-Typen*.
+- **Bewertungslisten:** Eigene Kriterien, Rangliste und optional Besucherbewertung pro Liste. Modus *Stände* filtert nach Stand-Typen; Modus *Eigene Ziele* für frei definierbare Einträge (z. B. Maskottchen).
+- **Portal-Zugriff:** Benutzer mit freigeschaltetem Modul `module_assessment` haben im Bewertungsmodul Administrator-Rechte. Zusätzliche Assessment-Accounts (Benutzername-Login) eignen sich für Jury-Rollen ohne Portal-Konto.
+- **Migration:** Beim App-Start werden bestehende Daten einer Default-Liste „Hauptbewertung“ zugeordnet. Vor Updates auf Produktivsystemen Backup anlegen.
+
+### Darstellung und Branding
+
+- Das Bewertungsmodul nutzt **dieselbe Oberfläche wie das Portal** (Sidebar, Karten, Akzentfarbe). Logo und Portalname kommen aus den globalen Portal-Einstellungen; ein separates Modul-Logo gibt es nicht mehr.
+- **Portal-Benutzer** (`module_assessment`): Dark Mode, OLED und Akzentfarbe unter *Einstellungen → Darstellung* im Profil – gelten auch im Bewertungsmodul.
+- **Jury-Accounts** (reiner Assessment-Login, isolierte Sidebar): Dark Mode und OLED unter *Bewertung → Einstellungen → Darstellung*; Akzentfarbe folgt dem Portal-Standard.
+- Der frühere Theme-Schalter in der Bewertungs-Sidebar und die API `/assessment/api/theme` entfallen.
+
+### Excel-Import
+
+- Beispiel-Dateien liegen unter `app/static/assessment/` (`beispiel_staende.xlsx`, `beispiel_kriterien.xlsx`, `beispiel_benutzer.xlsx`, `beispiel_bewertungsziele.xlsx`) und können in der Verwaltung heruntergeladen werden.
+- **Stände / Benutzer:** global unter *Stände* bzw. *Benutzer*.
+- **Kriterien:** pro Bewertungsliste unter *Kriterien* oder direkt auf der Seite *Bewertungslisten* (Listen-Auswahl).
+- **Bewertungsziele:** nur für Custom-Listen, auf *Bewertungslisten* oder unter *Bewertungsziele* der jeweiligen Liste.
+- Abhängigkeit: `openpyxl` (wie für Excel-Erstellung im Dateien-Modul).
+
+### Besucherbewertung (URL)
+
+`/assessment/visitor_rate/<listen-slug>/<ziel-id>` — ältere Links `/assessment/visitor_rate/<stand-id>` leiten auf die Hauptliste um.
+
+Der frühere **Lageplan-Editor** wurde entfernt.
 
 ## Weitere Informationen
 

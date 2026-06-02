@@ -1,35 +1,60 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Verwarnungen{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1 class="h4 mb-3">Verwarnungen</h1>
+{{ assessment_page_header('Verwarnungen', icon='exclamation-triangle') }}
+    <div class="mb-3">
+        <label class="form-label">Bewertungsliste</label>
+        <select class="form-select" id="listSelect">
+            {% for lst in evaluation_lists %}
+            <option value="{{ lst.id }}">{{ lst.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <form id="form" class="row g-2 mb-3">
-        <div class="col-md-4"><select class="form-select" name="stand_id" id="standSelect"></select></div>
+        <div class="col-md-4"><select class="form-select" name="target_id" id="targetSelect"></select></div>
         <div class="col-md-6"><input class="form-control" name="comment" placeholder="Kommentar" required></div>
         <div class="col-md-2"><button class="btn btn-accent w-100">Speichern</button></div>
     </form>
-    <table class="table table-striped">
-        <thead><tr><th>Stand</th><th>Kommentar</th><th>Status</th></tr></thead>
-        <tbody id="rows"></tbody>
-    </table>
-</div>
+    <div class="table-responsive">
+        <table class="table table-striped mb-0">
+            <thead><tr><th>Ziel</th><th>Kommentar</th><th>Status</th></tr></thead>
+            <tbody id="rows"></tbody>
+        </table>
+    </div>
 <script>
+let currentMode = 'stand';
+
 async function loadData() {
-    const res = await fetch('/assessment/warnings/api/items');
+    const listId = document.getElementById('listSelect').value;
+    const res = await fetch(`/assessment/warnings/api/items?list_id=${listId}`);
     const data = await res.json();
-    document.getElementById('standSelect').innerHTML = (data.stands || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    currentMode = data.subject_mode || 'stand';
+
+    document.getElementById('targetSelect').innerHTML = (data.targets || []).map(s =>
+        `<option value="${s.id}">${s.name}</option>`).join('');
     document.getElementById('rows').innerHTML = (data.warnings || []).map(w => `
-        <tr><td>${w.stand_name || ''}</td><td>${w.comment}</td><td>${w.is_invalidated ? 'Invalidiert' : 'Aktiv'}</td></tr>
+        <tr><td>${w.target_name || ''}</td><td>${w.comment}</td><td>${w.is_invalidated ? 'Invalidiert' : 'Aktiv'}</td></tr>
     `).join('');
 }
+
+document.getElementById('listSelect').addEventListener('change', loadData);
+
 document.getElementById('form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const payload = Object.fromEntries(new FormData(e.target).entries());
-    payload.stand_id = Number(payload.stand_id);
+    const listId = Number(document.getElementById('listSelect').value);
+    const targetId = Number(document.getElementById('targetSelect').value);
+    const payload = {
+        list_id: listId,
+        comment: e.target.comment.value,
+    };
+    if (currentMode === 'stand') payload.stand_id = targetId;
+    else payload.subject_id = targetId;
     await fetch('/assessment/warnings/api/items', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
     e.target.reset();
     loadData();
 });
+
 loadData();
 </script>
 {% endblock %}

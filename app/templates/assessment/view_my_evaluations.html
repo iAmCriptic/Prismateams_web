@@ -1,26 +1,48 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Meine Bewertungen{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1 class="h4 mb-3">Meine Bewertungen</h1>
-    <table class="table table-striped">
-        <thead><tr><th>Stand</th><th>Punkte</th><th>Zeit</th><th>Druck</th></tr></thead>
-        <tbody id="rows"></tbody>
-    </table>
-</div>
+{{ assessment_page_header('Meine Bewertungen', icon='journal-text') }}
+    <div class="mb-3">
+        <label class="form-label">Bewertungsliste (optional)</label>
+        <select class="form-select" id="listFilter">
+            <option value="">Alle Listen</option>
+        </select>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped mb-0">
+            <thead><tr><th>Liste</th><th>Ziel</th><th>Punkte</th><th>Zeit</th><th>Druck</th></tr></thead>
+            <tbody id="rows"></tbody>
+        </table>
+    </div>
 <script>
+async function loadLists() {
+    const res = await fetch('/assessment/api/lists/active');
+    const data = await res.json();
+    const sel = document.getElementById('listFilter');
+    (data.lists || []).forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.name;
+        sel.appendChild(opt);
+    });
+}
 async function load() {
-    const res = await fetch('/assessment/api/my_evaluations');
+    const listId = document.getElementById('listFilter').value;
+    const url = listId ? `/assessment/api/my_evaluations?list_id=${listId}` : '/assessment/api/my_evaluations';
+    const res = await fetch(url);
     const data = await res.json();
     document.getElementById('rows').innerHTML = (data.evaluations || []).map(e => `
         <tr>
-            <td>${e.stand_name}</td>
+            <td>${e.list_name || '—'}</td>
+            <td>${e.target_name || '—'}</td>
             <td>${e.total_score}</td>
             <td>${e.timestamp ? new Date(e.timestamp).toLocaleString() : '-'}</td>
-            <td><a target="_blank" href="/assessment/print_evaluation/${e.id}" class="btn btn-sm btn-outline-primary">PDF</a></td>
+            <td><a target="_blank" href="/assessment/print_evaluation/${e.id}" class="btn btn-sm btn-outline-primary">Druck</a></td>
         </tr>
-    `).join('');
+    `).join('') || '<tr><td colspan="5" class="text-muted text-center">Keine Bewertungen</td></tr>';
 }
-load();
+document.getElementById('listFilter').addEventListener('change', load);
+loadLists().then(load);
 </script>
 {% endblock %}

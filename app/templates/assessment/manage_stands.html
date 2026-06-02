@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Standverwaltung - Bewertung{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0">Standverwaltung</h1>
-        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
-    </div>
+{{ assessment_page_header('Standverwaltung', icon='shop') }}
 
-    <div class="card shadow-sm mb-4">
+    <div class="card mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neuen Stand anlegen</h2>
             <form id="standForm">
@@ -20,6 +17,10 @@
                     <div class="col-md-6">
                         <label class="form-label">Beschreibung</label>
                         <input class="form-control" name="description" id="standDescription">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Stand-Typ</label>
+                        <select class="form-select" name="stand_type_id" id="standTypeSelect" required></select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Raum</label>
@@ -36,40 +37,28 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Stände per Excel hochladen</h2>
-            <form id="excelForm">
-                <div class="mb-3">
-                    <label class="form-label">Excel-Datei auswählen (.xlsx)</label>
-                    <input type="file" class="form-control" accept=".xlsx" name="file" required>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success"><i class="bi bi-upload me-1"></i>Excel hochladen</button>
-                    <a class="btn btn-outline-secondary" href="{{ url_for('assessment.excel_uploads.download_sample', which='stands') }}">
-                        <i class="bi bi-download me-1"></i>Beispiel-Excel herunterladen
-                    </a>
-                </div>
-                <p class="text-muted small mt-2 mb-0">Pflicht-Spalten: <code>Standname</code>, <code>Beschreibung</code>, <code>Raum</code></p>
-            </form>
-        </div>
-    </div>
+    {{ assessment_excel_upload(
+        'Stände per Excel hochladen',
+        'excelForm',
+        'stands',
+        'Spalten: <code>Standname</code>, <code>Beschreibung</code>, <code>Raum</code>, <code>Stand-Typ</code>'
+    ) }}
 
-    <div class="card shadow-sm">
+    <div class="card">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Stände</h2>
             <div class="table-responsive">
                 <table class="table table-striped align-middle mb-0">
-                    <thead><tr><th>Name</th><th>Beschreibung</th><th>Raum</th><th class="text-end">Aktion</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Typ</th><th>Beschreibung</th><th>Raum</th><th class="text-end">Aktion</th></tr></thead>
                     <tbody id="rows"></tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
 
 <script>
 let rooms = [];
+let standTypes = [];
 const form = document.getElementById('standForm');
 const resetBtn = document.getElementById('resetFormBtn');
 const saveBtn = document.getElementById('saveBtn');
@@ -80,11 +69,15 @@ async function loadData() {
     const res = await fetch('/assessment/api/stands');
     const data = await res.json();
     rooms = data.rooms || [];
+    standTypes = data.stand_types || [];
     document.getElementById('roomSelect').innerHTML = '<option value="">(Kein Raum)</option>' +
         rooms.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
+    document.getElementById('standTypeSelect').innerHTML = standTypes.map(t =>
+        `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
     document.getElementById('rows').innerHTML = (data.stands || []).map(s => `
         <tr>
             <td>${escapeHtml(s.name)}</td>
+            <td>${escapeHtml(s.stand_type_name || '—')}</td>
             <td>${escapeHtml(s.description || '')}</td>
             <td>${escapeHtml(s.room_name || '—')}</td>
             <td class="text-end">
@@ -100,6 +93,7 @@ function editStand(s) {
     document.getElementById('standName').value = s.name;
     document.getElementById('standDescription').value = s.description || '';
     document.getElementById('roomSelect').value = s.room_id || '';
+    document.getElementById('standTypeSelect').value = s.stand_type_id || '';
     saveBtn.innerHTML = '<i class="bi bi-save me-1"></i>Änderungen speichern';
     resetBtn.hidden = false;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -118,6 +112,7 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = Object.fromEntries(new FormData(form).entries());
     payload.room_id = payload.room_id ? Number(payload.room_id) : null;
+    payload.stand_type_id = payload.stand_type_id ? Number(payload.stand_type_id) : null;
     const id = document.getElementById('standId').value;
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/assessment/api/stands/${id}` : '/assessment/api/stands';
@@ -137,7 +132,8 @@ document.getElementById('excelForm').addEventListener('submit', async (e) => {
     const fd = new FormData(e.target);
     const res = await fetch('/assessment/api/import/stands', { method: 'POST', body: fd });
     const data = await res.json();
-    alert(data.message || 'Fertig');
+    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+    if (!data.success) return;
     e.target.reset();
     loadData();
 });

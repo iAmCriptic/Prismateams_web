@@ -1142,9 +1142,13 @@ button, .btn {
     height: 64px;
 }
 
-/* Zurück-Button Styling */
+/* Zurück-Button Styling (oben links im Hauptbereich) */
 .back-button-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
     position: relative;
+    z-index: 10;
 }
 
 .back-button {

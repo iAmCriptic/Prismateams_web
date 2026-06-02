@@ -41,6 +41,7 @@ Das Skript installiert und konfiguriert automatisch:
 - Docker (nur wenn OnlyOffice oder Excalidraw gewählt)
 - OnlyOffice Document Server (Docker, optional)
 - Excalidraw Client und Room Server (Docker, optional)
+- Media Downloader / FFmpeg (optional)
 - Python Virtual Environment
 - Automatische Generierung aller Keys:
   - Flask `SECRET_KEY`
@@ -63,8 +64,9 @@ Das Skript fragt Sie nach:
 4. **Domain oder IP-Adresse** — erforderlich bei automatischer Webserver-Einrichtung
 5. **SSL mit Let's Encrypt** — nur bei automatischer Webserver-Einrichtung
 6. **Docker-Services** (OnlyOffice, Excalidraw — Standard: ja) — einzeln überspringbar
-7. **MySQL Root-Passwort** — leer lassen für automatische Generierung
-8. **E-Mail-Konfiguration** — SMTP/IMAP (optional)
+7. **Media Downloader (FFmpeg)** — optional (Standard: nein)
+8. **MySQL Root-Passwort** — leer lassen für automatische Generierung
+9. **E-Mail-Konfiguration** — SMTP/IMAP (optional)
 
 ## Kommandozeilen-Optionen
 
@@ -89,6 +91,7 @@ sudo bash scripts/install_ubuntu.sh --webserver nginx --skip-excalidraw
 | `--skip-docker` | Docker, OnlyOffice und Excalidraw überspringen |
 | `--skip-onlyoffice` | OnlyOffice Document Server überspringen |
 | `--skip-excalidraw` | Excalidraw Client und Room Server überspringen |
+| `--skip-media-downloader` | Media Downloader (FFmpeg) überspringen |
 | `--help`, `-h` | Hilfe anzeigen |
 
 Bei übersprungenen Schritten gibt das Skript `[MANUELL]`-Hinweise mit den Standard-Einstellungen aus, die es sonst gesetzt hätte.
@@ -100,6 +103,7 @@ Wenn Schritte übersprungen wurden (z. B. `--no-webserver`, `--skip-docker`):
 - **Webserver / SSL / Firewall:** [INSTALLATION.md – Schritt 11–13](INSTALLATION.md#schritt-11-nginx-konfigurieren)
 - **Docker / OnlyOffice:** [INSTALLATION.md – Schritt 2 und 5](INSTALLATION.md#schritt-2-docker-installieren-für-excalidraw-und-onlyoffice)
 - **Excalidraw:** [INSTALLATION.md – Schritt 6](INSTALLATION.md#schritt-6-optionale-installation---excalidraw)
+- **Media Downloader:** [INSTALLATION.md – Schritt 6b](INSTALLATION.md#schritt-6b-optionale-installation---media-downloader)
 
 ## Automatisch generierte Werte
 

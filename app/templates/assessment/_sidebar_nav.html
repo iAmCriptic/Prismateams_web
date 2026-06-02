@@ -25,13 +25,6 @@
     </a>
 </li>
 {% endif %}
-{% if 'map_view' in assessment_sections %}
-<li class="nav-item sidebar-nav-item" data-nav-id="assessment_map" data-nav-priority="4">
-    <a href="{{ url_for('assessment.map.view_plan') }}" class="nav-link {% if request.endpoint == 'assessment.map.view_plan' %}active{% endif %}">
-        <i class="bi bi-geo-alt me-2"></i>Lageplan
-    </a>
-</li>
-{% endif %}
 {% if 'inspections' in assessment_sections %}
 <li class="nav-item sidebar-nav-item" data-nav-id="assessment_inspect" data-nav-priority="5">
     <a href="{{ url_for('assessment.inspections.room_inspections_page') }}" class="nav-link {% if request.endpoint == 'assessment.inspections.room_inspections_page' %}active{% endif %}">
@@ -62,27 +55,32 @@
         <i class="bi bi-people me-2"></i>Benutzer
     </a>
 </li>
-<li class="nav-item sidebar-nav-item" data-nav-id="assessment_stands_admin" data-nav-priority="8.2">
+<li class="nav-item sidebar-nav-item" data-nav-id="assessment_lists_admin" data-nav-priority="8.2">
+    <a href="{{ url_for('assessment.lists.manage_lists_page') }}" class="nav-link {% if request.endpoint == 'assessment.lists.manage_lists_page' %}active{% endif %}">
+        <i class="bi bi-list-ul me-2"></i>Bewertungslisten
+    </a>
+</li>
+<li class="nav-item sidebar-nav-item" data-nav-id="assessment_stand_types_admin" data-nav-priority="8.25">
+    <a href="{{ url_for('assessment.stand_types.manage_stand_types_page') }}" class="nav-link {% if request.endpoint == 'assessment.stand_types.manage_stand_types_page' %}active{% endif %}">
+        <i class="bi bi-tags me-2"></i>Stand-Typen
+    </a>
+</li>
+<li class="nav-item sidebar-nav-item" data-nav-id="assessment_stands_admin" data-nav-priority="8.3">
     <a href="{{ url_for('assessment.stands.manage_stand_page') }}" class="nav-link {% if request.endpoint == 'assessment.stands.manage_stand_page' %}active{% endif %}">
         <i class="bi bi-shop me-2"></i>Stände
     </a>
 </li>
-<li class="nav-item sidebar-nav-item" data-nav-id="assessment_criteria_admin" data-nav-priority="8.3">
+<li class="nav-item sidebar-nav-item" data-nav-id="assessment_criteria_admin" data-nav-priority="8.4">
     <a href="{{ url_for('assessment.criteria.manage_criteria_page') }}" class="nav-link {% if request.endpoint == 'assessment.criteria.manage_criteria_page' %}active{% endif %}">
         <i class="bi bi-list-check me-2"></i>Kriterien
     </a>
 </li>
-<li class="nav-item sidebar-nav-item" data-nav-id="assessment_rooms_admin" data-nav-priority="8.4">
+<li class="nav-item sidebar-nav-item" data-nav-id="assessment_rooms_admin" data-nav-priority="8.5">
     <a href="{{ url_for('assessment.rooms.manage_rooms_page') }}" class="nav-link {% if request.endpoint == 'assessment.rooms.manage_rooms_page' %}active{% endif %}">
         <i class="bi bi-door-open me-2"></i>Räume
     </a>
 </li>
-<li class="nav-item sidebar-nav-item" data-nav-id="assessment_map_admin" data-nav-priority="8.5">
-    <a href="{{ url_for('assessment.map.manage_plan') }}" class="nav-link {% if request.endpoint == 'assessment.map.manage_plan' %}active{% endif %}">
-        <i class="bi bi-map me-2"></i>Lageplan verwalten
-    </a>
-</li>
-<li class="nav-item sidebar-nav-item" data-nav-id="assessment_list_admin" data-nav-priority="8.6">
+<li class="nav-item sidebar-nav-item" data-nav-id="assessment_list_admin" data-nav-priority="8.5">
     <a href="{{ url_for('assessment.general.manage_list_page') }}" class="nav-link {% if request.endpoint == 'assessment.general.manage_list_page' %}active{% endif %}">
         <i class="bi bi-trash me-2"></i>Listen zurücksetzen
     </a>

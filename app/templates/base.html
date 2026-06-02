@@ -1,9 +1,15 @@
 {% set _assess_scope = session.get('user_scope') == 'assessment' %}
-{% set _theme_mode = assessment_theme_mode if _assess_scope else ('dark' if current_user.is_authenticated and current_user.dark_mode else 'light') %}
+{% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}
+{% set _theme_dark = true %}{% set _theme_oled = true %}
+{% elif current_user.is_authenticated and current_user.dark_mode %}
+{% set _theme_dark = true %}{% set _theme_oled = false %}
+{% else %}
+{% set _theme_dark = false %}{% set _theme_oled = false %}
+{% endif %}
 <!DOCTYPE html>
 <html lang="{{ current_language or 'de' }}"
-      data-bs-theme="{{ 'dark' if _theme_mode in ('dark','oled') or (not _assess_scope and current_user.is_authenticated and current_user.dark_mode) else 'light' }}"
-      {% if _assess_scope and _theme_mode == 'oled' %}data-oled-mode="true"{% elif current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}data-oled-mode="true"{% endif %}
+      data-bs-theme="{{ 'dark' if _theme_dark else 'light' }}"
+      {% if _theme_oled %}data-oled-mode="true"{% endif %}
       {% if current_user.is_authenticated %}data-preferred-layout="{{ (current_user.preferred_layout if current_user.preferred_layout is defined else 'auto') or 'auto' }}"{% endif %}>
 <head>
     <meta charset="UTF-8">
@@ -44,6 +50,7 @@
     <!-- Base CSS (always loaded) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/context-menu.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cookie-consent.css') }}">
     
     <!-- Page-specific CSS -->
     {% if request.endpoint %}
@@ -235,7 +242,7 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% if _assess_scope or (request.endpoint and request.endpoint.startswith('assessment.')) %}assessment-scope{% endif %}">
+<body>
     {% if current_user.is_authenticated %}
     <!-- Mobile Bottom Navigation -->
     <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
@@ -263,10 +270,11 @@
 
             {# 3: Home (erhaben) #}
             <div class="mobile-nav-item mobile-nav-item-home">
-                <a href="{{ url_for('dashboard.index') }}" class="mobile-nav-home-fab {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}" aria-label="{{ _('layout.nav.dashboard') }}">
+                {% set _mobile_home_endpoint = 'assessment.general.home' if session.get('user_scope') == 'assessment' else 'dashboard.index' %}
+                <a href="{{ url_for(_mobile_home_endpoint) }}" class="mobile-nav-home-fab {% if request.endpoint and request.endpoint == _mobile_home_endpoint %}active{% endif %}" aria-label="{{ _('layout.nav.home') }}">
                     <i class="bi bi-house-door"></i>
                 </a>
-                <span class="mobile-nav-label mobile-nav-home-label {% if request.endpoint and request.endpoint == 'dashboard.index' %}active{% endif %}">{{ _('layout.nav.home') }}</span>
+                <span class="mobile-nav-label mobile-nav-home-label {% if request.endpoint and request.endpoint == _mobile_home_endpoint %}active{% endif %}">{{ _('layout.nav.home') }}</span>
             </div>
 
             {# 4: Rechter personalisierbarer Slot #}
@@ -299,10 +307,7 @@
                     {% elif app_logo %}
                     <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="32" class="me-2 flex-shrink-0">
                     {% endif %}
-                    {% if assessment_logo_url and session.get('user_scope') == 'assessment' %}
-                    <img src="{{ assessment_logo_url }}" alt="{{ assessment_module_label or 'Bewertung' }}" height="32" class="me-2 flex-shrink-0">
-                    {% endif %}
-                    <span class="fs-4 text-truncate">{% if session.get('user_scope') == 'assessment' %}{{ assessment_module_label or 'Bewertung' }}{% else %}{{ app_name or 'Prismateams' }}{% endif %}</span>
+                    <span class="fs-4 text-truncate">{{ app_name or 'Prismateams' }}</span>
                 </a>
                 {% if session.get('user_scope') != 'assessment' %}
                 <button type="button" class="btn btn-outline-secondary position-relative notification-bell-btn flex-shrink-0" id="notificationBellBtn" aria-label="{{ _('layout.notification_center.open') }}">
@@ -426,6 +431,14 @@
                 </a>
             </li>
             {% endif %}
+            {% if is_module_enabled('module_media_downloader') and (not current_user.is_authenticated or has_module_access(current_user, 'module_media_downloader')) %}
+            <li class="nav-item sidebar-nav-item" data-nav-id="media_downloader" data-nav-priority="11.2">
+                <a href="{{ url_for('media_downloader.index') }}" class="nav-link {% if request.endpoint and 'media_downloader' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-download me-2"></i>
+                    {{ _('layout.nav.media_downloader') }}
+                </a>
+            </li>
+            {% endif %}
             {% if is_module_enabled('module_assessment') and (not current_user.is_authenticated or has_module_access(current_user, 'module_assessment')) %}
             <li class="nav-item sidebar-nav-item" data-nav-id="assessment" data-nav-priority="11.5">
                 <a href="{{ url_for('assessment.general.home') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
@@ -449,16 +462,6 @@
             {% endif %}
             </ul>
         </div>
-        {% if session.get('user_scope') == 'assessment' %}
-        <div class="px-1 pb-2">
-            <div class="small text-muted mb-1">Ansicht</div>
-            <div class="btn-group btn-group-sm w-100" role="group" id="assessmentThemeToggle">
-                <button type="button" class="btn btn-outline-secondary" data-theme="light"><i class="bi bi-sun"></i></button>
-                <button type="button" class="btn btn-outline-secondary" data-theme="dark"><i class="bi bi-moon-stars"></i></button>
-                <button type="button" class="btn btn-outline-secondary" data-theme="oled"><i class="bi bi-circle-fill"></i></button>
-            </div>
-        </div>
-        {% endif %}
         <div class="sidebar-footer flex-shrink-0">
             <hr>
             <div class="dropdown">
@@ -593,6 +596,14 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('module_media_downloader') and (not current_user.is_authenticated or has_module_access(current_user, 'module_media_downloader')) %}
+                <li>
+                    <a href="{{ url_for('media_downloader.index') }}" class="nav-link {% if request.endpoint and 'media_downloader' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-download me-2"></i>
+                        {{ _('layout.nav.media_downloader') }}
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_assessment') and (not current_user.is_authenticated or has_module_access(current_user, 'module_assessment')) %}
                 <li>
                     <a href="{{ url_for('assessment.general.home') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('assessment.') %}active{% endif %}">
@@ -636,7 +647,13 @@
         <div class="container-fluid py-3">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
-                {% set index_endpoints = ['dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index', 'events.index', 'events.my_events', 'events.people_overview', 'email.index', 'email.folder_view', 'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index', 'shortlinks.index', 'booking.requests', 'music.index', 'settings.index', 'assessment.general.home'] %}
+                {% set index_endpoints = [
+                    'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index',
+                    'events.index', 'events.my_events', 'events.people_overview', 'email.index', 'email.folder_view',
+                    'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
+                    'shortlinks.index', 'booking.requests', 'music.index', 'settings.index',
+                    'assessment.general.home'
+                ] %}
                 {% if request.endpoint not in index_endpoints %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
@@ -694,41 +711,8 @@
     <script src="{{ url_for('static', filename='js/notification-center.js') }}"></script>
     {% endif %}
 
-    {% if session.get('user_scope') == 'assessment' %}
-    <script>
-    (function() {
-        const htmlEl = document.documentElement;
-        const initial = "{{ assessment_theme_mode or 'light' }}";
-        applyTheme(initial);
-
-        function applyTheme(mode) {
-            htmlEl.setAttribute('data-bs-theme', mode === 'light' ? 'light' : 'dark');
-            if (mode === 'oled') {
-                htmlEl.setAttribute('data-oled-mode', 'true');
-            } else {
-                htmlEl.removeAttribute('data-oled-mode');
-            }
-            document.querySelectorAll('#assessmentThemeToggle button').forEach((btn) => {
-                btn.classList.toggle('active', btn.dataset.theme === mode);
-            });
-        }
-
-        document.querySelectorAll('#assessmentThemeToggle button').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-                const mode = btn.dataset.theme;
-                applyTheme(mode);
-                try {
-                    await fetch('/assessment/api/theme', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ mode })
-                    });
-                } catch (e) { /* offline-ok */ }
-            });
-        });
-    })();
-    </script>
-    {% endif %}
+    {% include 'partials/cookie_consent.html' %}
+    <script src="{{ url_for('static', filename='js/cookie-consent.js') }}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

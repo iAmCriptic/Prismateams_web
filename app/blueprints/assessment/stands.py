@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, render_template, request
 
 from app import db
-from app.models.assessment import AssessmentRoom, AssessmentStand
+from app.models.assessment import AssessmentRoom, AssessmentStand, AssessmentStandType
 from app.utils.assessment_auth import assessment_role_required, get_assessment_identity
 
 stands_bp = Blueprint("stands", __name__)
@@ -31,6 +31,8 @@ def api_stands(stand_id=None):
                         "description": stand.description,
                         "room_id": stand.room_id,
                         "room_name": stand.room.name if stand.room else None,
+                        "stand_type_id": stand.stand_type_id,
+                        "stand_type_name": stand.stand_type.name if stand.stand_type else None,
                     },
                 }
             )
@@ -45,10 +47,16 @@ def api_stands(stand_id=None):
                         "description": stand.description,
                         "room_id": stand.room_id,
                         "room_name": stand.room.name if stand.room else None,
+                        "stand_type_id": stand.stand_type_id,
+                        "stand_type_name": stand.stand_type.name if stand.stand_type else None,
                     }
                     for stand in stands
                 ],
                 "rooms": [{"id": room.id, "name": room.name} for room in AssessmentRoom.query.order_by(AssessmentRoom.name.asc()).all()],
+                "stand_types": [
+                    {"id": t.id, "name": t.name}
+                    for t in AssessmentStandType.query.order_by(AssessmentStandType.sort_order.asc(), AssessmentStandType.name.asc()).all()
+                ],
             }
         )
 
@@ -62,10 +70,15 @@ def api_stands(stand_id=None):
         name = (data.get("name") or "").strip()
         if not name:
             return jsonify({"success": False, "message": "Standname ist erforderlich."}), 400
+        stand_type_id = data.get("stand_type_id")
+        if not stand_type_id:
+            default_type = AssessmentStandType.query.order_by(AssessmentStandType.id.asc()).first()
+            stand_type_id = default_type.id if default_type else None
         stand = AssessmentStand(
             name=name,
             description=(data.get("description") or "").strip() or None,
             room_id=data.get("room_id"),
+            stand_type_id=stand_type_id,
         )
         db.session.add(stand)
         db.session.commit()
@@ -79,6 +92,8 @@ def api_stands(stand_id=None):
         stand.name = (data.get("name") or stand.name).strip()
         stand.description = (data.get("description") or "").strip() or None
         stand.room_id = data.get("room_id")
+        if "stand_type_id" in data:
+            stand.stand_type_id = data.get("stand_type_id")
         db.session.commit()
         return jsonify({"success": True, "message": "Stand aktualisiert."})
 
