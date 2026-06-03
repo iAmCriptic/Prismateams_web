@@ -503,6 +503,7 @@ def create_app(config_name='default'):
                 'files': 'files.index',
                 'calendar': 'calendar.index',
                 'events': 'events.index',
+                'contacts': 'contacts.index',
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
