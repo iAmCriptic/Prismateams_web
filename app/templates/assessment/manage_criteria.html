@@ -1,15 +1,23 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Kriterienverwaltung - Bewertung{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0">Kriterienverwaltung</h1>
-        <a href="{{ url_for('assessment.general.home') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Zurück</a>
+{{ assessment_page_header('Kriterienverwaltung', icon='ui-checks-grid') }}
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">Bewertungsliste</label>
+            <select class="form-select" id="listSelect">
+                {% for lst in evaluation_lists %}
+                <option value="{{ lst.id }}">{{ lst.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
+    <div class="card mb-4">
         <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neues Kriterium anlegen</h2>
+            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Kriterium anlegen</h2>
             <form id="criterionForm">
                 <input type="hidden" name="id" id="criterionId">
                 <div class="row g-3">
@@ -34,26 +42,15 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Kriterien per Excel hochladen</h2>
-            <form id="excelForm">
-                <div class="mb-3">
-                    <label class="form-label">Excel-Datei auswählen (.xlsx)</label>
-                    <input type="file" class="form-control" accept=".xlsx" name="file" required>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success"><i class="bi bi-upload me-1"></i>Excel hochladen</button>
-                    <a class="btn btn-outline-secondary" href="{{ url_for('assessment.excel_uploads.download_sample', which='criteria') }}">
-                        <i class="bi bi-download me-1"></i>Beispiel-Excel herunterladen
-                    </a>
-                </div>
-                <p class="text-muted small mt-2 mb-0">Pflicht-Spalten: <code>Name</code>, <code>Maximale Punktzahl</code>, <code>Beschreibung</code></p>
-            </form>
-        </div>
-    </div>
+    {{ assessment_excel_upload(
+        'Kriterien per Excel hochladen',
+        'excelForm',
+        'criteria',
+        'Pflicht-Spalten: <code>Name</code>, <code>Maximale Punktzahl</code>, <code>Beschreibung</code>',
+        'Import gilt für die oben gewählte Bewertungsliste.'
+    ) }}
 
-    <div class="card shadow-sm">
+    <div class="card">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Kriterien</h2>
             <div class="table-responsive">
@@ -64,7 +61,6 @@
             </div>
         </div>
     </div>
-</div>
 
 <script>
 const form = document.getElementById('criterionForm');
@@ -72,7 +68,8 @@ const resetBtn = document.getElementById('resetFormBtn');
 const saveBtn = document.getElementById('saveBtn');
 
 async function loadCriteria() {
-    const res = await fetch('/assessment/api/criteria');
+    const listId = document.getElementById('listSelect').value;
+    const res = await fetch(`/assessment/api/criteria?list_id=${listId}`);
     const data = await res.json();
     document.getElementById('rows').innerHTML = (data.criteria || []).map(c => `
         <tr>
@@ -112,6 +109,7 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = Object.fromEntries(new FormData(form).entries());
     payload.max_score = Number(payload.max_score);
+    payload.list_id = Number(document.getElementById('listSelect').value);
     const id = payload.id;
     delete payload.id;
     const method = id ? 'PUT' : 'POST';
@@ -127,12 +125,16 @@ async function deleteCriterion(id) {
     loadCriteria();
 }
 
+document.getElementById('listSelect').addEventListener('change', loadCriteria);
+
 document.getElementById('excelForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    fd.append('list_id', document.getElementById('listSelect').value);
     const res = await fetch('/assessment/api/import/criteria', { method: 'POST', body: fd });
     const data = await res.json();
-    alert(data.message || 'Fertig');
+    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+    if (!data.success) return;
     e.target.reset();
     loadCriteria();
 });

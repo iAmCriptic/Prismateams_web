@@ -6,7 +6,7 @@ class NotificationCenter {
         this.panel = document.getElementById('notificationCenterPanel');
         this.backdrop = document.getElementById('notificationCenterBackdrop');
         this.listEl = document.getElementById('notificationCenterList');
-        this.badgeEls = document.querySelectorAll('.notification-badge');
+        this.badgeEls = document.querySelectorAll('.notification-bell-btn .notification-badge');
         this.pollIntervalMs = 45000;
         this.pollTimer = null;
         this.isOpen = false;

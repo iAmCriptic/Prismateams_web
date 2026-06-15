@@ -148,7 +148,8 @@ class User(UserMixin, db.Model):
         # Standard-Konfiguration - nur die wichtigsten Widgets aktiv
         return {
             "enabled_widgets": ["termine", "nachrichten", "emails", "passwoerter"],
-            "quick_access_links": ["files", "credentials", "manuals"]
+            "quick_access_links": ["files", "credentials", "manuals"],
+            "mobile_nav_slots": {"left": "chat", "right": "calendar"},
         }
     
     def set_dashboard_config(self, config):

@@ -4,6 +4,7 @@ Utility functions for the Team Portal application.
 
 from datetime import datetime
 from flask import current_app
+import pytz
 import requests
 import os
 
@@ -19,27 +20,80 @@ AVAILABLE_MODULES = [
     'module_wiki',
     'module_booking',
     'module_music',
+    'module_media_downloader',
     'module_assessment',
     'module_shortlinks',
 ]
 
+DEFAULT_TIMEZONE = 'Europe/Berlin'
+SUPPORTED_TIMEZONES = (
+    'Europe/Berlin',
+    'Europe/Zurich',
+    'Europe/Vienna',
+    'UTC',
+    'Europe/London',
+    'America/New_York',
+    'America/Los_Angeles',
+    'Asia/Tokyo',
+)
+
+
+def get_timezone_choices():
+    """Zeitzonenliste für Auswahlfelder in den Admin-Einstellungen."""
+    return [(tz, tz) for tz in SUPPORTED_TIMEZONES]
+
+
+def get_system_timezone():
+    """Liefert die im Portal konfigurierte Zeitzone (mit Fallback)."""
+    timezone_name = current_app.config.get('PORTAL_TIMEZONE', DEFAULT_TIMEZONE)
+    try:
+        from app.models.settings import SystemSettings
+        timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
+        if timezone_setting and timezone_setting.value:
+            timezone_name = timezone_setting.value.strip()
+    except Exception:
+        # Während Setup/Migrationen ggf. keine Settings-Tabelle verfügbar
+        pass
+
+    if timezone_name not in SUPPORTED_TIMEZONES:
+        timezone_name = DEFAULT_TIMEZONE
+    return timezone_name
+
+
+def _portal_timezone():
+    """pytz-Zeitzone des Portals (mit Fallback bei unbekannten Zonen)."""
+    try:
+        return pytz.timezone(get_system_timezone())
+    except pytz.exceptions.UnknownTimeZoneError:
+        return pytz.timezone(DEFAULT_TIMEZONE)
+
 
 def get_local_time(utc_datetime):
     """
-    Convert UTC datetime to local timezone.
-    
+    Konvertiert ein UTC-Datum in die konfigurierte Portal-Zeitzone.
+
     Args:
-        utc_datetime: datetime object in UTC
-        
+        utc_datetime: datetime-Objekt (naiv = UTC aus der DB, sonst timezone-aware)
+
     Returns:
-        datetime object in local timezone
+        timezone-aware datetime in der Portal-Zeitzone
     """
     if utc_datetime is None:
         return None
-    
-    # For now, just return the datetime as-is
-    # TODO: Implement proper timezone conversion when pytz is available
-    return utc_datetime
+
+    tz = _portal_timezone()
+
+    # Naive Datumswerte aus DB werden als UTC interpretiert.
+    if utc_datetime.tzinfo is None:
+        utc_aware = pytz.utc.localize(utc_datetime)
+    else:
+        utc_aware = utc_datetime.astimezone(pytz.utc)
+    return utc_aware.astimezone(tz)
+
+
+def now_in_portal_timezone():
+    """Aktuelle Uhrzeit in der konfigurierten Portal-Zeitzone."""
+    return datetime.now(_portal_timezone())
 
 
 def format_datetime(dt, format_string='%d.%m.%Y %H:%M'):

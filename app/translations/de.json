@@ -16,18 +16,39 @@
       "inventory": "Inventar",
       "wiki": "Wiki",
       "music": "Musik",
+      "media_downloader": "Media Downloader",
       "settings": "Einstellungen",
       "profile": "Profil",
       "logout": "Abmelden",
       "more": "Mehr",
       "module": "Module",
-      "back": "Zurück"
+      "back": "Zurück",
+      "notifications": "Benachrichtigungen",
+      "notifications_short": "Info",
+      "home": "Home",
+      "booking": "Buchungen"
     },
     "notification_center": {
       "open": "Benachrichtigungen öffnen",
       "title": "Benachrichtigungen",
       "mark_all_read": "Alle als gelesen",
       "delete_all": "Alle löschen"
+    },
+    "cookie_consent": {
+      "title": "Cookies & Datenschutz",
+      "description": "Wir verwenden Cookies, um die Anmeldung und grundlegende Funktionen bereitzustellen. Optionale Cookies verbessern Komfortfunktionen wie PWA-Installation. Sie können Ihre Auswahl jederzeit ändern.",
+      "accept_all": "Alle akzeptieren",
+      "essential_only": "Nur notwendige",
+      "settings": "Einstellungen",
+      "save_preferences": "Auswahl speichern",
+      "open_settings": "Cookie-Einstellungen",
+      "always_active": "Immer aktiv",
+      "category_necessary_title": "Notwendig",
+      "category_necessary_desc": "Session-Cookies für Anmeldung, Sicherheit und Grundfunktionen des Portals.",
+      "category_functional_title": "Funktional",
+      "category_functional_desc": "Speichert lokale Einstellungen und ermöglicht PWA-Funktionen.",
+      "category_analytics_title": "Statistik",
+      "category_analytics_desc": "Anonyme Nutzungsstatistiken zur Verbesserung des Portals (derzeit nicht aktiv)."
     }
   },
   "common": {
@@ -402,7 +423,19 @@
       "oled_help": "Nutzt echtes Schwarz (#000000) für OLED-Displays. Erfordert aktivierten Dark Mode.",
       "save_button": "Änderungen speichern",
       "flash_success": "Darstellungseinstellungen wurden aktualisiert.",
-      "flash_invalid_language": "Die ausgewählte Sprache ist nicht verfügbar."
+      "flash_invalid_language": "Die ausgewählte Sprache ist nicht verfügbar.",
+      "layout_preference_label": "Layout-Präferenz",
+      "layout_preference_auto": "Automatisch (empfohlen)",
+      "layout_preference_mobile": "Mobile-Layout",
+      "layout_preference_desktop": "Desktop-Layout",
+      "layout_preference_help": "Wählen Sie Ihr bevorzugtes Layout. „Automatisch“ passt das Layout an die Bildschirmgröße an. „Desktop-Layout“ ist besonders für Tablets nützlich, wenn Sie die Sidebar-Navigation bevorzugen.",
+      "mobile_nav": {
+        "title": "Mobile Navigation",
+        "description": "Wählen Sie die Module für die beiden freien Plätze in der unteren Navigationsleiste (links und rechts neben dem Dashboard).",
+        "left_label": "Linkes Icon",
+        "right_label": "Rechtes Icon",
+        "help": "Benachrichtigungen, Dashboard und Module sind fest und können nicht geändert werden."
+      }
     },
     "index": {
       "page_title": "Einstellungen - Team Portal",
@@ -693,6 +726,9 @@
       "onlyoffice_label": "OnlyOffice Integration:",
       "onlyoffice_active": "Aktiv",
       "onlyoffice_inactive": "Nicht aktiv",
+      "media_downloader_label": "Media Downloader (Systemkompatibilität):",
+      "media_downloader_compatible": "Kompatibel (FFmpeg verfügbar)",
+      "media_downloader_not_compatible": "Nicht kompatibel (FFmpeg fehlt)",
       "excalidraw_label": "Excalidraw Integration:",
       "excalidraw_active": "Aktiv",
       "excalidraw_inactive": "Nicht aktiv",
@@ -713,6 +749,7 @@
         "description": "Aktivieren oder deaktivieren Sie Module für alle Benutzer. Deaktivierte Module werden in der Navigation ausgeblendet.",
         "module_booking": "Buchungen",
         "module_music": "Musik",
+        "module_media_downloader": "Media Downloader",
         "save": "Änderungen speichern",
         "cancel": "Zurück",
         "flash_updated": "Module-Einstellungen wurden aktualisiert."
@@ -964,6 +1001,8 @@
         "color_gradient_pastel": "Pastell",
         "color_gradient_rose_pastel": "Rosa-Pastell",
         "color_gradient_orange_pastel": "Orange-Pastell",
+        "timezone_label": "Zeitzone",
+        "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
         "save_button": "Änderungen speichern",
         "back_button": "Zurück",
         "flash_updated": "System-Einstellungen wurden aktualisiert."
@@ -3067,6 +3106,81 @@
       "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
       "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
       "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
+    }
+  },
+  "assessment": {
+    "appearance": {
+      "title": "Darstellung",
+      "dark_mode": "Dark Mode",
+      "oled_mode": "OLED-Modus",
+      "save": "Darstellung speichern",
+      "portal_hint": "Dark Mode und Akzentfarbe werden über Ihr Portal-Profil gesteuert.",
+      "portal_link": "Zur Portal-Darstellung"
+    },
+    "admin_settings": {
+      "page_title": "Einstellungen – Bewertung",
+      "heading": "Bewertungsmodul-Einstellungen",
+      "subtitle": "Texte, Ranking und Darstellung"
+    }
+  },
+  "media_downloader": {
+    "page_title": "Media Downloader",
+    "heading": "Media Downloader",
+    "description": "Laden Sie Inhalte von YouTube und YouTube Music als MP3 oder MP4 herunter.",
+    "legal_notice": "Sie sind für die Einhaltung von Urheberrecht und Nutzungsbedingungen der Plattformen verantwortlich. Heruntergeladene Dateien werden nach einer Stunde automatisch gelöscht.",
+    "form": {
+      "title": "Neuer Download",
+      "url_label": "URL",
+      "url_placeholder": "https://www.youtube.com/watch?v=...",
+      "url_hint": "Unterstützt: YouTube und YouTube Music",
+      "format_label": "Format",
+      "format_audio": "Audio (MP3)",
+      "format_video": "Video (MP4)",
+      "start_label": "Start (optional)",
+      "end_label": "Ende (optional)",
+      "time_placeholder": "M:SS",
+      "segment_hint": "Optional: Nur einen Abschnitt herunterladen (Start und Ende angeben, z. B. 1:30 und 3:45).",
+      "submit": "Download starten"
+    },
+    "jobs": {
+      "title": "Meine Downloads",
+      "column_title": "Titel",
+      "column_format": "Format",
+      "column_status": "Status",
+      "column_expires": "Verfügbar bis",
+      "column_actions": "Aktionen",
+      "download": "Herunterladen",
+      "empty": "Noch keine Downloads vorhanden."
+    },
+    "format": {
+      "audio": "MP3",
+      "video": "MP4"
+    },
+    "status": {
+      "pending": "Wartend",
+      "processing": "In Bearbeitung",
+      "completed": "Fertig",
+      "failed": "Fehlgeschlagen"
+    },
+    "flash": {
+      "unavailable": "Media Downloader ist nicht verfügbar.",
+      "incompatible": "Media Downloader ist auf diesem Server nicht verfügbar. FFmpeg muss installiert sein.",
+      "invalid_format": "Ungültiges Format ausgewählt.",
+      "empty_url": "Bitte geben Sie eine URL ein.",
+      "invalid_scheme": "Ungültiges URL-Schema.",
+      "invalid_host": "Nur YouTube- und YouTube-Music-URLs sind erlaubt.",
+      "invalid_url": "Ungültige YouTube-URL.",
+      "incomplete_segment": "Bitte Start- und Endzeit angeben oder beide leer lassen.",
+      "invalid_time_format": "Ungültiges Zeitformat. Verwenden Sie M:SS oder H:MM:SS.",
+      "invalid_time_range": "Die Startzeit muss vor der Endzeit liegen.",
+      "too_many_jobs": "Maximal %(max)s gleichzeitige Downloads erlaubt.",
+      "started": "Download wurde gestartet.",
+      "expired": "Diese Datei ist nicht mehr verfügbar.",
+      "err_http_403": "Download durch YouTube blockiert (HTTP 403). Bitte später erneut versuchen oder eine andere Qualitätsstufe/URL nutzen.",
+      "err_age_restricted": "Dieses Video ist altersbeschränkt und kann ohne Anmeldung/Cookies nicht heruntergeladen werden.",
+      "err_video_unavailable": "Dieses Video ist nicht verfügbar.",
+      "err_download_failed": "Download fehlgeschlagen. Bitte erneut versuchen.",
+      "file_missing": "Datei wurde nicht gefunden."
     }
   }
 }

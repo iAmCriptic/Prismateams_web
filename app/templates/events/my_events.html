@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Meine Veranstaltungen{% endblock %}
+
+{% block content %}
+<h1 class="mb-3"><i class="bi bi-person-check"></i> Meine Veranstaltungen</h1>
+<div class="list-group">
+    {% for event in events %}
+    <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="list-group-item list-group-item-action">
+        <div class="d-flex justify-content-between">
+            <strong>{{ event.name }}</strong>
+            <span class="text-muted">{{ event.appointments|length }} Termine</span>
+        </div>
+        <small class="text-muted">{{ event.default_location or '-' }}</small>
+    </a>
+    {% else %}
+    <div class="alert alert-info">Du bist noch keiner Veranstaltung zugewiesen.</div>
+    {% endfor %}
+</div>
+{% endblock %}

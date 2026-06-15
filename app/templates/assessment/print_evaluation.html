@@ -1,8 +1,8 @@
 {% extends "assessment/print_base.html" %}
-{% block title %}Bewertung: {{ stand.name if stand else '—' }}{% endblock %}
+{% block title %}Bewertung: {{ stand_name or '—' }}{% endblock %}
 
 {% block document_title %}Bewertungsbogen{% endblock %}
-{% block document_subtitle %}<small>{{ stand.name if stand else 'Stand unbekannt' }}</small>{% endblock %}
+{% block document_subtitle %}<small>{{ stand_name or 'Ziel unbekannt' }}</small>{% endblock %}
 {% block document_meta %}{% if evaluation.timestamp %}<div>Zeitpunkt: {{ evaluation.timestamp.strftime('%d.%m.%Y %H:%M') }}</div>{% endif %}{% endblock %}
 
 {% block print_content %}

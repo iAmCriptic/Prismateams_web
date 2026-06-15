@@ -30,6 +30,7 @@ import re
 
 from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
 from app.utils.lock_manager import acquire_email_sync_lock
+from app.utils.common import format_datetime, now_in_portal_timezone
 
 email_bp = Blueprint('email', __name__)
 
@@ -56,13 +57,16 @@ def build_footer_html():
     portal_name = get_portal_display_name()
 
     if footer_template and footer_template.value:
+        now = now_in_portal_timezone()
+        date_part = now.strftime('%d.%m.%Y')
+        time_part = now.strftime('%H:%M')
         footer_html = footer_template.value
         replacements = {
             '<user>': current_user.full_name or '',
             '<email>': current_user.email or '',
             '<app_name>': portal_name,
-            '<date>': datetime.utcnow().strftime('%d.%m.%Y'),
-            '<time>': datetime.utcnow().strftime('%H:%M')
+            '<date>': date_part,
+            '<time>': time_part
         }
         for placeholder, value in replacements.items():
             footer_html = footer_html.replace(placeholder, value)
@@ -614,7 +618,7 @@ def build_quoted_original_html(original_email, quote_kind: str = 'reply') -> str
 
     sent_dt = original_email.received_at or original_email.sent_at or datetime.utcnow()
     try:
-        date_str = sent_dt.strftime('%d.%m.%Y %H:%M')
+        date_str = format_datetime(sent_dt, '%d.%m.%Y %H:%M')
     except Exception:
         date_str = ''
 
@@ -2723,7 +2727,7 @@ def build_plain_quote_header(email_msg: EmailMessage) -> str:
         f"Von: {email_msg.sender}\n"
         f"An: {email_msg.recipients or ''}\n"
         f"{'CC: ' + email_msg.cc + '\n' if email_msg.cc else ''}"
-        f"Datum: {sent_at.strftime('%d.%m.%Y %H:%M')}\n"
+        f"Datum: {format_datetime(sent_at, '%d.%m.%Y %H:%M')}\n"
         f"Betreff: {email_msg.subject}\n\n"
     )
     return header
@@ -3509,6 +3513,11 @@ def save_draft():
             body_html = (data.get('body') or '').strip()
             in_reply_to = (data.get('in_reply_to') or '').strip()
             references = (data.get('references') or '').strip()
+            draft_id_raw = data.get('draft_id')
+            try:
+                draft_id = int(draft_id_raw) if draft_id_raw else None
+            except (TypeError, ValueError):
+                draft_id = None
             has_attachments = False
         else:
             data = request.form
@@ -3519,6 +3528,7 @@ def save_draft():
             body_html = (data.get('body') or '').strip()
             in_reply_to = (data.get('in_reply_to') or '').strip()
             references = (data.get('references') or '').strip()
+            draft_id = data.get('draft_id', type=int)
             has_attachments = bool(request.files.getlist('attachments'))
         
         # Prüfe, ob HTML tatsächlich Text enthält (nicht nur leere Tags)
@@ -3556,26 +3566,45 @@ def save_draft():
         # Erstelle oder aktualisiere Entwurf
         from config import get_formatted_sender
         sender = get_formatted_sender() or current_user.email
-        
-        # Prüfe, ob bereits ein Entwurf mit diesem Betreff existiert (optional: könnte auch nach ID suchen)
-        # Für jetzt erstellen wir immer einen neuen Entwurf
+
+        existing_draft = None
+        if draft_id:
+            existing_draft = EmailMessage.query.get(draft_id)
+            if not (
+                existing_draft
+                and existing_draft.folder == 'Drafts'
+                and existing_draft.sent_by_user_id == current_user.id
+            ):
+                existing_draft = None
+
         body_text = html_to_plain_text(body_html) if body_html else ''
-        
-        email_record = EmailMessage(
-            subject=subject or '(Kein Betreff)',
-            sender=sender,
-            recipients=to or '',
-            cc=cc,
-            bcc=bcc or None,
-            body_text=body_text,
-            body_html=body_html,
-            folder='Drafts',
-            is_sent=False,
-            is_read=False,
-            sent_by_user_id=current_user.id,
-            received_at=datetime.utcnow(),
-            has_attachments=False
-        )
+
+        if existing_draft:
+            email_record = existing_draft
+            email_record.subject = subject or '(Kein Betreff)'
+            email_record.sender = sender
+            email_record.recipients = to or ''
+            email_record.cc = cc
+            email_record.bcc = bcc or None
+            email_record.body_text = body_text
+            email_record.body_html = body_html
+            email_record.received_at = datetime.utcnow()
+        else:
+            email_record = EmailMessage(
+                subject=subject or '(Kein Betreff)',
+                sender=sender,
+                recipients=to or '',
+                cc=cc,
+                bcc=bcc or None,
+                body_text=body_text,
+                body_html=body_html,
+                folder='Drafts',
+                is_sent=False,
+                is_read=False,
+                sent_by_user_id=current_user.id,
+                received_at=datetime.utcnow(),
+                has_attachments=False
+            )
         
         # Speichere Anhänge, falls vorhanden (nur bei FormData)
         if not request.is_json and 'attachments' in request.files:
@@ -3640,6 +3669,7 @@ def save_draft():
                     email_record.has_attachments = True
         
         db.session.add(email_record)
+        email_record.has_attachments = bool(email_record.attachments)
         db.session.commit()
         
         return jsonify({

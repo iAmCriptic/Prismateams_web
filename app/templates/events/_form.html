@@ -1,0 +1,406 @@
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Name</label>
+                <input class="form-control" name="name" required value="{{ event.name if event else '' }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Standard-Ort</label>
+                <input class="form-control" name="default_location" value="{{ event.default_location if event else '' }}">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Beschreibung</label>
+                <textarea class="form-control" rows="3" name="description">{{ event.description if event else '' }}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Ordner aus Dateien</label>
+                <select class="form-select" name="folder_id">
+                    <option value="">Kein Ordner</option>
+                    {% for folder in folders %}
+                    <option value="{{ folder.id }}" {% if event and event.folder_id == folder.id %}selected{% endif %}>{{ folder.path }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Portal-Personen</label>
+                {% set selected_users = [] %}
+                {% if event %}
+                    {% for a in event.assignments if a.user_id %}
+                        {% set _ = selected_users.append(a.user_id) %}
+                    {% endfor %}
+                {% endif %}
+                <input class="form-control mb-2" id="participantSearch" type="text" placeholder="Person suchen...">
+                <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto;">
+                    {% for user in users %}
+                    <div class="form-check participant-item" data-search="{{ user.full_name|lower }}">
+                        <input class="form-check-input" type="checkbox" name="participant_user_ids" value="{{ user.id }}" id="participant_{{ user.id }}" {% if user.id in selected_users %}checked{% endif %}>
+                        <label class="form-check-label" for="participant_{{ user.id }}">{{ user.full_name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="form-text">Mehrfachauswahl per Checkmark.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Freie Namen (eine Zeile = ein Name)</label>
+                <textarea class="form-control" rows="4" name="guest_names">{% if event %}{% for a in event.assignments if not a.user_id and a.display_name %}{{ a.display_name }}
+{% endfor %}{% endif %}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Ansprechpartner aus Kontakten</label>
+                {% set selected_contact_keys = [] %}
+                {% if event %}
+                    {% for c in event.contacts %}
+                        {% if c.email %}
+                            {% set _ = selected_contact_keys.append(c.email|lower) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                <input class="form-control mb-2" id="contactSearch" type="text" placeholder="Kontakt suchen...">
+                <div class="border rounded p-2 mb-2" style="max-height: 180px; overflow-y: auto;">
+                    {% for contact in contacts %}
+                    <div class="form-check contact-item" data-search="{{ (contact.name ~ ' ' ~ (contact.email or '') ~ ' ' ~ (contact.phone or ''))|lower }}">
+                        <input class="form-check-input" type="checkbox" name="contact_ids" value="{{ contact.id }}" id="contact_{{ contact.id }}" {% if contact.email and contact.email|lower in selected_contact_keys %}checked{% endif %}>
+                        <label class="form-check-label" for="contact_{{ contact.id }}">
+                            {{ contact.name }}{% if contact.email %} - {{ contact.email }}{% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <label class="form-label">Zusätzliche Ansprechpartner (Name|Rolle|Telefon|E-Mail pro Zeile)</label>
+                <textarea class="form-control" rows="4" name="contacts_text">{% if event %}{% for c in event.contacts %}{{ c.name }}|{{ c.role or '' }}|{{ c.phone or '' }}|{{ c.email or '' }}
+{% endfor %}{% endif %}</textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Zeitplan (eine Zeile = ein Punkt)</label>
+                <textarea class="form-control" rows="4" name="timeline_text">{% if event %}{% for t in event.timeline_items %}{{ t.title }}
+{% endfor %}{% endif %}</textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Termine</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="addAppointmentBtn">Termin hinzufügen</button>
+    </div>
+    <div class="card-body" id="appointmentsWrap">
+        {% if event and event.appointments %}
+            {% for a in event.appointments %}
+            {% set appt_timeline_items = [] %}
+            {% for t in event.timeline_items if t.appointment_id == a.id %}
+                {% set _ = appt_timeline_items.append(t.title) %}
+            {% endfor %}
+            <div class="row g-2 border rounded p-2 mb-2 appointment-row">
+                <div class="col-md-2"><input class="form-control" name="appointment_label[]" placeholder="Typ" value="{{ a.label }}"></div>
+                <div class="col-md-3"><input class="form-control" type="datetime-local" name="appointment_start[]" value="{{ a.start_time.strftime('%Y-%m-%dT%H:%M') }}"></div>
+                <div class="col-md-3"><input class="form-control" type="datetime-local" name="appointment_end[]" value="{{ a.end_time.strftime('%Y-%m-%dT%H:%M') }}"></div>
+                <div class="col-md-2"><input class="form-control" name="appointment_location[]" placeholder="Ort" value="{{ a.location or '' }}"></div>
+                <div class="col-md-2"><input class="form-control" name="appointment_description[]" placeholder="Beschreibung" value="{{ a.description or '' }}"></div>
+                <div class="col-12"><input class="form-control" name="appointment_timeline[]" placeholder="Zeitplan für diesen Termin (mit | trennen)" value="{{ appt_timeline_items|join(' | ') }}"></div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="row g-2 border rounded p-2 mb-2 appointment-row">
+            <div class="col-md-2"><input class="form-control" name="appointment_label[]" placeholder="Typ (Probentag)"></div>
+            <div class="col-md-3"><input class="form-control" type="datetime-local" name="appointment_start[]"></div>
+            <div class="col-md-3"><input class="form-control" type="datetime-local" name="appointment_end[]"></div>
+            <div class="col-md-2"><input class="form-control" name="appointment_location[]" placeholder="Ort"></div>
+            <div class="col-md-2"><input class="form-control" name="appointment_description[]" placeholder="Beschreibung"></div>
+            <div class="col-12"><input class="form-control" name="appointment_timeline[]" placeholder="Zeitplan für diesen Termin (mit | trennen)"></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">Materialbedarf (QR-Code oder Inventar-Suche)</div>
+    <div class="card-body">
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label mb-0">QR-Code scannen</label>
+                <div>
+                    <button class="btn btn-sm btn-primary" id="startEventScannerBtn" type="button">
+                        <i class="bi bi-camera"></i> Kamera starten
+                    </button>
+                    <button class="btn btn-sm btn-danger" id="stopEventScannerBtn" type="button" style="display:none;">
+                        <i class="bi bi-stop-circle"></i> Kamera stoppen
+                    </button>
+                </div>
+            </div>
+            <div id="eventScannerContainer" style="display:none;">
+                <video id="eventScannerVideo" autoplay playsinline style="width:100%;max-height:320px;border-radius:8px;background:#000;"></video>
+                <canvas id="eventScannerCanvas" style="display:none;"></canvas>
+            </div>
+            <div id="eventScannerError" class="alert alert-danger mt-2 py-2" style="display:none;"></div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-md-8">
+                <input class="form-control" id="needLookupInput" type="text" list="eventProductOptions" placeholder="QR-Code, Produkt-ID oder Produktname">
+                <datalist id="eventProductOptions">
+                    {% for product in products %}
+                    <option value="{{ product.qr_code_data or ('PROD-' ~ product.id) }}">{{ product.name }} (ID {{ product.id }})</option>
+                    <option value="{{ product.id }}">{{ product.name }} (ID {{ product.id }})</option>
+                    <option value="{{ product.name }}">{{ product.name }} (ID {{ product.id }})</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input class="form-control" id="needLookupQty" type="number" min="1" value="1">
+                    <button class="btn btn-outline-primary" id="addNeedBtn" type="button">Hinzufügen</button>
+                </div>
+            </div>
+        </div>
+        <div id="needsList">
+            {% if event %}
+                {% for appointment in event.appointments %}
+                    {% for need in appointment.inventory_needs %}
+                    <div class="row g-2 align-items-center border rounded p-2 mb-2 need-row">
+                        <div class="col-md-8">
+                            <div class="fw-semibold">{{ need.product.name if need.product else ('Produkt #' ~ need.product_id) }}</div>
+                            <input type="hidden" name="needs_product[]" value="{{ need.product_id }}">
+                        </div>
+                        <div class="col-md-3">
+                            <input class="form-control" type="number" min="1" name="needs_quantity[]" value="{{ need.quantity }}">
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-need-btn" title="Entfernen">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
+        </div>
+        <div class="form-text">Tipp: Scanner-Werte wie <code>PROD-123</code> oder nur <code>123</code> funktionieren auch.</div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const wrap = document.getElementById('appointmentsWrap');
+  const addBtn = document.getElementById('addAppointmentBtn');
+  if (!wrap || !addBtn) return;
+  addBtn.addEventListener('click', function () {
+    const row = document.createElement('div');
+    row.className = 'row g-2 border rounded p-2 mb-2 appointment-row';
+    row.innerHTML = `
+      <div class="col-md-2"><input class="form-control" name="appointment_label[]" placeholder="Typ"></div>
+      <div class="col-md-3"><input class="form-control" type="datetime-local" name="appointment_start[]"></div>
+      <div class="col-md-3"><input class="form-control" type="datetime-local" name="appointment_end[]"></div>
+      <div class="col-md-2"><input class="form-control" name="appointment_location[]" placeholder="Ort"></div>
+      <div class="col-md-2"><input class="form-control" name="appointment_description[]" placeholder="Beschreibung"></div>
+      <div class="col-12"><input class="form-control" name="appointment_timeline[]" placeholder="Zeitplan für diesen Termin (mit | trennen)"></div>
+    `;
+    wrap.appendChild(row);
+  });
+
+  function setupSearch(inputId, itemSelector) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener('input', function () {
+      const needle = this.value.trim().toLowerCase();
+      document.querySelectorAll(itemSelector).forEach((item) => {
+        const hay = (item.dataset.search || '').toLowerCase();
+        item.style.display = !needle || hay.includes(needle) ? '' : 'none';
+      });
+    });
+  }
+
+  setupSearch('participantSearch', '.participant-item');
+  setupSearch('contactSearch', '.contact-item');
+
+  const products = [
+    {% for product in products %}
+    {
+      id: {{ product.id }},
+      name: {{ product.name|tojson }},
+      qr: {{ (product.qr_code_data or '')|tojson }}
+    },
+    {% endfor %}
+  ];
+
+  const needsList = document.getElementById('needsList');
+  const needLookupInput = document.getElementById('needLookupInput');
+  const needLookupQty = document.getElementById('needLookupQty');
+  const addNeedBtn = document.getElementById('addNeedBtn');
+  const scannerVideo = document.getElementById('eventScannerVideo');
+  const scannerCanvas = document.getElementById('eventScannerCanvas');
+  const scannerContainer = document.getElementById('eventScannerContainer');
+  const scannerError = document.getElementById('eventScannerError');
+  const startScannerBtn = document.getElementById('startEventScannerBtn');
+  const stopScannerBtn = document.getElementById('stopEventScannerBtn');
+  let scannerStream = null;
+  let scannerRunning = false;
+
+  function parseNeedInput(rawValue) {
+    const value = (rawValue || '').trim();
+    if (!value) return null;
+
+    const upper = value.toUpperCase();
+    if (upper.startsWith('PROD-')) {
+      const parsedId = parseInt(upper.replace('PROD-', ''), 10);
+      if (!Number.isNaN(parsedId)) {
+        return products.find((p) => p.id === parsedId) || null;
+      }
+    }
+
+    const asId = parseInt(value, 10);
+    if (!Number.isNaN(asId) && String(asId) === value) {
+      return products.find((p) => p.id === asId) || null;
+    }
+
+    const byQr = products.find((p) => p.qr && p.qr.toLowerCase() === value.toLowerCase());
+    if (byQr) return byQr;
+
+    return products.find((p) => p.name.toLowerCase() === value.toLowerCase()) || null;
+  }
+
+  function bindNeedRemoveButtons() {
+    document.querySelectorAll('.remove-need-btn').forEach((btn) => {
+      btn.onclick = function () {
+        const row = this.closest('.need-row');
+        if (row) row.remove();
+      };
+    });
+  }
+
+  function addNeedRow(product, quantity) {
+    if (!needsList || !product) return;
+    const existing = needsList.querySelector(`input[name="needs_product[]"][value="${product.id}"]`);
+    if (existing) {
+      const qtyInput = existing.closest('.need-row')?.querySelector('input[name="needs_quantity[]"]');
+      if (qtyInput) {
+        const current = parseInt(qtyInput.value || '1', 10);
+        qtyInput.value = String(current + quantity);
+      }
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'row g-2 align-items-center border rounded p-2 mb-2 need-row';
+    row.innerHTML = `
+      <div class="col-md-8">
+        <div class="fw-semibold">${product.name}</div>
+        <input type="hidden" name="needs_product[]" value="${product.id}">
+      </div>
+      <div class="col-md-3">
+        <input class="form-control" type="number" min="1" name="needs_quantity[]" value="${quantity}">
+      </div>
+      <div class="col-md-1 text-end">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-need-btn" title="Entfernen">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    `;
+    needsList.appendChild(row);
+    bindNeedRemoveButtons();
+  }
+
+  if (addNeedBtn) {
+    addNeedBtn.addEventListener('click', function () {
+      const product = parseNeedInput(needLookupInput?.value);
+      const quantity = Math.max(1, parseInt(needLookupQty?.value || '1', 10) || 1);
+      if (!product) {
+        alert('Produkt nicht gefunden. Bitte QR-Code, Produkt-ID oder exakten Produktnamen verwenden.');
+        return;
+      }
+      addNeedRow(product, quantity);
+      if (needLookupInput) needLookupInput.value = '';
+      if (needLookupQty) needLookupQty.value = '1';
+    });
+  }
+
+  if (needLookupInput) {
+    needLookupInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addNeedBtn?.click();
+      }
+    });
+  }
+
+  bindNeedRemoveButtons();
+
+  function showScannerError(message) {
+    if (!scannerError) return;
+    scannerError.textContent = message;
+    scannerError.style.display = 'block';
+  }
+
+  function clearScannerError() {
+    if (!scannerError) return;
+    scannerError.style.display = 'none';
+    scannerError.textContent = '';
+  }
+
+  async function startScanner() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showScannerError('Kamera wird von diesem Browser nicht unterstützt.');
+      return;
+    }
+    clearScannerError();
+    try {
+      scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      scannerVideo.srcObject = scannerStream;
+      scannerContainer.style.display = 'block';
+      startScannerBtn.style.display = 'none';
+      stopScannerBtn.style.display = '';
+      scannerRunning = true;
+      requestAnimationFrame(scanFrame);
+    } catch (error) {
+      showScannerError('Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen.');
+    }
+  }
+
+  function stopScanner() {
+    scannerRunning = false;
+    if (scannerStream) {
+      scannerStream.getTracks().forEach((track) => track.stop());
+      scannerStream = null;
+    }
+    if (scannerVideo) scannerVideo.srcObject = null;
+    if (scannerContainer) scannerContainer.style.display = 'none';
+    if (startScannerBtn) startScannerBtn.style.display = '';
+    if (stopScannerBtn) stopScannerBtn.style.display = 'none';
+  }
+
+  function scanFrame() {
+    if (!scannerRunning || !scannerVideo || !scannerCanvas) return;
+    if (scannerVideo.readyState !== scannerVideo.HAVE_ENOUGH_DATA) {
+      requestAnimationFrame(scanFrame);
+      return;
+    }
+
+    scannerCanvas.width = scannerVideo.videoWidth;
+    scannerCanvas.height = scannerVideo.videoHeight;
+    const context = scannerCanvas.getContext('2d');
+    context.drawImage(scannerVideo, 0, 0, scannerCanvas.width, scannerCanvas.height);
+    const imageData = context.getImageData(0, 0, scannerCanvas.width, scannerCanvas.height);
+    const code = (window.jsQR || jsQR)(imageData.data, imageData.width, imageData.height);
+
+    if (code && code.data) {
+      if (needLookupInput) needLookupInput.value = code.data.trim();
+      addNeedBtn?.click();
+      // Kurz pausieren, damit derselbe Code nicht mehrfach hinzugefügt wird.
+      setTimeout(() => {
+        if (scannerRunning) requestAnimationFrame(scanFrame);
+      }, 700);
+      return;
+    }
+    requestAnimationFrame(scanFrame);
+  }
+
+  startScannerBtn?.addEventListener('click', startScanner);
+  stopScannerBtn?.addEventListener('click', stopScanner);
+  window.addEventListener('beforeunload', stopScanner);
+});
+</script>

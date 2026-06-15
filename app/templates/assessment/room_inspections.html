@@ -1,10 +1,9 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Rauminspektionen{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1 class="h4 mb-3">Rauminspektionen</h1>
+{{ assessment_page_header('Rauminspektionen', icon='clipboard2-pulse') }}
     <div id="rooms" class="row g-3"></div>
-</div>
 <script>
 async function saveInspection(roomId, card) {
     const isClean = card.querySelector('.is-clean').checked;

@@ -86,40 +86,18 @@ Benutzerprofile verwalten, Dark Mode Support, personalisierbare Akzentfarben, Be
 
 ## 🚀 Installation
 
-### Empfohlene Installation: Automatische Installation (Ubuntu 24.04)
-
-Für Ubuntu Server wird die **automatische Installation** empfohlen. Das Installationsskript übernimmt alle Schritte automatisch:
+Für Ubuntu Server 24.04 wird die **automatische Installation** empfohlen:
 
 ```bash
-# Repository klonen
-git clone <repository-url>
-cd Prismateams_web
-
-# Installationsskript ausführbar machen
-chmod +x scripts/install_ubuntu.sh
-
-# Installation starten
-sudo ./scripts/install_ubuntu.sh
+sudo bash scripts/install_ubuntu.sh
 ```
 
-Das Skript installiert und konfiguriert automatisch:
-- System-Updates und Basis-Pakete
-- Python 3.12+ und Virtual Environment
-- MySQL/MariaDB mit automatischer Datenbank-Erstellung
-- Nginx mit vollständiger Konfiguration
-- Gunicorn als WSGI-Server
-- Redis für Multi-Worker-Setups
-- Docker (optional, für OnlyOffice)
-- OnlyOffice Document Server (optional)
-- Automatische Generierung aller Keys
-- Systemd Service
-- SSL mit Let's Encrypt (optional)
+**Dokumentation:**
 
-### Alternative: Manuelle Installation
-
-Für detaillierte Installationsanleitungen siehe:
-
-- **[📖 INSTALLATION.md](INSTALLATION.md)** - Vollständige Installationsanleitung (automatisch und manuell)
+- **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)** — Installationsskript, CLI-Optionen
+- **[INSTALLATION.md](INSTALLATION.md)** — Manuelle Schritt-für-Schritt-Installation
+- **[WARTUNG.md](WARTUNG.md)** — Updates, Migrationen, Backups
+- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** — Fehlerbehebung
 
 ## 🔧 Technische Details
 
@@ -210,7 +188,10 @@ Prismateams_web/
 │   └── utils/                     # Hilfsfunktionen
 ├── docs/                          # Dokumentation
 │   ├── README.md                 # Diese Datei
-│   ├── INSTALLATION.md           # Installationsanleitung
+│   ├── INSTALLATION.md           # Manuelle Installation
+│   ├── INSTALLATION_SCRIPT.md    # Ubuntu-Installationsskript
+│   ├── WARTUNG.md                # Updates, Migrationen, Backups
+│   ├── ERROR_HANDLING.md         # Fehlerbehebung
 │   ├── API_Übersicht.md          # API-Dokumentation
 │   └── env.example               # Konfigurationsbeispiel
 ├── migrations/                    # Datenbank-Migrationen
@@ -231,10 +212,10 @@ Prismateams_web/
 ### Lokale Dokumentation
 
 - **[README.md](README.md)** - Diese Datei (Überblick)
-- **[INSTALLATION.md](INSTALLATION.md)** - Vollständige Installationsanleitung
-  - Automatische Installation (empfohlen)
-  - Manuelle Installation
-  - Optional: OnlyOffice Integration
+- **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)** - Ubuntu-Installationsskript und CLI
+- **[INSTALLATION.md](INSTALLATION.md)** - Manuelle Schritt-für-Schritt-Installation
+- **[WARTUNG.md](WARTUNG.md)** - Updates, Migrationen, Backups
+- **[ERROR_HANDLING.md](ERROR_HANDLING.md)** - Fehlerbehebung
 - **[API_Übersicht.md](API_Übersicht.md)** - Vollständige API-Dokumentation
 - **[env.example](env.example)** - Beispiel-Konfigurationsdatei
 
@@ -263,7 +244,7 @@ Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request oder öffnen S
 
 Bei Fragen oder Problemen:
 
-1. Prüfen Sie die [Dokumentation](INSTALLATION.md)
+1. Prüfen Sie die [Dokumentation](INSTALLATION.md) bzw. [ERROR_HANDLING.md](ERROR_HANDLING.md)
 2. Überprüfen Sie die [API-Dokumentation](API_Übersicht.md)
 3. Besuchen Sie das [GitHub Wiki](https://github.com/iAmCriptic/Prismateams_web/wiki)
 4. Überprüfen Sie die Logs

@@ -392,7 +392,7 @@
                                     {{ _('email.compose.reply_context.prefix') }}
                                     <strong>{{ original_email.sender|decode_email_header }}</strong>
                                     <span class="text-muted">·</span>
-                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                    <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
                                 </div>
                                 {% if original_first_line %}
                                 <div class="text-body-secondary text-truncate" style="max-width: 100%;">
@@ -416,7 +416,7 @@
                                     {{ _('email.compose.forward_context.prefix') }}
                                     <strong>{{ original_email.sender|decode_email_header }}</strong>
                                     <span class="text-muted">·</span>
-                                    <span>{{ original_email.received_at.strftime('%d.%m.%Y %H:%M') if original_email.received_at else (original_email.sent_at.strftime('%d.%m.%Y %H:%M') if original_email.sent_at else '') }}</span>
+                                    <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
                                 </div>
                                 {% if original_first_line %}
                                 <div class="text-body-secondary text-truncate" style="max-width: 100%;">
@@ -895,6 +895,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var htmlContent = quill.root.innerHTML;
         var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
         var references = document.querySelector('input[name="references"]') ? document.querySelector('input[name="references"]').value : '';
+        var draftId = document.getElementById('composeDraftId') ? document.getElementById('composeDraftId').value : '';
         
         formData.append('to', to);
         formData.append('cc', cc);
@@ -903,6 +904,9 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('body', htmlContent);
         formData.append('in_reply_to', inReplyTo);
         formData.append('references', references);
+        if (draftId) {
+            formData.append('draft_id', draftId);
+        }
         
         // Füge Anhänge hinzu
         var attachments = document.getElementById('attachments');
@@ -955,6 +959,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var htmlContent = quill.root.innerHTML;
             var inReplyTo = document.querySelector('input[name="in_reply_to"]') ? document.querySelector('input[name="in_reply_to"]').value : '';
             var references = document.querySelector('input[name="references"]') ? document.querySelector('input[name="references"]').value : '';
+            var draftId = document.getElementById('composeDraftId') ? document.getElementById('composeDraftId').value : '';
             
             // Erstelle JSON-Daten
             var data = {
@@ -964,7 +969,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 subject: subject,
                 body: htmlContent,
                 in_reply_to: inReplyTo,
-                references: references
+                references: references,
+                draft_id: draftId
             };
             
             // Verwende fetch mit keepalive für zuverlässiges Speichern beim Verlassen

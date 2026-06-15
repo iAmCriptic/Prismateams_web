@@ -18,10 +18,14 @@ from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
 from .public_share import PublicShare, ShareAccessLog
 from .shortlink import ShortLink
+from .event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
 from .assessment import (
     AssessmentUser,
     AssessmentRole,
     AssessmentUserRole,
+    AssessmentStandType,
+    AssessmentList,
+    AssessmentListSubject,
     AssessmentRoom,
     AssessmentStand,
     AssessmentCriterion,
@@ -32,9 +36,8 @@ from .assessment import (
     AssessmentWarning,
     AssessmentRoomInspection,
     AssessmentAppSetting,
-    AssessmentFloorPlan,
-    AssessmentFloorPlanObject,
 )
+from .media_downloader import MediaDownloadJob
 
 __all__ = [
     'User', 'UserSession',
@@ -56,12 +59,15 @@ __all__ = [
     'GuestShareAccess',
     'PublicShare', 'ShareAccessLog',
     'ShortLink',
+    'Event', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',
+    'AssessmentStandType', 'AssessmentList', 'AssessmentListSubject',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
     'AssessmentEvaluation', 'AssessmentEvaluationScore',
     'AssessmentVisitorEvaluation', 'AssessmentVisitorEvaluationScore',
     'AssessmentWarning', 'AssessmentRoomInspection',
-    'AssessmentAppSetting', 'AssessmentFloorPlan', 'AssessmentFloorPlanObject'
+    'AssessmentAppSetting',
+    'MediaDownloadJob',
 ]
 
 

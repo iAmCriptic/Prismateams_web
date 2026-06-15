@@ -1,20 +1,28 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, make_response, render_template, request
-from sqlalchemy import func
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from sqlalchemy import func, or_
 
 from app import db
 from app.models.assessment import (
     AssessmentCriterion,
     AssessmentEvaluation,
     AssessmentEvaluationScore,
+    AssessmentList,
+    AssessmentListSubject,
     AssessmentStand,
-    AssessmentVisitorEvaluation,
-    AssessmentVisitorEvaluationScore,
+    AssessmentStandType,
 )
 from app.utils.assessment_auth import assessment_role_required
 
-from .helpers import create_visitor_token, current_actor, hash_visitor_token
+from .helpers import (
+    current_actor,
+    list_to_dict,
+    resolve_evaluation_list_from_request,
+    stands_for_list,
+    subjects_for_list,
+    validate_evaluation_target,
+)
 
 evaluations_bp = Blueprint("evaluations", __name__)
 
@@ -22,46 +30,108 @@ evaluations_bp = Blueprint("evaluations", __name__)
 @evaluations_bp.route("/evaluate", methods=["GET"])
 @assessment_role_required(["Administrator", "Bewerter"])
 def evaluate_page():
-    return render_template("assessment/evaluation.html")
+    lists = AssessmentList.query.filter_by(is_active=True).order_by(
+        AssessmentList.sort_order.asc(), AssessmentList.name.asc()
+    ).all()
+    return render_template("assessment/evaluation.html", evaluation_lists=lists)
 
 
 @evaluations_bp.route("/api/evaluate", methods=["GET", "POST"])
 @assessment_role_required(["Administrator", "Bewerter"])
 def api_evaluate():
     actor = current_actor()
+    evaluation_list = resolve_evaluation_list_from_request(require_active=True)
+    if not evaluation_list:
+        return jsonify({"success": False, "message": "Bewertungsliste nicht gefunden."}), 404
+
     if request.method == "GET":
-        stands = AssessmentStand.query.order_by(AssessmentStand.name.asc()).all()
-        criteria = AssessmentCriterion.query.order_by(AssessmentCriterion.id.asc()).all()
-        existing = AssessmentEvaluation.query.filter_by(user_type=actor["user_type"], user_id=actor["user_id"]).all()
-        existing_map = {item.stand_id: item.id for item in existing}
+        criteria = (
+            AssessmentCriterion.query.filter_by(list_id=evaluation_list.id)
+            .order_by(AssessmentCriterion.id.asc())
+            .all()
+        )
+        existing_query = AssessmentEvaluation.query.filter_by(
+            user_type=actor["user_type"],
+            user_id=actor["user_id"],
+            list_id=evaluation_list.id,
+        )
+        if evaluation_list.subject_mode == "stand":
+            targets = stands_for_list(evaluation_list)
+            existing_map = {
+                item.stand_id: item.id for item in existing_query.all() if item.stand_id
+            }
+            target_payload = [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "description": s.description,
+                    "stand_type_name": s.stand_type.name if s.stand_type else None,
+                }
+                for s in targets
+            ]
+            target_key = "stands"
+        else:
+            targets = subjects_for_list(evaluation_list)
+            existing_map = {
+                item.subject_id: item.id for item in existing_query.all() if item.subject_id
+            }
+            target_payload = [
+                {"id": s.id, "name": s.name, "description": s.description} for s in targets
+            ]
+            target_key = "subjects"
 
         return jsonify(
             {
                 "success": True,
-                "stands": [{"id": s.id, "name": s.name, "description": s.description} for s in stands],
+                "list": list_to_dict(evaluation_list),
+                target_key: target_payload,
                 "criteria": [{"id": c.id, "name": c.name, "max_score": c.max_score} for c in criteria],
                 "existing_evaluations": existing_map,
             }
         )
 
     data = request.get_json(silent=True) or {}
-    stand_id = data.get("stand_id")
-    scores = data.get("scores") or {}
-    if not stand_id or not isinstance(scores, dict):
-        return jsonify({"success": False, "message": "Stand und Bewertungen sind erforderlich."}), 400
+    list_id = data.get("list_id") or evaluation_list.id
+    evaluation_list = AssessmentList.query.get(list_id)
+    if not evaluation_list or not evaluation_list.is_active:
+        return jsonify({"success": False, "message": "Bewertungsliste nicht gefunden."}), 404
 
-    evaluation = AssessmentEvaluation.query.filter_by(
-        user_type=actor["user_type"], user_id=actor["user_id"], stand_id=stand_id
-    ).first()
+    stand_id = data.get("stand_id")
+    subject_id = data.get("subject_id")
+    scores = data.get("scores") or {}
+    valid, target = validate_evaluation_target(evaluation_list, stand_id=stand_id, subject_id=subject_id)
+    if not valid:
+        return jsonify({"success": False, "message": target}), 400
+    if not isinstance(scores, dict):
+        return jsonify({"success": False, "message": "Bewertungen sind erforderlich."}), 400
+
+    eval_query = AssessmentEvaluation.query.filter_by(
+        user_type=actor["user_type"],
+        user_id=actor["user_id"],
+        list_id=evaluation_list.id,
+    )
+    if evaluation_list.subject_mode == "stand":
+        evaluation = eval_query.filter_by(stand_id=stand_id).first()
+    else:
+        evaluation = eval_query.filter_by(subject_id=subject_id).first()
     if not evaluation:
-        evaluation = AssessmentEvaluation(user_type=actor["user_type"], user_id=actor["user_id"], stand_id=stand_id)
+        evaluation = AssessmentEvaluation(
+            user_type=actor["user_type"],
+            user_id=actor["user_id"],
+            list_id=evaluation_list.id,
+            stand_id=stand_id if evaluation_list.subject_mode == "stand" else None,
+            subject_id=subject_id if evaluation_list.subject_mode == "custom" else None,
+        )
         db.session.add(evaluation)
         db.session.flush()
     else:
         evaluation.timestamp = datetime.utcnow()
         AssessmentEvaluationScore.query.filter_by(evaluation_id=evaluation.id).delete()
 
-    criteria = {c.id: c.max_score for c in AssessmentCriterion.query.all()}
+    criteria = {
+        c.id: c.max_score
+        for c in AssessmentCriterion.query.filter_by(list_id=evaluation_list.id).all()
+    }
     for criterion_id_raw, score in scores.items():
         criterion_id = int(criterion_id_raw)
         if criterion_id not in criteria:
@@ -93,17 +163,36 @@ def view_my_evaluations_page():
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def api_my_evaluations():
     actor = current_actor()
-    rows = (
+    list_id = request.args.get("list_id", type=int)
+
+    query = (
         db.session.query(
             AssessmentEvaluation.id,
             AssessmentEvaluation.timestamp,
+            AssessmentEvaluation.list_id,
+            AssessmentList.name.label("list_name"),
             AssessmentStand.name.label("stand_name"),
+            AssessmentListSubject.name.label("subject_name"),
             func.sum(AssessmentEvaluationScore.score).label("total"),
         )
-        .join(AssessmentStand, AssessmentStand.id == AssessmentEvaluation.stand_id)
+        .join(AssessmentList, AssessmentList.id == AssessmentEvaluation.list_id)
+        .outerjoin(AssessmentStand, AssessmentStand.id == AssessmentEvaluation.stand_id)
+        .outerjoin(AssessmentListSubject, AssessmentListSubject.id == AssessmentEvaluation.subject_id)
         .outerjoin(AssessmentEvaluationScore, AssessmentEvaluationScore.evaluation_id == AssessmentEvaluation.id)
         .filter(AssessmentEvaluation.user_type == actor["user_type"], AssessmentEvaluation.user_id == actor["user_id"])
-        .group_by(AssessmentEvaluation.id, AssessmentEvaluation.timestamp, AssessmentStand.name)
+    )
+    if list_id:
+        query = query.filter(AssessmentEvaluation.list_id == list_id)
+
+    rows = (
+        query.group_by(
+            AssessmentEvaluation.id,
+            AssessmentEvaluation.timestamp,
+            AssessmentEvaluation.list_id,
+            AssessmentList.name,
+            AssessmentStand.name,
+            AssessmentListSubject.name,
+        )
         .order_by(AssessmentEvaluation.timestamp.desc())
         .all()
     )
@@ -114,7 +203,9 @@ def api_my_evaluations():
                 {
                     "id": row.id,
                     "timestamp": row.timestamp.isoformat() if row.timestamp else None,
-                    "stand_name": row.stand_name,
+                    "list_id": row.list_id,
+                    "list_name": row.list_name,
+                    "target_name": row.stand_name or row.subject_name,
                     "total_score": int(row.total or 0),
                 }
                 for row in rows
@@ -126,12 +217,22 @@ def api_my_evaluations():
 @evaluations_bp.route("/print_blank", methods=["GET"])
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def blank_print_page():
-    stands = AssessmentStand.query.order_by(AssessmentStand.name.asc()).all()
-    criteria = AssessmentCriterion.query.order_by(AssessmentCriterion.id.asc()).all()
+    evaluation_list = resolve_evaluation_list_from_request(require_active=False)
+    if not evaluation_list:
+        evaluation_list = AssessmentList.query.order_by(AssessmentList.id.asc()).first()
+    if not evaluation_list:
+        return render_template("assessment/print_evaluation_template.html", stands=[], criteria=[], evaluation_list=None)
+
+    criteria = AssessmentCriterion.query.filter_by(list_id=evaluation_list.id).order_by(AssessmentCriterion.id.asc()).all()
+    if evaluation_list.subject_mode == "stand":
+        targets = stands_for_list(evaluation_list)
+    else:
+        targets = subjects_for_list(evaluation_list)
     return render_template(
         "assessment/print_evaluation_template.html",
-        stands=stands,
+        stands=targets,
         criteria=criteria,
+        evaluation_list=evaluation_list,
     )
 
 
@@ -139,7 +240,13 @@ def blank_print_page():
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def print_evaluation(evaluation_id):
     evaluation = AssessmentEvaluation.query.get_or_404(evaluation_id)
-    stand = AssessmentStand.query.get(evaluation.stand_id)
+    target_name = None
+    if evaluation.stand_id:
+        stand = AssessmentStand.query.get(evaluation.stand_id)
+        target_name = stand.name if stand else None
+    elif evaluation.subject_id:
+        subject = AssessmentListSubject.query.get(evaluation.subject_id)
+        target_name = subject.name if subject else None
     score_rows = (
         db.session.query(AssessmentCriterion.name, AssessmentEvaluationScore.score)
         .join(AssessmentEvaluationScore, AssessmentEvaluationScore.criterion_id == AssessmentCriterion.id)
@@ -149,52 +256,6 @@ def print_evaluation(evaluation_id):
     return render_template(
         "assessment/print_evaluation.html",
         evaluation=evaluation,
-        stand=stand,
+        stand_name=target_name,
         score_rows=score_rows,
     )
-
-
-@evaluations_bp.route("/visitor_rate/<int:stand_id>", methods=["GET", "POST"])
-def visitor_rate(stand_id):
-    stand = AssessmentStand.query.get_or_404(stand_id)
-    criteria = AssessmentCriterion.query.order_by(AssessmentCriterion.id.asc()).all()
-
-    if request.method == "GET":
-        return render_template("assessment/visitor_rate.html", stand=stand, criteria=criteria)
-
-    data = request.get_json(silent=True) or {}
-    scores = data.get("scores") or {}
-    token, should_set_cookie = create_visitor_token()
-    token_hash = hash_visitor_token(token)
-
-    existing = AssessmentVisitorEvaluation.query.filter_by(stand_id=stand_id, visitor_token_hash=token_hash).first()
-    if existing:
-        return jsonify({"success": False, "message": "Sie haben diesen Stand bereits bewertet."}), 409
-
-    visitor_eval = AssessmentVisitorEvaluation(
-        stand_id=stand_id,
-        visitor_token_hash=token_hash,
-    )
-    db.session.add(visitor_eval)
-    db.session.flush()
-
-    criterion_map = {c.id: c.max_score for c in criteria}
-    for criterion_id_raw, score_value in scores.items():
-        criterion_id = int(criterion_id_raw)
-        if criterion_id not in criterion_map:
-            continue
-        value = int(score_value)
-        if 0 <= value <= criterion_map[criterion_id]:
-            db.session.add(
-                AssessmentVisitorEvaluationScore(
-                    visitor_evaluation_id=visitor_eval.id,
-                    criterion_id=criterion_id,
-                    score=value,
-                )
-            )
-
-    db.session.commit()
-    response = make_response(jsonify({"success": True, "message": "Vielen Dank für Ihre Bewertung."}))
-    if should_set_cookie:
-        response.set_cookie("assessment_visitor_id", token, max_age=60 * 60 * 24 * 365, samesite="Lax")
-    return response

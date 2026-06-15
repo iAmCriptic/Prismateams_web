@@ -24,8 +24,11 @@ body {
 /* Mobile Navigation */
 .mobile-nav {
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    z-index: 1001; /* Higher than chat elements but lower than modals */
-    height: 60px; /* Feste Höhe */
+    z-index: 1001;
+    min-height: 56px;
+    height: auto;
+    padding: 10px 0.375rem 0;
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -33,14 +36,139 @@ body {
     width: 100% !important;
 }
 
+.mobile-nav.navbar {
+    --bs-navbar-padding-y: 0;
+    --bs-navbar-padding-x: 0;
+}
+
+.mobile-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: end;
+    width: 100%;
+    min-height: 48px;
+    text-align: center;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    min-height: 44px;
+}
+
+.mobile-nav-item-home {
+    position: relative;
+    justify-content: flex-end;
+}
+
+.mobile-nav-item .nav-link,
+.mobile-nav-item .notification-bell-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: 100%;
+    height: auto;
+    min-height: 44px;
+    padding: 0.125rem 0.125rem 0.25rem;
+    margin: 0;
+    gap: 0.125rem;
+    text-decoration: none !important;
+    border: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.mobile-nav-item .nav-link i,
+.mobile-nav-item .notification-bell-btn i {
+    display: block;
+    font-size: 1.25rem;
+    line-height: 1;
+    margin-bottom: 0;
+}
+
+.mobile-nav-label {
+    display: block;
+    font-size: 0.625rem;
+    line-height: 1.1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-decoration: none !important;
+    color: inherit;
+}
+
+.mobile-nav-home-fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    color: #fff !important;
+    text-decoration: none !important;
+    border: 3px solid var(--bs-body-bg, #fff);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+    transform: translateY(-8px);
+    transition: box-shadow 0.15s ease;
+    flex-shrink: 0;
+}
+
+.mobile-nav-home-fab i {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.mobile-nav-home-fab:hover,
+.mobile-nav-home-fab:focus {
+    color: #fff !important;
+    text-decoration: none !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+
+.mobile-nav-home-fab.active {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.mobile-nav-home-label {
+    margin-top: -4px;
+    color: #6c757d;
+}
+
+.mobile-nav-home-label.active {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+[data-bs-theme="dark"] .mobile-nav-home-fab {
+    border-color: #212529;
+}
+
+[data-oled-mode="true"] .mobile-nav-home-fab {
+    border-color: #000000;
+}
+
+.mobile-nav .notification-bell-btn {
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    box-shadow: none;
+    position: relative;
+    color: #6c757d;
+}
+
 /* Fix for vertical text display issues */
 .mobile-nav .nav-link,
-.mobile-nav .nav-link div,
-.mobile-nav .nav-link .small {
+.mobile-nav .nav-link .mobile-nav-label {
     writing-mode: horizontal-tb !important;
     text-orientation: mixed !important;
     direction: ltr !important;
-    transform: none !important;
     white-space: nowrap !important;
 }
 
@@ -53,13 +181,17 @@ body {
 
 .mobile-nav .nav-link {
     color: #6c757d;
-    padding: 0.25rem 0.5rem; /* Reduzierte Padding */
-    font-size: 0.75rem; /* Kleinere Schrift */
-    line-height: 1;
+    font-size: 0.625rem;
+    line-height: 1.1;
 }
 
 .mobile-nav .nav-link.active {
     color: var(--accent-color);
+}
+
+.mobile-nav .nav-link.active .mobile-nav-label {
+    color: var(--accent-color);
+    font-weight: 600;
 }
 
 /* Verhindere kurzes Dunkel-Flackern in der mobilen Bottom-Navigation */
@@ -116,15 +248,9 @@ body {
     transition: none !important;
 }
 
-.mobile-nav .nav-link i {
-    display: block;
-    font-size: 1.2rem; /* Kleinere Icons */
-    margin-bottom: 0.125rem;
-}
-
-.mobile-nav .nav-link div {
-    font-size: 0.6rem; /* Noch kleinere Beschriftung */
-    line-height: 1;
+.mobile-nav .nav-link.active .mobile-nav-label {
+    background: none !important;
+    -webkit-text-fill-color: currentColor !important;
 }
 
 /* Darkmode Mobile Navigation - Immer dunkel */
@@ -143,6 +269,16 @@ body {
 [data-bs-theme="dark"] .mobile-nav .nav-link,
 .mobile-nav.dark-mode .nav-link {
     color: #adb5bd !important;
+}
+
+[data-bs-theme="dark"] .mobile-nav-home-label,
+.mobile-nav.dark-mode .mobile-nav-home-label {
+    color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .mobile-nav-home-label.active,
+.mobile-nav.dark-mode .mobile-nav-home-label.active {
+    color: var(--accent-color);
 }
 
 [data-bs-theme="dark"] .mobile-nav .nav-link.active,
@@ -317,7 +453,7 @@ body {
 
 /* Main Content */
 .main-content {
-    padding-bottom: 70px; /* Reduzierte Space für mobile nav */
+    padding-bottom: 92px; /* Space für mobile nav inkl. Home-FAB */
 }
 
 /* Mobile Chat Full Screen Override */
@@ -461,7 +597,7 @@ body {
 /* Tablet (768px-991px) - kann Mobile oder Desktop Layout verwenden */
 @media (min-width: 768px) and (max-width: 991.98px) {
     .main-content {
-        padding-bottom: 70px; /* Space für mobile nav falls aktiv */
+        padding-bottom: 92px; /* Space für mobile nav falls aktiv */
     }
     
     /* Wenn Desktop-Layout erzwungen wird, Sidebar anzeigen */
@@ -489,7 +625,7 @@ body {
     
     body.force-mobile-layout .main-content {
         margin-left: 0;
-        padding-bottom: 70px;
+        padding-bottom: 92px;
     }
 }
 
@@ -522,7 +658,7 @@ body.force-mobile-layout .sidebar {
 
 body.force-mobile-layout .main-content {
     margin-left: 0;
-    padding-bottom: 70px;
+    padding-bottom: 92px;
 }
 
 /* Desktop More Menu Offcanvas - Positionierung rechts neben Sidebar */
@@ -1006,9 +1142,13 @@ button, .btn {
     height: 64px;
 }
 
-/* Zurück-Button Styling */
+/* Zurück-Button Styling (oben links im Hauptbereich) */
 .back-button-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
     position: relative;
+    z-index: 10;
 }
 
 .back-button {

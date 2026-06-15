@@ -1,3 +1,5 @@
+import json
+import re
 from datetime import datetime
 
 from argon2 import PasswordHasher
@@ -7,6 +9,12 @@ from app import db
 
 
 password_hasher = PasswordHasher()
+
+
+def _slugify(value):
+    value = (value or "").strip().lower()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    return value.strip("-") or "liste"
 
 
 class AssessmentUser(UserMixin, db.Model):
@@ -114,6 +122,95 @@ class AssessmentUserRole(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
+class AssessmentStandType(db.Model):
+    __tablename__ = "ass_stand_types"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    color = db.Column(db.String(32), nullable=True)
+
+    stands = db.relationship("AssessmentStand", back_populates="stand_type")
+
+    def __repr__(self):
+        return f"<AssessmentStandType {self.name}>"
+
+
+class AssessmentList(db.Model):
+    __tablename__ = "ass_lists"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    slug = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    subject_mode = db.Column(db.String(16), nullable=False, default="stand")
+    stand_type_ids = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    enable_visitor_rating = db.Column(db.Boolean, default=False, nullable=False)
+    ranking_mode = db.Column(db.String(32), default="standard", nullable=False)
+    ranking_sort = db.Column(db.String(32), default="total", nullable=False)
+    welcome_label = db.Column(db.String(120), nullable=True)
+
+    criteria = db.relationship("AssessmentCriterion", back_populates="evaluation_list", cascade="all, delete-orphan")
+    subjects = db.relationship("AssessmentListSubject", back_populates="evaluation_list", cascade="all, delete-orphan")
+
+    def get_stand_type_id_list(self):
+        if not self.stand_type_ids:
+            return []
+        try:
+            parsed = json.loads(self.stand_type_ids)
+            return [int(x) for x in parsed if str(x).isdigit() or isinstance(x, int)]
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return []
+
+    def set_stand_type_id_list(self, ids):
+        if not ids:
+            self.stand_type_ids = None
+        else:
+            self.stand_type_ids = json.dumps([int(i) for i in ids])
+
+    @staticmethod
+    def make_slug(name, exclude_id=None):
+        base = _slugify(name)
+        slug = base
+        counter = 2
+        while True:
+            query = AssessmentList.query.filter_by(slug=slug)
+            if exclude_id:
+                query = query.filter(AssessmentList.id != exclude_id)
+            if not query.first():
+                return slug
+            slug = f"{base}-{counter}"
+            counter += 1
+
+    def __repr__(self):
+        return f"<AssessmentList {self.name}>"
+
+
+class AssessmentListSubject(db.Model):
+    __tablename__ = "ass_list_subjects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    sort_order = db.Column(db.Integer, default=0, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    evaluation_list = db.relationship("AssessmentList", back_populates="subjects")
+    evaluations = db.relationship("AssessmentEvaluation", back_populates="subject", cascade="all, delete-orphan")
+    visitor_evaluations = db.relationship(
+        "AssessmentVisitorEvaluation", back_populates="subject", cascade="all, delete-orphan"
+    )
+    warnings = db.relationship("AssessmentWarning", back_populates="subject", cascade="all, delete-orphan")
+
+    __table_args__ = (db.UniqueConstraint("list_id", "name", name="uq_ass_list_subject_name"),)
+
+    def __repr__(self):
+        return f"<AssessmentListSubject {self.name}>"
+
+
 class AssessmentRoom(db.Model):
     __tablename__ = "ass_rooms"
 
@@ -131,8 +228,10 @@ class AssessmentStand(db.Model):
     name = db.Column(db.String(120), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
     room_id = db.Column(db.Integer, db.ForeignKey("ass_rooms.id", ondelete="SET NULL"), nullable=True)
+    stand_type_id = db.Column(db.Integer, db.ForeignKey("ass_stand_types.id", ondelete="SET NULL"), nullable=True)
 
     room = db.relationship("AssessmentRoom", back_populates="stands")
+    stand_type = db.relationship("AssessmentStandType", back_populates="stands")
     evaluations = db.relationship("AssessmentEvaluation", back_populates="stand", cascade="all, delete-orphan")
     visitor_evaluations = db.relationship(
         "AssessmentVisitorEvaluation", back_populates="stand", cascade="all, delete-orphan"
@@ -144,30 +243,39 @@ class AssessmentCriterion(db.Model):
     __tablename__ = "ass_criteria"
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True, nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
     max_score = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=True)
 
+    evaluation_list = db.relationship("AssessmentList", back_populates="criteria")
     scores = db.relationship("AssessmentEvaluationScore", back_populates="criterion", cascade="all, delete-orphan")
     visitor_scores = db.relationship(
         "AssessmentVisitorEvaluationScore", back_populates="criterion", cascade="all, delete-orphan"
     )
+
+    __table_args__ = (db.UniqueConstraint("list_id", "name", name="uq_ass_criterion_list_name"),)
 
 
 class AssessmentEvaluation(db.Model):
     __tablename__ = "ass_evaluations"
 
     id = db.Column(db.Integer, primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=False, index=True)
     user_type = db.Column(db.String(16), nullable=False, default="ass")
     user_id = db.Column(db.Integer, nullable=False, index=True)
-    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=False)
+    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("ass_list_subjects.id", ondelete="CASCADE"), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    evaluation_list = db.relationship("AssessmentList")
     stand = db.relationship("AssessmentStand", back_populates="evaluations")
+    subject = db.relationship("AssessmentListSubject", back_populates="evaluations")
     scores = db.relationship("AssessmentEvaluationScore", back_populates="evaluation", cascade="all, delete-orphan")
 
     __table_args__ = (
-        db.UniqueConstraint("user_type", "user_id", "stand_id", name="uq_ass_eval_user_stand"),
+        db.UniqueConstraint("user_type", "user_id", "list_id", "stand_id", name="uq_ass_eval_user_list_stand"),
+        db.UniqueConstraint("user_type", "user_id", "list_id", "subject_id", name="uq_ass_eval_user_list_subject"),
     )
 
 
@@ -188,19 +296,23 @@ class AssessmentVisitorEvaluation(db.Model):
     __tablename__ = "ass_visitor_evaluations"
 
     id = db.Column(db.Integer, primary_key=True)
-    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("ass_list_subjects.id", ondelete="CASCADE"), nullable=True)
     visitor_token_hash = db.Column(db.String(255), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     ip_hash = db.Column(db.String(255), nullable=True)
     ua_hash = db.Column(db.String(255), nullable=True)
 
     stand = db.relationship("AssessmentStand", back_populates="visitor_evaluations")
+    subject = db.relationship("AssessmentListSubject", back_populates="visitor_evaluations")
     scores = db.relationship(
         "AssessmentVisitorEvaluationScore", back_populates="visitor_evaluation", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
-        db.UniqueConstraint("stand_id", "visitor_token_hash", name="uq_ass_visitor_stand"),
+        db.UniqueConstraint("list_id", "stand_id", "visitor_token_hash", name="uq_ass_visitor_list_stand"),
+        db.UniqueConstraint("list_id", "subject_id", "visitor_token_hash", name="uq_ass_visitor_list_subject"),
     )
 
 
@@ -221,7 +333,9 @@ class AssessmentWarning(db.Model):
     __tablename__ = "ass_warnings"
 
     id = db.Column(db.Integer, primary_key=True)
-    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("ass_list_subjects.id", ondelete="CASCADE"), nullable=True)
     user_type = db.Column(db.String(16), nullable=False, default="ass")
     user_id = db.Column(db.Integer, nullable=False, index=True)
     comment = db.Column(db.Text, nullable=False)
@@ -232,6 +346,7 @@ class AssessmentWarning(db.Model):
     invalidation_timestamp = db.Column(db.DateTime, nullable=True)
 
     stand = db.relationship("AssessmentStand", back_populates="warnings")
+    subject = db.relationship("AssessmentListSubject", back_populates="warnings")
 
 
 class AssessmentRoomInspection(db.Model):
@@ -253,43 +368,3 @@ class AssessmentAppSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     setting_key = db.Column(db.String(120), unique=True, nullable=False)
     setting_value = db.Column(db.Text, nullable=True)
-
-
-class AssessmentFloorPlan(db.Model):
-    __tablename__ = "ass_floor_plans"
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False)
-    image_path = db.Column(db.String(512), nullable=False)
-    width_px = db.Column(db.Float, nullable=True)
-    height_px = db.Column(db.Float, nullable=True)
-    scale_point1_x = db.Column(db.Float, nullable=True)
-    scale_point1_y = db.Column(db.Float, nullable=True)
-    scale_point2_x = db.Column(db.Float, nullable=True)
-    scale_point2_y = db.Column(db.Float, nullable=True)
-    scale_distance_meters = db.Column(db.Float, nullable=True)
-    is_active = db.Column(db.Boolean, default=False, nullable=False)
-
-    objects = db.relationship("AssessmentFloorPlanObject", back_populates="plan", cascade="all, delete-orphan")
-
-
-class AssessmentFloorPlanObject(db.Model):
-    __tablename__ = "ass_floor_plan_objects"
-
-    id = db.Column(db.Integer, primary_key=True)
-    plan_id = db.Column(db.Integer, db.ForeignKey("ass_floor_plans.id", ondelete="CASCADE"), nullable=False)
-    type = db.Column(db.String(40), nullable=False)
-    x = db.Column(db.Float, nullable=False)
-    y = db.Column(db.Float, nullable=False)
-    width = db.Column(db.Float, nullable=True)
-    height = db.Column(db.Float, nullable=True)
-    color = db.Column(db.String(32), nullable=True)
-    trash_can_color = db.Column(db.String(32), nullable=True)
-    wc_label = db.Column(db.String(32), nullable=True)
-    power_outlet_label = db.Column(db.String(32), nullable=True)
-    stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="SET NULL"), nullable=True)
-    custom_stand_name = db.Column(db.String(255), nullable=True)
-
-    plan = db.relationship("AssessmentFloorPlan", back_populates="objects")
-    stand = db.relationship("AssessmentStand")
-

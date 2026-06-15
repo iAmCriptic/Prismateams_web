@@ -19,7 +19,28 @@
       "logout": "Sair",
       "more": "Mais",
       "module": "Módulos",
-      "back": "Voltar"
+      "back": "Voltar",
+      "notifications": "Notificações",
+      "notifications_short": "Alertas",
+      "home": "Início",
+      "booking": "Reservas",
+      "media_downloader": "Downloader de mídia"
+    },
+    "cookie_consent": {
+      "title": "Cookies e privacidade",
+      "description": "Utilizamos cookies para login e funções essenciais. Cookies opcionais melhoram recursos de conforto como instalação PWA. Você pode alterar sua escolha a qualquer momento.",
+      "accept_all": "Aceitar todas",
+      "essential_only": "Apenas necessárias",
+      "settings": "Configurações",
+      "save_preferences": "Salvar preferências",
+      "open_settings": "Configurações de cookies",
+      "always_active": "Sempre ativo",
+      "category_necessary_title": "Necessárias",
+      "category_necessary_desc": "Cookies de sessão para login, segurança e funções básicas do portal.",
+      "category_functional_title": "Funcionais",
+      "category_functional_desc": "Armazena preferências locais e habilita recursos PWA.",
+      "category_analytics_title": "Estatísticas",
+      "category_analytics_desc": "Estatísticas de uso anônimas para melhorar o portal (atualmente inativas)."
     }
   },
   "common": {
@@ -150,5 +171,66 @@
     "quick_access": {
       "title": "Acesso rápido",
       "edit_dashboard": "Editar painel"
+    }
+  },
+  "media_downloader": {
+    "page_title": "Downloader de mídia",
+    "heading": "Downloader de mídia",
+    "description": "Baixe conteúdo do YouTube e YouTube Music como MP3 ou MP4.",
+    "legal_notice": "Você é responsável por cumprir os direitos autorais e os termos das plataformas. Os arquivos são excluídos automaticamente após uma hora.",
+    "form": {
+      "title": "Novo download",
+      "url_label": "URL",
+      "url_placeholder": "https://www.youtube.com/watch?v=...",
+      "url_hint": "Suportado: YouTube e YouTube Music",
+      "format_label": "Formato",
+      "format_audio": "Áudio (MP3)",
+      "format_video": "Vídeo (MP4)",
+      "start_label": "Início (opcional)",
+      "end_label": "Fim (opcional)",
+      "time_placeholder": "M:SS",
+      "segment_hint": "Opcional: baixar apenas um trecho (informe início e fim, ex.: 1:30 e 3:45).",
+      "submit": "Iniciar download"
+    },
+    "jobs": {
+      "title": "Meus downloads",
+      "column_title": "Título",
+      "column_format": "Formato",
+      "column_status": "Status",
+      "column_expires": "Disponível até",
+      "column_actions": "Ações",
+      "download": "Baixar",
+      "empty": "Nenhum download ainda."
+    },
+    "format": {
+      "audio": "MP3",
+      "video": "MP4"
+    },
+    "status": {
+      "pending": "Pendente",
+      "processing": "Processando",
+      "completed": "Concluído",
+      "failed": "Falhou"
+    },
+    "flash": {
+      "unavailable": "Downloader indisponível.",
+      "incompatible": "O downloader não está disponível neste servidor. FFmpeg deve estar instalado.",
+      "invalid_format": "Formato inválido.",
+      "empty_url": "Informe uma URL.",
+      "invalid_scheme": "Esquema de URL inválido.",
+      "invalid_host": "Apenas URLs do YouTube e YouTube Music são permitidas.",
+      "invalid_url": "URL do YouTube inválida.",
+      "incomplete_segment": "Informe início e fim ou deixe ambos vazios.",
+      "invalid_time_format": "Formato de hora inválido. Use M:SS ou H:MM:SS.",
+      "invalid_time_range": "A hora de início deve ser anterior à de fim.",
+      "too_many_jobs": "Máximo de %(max)s downloads simultâneos permitidos.",
+      "started": "Download iniciado.",
+      "expired": "Este arquivo não está mais disponível.",
+      "err_http_403": "Download bloqueado pelo YouTube (HTTP 403). Tente novamente mais tarde ou use outra qualidade/URL.",
+      "err_age_restricted": "Este vídeo tem restrição de idade e não pode ser baixado sem login/cookies.",
+      "err_video_unavailable": "Este vídeo não está disponível.",
+      "err_download_failed": "Falha no download. Tente novamente.",
+      "file_missing": "Arquivo não encontrado."
+    }
   }
 }

@@ -19,7 +19,28 @@
       "logout": "Cerrar sesión",
       "more": "Más",
       "module": "Módulos",
-      "back": "Volver"
+      "back": "Volver",
+      "notifications": "Notificaciones",
+      "notifications_short": "Alertas",
+      "home": "Inicio",
+      "booking": "Reservas",
+      "media_downloader": "Descargador de medios"
+    },
+    "cookie_consent": {
+      "title": "Cookies y privacidad",
+      "description": "Utilizamos cookies para el inicio de sesión y funciones esenciales. Las cookies opcionales mejoran funciones de confort como la instalación PWA. Puede cambiar su elección en cualquier momento.",
+      "accept_all": "Aceptar todas",
+      "essential_only": "Solo necesarias",
+      "settings": "Ajustes",
+      "save_preferences": "Guardar preferencias",
+      "open_settings": "Ajustes de cookies",
+      "always_active": "Siempre activo",
+      "category_necessary_title": "Necesarias",
+      "category_necessary_desc": "Cookies de sesión para inicio de sesión, seguridad y funciones básicas del portal.",
+      "category_functional_title": "Funcionales",
+      "category_functional_desc": "Guarda preferencias locales y habilita funciones PWA.",
+      "category_analytics_title": "Estadísticas",
+      "category_analytics_desc": "Estadísticas de uso anónimas para mejorar el portal (actualmente inactivas)."
     }
   },
   "common": {
@@ -151,186 +172,66 @@
       "title": "Acceso rápido",
       "edit_dashboard": "Editar panel"
     }
-  }
-}
-{
-  "layout": {
-    "meta": {
-      "description": "Software de equipo para una colaboración eficaz: chat, archivos, calendarios y más"
+  },
+  "media_downloader": {
+    "page_title": "Descargador de medios",
+    "heading": "Descargador de medios",
+    "description": "Descargue contenido de YouTube y YouTube Music como MP3 o MP4.",
+    "legal_notice": "Usted es responsable de cumplir con los derechos de autor y los términos de las plataformas. Los archivos se eliminan automáticamente después de una hora.",
+    "form": {
+      "title": "Nueva descarga",
+      "url_label": "URL",
+      "url_placeholder": "https://www.youtube.com/watch?v=...",
+      "url_hint": "Compatible: YouTube y YouTube Music",
+      "format_label": "Formato",
+      "format_audio": "Audio (MP3)",
+      "format_video": "Video (MP4)",
+      "start_label": "Inicio (opcional)",
+      "end_label": "Fin (opcional)",
+      "time_placeholder": "M:SS",
+      "segment_hint": "Opcional: descargar solo un segmento (indique inicio y fin, p. ej. 1:30 y 3:45).",
+      "submit": "Iniciar descarga"
     },
-    "nav": {
-      "dashboard": "Panel",
-      "chats": "Chats",
-      "files": "Archivos",
-      "calendar": "Calendario",
-      "email": "Correo",
-      "credentials": "Credenciales",
-      "manuals": "Manuales",
-      "canvas": "Canvas",
-      "inventory": "Inventario",
-      "wiki": "Wiki",
-      "settings": "Ajustes",
-      "more": "Más",
-      "profile": "Perfil",
-      "logout": "Cerrar sesión",
-      "back": "Volver"
-    },
-    "labels": {
-      "search": "Buscar",
-      "language": "Idioma"
-    },
-    "buttons": {
-      "save": "Guardar",
-      "cancel": "Cancelar",
-      "edit": "Editar",
-      "delete": "Eliminar",
-      "create": "Crear",
-      "update": "Actualizar",
-      "send": "Enviar",
-      "upload": "Subir",
+    "jobs": {
+      "title": "Mis descargas",
+      "column_title": "Título",
+      "column_format": "Formato",
+      "column_status": "Estado",
+      "column_expires": "Disponible hasta",
+      "column_actions": "Acciones",
       "download": "Descargar",
-      "close": "Cerrar",
-      "back": "Volver"
+      "empty": "Aún no hay descargas."
     },
-    "messages": {
-      "no_results": "No se encontraron resultados",
-      "loading": "Cargando..."
+    "format": {
+      "audio": "MP3",
+      "video": "MP4"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "processing": "Procesando",
+      "completed": "Completado",
+      "failed": "Fallido"
+    },
+    "flash": {
+      "unavailable": "El descargador no está disponible.",
+      "incompatible": "El descargador no está disponible en este servidor. FFmpeg debe estar instalado.",
+      "invalid_format": "Formato no válido.",
+      "empty_url": "Introduzca una URL.",
+      "invalid_scheme": "Esquema de URL no válido.",
+      "invalid_host": "Solo se permiten URLs de YouTube y YouTube Music.",
+      "invalid_url": "URL de YouTube no válida.",
+      "incomplete_segment": "Indique inicio y fin o deje ambos vacíos.",
+      "invalid_time_format": "Formato de hora no válido. Use M:SS o H:MM:SS.",
+      "invalid_time_range": "La hora de inicio debe ser anterior a la de fin.",
+      "too_many_jobs": "Máximo %(max)s descargas simultáneas permitidas.",
+      "started": "Descarga iniciada.",
+      "expired": "Este archivo ya no está disponible.",
+      "err_http_403": "Descarga bloqueada por YouTube (HTTP 403). Inténtelo más tarde o use otra calidad/URL.",
+      "err_age_restricted": "Este video tiene restricción de edad y no puede descargarse sin inicio de sesión/cookies.",
+      "err_video_unavailable": "Este video no está disponible.",
+      "err_download_failed": "La descarga falló. Inténtelo de nuevo.",
+      "file_missing": "Archivo no encontrado."
     }
-  },
-  "auth": {
-    "login": {
-      "title": "Iniciar sesión",
-      "subtitle": "Accede al portal de tu equipo.",
-      "email": "Correo electrónico",
-      "password": "Contraseña",
-      "remember_me": "Mantener sesión iniciada",
-      "forgot_password": "¿Olvidaste tu contraseña?",
-      "submit": "Iniciar sesión",
-      "register_link_prefix": "¿Aún no tienes cuenta?",
-      "register_link_cta": "Regístrate",
-      "admin_code": "Código de confirmación del administrador",
-      "admin_code_help": "Recibirás este código de tu administrador."
-    },
-    "register": {
-      "title": "Registrarse",
-      "subtitle": "Crea una nueva cuenta para tu equipo.",
-      "first_name": "Nombre",
-      "last_name": "Apellidos",
-      "email": "Correo electrónico",
-      "password": "Contraseña",
-      "confirm_password": "Confirmar contraseña",
-      "phone_optional": "Teléfono (opcional)",
-      "password_help": "Al menos 8 caracteres",
-      "dark_mode_label": "Activar modo oscuro",
-      "dark_mode_help": "Puedes cambiarlo más tarde en los ajustes.",
-      "submit": "Registrarse",
-      "login_link_prefix": "¿Ya tienes cuenta?",
-      "login_link_cta": "Inicia sesión"
-    },
-    "confirm_email": {
-      "title": "Confirmar correo",
-      "subtitle": "Introduce el código de confirmación enviado por correo.",
-      "code": "Código de confirmación",
-      "resend": "Reenviar código",
-      "resend_button": "Reenviar correo",
-      "submit": "Confirmar",
-      "info_title": "Confirmación necesaria",
-      "info_message": "Te hemos enviado un correo con un código de confirmación de 6 dígitos.",
-      "code_help": "Introduce el código de 6 dígitos de tu correo.",
-      "no_email": "¿No recibiste el correo?",
-      "warning_title": "Aviso",
-      "warning_message": "El código de confirmación es válido durante 24 horas. Revisa también tu carpeta de spam."
-    }
-  },
-  "notifications": {
-    "success": "Éxito",
-    "error": "Error",
-    "info": "Información",
-    "warning": "Aviso"
-  },
-  "emails": {
-    "footer": {
-      "greetings": "Saludos cordiales",
-      "team": "Su equipo"
-    }
-  },
-  "dashboard": {
-    "title": "Panel",
-    "setup": {
-      "heading": "🎉 ¡Configuración completada con éxito!",
-      "message": "Bienvenido al portal del equipo. Ahora puedes añadir más usuarios desde los ajustes."
-    },
-    "update": {
-      "heading": "¡Actualización disponible!",
-      "text": "Hay una nueva actualización en el branch principal de GitHub.",
-      "latest_commit": "Último commit:",
-      "buttons": {
-        "github": "Abrir GitHub",
-        "close": "Cerrar",
-        "disable": "No volver a mostrar"
-      }
-    },
-    "welcome": {
-      "heading": "¡Bienvenido, {name}!",
-      "subtitle": "Aquí tienes un resumen"
-    },
-    "widgets": {
-      "calendar": {
-        "title": "Eventos",
-        "empty": "No hay eventos próximos"
-      },
-      "chat": {
-        "title": "Mensajes",
-        "empty": "No hay mensajes nuevos",
-        "new_badge": "Nuevo"
-      },
-      "email": {
-        "title": "Correos",
-        "empty": "No hay correos",
-        "new_badge": "Nuevo"
-      },
-      "files": {
-        "title": "Archivos recientes",
-        "empty": "No hay archivos"
-      },
-      "canvas": {
-        "title": "Canvas",
-        "empty": "No hay canvas"
-      },
-      "wiki_new": {
-        "title": "Nuevas páginas de la wiki",
-        "empty": "No hay páginas de la wiki"
-      },
-      "wiki_favorites": {
-        "title": "Mis wikis",
-        "empty": "No hay favoritos"
-      },
-      "borrows": {
-        "title": "Mis préstamos",
-        "entry_title": "Préstamo del {date}",
-        "item_single": "{count} artículo",
-        "item_multiple": "{count} artículos",
-        "return_label": "Devolver",
-        "return_date": "Devolución: {date}",
-        "overdue_badge": "Atrasado",
-        "empty": "No hay préstamos activos"
-      }
-    },
-    "quick_access": {
-      "title": "Acceso rápido",
-      "labels": {
-        "files": "Archivos",
-        "credentials": "Credenciales",
-        "manuals": "Manuales",
-        "canvas": "Canvas",
-        "chat": "Chats",
-        "calendar": "Calendario",
-        "email": "Correo",
-        "inventory": "Inventario",
-        "wiki": "Wiki"
-      }
-    },
-    "edit_button": "Editar panel"
   }
 }
 

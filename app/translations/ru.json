@@ -19,7 +19,28 @@
       "logout": "Выйти",
       "more": "Ещё",
       "module": "Модули",
-      "back": "Назад"
+      "back": "Назад",
+      "notifications": "Уведомления",
+      "notifications_short": "Инфо",
+      "home": "Главная",
+      "booking": "Бронирования",
+      "media_downloader": "Загрузчик медиа"
+    },
+    "cookie_consent": {
+      "title": "Cookies и конфиденциальность",
+      "description": "Мы используем cookies для входа и основных функций. Дополнительные cookies улучшают удобство, например установку PWA. Вы можете изменить выбор в любое время.",
+      "accept_all": "Принять все",
+      "essential_only": "Только необходимые",
+      "settings": "Настройки",
+      "save_preferences": "Сохранить выбор",
+      "open_settings": "Настройки cookies",
+      "always_active": "Всегда активно",
+      "category_necessary_title": "Необходимые",
+      "category_necessary_desc": "Сессионные cookies для входа, безопасности и базовых функций портала.",
+      "category_functional_title": "Функциональные",
+      "category_functional_desc": "Сохраняет локальные настройки и включает функции PWA.",
+      "category_analytics_title": "Статистика",
+      "category_analytics_desc": "Анонимная статистика использования для улучшения портала (сейчас не активна)."
     }
   },
   "common": {
@@ -150,6 +171,66 @@
     "quick_access": {
       "title": "Быстрый доступ",
       "edit_dashboard": "Редактировать панель"
+    }
+  },
+  "media_downloader": {
+    "page_title": "Загрузчик медиа",
+    "heading": "Загрузчик медиа",
+    "description": "Скачивайте контент с YouTube и YouTube Music в MP3 или MP4.",
+    "legal_notice": "Вы несёте ответственность за соблюдение авторских прав и условий платформ. Файлы автоматически удаляются через час.",
+    "form": {
+      "title": "Новая загрузка",
+      "url_label": "URL",
+      "url_placeholder": "https://www.youtube.com/watch?v=...",
+      "url_hint": "Поддерживается: YouTube и YouTube Music",
+      "format_label": "Формат",
+      "format_audio": "Аудио (MP3)",
+      "format_video": "Видео (MP4)",
+      "start_label": "Начало (необяз.)",
+      "end_label": "Конец (необяз.)",
+      "time_placeholder": "M:SS",
+      "segment_hint": "Необязательно: скачать только фрагмент (укажите начало и конец, напр. 1:30 и 3:45).",
+      "submit": "Начать загрузку"
+    },
+    "jobs": {
+      "title": "Мои загрузки",
+      "column_title": "Название",
+      "column_format": "Формат",
+      "column_status": "Статус",
+      "column_expires": "Доступно до",
+      "column_actions": "Действия",
+      "download": "Скачать",
+      "empty": "Загрузок пока нет."
+    },
+    "format": {
+      "audio": "MP3",
+      "video": "MP4"
+    },
+    "status": {
+      "pending": "Ожидание",
+      "processing": "Обработка",
+      "completed": "Готово",
+      "failed": "Ошибка"
+    },
+    "flash": {
+      "unavailable": "Загрузчик недоступен.",
+      "incompatible": "Загрузчик недоступен на этом сервере. Необходимо установить FFmpeg.",
+      "invalid_format": "Неверный формат.",
+      "empty_url": "Введите URL.",
+      "invalid_scheme": "Неверная схема URL.",
+      "invalid_host": "Разрешены только URL YouTube и YouTube Music.",
+      "invalid_url": "Неверный URL YouTube.",
+      "incomplete_segment": "Укажите начало и конец или оставьте оба поля пустыми.",
+      "invalid_time_format": "Неверный формат времени. Используйте M:SS или H:MM:SS.",
+      "invalid_time_range": "Время начала должно быть раньше времени окончания.",
+      "too_many_jobs": "Максимум %(max)s одновременных загрузок.",
+      "started": "Загрузка начата.",
+      "expired": "Файл больше недоступен.",
+      "err_http_403": "Загрузка заблокирована YouTube (HTTP 403). Попробуйте позже или используйте другое качество/URL.",
+      "err_age_restricted": "Видео имеет возрастное ограничение и не может быть загружено без входа/cookies.",
+      "err_video_unavailable": "Это видео недоступно.",
+      "err_download_failed": "Ошибка загрузки. Попробуйте снова.",
+      "file_missing": "Файл не найден."
     }
   }
 }

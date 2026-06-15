@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('media_downloader.page_title') }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="mb-1"><i class="bi bi-download"></i> {{ _('media_downloader.heading') }}</h1>
+    <p class="text-muted mb-0">{{ _('media_downloader.description') }}</p>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>{{ _('media_downloader.legal_notice') }}
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">{{ _('media_downloader.form.title') }}</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('media_downloader.start_download') }}">
+            <div class="mb-3">
+                <label for="source_url" class="form-label">{{ _('media_downloader.form.url_label') }}</label>
+                <input type="url" class="form-control" id="source_url" name="source_url" required
+                       placeholder="{{ _('media_downloader.form.url_placeholder') }}">
+                <div class="form-text">{{ _('media_downloader.form.url_hint') }}</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">{{ _('media_downloader.form.format_label') }}</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="format" id="format_audio" value="audio" checked>
+                    <label class="form-check-label" for="format_audio">{{ _('media_downloader.form.format_audio') }}</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="format" id="format_video" value="video">
+                    <label class="form-check-label" for="format_video">{{ _('media_downloader.form.format_video') }}</label>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="start_time" class="form-label">{{ _('media_downloader.form.start_label') }}</label>
+                    <input type="text" class="form-control" id="start_time" name="start_time"
+                           placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
+                </div>
+                <div class="col-md-6">
+                    <label for="end_time" class="form-label">{{ _('media_downloader.form.end_label') }}</label>
+                    <input type="text" class="form-control" id="end_time" name="end_time"
+                           placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
+                </div>
+            </div>
+            <div class="form-text mb-3">{{ _('media_downloader.form.segment_hint') }}</div>
+
+            <button type="submit" class="btn btn-accent">
+                <i class="bi bi-download me-1"></i>{{ _('media_downloader.form.submit') }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{{ _('media_downloader.jobs.title') }}</h5>
+    </div>
+    <div class="card-body">
+        {% if jobs %}
+        <div class="table-responsive">
+            <table class="table align-middle" id="downloadJobsTable">
+                <thead>
+                    <tr>
+                        <th>{{ _('media_downloader.jobs.column_title') }}</th>
+                        <th>{{ _('media_downloader.jobs.column_format') }}</th>
+                        <th>{{ _('media_downloader.jobs.column_status') }}</th>
+                        <th>{{ _('media_downloader.jobs.column_expires') }}</th>
+                        <th class="text-end">{{ _('media_downloader.jobs.column_actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr data-job-id="{{ job.id }}" data-status="{{ job.status }}">
+                        <td>
+                            {% if job.title %}
+                                {{ job.title }}
+                            {% else %}
+                                <span class="text-muted text-truncate d-inline-block" style="max-width: 280px;">{{ job.source_url }}</span>
+                            {% endif %}
+                            {% if job.start_time and job.end_time %}
+                                <br><small class="text-muted">{{ job.start_time }} – {{ job.end_time }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ _('media_downloader.format.' ~ job.format) }}</td>
+                        <td class="job-status-cell">
+                            {% if job.status == 'completed' %}
+                                <span class="badge bg-success">{{ _('media_downloader.status.completed') }}</span>
+                            {% elif job.status == 'failed' %}
+                                <span class="badge bg-danger">{{ _('media_downloader.status.failed') }}</span>
+                            {% elif job.status == 'processing' %}
+                                <span class="badge bg-primary">{{ _('media_downloader.status.processing') }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ _('media_downloader.status.pending') }}</span>
+                            {% endif %}
+                            {% if job.error_message %}
+                                <div class="small text-danger mt-1 job-error">{{ job.error_message }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="job-expires-cell">
+                            {% if job.expires_at %}
+                                {{ job.expires_at.strftime('%d.%m.%Y %H:%M') }} UTC
+                            {% else %}
+                                –
+                            {% endif %}
+                        </td>
+                        <td class="text-end job-actions-cell">
+                            {% if job.is_downloadable() %}
+                                <a href="{{ url_for('media_downloader.download_file', job_id=job.id) }}" class="btn btn-sm btn-accent">
+                                    <i class="bi bi-download"></i> {{ _('media_downloader.jobs.download') }}
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">{{ _('media_downloader.jobs.empty') }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const statusLabels = {
+        pending: {{ _('media_downloader.status.pending')|tojson }},
+        processing: {{ _('media_downloader.status.processing')|tojson }},
+        completed: {{ _('media_downloader.status.completed')|tojson }},
+        failed: {{ _('media_downloader.status.failed')|tojson }}
+    };
+    const badgeClass = {
+        pending: 'bg-secondary',
+        processing: 'bg-primary',
+        completed: 'bg-success',
+        failed: 'bg-danger'
+    };
+    const downloadLabel = {{ _('media_downloader.jobs.download')|tojson }};
+    const downloadUrlTemplate = {{ url_for('media_downloader.download_file', job_id=0)|tojson }};
+    const statusUrlTemplate = {{ url_for('media_downloader.job_status', job_id=0)|tojson }};
+
+    function pollJob(row) {
+        const jobId = row.dataset.jobId;
+        fetch(statusUrlTemplate.replace('/0', `/${jobId}`))
+            .then(response => response.json())
+            .then(data => {
+                row.dataset.status = data.status;
+                const statusCell = row.querySelector('.job-status-cell');
+                statusCell.innerHTML = `<span class="badge ${badgeClass[data.status] || 'bg-secondary'}">${statusLabels[data.status] || data.status}</span>`;
+                if (data.error_message) {
+                    statusCell.innerHTML += `<div class="small text-danger mt-1 job-error">${data.error_message}</div>`;
+                }
+
+                const actionsCell = row.querySelector('.job-actions-cell');
+                if (data.downloadable) {
+                    const url = downloadUrlTemplate.replace('/0', `/${jobId}`);
+                    actionsCell.innerHTML = `<a href="${url}" class="btn btn-sm btn-accent"><i class="bi bi-download"></i> ${downloadLabel}</a>`;
+                } else {
+                    actionsCell.innerHTML = '';
+                }
+
+                if (data.status === 'pending' || data.status === 'processing') {
+                    setTimeout(() => pollJob(row), 2500);
+                }
+            })
+            .catch(() => setTimeout(() => pollJob(row), 5000));
+    }
+
+    document.querySelectorAll('#downloadJobsTable tbody tr').forEach(row => {
+        if (row.dataset.status === 'pending' || row.dataset.status === 'processing') {
+            pollJob(row);
+        }
+    });
+})();
+</script>
+{% endblock %}

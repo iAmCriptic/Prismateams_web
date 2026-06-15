@@ -1,12 +1,12 @@
 {% extends "base.html" %}
+{% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Admin Setup - Bewertung{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-body">
-                    <h1 class="h4 mb-3">Administratorkonto einrichten</h1>
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        {{ assessment_page_header('Administratorkonto einrichten', 'Legen Sie das erste Jury-Admin-Konto an', 'person-gear') }}
+        <div class="card">
+            <div class="card-body">
                     <form id="adminSetupForm">
                         <div class="mb-3">
                             <label class="form-label">Anzeigename</label>
@@ -23,7 +23,6 @@
                         <button class="btn btn-accent w-100">Speichern</button>
                     </form>
                     <p class="text-muted mt-3 mb-0" id="status"></p>
-                </div>
             </div>
         </div>
     </div>

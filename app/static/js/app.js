@@ -77,7 +77,7 @@ function showInstallButton() {
         const installBtn = document.createElement('button');
         installBtn.id = 'pwa-install-btn';
         installBtn.className = 'btn btn-primary position-fixed';
-        installBtn.style.cssText = 'bottom: 80px; right: 20px; z-index: 1050; display: none;';
+        installBtn.style.cssText = 'bottom: 100px; right: 20px; z-index: 1050; display: none;';
         installBtn.innerHTML = '<i class="bi bi-download me-2"></i>App installieren';
         installBtn.onclick = installPWA;
         document.body.appendChild(installBtn);

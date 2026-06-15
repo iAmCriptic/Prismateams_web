@@ -1,0 +1,81 @@
+{# EU Cookie Consent Banner #}
+<div id="cookieConsentBanner"
+     class="cookie-consent{% if current_user.is_authenticated %} cookie-consent--with-nav{% endif %} d-none"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="cookieConsentTitle"
+     aria-describedby="cookieConsentDesc">
+    <div class="cookie-consent-inner">
+        <div class="cookie-consent-main">
+            <div class="cookie-consent-icon" aria-hidden="true">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="cookie-consent-content">
+                <h2 class="cookie-consent-title" id="cookieConsentTitle">{{ _('layout.cookie_consent.title') }}</h2>
+                <p class="cookie-consent-text mb-0" id="cookieConsentDesc">{{ _('layout.cookie_consent.description') }}</p>
+            </div>
+        </div>
+
+        <div class="cookie-consent-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="cookieConsentAcceptAll">
+                {{ _('layout.cookie_consent.accept_all') }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="cookieConsentEssential">
+                {{ _('layout.cookie_consent.essential_only') }}
+            </button>
+            <button type="button" class="btn btn-link btn-sm cookie-consent-settings-toggle" id="cookieConsentSettingsToggle">
+                {{ _('layout.cookie_consent.settings') }}
+            </button>
+        </div>
+
+        <div class="cookie-consent-details d-none" id="cookieConsentDetails">
+            <div class="cookie-consent-category">
+                <div class="cookie-consent-category-header">
+                    <div>
+                        <strong>{{ _('layout.cookie_consent.category_necessary_title') }}</strong>
+                        <p class="text-muted small mb-0">{{ _('layout.cookie_consent.category_necessary_desc') }}</p>
+                    </div>
+                    <span class="badge bg-secondary">{{ _('layout.cookie_consent.always_active') }}</span>
+                </div>
+            </div>
+            <div class="cookie-consent-category">
+                <div class="cookie-consent-category-header">
+                    <div>
+                        <strong>{{ _('layout.cookie_consent.category_functional_title') }}</strong>
+                        <p class="text-muted small mb-0">{{ _('layout.cookie_consent.category_functional_desc') }}</p>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="cookieConsentFunctional">
+                    </div>
+                </div>
+            </div>
+            <div class="cookie-consent-category">
+                <div class="cookie-consent-category-header">
+                    <div>
+                        <strong>{{ _('layout.cookie_consent.category_analytics_title') }}</strong>
+                        <p class="text-muted small mb-0">{{ _('layout.cookie_consent.category_analytics_desc') }}</p>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="cookieConsentAnalytics">
+                    </div>
+                </div>
+            </div>
+            <div class="cookie-consent-details-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="cookieConsentSave">
+                    {{ _('layout.cookie_consent.save_preferences') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not current_user.is_authenticated %}
+<button type="button"
+        class="cookie-consent-fab d-none"
+        id="cookieConsentFab"
+        data-cookie-consent-open
+        aria-label="{{ _('layout.cookie_consent.open_settings') }}"
+        title="{{ _('layout.cookie_consent.open_settings') }}">
+    <i class="bi bi-shield-check" aria-hidden="true"></i>
+</button>
+{% endif %}

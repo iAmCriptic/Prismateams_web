@@ -57,11 +57,11 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <p class="mb-1"><strong>Release Version</strong></p>
-                            <p class="text-muted">V2.4.3 - Stable</p>
+                            <p class="text-muted">V2.4.3 - Development</p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <p class="mb-1"><strong>Build Number</strong></p>
-                            <p class="text-muted">B243.260520296</p>
+                            <p class="text-muted">B243.02062026037-Development</p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <p class="mb-1"><strong>{{ _('settings.about.creator_label') }}</strong></p>
@@ -74,6 +74,16 @@
                                     <span class="badge bg-success">{{ _('settings.about.onlyoffice_active') }}</span>
                                 {% else %}
                                     <span class="badge bg-secondary">{{ _('settings.about.onlyoffice_inactive') }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <p class="mb-1"><strong>{{ _('settings.about.media_downloader_label') }}</strong></p>
+                            <p class="text-muted">
+                                {% if media_downloader_compatible %}
+                                    <span class="badge bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
                                 {% endif %}
                             </p>
                         </div>

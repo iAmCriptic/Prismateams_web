@@ -17,6 +17,7 @@ from app.utils.i18n import available_languages, translate
 from app.utils.totp import generate_totp_secret, get_totp_uri, generate_qr_code, encrypt_secret, verify_totp
 from app.utils.session_manager import get_user_sessions, revoke_session, revoke_all_sessions
 from app.utils.password_policy import validate_password
+from app.utils.common import get_timezone_choices, DEFAULT_TIMEZONE, now_in_portal_timezone
 from datetime import datetime
 
 settings_bp = Blueprint('settings', __name__)
@@ -236,8 +237,16 @@ def notifications():
 @login_required
 def appearance():
     """Edit appearance settings."""
+    from app.utils.navigation import (
+        get_available_mobile_nav_options,
+        get_mobile_nav_slots,
+        validate_mobile_nav_slot,
+        MOBILE_NAV_DEFAULT_SLOTS,
+    )
+
     language_codes = list(available_languages())
     selected_language = request.form.get('language') if request.method == 'POST' else current_user.language
+    is_guest = hasattr(current_user, 'is_guest') and current_user.is_guest
 
     if request.method == 'POST':
         color_type = request.form.get('color_type', 'solid')
@@ -268,6 +277,20 @@ def appearance():
             current_user.language = selected_language
             g.language = selected_language
 
+        if not is_guest:
+            nav_left = validate_mobile_nav_slot(
+                request.form.get('mobile_nav_left', MOBILE_NAV_DEFAULT_SLOTS['left']),
+                current_user,
+            )
+            nav_right = validate_mobile_nav_slot(
+                request.form.get('mobile_nav_right', MOBILE_NAV_DEFAULT_SLOTS['right']),
+                current_user,
+            )
+            if nav_left and nav_right:
+                config = current_user.get_dashboard_config()
+                config['mobile_nav_slots'] = {'left': nav_left, 'right': nav_right}
+                current_user.set_dashboard_config(config)
+
         db.session.commit()
         flash(translate('settings.appearance.flash_success'), 'success')
         return redirect(url_for('settings.appearance'))
@@ -280,7 +303,17 @@ def appearance():
             label = LANGUAGE_FALLBACK_NAMES.get(code, code.upper())
         language_options.append({'code': code, 'label': label})
 
-    return render_template('settings/appearance.html', user=current_user, language_options=language_options)
+    mobile_nav_slots = get_mobile_nav_slots(current_user)
+    mobile_nav_options = get_available_mobile_nav_options(current_user)
+
+    return render_template(
+        'settings/appearance.html',
+        user=current_user,
+        language_options=language_options,
+        mobile_nav_slots=mobile_nav_slots,
+        mobile_nav_options=mobile_nav_options,
+        is_guest=is_guest,
+    )
 
 
 @settings_bp.route('/admin')
@@ -1279,7 +1312,13 @@ Ihr Team
 Gesendet von <user> (<email>)
 <app_name> - <date> um <time>"""
     
-    return render_template('settings/admin_email_footer.html', footer_template=current_template)
+    now = now_in_portal_timezone()
+    return render_template(
+        'settings/admin_email_footer.html',
+        footer_template=current_template,
+        footer_preview_date=now.strftime('%d.%m.%Y'),
+        footer_preview_time=now.strftime('%H:%M'),
+    )
 
 
 @settings_bp.route('/admin/email-permissions')
@@ -1439,6 +1478,23 @@ def admin_system():
             # If empty, remove existing gradient setting (use default)
             if gradient_setting:
                 db.session.delete(gradient_setting)
+
+        # Update portal timezone
+        timezone_choices = dict(get_timezone_choices())
+        portal_timezone = request.form.get('portal_timezone', DEFAULT_TIMEZONE).strip()
+        if portal_timezone not in timezone_choices:
+            portal_timezone = DEFAULT_TIMEZONE
+
+        timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
+        if timezone_setting:
+            timezone_setting.value = portal_timezone
+        else:
+            timezone_setting = SystemSettings(
+                key='portal_timezone',
+                value=portal_timezone,
+                description='Globale Zeitzone für Datums- und Zeitangaben'
+            )
+            db.session.add(timezone_setting)
         
         db.session.commit()
         flash(translate('settings.admin.system.flash_updated'), 'success')
@@ -1449,17 +1505,21 @@ def admin_system():
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
     accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
+    timezone_setting = SystemSettings.query.filter_by(key='portal_timezone').first()
     
     portal_name = portal_name_setting.value if portal_name_setting else ''
     portal_logo = portal_logo_setting.value if portal_logo_setting else None
     default_accent_color = accent_color_setting.value if accent_color_setting else '#0d6efd'
     color_gradient = gradient_setting.value if gradient_setting else ''
+    portal_timezone = timezone_setting.value if timezone_setting and timezone_setting.value else DEFAULT_TIMEZONE
     
     return render_template('settings/admin_system.html', 
                          portal_name=portal_name, 
                          portal_logo=portal_logo,
                          default_accent_color=default_accent_color,
-                         color_gradient=color_gradient)
+                         color_gradient=color_gradient,
+                         portal_timezone=portal_timezone,
+                         timezone_choices=get_timezone_choices())
 
 
 @settings_bp.route('/admin/registration', methods=['GET', 'POST'])
@@ -1610,6 +1670,7 @@ def admin_modules():
             'module_wiki': request.form.get('module_wiki') == 'on',
             'module_booking': request.form.get('module_booking') == 'on',
             'module_music': request.form.get('module_music') == 'on',
+            'module_media_downloader': request.form.get('module_media_downloader') == 'on',
             'module_assessment': request.form.get('module_assessment') == 'on',
             'module_shortlinks': request.form.get('module_shortlinks') == 'on'
         }
@@ -1637,6 +1698,7 @@ def admin_modules():
     module_wiki_enabled = is_module_enabled('module_wiki')
     module_booking_enabled = is_module_enabled('module_booking')
     module_music_enabled = is_module_enabled('module_music')
+    module_media_downloader_enabled = is_module_enabled('module_media_downloader')
     module_assessment_enabled = is_module_enabled('module_assessment')
     module_shortlinks_enabled = is_module_enabled('module_shortlinks')
     
@@ -1651,64 +1713,9 @@ def admin_modules():
                            module_wiki_enabled=module_wiki_enabled,
                            module_booking_enabled=module_booking_enabled,
                            module_music_enabled=module_music_enabled,
+                           module_media_downloader_enabled=module_media_downloader_enabled,
                            module_assessment_enabled=module_assessment_enabled,
                            module_shortlinks_enabled=module_shortlinks_enabled)
-
-
-@settings_bp.route('/admin/modules/assessment-admin', methods=['GET', 'POST'])
-@login_required
-def admin_modules_create_assessment_admin():
-    """Schnellanlegen eines Assessment-Modul-Administrators (nur Portal-Admins)."""
-    from flask import jsonify
-
-    if not current_user.is_admin:
-        if request.method == 'GET':
-            flash(translate('settings.admin.flash_unauthorized'), 'danger')
-            return redirect(url_for('settings.index'))
-        return jsonify({'success': False, 'message': 'Nur Portal-Administratoren.'}), 403
-
-    if request.method == 'GET':
-        from app.utils.common import is_module_enabled
-        if not is_module_enabled('module_assessment'):
-            flash('Das Bewertungs-Modul ist aktuell deaktiviert.', 'warning')
-            return redirect(url_for('settings.admin'))
-        return render_template('settings/admin_assessment_admin.html')
-
-    from app.models.assessment import AssessmentRole, AssessmentUser
-
-    data = request.get_json(silent=True) or {}
-    username = (data.get('username') or '').strip().lower()
-    display_name = (data.get('display_name') or '').strip()
-    password = (data.get('password') or '').strip()
-
-    if not username or not display_name or not password:
-        return jsonify({'success': False, 'message': 'Bitte alle Felder ausfüllen.'}), 400
-    if '@' in username:
-        return jsonify({'success': False, 'message': 'Der Benutzername darf kein @ enthalten.'}), 400
-    if len(password) < 8:
-        return jsonify({'success': False, 'message': 'Passwort muss mindestens 8 Zeichen haben.'}), 400
-    if AssessmentUser.query.filter_by(username=username).first():
-        return jsonify({'success': False, 'message': 'Benutzername existiert bereits.'}), 409
-
-    admin_role = AssessmentRole.query.filter_by(name='Administrator').first()
-    if not admin_role:
-        admin_role = AssessmentRole(name='Administrator')
-        db.session.add(admin_role)
-        db.session.flush()
-
-    user = AssessmentUser(
-        username=username,
-        display_name=display_name,
-        is_admin=True,
-        is_active=True,
-        must_change_password=False,
-    )
-    user.set_password(password)
-    user.roles = [admin_role]
-    db.session.add(user)
-    db.session.commit()
-
-    return jsonify({'success': True, 'message': f"Assessment-Admin '{username}' wurde erfolgreich angelegt."})
 
 
 @settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])
@@ -2024,10 +2031,15 @@ Gesendet von <user> (<email>)
     sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
     sync_interval = int(sync_setting.value) if sync_setting and sync_setting.value else 30
     
-    return render_template('settings/admin_email_module.html', 
-                         footer_template=current_footer,
-                         storage_days=storage_days,
-                         sync_interval=sync_interval)
+    now = now_in_portal_timezone()
+    return render_template(
+        'settings/admin_email_module.html',
+        footer_template=current_footer,
+        storage_days=storage_days,
+        sync_interval=sync_interval,
+        footer_preview_date=now.strftime('%d.%m.%Y'),
+        footer_preview_time=now.strftime('%H:%M'),
+    )
 
 
 @settings_bp.route('/admin/email-settings', methods=['GET', 'POST'])
@@ -3134,9 +3146,16 @@ def about():
     
     # OnlyOffice Status prüfen
     from app.utils.onlyoffice import is_onlyoffice_enabled
+    from app.utils.media_downloader import is_media_downloader_compatible
     onlyoffice_enabled = is_onlyoffice_enabled()
+    media_downloader_compatible = is_media_downloader_compatible()
     
-    return render_template('settings/about.html', creator_name=creator_name, onlyoffice_enabled=onlyoffice_enabled)
+    return render_template(
+        'settings/about.html',
+        creator_name=creator_name,
+        onlyoffice_enabled=onlyoffice_enabled,
+        media_downloader_compatible=media_downloader_compatible,
+    )
 
 
 LANGUAGE_FALLBACK_NAMES = {

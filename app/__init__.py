@@ -213,7 +213,7 @@ def create_app(config_name='default'):
         if session.get('user_scope') == 'assessment':
             if request.path.startswith('/assessment'):
                 return
-            if request.endpoint in {'auth.login', 'auth.logout', 'manifest', 'static', 'assessment.map.serve_uploaded_plans', 'assessment.admin_settings.serve_branding_file'}:
+            if request.endpoint in {'auth.login', 'auth.logout', 'manifest', 'static'}:
                 return
             return redirect(url_for('assessment.general.home'))
         
@@ -319,8 +319,8 @@ def create_app(config_name='default'):
         os.path.join(app.config['UPLOAD_FOLDER'], 'booking_forms'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'veranstaltungen'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'assessment'),
-        os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'floor_plans'),
         os.path.join(app.config['UPLOAD_FOLDER'], 'assessment', 'branding'),
+        os.path.join(app.config['UPLOAD_FOLDER'], 'media_downloader'),
     ]
     for directory in upload_dirs:
         os.makedirs(directory, exist_ok=True)
@@ -364,7 +364,7 @@ def create_app(config_name='default'):
         
         from app.utils.onlyoffice import is_onlyoffice_enabled
         onlyoffice_available = is_onlyoffice_enabled()
-        
+
         from app.utils.common import is_module_enabled
         
         def get_chat_display_name(chat):
@@ -458,6 +458,9 @@ def create_app(config_name='default'):
                 'calendar.view': 'calendar.index',
                 'calendar.edit_event': 'calendar.index',
                 'calendar.create': 'calendar.index',
+                'events.view_event': 'events.index',
+                'events.edit_event': 'events.index',
+                'events.create_event': 'events.index',
                 'email.view_email': 'email.index',
                 'email.compose': 'email.index',
                 'email.reply': 'email.index',
@@ -474,6 +477,8 @@ def create_app(config_name='default'):
                 'manuals.view': 'manuals.index',
                 'manuals.edit': 'manuals.index',
                 'manuals.create': 'manuals.index',
+                'assessment.lists.manage_list_subjects_page': 'assessment.lists.manage_lists_page',
+                'assessment.auth.admin_setup': 'assessment.general.home',
             }
             
             if endpoint in specific_mappings:
@@ -497,6 +502,8 @@ def create_app(config_name='default'):
                 'chat': 'chat.index',
                 'files': 'files.index',
                 'calendar': 'calendar.index',
+                'events': 'events.index',
+                'contacts': 'contacts.index',
                 'credentials': 'credentials.index',
                 'manuals': 'manuals.index',
                 'wiki': 'wiki.index',
@@ -513,6 +520,18 @@ def create_app(config_name='default'):
             
             return url_for('dashboard.index')
         
+        mobile_nav_slots = None
+        mobile_nav_left = None
+        mobile_nav_right = None
+        if current_user.is_authenticated:
+            from app.utils.navigation import (
+                get_mobile_nav_slots,
+                resolve_nav_link,
+            )
+            mobile_nav_slots = get_mobile_nav_slots(current_user)
+            mobile_nav_left = resolve_nav_link(mobile_nav_slots['left'], current_user)
+            mobile_nav_right = resolve_nav_link(mobile_nav_slots['right'], current_user)
+
         return {
             'app_name': app_name,
             'app_logo': app_logo,
@@ -523,7 +542,10 @@ def create_app(config_name='default'):
             'has_module_access': has_module_access,
             'get_back_url': get_back_url,
             'get_chat_display_name': get_chat_display_name,
-            'get_other_chat_user': get_other_chat_user
+            'get_other_chat_user': get_other_chat_user,
+            'mobile_nav_slots': mobile_nav_slots,
+            'mobile_nav_left': mobile_nav_left,
+            'mobile_nav_right': mobile_nav_right,
         }
     
     @app.template_filter('decode_email_header')
@@ -624,8 +646,7 @@ def create_app(config_name='default'):
         if not dt:
             return ''
         
-        from datetime import datetime, date
-        from app.utils.common import get_local_time
+        from app.utils.common import get_local_time, now_in_portal_timezone
         
         local_dt = get_local_time(dt)
         if isinstance(local_dt, str):
@@ -634,8 +655,8 @@ def create_app(config_name='default'):
             except:
                 return str(dt)
         
-        now = datetime.now()
-        today = date.today()
+        now = now_in_portal_timezone()
+        today = now.date()
         message_date = local_dt.date()
         
         days_diff = (today - message_date).days
@@ -750,6 +771,8 @@ def create_app(config_name='default'):
     from app.blueprints.sse import sse_bp
     from app.blueprints.assessment import assessment_bp
     from app.blueprints.shortlinks import shortlinks_bp
+    from app.blueprints.events import events_bp
+    from app.blueprints.media_downloader import media_downloader_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -774,6 +797,8 @@ def create_app(config_name='default'):
     app.register_blueprint(sse_bp, url_prefix='/sse')
     app.register_blueprint(assessment_bp)
     app.register_blueprint(shortlinks_bp)
+    app.register_blueprint(events_bp, url_prefix='/events')
+    app.register_blueprint(media_downloader_bp)
     
     @app.route('/manifest.json')
     def manifest():
@@ -877,13 +902,18 @@ def create_app(config_name='default'):
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
                 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
+                from app.models.media_downloader import MediaDownloadJob
                 from app.models.shortlink import ShortLink
                 from app.models.booking import BookingRequest, BookingForm, BookingFormField, BookingFormImage, BookingRequestField, BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval
+                from app.models.event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
                 from app.models.user_session import UserSession
                 from app.models.assessment import (
                     AssessmentUser,
                     AssessmentRole,
                     AssessmentUserRole,
+                    AssessmentStandType,
+                    AssessmentList,
+                    AssessmentListSubject,
                     AssessmentRoom,
                     AssessmentStand,
                     AssessmentCriterion,
@@ -894,8 +924,6 @@ def create_app(config_name='default'):
                     AssessmentWarning,
                     AssessmentRoomInspection,
                     AssessmentAppSetting,
-                    AssessmentFloorPlan,
-                    AssessmentFloorPlanObject,
                 )
                 
                 # Prüfe welche Tabellen bereits existieren
@@ -1114,6 +1142,36 @@ def create_app(config_name='default'):
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
 
+                    # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
+                    table_names = set(inspector.get_table_names())
+                    if 'events' in table_names:
+                        event_columns = {col['name'] for col in inspector.get_columns('events')}
+                        with db.engine.begin() as connection:
+                            if 'is_archived' not in event_columns:
+                                connection.execute(
+                                    text("ALTER TABLE events ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0")
+                                )
+                                print("[OK] events.is_archived hinzugefügt")
+                            if 'archived_at' not in event_columns:
+                                connection.execute(
+                                    text("ALTER TABLE events ADD COLUMN archived_at DATETIME NULL")
+                                )
+                                print("[OK] events.archived_at hinzugefügt")
+
+                    if 'event_timeline_items' in table_names:
+                        timeline_columns = {
+                            col['name'] for col in inspector.get_columns('event_timeline_items')
+                        }
+                        if 'appointment_id' not in timeline_columns:
+                            with db.engine.begin() as connection:
+                                connection.execute(
+                                    text(
+                                        "ALTER TABLE event_timeline_items "
+                                        "ADD COLUMN appointment_id INTEGER NULL"
+                                    )
+                                )
+                            print("[OK] event_timeline_items.appointment_id hinzugefügt")
+
                     # Chat-Messages: metadata_json für strukturierte Nachrichtentypen ergänzen
                     if 'chat_messages' in inspector.get_table_names():
                         chat_columns = {col['name'] for col in inspector.get_columns('chat_messages')}
@@ -1220,7 +1278,6 @@ def create_app(config_name='default'):
                     assessment_defaults = {
                         'welcome_title': 'Willkommen im Bewertungstool',
                         'welcome_subtitle': 'Bewerten, Ränge prüfen und Verwaltung – alles an einem Ort.',
-                        'module_label': 'Bewertung',
                         'ranking_active_mode': 'standard',
                         'ranking_sort_mode': 'total',
                     }
@@ -1228,6 +1285,9 @@ def create_app(config_name='default'):
                         if not AssessmentAppSetting.query.filter_by(setting_key=key).first():
                             db.session.add(AssessmentAppSetting(setting_key=key, setting_value=value))
                     db.session.commit()
+
+                    from app.blueprints.assessment.migration import run_assessment_migrations
+                    run_assessment_migrations()
                 except Exception as assessment_error:
                     db.session.rollback()
                     print(f"[WARNUNG] Assessment-Modul-Migration übersprungen: {assessment_error}")
@@ -1300,6 +1360,13 @@ def create_app(config_name='default'):
                         key='available_languages',
                         value='["de","en","pt","es","ru"]',
                         description='Liste der aktivierten Sprachen'
+                    ))
+
+                if not SystemSettings.query.filter_by(key='portal_timezone').first():
+                    db.session.add(SystemSettings(
+                        key='portal_timezone',
+                        value='Europe/Berlin',
+                        description='Globale Zeitzone für Datums- und Zeitangaben'
                     ))
                 
                 language_settings = {
@@ -1455,6 +1522,9 @@ def create_app(config_name='default'):
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
+
+        from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
+        start_media_downloader_cleanup(app)
     
     return app
 

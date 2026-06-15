@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>{{ event.name }}</h1>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('events.event_pdf', event_id=event.id) }}">PDF</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('events.edit_event', event_id=event.id) }}">Bearbeiten</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div><strong>Beschreibung:</strong> {{ event.description or '-' }}</div>
+                <div><strong>Ort:</strong> {{ event.default_location or '-' }}</div>
+                <div><strong>Dateiordner:</strong>
+                    {% if event.folder %}
+                        <a href="{{ url_for('files.browse_folder', folder_id=event.folder.id) }}">{{ event.folder.path }}</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Termine</div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead><tr><th>Typ</th><th>Von</th><th>Bis</th><th>Ort</th><th></th></tr></thead>
+                    <tbody>
+                        {% for a in event.appointments %}
+                        <tr>
+                            <td>{{ a.label }}</td>
+                            <td>{{ a.start_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>{{ a.end_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>{{ a.location or event.default_location or '-' }}</td>
+                            <td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}">QR Scanner</a></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-muted">Keine Termine</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Zeitplan pro Termin</div>
+            <ul class="list-group list-group-flush">
+                {% for a in event.appointments %}
+                    <li class="list-group-item">
+                        <div class="fw-semibold mb-1">{{ a.label }} ({{ a.start_time.strftime('%d.%m.%Y %H:%M') }})</div>
+                        {% set ns = namespace(has_appt_timeline=false) %}
+                        <ul class="mb-0">
+                            {% for item in event.timeline_items if item.appointment_id == a.id %}
+                                {% set ns.has_appt_timeline = true %}
+                                <li>{{ item.title }}</li>
+                            {% endfor %}
+                            {% if not ns.has_appt_timeline %}
+                                <li class="text-muted">Kein Zeitplan für diesen Termin.</li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                {% endfor %}
+                {% if not event.appointments %}
+                    <li class="list-group-item text-muted">Kein Zeitplan hinterlegt.</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">Personen</div>
+            <ul class="list-group list-group-flush">
+                {% for a in event.assignments %}
+                <li class="list-group-item">{{ a.user.full_name if a.user else a.display_name }}</li>
+                {% else %}
+                <li class="list-group-item text-muted">Keine Personen</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header">Ansprechpartner</div>
+            <ul class="list-group list-group-flush">
+                {% for c in event.contacts %}
+                <li class="list-group-item">
+                    <div><strong>{{ c.name }}</strong> {% if c.role %}<span class="text-muted">({{ c.role }})</span>{% endif %}</div>
+                    {% if c.phone %}<div>{{ c.phone }}</div>{% endif %}
+                    {% if c.email %}<div>{{ c.email }}</div>{% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Keine Ansprechpartner</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="card">
+            <div class="card-header">Konflikte (Warnung)</div>
+            <div class="card-body">
+                <div class="mb-2"><strong>Personen:</strong> {{ conflicts.person_conflicts|length }}</div>
+                <div><strong>Material:</strong> {{ conflicts.inventory_conflicts|length }}</div>
+                {% if conflicts.person_conflicts or conflicts.inventory_conflicts %}
+                <a class="btn btn-sm btn-outline-danger mt-2" href="{{ url_for('events.event_conflicts', event_id=event.id) }}" target="_blank">Details (JSON)</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

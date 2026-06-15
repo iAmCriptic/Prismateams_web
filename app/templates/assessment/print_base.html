@@ -83,11 +83,13 @@
     <div class="print-sheet">
         <header class="print-header">
             <div class="brand">
-                {% if assessment_logo_url %}
-                <img src="{{ assessment_logo_url }}" alt="{{ assessment_module_label or 'Bewertung' }}" class="logo">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="logo">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="logo">
                 {% endif %}
                 <div class="brand-text">
-                    <h1>{% block document_title %}{{ assessment_module_label or 'Bewertungstool' }}{% endblock %}</h1>
+                    <h1>{% block document_title %}{{ app_name or 'Bewertung' }}{% endblock %}</h1>
                     {% block document_subtitle %}{% endblock %}
                 </div>
             </div>
@@ -101,7 +103,7 @@
         {% block print_footer %}
         <footer class="print-footer">
             <span>{% block footer_left %}{% endblock %}</span>
-            <span class="powered">Powered by <strong>{{ assessment_portal_name }}</strong></span>
+            <span class="powered">Powered by <strong>{{ app_name or 'Prismateams' }}</strong></span>
         </footer>
         {% endblock %}
     </div>
