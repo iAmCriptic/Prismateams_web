@@ -2593,15 +2593,9 @@ function openShareSettings(type, id) {
             const item = data.item;
             const formAction = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
             const linksHtml = (item.links || []).map(link => renderShareLinkSection(shareLabels, formAction, link)).join('');
-            const logs = item.access_logs || [];
-            const logsHtml = `
-                <h6 class="mt-3">${shareLabels.access_log_title || 'Letzte Zugriffe'}</h6>
-                ${renderShareAccessLogsTable(logs, shareLabels)}
-            `;
             const html = `
                 <form method="POST" action="${formAction}">
                     ${linksHtml}
-                    ${logsHtml}
                     <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> ${shareLabels.save_button}</button>
                         <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger"><i class="bi bi-slash-circle"></i> ${shareLabels.disable_button}</button>
