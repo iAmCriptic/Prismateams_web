@@ -213,7 +213,6 @@
     const progressIntervals = new Map();
     let playlistData = null;
     let playlistPreviewUrl = '';
-    let previewDebounceTimer = null;
     let previewInFlight = false;
 
     const playlistModalEl = document.getElementById('playlistModal');
@@ -348,12 +347,6 @@
         } finally {
             previewInFlight = false;
         }
-    }
-
-    function schedulePlaylistPreview(url) {
-        clearTimeout(previewDebounceTimer);
-        if (!isPlaylistUrl(url)) return;
-        previewDebounceTimer = setTimeout(() => openPlaylistPreview(url), 600);
     }
 
     function stopProgressAnimation(jobId) {
@@ -564,22 +557,26 @@
     }
 
     const sourceUrlInput = document.getElementById('source_url');
-    if (sourceUrlInput) {
-        sourceUrlInput.addEventListener('input', () => schedulePlaylistPreview(sourceUrlInput.value));
-        sourceUrlInput.addEventListener('paste', () => {
-            setTimeout(() => schedulePlaylistPreview(sourceUrlInput.value), 0);
-        });
-    }
 
     const downloadForm = document.getElementById('downloadForm');
-    if (downloadForm) {
-        downloadForm.addEventListener('submit', (event) => {
-        const url = sourceUrlInput.value.trim();
-        if (isPlaylistUrl(url)) {
-            event.preventDefault();
-            openPlaylistPreview(url);
+    if (downloadForm && sourceUrlInput) {
+        const handleDownloadIntent = (event) => {
+            const url = sourceUrlInput.value.trim();
+            if (isPlaylistUrl(url)) {
+                event.preventDefault();
+                event.stopPropagation();
+                openPlaylistPreview(url);
+                return false;
+            }
+            return true;
+        };
+
+        downloadForm.addEventListener('submit', handleDownloadIntent);
+
+        const submitButton = downloadForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.addEventListener('click', handleDownloadIntent);
         }
-    });
     }
 
     document.querySelectorAll('input[name="playlist_mode"]').forEach(input => {
