@@ -193,6 +193,7 @@ ffmpeg -version
 - Python-Paket `yt-dlp` wird über `requirements.txt` im Virtual Environment installiert
 - **Aktivierung im Portal:** Einstellungen → Administration → Module → **Media Downloader**
 - Heruntergeladene Dateien werden standardmäßig nach **1 Stunde** automatisch gelöscht (`MEDIA_DOWNLOADER_RETENTION_HOURS` in `.env`, optional)
+- **Playlists:** YouTube- und YouTube-Music-Playlists können über die Weboberfläche als Batch heruntergeladen werden; parallel laufende Downloads begrenzt `MEDIA_DOWNLOADER_MAX_CONCURRENT` (Standard: 2)
 - **Rechtlicher Hinweis:** Nutzer sind für die Einhaltung von Urheberrecht und Plattform-Nutzungsbedingungen verantwortlich
 
 ### Schritt 7: Konfiguration (.env-Datei)

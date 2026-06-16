@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from flask import current_app
 
@@ -22,6 +22,8 @@ ALLOWED_HOSTS = {
 
 TIME_PATTERN = re.compile(r'^(\d+):([0-5]\d)(?::([0-5]\d))?$')
 
+PLAYLIST_LIST_PREFIXES = ('PL', 'RD', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
+
 
 def get_ffmpeg_path():
     """Return configured FFmpeg path or discover it on PATH."""
@@ -34,6 +36,40 @@ def get_ffmpeg_path():
 def is_media_downloader_compatible():
     """True when FFmpeg is available (system requirement for downloads)."""
     return bool(get_ffmpeg_path())
+
+
+def _get_playlist_list_id(parsed):
+    list_vals = parse_qs(parsed.query).get('list', [])
+    if not list_vals:
+        return None
+    list_id = list_vals[0].strip()
+    return list_id or None
+
+
+def is_playlist_url(url):
+    """Return True when the URL refers to a YouTube / YouTube Music playlist."""
+    if not url or not url.strip():
+        return False
+
+    parsed = urlparse(url.strip())
+    host = parsed.netloc.lower().split(':')[0]
+    if host not in ALLOWED_HOSTS:
+        return False
+
+    path = parsed.path.rstrip('/').lower()
+    list_id = _get_playlist_list_id(parsed)
+
+    if path.endswith('/playlist') and list_id:
+        return True
+
+    if path in ('/watch', '') or path.startswith('/watch'):
+        return list_id is not None
+
+    if host.startswith('music.') and path.strip('/'):
+        if path.endswith('/playlist') or list_id:
+            return True
+
+    return False
 
 
 def validate_media_url(url):
@@ -55,6 +91,12 @@ def validate_media_url(url):
         return False, 'invalid_host'
 
     if host in ('youtu.be',) and not parsed.path.strip('/'):
+        return False, 'invalid_url'
+
+    path = parsed.path.rstrip('/').lower()
+    if path.endswith('/playlist'):
+        if _get_playlist_list_id(parsed):
+            return True, None
         return False, 'invalid_url'
 
     if host.endswith('youtube.com') and 'watch' not in parsed.path and 'shorts' not in parsed.path:
@@ -121,29 +163,16 @@ def get_retention_timedelta():
     return timedelta(hours=max(1, int(hours)))
 
 
-def run_download(job):
-    """
-    Download and convert media for a MediaDownloadJob instance.
-
-    Returns:
-        tuple: (success: bool, error_message: str | None)
-    """
-    import yt_dlp
-
-    upload_dir = get_upload_dir()
-    output_ext = 'mp3' if job.format == 'audio' else 'mp4'
-    output_template = os.path.join(upload_dir, f'{job.id}_%(title).200B.%(ext)s')
-
-    ffmpeg_path = get_ffmpeg_path()
+def _get_common_ydl_opts():
+    """Shared yt-dlp options for metadata extraction and downloads."""
     max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 524288000)
+    ffmpeg_path = get_ffmpeg_path()
 
     ydl_opts = {
-        'outtmpl': output_template,
         'quiet': True,
         'no_warnings': True,
         'restrictfilenames': True,
         'max_filesize': max_bytes,
-        # Reduce YouTube 403 issues by preferring modern clients and headers.
         'http_headers': {
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -165,6 +194,84 @@ def run_download(job):
     if ffmpeg_path:
         ffmpeg_dir = os.path.dirname(ffmpeg_path)
         ydl_opts['ffmpeg_location'] = ffmpeg_dir or ffmpeg_path
+
+    return ydl_opts
+
+
+def extract_playlist_entries(url):
+    """
+    Fetch playlist metadata without downloading.
+
+    Returns:
+        tuple: (result_dict | None, error_key | None)
+    """
+    import yt_dlp
+
+    ydl_opts = _get_common_ydl_opts()
+    ydl_opts.update({
+        'extract_flat': 'in_playlist',
+        'skip_download': True,
+    })
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        logger.error('Playlist preview failed for %s: %s', url, exc, exc_info=True)
+        return None, 'preview_failed'
+
+    if not info:
+        return None, 'empty_playlist'
+
+    entries = []
+    for entry in info.get('entries') or []:
+        if not entry:
+            continue
+
+        video_id = entry.get('id')
+        if not video_id:
+            continue
+
+        title = (entry.get('title') or '').strip()
+        if title in ('[Private video]', '[Deleted video]'):
+            continue
+
+        entry_url = entry.get('url') or entry.get('webpage_url')
+        if not entry_url:
+            entry_url = f'https://www.youtube.com/watch?v={video_id}'
+
+        entries.append({
+            'id': video_id,
+            'title': title or video_id,
+            'url': entry_url,
+            'duration': entry.get('duration'),
+        })
+
+    if not entries:
+        return None, 'empty_playlist'
+
+    return {
+        'playlist_title': info.get('title') or 'Playlist',
+        'entry_count': len(entries),
+        'entries': entries,
+    }, None
+
+
+def run_download(job):
+    """
+    Download and convert media for a MediaDownloadJob instance.
+
+    Returns:
+        tuple: (success: bool, error_message: str | None)
+    """
+    import yt_dlp
+
+    upload_dir = get_upload_dir()
+    output_ext = 'mp3' if job.format == 'audio' else 'mp4'
+    output_template = os.path.join(upload_dir, f'{job.id}_%(title).200B.%(ext)s')
+
+    ydl_opts = _get_common_ydl_opts()
+    ydl_opts['outtmpl'] = output_template
 
     if job.format == 'audio':
         ydl_opts.update({
