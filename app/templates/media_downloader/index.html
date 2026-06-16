@@ -229,8 +229,19 @@
     const playlistModalEl = document.getElementById('playlistModal');
     const bootstrapModalApi = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal : null;
     const playlistModal = (playlistModalEl && bootstrapModalApi)
-        ? bootstrapModalApi.getOrCreateInstance(playlistModalEl)
+        ? (typeof bootstrapModalApi.getOrCreateInstance === 'function'
+            ? bootstrapModalApi.getOrCreateInstance(playlistModalEl)
+            : new bootstrapModalApi(playlistModalEl))
         : null;
+
+    const statusRank = {
+        pending: 1,
+        processing: 2,
+        cancelling: 3,
+        completed: 4,
+        failed: 4,
+        cancelled: 4
+    };
 
     function isPlaylistUrl(url) {
         if (!url) return false;
@@ -334,7 +345,7 @@
         renderPlaylistEntries();
     }
 
-    async function openPlaylistPreview(url) {
+    async function openPlaylistPreview(url, fallbackSubmitForm) {
         if (!playlistModal || previewInFlight) return;
         playlistPreviewUrl = url.trim();
         previewInFlight = true;
@@ -349,6 +360,11 @@
             });
             const data = await response.json();
             if (!response.ok) {
+                if (data.error_key === 'not_a_playlist' && fallbackSubmitForm) {
+                    playlistModal.hide();
+                    fallbackSubmitForm.submit();
+                    return;
+                }
                 showPlaylistError(data.error || previewErrorLabel);
                 return;
             }
@@ -493,6 +509,16 @@
             .then(response => response.json())
             .then(data => {
                 const previousStatus = row.dataset.status;
+                const previousRank = statusRank[previousStatus] || 0;
+                const incomingRank = statusRank[data.status] || 0;
+                const shouldIgnoreStaleUpdate = previousRank > incomingRank;
+                if (shouldIgnoreStaleUpdate) {
+                    if (previousStatus === 'pending' || previousStatus === 'processing' || previousStatus === 'cancelling') {
+                        setTimeout(() => pollJob(row), 2500);
+                    }
+                    return;
+                }
+
                 row.dataset.status = data.status;
 
                 if (data.title) {
@@ -530,7 +556,7 @@
                     actionsCell.innerHTML = '';
                 }
 
-                if (data.status === 'pending' || data.status === 'processing') {
+                if (data.status === 'pending' || data.status === 'processing' || data.status === 'cancelling') {
                     setTimeout(() => pollJob(row), 2500);
                 }
             })
@@ -588,13 +614,13 @@
     if (downloadForm && sourceUrlInput) {
         const handleDownloadIntent = (event) => {
             const url = sourceUrlInput.value.trim();
-            if (isPlaylistUrl(url)) {
-                event.preventDefault();
-                event.stopPropagation();
-                openPlaylistPreview(url);
-                return false;
+            if (!url) {
+                return true;
             }
-            return true;
+            event.preventDefault();
+            event.stopPropagation();
+            openPlaylistPreview(url, downloadForm);
+            return false;
         };
 
         downloadForm.addEventListener('submit', handleDownloadIntent);
