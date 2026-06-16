@@ -59,8 +59,11 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">{{ _('media_downloader.jobs.title') }}</h5>
+        <button type="button" class="btn btn-sm btn-outline-danger" id="clearAllJobsBtn">
+            <i class="bi bi-trash3 me-1"></i>{{ _('media_downloader.jobs.clear_all') }}
+        </button>
     </div>
     <div class="card-body">
         <p class="text-muted mb-0{% if jobs %} d-none{% endif %}" id="jobsEmpty">{{ _('media_downloader.jobs.empty') }}</p>
@@ -94,6 +97,10 @@
                                 <span class="badge bg-success">{{ _('media_downloader.status.completed') }}</span>
                             {% elif job.status == 'failed' %}
                                 <span class="badge bg-danger">{{ _('media_downloader.status.failed') }}</span>
+                            {% elif job.status == 'cancelled' %}
+                                <span class="badge bg-secondary">{{ _('media_downloader.status.cancelled') }}</span>
+                            {% elif job.status == 'cancelling' %}
+                                <span class="badge bg-warning text-dark">{{ _('media_downloader.status.cancelling') }}</span>
                             {% else %}
                                 <div class="progress job-progress" style="height: 22px; min-width: 140px;">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 5%">5%</div>
@@ -192,7 +199,9 @@
         pending: {{ _('media_downloader.status.pending')|tojson }},
         processing: {{ _('media_downloader.status.processing')|tojson }},
         completed: {{ _('media_downloader.status.completed')|tojson }},
-        failed: {{ _('media_downloader.status.failed')|tojson }}
+        failed: {{ _('media_downloader.status.failed')|tojson }},
+        cancelled: {{ _('media_downloader.status.cancelled')|tojson }},
+        cancelling: {{ _('media_downloader.status.cancelling')|tojson }}
     };
     const formatLabels = {
         audio: {{ _('media_downloader.format.audio')|tojson }},
@@ -208,6 +217,8 @@
     const statusUrlTemplate = {{ url_for('media_downloader.job_status', job_id=0)|tojson }};
     const previewUrl = {{ url_for('media_downloader.playlist_preview')|tojson }};
     const batchUrl = {{ url_for('media_downloader.download_batch')|tojson }};
+    const clearAllUrl = {{ url_for('media_downloader.clear_all')|tojson }};
+    const clearAllConfirm = {{ _('media_downloader.jobs.clear_all_confirm')|tojson }};
 
     const progressState = new Map();
     const progressIntervals = new Map();
@@ -421,6 +432,19 @@
         }
     }
 
+    function setBadgeStatus(row, status, errorMessage) {
+        stopProgressAnimation(row.dataset.jobId);
+        const statusCell = row.querySelector('.job-status-cell');
+        let badgeClass = 'bg-secondary';
+        if (status === 'failed') badgeClass = 'bg-danger';
+        if (status === 'cancelled') badgeClass = 'bg-secondary';
+        if (status === 'cancelling') badgeClass = 'bg-warning text-dark';
+        statusCell.innerHTML = `<span class="badge ${badgeClass}">${statusLabels[status] || status}</span>`;
+        if (errorMessage) {
+            statusCell.innerHTML += `<div class="small text-danger mt-1 job-error">${errorMessage}</div>`;
+        }
+    }
+
     function formatExpires(isoString) {
         if (!isoString) return '–';
         const date = new Date(isoString);
@@ -483,6 +507,8 @@
                     setCompletedStatus(row);
                 } else if (data.status === 'failed') {
                     setFailedStatus(row, data.error_message);
+                } else if (data.status === 'cancelled' || data.status === 'cancelling') {
+                    setBadgeStatus(row, data.status, data.error_message);
                 } else if (previousStatus !== data.status && data.status === 'processing') {
                     const state = progressState.get(jobId) || { percent: 5 };
                     state.percent = Math.max(state.percent, 25);
@@ -588,6 +614,26 @@
     const playlistDownloadAllBtn = document.getElementById('playlistDownloadAllBtn');
     if (playlistDownloadAllBtn) {
         playlistDownloadAllBtn.addEventListener('click', downloadPlaylistBatch);
+    }
+
+    const clearAllJobsBtn = document.getElementById('clearAllJobsBtn');
+    if (clearAllJobsBtn) {
+        clearAllJobsBtn.addEventListener('click', async () => {
+            if (!window.confirm(clearAllConfirm)) {
+                return;
+            }
+            clearAllJobsBtn.disabled = true;
+            try {
+                const response = await fetch(clearAllUrl, { method: 'POST' });
+                if (response.ok) {
+                    window.location.reload();
+                    return;
+                }
+            } catch (error) {
+                // ignore and re-enable button below
+            }
+            clearAllJobsBtn.disabled = false;
+        });
     }
 
     if (playlistModalEl) {
