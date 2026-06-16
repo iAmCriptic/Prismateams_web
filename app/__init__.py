@@ -31,6 +31,7 @@ def create_app(config_name='default'):
     import os
     basedir = os.path.abspath(os.path.dirname(__file__))
     app = Flask(__name__, static_folder=os.path.join(basedir, 'static'))
+    app.url_map.strict_slashes = False
     
     app.config.from_object(config[config_name])
     

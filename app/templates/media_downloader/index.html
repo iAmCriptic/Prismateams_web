@@ -17,7 +17,7 @@
         <h5 class="mb-0">{{ _('media_downloader.form.title') }}</h5>
     </div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('media_downloader.start_download') }}">
+        <form method="POST" action="{{ url_for('media_downloader.start_download') }}" id="downloadForm">
             <div class="mb-3">
                 <label for="source_url" class="form-label">{{ _('media_downloader.form.url_label') }}</label>
                 <input type="url" class="form-control" id="source_url" name="source_url" required
@@ -37,7 +37,7 @@
                 </div>
             </div>
 
-            <div class="row mb-3">
+            <div class="row mb-3" id="singleSegmentFields">
                 <div class="col-md-6">
                     <label for="start_time" class="form-label">{{ _('media_downloader.form.start_label') }}</label>
                     <input type="text" class="form-control" id="start_time" name="start_time"
@@ -49,7 +49,7 @@
                            placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
                 </div>
             </div>
-            <div class="form-text mb-3">{{ _('media_downloader.form.segment_hint') }}</div>
+            <div class="form-text mb-3" id="segmentHint">{{ _('media_downloader.form.segment_hint') }}</div>
 
             <button type="submit" class="btn btn-accent">
                 <i class="bi bi-download me-1"></i>{{ _('media_downloader.form.submit') }}
@@ -63,8 +63,8 @@
         <h5 class="mb-0">{{ _('media_downloader.jobs.title') }}</h5>
     </div>
     <div class="card-body">
-        {% if jobs %}
-        <div class="table-responsive">
+        <p class="text-muted mb-0{% if jobs %} d-none{% endif %}" id="jobsEmpty">{{ _('media_downloader.jobs.empty') }}</p>
+        <div class="table-responsive{% if not jobs %} d-none{% endif %}" id="jobsTableWrapper">
             <table class="table align-middle" id="downloadJobsTable">
                 <thead>
                     <tr>
@@ -78,7 +78,7 @@
                 <tbody>
                     {% for job in jobs %}
                     <tr data-job-id="{{ job.id }}" data-status="{{ job.status }}">
-                        <td>
+                        <td class="job-title-cell">
                             {% if job.title %}
                                 {{ job.title }}
                             {% else %}
@@ -94,10 +94,10 @@
                                 <span class="badge bg-success">{{ _('media_downloader.status.completed') }}</span>
                             {% elif job.status == 'failed' %}
                                 <span class="badge bg-danger">{{ _('media_downloader.status.failed') }}</span>
-                            {% elif job.status == 'processing' %}
-                                <span class="badge bg-primary">{{ _('media_downloader.status.processing') }}</span>
                             {% else %}
-                                <span class="badge bg-secondary">{{ _('media_downloader.status.pending') }}</span>
+                                <div class="progress job-progress" style="height: 22px; min-width: 140px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 5%">5%</div>
+                                </div>
                             {% endif %}
                             {% if job.error_message %}
                                 <div class="small text-danger mt-1 job-error">{{ job.error_message }}</div>
@@ -122,9 +122,58 @@
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <p class="text-muted mb-0">{{ _('media_downloader.jobs.empty') }}</p>
-        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="playlistModal" tabindex="-1" aria-labelledby="playlistModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="playlistModalLabel">{{ _('media_downloader.playlist.modal_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <div id="playlistLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2 mb-0">{{ _('media_downloader.playlist.loading') }}</p>
+                </div>
+                <div id="playlistError" class="alert alert-danger d-none" role="alert"></div>
+                <div id="playlistContent" class="d-none">
+                    <p class="mb-3" id="playlistMeta"></p>
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ _('media_downloader.form.format_label') }}</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="playlist_format" id="playlist_format_audio" value="audio" checked>
+                            <label class="form-check-label" for="playlist_format_audio">{{ _('media_downloader.form.format_audio') }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="playlist_format" id="playlist_format_video" value="video">
+                            <label class="form-check-label" for="playlist_format_video">{{ _('media_downloader.form.format_video') }}</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="playlist_mode" id="playlist_mode_complete" value="complete" checked>
+                            <label class="form-check-label" for="playlist_mode_complete">{{ _('media_downloader.playlist.mode_complete') }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="playlist_mode" id="playlist_mode_timestamps" value="timestamps">
+                            <label class="form-check-label" for="playlist_mode_timestamps">{{ _('media_downloader.playlist.mode_timestamps') }}</label>
+                        </div>
+                    </div>
+
+                    <div class="list-group" id="playlistEntries"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent" id="playlistDownloadAllBtn" disabled>
+                    <i class="bi bi-download me-1"></i>{{ _('media_downloader.playlist.download_all') }}
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -138,26 +187,310 @@
         completed: {{ _('media_downloader.status.completed')|tojson }},
         failed: {{ _('media_downloader.status.failed')|tojson }}
     };
-    const badgeClass = {
-        pending: 'bg-secondary',
-        processing: 'bg-primary',
-        completed: 'bg-success',
-        failed: 'bg-danger'
+    const formatLabels = {
+        audio: {{ _('media_downloader.format.audio')|tojson }},
+        video: {{ _('media_downloader.format.video')|tojson }}
     };
     const downloadLabel = {{ _('media_downloader.jobs.download')|tojson }};
+    const timePlaceholder = {{ _('media_downloader.form.time_placeholder')|tojson }};
+    const startLabel = {{ _('media_downloader.form.start_label')|tojson }};
+    const endLabel = {{ _('media_downloader.form.end_label')|tojson }};
+    const songCountTemplate = {{ _('media_downloader.playlist.song_count')|tojson }};
+    const previewErrorLabel = {{ _('media_downloader.playlist.preview_error')|tojson }};
     const downloadUrlTemplate = {{ url_for('media_downloader.download_file', job_id=0)|tojson }};
     const statusUrlTemplate = {{ url_for('media_downloader.job_status', job_id=0)|tojson }};
+    const previewUrl = {{ url_for('media_downloader.playlist_preview')|tojson }};
+    const batchUrl = {{ url_for('media_downloader.download_batch')|tojson }};
+
+    const progressState = new Map();
+    const progressIntervals = new Map();
+    let playlistData = null;
+    let playlistPreviewUrl = '';
+    let previewDebounceTimer = null;
+    let previewInFlight = false;
+
+    const playlistModalEl = document.getElementById('playlistModal');
+    const playlistModal = playlistModalEl ? new bootstrap.Modal(playlistModalEl) : null;
+
+    function isPlaylistUrl(url) {
+        if (!url) return false;
+        try {
+            const parsed = new URL(url.trim());
+            const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+            const allowed = ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'];
+            if (!allowed.some(h => host === h || host.endsWith('.' + h))) return false;
+
+            const path = parsed.pathname.replace(/\/$/, '').toLowerCase();
+            const listId = parsed.searchParams.get('list');
+
+            if (path.endsWith('/playlist') && listId) return true;
+            if ((path === '/watch' || path.startsWith('/watch')) && listId) return true;
+            if (host.includes('music.youtube.com') && path && path !== '/' && (path.endsWith('/playlist') || listId)) return true;
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds && seconds !== 0) return '';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function getSelectedFormat() {
+        const checked = document.querySelector('input[name="format"]:checked');
+        return checked ? checked.value : 'audio';
+    }
+
+    function syncPlaylistFormatFromForm() {
+        const format = getSelectedFormat();
+        const audio = document.getElementById('playlist_format_audio');
+        const video = document.getElementById('playlist_format_video');
+        if (format === 'video' && video) video.checked = true;
+        else if (audio) audio.checked = true;
+    }
+
+    function showPlaylistLoading() {
+        document.getElementById('playlistLoading').classList.remove('d-none');
+        document.getElementById('playlistContent').classList.add('d-none');
+        document.getElementById('playlistError').classList.add('d-none');
+        document.getElementById('playlistDownloadAllBtn').disabled = true;
+    }
+
+    function showPlaylistError(message) {
+        const errorEl = document.getElementById('playlistError');
+        errorEl.textContent = message;
+        errorEl.classList.remove('d-none');
+        document.getElementById('playlistLoading').classList.add('d-none');
+        document.getElementById('playlistContent').classList.add('d-none');
+        document.getElementById('playlistDownloadAllBtn').disabled = true;
+    }
+
+    function renderPlaylistEntries() {
+        const mode = document.querySelector('input[name="playlist_mode"]:checked')?.value || 'complete';
+        const container = document.getElementById('playlistEntries');
+        container.innerHTML = '';
+
+        (playlistData.entries || []).forEach((entry, index) => {
+            const item = document.createElement('div');
+            item.className = 'list-group-item';
+            const duration = entry.duration ? `<small class="text-muted ms-2">${formatDuration(entry.duration)}</small>` : '';
+            let timestampFields = '';
+            if (mode === 'timestamps') {
+                timestampFields = `
+                    <div class="row g-2 mt-2 timestamp-fields">
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">${startLabel}</label>
+                            <input type="text" class="form-control form-control-sm entry-start" data-index="${index}"
+                                   placeholder="${timePlaceholder}" pattern="^\\d+:[0-5]\\d(:\\d+)?$">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">${endLabel}</label>
+                            <input type="text" class="form-control form-control-sm entry-end" data-index="${index}"
+                                   placeholder="${timePlaceholder}" pattern="^\\d+:[0-5]\\d(:\\d+)?$">
+                        </div>
+                    </div>
+                `;
+            }
+            item.innerHTML = `
+                <div class="fw-medium">${index + 1}. ${entry.title}${duration}</div>
+                ${timestampFields}
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function showPlaylistContent(data) {
+        playlistData = data;
+        document.getElementById('playlistModalLabel').textContent = data.playlist_title || {{ _('media_downloader.playlist.modal_title')|tojson }};
+        document.getElementById('playlistMeta').textContent = songCountTemplate.replace('%(count)s', data.entry_count || data.entries.length);
+        document.getElementById('playlistLoading').classList.add('d-none');
+        document.getElementById('playlistError').classList.add('d-none');
+        document.getElementById('playlistContent').classList.remove('d-none');
+        document.getElementById('playlistDownloadAllBtn').disabled = false;
+        syncPlaylistFormatFromForm();
+        renderPlaylistEntries();
+    }
+
+    async function openPlaylistPreview(url) {
+        if (!playlistModal || previewInFlight) return;
+        playlistPreviewUrl = url.trim();
+        previewInFlight = true;
+        showPlaylistLoading();
+        playlistModal.show();
+
+        try {
+            const response = await fetch(previewUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source_url: playlistPreviewUrl }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                showPlaylistError(data.error || previewErrorLabel);
+                return;
+            }
+            showPlaylistContent(data);
+        } catch (err) {
+            showPlaylistError(previewErrorLabel);
+        } finally {
+            previewInFlight = false;
+        }
+    }
+
+    function schedulePlaylistPreview(url) {
+        clearTimeout(previewDebounceTimer);
+        if (!isPlaylistUrl(url)) return;
+        previewDebounceTimer = setTimeout(() => openPlaylistPreview(url), 600);
+    }
+
+    function stopProgressAnimation(jobId) {
+        const interval = progressIntervals.get(jobId);
+        if (interval) {
+            clearInterval(interval);
+            progressIntervals.delete(jobId);
+        }
+    }
+
+    function renderProgressBar(row, percent, status) {
+        const statusCell = row.querySelector('.job-status-cell');
+        const rounded = Math.max(0, Math.min(100, Math.round(percent)));
+        let barClass = 'progress-bar';
+        if (status === 'failed') {
+            barClass += ' bg-danger';
+        } else if (status === 'completed') {
+            barClass += ' bg-success';
+        } else {
+            barClass += ' progress-bar-striped progress-bar-animated bg-primary';
+        }
+        const errorEl = statusCell.querySelector('.job-error');
+        const errorHtml = errorEl ? errorEl.outerHTML : '';
+        statusCell.innerHTML = `
+            <div class="progress job-progress" style="height: 22px; min-width: 140px;">
+                <div class="${barClass}" role="progressbar" style="width: ${rounded}%">${rounded}%</div>
+            </div>
+            ${errorHtml}
+        `;
+    }
+
+    function startProgressAnimation(row) {
+        const jobId = row.dataset.jobId;
+        if (progressIntervals.has(jobId)) return;
+
+        if (!progressState.has(jobId)) {
+            progressState.set(jobId, { percent: 5 });
+        }
+
+        const interval = setInterval(() => {
+            const status = row.dataset.status;
+            if (status === 'completed' || status === 'failed') {
+                stopProgressAnimation(jobId);
+                return;
+            }
+
+            const state = progressState.get(jobId);
+            const cap = status === 'processing' ? 92 : 25;
+            const increment = status === 'processing'
+                ? (1 + Math.random() * 2)
+                : (0.3 + Math.random() * 0.5);
+            state.percent = Math.min(cap, state.percent + increment);
+            renderProgressBar(row, state.percent, status);
+        }, 400);
+
+        progressIntervals.set(jobId, interval);
+    }
+
+    function setCompletedStatus(row) {
+        stopProgressAnimation(row.dataset.jobId);
+        progressState.set(row.dataset.jobId, { percent: 100 });
+        renderProgressBar(row, 100, 'completed');
+    }
+
+    function setFailedStatus(row, errorMessage) {
+        stopProgressAnimation(row.dataset.jobId);
+        const state = progressState.get(row.dataset.jobId) || { percent: 0 };
+        renderProgressBar(row, state.percent || 15, 'failed');
+        if (errorMessage) {
+            const statusCell = row.querySelector('.job-status-cell');
+            statusCell.innerHTML += `<div class="small text-danger mt-1 job-error">${errorMessage}</div>`;
+        }
+    }
+
+    function formatExpires(isoString) {
+        if (!isoString) return '–';
+        const date = new Date(isoString);
+        if (Number.isNaN(date.getTime())) return '–';
+        const pad = n => n.toString().padStart(2, '0');
+        return `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+    }
+
+    function ensureJobsTableVisible() {
+        document.getElementById('jobsEmpty').classList.add('d-none');
+        document.getElementById('jobsTableWrapper').classList.remove('d-none');
+    }
+
+    function createJobRow(job) {
+        const tbody = document.querySelector('#downloadJobsTable tbody');
+        const row = document.createElement('tr');
+        row.dataset.jobId = job.id;
+        row.dataset.status = job.status;
+
+        const title = job.title || job.source_url;
+        const segment = (job.start_time && job.end_time)
+            ? `<br><small class="text-muted">${job.start_time} – ${job.end_time}</small>`
+            : '';
+
+        row.innerHTML = `
+            <td class="job-title-cell">${title}${segment}</td>
+            <td>${formatLabels[job.format] || job.format}</td>
+            <td class="job-status-cell">
+                <div class="progress job-progress" style="height: 22px; min-width: 140px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 5%">5%</div>
+                </div>
+            </td>
+            <td class="job-expires-cell">${formatExpires(job.expires_at)}</td>
+            <td class="text-end job-actions-cell"></td>
+        `;
+
+        tbody.prepend(row);
+        startProgressAnimation(row);
+        pollJob(row);
+        return row;
+    }
 
     function pollJob(row) {
         const jobId = row.dataset.jobId;
         fetch(statusUrlTemplate.replace('/0', `/${jobId}`))
             .then(response => response.json())
             .then(data => {
+                const previousStatus = row.dataset.status;
                 row.dataset.status = data.status;
-                const statusCell = row.querySelector('.job-status-cell');
-                statusCell.innerHTML = `<span class="badge ${badgeClass[data.status] || 'bg-secondary'}">${statusLabels[data.status] || data.status}</span>`;
-                if (data.error_message) {
-                    statusCell.innerHTML += `<div class="small text-danger mt-1 job-error">${data.error_message}</div>`;
+
+                if (data.title) {
+                    const titleCell = row.querySelector('.job-title-cell');
+                    const segment = (data.start_time && data.end_time)
+                        ? `<br><small class="text-muted">${data.start_time} – ${data.end_time}</small>`
+                        : '';
+                    titleCell.innerHTML = `${data.title}${segment}`;
+                }
+
+                if (data.status === 'completed') {
+                    setCompletedStatus(row);
+                } else if (data.status === 'failed') {
+                    setFailedStatus(row, data.error_message);
+                } else if (previousStatus !== data.status && data.status === 'processing') {
+                    const state = progressState.get(jobId) || { percent: 5 };
+                    state.percent = Math.max(state.percent, 25);
+                    progressState.set(jobId, state);
+                    renderProgressBar(row, state.percent, data.status);
+                    startProgressAnimation(row);
+                }
+
+                const expiresCell = row.querySelector('.job-expires-cell');
+                if (data.expires_at) {
+                    expiresCell.textContent = formatExpires(data.expires_at);
                 }
 
                 const actionsCell = row.querySelector('.job-actions-cell');
@@ -175,8 +508,85 @@
             .catch(() => setTimeout(() => pollJob(row), 5000));
     }
 
+    async function downloadPlaylistBatch() {
+        if (!playlistData || !playlistData.entries) return;
+
+        const mode = document.querySelector('input[name="playlist_mode"]:checked')?.value || 'complete';
+        const format = document.querySelector('input[name="playlist_format"]:checked')?.value || 'audio';
+        const items = playlistData.entries.map((entry, index) => {
+            const item = {
+                source_url: entry.url,
+                title: entry.title,
+            };
+            if (mode === 'timestamps') {
+                const startInput = document.querySelector(`.entry-start[data-index="${index}"]`);
+                const endInput = document.querySelector(`.entry-end[data-index="${index}"]`);
+                item.start_time = startInput ? startInput.value.trim() : '';
+                item.end_time = endInput ? endInput.value.trim() : '';
+            }
+            return item;
+        });
+
+        const btn = document.getElementById('playlistDownloadAllBtn');
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(batchUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ format, items }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                showPlaylistError(data.error || previewErrorLabel);
+                btn.disabled = false;
+                return;
+            }
+
+            playlistModal.hide();
+            document.getElementById('source_url').value = '';
+            ensureJobsTableVisible();
+            (data.jobs || []).forEach(job => createJobRow(job));
+        } catch (err) {
+            showPlaylistError(previewErrorLabel);
+            btn.disabled = false;
+        }
+    }
+
+    const sourceUrlInput = document.getElementById('source_url');
+    if (sourceUrlInput) {
+        sourceUrlInput.addEventListener('input', () => schedulePlaylistPreview(sourceUrlInput.value));
+        sourceUrlInput.addEventListener('paste', () => {
+            setTimeout(() => schedulePlaylistPreview(sourceUrlInput.value), 0);
+        });
+    }
+
+    document.getElementById('downloadForm').addEventListener('submit', (event) => {
+        const url = sourceUrlInput.value.trim();
+        if (isPlaylistUrl(url)) {
+            event.preventDefault();
+            openPlaylistPreview(url);
+        }
+    });
+
+    document.querySelectorAll('input[name="playlist_mode"]').forEach(input => {
+        input.addEventListener('change', () => {
+            if (playlistData) renderPlaylistEntries();
+        });
+    });
+
+    document.getElementById('playlistDownloadAllBtn').addEventListener('click', downloadPlaylistBatch);
+
+    playlistModalEl.addEventListener('hidden.bs.modal', () => {
+        playlistData = null;
+        playlistPreviewUrl = '';
+        previewInFlight = false;
+        document.getElementById('playlistError').classList.add('d-none');
+    });
+
     document.querySelectorAll('#downloadJobsTable tbody tr').forEach(row => {
         if (row.dataset.status === 'pending' || row.dataset.status === 'processing') {
+            startProgressAnimation(row);
             pollJob(row);
         }
     });

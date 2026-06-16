@@ -488,11 +488,16 @@
                         'manuals': {'url': url_for('manuals.index'), 'icon': 'bi-book', 'label_key': 'layout.nav.manuals', 'module': 'module_manuals'},
                         'chat': {'url': url_for('chat.index'), 'icon': 'bi-chat-dots', 'label_key': 'layout.nav.chats', 'module': 'module_chat'},
                         'calendar': {'url': url_for('calendar.index'), 'icon': 'bi-calendar-event', 'label_key': 'layout.nav.calendar', 'module': 'module_calendar'},
+                        'events': {'url': url_for('events.index'), 'icon': 'bi-calendar2-week', 'label_key': None, 'fallback_label': 'Veranstaltungen', 'module': 'module_events'},
                         'email': {'url': url_for('email.index'), 'icon': 'bi-envelope', 'label_key': 'layout.nav.email', 'module': 'module_email'},
+                        'contacts': {'url': url_for('contacts.index'), 'icon': 'bi-person-lines-fill', 'label_key': 'layout.nav.contacts', 'module': 'module_contacts'},
                         'inventory': {'url': url_for('inventory.dashboard'), 'icon': 'bi-box-seam', 'label_key': 'layout.nav.inventory', 'module': 'module_inventory'},
                         'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'},
+                        'shortlinks': {'url': url_for('shortlinks.index'), 'icon': 'bi-link-45deg', 'label_key': None, 'fallback_label': 'Kurzlinks', 'module': 'module_shortlinks'},
                         'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'},
                         'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'},
+                        'media_downloader': {'url': url_for('media_downloader.index'), 'icon': 'bi-download', 'label_key': 'layout.nav.media_downloader', 'module': 'module_media_downloader'},
+                        'assessment': {'url': url_for('assessment.general.home'), 'icon': 'bi-clipboard2-check', 'label_key': None, 'fallback_label': 'Bewertung', 'module': 'module_assessment'},
                         'settings': {'url': url_for('settings.index'), 'icon': 'bi-gear', 'label_key': 'layout.nav.settings', 'module': None},
                         'profile': {'url': url_for('settings.profile'), 'icon': 'bi-person', 'label_key': 'settings.profile.title', 'module': None},
                         'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None}
@@ -504,10 +509,15 @@
                             'module_chat': 'chat',
                             'module_files': 'files',
                             'module_calendar': 'calendar',
+                            'module_events': 'events',
+                            'module_contacts': 'contacts',
                             'module_manuals': 'manuals',
                             'module_inventory': 'inventory',
                             'module_wiki': 'wiki',
                             'module_music': 'music',
+                            'module_shortlinks': 'shortlinks',
+                            'module_media_downloader': 'media_downloader',
+                            'module_assessment': 'assessment',
                             'module_booking': 'booking'
                         } %}
                         {# Definiere Reihenfolge für Module (entspricht Navigation) #}
@@ -515,10 +525,15 @@
                             'module_chat',
                             'module_files',
                             'module_calendar',
+                            'module_events',
+                            'module_contacts',
                             'module_manuals',
                             'module_inventory',
                             'module_wiki',
                             'module_music',
+                            'module_shortlinks',
+                            'module_media_downloader',
+                            'module_assessment',
                             'module_booking'
                         ] %}
                         {# Sortiere zugängliche Module nach definierter Reihenfolge #}
@@ -553,7 +568,7 @@
                                 <div class="col-6 col-md-3">
                                     <a href="{{ link.url }}" class="btn btn-outline-primary w-100">
                                         <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                        {{ _(link.label_key) }}
+                                        {{ _(link.label_key) if link.label_key else link.fallback_label }}
                                     </a>
                                 </div>
                                 {% endif %}
@@ -585,7 +600,7 @@
                                 <div class="col-6 col-md-3">
                                     <a href="{{ link.url }}" class="btn {% if link_key == 'logout' %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
                                         <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                        {{ _(link.label_key) }}
+                                        {{ _(link.label_key) if link.label_key else link.fallback_label }}
                                     </a>
                                 </div>
                                 {% endif %}

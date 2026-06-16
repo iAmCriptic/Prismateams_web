@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, redirect, url_for
 
 from .admin_settings import admin_settings_bp
 from .auth import auth_bp
@@ -33,6 +33,11 @@ assessment_bp.register_blueprint(general_bp)
 assessment_bp.register_blueprint(excel_uploads_bp)
 assessment_bp.register_blueprint(lists_bp)
 assessment_bp.register_blueprint(stand_types_bp)
+
+
+@assessment_bp.route("/")
+def root():
+    return redirect(url_for("assessment.general.home"))
 
 
 @assessment_bp.app_context_processor

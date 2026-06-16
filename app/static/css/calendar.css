@@ -822,8 +822,8 @@
 /* OLED Mode - Calendar Day */
 [data-oled-mode="true"] .calendar-day {
     background-color: #000000 !important;
-    border-right-color: #1a1a1a !important;
-    border-bottom-color: #1a1a1a !important;
+    border-right-color: #2a2a2a !important;
+    border-bottom-color: #2a2a2a !important;
 }
 
 /* OLED Mode - Time Slot */
