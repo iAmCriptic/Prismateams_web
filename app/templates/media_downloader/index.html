@@ -181,6 +181,13 @@
 {% block extra_js %}
 <script>
 (function() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMediaDownloader);
+    } else {
+        initMediaDownloader();
+    }
+
+    function initMediaDownloader() {
     const statusLabels = {
         pending: {{ _('media_downloader.status.pending')|tojson }},
         processing: {{ _('media_downloader.status.processing')|tojson }},
@@ -206,11 +213,13 @@
     const progressIntervals = new Map();
     let playlistData = null;
     let playlistPreviewUrl = '';
-    let previewDebounceTimer = null;
     let previewInFlight = false;
 
     const playlistModalEl = document.getElementById('playlistModal');
-    const playlistModal = playlistModalEl ? new bootstrap.Modal(playlistModalEl) : null;
+    const bootstrapModalApi = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal : null;
+    const playlistModal = (playlistModalEl && bootstrapModalApi)
+        ? bootstrapModalApi.getOrCreateInstance(playlistModalEl)
+        : null;
 
     function isPlaylistUrl(url) {
         if (!url) return false;
@@ -338,12 +347,6 @@
         } finally {
             previewInFlight = false;
         }
-    }
-
-    function schedulePlaylistPreview(url) {
-        clearTimeout(previewDebounceTimer);
-        if (!isPlaylistUrl(url)) return;
-        previewDebounceTimer = setTimeout(() => openPlaylistPreview(url), 600);
     }
 
     function stopProgressAnimation(jobId) {
@@ -554,20 +557,27 @@
     }
 
     const sourceUrlInput = document.getElementById('source_url');
-    if (sourceUrlInput) {
-        sourceUrlInput.addEventListener('input', () => schedulePlaylistPreview(sourceUrlInput.value));
-        sourceUrlInput.addEventListener('paste', () => {
-            setTimeout(() => schedulePlaylistPreview(sourceUrlInput.value), 0);
-        });
-    }
 
-    document.getElementById('downloadForm').addEventListener('submit', (event) => {
-        const url = sourceUrlInput.value.trim();
-        if (isPlaylistUrl(url)) {
-            event.preventDefault();
-            openPlaylistPreview(url);
+    const downloadForm = document.getElementById('downloadForm');
+    if (downloadForm && sourceUrlInput) {
+        const handleDownloadIntent = (event) => {
+            const url = sourceUrlInput.value.trim();
+            if (isPlaylistUrl(url)) {
+                event.preventDefault();
+                event.stopPropagation();
+                openPlaylistPreview(url);
+                return false;
+            }
+            return true;
+        };
+
+        downloadForm.addEventListener('submit', handleDownloadIntent);
+
+        const submitButton = downloadForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.addEventListener('click', handleDownloadIntent);
         }
-    });
+    }
 
     document.querySelectorAll('input[name="playlist_mode"]').forEach(input => {
         input.addEventListener('change', () => {
@@ -575,14 +585,19 @@
         });
     });
 
-    document.getElementById('playlistDownloadAllBtn').addEventListener('click', downloadPlaylistBatch);
+    const playlistDownloadAllBtn = document.getElementById('playlistDownloadAllBtn');
+    if (playlistDownloadAllBtn) {
+        playlistDownloadAllBtn.addEventListener('click', downloadPlaylistBatch);
+    }
 
-    playlistModalEl.addEventListener('hidden.bs.modal', () => {
-        playlistData = null;
-        playlistPreviewUrl = '';
-        previewInFlight = false;
-        document.getElementById('playlistError').classList.add('d-none');
-    });
+    if (playlistModalEl) {
+        playlistModalEl.addEventListener('hidden.bs.modal', () => {
+            playlistData = null;
+            playlistPreviewUrl = '';
+            previewInFlight = false;
+            document.getElementById('playlistError').classList.add('d-none');
+        });
+    }
 
     document.querySelectorAll('#downloadJobsTable tbody tr').forEach(row => {
         if (row.dataset.status === 'pending' || row.dataset.status === 'processing') {
@@ -590,6 +605,7 @@
             pollJob(row);
         }
     });
+    }
 })();
 </script>
 {% endblock %}
