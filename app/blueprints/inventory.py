@@ -1180,6 +1180,7 @@ def inventory_list():
 
 @inventory_bp.route('/inventory-list/pdf')
 @login_required
+@check_module_access('module_inventory')
 def inventory_list_pdf():
     """PDF-Generierung für Inventurliste (Legacy)."""
     from app.utils.pdf_generator import generate_inventory_list_pdf
@@ -1298,6 +1299,7 @@ def inventory_history():
 
 @inventory_bp.route('/inventory-tool/<int:inventory_id>/pdf')
 @login_required
+@check_module_access('module_inventory')
 def inventory_tool_pdf(inventory_id):
     """PDF-Generierung für eine Inventur."""
     from app.utils.pdf_generator import generate_inventory_tool_pdf
@@ -2690,9 +2692,14 @@ def api_return():
 
 @inventory_bp.route('/api/borrow/<int:transaction_id>/pdf', methods=['GET'])
 @login_required
+@check_module_access('module_inventory')
 def api_borrow_pdf(transaction_id):
     """API: Ausleihschein-PDF generieren."""
     borrow_transaction = BorrowTransaction.query.get_or_404(transaction_id)
+
+    # Nur eigene Ausleihen dürfen von Nicht-Admins als PDF abgerufen werden.
+    if not current_user.is_admin and borrow_transaction.borrower_id != current_user.id:
+        return jsonify({'error': 'Keine Berechtigung für diesen Ausleihschein.'}), 403
 
     # For group borrows: combine all items of the group into one receipt
     if borrow_transaction.borrow_group_id:

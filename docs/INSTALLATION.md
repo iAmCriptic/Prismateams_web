@@ -55,8 +55,8 @@ sudo apt install -y python3 python3-pip python3-venv \
 **Hinweis:** Docker ist nur erforderlich, wenn Sie Excalidraw oder OnlyOffice installieren möchten. Sie können diesen Schritt überspringen, wenn Sie diese Features nicht benötigen.
 
 ```bash
-# Docker installieren
-sudo apt install -y docker.io docker-compose
+# Docker + Compose-Plugin installieren (empfohlen)
+sudo apt install -y docker.io docker-compose-plugin
 
 # Docker Service aktivieren und starten
 sudo systemctl enable docker
@@ -205,6 +205,9 @@ sudo cp docs/env.example .env
 # Generiere Verschlüsselungsschlüssel
 sudo -u www-data bash -c "source venv/bin/activate && python scripts/generate_encryption_keys.py"
 
+# Generiere VAPID-Keys für Push-Benachrichtigungen
+sudo -u www-data bash -c "source venv/bin/activate && python scripts/generate_vapid_keys.py"
+
 # Bearbeite .env
 sudo nano .env
 ```
@@ -223,6 +226,7 @@ VAPID_PRIVATE_KEY=your-vapid-private-key-here
 ONLYOFFICE_ENABLED=True
 EXCALIDRAW_ENABLED=True
 REDIS_ENABLED=True
+REDIS_URL=redis://localhost:6379/0
 ```
 
 **Wichtige Hinweise zur Konfiguration:**
@@ -240,6 +244,7 @@ REDIS_ENABLED=True
   - Setzen Sie auf `True`, wenn Excalidraw installiert ist (Schritt 6)
   - Setzen Sie auf `False`, wenn Excalidraw NICHT installiert ist
 - **REDIS_ENABLED:** Setzen Sie auf `True`, wenn mehrere Gunicorn-Worker genutzt werden
+- **REDIS_URL:** Standard ist `redis://localhost:6379/0`, nur bei abweichender Redis-Konfiguration ändern
 
 **Wichtig zu den Encryption Keys:**
 - Die Keys werden verwendet, um sensible Daten zu verschlüsseln (Passwörter im Credentials-Modul, OAuth-Tokens im Music-Modul)
@@ -343,10 +348,11 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-# Gunicorn installieren (falls noch nicht installiert)
-cd /var/www/teamportal
-source venv/bin/activate
-pip install gunicorn
+# Gunicorn ist bereits in requirements.txt enthalten.
+# Optional nur bei Bedarf:
+# cd /var/www/teamportal
+# source venv/bin/activate
+# pip install gunicorn
 
 # Systemd-Service aktivieren und starten
 sudo systemctl daemon-reload
