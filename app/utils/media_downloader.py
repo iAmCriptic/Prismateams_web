@@ -232,21 +232,26 @@ def extract_playlist_entries(url):
         if not entry:
             continue
 
-        video_id = entry.get('id')
-        if not video_id:
-            continue
+        video_id = (entry.get('id') or '').strip()
 
         title = (entry.get('title') or '').strip()
         if title in ('[Private video]', '[Deleted video]'):
             continue
 
-        entry_url = entry.get('url') or entry.get('webpage_url')
+        entry_url = (entry.get('url') or entry.get('webpage_url') or '').strip()
+        if entry_url and not entry_url.startswith(('http://', 'https://')):
+            if 'watch?' in entry_url:
+                entry_url = f'https://www.youtube.com/{entry_url.lstrip("/")}'
+            else:
+                entry_url = f'https://www.youtube.com/watch?v={entry_url}'
         if not entry_url:
+            if not video_id:
+                continue
             entry_url = f'https://www.youtube.com/watch?v={video_id}'
 
         entries.append({
-            'id': video_id,
-            'title': title or video_id,
+            'id': video_id or entry_url,
+            'title': title or video_id or entry_url,
             'url': entry_url,
             'duration': entry.get('duration'),
         })

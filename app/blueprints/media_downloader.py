@@ -268,21 +268,33 @@ def start_download():
 @limiter.limit('10 per hour')
 def playlist_preview():
     if not is_media_downloader_compatible():
-        return jsonify({'error': translate('media_downloader.flash.incompatible')}), 503
+        return jsonify({
+            'error': translate('media_downloader.flash.incompatible'),
+            'error_key': 'incompatible',
+        }), 503
 
     data = request.get_json(silent=True) or {}
     source_url = (data.get('source_url') or '').strip()
 
     is_valid, error_key = validate_media_url(source_url)
     if not is_valid:
-        return jsonify({'error': translate(f'media_downloader.flash.{error_key}')}), 400
+        return jsonify({
+            'error': translate(f'media_downloader.flash.{error_key}'),
+            'error_key': error_key,
+        }), 400
 
     if not is_playlist_url(source_url):
-        return jsonify({'error': translate('media_downloader.flash.not_a_playlist')}), 400
+        return jsonify({
+            'error': translate('media_downloader.flash.not_a_playlist'),
+            'error_key': 'not_a_playlist',
+        }), 400
 
     result, error_key = extract_playlist_entries(source_url)
     if error_key:
-        return jsonify({'error': translate(f'media_downloader.flash.{error_key}')}), 400
+        return jsonify({
+            'error': translate(f'media_downloader.flash.{error_key}'),
+            'error_key': error_key,
+        }), 400
 
     return jsonify(result)
 
