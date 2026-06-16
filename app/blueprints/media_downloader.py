@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from collections import defaultdict
 from datetime import datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app
@@ -19,14 +20,16 @@ from app.utils.media_downloader import (
     run_download,
     get_retention_timedelta,
     get_upload_dir,
+    delete_job_file,
 )
 
 logger = logging.getLogger(__name__)
 
 media_downloader_bp = Blueprint('media_downloader', __name__, url_prefix='/media-downloader')
 
-_download_semaphore = None
-_semaphore_lock = threading.Lock()
+_queue_lock = threading.Lock()
+_user_active_downloads = defaultdict(int)
+_cancelled_job_ids = set()
 
 
 def _require_downloader():
@@ -43,13 +46,24 @@ def _active_job_count(user_id):
     ).count()
 
 
-def _get_download_semaphore(app):
-    global _download_semaphore
-    with _semaphore_lock:
-        if _download_semaphore is None:
-            max_concurrent = app.config.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', 2)
-            _download_semaphore = threading.Semaphore(max(1, int(max_concurrent)))
-        return _download_semaphore
+def _get_max_concurrent_for_user(app):
+    max_concurrent = app.config.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', 2)
+    return max(1, int(max_concurrent))
+
+
+def _mark_job_cancelled(job_id):
+    with _queue_lock:
+        _cancelled_job_ids.add(job_id)
+
+
+def _clear_job_cancelled(job_id):
+    with _queue_lock:
+        _cancelled_job_ids.discard(job_id)
+
+
+def _is_job_cancelled(job_id):
+    with _queue_lock:
+        return job_id in _cancelled_job_ids
 
 
 def _apply_job_result(job, success, error_message):
@@ -57,7 +71,11 @@ def _apply_job_result(job, success, error_message):
         job.status = 'completed'
         job.error_message = None
     else:
-        job.status = 'failed'
+        if error_message == 'cancelled':
+            job.status = 'cancelled'
+            job.error_message = translate('media_downloader.flash.cancelled')
+        else:
+            job.status = 'failed'
         if error_message == 'err_http_403':
             job.error_message = translate('media_downloader.flash.err_http_403')
         elif error_message == 'err_age_restricted':
@@ -68,38 +86,81 @@ def _apply_job_result(job, success, error_message):
             job.error_message = translate('media_downloader.flash.err_download_failed')
         elif error_message == 'output_not_found':
             job.error_message = translate('media_downloader.flash.file_missing')
+        elif error_message == 'cancelled':
+            job.error_message = translate('media_downloader.flash.cancelled')
         else:
             job.error_message = error_message
         job.expires_at = datetime.utcnow() + get_retention_timedelta()
 
 
-def _process_download(app, job_id):
-    semaphore = _get_download_semaphore(app)
-    semaphore.acquire()
+def _dispatch_pending_jobs(app, user_id):
+    with app.app_context():
+        max_concurrent = _get_max_concurrent_for_user(app)
+        jobs_to_start = []
+
+        with _queue_lock:
+            active = _user_active_downloads[user_id]
+            slots = max(0, max_concurrent - active)
+            if slots == 0:
+                return
+
+            pending_jobs = MediaDownloadJob.query.filter_by(
+                user_id=user_id,
+                status='pending',
+            ).order_by(MediaDownloadJob.created_at.asc()).limit(slots).all()
+
+            for job in pending_jobs:
+                _user_active_downloads[user_id] += 1
+                jobs_to_start.append(job.id)
+
+        for job_id in jobs_to_start:
+            thread = threading.Thread(
+                target=_process_download,
+                args=(app, user_id, job_id),
+                daemon=True,
+                name=f'media-download-{job_id}',
+            )
+            thread.start()
+
+
+def _process_download(app, user_id, job_id):
     try:
         with app.app_context():
             job = MediaDownloadJob.query.get(job_id)
             if not job:
                 return
 
+            if job.status != 'pending':
+                return
+
+            if _is_job_cancelled(job.id):
+                job.status = 'cancelled'
+                job.error_message = translate('media_downloader.flash.cancelled')
+                db.session.commit()
+                return
+
             job.status = 'processing'
             db.session.commit()
 
-            success, error_message = run_download(job)
+            success, error_message = run_download(
+                job,
+                should_cancel=lambda: _is_job_cancelled(job.id),
+            )
             _apply_job_result(job, success, error_message)
             db.session.commit()
     finally:
-        semaphore.release()
+        _clear_job_cancelled(job_id)
+        with _queue_lock:
+            _user_active_downloads[user_id] = max(0, _user_active_downloads[user_id] - 1)
+        _dispatch_pending_jobs(app, user_id)
 
 
 def _start_download_thread(app, job_id):
-    thread = threading.Thread(
-        target=_process_download,
-        args=(app, job_id),
-        daemon=True,
-        name=f'media-download-{job_id}',
-    )
-    thread.start()
+    with app.app_context():
+        job = MediaDownloadJob.query.get(job_id)
+        if not job:
+            return
+        _dispatch_pending_jobs(app, job.user_id)
 
 
 def _create_and_start_job(user_id, source_url, output_format, start_parsed, end_parsed, app):
@@ -114,7 +175,6 @@ def _create_and_start_job(user_id, source_url, output_format, start_parsed, end_
     )
     db.session.add(job)
     db.session.flush()
-    _start_download_thread(app, job.id)
     return job
 
 
@@ -185,7 +245,7 @@ def start_download():
         flash(translate('media_downloader.flash.too_many_jobs', max=max_concurrent), 'warning')
         return redirect(url_for('media_downloader.index'))
 
-    job = _create_and_start_job(
+    _create_and_start_job(
         current_user.id,
         source_url,
         output_format,
@@ -194,6 +254,7 @@ def start_download():
         current_app._get_current_object(),
     )
     db.session.commit()
+    _dispatch_pending_jobs(current_app._get_current_object(), current_user.id)
 
     get_upload_dir()
 
@@ -292,11 +353,43 @@ def download_batch():
         jobs.append(job)
 
     db.session.commit()
+    _dispatch_pending_jobs(app, current_user.id)
 
     return jsonify({
         'started': len(jobs),
         'job_ids': [job.id for job in jobs],
         'jobs': [_serialize_job_status(job) for job in jobs],
+    })
+
+
+@media_downloader_bp.route('/clear-all', methods=['POST'])
+@login_required
+@check_module_access('module_media_downloader')
+@limiter.limit('10 per hour')
+def clear_all():
+    jobs = MediaDownloadJob.query.filter_by(user_id=current_user.id).all()
+    removed_count = 0
+    cancelling_count = 0
+
+    for job in jobs:
+        if job.status in ('pending', 'processing'):
+            _mark_job_cancelled(job.id)
+            if job.status == 'pending':
+                db.session.delete(job)
+                removed_count += 1
+            else:
+                cancelling_count += 1
+                job.error_message = translate('media_downloader.flash.cancelling')
+        else:
+            delete_job_file(job)
+            db.session.delete(job)
+            removed_count += 1
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'removed': removed_count,
+        'cancelling': cancelling_count,
     })
 
 

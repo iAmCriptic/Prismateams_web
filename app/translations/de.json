@@ -3150,7 +3150,9 @@
       "column_expires": "Verfügbar bis",
       "column_actions": "Aktionen",
       "download": "Herunterladen",
-      "empty": "Noch keine Downloads vorhanden."
+      "empty": "Noch keine Downloads vorhanden.",
+      "clear_all": "Alles löschen",
+      "clear_all_confirm": "Alle Downloads entfernen und aktive Downloads abbrechen?"
     },
     "format": {
       "audio": "MP3",
@@ -3160,7 +3162,9 @@
       "pending": "Wartend",
       "processing": "In Bearbeitung",
       "completed": "Fertig",
-      "failed": "Fehlgeschlagen"
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "cancelling": "Wird abgebrochen"
     },
     "playlist": {
       "modal_title": "Playlist herunterladen",
@@ -3195,7 +3199,9 @@
       "preview_failed": "Playlist-Vorschau fehlgeschlagen.",
       "playlist_started": "%(count)s Downloads wurden gestartet.",
       "use_playlist_modal": "Bitte nutzen Sie das Playlist-Fenster zum Herunterladen.",
-      "invalid_batch_item": "Ungültiger Eintrag in der Download-Liste."
+      "invalid_batch_item": "Ungültiger Eintrag in der Download-Liste.",
+      "cancelled": "Download wurde abgebrochen.",
+      "cancelling": "Download wird abgebrochen…"
     }
   }
 }

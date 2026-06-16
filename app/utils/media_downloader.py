@@ -25,6 +25,10 @@ TIME_PATTERN = re.compile(r'^(\d+):([0-5]\d)(?::([0-5]\d))?$')
 PLAYLIST_LIST_PREFIXES = ('PL', 'RD', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
 
 
+class DownloadCancelledError(Exception):
+    """Raised when an active download should be cancelled."""
+
+
 def get_ffmpeg_path():
     """Return configured FFmpeg path or discover it on PATH."""
     configured = current_app.config.get('FFMPEG_PATH', '')
@@ -257,7 +261,7 @@ def extract_playlist_entries(url):
     }, None
 
 
-def run_download(job):
+def run_download(job, should_cancel=None):
     """
     Download and convert media for a MediaDownloadJob instance.
 
@@ -291,8 +295,22 @@ def run_download(job):
     if job.start_time and job.end_time:
         ydl_opts['download_sections'] = [f'*{job.start_time}-{job.end_time}']
 
+    def _check_cancel():
+        return bool(should_cancel and should_cancel())
+
+    def _progress_hook(_status):
+        if _check_cancel():
+            raise DownloadCancelledError('cancelled')
+
+    if _check_cancel():
+        return False, 'cancelled'
+
+    ydl_opts['progress_hooks'] = [_progress_hook]
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            if _check_cancel():
+                return False, 'cancelled'
             info = ydl.extract_info(job.source_url, download=True)
             title = info.get('title') if info else None
 
@@ -312,6 +330,8 @@ def run_download(job):
         job.completed_at = datetime.utcnow()
         job.expires_at = job.completed_at + get_retention_timedelta()
         return True, None
+    except DownloadCancelledError:
+        return False, 'cancelled'
     except Exception as exc:
         logger.error('Media download failed for job %s: %s', job.id, exc, exc_info=True)
         message = str(exc).lower()

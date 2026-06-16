@@ -2980,7 +2980,9 @@
       "column_expires": "Available until",
       "column_actions": "Actions",
       "download": "Download",
-      "empty": "No downloads yet."
+      "empty": "No downloads yet.",
+      "clear_all": "Clear all",
+      "clear_all_confirm": "Remove all downloads and abort active downloads?"
     },
     "format": {
       "audio": "MP3",
@@ -2990,7 +2992,9 @@
       "pending": "Pending",
       "processing": "Processing",
       "completed": "Completed",
-      "failed": "Failed"
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "cancelling": "Cancelling"
     },
     "playlist": {
       "modal_title": "Download playlist",
@@ -3025,7 +3029,9 @@
       "preview_failed": "Playlist preview failed.",
       "playlist_started": "%(count)s downloads started.",
       "use_playlist_modal": "Please use the playlist dialog to download.",
-      "invalid_batch_item": "Invalid item in the download list."
+      "invalid_batch_item": "Invalid item in the download list.",
+      "cancelled": "Download was cancelled.",
+      "cancelling": "Download is being cancelled…"
     }
   }
 }
