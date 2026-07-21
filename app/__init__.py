@@ -34,6 +34,14 @@ def create_app(config_name='default'):
     app.url_map.strict_slashes = False
     
     app.config.from_object(config[config_name])
+
+    # Relative UPLOAD_FOLDER must resolve to project root, not app package
+    # (Flask send_file joins relative paths with app.root_path = .../app).
+    upload_folder = app.config.get('UPLOAD_FOLDER') or 'uploads'
+    if not os.path.isabs(upload_folder):
+        project_root = os.path.dirname(basedir)
+        upload_folder = os.path.join(project_root, upload_folder)
+    app.config['UPLOAD_FOLDER'] = os.path.abspath(upload_folder)
     
     db.init_app(app)
     login_manager.init_app(app)
@@ -710,8 +718,20 @@ def create_app(config_name='default'):
     def request_entity_too_large(error):
         """Handle 413 Request Entity Too Large errors."""
         app.logger.warning(f"413 Request Entity Too Large: {request.url}")
-        if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
-            return jsonify({'error': 'File too large', 'message': 'Die hochgeladene Datei überschreitet das maximale Größenlimit.'}), 413
+        wants_json = (
+            request.path.startswith('/api/')
+            or request.path.startswith('/files/api/')
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.headers.get('Accept') or '')
+        )
+        msg = 'Die hochgeladene Datei überschreitet das maximale Größenlimit (max. 100MB pro Datei).'
+        if wants_json:
+            return jsonify({
+                'success': False,
+                'error': 'File too large',
+                'message': msg,
+                'messages': [{'category': 'danger', 'text': msg}],
+            }), 413
         max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 524288000) / (1024 * 1024)
         return render_template('errors/413.html', max_size_mb=max_size_mb), 413
     
@@ -889,7 +909,7 @@ def create_app(config_name='default'):
                 # Stelle sicher, dass alle Modelle importiert sind, bevor db.create_all() aufgerufen wird
                 # Dies ist notwendig, damit SQLAlchemy alle Tabellen erstellt
                 from app.models.user import User
-                from app.models.chat import Chat, ChatMessage, ChatMember
+                from app.models.chat import Chat, ChatMessage, ChatMember, ChatPin
                 from app.models.file import File, FileVersion, Folder
                 from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
                 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
@@ -1163,6 +1183,22 @@ def create_app(config_name='default'):
                         from app.models.calendar import CalendarSyncSource as _CalendarSyncSource
                         _CalendarSyncSource.__table__.create(db.engine, checkfirst=True)
                         print("[OK] calendar_sync_sources erstellt")
+
+                    # Multi-Kalender: calendars + calendar_id
+                    if 'calendars' not in inspector.get_table_names():
+                        print("[INFO] Erstelle calendars ...")
+                        from app.models.calendar import Calendar as _Calendar
+                        _Calendar.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] calendars erstellt")
+                    if 'calendar_events' in inspector.get_table_names():
+                        calendar_columns = {col['name'] for col in inspector.get_columns('calendar_events')}
+                        if 'calendar_id' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.calendar_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events ADD COLUMN calendar_id INTEGER NULL"
+                                ))
+                            print("[OK] calendar_events.calendar_id hinzugefügt")
 
                     # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
                     table_names = set(inspector.get_table_names())

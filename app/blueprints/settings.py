@@ -270,6 +270,14 @@ def appearance():
 
         if color_type == 'gradient' and accent_gradient:
             current_user.accent_gradient = accent_gradient
+            # Keep solid accent_color in sync with first gradient stop for highlights
+            import re
+            matches = re.findall(r'#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b', accent_gradient)
+            if matches:
+                raw = matches[0]
+                if len(raw) == 3:
+                    raw = ''.join(ch * 2 for ch in raw)
+                current_user.accent_color = f'#{raw.lower()}'
         else:
             current_user.accent_gradient = None
 
@@ -1654,6 +1662,7 @@ def admin_file_settings():
         # Feature Flags: Dateien
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
+        private_folders_enabled = request.form.get('files_private_folders_enabled') == 'on'
 
         dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
         if dropbox_setting:
@@ -1667,6 +1676,12 @@ def admin_file_settings():
         else:
             db.session.add(SystemSettings(key='files_sharing_enabled', value=str(sharing_enabled)))
 
+        private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
+        if private_setting:
+            private_setting.value = str(private_folders_enabled)
+        else:
+            db.session.add(SystemSettings(key='files_private_folders_enabled', value=str(private_folders_enabled)))
+
         db.session.commit()
         flash(translate('settings.admin.file_settings.flash_updated'), 'success')
         return redirect(url_for('settings.admin_file_settings'))
@@ -1674,13 +1689,87 @@ def admin_file_settings():
     # Get current settings
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
+    private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
     
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
+    files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
     
     return render_template('settings/admin_file_settings.html', 
                            files_dropbox_enabled=files_dropbox_enabled, 
-                           files_sharing_enabled=files_sharing_enabled)
+                           files_sharing_enabled=files_sharing_enabled,
+                           files_private_folders_enabled=files_private_folders_enabled)
+
+
+def _upsert_bool_setting(key, enabled):
+    setting = SystemSettings.query.filter_by(key=key).first()
+    if setting:
+        setting.value = str(enabled)
+    else:
+        db.session.add(SystemSettings(key=key, value=str(enabled)))
+
+
+@settings_bp.route('/admin/calendar-settings', methods=['GET', 'POST'])
+@login_required
+def admin_calendar_settings():
+    """Calendar module settings (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.calendar_settings.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    if request.method == 'POST':
+        multi_enabled = request.form.get('calendar_multi_enabled') == 'on'
+        export_enabled = request.form.get('calendar_export_enabled') == 'on'
+        import_enabled = request.form.get('calendar_import_enabled') == 'on'
+
+        _upsert_bool_setting('calendar_multi_enabled', multi_enabled)
+        _upsert_bool_setting('calendar_export_enabled', export_enabled)
+        _upsert_bool_setting('calendar_import_enabled', import_enabled)
+        db.session.commit()
+
+        if multi_enabled:
+            try:
+                from app.utils.multi_calendars import (
+                    ensure_imported_calendar_for_source,
+                    get_or_create_personal_calendar,
+                    get_public_calendar,
+                )
+                from app.models.calendar import CalendarEvent, CalendarSyncSource
+                from app.models.user import User as _User
+
+                public = get_public_calendar()
+                CalendarEvent.query.filter(CalendarEvent.calendar_id.is_(None)).update(
+                    {CalendarEvent.calendar_id: public.id},
+                    synchronize_session=False,
+                )
+                for u in _User.query.filter_by(is_active=True).all():
+                    get_or_create_personal_calendar(u)
+                for source in CalendarSyncSource.query.all():
+                    cal = ensure_imported_calendar_for_source(source)
+                    CalendarEvent.query.filter_by(sync_source_id=source.id).update(
+                        {CalendarEvent.calendar_id: cal.id},
+                        synchronize_session=False,
+                    )
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                import logging
+                logging.error(f'Fehler beim Aktivieren Multi-Kalender: {exc}')
+
+        flash(translate('settings.admin.calendar_settings.flash_updated'), 'success')
+        return redirect(url_for('settings.admin_calendar_settings'))
+
+    from app.utils.multi_calendars import (
+        is_calendar_export_enabled,
+        is_calendar_import_enabled,
+        is_calendar_multi_enabled,
+    )
+    return render_template(
+        'settings/admin_calendar_settings.html',
+        calendar_multi_enabled=is_calendar_multi_enabled(),
+        calendar_export_enabled=is_calendar_export_enabled(),
+        calendar_import_enabled=is_calendar_import_enabled(),
+    )
 
 
 @settings_bp.route('/admin/modules', methods=['GET', 'POST'])

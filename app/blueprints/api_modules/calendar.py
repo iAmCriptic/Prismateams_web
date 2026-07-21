@@ -1,16 +1,31 @@
 from datetime import datetime, timedelta
 
-from flask import jsonify
+from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from app.models.calendar import CalendarEvent, EventParticipant
+from app.utils.multi_calendars import (
+    events_query_for_calendars,
+    get_or_create_personal_calendar,
+    is_calendar_multi_enabled,
+    parse_calendar_ids_param,
+)
 
 
 def register_calendar_routes(api_bp, require_api_auth):
     @api_bp.route("/events", methods=["GET"])
     @login_required
     def get_events():
-        events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
+        multi = is_calendar_multi_enabled()
+        if multi:
+            personal = get_or_create_personal_calendar(current_user)
+            selected = parse_calendar_ids_param(
+                request.args.get('calendars'),
+                default_ids=[personal.id],
+            ) or [personal.id]
+            events = events_query_for_calendars(current_user, selected).order_by(CalendarEvent.start_time).all()
+        else:
+            events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
         result = []
         for event in events:
             participation = EventParticipant.query.filter_by(
@@ -25,6 +40,7 @@ def register_calendar_routes(api_bp, require_api_auth):
                 "end_time": event.end_time.isoformat(),
                 "location": event.location,
                 "event_color": event.event_color,
+                "calendar_id": event.calendar_id,
                 "created_by": event.creator.full_name,
                 "participation_status": participation.status if participation else "pending",
             })
@@ -43,6 +59,7 @@ def register_calendar_routes(api_bp, require_api_auth):
             "end_time": event.end_time.isoformat(),
             "location": event.location,
             "event_color": event.event_color,
+            "calendar_id": event.calendar_id,
             "created_by": event.creator.full_name,
             "participants": [{
                 "user_id": p.user_id,
@@ -57,11 +74,22 @@ def register_calendar_routes(api_bp, require_api_auth):
         try:
             now = datetime.utcnow()
             week_from_now = now + timedelta(days=7)
-            upcoming_count = CalendarEvent.query.filter(
-                CalendarEvent.start_time > now,
-                CalendarEvent.start_time <= week_from_now,
-            ).count()
+            multi = is_calendar_multi_enabled()
+            if multi and current_user.is_authenticated:
+                personal = get_or_create_personal_calendar(current_user)
+                upcoming_count = events_query_for_calendars(
+                    current_user,
+                    [personal.id],
+                    [
+                        CalendarEvent.start_time > now,
+                        CalendarEvent.start_time <= week_from_now,
+                    ],
+                ).count()
+            else:
+                upcoming_count = CalendarEvent.query.filter(
+                    CalendarEvent.start_time > now,
+                    CalendarEvent.start_time <= week_from_now,
+                ).count()
             return jsonify({"count": upcoming_count})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-

@@ -65,6 +65,7 @@ def _is_sharing_enabled():
 
 
 from app.utils.public_share import (
+    create_share_link,
     disable_share_link,
     is_resource_shared,
     normalize_share_mode,
@@ -421,17 +422,21 @@ def register_files_routes(api_bp, require_api_auth):
         file_obj = File.query.get_or_404(file_id)
         links = []
         for mode in modes:
+            if mode == "dropbox":
+                continue
             passwords = data.get(f"password_{mode}") or data.get("password") or ""
             expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
-            share = upsert_share_link(
+            label = data.get(f"label_{mode}") or data.get("label") or ""
+            share = create_share_link(
                 "file",
                 file_obj,
                 mode,
                 created_by=current_user.id,
                 password=passwords,
                 expires_at_raw=expires,
+                label=label,
             )
-            links.append({"mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
+            links.append({"id": share.id, "mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
         db.session.commit()
         return jsonify({"success": True, "links": links}), 200
 
@@ -459,15 +464,18 @@ def register_files_routes(api_bp, require_api_auth):
         for mode in modes:
             passwords = data.get(f"password_{mode}") or data.get("password") or ""
             expires = data.get(f"expires_at_{mode}") or data.get("expires_at") or ""
-            share = upsert_share_link(
+            label = data.get(f"label_{mode}") or data.get("label") or ""
+            share = create_share_link(
                 "folder",
                 folder,
                 mode,
                 created_by=current_user.id,
                 password=passwords,
                 expires_at_raw=expires,
+                label=label,
             )
-            links.append({"mode": mode, "share_url": url_for("files.public_share", token=share.token, _external=True)})
+            from app.utils.public_share import share_url
+            links.append({"id": share.id, "mode": mode, "share_url": share_url(share)})
         db.session.commit()
         return jsonify({"success": True, "links": links}), 200
 
@@ -477,9 +485,7 @@ def register_files_routes(api_bp, require_api_auth):
         if not _check_files_access():
             return _files_access_denied_response()
         file_obj = File.query.get_or_404(file_id)
-        if not is_resource_shared("file", file_obj.id):
-            return jsonify({"success": False, "error": "Keine aktive Freigabe"}), 404
-        return jsonify({"success": True, "item": serialize_share_settings("file", file_obj.id, file_obj.name)}), 200
+        return jsonify({"success": True, "item": serialize_share_settings("file", file_obj.id, file_obj.name, dropbox_enabled=False)}), 200
 
     @api_bp.route("/folders/<int:folder_id>/share-settings", methods=["GET"])
     @require_api_auth
@@ -487,9 +493,9 @@ def register_files_routes(api_bp, require_api_auth):
         if not _check_files_access():
             return _files_access_denied_response()
         folder = Folder.query.get_or_404(folder_id)
-        if not is_resource_shared("folder", folder.id):
-            return jsonify({"success": False, "error": "Keine aktive Freigabe"}), 404
-        return jsonify({"success": True, "item": serialize_share_settings("folder", folder.id, folder.name)}), 200
+        dropbox_setting = SystemSettings.query.filter_by(key="files_dropbox_enabled").first()
+        dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == "true") or False
+        return jsonify({"success": True, "item": serialize_share_settings("folder", folder.id, folder.name, dropbox_enabled=dropbox_enabled)}), 200
 
     @api_bp.route("/files/<int:file_id>/share-settings", methods=["POST"])
     @require_api_auth

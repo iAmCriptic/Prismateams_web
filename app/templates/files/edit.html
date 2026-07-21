@@ -217,7 +217,9 @@ function saveFile(silent = false) {
     .catch(error => {
         console.error('Error:', error);
         if (!silent) {
-            alert('Fehler beim Speichern der Datei. Bitte versuchen Sie es erneut.');
+            if (typeof window.showAppBanner === 'function') {
+                window.showAppBanner('Fehler beim Speichern der Datei. Bitte versuchen Sie es erneut.', 'danger');
+            }
         }
     })
     .finally(() => {

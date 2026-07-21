@@ -1,0 +1,127 @@
+{# Shared chat nav list item. Expects: item, active_chat_id #}
+{% set chat = item.chat %}
+{% set is_active = active_chat_id is not none and active_chat_id == item.nav_id %}
+{% set other_user = get_other_chat_user(chat) if chat.is_direct_message else none %}
+{% set display_name = get_chat_display_name(chat) %}
+{% set pin_chat_id = chat.id %}
+{% set settings_url = url_for('chat.chat_settings', chat_id=chat.id) %}
+{% set view_url = url_for('chat.view_chat', chat_id=item.nav_id) %}
+
+<div class="chat-nav-item-wrap"
+     data-chat-id="{{ pin_chat_id }}"
+     data-nav-id="{{ item.nav_id }}"
+     data-can-pin="{{ '1' if item.can_pin else '0' }}"
+     data-pinned="{{ '1' if item.is_pinned else '0' }}"
+     data-is-main="{{ '1' if chat.is_main_chat else '0' }}"
+     data-is-dm="{{ '1' if chat.is_direct_message else '0' }}"
+     data-view-url="{{ view_url }}"
+     data-context-zone
+     data-context-menu="template"
+     data-context-menu-id="chat-nav-context-{{ pin_chat_id }}">
+    <div class="context-menu-source d-none" id="chat-nav-context-{{ pin_chat_id }}">
+        <ul class="dropdown-menu">
+            {% if item.can_pin %}
+            <li>
+                <a class="dropdown-item chat-nav-pin-toggle" href="#" data-chat-id="{{ pin_chat_id }}">
+                    <i class="bi bi-pin-angle{% if item.is_pinned %}-fill{% endif %} me-2"></i>
+                    <span>{% if item.is_pinned %}{{ _('chat.index.unpin') }}{% else %}{{ _('chat.index.pin') }}{% endif %}</span>
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            {% endif %}
+            <li>
+                <a class="dropdown-item chat-nav-action" href="#" data-chat-nav-action="mute" data-chat-id="{{ pin_chat_id }}" data-nav-id="{{ item.nav_id }}">
+                    <i class="bi bi-bell me-2 chat-nav-mute-icon"></i>
+                    <span class="chat-nav-mute-label">{{ _('chat.view.dropdown.mute') }}</span>
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item chat-nav-action" href="#" data-chat-nav-action="info" data-chat-id="{{ pin_chat_id }}" data-nav-id="{{ item.nav_id }}" data-view-url="{{ view_url }}">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <span>{{ _('chat.view.dropdown.info') }}</span>
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item chat-nav-action" href="#" data-chat-nav-action="members" data-chat-id="{{ pin_chat_id }}" data-nav-id="{{ item.nav_id }}" data-view-url="{{ view_url }}">
+                    <i class="bi bi-people me-2"></i>
+                    <span>{{ _('chat.view.mobile_members') }}</span>
+                </a>
+            </li>
+            {% if not chat.is_main_chat and not chat.is_direct_message %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item" href="{{ settings_url }}#chat-name">
+                    <i class="bi bi-pencil me-2"></i>
+                    <span>{{ _('chat.view.dropdown.rename') }}</span>
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{{ settings_url }}#chat-avatar">
+                    <i class="bi bi-image me-2"></i>
+                    <span>{{ _('chat.view.dropdown.avatar') }}</span>
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{{ settings_url }}#chat-members">
+                    <i class="bi bi-person-gear me-2"></i>
+                    <span>{{ _('chat.view.dropdown.manage_members') }}</span>
+                </a>
+            </li>
+            {% endif %}
+            {% if not chat.is_main_chat %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item text-danger chat-nav-action" href="#" data-chat-nav-action="delete" data-chat-id="{{ pin_chat_id }}">
+                    <i class="bi bi-trash me-2"></i>
+                    <span>{{ _('chat.view.dropdown.delete') }}</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <a href="{{ view_url }}"
+       class="chat-nav-item {% if is_active %}active{% endif %} {% if chat.is_main_chat %}chat-nav-item--main{% endif %} {% if item.is_pinned %}chat-nav-item--pinned{% endif %}">
+        <div class="chat-nav-avatar-wrap">
+            {% if item.is_pinned %}
+            <span class="chat-nav-pin-badge" title="{{ _('chat.index.pinned') }}" aria-hidden="true">
+                <i class="bi bi-pin-angle-fill"></i>
+            </span>
+            {% endif %}
+            <div class="chat-nav-avatar">
+                {% if chat.is_main_chat %}
+                    {% if portal_logo_filename %}
+                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="" class="chat-nav-avatar-img">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" class="chat-nav-avatar-img">
+                    {% endif %}
+                {% elif chat.is_direct_message %}
+                    {% if other_user and other_user.profile_picture %}
+                    <img src="{{ url_for('settings.profile_picture', filename=other_user.profile_picture) }}" alt="" class="chat-nav-avatar-img">
+                    {% elif other_user %}
+                    <div class="chat-nav-avatar-initial">{{ other_user.full_name[0].upper() }}</div>
+                    {% else %}
+                    <div class="chat-nav-avatar-initial"><i class="bi bi-person-circle"></i></div>
+                    {% endif %}
+                {% else %}
+                    {% if chat.group_avatar %}
+                    <img src="{{ url_for('chat.serve_media', filename='avatars/' + chat.group_avatar) }}" alt="" class="chat-nav-avatar-img">
+                    {% else %}
+                    <div class="chat-nav-avatar-group"><i class="bi bi-people-fill"></i></div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="chat-nav-info">
+            <div class="chat-nav-title {% if chat.is_main_chat %}chat-nav-title--main{% endif %}">{{ display_name }}</div>
+            <div class="chat-nav-meta">{{ _('chat.index.member_count').format(count=item.member_count) }}</div>
+        </div>
+
+        {% if item.unread_count and item.unread_count > 0 %}
+        <span class="chat-nav-unread" aria-label="{{ _('chat.index.unread_count').format(count=item.unread_count) }}">
+            {% if item.unread_count > 99 %}99+{% else %}{{ item.unread_count }}{% endif %}
+        </span>
+        {% endif %}
+    </a>
+</div>

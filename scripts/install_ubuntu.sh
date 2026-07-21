@@ -23,6 +23,7 @@
 #
 # Optionen (optional, interaktive Abfragen bleiben Standard):
 #   --port PORT              Gunicorn-Port (Standard: 5000)
+#   --branch BRANCH          Git-Branch zum Klonen/Aktualisieren (Standard: Default-Branch)
 #   --no-webserver           Kein Nginx/Apache vHost einrichten
 #   --webserver TYPE         Webserver-Typ: nginx oder apache
 #   --skip-docker            Docker, OnlyOffice und Excalidraw nicht installieren
@@ -78,6 +79,7 @@ log_manual() {
 
 # Standardwerte für optionale Komponenten
 GUNICORN_PORT=""
+GIT_BRANCH=""
 SETUP_WEBSERVER=""
 WEBSERVER_TYPE=""
 DOMAIN=""
@@ -97,6 +99,8 @@ Verwendung:
 
 Optionen:
   --port PORT              Gunicorn-Port (Standard: 5000)
+  --branch BRANCH          Git-Branch zum Klonen/Aktualisieren
+                           (Standard: Default-Branch des Repos, sonst main/master)
   --no-webserver           Kein Nginx/Apache vHost einrichten
   --webserver TYPE         Webserver-Typ: nginx oder apache
   --skip-docker            Docker, OnlyOffice und Excalidraw überspringen
@@ -107,6 +111,7 @@ Optionen:
 
 Beispiele:
   sudo bash scripts/install_ubuntu.sh --port 8000
+  sudo bash scripts/install_ubuntu.sh --branch Development
   sudo bash scripts/install_ubuntu.sh --no-webserver --port 8000
   sudo bash scripts/install_ubuntu.sh --webserver nginx --skip-excalidraw
 
@@ -120,6 +125,11 @@ parse_arguments() {
             --port)
                 [ -n "${2:-}" ] || error_exit "--port erfordert einen Wert"
                 GUNICORN_PORT="$2"
+                shift 2
+                ;;
+            --branch)
+                [ -n "${2:-}" ] || error_exit "--branch erfordert einen Branch-Namen"
+                GIT_BRANCH="$2"
                 shift 2
                 ;;
             --no-webserver)
@@ -819,11 +829,56 @@ install_media_downloader() {
     fi
 }
 
+# Repository klonen (optional mit Branch)
+clone_repository() {
+    local target_dir="$1"
+    if [ -n "$GIT_BRANCH" ]; then
+        log_info "Klone Repository (Branch: $GIT_BRANCH) nach $target_dir..."
+        git clone --branch "$GIT_BRANCH" --single-branch "$REPO_URL" "$target_dir" || {
+            log_error "Repository konnte nicht geklont werden (Branch: $GIT_BRANCH)"
+            log_error "Prüfen Sie, ob der Branch existiert: $GIT_BRANCH"
+            exit 1
+        }
+    else
+        log_info "Klone Repository nach $target_dir..."
+        git clone "$REPO_URL" "$target_dir" || {
+            log_error "Repository konnte nicht geklont werden"
+            exit 1
+        }
+    fi
+}
+
+# Vorhandenes Repository auf den gewünschten Branch aktualisieren
+update_repository() {
+    git fetch origin --quiet || log_warning "Git fetch fehlgeschlagen"
+
+    if [ -n "$GIT_BRANCH" ]; then
+        log_info "Wechsle auf Branch: $GIT_BRANCH"
+        if ! git checkout "$GIT_BRANCH" --quiet 2>/dev/null; then
+            if ! git checkout -b "$GIT_BRANCH" "origin/$GIT_BRANCH" --quiet; then
+                log_error "Branch nicht gefunden: $GIT_BRANCH"
+                exit 1
+            fi
+        fi
+        git pull origin "$GIT_BRANCH" --quiet || log_warning "Git pull fehlgeschlagen (Branch: $GIT_BRANCH)"
+        log_success "Repository aktualisiert (Branch: $GIT_BRANCH)"
+    else
+        git pull origin main --quiet || git pull origin master --quiet || log_warning "Git pull fehlgeschlagen"
+        log_success "Repository aktualisiert"
+    fi
+}
+
 # Projekt-Verzeichnis erstellen
 setup_project_directory() {
     log_info "=== Projekt-Verzeichnis Setup ==="
     
     REPO_URL="https://github.com/iAmCriptic/Prismateams_web.git"
+
+    if [ -n "$GIT_BRANCH" ]; then
+        log_info "Gewählter Git-Branch: $GIT_BRANCH"
+    else
+        log_info "Git-Branch: Default (main/master)"
+    fi
     
     # Verzeichnis erstellen
     mkdir -p "$INSTALL_DIR"
@@ -837,9 +892,7 @@ setup_project_directory() {
         CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
         if [ "$CURRENT_REMOTE" = "$REPO_URL" ] || [ "$CURRENT_REMOTE" = "${REPO_URL%.git}" ]; then
             log_info "Korrektes Repository gefunden. Aktualisiere auf neueste Version..."
-            git fetch origin --quiet || log_warning "Git fetch fehlgeschlagen"
-            git pull origin main --quiet || git pull origin master --quiet || log_warning "Git pull fehlgeschlagen"
-            log_success "Repository aktualisiert"
+            update_repository
         else
             if [ -n "$CURRENT_REMOTE" ]; then
                 log_warning "Anderes Repository gefunden: $CURRENT_REMOTE"
@@ -857,11 +910,7 @@ setup_project_directory() {
     else
         # Prüfe ob Verzeichnis leer ist oder nur versteckte Dateien enthält
         if [ -z "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ] || [ "$(ls -A "$INSTALL_DIR" 2>/dev/null | grep -v '^\.')" = "" ]; then
-            log_info "Klone Repository nach $INSTALL_DIR..."
-            git clone "$REPO_URL" "$INSTALL_DIR" || {
-                log_error "Repository konnte nicht geklont werden"
-                exit 1
-            }
+            clone_repository "$INSTALL_DIR"
             log_success "Repository geklont"
         else
             log_warning "Verzeichnis $INSTALL_DIR ist nicht leer und enthält kein Git-Repository"
@@ -872,11 +921,7 @@ setup_project_directory() {
                 log_info "Lösche Verzeichnis..."
                 rm -rf "$INSTALL_DIR"/*
                 rm -rf "$INSTALL_DIR"/.* 2>/dev/null || true
-                log_info "Klone Repository nach $INSTALL_DIR..."
-                git clone "$REPO_URL" "$INSTALL_DIR" || {
-                    log_error "Repository konnte nicht geklont werden"
-                    exit 1
-                }
+                clone_repository "$INSTALL_DIR"
                 log_success "Repository geklont"
             else
                 log_error "Installation abgebrochen. Bitte leeren Sie das Verzeichnis oder klonen Sie das Repository manuell."

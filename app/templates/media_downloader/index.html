@@ -20,7 +20,8 @@
         <form method="POST" action="{{ url_for('media_downloader.start_download') }}" id="downloadForm">
             <div class="mb-3">
                 <label for="source_url" class="form-label">{{ _('media_downloader.form.url_label') }}</label>
-                <input type="url" class="form-control" id="source_url" name="source_url" required
+                <input type="text" class="form-control" id="source_url" name="source_url" required
+                       inputmode="url" autocomplete="url"
                        placeholder="{{ _('media_downloader.form.url_placeholder') }}">
                 <div class="form-text">{{ _('media_downloader.form.url_hint') }}</div>
             </div>
@@ -225,14 +226,50 @@
     let playlistData = null;
     let playlistPreviewUrl = '';
     let previewInFlight = false;
+    let playlistModal = null;
 
     const playlistModalEl = document.getElementById('playlistModal');
-    const bootstrapModalApi = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal : null;
-    const playlistModal = (playlistModalEl && bootstrapModalApi)
-        ? (typeof bootstrapModalApi.getOrCreateInstance === 'function'
-            ? bootstrapModalApi.getOrCreateInstance(playlistModalEl)
-            : new bootstrapModalApi(playlistModalEl))
-        : null;
+
+    function getPlaylistModal() {
+        if (playlistModal) return playlistModal;
+        if (!playlistModalEl) return null;
+
+        const ModalApi = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal : null;
+        if (ModalApi) {
+            playlistModal = typeof ModalApi.getOrCreateInstance === 'function'
+                ? ModalApi.getOrCreateInstance(playlistModalEl)
+                : new ModalApi(playlistModalEl);
+            return playlistModal;
+        }
+
+        // Fallback without Bootstrap JS: toggle classes manually
+        playlistModal = {
+            show() {
+                playlistModalEl.classList.add('show');
+                playlistModalEl.style.display = 'block';
+                playlistModalEl.removeAttribute('aria-hidden');
+                playlistModalEl.setAttribute('aria-modal', 'true');
+                document.body.classList.add('modal-open');
+                if (!document.getElementById('playlistModalBackdrop')) {
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    backdrop.id = 'playlistModalBackdrop';
+                    document.body.appendChild(backdrop);
+                }
+            },
+            hide() {
+                playlistModalEl.classList.remove('show');
+                playlistModalEl.style.display = 'none';
+                playlistModalEl.setAttribute('aria-hidden', 'true');
+                playlistModalEl.removeAttribute('aria-modal');
+                document.body.classList.remove('modal-open');
+                const backdrop = document.getElementById('playlistModalBackdrop');
+                if (backdrop) backdrop.remove();
+                playlistModalEl.dispatchEvent(new Event('hidden.bs.modal'));
+            }
+        };
+        return playlistModal;
+    }
 
     const statusRank = {
         pending: 1,
@@ -243,20 +280,49 @@
         cancelled: 4
     };
 
+    function isTruePlaylistListId(listId) {
+        if (!listId) return false;
+        const upper = String(listId).trim().toUpperCase();
+        // RD (mix/radio) intentionally excluded — same as backend PLAYLIST_LIST_PREFIXES
+        const prefixes = ['PL', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU'];
+        return prefixes.some(prefix => upper.startsWith(prefix));
+    }
+
     function isPlaylistUrl(url) {
         if (!url) return false;
         try {
             const parsed = new URL(url.trim());
-            const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-            const allowed = ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'];
-            if (!allowed.some(h => host === h || host.endsWith('.' + h))) return false;
+            let host = parsed.hostname.toLowerCase();
+            if (host.startsWith('www.')) host = host.slice(4);
 
-            const path = parsed.pathname.replace(/\/$/, '').toLowerCase();
+            const isYt = host === 'youtube.com' || host.endsWith('.youtube.com')
+                || host === 'youtu.be' || host === 'music.youtube.com'
+                || host.endsWith('.music.youtube.com');
+            if (!isYt) return false;
+
+            const path = (parsed.pathname || '').replace(/\/+$/, '').toLowerCase() || '/';
             const listId = parsed.searchParams.get('list');
 
-            if (path.endsWith('/playlist') && listId) return true;
-            if ((path === '/watch' || path.startsWith('/watch')) && listId) return true;
-            if (host.includes('music.youtube.com') && path && path !== '/' && (path.endsWith('/playlist') || listId)) return true;
+            // Explicit playlist pages (YouTube + YouTube Music)
+            if (path === '/playlist' || path.endsWith('/playlist')) {
+                return Boolean(listId);
+            }
+
+            // music.youtube.com browse / library playlist links
+            if (host === 'music.youtube.com' || host.endsWith('.music.youtube.com')) {
+                if (isTruePlaylistListId(listId)) return true;
+                if (path.startsWith('/browse/') && listId) return true;
+            }
+
+            if (path === '/watch' || path.startsWith('/watch')) {
+                return isTruePlaylistListId(listId);
+            }
+
+            // youtu.be/VIDEO_ID?list=PLxxx
+            if (host === 'youtu.be' && path !== '/' && isTruePlaylistListId(listId)) {
+                return true;
+            }
+
             return false;
         } catch (e) {
             return false;
@@ -346,11 +412,24 @@
     }
 
     async function openPlaylistPreview(url, fallbackSubmitForm) {
-        if (!playlistModal || previewInFlight) return;
+        if (previewInFlight) return;
+
+        const modal = getPlaylistModal();
+        if (!modal || !playlistModalEl) {
+            window.alert(previewErrorLabel);
+            return;
+        }
+
         playlistPreviewUrl = url.trim();
         previewInFlight = true;
         showPlaylistLoading();
-        playlistModal.show();
+        try {
+            modal.show();
+        } catch (showErr) {
+            previewInFlight = false;
+            window.alert(previewErrorLabel);
+            return;
+        }
 
         try {
             const response = await fetch(previewUrl, {
@@ -358,11 +437,14 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ source_url: playlistPreviewUrl }),
             });
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                if (data.error_key === 'not_a_playlist' && fallbackSubmitForm) {
-                    playlistModal.hide();
-                    fallbackSubmitForm.submit();
+                if (data.error_key === 'not_a_playlist') {
+                    modal.hide();
+                    const form = fallbackSubmitForm || document.getElementById('downloadForm');
+                    if (form) {
+                        HTMLFormElement.prototype.submit.call(form);
+                    }
                     return;
                 }
                 showPlaylistError(data.error || previewErrorLabel);
@@ -598,7 +680,8 @@
                 return;
             }
 
-            playlistModal.hide();
+            const modal = getPlaylistModal();
+            if (modal) modal.hide();
             document.getElementById('source_url').value = '';
             ensureJobsTableVisible();
             (data.jobs || []).forEach(job => createJobRow(job));
@@ -609,26 +692,37 @@
     }
 
     const sourceUrlInput = document.getElementById('source_url');
-
     const downloadForm = document.getElementById('downloadForm');
+    const submitBtn = downloadForm
+        ? downloadForm.querySelector('button[type="submit"]')
+        : null;
+
+    function setSubmitBusy(busy) {
+        if (!submitBtn) return;
+        submitBtn.disabled = busy;
+        if (busy) {
+            submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>';
+        } else if (submitBtn.dataset.originalHtml) {
+            submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+        }
+    }
+
     if (downloadForm && sourceUrlInput) {
-        const handleDownloadIntent = (event) => {
+        downloadForm.addEventListener('submit', (event) => {
             const url = sourceUrlInput.value.trim();
-            if (!url) {
+            if (!url) return true;
+
+            if (!isPlaylistUrl(url)) {
                 return true;
             }
+
             event.preventDefault();
             event.stopPropagation();
-            openPlaylistPreview(url, downloadForm);
+            setSubmitBusy(true);
+            openPlaylistPreview(url, downloadForm).finally(() => setSubmitBusy(false));
             return false;
-        };
-
-        downloadForm.addEventListener('submit', handleDownloadIntent);
-
-        const submitButton = downloadForm.querySelector('button[type="submit"]');
-        if (submitButton) {
-            submitButton.addEventListener('click', handleDownloadIntent);
-        }
+        });
     }
 
     document.querySelectorAll('input[name="playlist_mode"]').forEach(input => {

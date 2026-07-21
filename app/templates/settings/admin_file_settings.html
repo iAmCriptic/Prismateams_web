@@ -36,6 +36,14 @@
                             <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.sharing_help') }}</p>
                         </label>
                     </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="files_private_folders_enabled" name="files_private_folders_enabled" {% if files_private_folders_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="files_private_folders_enabled">
+                            <strong>{{ _('settings.admin.file_settings.private_folders_label') }}</strong>
+                            <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.private_folders_help') }}</p>
+                        </label>
+                    </div>
                     
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-accent">{{ _('settings.admin.file_settings.save_button') }}</button>

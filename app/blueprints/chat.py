@@ -10,6 +10,12 @@ from app.utils.access_control import check_module_access, get_guest_accessible_i
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
 from app.utils.chat_visibility import visible_chat_user_filters, selectable_chat_user_filters
+from app.utils.chat_nav import (
+    CHAT_PINS_MAX,
+    build_chat_nav_items,
+    toggle_chat_pin,
+    wants_desktop_chat_layout,
+)
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
@@ -112,22 +118,48 @@ def _build_calendar_message_metadata(event, current_user_status='pending'):
 @login_required
 @check_module_access('module_chat')
 def index():
-    """List all chats for current user."""
-    # Get all chats where user is a member
-    memberships = ChatMember.query.filter_by(user_id=current_user.id).all()
-    chats = [membership.chat for membership in memberships]
-    
-    # Separate main chat, group chats, and direct messages
-    main_chat = next((c for c in chats if c.is_main_chat), None)
-    group_chats = [c for c in chats if not c.is_main_chat and not c.is_direct_message]
-    direct_chats = [c for c in chats if c.is_direct_message]
-    
+    """List chats (mobile) or redirect to main chat (desktop shell)."""
+    if wants_desktop_chat_layout(current_user, request):
+        return redirect(url_for('chat.view_chat', chat_id=1))
+
+    nav_items = build_chat_nav_items(current_user)
     return render_template(
         'chat/index.html',
-        main_chat=main_chat,
-        group_chats=group_chats,
-        direct_chats=direct_chats
+        nav_items=nav_items,
+        active_chat_id=None,
     )
+
+
+@chat_bp.route('/api/pin/<int:chat_id>', methods=['POST'])
+@login_required
+@check_module_access('module_chat')
+def pin_chat_api(chat_id):
+    """Toggle a chat pin (max CHAT_PINS_MAX)."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
+
+    if chat_id == 1:
+        main_chat = Chat.query.filter_by(is_main_chat=True).first()
+        if main_chat:
+            chat_id = main_chat.id
+
+    ok, pinned, error, count = toggle_chat_pin(current_user, chat_id)
+    if not ok:
+        return jsonify({
+            'success': False,
+            'error': error or 'Pin konnte nicht geändert werden.',
+            'pinned': pinned,
+            'count': count,
+            'max': CHAT_PINS_MAX,
+        }), 400
+
+    return jsonify({
+        'success': True,
+        'pinned': pinned,
+        'count': count,
+        'max': CHAT_PINS_MAX,
+        'chat_id': chat_id,
+    })
 
 
 @chat_bp.route('/<int:chat_id>')
@@ -182,12 +214,17 @@ def view_chat(chat_id):
         ).all()
     else:
         members = []
+
+    nav_items = build_chat_nav_items(current_user)
+    active_nav_id = 1 if chat.is_main_chat else chat.id
     
     return render_template(
         'chat/view.html',
         chat=chat,
         messages=messages,
-        members=members
+        members=members,
+        nav_items=nav_items,
+        active_chat_id=active_nav_id,
     )
 
 

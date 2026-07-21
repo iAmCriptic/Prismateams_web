@@ -424,10 +424,19 @@ def download_file(job_id):
         flash(translate('media_downloader.flash.expired'), 'warning')
         return redirect(url_for('media_downloader.index'))
 
-    filepath = os.path.join(get_upload_dir(), job.filename)
+    filepath = os.path.abspath(os.path.join(get_upload_dir(), job.filename))
+    upload_root = os.path.abspath(get_upload_dir())
+    if not filepath.startswith(upload_root + os.sep) and filepath != upload_root:
+        flash(translate('media_downloader.flash.file_missing'), 'danger')
+        return redirect(url_for('media_downloader.index'))
+
     if not os.path.isfile(filepath):
         flash(translate('media_downloader.flash.file_missing'), 'danger')
         return redirect(url_for('media_downloader.index'))
 
     mimetype = 'audio/mpeg' if job.format == 'audio' else 'video/mp4'
-    return send_file(filepath, as_attachment=True, download_name=job.filename, mimetype=mimetype)
+    try:
+        return send_file(filepath, as_attachment=True, download_name=job.filename, mimetype=mimetype)
+    except FileNotFoundError:
+        flash(translate('media_downloader.flash.file_missing'), 'danger')
+        return redirect(url_for('media_downloader.index'))

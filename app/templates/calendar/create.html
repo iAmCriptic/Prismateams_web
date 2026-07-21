@@ -123,6 +123,27 @@
                         </div>
                     </div>
                     
+                    {% if calendar_multi_enabled %}
+                    <div class="mb-3">
+                        <label for="calendar_id" class="form-label">{{ _('calendar.create.form.calendar_label') }}</label>
+                        <select class="form-select" id="calendar_id" name="calendar_id" required>
+                            {% for cal in writable_calendars %}
+                            <option value="{{ cal.id }}" data-calendar-type="{{ cal.calendar_type }}" {% if cal.id == default_calendar_id %}selected{% endif %}>{{ cal.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="inviteesSection">
+                        <label for="inviteeSearch" class="form-label">{{ _('calendar.create.form.invitees_label') }}</label>
+                        <div class="position-relative">
+                            <input type="search" class="form-control" id="inviteeSearch" autocomplete="off" placeholder="{{ _('calendar.create.form.invitees_search') }}">
+                            <div id="inviteeSearchResults" class="calendar-invitee-results list-group shadow-sm d-none"></div>
+                        </div>
+                        <div id="inviteeChips" class="calendar-invitee-chips d-flex flex-wrap gap-2 mt-2" aria-live="polite"></div>
+                        <div id="inviteeHiddenInputs"></div>
+                        <small class="form-text text-muted">{{ _('calendar.create.form.invitees_help') }}</small>
+                    </div>
+                    {% endif %}
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-accent">{{ _('calendar.create.buttons.submit') }}</button>
                         <a href="{{ url_for('calendar.index') }}" class="btn btn-outline-secondary">{{ _('calendar.create.buttons.cancel') }}</a>
@@ -254,6 +275,107 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialisiere beim Laden
     initializeEndDateTime();
+
+    (function initInvitePicker() {
+        const calendarSelect = document.getElementById('calendar_id');
+        const inviteSection = document.getElementById('inviteesSection');
+        const searchInput = document.getElementById('inviteeSearch');
+        const resultsEl = document.getElementById('inviteeSearchResults');
+        const chipsEl = document.getElementById('inviteeChips');
+        const hiddenEl = document.getElementById('inviteeHiddenInputs');
+        if (!calendarSelect || !inviteSection || !searchInput) return;
+
+        const inviteUsers = {{ invite_users_json|default([])|tojson }};
+
+        const selected = new Map();
+
+        function isPublicSelected() {
+            const opt = calendarSelect.options[calendarSelect.selectedIndex];
+            return opt && opt.getAttribute('data-calendar-type') === 'public';
+        }
+
+        function syncInviteVisibility() {
+            const hide = isPublicSelected();
+            inviteSection.style.display = hide ? 'none' : '';
+            if (hide) {
+                selected.clear();
+                renderChips();
+                searchInput.value = '';
+                resultsEl.classList.add('d-none');
+                resultsEl.innerHTML = '';
+            }
+        }
+
+        function renderChips() {
+            chipsEl.innerHTML = '';
+            hiddenEl.innerHTML = '';
+            selected.forEach(function(name, id) {
+                const chip = document.createElement('span');
+                chip.className = 'calendar-invitee-chip';
+                chip.innerHTML = '<span class="calendar-invitee-chip-label"></span><button type="button" class="calendar-invitee-chip-remove" aria-label="Entfernen">&times;</button>';
+                chip.querySelector('.calendar-invitee-chip-label').textContent = name;
+                chip.querySelector('.calendar-invitee-chip-remove').addEventListener('click', function() {
+                    selected.delete(id);
+                    renderChips();
+                    renderResults(searchInput.value);
+                });
+                chipsEl.appendChild(chip);
+
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'invitee_ids';
+                input.value = String(id);
+                hiddenEl.appendChild(input);
+            });
+        }
+
+        function renderResults(query) {
+            const q = (query || '').trim().toLowerCase();
+            resultsEl.innerHTML = '';
+            if (!q || isPublicSelected()) {
+                resultsEl.classList.add('d-none');
+                return;
+            }
+            const matches = inviteUsers.filter(function(u) {
+                return !selected.has(u.id) && u.name.toLowerCase().includes(q);
+            }).slice(0, 8);
+            if (!matches.length) {
+                resultsEl.classList.add('d-none');
+                return;
+            }
+            matches.forEach(function(u) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'list-group-item list-group-item-action';
+                btn.textContent = u.name;
+                btn.addEventListener('click', function() {
+                    selected.set(u.id, u.name);
+                    searchInput.value = '';
+                    resultsEl.classList.add('d-none');
+                    renderChips();
+                    searchInput.focus();
+                });
+                resultsEl.appendChild(btn);
+            });
+            resultsEl.classList.remove('d-none');
+        }
+
+        calendarSelect.addEventListener('change', syncInviteVisibility);
+        searchInput.addEventListener('input', function() {
+            renderResults(this.value);
+        });
+        searchInput.addEventListener('focus', function() {
+            if (this.value.trim()) renderResults(this.value);
+        });
+        document.addEventListener('click', function(e) {
+            if (!inviteSection.contains(e.target)) {
+                resultsEl.classList.add('d-none');
+            }
+        });
+
+        syncInviteVisibility();
+        renderChips();
+    })();
 });
 </script>
 {% endblock %}

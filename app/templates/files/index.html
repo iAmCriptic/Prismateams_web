@@ -3,14 +3,143 @@
 {% block title %}{{ _('files.index.page_title') }}{% endblock %}
 
 {% block content %}
+{% set files_private_folders_enabled = files_private_folders_enabled|default(false) %}
+{% set files_view = files_view|default(none) %}
+{% set is_trash_view = is_trash_view|default(false) %}
+{% set users_by_id = users_by_id|default({}) %}
+{% set folder_favorites = folder_favorites|default([]) %}
+{% set favorite_folder_ids = favorite_folder_ids|default([]) %}
+{% set view_q = {'view': files_view} if files_view else {} %}
+{% set files_root_url = files_root_url|default(url_for('files.index', **view_q)) %}
+
+{% macro files_view_icon(view) -%}
+    {%- if view == 'ablage' -%}<i class="bi bi-hdd" aria-hidden="true"></i>
+    {%- elif view == 'public' -%}<i class="bi bi-globe2" aria-hidden="true"></i>
+    {%- elif view == 'freigaben' -%}<i class="bi bi-people" aria-hidden="true"></i>
+    {%- elif view == 'trash' -%}<i class="bi bi-trash" aria-hidden="true"></i>
+    {%- else -%}<i class="bi bi-folder2-open" aria-hidden="true"></i>
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro files_nav_links(dismiss_offcanvas=false) %}
+<nav class="files-sidebar-nav nav flex-column gap-1">
+    {% if files_private_folders_enabled %}
+    <a class="nav-link files-nav-link {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
+    {% endif %}
+    <a class="nav-link files-nav-link {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
+    {% if files_private_folders_enabled %}
+    <a class="nav-link files-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
+    {% endif %}
+    <a class="nav-link files-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-trash me-2"></i>{{ _('files.index.nav.trash') }}</a>
+</nav>
+{% endmacro %}
+
+{% macro files_favorites_nav(dismiss_offcanvas=false) %}
+<div class="files-favorites-nav" id="{% if dismiss_offcanvas %}filesFavoritesNavMobile{% else %}filesFavoritesNavDesktop{% endif %}">
+    <div class="files-favorites-heading">
+        <i class="bi bi-star-fill me-1"></i>{{ _('files.index.favorites.title') }}
+    </div>
+    <div class="files-favorites-list nav flex-column gap-1">
+        {% if folder_favorites %}
+            {% for fav in folder_favorites %}
+            <a class="nav-link files-nav-link files-favorite-link" href="{{ fav.url }}" data-folder-id="{{ fav.id }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}>
+                <i class="bi bi-folder-fill me-2 folder-color-icon {% if not fav.color %}text-warning{% endif %}" {% if fav.color %}style="color: {{ fav.color }};"{% endif %}></i>
+                <span class="files-favorite-name text-truncate">{{ fav.name }}</span>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="files-favorites-empty text-muted small px-3">{{ _('files.index.favorites.empty') }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<div class="files-shell {% if files_view %}files-shell--private{% endif %}">
+{% if files_view %}
+<aside class="files-sidebar d-none d-lg-flex flex-column">
+    <div class="files-sidebar-brand">
+        <i class="bi bi-folder2-open" aria-hidden="true"></i>
+        <span>{{ _('files.index.heading') }}</span>
+    </div>
+    <div class="dropdown files-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
+        <button class="btn files-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
+            <i class="bi bi-plus-lg me-2"></i> {{ _('files.index.new_button') }}
+        </button>
+        <ul class="dropdown-menu files-sidebar-new-menu" id="newDropdownMenuSidebar" style="display: none;">
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</a></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-folder-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</a></li>
+            {% if onlyoffice_available %}
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</a></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</a></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</a></li>
+            {% endif %}
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</a></li>
+        </ul>
+    </div>
+    {{ files_nav_links(false) }}
+    {{ files_favorites_nav(false) }}
+</aside>
+
+<div class="offcanvas offcanvas-start files-mobile-offcanvas" tabindex="-1" id="filesMobileNav" aria-labelledby="filesMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="filesMobileNavLabel">
+            <i class="bi bi-folder2-open" aria-hidden="true"></i>
+            <span>{{ _('files.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ files_nav_links(true) }}
+        {{ files_favorites_nav(true) }}
+    </div>
+</div>
+{% endif %}
+<div class="files-main flex-grow-1 min-width-0">
+{% if files_view %}
+<div class="files-mobile-topbar d-lg-none mb-3">
+    <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center min-width-0 gap-2">
+            <button type="button" class="btn btn-outline-secondary files-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#filesMobileNav" aria-controls="filesMobileNav" aria-label="{{ _('files.index.nav.menu') }}">
+                <i class="bi bi-list"></i>
+            </button>
+            <h1 class="h5 mb-0 text-truncate files-mobile-title">
+                {{ files_view_icon(files_view) }}
+                <span>{{ _('files.index.nav.' + files_view) }}</span>
+            </h1>
+        </div>
+        <div class="dropdown flex-shrink-0" id="newButtonDropdownMobile">
+            <button class="btn btn-accent btn-sm" type="button" id="newButtonMobile">
+                <i class="bi bi-plus-lg"></i> {{ _('files.index.new_button') }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end files-mobile-new-menu" id="newDropdownMenuMobile" style="display: none;">
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFileMenuItem"><i class="bi bi-upload me-2"></i>{{ _('files.index.dropdown.upload_files') }}</a></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click="#uploadFolderMenuItem"><i class="bi bi-folder-upload me-2"></i>{{ _('files.index.dropdown.upload_folder') }}</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</a></li>
+                {% if onlyoffice_available %}
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</a></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</a></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="row mb-4 page-toolbar-row align-items-start g-3">
     <div class="col min-width-0">
-        <h1 class="mb-3 text-break"><i class="bi bi-folder"></i> {{ _('files.index.heading') }}</h1>
+        <h1 class="mb-3 text-break files-view-heading {% if files_view %}d-none d-lg-flex{% endif %}">
+            {{ files_view_icon(files_view) }}
+            {% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.heading') }}{% endif %}
+        </h1>
         {% if breadcrumb_folders %}
-        <nav aria-label="breadcrumb" class="mb-3 mb-md-0">
+        <nav aria-label="breadcrumb" class="mb-2">
             <ol class="breadcrumb mb-0 files-breadcrumb-dropzone">
                 <li class="breadcrumb-item files-drop-target files-breadcrumb-drop-target" data-drop-target="folder" data-item-id="">
-                    <a href="{{ url_for('files.index') }}">{{ _('files.index.breadcrumb_root') }}</a>
+                    <a href="{{ files_root_url }}">{% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.breadcrumb_root') }}{% endif %}</a>
                 </li>
                 {% for breadcrumb in breadcrumb_folders %}
                     {% if loop.last %}
@@ -23,6 +152,12 @@
                 {% endfor %}
             </ol>
         </nav>
+        {% set files_back_url = breadcrumb_folders[-2].url if breadcrumb_folders|length > 1 else files_root_url %}
+        <div class="files-back-row mb-3">
+            <a href="{{ files_back_url }}" class="btn btn-outline-secondary back-button btn-sm" aria-label="{{ _('layout.nav.back') }}">
+                <i class="bi bi-arrow-left"></i> {{ _('layout.nav.back') }}
+            </a>
+        </div>
         {% endif %}
     </div>
     <div class="col-12 col-lg-auto ms-lg-auto">
@@ -35,7 +170,7 @@
                 <i class="bi bi-grid-3x3-gap"></i>
             </button>
         </div>
-        <div class="btn-group" role="group">
+        <div class="btn-group {% if files_view %}d-none{% else %}{% endif %}" role="group">
             <div class="dropdown" id="newButtonDropdown">
                 <button class="btn btn-accent" type="button" id="newButton">
                     <i class="bi bi-plus-circle"></i> {{ _('files.index.new_button') }}
@@ -107,12 +242,19 @@
 </div>
 
 <!-- ============================================ -->
-<!-- GRID VIEW - ORDNER Sektion (IMMER sichtbar) -->
+<!-- GRID VIEW - ORDNER / DATEIEN (Überschriften nur bei Inhalt) -->
 <!-- ============================================ -->
 <div id="filesBrowserContextZone" data-context-zone data-context-menu="template" data-context-menu-id="files-browser-context-menu">
+<div id="filesContentMeta" hidden
+     data-has-folders="{{ '1' if subfolders else '0' }}"
+     data-has-files="{{ '1' if files else '0' }}"></div>
 <div id="gridViewContainer" style="display: none;">
-    <!-- Ordner Überschrift - IMMER anzeigen -->
-    <h5 class="mb-3">{{ _('files.index.sections.folders') }}</h5>
+    {% if not subfolders and not files %}
+    <div class="files-empty-state" id="filesEmptyStateGrid">{{ _('files.index.labels.nothing_present') }}</div>
+    {% endif %}
+
+    <!-- Ordner Überschrift - nur wenn Ordner vorhanden (oder Inline-Erstellung) -->
+    <h5 class="mb-3" id="foldersSectionHeading"{% if not subfolders %} hidden{% endif %}>{{ _('files.index.sections.folders') }}</h5>
 
     <!-- Inline Folder Creation (Grid View) -->
     <div id="inlineFolderCreateGrid" class="row g-3 mb-4" style="display: none;">
@@ -144,7 +286,7 @@
         {% if subfolders %}
         {% for folder in subfolders %}
         <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-context-zone data-context-menu="dropdown">
-            <div class="card folder-item files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'">
+            <div class="card folder-item files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
@@ -160,46 +302,16 @@
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu">
-                                {% if files_dropbox_enabled and folder.is_dropbox %}
+                                {% if files_dropbox_enabled or files_sharing_enabled %}
                                 <li>
-                                    <a class="dropdown-item" href="#" onclick="openDropboxSettings({{ folder.id }}); return false;">
-                                        <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.dropbox_edit') }}
+                                    <a class="dropdown-item" href="#" onclick="openShareManagement('folder', {{ folder.id }}); return false;">
+                                        <i class="bi bi-share"></i> Freigaben
                                     </a>
                                 </li>
-                                {% elif files_dropbox_enabled %}
-                                <li>
-                                    <form method="POST" action="{{ url_for('files.make_dropbox', folder_id=folder.id) }}" class="d-inline">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-mailbox"></i> {{ _('files.index.folder_actions.dropbox_make') }}
-                                        </button>
-                                    </form>
-                                </li>
-                                {% endif %}
-                                {% if files_sharing_enabled %}
-                                <li><hr class="dropdown-divider"></li>
-                                {% if folder.share_enabled %}
-                                <li>
-                                    <a class="dropdown-item" href="#" onclick="openShareSettings('folder', {{ folder.id }}); return false;">
-                                        <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.share_edit') }}
-                                    </a>
-                                </li>
+                                {% if folder.share_enabled or folder.is_dropbox %}
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="openShareActivity('folder', {{ folder.id }}); return false;">
                                         <i class="bi bi-clock-history"></i> Aktivitätsverlauf
-                                    </a>
-                                </li>
-                                <li>
-                                    <form method="POST" action="{{ url_for('files.update_folder_share', folder_id=folder.id) }}" class="d-inline">
-                                        <input type="hidden" name="action" value="disable">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-slash-circle"></i> {{ _('files.index.folder_actions.share_disable') }}
-                                        </button>
-                                    </form>
-                                </li>
-                                {% else %}
-                                <li>
-                                    <a class="dropdown-item" href="#" onclick="openShareDialog('folder', {{ folder.id }}); return false;">
-                                        <i class="bi bi-share"></i> {{ _('files.index.folder_actions.share') }}
                                     </a>
                                 </li>
                                 {% endif %}
@@ -215,13 +327,45 @@
                                         <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
                                     </a>
                                 </li>
+                                {% if not is_trash_view %}
+                                <li>
+                                    <a class="dropdown-item files-favorite-toggle" href="#" data-folder-id="{{ folder.id }}" onclick="toggleFolderFavorite({{ folder.id }}); return false;">
+                                        <i class="bi bi-star{% if folder.id in favorite_folder_ids %}-fill{% endif %}"></i>
+                                        <span>{% if folder.id in favorite_folder_ids %}{{ _('files.index.favorites.remove') }}{% else %}{{ _('files.index.favorites.add') }}{% endif %}</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_trash_view %}
+                                <li>
+                                    <form method="POST" action="{{ url_for('files.restore_folder_route', folder_id=folder.id) }}" class="d-inline">
+                                        <button type="submit" class="dropdown-item"><i class="bi bi-arrow-counterclockwise"></i> {{ _('files.index.trash_actions.restore') }}</button>
+                                    </form>
+                                </li>
                                 <li>
                                     <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
+                                        <input type="hidden" name="purge" value="1">
+                                        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}">
+                                            <i class="bi bi-trash"></i> {{ _('files.index.trash_actions.purge') }}
+                                        </button>
+                                    </form>
+                                </li>
+                                {% else %}
+                                {% if files_view != 'public' and (folder.space|default('public')) != 'public' %}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="openInternalShare('folder', {{ folder.id }}); return false;">
+                                        <i class="bi bi-person-plus"></i> {{ _('files.index.acl.title') }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
+                                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}
                                         <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}">
                                             <i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}
                                         </button>
                                     </form>
                                 </li>
+                                {% endif %}
                                 </ul>
                             </div>
                         </div>
@@ -234,11 +378,11 @@
     </div>
 
     <!-- ============================================ -->
-    <!-- GRID VIEW - DATEIEN Sektion (IMMER sichtbar) -->
+    <!-- GRID VIEW - DATEIEN Sektion -->
     <!-- ============================================ -->
     
-    <!-- Dateien Überschrift - IMMER anzeigen -->
-    <h5 class="mb-3">{{ _('files.index.sections.files') }}</h5>
+    <!-- Dateien Überschrift - nur wenn Dateien vorhanden (oder Inline-Erstellung) -->
+    <h5 class="mb-3" id="filesSectionHeading"{% if not files %} hidden{% endif %}>{{ _('files.index.sections.files') }}</h5>
 
     <!-- Inline File Creation (Grid View) -->
     <div id="inlineFileCreateGrid" class="row g-3 mb-4" style="display: none;">
@@ -336,7 +480,7 @@
                     <!-- File Info -->
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 text-truncate" title="{{ file.name }}">{{ file.name }}</h6>
+                            <h6 class="mb-1 text-truncate files-presence-anchor" title="{{ file.name }}">{{ file.name }}</h6>
                             {% if file.version_number > 1 %}
                             <span class="badge bg-info">v{{ file.version_number }}</span>
                             {% endif %}
@@ -377,22 +521,12 @@
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 {% if files_sharing_enabled %}
-                                <li><hr class="dropdown-divider"></li>
-                                {% if file.share_enabled %}
-                                <li><a class="dropdown-item" href="#" onclick="openShareSettings('file', {{ file.id }}); return false;">
-                                    <i class="bi bi-gear"></i> {{ _('files.index.file_actions.share_edit') }}
+                                <li><a class="dropdown-item" href="#" onclick="openShareManagement('file', {{ file.id }}); return false;">
+                                    <i class="bi bi-share"></i> Freigaben
                                 </a></li>
-                                <li>
-                                    <form method="POST" action="{{ url_for('files.update_file_share', file_id=file.id) }}" class="d-inline">
-                                        <input type="hidden" name="action" value="disable">
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="bi bi-slash-circle"></i> {{ _('files.index.file_actions.share_disable') }}
-                                        </button>
-                                    </form>
-                                </li>
-                                {% else %}
-                                <li><a class="dropdown-item" href="#" onclick="openShareDialog('file', {{ file.id }}); return false;">
-                                    <i class="bi bi-share"></i> {{ _('files.index.file_actions.share') }}
+                                {% if file.share_enabled %}
+                                <li><a class="dropdown-item" href="#" onclick="openShareActivity('file', {{ file.id }}); return false;">
+                                    <i class="bi bi-clock-history"></i> Aktivitätsverlauf
                                 </a></li>
                                 {% endif %}
                                 {% endif %}
@@ -400,19 +534,46 @@
                                 <li><a class="dropdown-item" href="#" onclick="openFileDetails({{ file.id }})">
                                     <i class="bi bi-info-circle"></i> {{ _('files.index.file_actions.details') }}
                                 </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="openFileDetails({{ file.id }}); return false;">
+                                    <i class="bi bi-clock-history"></i> {{ _('files.index.modals.side_menu.versions_title') }}
+                                </a></li>
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="openRenameFileModal({{ file.id }}, '{{ file.name|replace("'", "\\'") }}'); return false;">
                                         <i class="bi bi-pencil"></i> {{ _('files.index.file_actions.rename') }}
                                     </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
+                                {% if is_trash_view %}
+                                <li>
+                                    <form method="POST" action="{{ url_for('files.restore_file_route', file_id=file.id) }}" class="d-inline">
+                                        <button type="submit" class="dropdown-item"><i class="bi bi-arrow-counterclockwise"></i> {{ _('files.index.trash_actions.restore') }}</button>
+                                    </form>
+                                </li>
                                 <li>
                                     <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
+                                        <input type="hidden" name="purge" value="1">
+                                        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}">
+                                            <i class="bi bi-trash"></i> {{ _('files.index.trash_actions.purge') }}
+                                        </button>
+                                    </form>
+                                </li>
+                                {% else %}
+                                {% if files_view != 'public' and (file.space|default('public')) != 'public' %}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="openInternalShare('file', {{ file.id }}); return false;">
+                                        <i class="bi bi-person-plus"></i> {{ _('files.index.acl.title') }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
+                                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}
                                         <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}">
                                             <i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}
                                         </button>
                                     </form>
                                 </li>
+                                {% endif %}
                                 </ul>
                             </div>
                         </div>
@@ -475,315 +636,140 @@
     </div>
 </div>
 
-<!-- ============================================ -->
-<!-- LIST VIEW - ORDNER Sektion (IMMER sichtbar) -->
-<!-- ============================================ -->
+<!-- LIST VIEW (detailed table) -->
 <div id="listViewContainer" style="display: none;">
-    <!-- Ordner Überschrift - IMMER anzeigen -->
-    <h5 class="mb-3">{{ _('files.index.sections.folders') }}</h5>
-
-    <!-- Folders List View -->
-    <div id="foldersListView" class="list-group mb-4">
-        {% if subfolders %}
-        {% for folder in subfolders %}
-        <div class="list-group-item d-flex justify-content-between align-items-center files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
-            <div class="d-flex align-items-center" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id) }}'" style="cursor: pointer;">
-                <i class="bi bi-folder-fill fs-4 me-3 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
-                <span class="fw-medium">{{ folder.name }}</span>
-            </div>
-            <div class="d-flex align-items-center gap-1">
-                <button type="button" class="btn btn-sm btn-link files-dnd-handle" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" title="{{ _('files.index.messages.drag_to_move') }}">
-                    <i class="bi bi-grip-vertical"></i>
-                </button>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown">
-                        <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                    {% if files_dropbox_enabled and folder.is_dropbox %}
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openDropboxSettings({{ folder.id }}); return false;">
-                            <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.dropbox_edit') }}
+    {% if not subfolders and not files %}
+    <div class="files-empty-state" id="filesEmptyStateList">{{ _('files.index.labels.nothing_present') }}</div>
+    {% else %}
+    <div class="files-list-table-wrap">
+        <table class="table files-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">{{ _('files.index.list.name') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('files.index.list.owner') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('files.index.list.version') }}</th>
+                    <th scope="col" class="d-none d-lg-table-cell">{{ _('files.index.list.modified') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('files.index.list.size') }}</th>
+                    <th scope="col" class="text-end">{{ _('files.index.list.actions') }}</th>
+                </tr>
+            </thead>
+            <tbody id="filesListTableBody">
+            {% for folder in subfolders %}
+                {% set owner = users_by_id.get(folder.created_by) %}
+                {% set allow_internal_acl = files_view != 'public' and (folder.space|default('public')) != 'public' %}
+                <tr class="files-list-row files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
+                    <td>
+                        <a class="files-list-name text-decoration-none" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
+                            <i class="bi bi-folder-fill me-2 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>{{ folder.name }}
                         </a>
-                    </li>
-                    {% elif files_dropbox_enabled %}
-                    <li>
-                        <form method="POST" action="{{ url_for('files.make_dropbox', folder_id=folder.id) }}" class="d-inline">
-                            <button type="submit" class="dropdown-item">
-                                <i class="bi bi-mailbox"></i> {{ _('files.index.folder_actions.dropbox_make') }}
-                            </button>
-                        </form>
-                    </li>
-                    {% endif %}
-                    {% if files_sharing_enabled %}
-                    <li><hr class="dropdown-divider"></li>
-                    {% if folder.share_enabled %}
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openShareSettings('folder', {{ folder.id }}); return false;">
-                            <i class="bi bi-gear"></i> {{ _('files.index.folder_actions.share_edit') }}
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else '—' }}</td>
+                    <td class="d-none d-md-table-cell text-muted">—</td>
+                    <td class="d-none d-lg-table-cell text-muted">{% if folder.updated_at %}{{ folder.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
+                    <td class="d-none d-md-table-cell text-muted">—</td>
+                    <td class="text-end">
+                        <div class="files-list-actions">
+                            <div class="files-list-hover-actions">
+                                {% if not is_trash_view %}
+                                {% if allow_internal_acl %}
+                                <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.acl.title') }}" onclick="openInternalShare('folder', {{ folder.id }}); return false;"><i class="bi bi-person-plus"></i></button>
+                                {% elif files_sharing_enabled or files_dropbox_enabled %}
+                                <button type="button" class="btn btn-sm btn-link" title="Freigaben" onclick="openShareManagement('folder', {{ folder.id }}); return false;"><i class="bi bi-share"></i></button>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.folder_actions.rename') }}" onclick="openRenameFolderModal({{ folder.id }}, {{ folder.name|tojson }}); return false;"><i class="bi bi-pencil"></i></button>
+                                {% endif %}
+                            </div>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-link" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if is_trash_view %}
+                                    <li><form method="POST" action="{{ url_for('files.restore_folder_route', folder_id=folder.id) }}"><button class="dropdown-item" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ _('files.index.trash_actions.restore') }}</button></form></li>
+                                    <li><form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}"><input type="hidden" name="purge" value="1"><button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}"><i class="bi bi-trash"></i> {{ _('files.index.trash_actions.purge') }}</button></form></li>
+                                    {% else %}
+                                    {% if files_dropbox_enabled or files_sharing_enabled %}
+                                    <li><a class="dropdown-item" href="#" onclick="openShareManagement('folder', {{ folder.id }}); return false;"><i class="bi bi-share"></i> Freigaben</a></li>
+                                    {% endif %}
+                                    {% if allow_internal_acl %}
+                                    <li><a class="dropdown-item" href="#" onclick="openInternalShare('folder', {{ folder.id }}); return false;"><i class="bi bi-person-plus"></i> {{ _('files.index.acl.title') }}</a></li>
+                                    {% endif %}
+                                    <li><a class="dropdown-item" href="#" onclick="openRenameFolderModal({{ folder.id }}, {{ folder.name|tojson }}); return false;"><i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}</a></li>
+                                    <li><a class="dropdown-item files-favorite-toggle" href="#" data-folder-id="{{ folder.id }}" onclick="toggleFolderFavorite({{ folder.id }}); return false;"><i class="bi bi-star{% if folder.id in favorite_folder_ids %}-fill{% endif %}"></i> <span>{% if folder.id in favorite_folder_ids %}{{ _('files.index.favorites.remove') }}{% else %}{{ _('files.index.favorites.add') }}{% endif %}</span></a></li>
+                                    <li><form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}"><i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}</button></form></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% for file in files %}
+                {% set owner = users_by_id.get(file.uploaded_by) %}
+                {% set allow_internal_acl = files_view != 'public' and (file.space|default('public')) != 'public' %}
+                {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                {% if file.name.endswith(('.md', '.markdown')) %}
+                    {% set open_url = url_for('files.view_file', file_id=file.id) %}
+                {% elif onlyoffice_available and file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf'] %}
+                    {% set open_url = url_for('files.edit_onlyoffice', file_id=file.id) %}
+                {% elif file.name.endswith(('.txt', '.pdf')) %}
+                    {% set open_url = url_for('files.view_file', file_id=file.id) %}
+                {% else %}
+                    {% set open_url = url_for('files.download_file', file_id=file.id) %}
+                {% endif %}
+                <tr class="files-list-row files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
+                    <td>
+                        <a class="files-list-name text-decoration-none" href="{{ open_url }}">
+                            <i class="bi bi-file-earmark me-2"></i>{{ file.original_name or file.name }}
                         </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openShareActivity('folder', {{ folder.id }}); return false;">
-                            <i class="bi bi-clock-history"></i> Aktivitätsverlauf
-                        </a>
-                    </li>
-                    <li>
-                        <form method="POST" action="{{ url_for('files.update_folder_share', folder_id=folder.id) }}" class="d-inline">
-                            <input type="hidden" name="action" value="disable">
-                            <button type="submit" class="dropdown-item">
-                                <i class="bi bi-slash-circle"></i> {{ _('files.index.folder_actions.share_disable') }}
-                            </button>
-                        </form>
-                    </li>
-                    {% else %}
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openShareDialog('folder', {{ folder.id }}); return false;">
-                            <i class="bi bi-share"></i> {{ _('files.index.folder_actions.share') }}
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% endif %}
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openFolderColorModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}', '{{ folder.color or '' }}'); return false;">
-                            <i class="bi bi-palette"></i> Ordnerfarbe
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openRenameFolderModal({{ folder.id }}, '{{ folder.name|replace("'", "\\'") }}'); return false;">
-                            <i class="bi bi-pencil"></i> {{ _('files.index.folder_actions.rename') }}
-                        </a>
-                    </li>
-                    <li>
-                        <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
-                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}">
-                                <i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}
-                            </button>
-                        </form>
-                    </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-        {% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else (file.uploader.full_name if file.uploader else '—') }}</td>
+                    <td class="d-none d-md-table-cell"><span class="badge bg-secondary">v{{ file.version_number }}</span></td>
+                    <td class="d-none d-lg-table-cell text-muted">{% if file.updated_at %}{{ file.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
+                    <td class="d-none d-md-table-cell text-muted">{% if file.file_size %}{% if file.file_size >= 1048576 %}{{ '%.1f'|format(file.file_size/1048576) }} MB{% elif file.file_size >= 1024 %}{{ '%.1f'|format(file.file_size/1024) }} KB{% else %}{{ file.file_size }} B{% endif %}{% else %}—{% endif %}</td>
+                    <td class="text-end">
+                        <div class="files-list-actions">
+                            <div class="files-list-hover-actions">
+                                {% if not is_trash_view %}
+                                <a class="btn btn-sm btn-link" href="{{ url_for('files.download_file', file_id=file.id) }}" title="Download"><i class="bi bi-download"></i></a>
+                                <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.file_actions.rename') }}" onclick="openRenameFileModal({{ file.id }}, {{ file.name|tojson }}); return false;"><i class="bi bi-pencil"></i></button>
+                                {% if allow_internal_acl %}
+                                <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.acl.title') }}" onclick="openInternalShare('file', {{ file.id }}); return false;"><i class="bi bi-person-plus"></i></button>
+                                {% elif files_sharing_enabled %}
+                                <button type="button" class="btn btn-sm btn-link" title="Freigaben" onclick="openShareManagement('file', {{ file.id }}); return false;"><i class="bi bi-share"></i></button>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.file_actions.details') }}" onclick="openFileDetails({{ file.id }}); return false;"><i class="bi bi-info-circle"></i></button>
+                                {% endif %}
+                            </div>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-link" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if is_trash_view %}
+                                    <li><form method="POST" action="{{ url_for('files.restore_file_route', file_id=file.id) }}"><button class="dropdown-item" type="submit"><i class="bi bi-arrow-counterclockwise"></i> {{ _('files.index.trash_actions.restore') }}</button></form></li>
+                                    <li><form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}"><input type="hidden" name="purge" value="1"><button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}"><i class="bi bi-trash"></i> {{ _('files.index.trash_actions.purge') }}</button></form></li>
+                                    {% else %}
+                                    <li><a class="dropdown-item" href="#" onclick="openFileDetails({{ file.id }}); return false;"><i class="bi bi-info-circle"></i> {{ _('files.index.file_actions.details') }}</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="openFileDetails({{ file.id }}); return false;"><i class="bi bi-clock-history"></i> {{ _('files.index.modals.side_menu.versions_title') }}</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('files.download_file', file_id=file.id) }}"><i class="bi bi-download"></i> Download</a></li>
+                                    {% if files_dropbox_enabled or files_sharing_enabled %}
+                                    <li><a class="dropdown-item" href="#" onclick="openShareManagement('file', {{ file.id }}); return false;"><i class="bi bi-share"></i> Freigaben</a></li>
+                                    {% endif %}
+                                    {% if allow_internal_acl %}
+                                    <li><a class="dropdown-item" href="#" onclick="openInternalShare('file', {{ file.id }}); return false;"><i class="bi bi-person-plus"></i> {{ _('files.index.acl.title') }}</a></li>
+                                    {% endif %}
+                                    <li><a class="dropdown-item" href="#" onclick="openRenameFileModal({{ file.id }}, {{ file.name|tojson }}); return false;"><i class="bi bi-pencil"></i> {{ _('files.index.file_actions.rename') }}</a></li>
+                                    <li><form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}"><i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}</button></form></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <!-- ============================================ -->
-    <!-- LIST VIEW - DATEIEN Sektion (IMMER sichtbar) -->
-    <!-- ============================================ -->
-    
-    <!-- Dateien Überschrift - IMMER anzeigen -->
-    <h5 class="mb-3">{{ _('files.index.sections.files') }}</h5>
-
-    <!-- List View -->
-    <div id="listView" class="list-group">
-    {% if files %}
-    {% for file in files %}
-        <div class="list-group-item files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
-            <div class="d-flex w-100 justify-content-between align-items-center">
-                <div class="d-flex align-items-center flex-grow-1" 
-                 {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
-                 {% if file.name.endswith(('.md', '.markdown')) %}
-                 onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
-                 {% elif onlyoffice_available and file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf'] %}
-                 onclick="location.href='{{ url_for('files.edit_onlyoffice', file_id=file.id) }}'" style="cursor: pointer;"
-                 {% elif file.name.endswith('.txt') %}
-                 onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
-                 {% elif file.name.endswith('.pdf') %}
-                 onclick="location.href='{{ url_for('files.view_file', file_id=file.id) }}'" style="cursor: pointer;"
-                 {% else %}
-                 onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
-                 {% endif %}>
-                <!-- File Icon -->
-                <div class="me-3">
-                    {% if file.name.endswith(('.md', '.markdown')) %}
-                    <img src="{{ url_for('static', filename='img/markdown.png') }}" alt="Markdown" class="file-type-icon-small" style="height: 32px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                    <i class="bi bi-file-earmark-text fs-4 text-info" style="display: none;"></i>
-                    {% elif file.name.endswith('.txt') %}
-                    <i class="bi bi-file-earmark-text fs-4 text-secondary"></i>
-                    {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}
-                    <img src="{{ url_for('files.download_file', file_id=file.id) }}" alt="Bild" class="file-thumbnail" style="height: 32px; width: auto; max-width: 48px; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                    <i class="bi bi-file-earmark-image fs-4 text-success" style="display: none;"></i>
-                    {% elif file.name.endswith('.pdf') %}
-                    <img src="{{ url_for('static', filename='img/PDF.png') }}" alt="PDF" class="file-type-icon-small" style="height: 32px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                    <i class="bi bi-file-earmark-pdf fs-4 text-danger" style="display: none;"></i>
-                    {% elif file.name.endswith('.docx') %}
-                    <img src="{{ url_for('static', filename='img/docx.png') }}" alt="DOCX" class="file-type-icon-small" style="height: 32px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                    <i class="bi bi-file-earmark-word fs-4 text-primary" style="display: none;"></i>
-                    {% elif file.name.endswith('.xlsx') %}
-                    <img src="{{ url_for('static', filename='img/xlsx.png') }}" alt="XLSX" class="file-type-icon-small" style="height: 32px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                    <i class="bi bi-file-earmark-spreadsheet fs-4 text-success" style="display: none;"></i>
-                    {% elif file.name.endswith('.pptx') %}
-                    <img src="{{ url_for('static', filename='img/pptx.png') }}" alt="PPTX" class="file-type-icon-small" style="height: 32px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                    <i class="bi bi-file-earmark-slides fs-4 text-warning" style="display: none;"></i>
-                    {% else %}
-                    <i class="bi bi-file-earmark fs-4 text-primary"></i>
-                    {% endif %}
-                </div>
-                
-                <!-- File Name -->
-                <div class="flex-grow-1">
-                    {% set list_file_preview = file_preview_map.get(file.id) %}
-                    <h6 class="mb-0 fw-medium">
-                        {{ file.name }}
-                        {% if file.version_number > 1 %}
-                        <span class="badge bg-info ms-1">v{{ file.version_number }}</span>
-                        {% endif %}
-                    </h6>
-                    {% if list_file_preview %}
-                    <div class="small text-muted text-truncate" style="max-width: 420px;">{{ list_file_preview }}</div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Details Button -->
-            <div class="d-flex align-items-center gap-1" onclick="event.stopPropagation()">
-                <button type="button" class="btn btn-sm btn-link files-dnd-handle" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" title="{{ _('files.index.messages.drag_to_move') }}">
-                    <i class="bi bi-grip-vertical"></i>
-                </button>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-link" data-bs-toggle="dropdown">
-                        <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="{{ url_for('files.download_file', file_id=file.id) }}">
-                        <i class="bi bi-download"></i> {{ _('files.index.file_actions.download') }}
-                    </a></li>
-                    {% if onlyoffice_available %}
-                        {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
-                        {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
-                    <li><a class="dropdown-item" href="{{ url_for('files.edit_onlyoffice', file_id=file.id) }}" target="_blank" rel="noopener noreferrer">
-                        <i class="bi bi-file-earmark-text"></i> {{ _('files.index.file_actions.edit_onlyoffice') }}
-                    </a></li>
-                    <li><hr class="dropdown-divider"></li>
-                        {% endif %}
-                    {% endif %}
-                    {% if file.name.endswith('.pdf') %}
-                    <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">
-                        <i class="bi bi-eye"></i> {{ _('files.index.file_actions.view') }}
-                    </a></li>
-                    {% endif %}
-                    {% if file.name.endswith(('.txt', '.md')) %}
-                    <li><a class="dropdown-item" href="{{ url_for('files.view_file', file_id=file.id) }}">
-                        <i class="bi bi-eye"></i> {{ _('files.index.file_actions.view') }}
-                    </a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('files.edit_file', file_id=file.id) }}">
-                        <i class="bi bi-pencil"></i> {{ _('files.index.file_actions.edit') }}
-                    </a></li>
-                    {% endif %}
-                    <li><hr class="dropdown-divider"></li>
-                    {% if files_sharing_enabled %}
-                    {% if file.share_enabled %}
-                    <li><a class="dropdown-item" href="#" onclick="openShareSettings('file', {{ file.id }}); return false;">
-                        <i class="bi bi-gear"></i> {{ _('files.index.file_actions.share_edit') }}
-                    </a></li>
-                    <li>
-                        <form method="POST" action="{{ url_for('files.update_file_share', file_id=file.id) }}" class="d-inline">
-                            <input type="hidden" name="action" value="disable">
-                            <button type="submit" class="dropdown-item">
-                                <i class="bi bi-slash-circle"></i> {{ _('files.index.file_actions.share_disable') }}
-                            </button>
-                        </form>
-                    </li>
-                    {% else %}
-                    <li><a class="dropdown-item" href="#" onclick="openShareDialog('file', {{ file.id }}); return false;">
-                        <i class="bi bi-share"></i> {{ _('files.index.file_actions.share') }}
-                    </a></li>
-                    {% endif %}
-                    {% endif %}
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="openFileDetails({{ file.id }})">
-                        <i class="bi bi-info-circle"></i> {{ _('files.index.file_actions.details') }}
-                    </a></li>
-                    <li>
-                        <a class="dropdown-item" href="#" onclick="openRenameFileModal({{ file.id }}, '{{ file.name|replace("'", "\\'") }}'); return false;">
-                            <i class="bi bi-pencil"></i> {{ _('files.index.file_actions.rename') }}
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
-                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}">
-                                <i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}
-                            </button>
-                        </form>
-                    </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
     {% endif %}
-    </div>
 </div>
 
-{% if not subfolders and not files %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    {{ _('files.index.labels.empty_folder') }}
-</div>
-{% endif %}
-</div>
-
-<!-- Create Modal -->
-<div class="modal fade" id="createModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{{ _('files.index.modals.create_entry.title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createFileModal" data-bs-dismiss="modal">
-                        <i class="bi bi-file-earmark-text"></i> {{ _('files.index.modals.create_entry.markdown_button') }}
-                    </button>
-                    <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#newFolderModal" data-bs-dismiss="modal">
-                        <i class="bi bi-folder-plus"></i> {{ _('files.index.modals.create_entry.folder_button') }}
-                    </button>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create MD File Modal -->
-<div class="modal fade" id="createFileModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{{ _('files.index.modals.markdown.title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('files.create_file') }}">
-                <div class="modal-body">
-                    <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                    <input type="hidden" name="file_type" value="md">
-                    <div class="mb-3">
-                        <label for="md_filename" class="form-label">{{ _('files.index.modals.markdown.filename_label') }}</label>
-                        <input type="text" class="form-control" id="md_filename" name="filename" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="md_content" class="form-label">{{ _('files.index.modals.markdown.content_label') }}</label>
-                        <textarea class="form-control" id="md_content" name="content" rows="8" placeholder="{{ _('files.index.modals.markdown.placeholder') }}"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                    <button type="submit" class="btn btn-accent">{{ _('common.create') }}</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Upload Modal -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -980,6 +966,37 @@
     </div>
 </div>
 
+
+<!-- Internal ACL share modal -->
+<div class="modal fade" id="internalShareModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('files.index.acl.title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="aclShareAllBtn">{{ _('files.index.acl.share_all') }}</button>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">{{ _('files.index.acl.share_user') }}</label>
+          <div class="input-group">
+            <select class="form-select" id="aclUserSelect"></select>
+            <select class="form-select" id="aclPermSelect" style="max-width:8rem">
+              <option value="view">{{ _('files.index.acl.permission_view') }}</option>
+              <option value="edit">{{ _('files.index.acl.permission_edit') }}</option>
+            </select>
+            <button type="button" class="btn btn-accent" id="aclShareUserBtn">OK</button>
+          </div>
+        </div>
+        <div id="aclEntriesList" class="list-group list-group-flush"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div></div><!-- /files-shell -->
 <style>
 /* Dropdown Menu Positioning */
 #newButtonDropdown {
@@ -1036,6 +1053,15 @@
 <script>
 const FILES_I18N = {{ current_translations.get('files', {}).get('index', {})|tojson }};
 const CURRENT_FOLDER_ID = {{ current_folder.id if current_folder else 'null' }};
+const FILES_SHARING_ENABLED = {{ 'true' if files_sharing_enabled else 'false' }};
+const FILES_DROPBOX_ENABLED = {{ 'true' if files_dropbox_enabled else 'false' }};
+window.FILES_UPLOAD_URL = {{ url_for('files.upload_file')|tojson }};
+window.FILES_I18N = FILES_I18N;
+window.CURRENT_FOLDER_ID = CURRENT_FOLDER_ID;
+window.FILES_VIEW = {{ files_view|tojson }};
+window.FILES_PRIVATE_FOLDERS = {{ 'true' if files_private_folders_enabled else 'false' }};
+window.FILES_SHARING_ENABLED = FILES_SHARING_ENABLED;
+window.FILES_DROPBOX_ENABLED = FILES_DROPBOX_ENABLED;
 document.addEventListener('DOMContentLoaded', function() {
     function isExternalFileDrag(event) {
         const types = Array.from(event?.dataTransfer?.types || []);
@@ -1291,6 +1317,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function submitUploadFormData(formData, fileNames) {
+        if (typeof window.submitUploadFormDataWithToast === 'function') {
+            return window.submitUploadFormDataWithToast(formData, fileNames);
+        }
         const strategy = await resolveConflictStrategy(fileNames);
         if (strategy === 'cancel') {
             return;
@@ -1314,6 +1343,8 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.reload();
         }
     }
+    window.submitUploadFormData = submitUploadFormData;
+    window.resolveConflictStrategy = resolveConflictStrategy;
 
     // Handle file upload - verwende FormData für direkten Upload
     if (directFileUpload) {
@@ -1321,6 +1352,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.files.length > 0) {
                 const formData = new FormData();
                 formData.append('folder_id', '{{ current_folder.id if current_folder else "" }}');
+                if (window.FILES_VIEW) formData.append('view', window.FILES_VIEW);
                 const fileNames = [];
 
                 for (let i = 0; i < this.files.length; i++) {
@@ -1331,7 +1363,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 submitUploadFormData(formData, fileNames).catch(error => {
                     console.error('Upload error:', error);
-                    alert(FILES_I18N.messages.upload_error);
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(FILES_I18N.messages.upload_error, 'danger');
+                    }
                 });
 
                 this.value = '';
@@ -1345,6 +1379,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.files.length > 0) {
                 const formData = new FormData();
                 formData.append('folder_id', '{{ current_folder.id if current_folder else "" }}');
+                if (window.FILES_VIEW) formData.append('view', window.FILES_VIEW);
                 const fileNames = [];
 
                 for (let i = 0; i < this.files.length; i++) {
@@ -1355,7 +1390,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 submitUploadFormData(formData, fileNames).catch(error => {
                     console.error('Upload error:', error);
-                    alert(FILES_I18N.messages.upload_folder_error);
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(FILES_I18N.messages.upload_folder_error, 'danger');
+                    }
                 });
 
                 this.value = '';
@@ -1364,6 +1401,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showDnDMessage(message, type = 'warning') {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(message, type);
+            return;
+        }
         const alert = document.createElement('div');
         alert.className = `alert alert-${type} files-toast-message`;
         alert.innerText = message;
@@ -1470,6 +1511,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!dataTransfer) return;
         const formData = new FormData();
         formData.append('folder_id', CURRENT_FOLDER_ID ?? '');
+        if (window.FILES_VIEW) formData.append('view', window.FILES_VIEW);
         const fileNames = Array.from(dataTransfer.files || []).map(file => file.name);
 
         const items = Array.from(dataTransfer.items || []);
@@ -1503,7 +1545,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('foldersGridView'),
         document.getElementById('foldersListView'),
         document.getElementById('gridView'),
-        document.getElementById('listView')
+        document.getElementById('filesListTableBody'),
+        document.getElementById('listViewContainer')
     ].filter(Boolean);
 
     draggableItems.forEach(item => {
@@ -1593,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const droppedInInternalZone = event.target.closest('.files-drop-target, #foldersGridView, #foldersListView, #gridView, #listView');
+        const droppedInInternalZone = event.target.closest('.files-drop-target, #foldersGridView, #foldersListView, #gridView, #filesListTableBody, #listViewContainer');
         if (droppedInInternalZone) {
             return;
         }
@@ -1626,6 +1669,46 @@ document.addEventListener('DOMContentLoaded', function() {
         await uploadDroppedContent(event);
     });
     
+    // Leerer Ordner: Überschriften / Empty-State steuern
+    function getFilesContentMeta() {
+        const meta = document.getElementById('filesContentMeta');
+        return {
+            hasFolders: meta && meta.dataset.hasFolders === '1',
+            hasFiles: meta && meta.dataset.hasFiles === '1'
+        };
+    }
+
+    function setFilesEmptyStateVisible(visible) {
+        document.querySelectorAll('.files-empty-state').forEach(function(el) {
+            el.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function restoreFilesSectionHeadings() {
+        const meta = getFilesContentMeta();
+        const foldersHeading = document.getElementById('foldersSectionHeading');
+        const filesHeading = document.getElementById('filesSectionHeading');
+        if (foldersHeading) {
+            foldersHeading.hidden = !meta.hasFolders;
+        }
+        if (filesHeading) {
+            filesHeading.hidden = !meta.hasFiles;
+        }
+        setFilesEmptyStateVisible(!meta.hasFolders && !meta.hasFiles);
+    }
+
+    function hideInlineCreatePanels() {
+        const folderGrid = document.getElementById('inlineFolderCreateGrid');
+        const folderList = document.getElementById('inlineFolderCreateList');
+        const fileGrid = document.getElementById('inlineFileCreateGrid');
+        const fileList = document.getElementById('inlineFileCreateList');
+        if (folderGrid) folderGrid.style.display = 'none';
+        if (folderList) folderList.style.display = 'none';
+        if (fileGrid) fileGrid.style.display = 'none';
+        if (fileList) fileList.style.display = 'none';
+        restoreFilesSectionHeadings();
+    }
+
     // Inline-Erstellung Funktionen
     function showInlineCreate(type, fileType) {
         // Schließe Dropdown-Menü
@@ -1634,8 +1717,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Bestimme aktuelle Ansicht
         const isGridView = gridViewBtn.classList.contains('active');
+        setFilesEmptyStateVisible(false);
         
         if (type === 'folder') {
+            const foldersHeading = document.getElementById('foldersSectionHeading');
+            if (foldersHeading) foldersHeading.hidden = false;
             // Zeige Inline-Ordner-Erstellung
             if (isGridView) {
                 document.getElementById('inlineFolderCreateGrid').style.display = 'block';
@@ -1648,6 +1734,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (input) input.focus();
             }, 100);
         } else if (type === 'file') {
+            const filesHeading = document.getElementById('filesSectionHeading');
+            if (filesHeading) filesHeading.hidden = false;
             // Zeige Inline-Datei-Erstellung
             const formGrid = document.getElementById('inlineFileForm');
             const formList = document.getElementById('inlineFileFormList');
@@ -1764,10 +1852,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Abbrechen-Buttons
     document.querySelectorAll('.cancel-inline-create').forEach(function(btn) {
         btn.addEventListener('click', function() {
-            document.getElementById('inlineFolderCreateGrid').style.display = 'none';
-            document.getElementById('inlineFolderCreateList').style.display = 'none';
-            document.getElementById('inlineFileCreateGrid').style.display = 'none';
-            document.getElementById('inlineFileCreateList').style.display = 'none';
+            hideInlineCreatePanels();
         });
     });
     
@@ -1779,10 +1864,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              document.getElementById('inlineFileCreateGrid').style.display === 'block' ||
                              document.getElementById('inlineFileCreateList').style.display === 'block';
             if (isVisible) {
-                document.getElementById('inlineFolderCreateGrid').style.display = 'none';
-                document.getElementById('inlineFolderCreateList').style.display = 'none';
-                document.getElementById('inlineFileCreateGrid').style.display = 'none';
-                document.getElementById('inlineFileCreateList').style.display = 'none';
+                hideInlineCreatePanels();
             }
         }
     });
@@ -1899,7 +1981,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (fileInput && fileInput.files.length > 0) {
             const file = fileInput.files[0];
             if (file.size > maxSize) {
-                alert(FILES_I18N.messages.file_too_large);
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(FILES_I18N.messages.file_too_large, 'danger');
+                }
                 fileInput.value = '';
                 uploadBtn.disabled = true;
                 return;
@@ -1933,31 +2017,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Upload progress simulation
+    // Upload with real progress toast
     if (uploadForm) {
         uploadForm.addEventListener('submit', function(e) {
-            // Validate that at least one input has files
-            if ((!fileInput || fileInput.files.length === 0) && 
+            e.preventDefault();
+            if ((!fileInput || fileInput.files.length === 0) &&
                 (!folderInput || folderInput.files.length === 0)) {
-                e.preventDefault();
-                alert(FILES_I18N.messages.select_prompt);
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(FILES_I18N.messages.select_prompt, 'warning');
+                }
                 return;
             }
-            
-            uploadProgress.style.display = 'block';
+
+            const formData = new FormData(uploadForm);
+            const names = [];
+            if (fileInput && fileInput.files.length) {
+                Array.from(fileInput.files).forEach(f => names.push(f.name));
+            }
+            if (folderInput && folderInput.files.length) {
+                Array.from(folderInput.files).forEach(f => names.push(f.name));
+            }
             uploadBtn.disabled = true;
             uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Hochladen...';
-            
-            // Simulate progress (since we can't get real progress without AJAX)
-            let progress = 0;
-            const interval = setInterval(function() {
-                progress += Math.random() * 15;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                }
-                uploadProgress.querySelector('.progress-bar').style.width = progress + '%';
-            }, 200);
+            const modalEl = document.getElementById('uploadModal');
+            if (modalEl) {
+                const inst = bootstrap.Modal.getInstance(modalEl);
+                if (inst) inst.hide();
+            }
+            const runner = window.submitUploadFormDataWithToast || window.submitUploadFormData;
+            if (typeof runner === 'function') {
+                runner(formData, names).finally(() => {
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '<i class="bi bi-upload"></i> ' + (FILES_I18N.modals?.upload?.submit || 'Hochladen');
+                });
+            } else {
+                uploadForm.submit();
+            }
         });
     }
     
@@ -2646,6 +2741,7 @@ function showSimpleModal(title, bodyHtml) {
     bsModal.show();
 }
 </script>
+<script src="{{ url_for('static', filename='js/files-dati-update.js') }}"></script>
 {% endblock %}
 
 

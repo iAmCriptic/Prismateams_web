@@ -1,15 +1,44 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app, session, abort, get_flashed_messages
 from flask_login import login_required, current_user
 from app.utils.i18n import get_current_language, translate
 from app import db
-from app.models.file import File, FileVersion, Folder
+from app.models.file import File, FileVersion, Folder, ResourceACL
 from app.models.user import User
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update
+from app.utils.private_files import (
+    can_edit_file,
+    can_edit_folder,
+    can_view_file,
+    can_view_folder,
+    ensure_personal_root,
+    hard_delete_file_disk_and_db,
+    hard_delete_folder_recursive,
+    is_private_folders_enabled,
+    list_acl_for_resource,
+    list_folder_favorites,
+    list_view_contents,
+    normalize_view,
+    remove_acl,
+    resolve_default_parent_for_view,
+    resolve_space_for_parent,
+    restore_file,
+    restore_folder,
+    serialize_acl_row,
+    soft_delete_file,
+    soft_delete_folder,
+    toggle_folder_favorite,
+    upsert_acl,
+    FOLDER_FAVORITES_MAX,
+)
 from app.models.public_share import PublicShare
 from app.utils.public_share import (
+    create_share_link,
+    delete_share_by_id,
+    disable_share_by_id,
+    enable_share_by_id,
     generate_unique_share_token,
     get_share_by_token,
     get_share_for_mode,
@@ -17,10 +46,19 @@ from app.utils.public_share import (
     is_resource_shared,
     log_share_access,
     normalize_share_mode,
+    resolve_dropbox_folder,
     resolve_resource,
+    serialize_share_link,
     serialize_share_settings,
     share_is_expired,
     sync_legacy_share_flags,
+    update_share_link,
+)
+from app.utils.onlyoffice_presence import (
+    heartbeat_session as oo_heartbeat_session,
+    leave_session as oo_leave_session,
+    presence_for_folder,
+    upsert_session as oo_upsert_session,
 )
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -254,32 +292,19 @@ def _get_public_share_context(token):
     return share, item
 
 
-def _upsert_public_share(resource_type, resource, mode, *, password='', expires_at_raw=''):
-    mode = normalize_share_mode(mode)
-    password = (password or '').strip()
-    expires_at = _parse_share_expires(expires_at_raw)
+def _upsert_public_share(resource_type, resource, mode, *, password='', expires_at_raw='', label=None):
+    """Legacy helper — prefer create_share_link for multi-link creates."""
+    from app.utils.public_share import upsert_share_link
     created_by = resource.uploaded_by if resource_type == 'file' else resource.created_by
-
-    share = get_share_for_mode(resource_type, resource.id, mode)
-    if share:
-        share.enabled = True
-        if password:
-            share.password_hash = generate_password_hash(password)
-        share.expires_at = expires_at
-    else:
-        share = PublicShare(
-            resource_type=resource_type,
-            resource_id=resource.id,
-            mode=mode,
-            token=generate_unique_share_token(),
-            enabled=True,
-            password_hash=generate_password_hash(password) if password else None,
-            expires_at=expires_at,
-            created_by=created_by,
-        )
-        db.session.add(share)
-    sync_legacy_share_flags(resource_type, resource)
-    return share
+    return upsert_share_link(
+        resource_type,
+        resource,
+        mode,
+        created_by=created_by,
+        password=password,
+        expires_at_raw=expires_at_raw,
+        label=label,
+    )
 
 
 def _disable_public_share(resource_type, resource, mode):
@@ -336,9 +361,16 @@ def index():
 def browse_folder(folder_id):
     """Browse a specific folder."""
     accessible_folder_ids = set()
+    is_guest = _is_guest_user()
+    private_enabled = is_private_folders_enabled() and not is_guest
+    # Gäste behalten die alte Root-Ansicht ohne Sidebar-Nav
+    if is_guest:
+        files_view = None
+    else:
+        files_view = normalize_view(request.args.get('view'), private_enabled=private_enabled)
 
     # Gast-Accounts: Nur Freigabelinks anzeigen
-    if _is_guest_user():
+    if is_guest:
         from app.utils.access_control import get_guest_accessible_items, get_guest_directly_shared_folders
         accessible_files, accessible_folders = get_guest_accessible_items(current_user)
         accessible_folder_ids = {folder.id for folder in accessible_folders}
@@ -383,47 +415,85 @@ def browse_folder(folder_id):
         # Sortiere
         subfolders = sorted(subfolders, key=lambda x: x.name)
         files = sorted(files, key=lambda x: x.name)
+    elif private_enabled:
+        if files_view == 'ablage':
+            ensure_personal_root(current_user.id)
+        result = list_view_contents(files_view, folder_id, current_user)
+        current_folder, subfolders, files, _view_key = result
+        if current_folder == 'forbidden':
+            flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
+            return redirect(url_for('files.index', view=files_view))
     else:
-        # Normale Benutzer: Alle Dateien/Ordner
+        # Ohne Private-Ordner: Public-Baum + optional Papierkorb (Sidebar bleibt)
         current_folder = None
-        if folder_id:
-            current_folder = Folder.query.get_or_404(folder_id)
-        
-        # Get subfolders
-        if folder_id:
-            subfolders = Folder.query.filter_by(parent_id=folder_id).order_by(Folder.name).all()
+        if files_view == 'trash':
+            subfolders = (
+                Folder.query.filter(
+                    Folder.deleted_at.isnot(None),
+                    Folder.created_by == current_user.id,
+                    Folder.is_personal_root.is_(False),
+                )
+                .order_by(Folder.deleted_at.desc())
+                .all()
+            )
+            files = (
+                File.query.filter(
+                    File.deleted_at.isnot(None),
+                    File.uploaded_by == current_user.id,
+                    File.is_current.is_(True),
+                )
+                .order_by(File.deleted_at.desc())
+                .all()
+            )
         else:
-            # Wenn kein Ordner, zeige Ordner ohne Parent (parent_id IS NULL)
-            subfolders = Folder.query.filter(Folder.parent_id.is_(None)).order_by(Folder.name).all()
-        
-        # Get files in current folder
-        if folder_id:
-            files = File.query.filter_by(
-                folder_id=folder_id,
-                is_current=True
-            ).order_by(File.name).all()
-        else:
-            # Wenn kein Ordner, zeige Dateien ohne Ordner (folder_id IS NULL)
-            # Verwende explizit filter() mit is_(None) für korrekte NULL-Prüfung
-            files = File.query.filter(
-                File.folder_id.is_(None),
-                File.is_current == True
-            ).order_by(File.name).all()
-            
-            # Stelle sicher, dass files eine Liste ist (nicht None)
+            if folder_id:
+                current_folder = Folder.query.get_or_404(folder_id)
+                if current_folder.deleted_at is not None:
+                    flash('Dieser Ordner wurde gelöscht.', 'warning')
+                    return redirect(url_for('files.index', view=files_view or 'public'))
+
+            # Get subfolders
+            if folder_id:
+                subfolders = Folder.query.filter(
+                    Folder.parent_id == folder_id,
+                    Folder.deleted_at.is_(None),
+                    Folder.is_personal_root.is_(False),
+                ).order_by(Folder.name).all()
+            else:
+                subfolders = Folder.query.filter(
+                    Folder.parent_id.is_(None),
+                    Folder.deleted_at.is_(None),
+                    Folder.is_personal_root.is_(False),
+                ).order_by(Folder.name).all()
+
+            if folder_id:
+                files = File.query.filter(
+                    File.folder_id == folder_id,
+                    File.is_current.is_(True),
+                    File.deleted_at.is_(None),
+                ).order_by(File.name).all()
+            else:
+                files = File.query.filter(
+                    File.folder_id.is_(None),
+                    File.is_current.is_(True),
+                    File.deleted_at.is_(None),
+                ).order_by(File.name).all()
+
             if files is None:
                 files = []
-        
-        # Stelle sicher, dass files immer eine Liste ist
-        if files is None:
-            files = []
     
     # Build breadcrumbs starting from root to current folder
     breadcrumb_folders = []
-    if current_folder:
+    view_kwargs = {'view': files_view} if files_view else {}
+    if current_folder and current_folder != 'forbidden':
         ancestors = []
         node = current_folder
+        personal_root_id = None
+        if private_enabled and files_view == 'ablage':
+            personal_root_id = ensure_personal_root(current_user.id).id
         while node:
+            if personal_root_id and node.id == personal_root_id:
+                break
             ancestors.append(node)
             node = node.parent
         ancestors.reverse()
@@ -433,7 +503,7 @@ def browse_folder(folder_id):
             {
                 'id': folder.id,
                 'name': folder.name,
-                'url': url_for('files.browse_folder', folder_id=folder.id)
+                'url': url_for('files.browse_folder', folder_id=folder.id, **view_kwargs)
             }
             for folder in ancestors
         ]
@@ -451,17 +521,46 @@ def browse_folder(folder_id):
     file_preview_map = {file.id: build_file_preview_text(file) for file in files}
     file_preview_html_map = {file.id: build_markdown_preview_html(file) for file in files}
 
+    # Uploader names for list view
+    # Eager-load uploaders for list view (relationship) + map fallback
+    for f in files:
+        try:
+            _ = f.uploader
+        except Exception:
+            pass
+    uploader_ids = {f.uploaded_by for f in files if f.uploaded_by}
+    creator_ids = {folder.created_by for folder in subfolders if folder.created_by}
+    user_ids = uploader_ids | creator_ids
+    users_by_id = {
+        u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()
+    } if user_ids else {}
+
+    root_url = url_for('files.index', **view_kwargs) if view_kwargs else url_for('files.index')
+
+    folder_favorites = []
+    favorite_folder_ids = set()
+    if not is_guest:
+        folder_favorites = list_folder_favorites(current_user, url_for)
+        favorite_folder_ids = {f['id'] for f in folder_favorites}
+
     return render_template(
         'files/index.html',
-        current_folder=current_folder,
+        current_folder=current_folder if current_folder != 'forbidden' else None,
         subfolders=subfolders,
         files=files,
         file_preview_map=file_preview_map,
         file_preview_html_map=file_preview_html_map,
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
+        files_private_folders_enabled=private_enabled,
+        files_view=files_view,
         onlyoffice_available=onlyoffice_available,
-        breadcrumb_folders=breadcrumb_folders
+        breadcrumb_folders=breadcrumb_folders,
+        users_by_id=users_by_id,
+        files_root_url=root_url,
+        is_trash_view=(files_view == 'trash'),
+        folder_favorites=folder_favorites,
+        favorite_folder_ids=favorite_folder_ids,
     )
 
 
@@ -477,27 +576,45 @@ def create_folder():
     
     folder_name = request.form.get('folder_name', '').strip()
     parent_id = request.form.get('parent_id')
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
     
     if not folder_name:
         flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     parent_id = int(parent_id) if parent_id else None
+    private_enabled = is_private_folders_enabled()
+    if private_enabled and files_view == 'trash':
+        flash('Im Papierkorb können keine Ordner erstellt werden.', 'warning')
+        return redirect(url_for('files.index', view='trash'))
+
+    parent_folder = Folder.query.get(parent_id) if parent_id else None
+    if private_enabled and not parent_id and files_view == 'ablage':
+        parent_id = resolve_default_parent_for_view('ablage', current_user.id)
+        parent_folder = Folder.query.get(parent_id)
+
+    if private_enabled and parent_folder and not can_edit_folder(parent_folder, current_user):
+        flash('Keine Berechtigung für diesen Ordner.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+
+    space = resolve_space_for_parent(parent_folder, files_view or 'public')
     
     new_folder = Folder(
         name=folder_name,
         parent_id=parent_id,
-        created_by=current_user.id
+        created_by=current_user.id,
+        space=space,
+        is_personal_root=False,
     )
     db.session.add(new_folder)
     db.session.commit()
     
     flash(f'Ordner "{folder_name}" wurde erstellt.', 'success')
+    view_kwargs = {'view': files_view} if files_view else {}
     
-    if parent_id:
-        return redirect(url_for('files.browse_folder', folder_id=parent_id))
-    return redirect(url_for('files.index'))
-
+    if parent_id and not (private_enabled and files_view == 'ablage' and parent_folder and parent_folder.is_personal_root):
+        return redirect(url_for('files.browse_folder', folder_id=parent_id, **view_kwargs))
+    return redirect(url_for('files.index', **view_kwargs))
 
 @files_bp.route('/file/<int:file_id>/rename', methods=['POST'])
 @login_required
@@ -920,6 +1037,23 @@ def create_office_file():
 @check_module_access('module_files')
 def upload_file():
     """Upload a file or folder."""
+
+    def _ajax_upload():
+        return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def _finish(url):
+        """Redirect for normal form posts; JSON for XHR uploads (toast UI)."""
+        if _ajax_upload():
+            flashes = get_flashed_messages(with_categories=True)
+            messages = [{'category': cat, 'text': msg} for cat, msg in flashes]
+            cats = {m['category'] for m in messages}
+            return jsonify({
+                'success': 'danger' not in cats,
+                'messages': messages,
+                'redirect_url': url,
+            })
+        return redirect(url)
+
     # Gast-Accounts können nur in freigegebenen Ordnern hochladen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         folder_id = request.form.get('folder_id')
@@ -932,14 +1066,17 @@ def upload_file():
             folder_with_access = next((f for f in accessible_folders if f.id == folder_id), None)
             if not folder_with_access:
                 flash('Sie haben keinen Zugriff auf diesen Ordner.', 'danger')
-                return redirect(request.referrer or url_for('files.index'))
+                return _finish(request.referrer or url_for('files.index'))
         else:
             flash('Gast-Accounts können nur in freigegebenen Ordnern Dateien hochladen.', 'danger')
-            return redirect(request.referrer or url_for('files.index'))
+            return _finish(request.referrer or url_for('files.index'))
     
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
     conflict_strategy = request.form.get('conflict_strategy', '').strip().lower()
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    if is_private_folders_enabled() and not folder_id and files_view == 'ablage':
+        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
     
     max_size = 100 * 1024 * 1024  # 100MB in bytes
     
@@ -987,10 +1124,12 @@ def upload_file():
                         
                         if not existing_folder:
                             # Create new folder
+                            parent_for_space = Folder.query.get(current_parent_id) if current_parent_id else None
                             new_folder = Folder(
                                 name=folder_name_clean,
                                 parent_id=current_parent_id,
-                                created_by=current_user.id
+                                created_by=current_user.id,
+                                space=resolve_space_for_parent(parent_for_space, files_view or 'public'),
                             )
                             db.session.add(new_folder)
                             db.session.flush()  # Get the ID
@@ -1007,41 +1146,40 @@ def upload_file():
                         folder_id=target_folder_id,
                         is_current=True
                     ).first()
-
+                    
                     if existing_file:
                         if conflict_strategy == 'version':
                             _create_new_file_version(existing_file, file, current_user.id)
+                            uploaded_count += 1
                         elif conflict_strategy == 'separate':
                             unique_name = _generate_unique_filename_in_folder(file_name, target_folder_id)
                             _process_file_upload(file, unique_name, target_folder_id, current_user.id)
+                            uploaded_count += 1
                         else:
                             skipped_count += 1
                             skipped_files.append(file_name)
-                            continue
                     else:
                         _process_file_upload(file, file_name, target_folder_id, current_user.id)
-                    uploaded_count += 1
+                        uploaded_count += 1
                 except Exception as e:
                     logging.error(f"Fehler beim Hochladen von {file_name}: {e}")
                     skipped_count += 1
-                    skipped_files.append(file_name)
+                    skipped_files.append(file.filename)
             
             db.session.commit()
             
-            # Send notifications for uploaded files
-            if uploaded_count > 0:
-                try:
-                    # Get recently uploaded files to send notifications
-                    recent_files = File.query.filter_by(
-                        uploaded_by=current_user.id
-                    ).order_by(File.created_at.desc()).limit(uploaded_count).all()
-                    for f in recent_files:
-                        try:
-                            send_file_notification(f.id, 'new')
-                        except Exception as e:
-                            logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
-                except Exception as e:
-                    logging.error(f"Fehler beim Senden von Benachrichtigungen: {e}")
+            try:
+                recent_uploads = File.query.filter_by(
+                    uploaded_by=current_user.id,
+                    folder_id=folder_id
+                ).order_by(File.created_at.desc()).limit(max(uploaded_count, 1)).all()
+                for f in recent_uploads[:uploaded_count]:
+                    try:
+                        send_file_notification(f.id, 'new')
+                    except Exception as e:
+                        logging.error(f"Fehler beim Senden der Datei-Benachrichtigung: {e}")
+            except Exception as e:
+                logging.error(f"Fehler beim Senden von Benachrichtigungen: {e}")
             
             # Flash messages
             if uploaded_count > 0:
@@ -1050,20 +1188,22 @@ def upload_file():
                 flash(f'{skipped_count} Datei(en) wurden übersprungen (zu groß oder Fehler).', 'warning')
                 if skipped_files:
                     flash(f'Übersprungene Dateien: {", ".join(skipped_files[:5])}{"..." if len(skipped_files) > 5 else ""}', 'info')
+            if uploaded_count == 0 and skipped_count > 0:
+                flash('Kein Upload möglich. Dateien ggf. zu groß (max. 100MB) oder fehlerhaft.', 'danger')
             
             if folder_id:
-                return redirect(url_for('files.browse_folder', folder_id=folder_id))
-            return redirect(url_for('files.index'))
+                return _finish(url_for('files.browse_folder', folder_id=folder_id))
+            return _finish(url_for('files.index'))
     
     # Single/multi file upload
     if 'file' not in request.files:
         flash('Keine Datei ausgewählt.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return _finish(request.referrer or url_for('files.index'))
 
     uploaded_files = [f for f in request.files.getlist('file') if f and f.filename]
     if not uploaded_files:
         flash('Keine Datei ausgewählt.', 'danger')
-        return redirect(request.referrer or url_for('files.index'))
+        return _finish(request.referrer or url_for('files.index'))
 
     if len(uploaded_files) > 1:
         uploaded_count = 0
@@ -1150,6 +1290,8 @@ def upload_file():
             if skipped_files:
                 preview = ", ".join(skipped_files[:5])
                 flash(f'Übersprungene Dateien: {preview}{"..." if len(skipped_files) > 5 else ""}', 'info')
+        if uploaded_count == 0 and skipped_count > 0:
+            flash('Kein Upload möglich. Dateien ggf. zu groß (max. 100MB) oder fehlerhaft.', 'danger')
     else:
         file = uploaded_files[0]
 
@@ -1160,9 +1302,12 @@ def upload_file():
 
         if file_size > max_size:
             flash(f'Datei ist zu groß. Maximale Größe: 100MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
-            return redirect(request.referrer or url_for('files.index'))
+            return _finish(request.referrer or url_for('files.index'))
 
         original_name = secure_filename(file.filename)
+        if not original_name:
+            flash('Ungültiger Dateiname.', 'danger')
+            return _finish(request.referrer or url_for('files.index'))
 
         # Check if file with same name exists in folder
         existing_file = File.query.filter_by(
@@ -1208,6 +1353,13 @@ def upload_file():
             else:
                 overwrite = request.form.get('overwrite')
                 if overwrite != 'yes':
+                    flash(f'Datei "{original_name}" existiert bereits. Bitte Konfliktstrategie wählen.', 'danger')
+                    if _ajax_upload():
+                        return jsonify({
+                            'success': False,
+                            'messages': [{'category': 'danger', 'text': f'Datei "{original_name}" existiert bereits.'}],
+                            'conflict': True,
+                        }), 409
                     flash(f'Datei "{original_name}" existiert bereits. Möchten Sie sie überschreiben?', 'warning')
                     return render_template(
                         'files/confirm_overwrite.html',
@@ -1253,7 +1405,6 @@ def upload_file():
                 folder_id=folder_id,
                 uploaded_by=current_user.id
             ).order_by(File.created_at.desc()).first()
-
             if new_file:
                 try:
                     send_file_notification(new_file.id, 'new')
@@ -1282,8 +1433,8 @@ def upload_file():
             flash(f'Datei "{original_name}" wurde hochgeladen.', 'success')
     
     if folder_id:
-        return redirect(url_for('files.browse_folder', folder_id=folder_id))
-    return redirect(url_for('files.index'))
+        return _finish(url_for('files.browse_folder', folder_id=folder_id))
+    return _finish(url_for('files.index'))
 
 
 @files_bp.route('/upload-conflicts', methods=['POST'])
@@ -1319,7 +1470,7 @@ def upload_conflicts():
     return jsonify({'success': True, 'conflicts': conflicts})
 
 
-def _process_file_upload(file, original_name, folder_id, user_id):
+def _process_file_upload(file, original_name, folder_id, user_id, space='public'):
     """Helper function to process a single file upload."""
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     filename = f"{timestamp}_{original_name}"
@@ -1332,6 +1483,11 @@ def _process_file_upload(file, original_name, folder_id, user_id):
     
     # Store absolute path in database
     absolute_filepath = os.path.abspath(filepath)
+
+    if folder_id:
+        parent = Folder.query.get(folder_id)
+        if parent and parent.space:
+            space = parent.space
     
     new_file = File(
         name=original_name,
@@ -1342,7 +1498,8 @@ def _process_file_upload(file, original_name, folder_id, user_id):
         file_size=os.path.getsize(absolute_filepath),
         mime_type=file.content_type,
         version_number=1,
-        is_current=True
+        is_current=True,
+        space=space or 'public',
     )
     db.session.add(new_file)
     return new_file
@@ -1661,90 +1818,225 @@ def view_file(file_id):
 @login_required
 @check_module_access('module_files')
 def delete_file(file_id):
-    """Delete a file."""
-    # Gast-Accounts können keine Dateien löschen
+    """Soft-delete a file (or hard-delete when already in trash / purge)."""
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Dateien löschen.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     file = File.query.get_or_404(file_id)
     folder_id = file.folder_id
-    
-    # Delete file and all versions
-    if not os.path.isabs(file.file_path):
-        file_path = os.path.join(os.getcwd(), file.file_path)
-    else:
-        file_path = file.file_path
-        
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    
-    for version in file.versions:
-        if not os.path.isabs(version.file_path):
-            version_path = os.path.join(os.getcwd(), version.file_path)
-        else:
-            version_path = version.file_path
-            
-        if os.path.exists(version_path):
-            os.remove(version_path)
-    
-    db.session.delete(file)
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    purge = request.form.get('purge') == '1' or request.form.get('action') == 'purge'
+
+    if is_private_folders_enabled() and not can_edit_file(file, current_user) and file.uploaded_by != current_user.id:
+        flash('Keine Berechtigung.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+
+    if purge or (file.deleted_at is not None) or not is_private_folders_enabled():
+        hard_delete_file_disk_and_db(file, os)
+        db.session.commit()
+        flash(f'Datei "{file.original_name}" wurde endgültig gelöscht.', 'success')
+        if is_private_folders_enabled():
+            return redirect(url_for('files.index', view='trash'))
+        if folder_id:
+            return redirect(url_for('files.browse_folder', folder_id=folder_id))
+        return redirect(url_for('files.index'))
+
+    soft_delete_file(file, current_user.id)
     db.session.commit()
     
-    flash(f'Datei "{file.original_name}" wurde gelöscht.', 'success')
+    flash(f'Datei "{file.original_name}" wurde in den Papierkorb verschoben.', 'success')
+    view_kwargs = {'view': files_view} if files_view else {}
     if folder_id:
-        return redirect(url_for('files.browse_folder', folder_id=folder_id))
-    else:
+        return redirect(url_for('files.browse_folder', folder_id=folder_id, **view_kwargs))
+    return redirect(url_for('files.index', **view_kwargs))
+
+
+@files_bp.route('/restore-file/<int:file_id>', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def restore_file_route(file_id):
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Keine Berechtigung.', 'danger')
         return redirect(url_for('files.index'))
+    file = File.query.get_or_404(file_id)
+    if file.uploaded_by != current_user.id and not current_user.is_admin:
+        flash('Keine Berechtigung.', 'danger')
+        return redirect(url_for('files.index', view='trash'))
+    restore_file(file)
+    db.session.commit()
+    flash(f'Datei "{file.original_name}" wurde wiederhergestellt.', 'success')
+    return redirect(url_for('files.index', view='trash'))
 
 
 @files_bp.route('/delete-folder/<int:folder_id>', methods=['POST'])
 @login_required
 @check_module_access('module_files')
 def delete_folder(folder_id):
-    """Delete a folder and all its contents."""
-    # Gast-Accounts können keine Ordner löschen
+    """Soft-delete a folder (or hard-delete from trash)."""
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Ordner löschen.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     folder = Folder.query.get_or_404(folder_id)
+    if folder.is_personal_root:
+        flash('Der persönliche Stammordner kann nicht gelöscht werden.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+
     parent_id = folder.parent_id
-    
-    def delete_folder_recursive(folder):
-        # Delete all files in folder
-        for file in folder.files:
-            if not os.path.isabs(file.file_path):
-                file_path = os.path.join(os.getcwd(), file.file_path)
-            else:
-                file_path = file.file_path
-                
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                
-            for version in file.versions:
-                if not os.path.isabs(version.file_path):
-                    version_path = os.path.join(os.getcwd(), version.file_path)
-                else:
-                    version_path = version.file_path
-                    
-                if os.path.exists(version_path):
-                    os.remove(version_path)
-        
-        # Delete all subfolders
-        for subfolder in folder.subfolders:
-            delete_folder_recursive(subfolder)
-        
-        db.session.delete(folder)
-    
-    delete_folder_recursive(folder)
+    files_view = normalize_view(request.form.get('view') or request.args.get('view'))
+    purge = request.form.get('purge') == '1' or request.form.get('action') == 'purge'
+
+    if is_private_folders_enabled() and not can_edit_folder(folder, current_user) and folder.created_by != current_user.id:
+        flash('Keine Berechtigung.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+
+    if purge or (folder.deleted_at is not None) or not is_private_folders_enabled():
+        hard_delete_folder_recursive(folder, os)
+        db.session.commit()
+        flash(f'Ordner "{folder.name}" wurde endgültig gelöscht.', 'success')
+        if is_private_folders_enabled():
+            return redirect(url_for('files.index', view='trash'))
+        if parent_id:
+            return redirect(url_for('files.browse_folder', folder_id=parent_id))
+        return redirect(url_for('files.index'))
+
+    soft_delete_folder(folder, current_user.id)
     db.session.commit()
     
-    flash(f'Ordner "{folder.name}" wurde gelöscht.', 'success')
+    flash(f'Ordner "{folder.name}" wurde in den Papierkorb verschoben.', 'success')
+    view_kwargs = {'view': files_view} if files_view else {}
     if parent_id:
-        return redirect(url_for('files.browse_folder', folder_id=parent_id))
-    else:
+        parent = Folder.query.get(parent_id)
+        if parent and parent.is_personal_root and files_view == 'ablage':
+            return redirect(url_for('files.index', **view_kwargs))
+        return redirect(url_for('files.browse_folder', folder_id=parent_id, **view_kwargs))
+    return redirect(url_for('files.index', **view_kwargs))
+
+
+@files_bp.route('/restore-folder/<int:folder_id>', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def restore_folder_route(folder_id):
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        flash('Keine Berechtigung.', 'danger')
         return redirect(url_for('files.index'))
+    folder = Folder.query.get_or_404(folder_id)
+    if folder.created_by != current_user.id and not current_user.is_admin:
+        flash('Keine Berechtigung.', 'danger')
+        return redirect(url_for('files.index', view='trash'))
+    restore_folder(folder)
+    db.session.commit()
+    flash(f'Ordner "{folder.name}" wurde wiederhergestellt.', 'success')
+    return redirect(url_for('files.index', view='trash'))
+
+
+@files_bp.route('/api/resource-acl/<resource_type>/<int:resource_id>', methods=['GET', 'POST', 'DELETE'])
+@login_required
+@check_module_access('module_files')
+def resource_acl_api(resource_type, resource_id):
+    """Manage internal user/all ACL shares."""
+    if resource_type not in ('file', 'folder'):
+        return jsonify({'success': False, 'error': 'Ungültiger Typ.'}), 400
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
+
+    if resource_type == 'file':
+        resource = File.query.get_or_404(resource_id)
+        is_owner = resource.uploaded_by == current_user.id
+        if resource.deleted_at is not None:
+            return jsonify({'success': False, 'error': 'Gelöschte Datei.'}), 400
+        resource_space = getattr(resource, 'space', None) or 'public'
+    else:
+        resource = Folder.query.get_or_404(resource_id)
+        is_owner = resource.created_by == current_user.id
+        if resource.deleted_at is not None or resource.is_personal_root:
+            return jsonify({'success': False, 'error': 'Ungültiger Ordner.'}), 400
+        resource_space = getattr(resource, 'space', None) or 'public'
+
+    if request.method == 'GET':
+        rows = list_acl_for_resource(resource_type, resource_id)
+        return jsonify({
+            'success': True,
+            'entries': [serialize_acl_row(r) for r in rows],
+            'is_owner': is_owner,
+            'acl_allowed': resource_space != 'public',
+            'users': [
+                {'id': u.id, 'full_name': u.full_name, 'username': u.full_name}
+                for u in User.query.filter(
+                    User.is_active.is_(True),
+                    User.is_guest.is_(False),
+                    User.id != current_user.id,
+                ).order_by(User.first_name, User.last_name).limit(200).all()
+            ] if is_owner and resource_space != 'public' else [],
+        })
+
+    if resource_space == 'public':
+        return jsonify({
+            'success': False,
+            'error': 'Public-Dateien können nicht intern freigegeben werden (sind bereits für alle sichtbar).',
+        }), 400
+
+    if not is_owner and not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Nur Eigentümer können freigeben.'}), 403
+
+    if request.method == 'DELETE':
+        payload = request.get_json(silent=True) or {}
+        grantee = payload.get('grantee_user_id', '__missing__')
+        if grantee == '__missing__':
+            return jsonify({'success': False, 'error': 'grantee_user_id fehlt.'}), 400
+        grantee_id = None if grantee in (None, '', 'all') else int(grantee)
+        remove_acl(resource_type, resource_id, grantee_id)
+        db.session.commit()
+        return jsonify({'success': True})
+
+    payload = request.get_json(silent=True) or {}
+    share_all = bool(payload.get('share_all'))
+    permission = payload.get('permission') or 'view'
+    if share_all:
+        upsert_acl(resource_type, resource_id, None, permission, current_user.id)
+    else:
+        grantee_user_id = payload.get('grantee_user_id')
+        if not grantee_user_id:
+            return jsonify({'success': False, 'error': 'Benutzer fehlt.'}), 400
+        grantee_user_id = int(grantee_user_id)
+        if grantee_user_id == current_user.id:
+            return jsonify({
+                'success': False,
+                'error': 'Du kannst nicht mit dir selbst freigeben.',
+            }), 400
+        upsert_acl(resource_type, resource_id, grantee_user_id, permission, current_user.id)
+    db.session.commit()
+    rows = list_acl_for_resource(resource_type, resource_id)
+    return jsonify({'success': True, 'entries': [serialize_acl_row(r) for r in rows]})
+
+
+@files_bp.route('/api/folder-favorite/<int:folder_id>', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def folder_favorite_api(folder_id):
+    """Toggle a folder favorite (max FOLDER_FAVORITES_MAX)."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
+
+    ok, favorited, error, count = toggle_folder_favorite(current_user, folder_id)
+    if not ok:
+        return jsonify({
+            'success': False,
+            'error': error or 'Favorit konnte nicht geändert werden.',
+            'favorited': favorited,
+            'count': count,
+            'max': FOLDER_FAVORITES_MAX,
+        }), 400
+
+    favorites = list_folder_favorites(current_user, url_for)
+    return jsonify({
+        'success': True,
+        'favorited': favorited,
+        'count': count,
+        'max': FOLDER_FAVORITES_MAX,
+        'favorites': favorites,
+    })
 
 
 @files_bp.route('/api/file-details/<int:file_id>')
@@ -1821,18 +2113,23 @@ def get_file_details(file_id):
 @login_required
 @check_module_access('module_files')
 def make_dropbox(folder_id):
-    """Aktiviere Briefkasten für einen Ordner."""
+    """Aktiviere Briefkasten für einen Ordner (legt public_shares-Eintrag an)."""
+    if not _is_dropbox_enabled():
+        flash('Briefkästen sind deaktiviert.', 'warning')
+        return redirect(request.referrer or url_for('files.browse_folder', folder_id=folder_id))
+
     folder = Folder.query.get_or_404(folder_id)
-    
-    # Generate unique token
-    token = secrets.token_urlsafe(32)
-    while Folder.query.filter_by(dropbox_token=token).first():
-        token = secrets.token_urlsafe(32)
-    
-    folder.is_dropbox = True
-    folder.dropbox_token = token
+    create_share_link(
+        'folder',
+        folder,
+        'dropbox',
+        created_by=current_user.id,
+        label=request.form.get('label', 'Briefkasten'),
+        password=request.form.get('password', ''),
+        expires_at_raw=request.form.get('expires_at', ''),
+    )
     db.session.commit()
-    
+
     flash(f'Briefkasten für Ordner "{folder.name}" wurde aktiviert.', 'success')
     return redirect(url_for('files.browse_folder', folder_id=folder_id))
 
@@ -1894,14 +2191,15 @@ def dropbox_settings(folder_id):
 @login_required
 @check_module_access('module_files')
 def disable_dropbox(folder_id):
-    """Deaktiviere Briefkasten für einen Ordner."""
+    """Deaktiviere alle Briefkästen für einen Ordner."""
     folder = Folder.query.get_or_404(folder_id)
-    
-    folder.is_dropbox = False
-    folder.dropbox_token = None
-    folder.dropbox_password_hash = None
+
+    for share in get_shares_for_resource('folder', folder.id):
+        if share.mode == 'dropbox':
+            share.enabled = False
+    sync_legacy_share_flags('folder', folder)
     db.session.commit()
-    
+
     flash(f'Briefkasten für Ordner "{folder.name}" wurde deaktiviert.', 'success')
     return redirect(url_for('files.browse_folder', folder_id=folder_id))
 
@@ -1941,18 +2239,21 @@ def _get_dropbox_session_uploads(token, folder_id):
 @files_bp.route('/dropbox/<token>', methods=['GET', 'POST'])
 def dropbox_upload(token):
     """Öffentliche Upload-Seite für Briefkasten (ohne Login)."""
-    folder = Folder.query.filter_by(dropbox_token=token, is_dropbox=True).first_or_404()
-    
-    # Check password if set
-    if folder.dropbox_password_hash:
-        # Check if password is provided in session or form
-        if request.method == 'POST':
+    share, folder = resolve_dropbox_folder(token)
+    if not folder:
+        abort(404)
+
+    password_hash = _dropbox_password_hash(share, folder)
+    if password_hash:
+        if request.method == 'POST' and 'password' in request.form:
             password = request.form.get('password', '')
-            if check_password_hash(folder.dropbox_password_hash, password):
+            if check_password_hash(password_hash, password):
                 session[f'dropbox_auth_{token}'] = True
+                if share:
+                    log_share_access(share, 'password_auth', request)
+                    db.session.commit()
                 return redirect(url_for('files.dropbox_upload', token=token))
-            else:
-                flash('Ungültiges Passwort.', 'danger')
+            flash('Ungültiges Passwort.', 'danger')
         elif not session.get(f'dropbox_auth_{token}'):
             return render_template('files/dropbox_auth.html', token=token, folder_name=folder.name)
 
@@ -1966,6 +2267,10 @@ def dropbox_upload(token):
             session[name_session_key] = submitted_name
             guest_name = submitted_name
             return redirect(url_for('files.dropbox_upload', token=token))
+
+    if share and request.method == 'GET':
+        log_share_access(share, 'page_view', request, guest_name=guest_name)
+        db.session.commit()
 
     session_uploads = _get_dropbox_session_uploads(token, folder.id)
     return render_template(
@@ -1981,16 +2286,20 @@ def dropbox_upload(token):
 @files_bp.route('/dropbox/<token>/upload', methods=['POST'])
 def dropbox_upload_file(token):
     """Öffentlicher Upload-Endpoint für Briefkasten (ohne Login)."""
-    folder = Folder.query.filter_by(dropbox_token=token, is_dropbox=True).first_or_404()
-    
-    # Check password if set
-    if folder.dropbox_password_hash:
+    share, folder = resolve_dropbox_folder(token)
+    if not folder:
+        abort(404)
+
+    password_hash = _dropbox_password_hash(share, folder)
+    if password_hash:
         if not session.get(f'dropbox_auth_{token}'):
             password = request.form.get('password', '')
-            if not check_password_hash(folder.dropbox_password_hash, password):
+            if not check_password_hash(password_hash, password):
                 flash('Ungültiges Passwort.', 'danger')
                 return redirect(url_for('files.dropbox_upload', token=token))
             session[f'dropbox_auth_{token}'] = True
+            if share:
+                log_share_access(share, 'password_auth', request)
     
     max_size = 100 * 1024 * 1024  # 100MB in bytes
     uploaded_count = 0
@@ -2065,6 +2374,9 @@ def dropbox_upload_file(token):
                 logging.error(f"Fehler beim Hochladen von {file_name}: {e}")
                 skipped_count += 1
         
+        if share and uploaded_count > 0:
+            log_share_access(share, 'upload', request, guest_name=uploader_name)
+
         db.session.commit()
         if uploaded_file_ids:
             upload_ids_key = _dropbox_upload_ids_session_key(token)
@@ -2090,6 +2402,17 @@ def dropbox_upload_file(token):
 def _is_sharing_enabled() -> bool:
     setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     return (setting and str(setting.value).lower() == 'true') or False
+
+
+def _is_dropbox_enabled() -> bool:
+    setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
+    return (setting and str(setting.value).lower() == 'true') or False
+
+
+def _dropbox_password_hash(share, folder):
+    if share and share.password_hash:
+        return share.password_hash
+    return getattr(folder, 'dropbox_password_hash', None)
 
 
 def _check_share_access(token):
@@ -2165,6 +2488,9 @@ def _build_share_gate_preview_context(share, item):
     }
 
 
+VALID_SHARE_MODES_CREATE = frozenset({'view', 'edit', 'dropbox'})
+
+
 @files_bp.route('/file/<int:file_id>/share', methods=['POST'])
 @login_required
 @check_module_access('module_files')
@@ -2176,16 +2502,22 @@ def create_file_share(file_id):
     modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
     modes = list(dict.fromkeys(m for m in modes if m in ('view', 'edit')))
     if not modes:
+        mode = normalize_share_mode(request.form.get('mode') or request.form.get('share_mode') or '')
+        if mode in ('view', 'edit'):
+            modes = [mode]
+    if not modes:
         flash('Bitte mindestens einen Link-Typ auswählen.', 'warning')
         return redirect(request.referrer or url_for('files.index'))
 
     for mode in modes:
-        _upsert_public_share(
+        create_share_link(
             'file',
             file,
             mode,
-            password=request.form.get(f'password_{mode}', ''),
-            expires_at_raw=request.form.get(f'expires_at_{mode}', ''),
+            created_by=current_user.id,
+            password=request.form.get(f'password_{mode}', '') or request.form.get('password', ''),
+            expires_at_raw=request.form.get(f'expires_at_{mode}', '') or request.form.get('expires_at', ''),
+            label=request.form.get(f'label_{mode}', '') or request.form.get('label', ''),
         )
     db.session.commit()
     flash('Freigabe erstellt.', 'success')
@@ -2196,23 +2528,33 @@ def create_file_share(file_id):
 @login_required
 @check_module_access('module_files')
 def create_folder_share(folder_id):
-    if not _is_sharing_enabled():
+    if not _is_sharing_enabled() and not _is_dropbox_enabled():
         flash('Freigaben sind deaktiviert.', 'warning')
         return redirect(request.referrer or url_for('files.index'))
     folder = Folder.query.get_or_404(folder_id)
     modes = [normalize_share_mode(m) for m in request.form.getlist('share_modes')]
-    modes = list(dict.fromkeys(m for m in modes if m in ('view', 'edit')))
+    single = normalize_share_mode(request.form.get('mode') or request.form.get('share_mode') or '')
+    if single in VALID_SHARE_MODES_CREATE:
+        modes.append(single)
+    modes = list(dict.fromkeys(m for m in modes if m in VALID_SHARE_MODES_CREATE))
     if not modes:
         flash('Bitte mindestens einen Link-Typ auswählen.', 'warning')
         return redirect(request.referrer or url_for('files.index'))
 
     for mode in modes:
-        _upsert_public_share(
+        if mode == 'dropbox':
+            if not _is_dropbox_enabled():
+                continue
+        elif not _is_sharing_enabled():
+            continue
+        create_share_link(
             'folder',
             folder,
             mode,
-            password=request.form.get(f'password_{mode}', ''),
-            expires_at_raw=request.form.get(f'expires_at_{mode}', ''),
+            created_by=current_user.id,
+            password=request.form.get(f'password_{mode}', '') or request.form.get('password', ''),
+            expires_at_raw=request.form.get(f'expires_at_{mode}', '') or request.form.get('expires_at', ''),
+            label=request.form.get(f'label_{mode}', '') or request.form.get('label', ''),
         )
     db.session.commit()
     flash('Freigabe erstellt.', 'success')
@@ -2224,9 +2566,12 @@ def create_folder_share(folder_id):
 @check_module_access('module_files')
 def file_share_settings(file_id):
     file = File.query.get_or_404(file_id)
-    if not is_resource_shared('file', file.id):
-        return jsonify({'success': False}), 404
-    return jsonify({'success': True, 'item': serialize_share_settings('file', file.id, file.name)})
+    return jsonify({
+        'success': True,
+        'item': serialize_share_settings(
+            'file', file.id, file.name, dropbox_enabled=False
+        ),
+    })
 
 
 @files_bp.route('/folder/<int:folder_id>/share-settings')
@@ -2234,9 +2579,12 @@ def file_share_settings(file_id):
 @check_module_access('module_files')
 def folder_share_settings(folder_id):
     folder = Folder.query.get_or_404(folder_id)
-    if not is_resource_shared('folder', folder.id):
-        return jsonify({'success': False}), 404
-    return jsonify({'success': True, 'item': serialize_share_settings('folder', folder.id, folder.name)})
+    return jsonify({
+        'success': True,
+        'item': serialize_share_settings(
+            'folder', folder.id, folder.name, dropbox_enabled=_is_dropbox_enabled()
+        ),
+    })
 
 
 def _handle_share_settings_update(resource_type, resource):
@@ -2247,23 +2595,87 @@ def _handle_share_settings_update(resource_type, resource):
         sync_legacy_share_flags(resource_type, resource)
         return
 
-    if action in ('disable_view', 'disable_edit'):
-        mode = 'view' if action == 'disable_view' else 'edit'
-        _disable_public_share(resource_type, resource, mode)
-        return
-
-    if action in ('create_view', 'create_edit'):
-        mode = 'view' if action == 'create_view' else 'edit'
-        _upsert_public_share(
+    if action == 'add_link':
+        mode = normalize_share_mode(request.form.get('mode'))
+        if mode == 'dropbox' and (resource_type != 'folder' or not _is_dropbox_enabled()):
+            return
+        if mode in ('view', 'edit') and not _is_sharing_enabled():
+            return
+        create_share_link(
             resource_type,
             resource,
             mode,
-            password=request.form.get(f'password_{mode}', ''),
-            expires_at_raw=request.form.get(f'expires_at_{mode}', ''),
+            created_by=current_user.id,
+            password=request.form.get('password', ''),
+            expires_at_raw=request.form.get('expires_at', ''),
+            label=request.form.get('label', ''),
         )
         return
 
-    for mode in ('view', 'edit'):
+    share_id_raw = request.form.get('share_id')
+    share = None
+    if share_id_raw:
+        try:
+            share = PublicShare.query.get(int(share_id_raw))
+        except (TypeError, ValueError):
+            share = None
+        if share and (share.resource_type != resource_type or share.resource_id != resource.id):
+            share = None
+
+    if action == 'disable' and share:
+        disable_share_by_id(share.id)
+        return
+
+    if action == 'enable' and share:
+        enable_share_by_id(share.id)
+        return
+
+    if action == 'delete' and share:
+        delete_share_by_id(share.id)
+        return
+
+    if action == 'regenerate' and share:
+        update_share_link(share, regenerate_token=True)
+        return
+
+    if action == 'update' and share:
+        clear_pw = request.form.get('clear_password') in ('1', 'true', 'on')
+        enabled = request.form.get('enabled') in ('1', 'true', 'on')
+        update_share_link(
+            share,
+            password=request.form.get('password'),
+            clear_password=clear_pw,
+            expires_at_raw=request.form.get('expires_at', ''),
+            label=request.form.get('label'),
+            enabled=enabled,
+        )
+        return
+
+    # Legacy actions
+    if action in ('disable_view', 'disable_edit'):
+        mode = 'view' if action == 'disable_view' else 'edit'
+        from app.utils.public_share import disable_share_link
+        disable_share_link(resource_type, resource, mode)
+        return
+
+    if action in ('create_view', 'create_edit', 'create_dropbox'):
+        mode = action.replace('create_', '')
+        if mode == 'dropbox' and (resource_type != 'folder' or not _is_dropbox_enabled()):
+            return
+        if mode in ('view', 'edit') and not _is_sharing_enabled():
+            return
+        create_share_link(
+            resource_type,
+            resource,
+            mode,
+            created_by=current_user.id,
+            password=request.form.get(f'password_{mode}', '') or request.form.get('password', ''),
+            expires_at_raw=request.form.get(f'expires_at_{mode}', '') or request.form.get('expires_at', ''),
+            label=request.form.get('label', ''),
+        )
+        return
+
+    for mode in ('view', 'edit', 'dropbox'):
         share = get_share_for_mode(resource_type, resource.id, mode)
         if not share or not share.enabled:
             continue
@@ -2902,6 +3314,63 @@ def onlyoffice_diagnose():
     return jsonify(results)
 
 
+@files_bp.route('/api/presence')
+@login_required
+@check_module_access('module_files')
+def api_files_presence():
+    folder_id_raw = request.args.get('folder_id')
+    folder_id = None
+    if folder_id_raw not in (None, '', 'null', 'None'):
+        try:
+            folder_id = int(folder_id_raw)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Ungültige Ordner-ID'}), 400
+    return jsonify({'success': True, 'presence': presence_for_folder(folder_id)})
+
+
+@files_bp.route('/api/onlyoffice-presence', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def api_onlyoffice_presence():
+    payload = request.get_json(silent=True) or {}
+    action = (payload.get('action') or 'heartbeat').strip().lower()
+    session_key = (payload.get('session_key') or '').strip()
+    if action == 'leave':
+        if session_key:
+            oo_leave_session(session_key)
+            db.session.commit()
+        return jsonify({'success': True})
+    if action == 'heartbeat':
+        if not session_key:
+            return jsonify({'success': False, 'error': 'session_key fehlt'}), 400
+        row = oo_heartbeat_session(session_key)
+        if not row:
+            return jsonify({'success': False, 'error': 'Session unbekannt'}), 404
+        db.session.commit()
+        return jsonify({'success': True, 'session_key': row.session_key})
+    try:
+        file_id = int(payload.get('file_id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
+    file_obj = File.query.get_or_404(file_id)
+    if _is_guest_user():
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file_obj):
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+    display_name = current_user.full_name if current_user.is_authenticated else 'Gast'
+    avatar = getattr(current_user, 'profile_picture', None) if current_user.is_authenticated else None
+    row = oo_upsert_session(
+        file_id=file_id,
+        session_key=session_key or None,
+        user_id=current_user.id if current_user.is_authenticated else None,
+        guest_key=None,
+        display_name=display_name,
+        avatar_filename=avatar,
+    )
+    db.session.commit()
+    return jsonify({'success': True, 'session_key': row.session_key})
+
+
 @files_bp.route('/edit-onlyoffice/<int:file_id>')
 @login_required
 @check_module_access('module_files')
@@ -2990,6 +3459,13 @@ def edit_onlyoffice(file_id):
         api_url = f"{scheme}://{host}{onlyoffice_url}/web-apps/apps/api/documents/api.js"
     
     # Build editor configuration for token generation
+    user_image = None
+    if current_user.is_authenticated and getattr(current_user, 'profile_picture', None):
+        try:
+            user_image = url_for('settings.profile_picture', filename=current_user.profile_picture, _external=True)
+        except Exception:
+            user_image = None
+
     editor_config = {
         "document": {
             "fileType": file_type,
@@ -3007,6 +3483,8 @@ def edit_onlyoffice(file_id):
             }
         }
     }
+    if user_image:
+        editor_config["editorConfig"]["user"]["image"] = user_image
     
     # Generate token if secret key is configured
     token = generate_onlyoffice_token(editor_config)
@@ -3029,6 +3507,10 @@ def edit_onlyoffice(file_id):
     accent_style = current_user.accent_style if current_user.is_authenticated else 'linear-gradient(45deg, #0d6efd, #0d6efd)'
     
     current_language = get_current_language()
+
+    ua = (request.user_agent.string or '').lower()
+    is_mobile_ua = any(x in ua for x in ('iphone', 'ipod', 'android', 'mobile', 'ipad'))
+    force_desktop = request.args.get('desktop') == '1'
     
     return render_template(
         'files/edit_onlyoffice.html',
@@ -3045,7 +3527,10 @@ def edit_onlyoffice(file_id):
         return_url=return_url,
         accent_color=accent_color,
         accent_style=accent_style,
-        current_language=current_language
+        current_language=current_language,
+        user_image=user_image or '',
+        presence_enabled=True,
+        is_mobile_client=is_mobile_ua and not force_desktop,
     )
 
 
@@ -3202,7 +3687,10 @@ def share_edit_onlyoffice(token):
         return_url=return_url,
         accent_color=accent_color,
         accent_style=accent_style,
-        current_language=current_language
+        current_language=current_language,
+        user_image='',
+        presence_enabled=True,
+        is_mobile_client=False,
     )
 
 

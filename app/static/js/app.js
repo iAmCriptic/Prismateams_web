@@ -1,6 +1,180 @@
 // Team Portal JavaScript
 const disablePublicPrompts = !!window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS;
 
+function ptI18nCommon(key, fallback) {
+    const common = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
+    return common[key] || fallback;
+}
+
+/**
+ * App-styled confirm dialog (Promise). Prefer over window.confirm().
+ * @param {string} message
+ * @param {{ title?: string, confirmLabel?: string, cancelLabel?: string, danger?: boolean }} [options]
+ * @returns {Promise<boolean>}
+ */
+window.ptConfirm = function ptConfirm(message, options) {
+    const opts = options || {};
+    const modalEl = document.getElementById('ptConfirmModal');
+    if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+        return Promise.resolve(window.confirm(String(message || '')));
+    }
+
+    // Offene Dropdowns / Kontextmenüs schließen, sonst liegen sie über dem Modal
+    try {
+        if (window.PrismateamsContextMenu && typeof window.PrismateamsContextMenu.close === 'function') {
+            window.PrismateamsContextMenu.close();
+        }
+        document.querySelectorAll('.dropdown-menu.show, .dropdown.show .dropdown-menu').forEach((menu) => {
+            menu.classList.remove('show');
+            menu.style.display = 'none';
+        });
+        document.querySelectorAll('.dropdown.show').forEach((dd) => dd.classList.remove('show'));
+        document.querySelectorAll('.dropdown-menu').forEach((menu) => {
+            if (menu.style && menu.style.display === 'block') {
+                menu.style.display = 'none';
+            }
+        });
+        if (bootstrap.Dropdown) {
+            document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((toggle) => {
+                const inst = bootstrap.Dropdown.getInstance(toggle);
+                if (inst) inst.hide();
+            });
+        }
+    } catch (_) {
+        /* ignore */
+    }
+
+    const titleEl = document.getElementById('ptConfirmTitleText');
+    const msgEl = document.getElementById('ptConfirmMessage');
+    const okBtn = document.getElementById('ptConfirmOkBtn');
+    const cancelBtn = document.getElementById('ptConfirmCancelBtn');
+    const i18nCommon = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
+
+    if (titleEl) {
+        titleEl.textContent =
+            opts.title ||
+            modalEl.getAttribute('data-i18n-title') ||
+            i18nCommon.confirm_delete_title ||
+            'Löschen bestätigen';
+    }
+    if (msgEl) {
+        msgEl.textContent = String(
+            message ||
+            modalEl.getAttribute('data-i18n-message') ||
+            i18nCommon.confirm_delete_default ||
+            'Möchten Sie dieses Element wirklich löschen?'
+        );
+    }
+    if (okBtn) {
+        okBtn.textContent =
+            opts.confirmLabel ||
+            modalEl.getAttribute('data-i18n-ok') ||
+            i18nCommon.delete ||
+            'Löschen';
+        okBtn.className = opts.danger === false ? 'btn btn-accent' : 'btn btn-danger';
+    }
+    if (cancelBtn) {
+        cancelBtn.textContent =
+            opts.cancelLabel ||
+            modalEl.getAttribute('data-i18n-cancel') ||
+            i18nCommon.cancel ||
+            'Abbrechen';
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: true });
+
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = (value) => {
+            if (settled) return;
+            settled = true;
+            okBtn?.removeEventListener('click', onOk);
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+            resolve(value);
+        };
+        const onOk = () => {
+            finish(true);
+            modal.hide();
+        };
+        const onHidden = () => finish(false);
+        const onShown = () => {
+            modalEl.style.zIndex = '20000';
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            const bd = backdrops[backdrops.length - 1];
+            if (bd) {
+                bd.style.zIndex = '19990';
+                bd.classList.add('pt-confirm-backdrop');
+            }
+        };
+
+        okBtn?.addEventListener('click', onOk);
+        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+        modalEl.addEventListener('shown.bs.modal', onShown, { once: true });
+        modal.show();
+    });
+};
+
+/**
+ * In-page info/error banner (top of main content). Prefer this over window.alert().
+ * @param {string} message
+ * @param {string} [category='info'] - bootstrap alert: success|info|warning|danger
+ * @param {{ timeout?: number|null, clear?: boolean }} [options]
+ */
+window.showAppBanner = function showAppBanner(message, category, options) {
+    const opts = options || {};
+    const timeout = opts.timeout === undefined ? 6500 : opts.timeout;
+    const clear = opts.clear !== false;
+    let host = document.getElementById('appFlashBanner');
+    if (!host) {
+        const mainInner = document.querySelector('main .container-fluid, main .container, main');
+        host = document.createElement('div');
+        host.id = 'appFlashBanner';
+        host.className = 'app-flash-banner';
+        host.setAttribute('aria-live', 'polite');
+        if (mainInner) {
+            mainInner.insertBefore(host, mainInner.firstChild);
+        } else {
+            document.body.prepend(host);
+        }
+    }
+    if (clear) {
+        host.innerHTML = '';
+    }
+    const cat = (category === 'error' ? 'danger' : (category || 'info'));
+    const el = document.createElement('div');
+    el.className = `alert alert-${cat} alert-dismissible fade show`;
+    el.setAttribute('role', 'alert');
+    el.innerHTML = '';
+    const text = document.createElement('span');
+    text.textContent = String(message || '');
+    el.appendChild(text);
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    closeBtn.setAttribute('aria-label', 'Close');
+    el.appendChild(closeBtn);
+    host.appendChild(el);
+    try {
+        host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) { /* ignore */ }
+    if (timeout && timeout > 0) {
+        setTimeout(() => {
+            try {
+                const inst = window.bootstrap && bootstrap.Alert.getOrCreateInstance(el);
+                if (inst) inst.close();
+                else el.remove();
+            } catch (e) {
+                el.remove();
+            }
+        }, timeout);
+    }
+    return el;
+};
+
+// Alias for older call sites
+window.showPageBanner = window.showAppBanner;
+
 // Status-Meldung beim Laden der Seite
 function showStatusInfo() {
     // Status-Info wird still geprüft, keine Console-Ausgabe
@@ -1049,17 +1223,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 
-    // Confirmation dialogs for delete actions
-    const deleteButtons = document.querySelectorAll('[data-confirm-delete]');
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            const message = this.getAttribute('data-confirm-delete') || 'Möchten Sie dieses Element wirklich löschen?';
-            if (!confirm(message)) {
-                e.preventDefault();
-            }
+    // Confirmation dialogs for delete actions (custom modal, not native confirm)
+    document.addEventListener('click', function (e) {
+        const button = e.target.closest('[data-confirm-delete]');
+        if (!button || button.disabled) return;
+        if (button.dataset.ptConfirmOk === '1') {
+            button.dataset.ptConfirmOk = '';
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        const message =
+            button.getAttribute('data-confirm-delete') ||
+            ptI18nCommon('confirm_delete_default', 'Möchten Sie dieses Element wirklich löschen?');
+        window.ptConfirm(message, { danger: true }).then((ok) => {
+            if (!ok) return;
+            button.dataset.ptConfirmOk = '1';
+            button.click();
         });
-    });
-
+    }, true);
     // Password visibility toggle
     const passwordToggles = document.querySelectorAll('.password-toggle');
     passwordToggles.forEach(toggle => {

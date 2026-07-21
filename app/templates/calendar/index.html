@@ -3,9 +3,104 @@
 {% block title %}{{ _('calendar.index.page_title') }}{% endblock %}
 
 {% block content %}
+{% set calendar_multi_enabled = calendar_multi_enabled|default(false) %}
+{% set calendar_export_enabled = calendar_export_enabled|default(true) %}
+{% set calendar_import_enabled = calendar_import_enabled|default(true) %}
+{% set selected_calendar_ids = selected_calendar_ids|default([]) %}
+{% set focus_calendar_id = focus_calendar_id|default(none) %}
+{% set can_create_focus = can_create_focus|default(true) %}
+{% set sc = sidebar_calendars|default(none) %}
+
+<div class="calendar-shell {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
+{% if calendar_multi_enabled and sc %}
+<aside class="calendar-sidebar d-none d-lg-flex flex-column">
+    <div class="calendar-sidebar-brand">
+        <i class="bi bi-calendar-event" aria-hidden="true"></i>
+        <span>{{ _('calendar.sidebar.brand') }}</span>
+    </div>
+    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}">
+        <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
+    </a>
+    <button type="button" class="btn calendar-sidebar-reset w-100 mb-3" id="calendarResetBtnDesktop">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
+    </button>
+    <nav class="calendar-sidebar-nav nav flex-column gap-1" id="calendarSidebarNav">
+        {% macro cal_nav_item(cal, label=none) %}
+        <div class="calendar-nav-item d-flex align-items-center gap-2" data-calendar-id="{{ cal.id }}" data-calendar-name="{{ label or cal.name }}" data-calendar-type="{{ cal.calendar_type }}">
+            <input class="form-check-input calendar-visibility-check flex-shrink-0" type="checkbox" value="{{ cal.id }}" id="calCheck{{ cal.id }}" {% if cal.id in selected_calendar_ids %}checked{% endif %}>
+            <label class="nav-link calendar-nav-link flex-grow-1 mb-0 {% if focus_calendar_id == cal.id %}active{% endif %}" for="calCheck{{ cal.id }}">
+                <span class="calendar-color-dot" style="background:{{ cal.color }}"></span>
+                {{ label or cal.name }}
+            </label>
+            {% if cal.can_delete_calendar %}
+            <div class="dropdown">
+                <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <form method="POST" action="{{ url_for('calendar.delete_imported_calendar', calendar_id=cal.id) }}" onsubmit="return confirm({{ _('calendar.sidebar.delete_confirm')|tojson }});">
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>{{ _('calendar.sidebar.delete_import') }}</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endmacro %}
+        {{ cal_nav_item(sc.personal, _('calendar.sidebar.my_calendar')) }}
+        {{ cal_nav_item(sc.public, _('calendar.sidebar.public')) }}
+        <hr class="my-2">
+        <div class="px-1 mb-2">
+            <input type="search" class="form-control form-control-sm" id="calendarPeopleSearch" placeholder="{{ _('calendar.sidebar.search') }}" autocomplete="off">
+        </div>
+        <div id="calendarOthersList">
+            {% for cal in sc.others %}
+            {{ cal_nav_item(cal) }}
+            {% endfor %}
+        </div>
+    </nav>
+</aside>
+
+<div class="offcanvas offcanvas-start calendar-mobile-offcanvas" tabindex="-1" id="calendarMobileNav" aria-labelledby="calendarMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="calendarMobileNavLabel">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span>{{ _('calendar.sidebar.brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        <button type="button" class="btn calendar-sidebar-reset w-100 mb-3" id="calendarResetBtnMobile">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
+        </button>
+        <div id="calendarMobileNavBody" class="calendar-sidebar-nav nav flex-column gap-1"></div>
+    </div>
+</div>
+{% endif %}
+
+<div class="calendar-main flex-grow-1 min-width-0">
+{% if calendar_multi_enabled and sc %}
+<div class="calendar-mobile-topbar d-lg-none mb-3">
+    <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center min-width-0 gap-2">
+            <button type="button" class="btn btn-outline-secondary calendar-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#calendarMobileNav" aria-controls="calendarMobileNav" aria-label="{{ _('calendar.sidebar.menu') }}">
+                <i class="bi bi-list"></i>
+            </button>
+            <h1 class="h5 mb-0 text-truncate calendar-mobile-title">
+                <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                <span>{{ _('calendar.index.heading') }}</span>
+            </h1>
+        </div>
+        {% if sc %}
+        <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn btn-accent btn-sm flex-shrink-0">
+            <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 <div class="row mb-3 page-toolbar-row align-items-start g-2">
     <div class="col min-width-0">
-        <h1 class="text-break"><i class="bi bi-calendar-event"></i> {{ _('calendar.index.heading') }}</h1>
+        <h1 class="text-break {% if calendar_multi_enabled %}d-none d-lg-block{% endif %}"><i class="bi bi-calendar-event"></i> {{ _('calendar.index.heading') }}</h1>
     </div>
     <div class="col-12 col-lg-auto ms-lg-auto">
         <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
@@ -23,20 +118,54 @@
                 <i class="bi bi-list-ul"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.list') }}</span>
             </button>
         </div>
-        <div class="btn-group" role="group">
+        <div class="btn-group {% if calendar_multi_enabled %}d-none d-lg-flex{% endif %}" role="group">
+            {% if calendar_multi_enabled %}
+            <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn btn-accent">
+                <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">{{ _('calendar.index.new_event') }}</span>
+            </a>
+            {% elif can_create_focus %}
             <a href="{{ url_for('calendar.create_event') }}" class="btn btn-accent">
                 <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">{{ _('calendar.index.new_event') }}</span>
             </a>
-            <button type="button" class="btn btn-accent dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+            {% endif %}
+            {% if calendar_export_enabled or calendar_import_enabled %}
+            <button type="button" class="btn btn-accent dropdown-toggle {% if can_create_focus %}dropdown-toggle-split{% endif %}" data-bs-toggle="dropdown" aria-expanded="false">
                 <span class="visually-hidden">{{ _('calendar.index.dropdown.toggle') }}</span>
+                {% if not can_create_focus %}<i class="bi bi-three-dots"></i>{% endif %}
             </button>
             <ul class="dropdown-menu">
+                {% if calendar_export_enabled %}
                 <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
+                {% endif %}
+                {% if calendar_import_enabled %}
                 <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
+                {% endif %}
+                {% if calendar_export_enabled %}
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-share"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
+                {% endif %}
+            </ul>
+            {% endif %}
+        </div>
+        {% if calendar_multi_enabled and (calendar_export_enabled or calendar_import_enabled) %}
+        <div class="btn-group d-lg-none" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% if calendar_export_enabled %}
+                <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
+                {% endif %}
+                {% if calendar_import_enabled %}
+                <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
+                {% endif %}
+                {% if calendar_export_enabled %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
+                {% endif %}
             </ul>
         </div>
+        {% endif %}
         </div>
     </div>
 </div>
@@ -167,10 +296,52 @@
     <div id="dayCalendar"></div>
 </div>
 
+</div>{# calendar-main #}
+
+</div>{# calendar-shell #}
+
 <script>
 const CAL_I18N = {{ current_translations.get('calendar', {}).get('index', {})|tojson }};
+const CAL_MULTI = {{ calendar_multi_enabled|tojson }};
+const CAL_PERSONAL_ID = {{ (sc.personal.id if sc else none)|tojson }};
+const CAL_SELECTED_IDS = {{ selected_calendar_ids|tojson }};
+const CAL_STORAGE_KEY = 'pt_calendar_selected_ids';
 const CURRENT_LANG = "{{ current_language }}";
 const LOCALE_MAP = { "de": "de-DE", "en": "en-US", "es": "es-ES", "pt": "pt-PT", "ru": "ru-RU" };
+
+function getSelectedCalendarIds() {
+    if (!CAL_MULTI) return [];
+    const checks = document.querySelectorAll('.calendar-visibility-check:checked');
+    if (checks.length) {
+        return Array.from(checks).map(c => parseInt(c.value, 10)).filter(Boolean);
+    }
+    try {
+        const raw = localStorage.getItem(CAL_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) return parsed.map(Number);
+        }
+    } catch (e) {}
+    return CAL_SELECTED_IDS && CAL_SELECTED_IDS.length ? CAL_SELECTED_IDS : (CAL_PERSONAL_ID ? [CAL_PERSONAL_ID] : []);
+}
+
+function calendarQuerySuffix() {
+    if (!CAL_MULTI) return '';
+    const ids = getSelectedCalendarIds();
+    return ids.length ? ('?calendars=' + ids.join(',')) : '';
+}
+
+function persistSelectedCalendars() {
+    if (!CAL_MULTI) return;
+    const ids = getSelectedCalendarIds();
+    try { localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(ids)); } catch (e) {}
+}
+
+function reloadWithCalendars(ids) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('calendars', ids.join(','));
+    window.location.href = url.toString();
+}
 
 function getLocale() {
     return LOCALE_MAP[CURRENT_LANG] || CURRENT_LANG || "en-US";
@@ -223,7 +394,10 @@ function getContrastTextColorFromRgb(rgb) {
 }
 
 function getThemeCalendarBgRgb() {
-    // Match calendar cell backgrounds in calendar.css
+    // Match calendar cell backgrounds in calendar.css (incl. OLED)
+    if (document.documentElement.getAttribute('data-oled-mode') === 'true') {
+        return { r: 0, g: 0, b: 0 };
+    }
     return isDarkThemeActive()
         ? { r: 0x21, g: 0x25, b: 0x29 }
         : { r: 0xff, g: 0xff, b: 0xff };
@@ -251,21 +425,111 @@ function formatMultiDayTitle(event, currentDateStr) {
 const MULTI_DAY_EVENT_COLOR = '#334155';
 
 function isDarkThemeActive() {
+    if (document.documentElement.getAttribute('data-oled-mode') === 'true') return true;
     const rootTheme = document.documentElement.getAttribute('data-bs-theme');
     if (rootTheme) return rootTheme === 'dark';
     const bodyTheme = document.body ? document.body.getAttribute('data-bs-theme') : null;
-    return bodyTheme === 'dark';
+    if (bodyTheme) return bodyTheme === 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 function applyEventColors(eventElement, eventColor, isMultiDay = false) {
     const baseColor = eventColor || (isMultiDay ? MULTI_DAY_EVENT_COLOR : '#0d6efd');
-    const alpha = isDarkThemeActive() ? 0.35 : 0.22;
+    const dark = isDarkThemeActive();
+    // Dunkler Hintergrund: etwas deckender, Text immer hell genug
+    const alpha = dark ? 0.42 : 0.22;
     eventElement.style.backgroundColor = hexToRgba(baseColor, alpha);
-    eventElement.style.color = getContrastTextColor(baseColor, alpha);
+    eventElement.style.borderLeft = `3px solid ${baseColor}`;
     eventElement.style.borderLeftColor = baseColor;
+    // Dark Mode: Textfarbe gegen geblendetes BG; Schwelle zugunsten heller Schrift
+    if (dark) {
+        const fg = parseHexRgb(baseColor) || { r: 13, g: 110, b: 253 };
+        const blended = blendColors(fg, getThemeCalendarBgRgb(), alpha);
+        const luminance = (0.299 * blended.r + 0.587 * blended.g + 0.114 * blended.b) / 255;
+        eventElement.style.color = luminance > 0.72 ? '#1f2937' : '#ffffff';
+    } else {
+        eventElement.style.color = '#1f2937';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Multi-calendar sidebar / mobile picker
+    if (CAL_MULTI) {
+        const personalId = CAL_PERSONAL_ID;
+        function syncChecksFromStorage() {
+            let ids = CAL_SELECTED_IDS;
+            try {
+                const raw = localStorage.getItem(CAL_STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length) ids = parsed.map(Number);
+                }
+            } catch (e) {}
+            document.querySelectorAll('.calendar-visibility-check').forEach(cb => {
+                cb.checked = ids.includes(parseInt(cb.value, 10));
+            });
+        }
+        syncChecksFromStorage();
+
+        document.querySelectorAll('.calendar-visibility-check').forEach(cb => {
+            cb.addEventListener('change', function() {
+                persistSelectedCalendars();
+                reloadWithCalendars(getSelectedCalendarIds());
+            });
+        });
+
+        function resetCalendars() {
+            const ids = personalId ? [personalId] : [];
+            try { localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(ids)); } catch (e) {}
+            reloadWithCalendars(ids);
+        }
+        const resetDesktop = document.getElementById('calendarResetBtnDesktop');
+        const resetMobile = document.getElementById('calendarResetBtnMobile');
+        if (resetDesktop) resetDesktop.addEventListener('click', resetCalendars);
+        if (resetMobile) resetMobile.addEventListener('click', resetCalendars);
+
+        const search = document.getElementById('calendarPeopleSearch');
+        if (search) {
+            search.addEventListener('input', function() {
+                const q = this.value.trim().toLowerCase();
+                document.querySelectorAll('#calendarOthersList .calendar-nav-item').forEach(item => {
+                    const name = (item.dataset.calendarName || '').toLowerCase();
+                    item.style.display = (!q || name.includes(q)) ? '' : 'none';
+                });
+            });
+        }
+
+        const mobileNav = document.getElementById('calendarMobileNavBody');
+        const desktopNav = document.getElementById('calendarSidebarNav');
+        if (mobileNav && desktopNav) {
+            mobileNav.innerHTML = desktopNav.innerHTML;
+            mobileNav.querySelectorAll('[id]').forEach(el => { el.id = el.id + '_m'; });
+            mobileNav.querySelectorAll('label[for]').forEach(el => {
+                el.setAttribute('for', el.getAttribute('for') + '_m');
+            });
+            mobileNav.querySelectorAll('.calendar-visibility-check').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const id = this.value;
+                    const desktopCb = document.querySelector(`#calendarSidebarNav .calendar-visibility-check[value="${id}"]`);
+                    if (desktopCb) desktopCb.checked = this.checked;
+                    persistSelectedCalendars();
+                    reloadWithCalendars(getSelectedCalendarIds());
+                });
+            });
+            const mobileSearch = mobileNav.querySelector('input[type="search"]');
+            if (mobileSearch) {
+                mobileSearch.addEventListener('input', function() {
+                    const q = this.value.trim().toLowerCase();
+                    mobileNav.querySelectorAll('.calendar-nav-item').forEach(item => {
+                        if (item.dataset.calendarType === 'personal' || item.dataset.calendarType === 'public') return;
+                        const name = (item.dataset.calendarName || '').toLowerCase();
+                        item.style.display = (!q || name.includes(q)) ? '' : 'none';
+                    });
+                });
+            }
+        }
+    }
+
     // View Toggle
     const monthViewBtn = document.getElementById('monthViewBtn');
     const weekViewBtn = document.getElementById('weekViewBtn');
@@ -419,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function loadEventsForMonth(year, month) {
         try {
-            const response = await fetch(`/calendar/api/events/${year}/${month}`);
+            const response = await fetch(`/calendar/api/events/${year}/${month}` + calendarQuerySuffix());
             if (response.ok) {
                 const events = await response.json();
                 const calendarBody = document.getElementById('calendarBody');
@@ -701,7 +965,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function loadWeekEvents(startDate, endDate) {
         try {
-            const response = await fetch(`/calendar/api/events/range/${startDate.toISOString().split('T')[0]}/${endDate.toISOString().split('T')[0]}`);
+            const response = await fetch(`/calendar/api/events/range/${startDate.toISOString().split('T')[0]}/${endDate.toISOString().split('T')[0]}` + calendarQuerySuffix());
             if (response.ok) {
                 const events = await response.json();
                 
@@ -814,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadDayEvents(date) {
         try {
             const dateStr = date.toISOString().split('T')[0];
-            const response = await fetch(`/calendar/api/events/range/${dateStr}/${dateStr}`);
+            const response = await fetch(`/calendar/api/events/range/${dateStr}/${dateStr}` + calendarQuerySuffix());
             if (response.ok) {
                 const events = await response.json();
                 const multiDaySlot = document.getElementById('dayMultiDaySlot');

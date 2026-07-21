@@ -106,6 +106,7 @@
             flex: 1;
             overflow: hidden;
             position: relative;
+            min-height: 0;
         }
         
         #onlyoffice-editor {
@@ -157,16 +158,33 @@
             font-size: 16px;
             color: {{ accent_color }};
         }
+
+        .onlyoffice-mobile-banner {
+            background: #fff3cd;
+            color: #664d03;
+            border-bottom: 1px solid #ffecb5;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            z-index: 10002;
+        }
         
     </style>
 </head>
 <body>
 <div class="onlyoffice-editor-container">
+    {% if is_mobile_client|default(false) %}
+    <div class="onlyoffice-mobile-banner">
+        Live-Bearbeitung am Document Server (gemeinsam). OnlyOffice-App kann Prismateams nicht live anbinden — Editor läuft im Browser.
+    </div>
+    {% endif %}
     <button class="onlyoffice-back-button" onclick="goBack()" title="{{ _('files.onlyoffice.back_button_title') }}">
         <i class="bi bi-arrow-left"></i>
         <span class="button-text">{{ _('files.onlyoffice.back_button_label') }}</span>
     </button>
-    <div id="onlyoffice-editor"></div>
+    <div class="onlyoffice-editor-content">
+        <div id="onlyoffice-editor"></div>
+    </div>
 </div>
 
 <script>
@@ -174,6 +192,42 @@ let docEditor;
 let isEditorReady = false;
 let apiLoadAttempts = 0;
 const MAX_API_LOAD_ATTEMPTS = 50; // 5 seconds total (50 * 100ms)
+const PRESENCE_ENABLED = {{ 'true' if presence_enabled|default(false) else 'false' }};
+const PRESENCE_FILE_ID = {{ file.id }};
+let ooPresenceSessionKey = null;
+let ooPresenceTimer = null;
+
+function ooPresenceSend(action, extra) {
+    if (!PRESENCE_ENABLED) return Promise.resolve();
+    const body = Object.assign({ action: action, file_id: PRESENCE_FILE_ID, session_key: ooPresenceSessionKey || '' }, extra || {});
+    return fetch('/files/api/onlyoffice-presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        keepalive: action === 'leave'
+    }).then(r => r.json()).then(data => {
+        if (data && data.session_key) ooPresenceSessionKey = data.session_key;
+        return data;
+    }).catch(() => null);
+}
+
+function startOoPresence() {
+    if (!PRESENCE_ENABLED) return;
+    ooPresenceSend('join').then(() => {
+        ooPresenceTimer = setInterval(() => ooPresenceSend('heartbeat'), 20000);
+    });
+    window.addEventListener('beforeunload', () => {
+        if (ooPresenceSessionKey) {
+            try {
+                navigator.sendBeacon('/files/api/onlyoffice-presence', new Blob([JSON.stringify({
+                    action: 'leave', session_key: ooPresenceSessionKey, file_id: PRESENCE_FILE_ID
+                })], { type: 'application/json' }));
+            } catch (e) {
+                ooPresenceSend('leave');
+            }
+        }
+    });
+}
 
 // Load OnlyOffice API script with error handling
 const apiScript = document.createElement('script');
@@ -242,6 +296,9 @@ document.addEventListener('DOMContentLoaded', function() {
             user: {
                 id: "{{ guest_mode and share_token or current_user.id }}",
                 name: "{{ guest_mode and guest_name or current_user.full_name }}"
+                {% if user_image %},
+                image: "{{ user_image }}"
+                {% endif %}
             },
             customization: {
                 autosave: true,
@@ -255,6 +312,8 @@ document.addEventListener('DOMContentLoaded', function() {
         width: "100%",
         height: "100%"
     };
+
+    startOoPresence();
     
     // Add token if available (OnlyOffice requires token when JWT is enabled)
     {% if token and token|length > 0 %}

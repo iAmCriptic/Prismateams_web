@@ -1,8 +1,8 @@
 from .user import User
 from .user_session import UserSession
-from .chat import Chat, ChatMessage, ChatMember
-from .file import File, FileVersion, Folder
-from .calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
+from .chat import Chat, ChatMessage, ChatMember, ChatPin
+from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite
+from .calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
 from .email import EmailMessage, EmailPermission, EmailAttachment
 from .contact import Contact
 from .credential import Credential, CredentialFolder
@@ -17,6 +17,7 @@ from .comment import Comment, CommentMention
 from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
 from .guest import GuestShareAccess
 from .public_share import PublicShare, ShareAccessLog
+from .onlyoffice_session import OnlyOfficeSession
 from .shortlink import ShortLink
 from .event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
 from .assessment import (
@@ -41,9 +42,9 @@ from .media_downloader import MediaDownloadJob
 
 __all__ = [
     'User', 'UserSession',
-    'Chat', 'ChatMessage', 'ChatMember',
-    'File', 'FileVersion', 'Folder',
-    'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed',
+    'Chat', 'ChatMessage', 'ChatMember', 'ChatPin',
+    'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite',
+    'Calendar', 'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed', 'CalendarSyncSource',
     'EmailMessage', 'EmailPermission', 'EmailAttachment',
     'Contact',
     'Credential', 'CredentialFolder',
@@ -58,6 +59,7 @@ __all__ = [
     'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings',
     'GuestShareAccess',
     'PublicShare', 'ShareAccessLog',
+    'OnlyOfficeSession',
     'ShortLink',
     'Event', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole',

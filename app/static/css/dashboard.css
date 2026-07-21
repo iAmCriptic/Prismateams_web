@@ -71,3 +71,136 @@
         padding-right: 0.25rem;
     }
 }
+
+/* What's New */
+.dashboard-header-actions {
+    margin-top: 0.15rem;
+}
+
+.dashboard-whats-new-btn {
+    color: var(--bs-body-color, #212529);
+    line-height: 1;
+}
+
+.dashboard-whats-new-btn:hover,
+.dashboard-whats-new-btn:focus {
+    color: var(--accent-color, #0d6efd);
+}
+
+.dashboard-whats-new-badge {
+    font-size: 0.65rem;
+    min-width: 1rem;
+    padding: 0.2em 0.4em;
+}
+
+.whats-new-modal .modal-body {
+    min-height: 0;
+}
+
+.whats-new-panels {
+    display: grid;
+}
+
+.whats-new-panel {
+    grid-area: 1 / 1;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.whats-new-panel.is-active {
+    visibility: visible;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+.whats-new-module-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.65rem;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.whats-new-module-icon-lg {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.4rem;
+}
+
+.whats-new-module-list .list-group-item {
+    border-radius: 0.65rem !important;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.whats-new-module-list .list-group-item:last-child {
+    margin-bottom: 0;
+}
+
+.whats-new-feature-list {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+
+.whats-new-feature-list li {
+    margin-bottom: 0.75rem;
+    line-height: 1.45;
+}
+
+.whats-new-feature-list li:last-child {
+    margin-bottom: 0;
+}
+
+.whats-new-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 0.6rem;
+}
+
+.whats-new-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.whats-new-footer .whats-new-dots {
+    order: 0;
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
+.whats-new-footer .whats-new-nav-actions {
+    margin-left: auto;
+}
+
+.whats-new-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--bs-border-color, #ced4da);
+    cursor: pointer;
+    display: inline-block;
+}
+
+.whats-new-dot.active {
+    background: var(--accent-color, #0d6efd);
+    transform: scale(1.15);
+}
+
+[data-bs-theme="dark"] .whats-new-module-list .list-group-item,
+[data-oled-mode="true"] .whats-new-module-list .list-group-item {
+    background-color: transparent;
+}
+
+@media (max-width: 991.98px) {
+    .dashboard-header-actions {
+        align-self: flex-start;
+    }
+}

@@ -22,7 +22,13 @@ ALLOWED_HOSTS = {
 
 TIME_PATTERN = re.compile(r'^(\d+):([0-5]\d)(?::([0-5]\d))?$')
 
-PLAYLIST_LIST_PREFIXES = ('PL', 'RD', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
+# True playlists / albums / library lists. RD (mix/radio) intentionally excluded.
+PLAYLIST_LIST_PREFIXES = ('PL', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU')
+
+FFMPEG_FALLBACK_PATHS = (
+    '/usr/bin/ffmpeg',
+    '/usr/local/bin/ffmpeg',
+)
 
 
 class DownloadCancelledError(Exception):
@@ -30,11 +36,20 @@ class DownloadCancelledError(Exception):
 
 
 def get_ffmpeg_path():
-    """Return configured FFmpeg path or discover it on PATH."""
+    """Return configured FFmpeg path or discover it on PATH / common locations."""
     configured = current_app.config.get('FFMPEG_PATH', '')
     if configured and os.path.isfile(configured):
         return configured
-    return shutil.which('ffmpeg')
+
+    found = shutil.which('ffmpeg')
+    if found:
+        return found
+
+    for candidate in FFMPEG_FALLBACK_PATHS:
+        if os.path.isfile(candidate):
+            return candidate
+
+    return None
 
 
 def is_media_downloader_compatible():
@@ -50,6 +65,14 @@ def _get_playlist_list_id(parsed):
     return list_id or None
 
 
+def _is_true_playlist_list_id(list_id):
+    """True when list= ID looks like a real playlist (not mix/radio RD…)."""
+    if not list_id:
+        return False
+    upper = list_id.upper()
+    return any(upper.startswith(prefix) for prefix in PLAYLIST_LIST_PREFIXES)
+
+
 def is_playlist_url(url):
     """Return True when the URL refers to a YouTube / YouTube Music playlist."""
     if not url or not url.strip():
@@ -57,21 +80,30 @@ def is_playlist_url(url):
 
     parsed = urlparse(url.strip())
     host = parsed.netloc.lower().split(':')[0]
-    if host not in ALLOWED_HOSTS:
+    if host.startswith('www.'):
+        host = host[4:]
+    if host not in ALLOWED_HOSTS and f'www.{host}' not in ALLOWED_HOSTS:
         return False
 
-    path = parsed.path.rstrip('/').lower()
+    path = parsed.path.rstrip('/').lower() or '/'
     list_id = _get_playlist_list_id(parsed)
 
-    if path.endswith('/playlist') and list_id:
-        return True
+    # Explicit playlist pages (YouTube + YouTube Music)
+    if path == '/playlist' or path.endswith('/playlist'):
+        return bool(list_id)
 
-    if path in ('/watch', '') or path.startswith('/watch'):
-        return list_id is not None
-
-    if host.startswith('music.') and path.strip('/'):
-        if path.endswith('/playlist') or list_id:
+    if host.startswith('music.'):
+        if _is_true_playlist_list_id(list_id):
             return True
+        if path.startswith('/browse/') and list_id:
+            return True
+
+    if path == '/watch' or path.startswith('/watch'):
+        return _is_true_playlist_list_id(list_id)
+
+    # youtu.be/VIDEO_ID?list=PLxxx
+    if host in ('youtu.be',) and parsed.path.strip('/') and _is_true_playlist_list_id(list_id):
+        return True
 
     return False
 
@@ -157,7 +189,11 @@ def parse_time_segment(start_str, end_str):
 
 def get_upload_dir():
     base = current_app.config['UPLOAD_FOLDER']
-    target = os.path.join(base, 'media_downloader')
+    if not os.path.isabs(base):
+        # Defense: avoid Flask send_file resolving relative paths under app.root_path
+        project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
+        base = os.path.join(project_root, base)
+    target = os.path.abspath(os.path.join(base, 'media_downloader'))
     os.makedirs(target, exist_ok=True)
     return target
 
@@ -184,12 +220,6 @@ def _get_common_ydl_opts():
                 'Chrome/125.0.0.0 Safari/537.36'
             ),
             'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-        },
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'web'],
-                'skip': ['hls', 'dash'],
-            }
         },
         'retries': 3,
         'fragment_retries': 3,
@@ -281,6 +311,7 @@ def run_download(job, should_cancel=None):
 
     ydl_opts = _get_common_ydl_opts()
     ydl_opts['outtmpl'] = output_template
+    ydl_opts['noplaylist'] = True
 
     if job.format == 'audio':
         ydl_opts.update({

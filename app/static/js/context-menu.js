@@ -190,14 +190,7 @@
     }
 
     function wireMenuInteractions(menu, container) {
-        menu.querySelectorAll('[data-confirm-delete]').forEach((button) => {
-            button.addEventListener('click', function (e) {
-                const message =
-                    this.getAttribute('data-confirm-delete') ||
-                    'Möchten Sie dieses Element wirklich löschen?';
-                if (!confirm(message)) e.preventDefault();
-            });
-        });
+        // data-confirm-delete is handled globally by app.js (ptConfirm modal)
 
         menu.querySelectorAll('[data-pt-trigger-click]').forEach((button) => {
             button.addEventListener('click', (e) => {

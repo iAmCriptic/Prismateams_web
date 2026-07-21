@@ -63,6 +63,8 @@
     "no": "Nein",
     "close": "Schließen",
     "confirm": "Bestätigen",
+    "confirm_delete_title": "Löschen bestätigen",
+    "confirm_delete_default": "Möchten Sie dieses Element wirklich löschen?",
     "loading": "Laden...",
     "actions": "Aktionen",
     "status": "Status",
@@ -240,6 +242,86 @@
     },
     "welcome": "Willkommen, {name}!",
     "overview_subtitle": "Hier ist Ihre Übersicht",
+    "whats_new": {
+      "button_label": "Neues",
+      "button_aria": "Neuigkeiten der Version anzeigen",
+      "badge": "!",
+      "badge_sr": "ungelesene Neuigkeiten",
+      "overview_title": "So neu in v{version}",
+      "persistent_title": "Neu in Version {version} - ({current}/{total})",
+      "overview_subtitle": "Nur Module mit Neuigkeiten in dieser Version.",
+      "version_label": "Neu in v{version}",
+      "back_overview": "Übersicht",
+      "prev": "Zurück",
+      "next": "Weiter",
+      "modules": {
+        "files": {
+          "title": "Dateien",
+          "teaser": "Design, Privat, Upload & Favoriten",
+          "items": {
+            "design": "Design-Erneuerungen für eine klarere und modernere Dateiübersicht.",
+            "private": "Private Dateien und internes Teilen innerhalb des Teams.",
+            "upload": "Upload-Anzeige für besseres Feedback während des Hochladens.",
+            "favorites": "Bis zu 10 Ordner als Favoriten speichern."
+          }
+        },
+        "calendar": {
+          "title": "Kalender",
+          "teaser": "Tagesansicht, Sync & Multi-Kalender",
+          "items": {
+            "day_view": "Aktuelle Tagesansicht für den schnellen Überblick.",
+            "external_sync": "Externe Kalender können jetzt synchronisiert werden.",
+            "embed": "Einbinden des Kalenders in externe Apps ist einfacher geworden.",
+            "multi_mode": "Neuer Multi-Kalender-Modus für einzelne Personen sowie für alle – bessere Teilung und Übersicht.",
+            "fixes": "Fehlerbehebungen und Verbesserungen."
+          }
+        },
+        "media_downloader": {
+          "title": "Media Download",
+          "teaser": "Stabilität & Verbesserungen",
+          "items": {
+            "fixes": "Fehlerbehebungen und Verbesserungen."
+          }
+        },
+        "email": {
+          "title": "E-Mail",
+          "teaser": "Design & Mobile",
+          "items": {
+            "design": "Designanpassungen für eine klarere Oberfläche.",
+            "mobile_layout": "Mobile Layout Fixes.",
+            "mobile_nav": "Mobile Navigation Fixes."
+          }
+        },
+        "general": {
+          "title": "General",
+          "teaser": "Akzentfarben",
+          "items": {
+            "accent": "Akzentfarben wurden gefixt und werden häufiger angewendet als vorher."
+          }
+        },
+        "credentials": {
+          "title": "Zugangsdaten",
+          "teaser": "Designupdate",
+          "items": {
+            "design": "Designupdate."
+          }
+        },
+        "chat": {
+          "title": "Chats",
+          "teaser": "Designupdate",
+          "items": {
+            "design": "Designupdate."
+          }
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "teaser": "Neues",
+          "items": {
+            "whats_new": "„Neues“ um Neuigkeiten der Version bekannt zu geben."
+          }
+        }
+      }
+    },
     "widgets": {
       "common": {
         "time_suffix": "Uhr"
@@ -924,7 +1006,11 @@
         },
         "file_settings": {
           "title": "Datei-Einstellungen",
-          "description": "Briefkästen und Freigaben aktivieren oder deaktivieren"
+          "description": "Briefkästen, Freigaben und private Ordner aktivieren oder deaktivieren"
+        },
+        "calendar_settings": {
+          "title": "Kalender-Einstellungen",
+          "description": "Mehrere Kalender, Import und Export konfigurieren"
         },
         "registration_options": {
           "title": "Bot-Schutz-Funktionen",
@@ -973,8 +1059,25 @@
         "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
         "sharing_label": "Freigaben aktivieren",
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
+        "private_folders_label": "Private Ordner aktivieren",
+        "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
         "save_button": "Änderungen speichern",
         "flash_updated": "Datei-Einstellungen wurden aktualisiert.",
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+      },
+      "calendar_settings": {
+        "page_title": "Kalender-Einstellungen - Administration",
+        "breadcrumb": "Kalender-Einstellungen",
+        "heading": "Kalender-Einstellungen",
+        "section_title": "Kalender-Funktionen",
+        "multi_label": "Mehrere Kalender nutzen",
+        "multi_help": "Jeder Benutzer erhält einen eigenen Kalender. Es gibt einen Public-Kalender für alle. Andere Kalender können angesehen, aber Termine nur im eigenen und im Public-Kalender erstellt werden.",
+        "export_label": "Kalender-Export erlauben",
+        "export_help": "Wenn deaktiviert, können Kalender weder als ICS exportiert noch in externe Apps eingebunden werden.",
+        "import_label": "Kalender-Import erlauben",
+        "import_help": "Wenn deaktiviert, können keine ICS-Dateien importiert und keine Sync-Links angelegt werden.",
+        "save_button": "Änderungen speichern",
+        "flash_updated": "Kalender-Einstellungen wurden aktualisiert.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
       },
       "system": {
@@ -1058,7 +1161,14 @@
       "direct_title": "Direktnachrichten",
       "direct_label": "Direktnachricht",
       "empty": "Sie haben noch keine Gruppen-Chats oder Direktnachrichten.",
-      "empty_cta": "Erstellen Sie einen neuen Chat!"
+      "empty_cta": "Erstellen Sie einen neuen Chat!",
+      "pin": "Anpinnen",
+      "unpin": "Loslösen",
+      "pinned": "Angepinnt",
+      "pin_limit": "Maximal 6 Chats anpinnen.",
+      "pin_error": "Pin konnte nicht geändert werden.",
+      "pin_main_unavailable": "Der Haupt-Chat ist immer oben.",
+      "unread_count": "{count} ungelesen"
     },
     "view": {
       "page_title_suffix": "Chats",
@@ -1170,6 +1280,41 @@
       "page_title": "Dateien - Team Portal",
       "heading": "Dateien",
       "breadcrumb_root": "Root",
+      "nav": {
+        "ablage": "Meine Ablage",
+        "freigaben": "Freigaben",
+        "public": "Public",
+        "trash": "Papierkorb",
+        "menu": "Menü öffnen"
+      },
+      "favorites": {
+        "title": "Favoriten",
+        "empty": "Keine Favoriten",
+        "add": "Zu Favoriten",
+        "remove": "Aus Favoriten entfernen",
+        "limit": "Maximal 10 Favoriten."
+      },
+      "list": {
+        "name": "Name",
+        "owner": "Ersteller",
+        "version": "Version",
+        "modified": "Änderungsdatum",
+        "size": "Größe",
+        "actions": "Aktionen"
+      },
+      "acl": {
+        "title": "Intern freigeben",
+        "share_all": "Mit allen teilen",
+        "share_user": "Mit Person teilen",
+        "permission_view": "Betrachten",
+        "permission_edit": "Bearbeiten",
+        "remove": "Entfernen",
+        "empty": "Keine internen Freigaben."
+      },
+      "trash_actions": {
+        "restore": "Wiederherstellen",
+        "purge": "Endgültig löschen"
+      },
       "view_toggle": {
         "list": "Listenansicht",
         "grid": "Rasteransicht"
@@ -1223,7 +1368,8 @@
       "labels": {
         "text_file": "Text-Datei",
         "uploaded_by": "Von {name}",
-        "empty_folder": "Dieser Ordner ist leer. Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner."
+        "empty_folder": "Dieser Ordner ist leer. Laden Sie Dateien hoch oder erstellen Sie einen neuen Ordner.",
+        "nothing_present": "Nichts vorhanden"
       },
       "modals": {
         "create_entry": {
@@ -1584,8 +1730,22 @@
     "index": {
       "page_title": "Zugangsdaten - Team Portal",
       "heading": "Zugangsdaten",
-      "new_button": "Neu hinzufügen",
+      "new_button": "Neu",
       "password_placeholder": "********",
+      "nav": {
+        "menu": "Ordner-Menü"
+      },
+      "dropdown": {
+        "new_entry": "Neuer Eintrag"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      },
+      "list": {
+        "name": "Name"
+      },
       "labels": {
         "username": "Benutzername",
         "password": "Passwort",
@@ -1611,7 +1771,7 @@
         "color": "Farbe",
         "create": "Ordner erstellen",
         "root": "Root",
-        "drop_hint": "Karten hierhin ziehen",
+        "drop_hint": "Karten auf Ordner ziehen",
         "root_empty": "Keine Einträge im Root-Bereich.",
         "empty": "Dieser Ordner ist leer.",
         "move_up": "Ordner nach oben"
@@ -2111,7 +2271,32 @@
       "sync_invalid_url": "Ungültige Sync-URL. Erlaubt sind http(s):// oder webcal://.",
       "sync_added": "Kalender-Sync hinzugefügt.",
       "sync_added_with_error": "Kalender-Sync angelegt, aber erster Abruf fehlgeschlagen:",
-      "sync_deleted": "Kalender-Sync und zugehörige Termine wurden gelöscht."
+      "sync_deleted": "Kalender-Sync und zugehörige Termine wurden gelöscht.",
+      "no_create_permission": "In diesem Kalender dürfen keine Termine erstellt werden.",
+      "no_edit_permission": "Keine Berechtigung, diesen Termin zu bearbeiten.",
+      "export_disabled": "Kalender-Export ist deaktiviert.",
+      "import_disabled": "Kalender-Import ist deaktiviert.",
+      "cannot_delete_calendar": "Dieser Kalender kann nicht gelöscht werden.",
+      "participation_status": "Teilnahme an \"{event_title}\": {status}",
+      "accepted": "zugesagt",
+      "declined": "abgesagt"
+    },
+    "notifications": {
+      "invite_title": "Einladung zu Termin erhalten",
+      "invite_body": "Du wurdest zu \"{title}\" eingeladen."
+    },
+    "sidebar": {
+      "brand": "Kalender",
+      "new_event": "Neuer Termin",
+      "reset": "Zurücksetzen",
+      "my_calendar": "Mein Kalender",
+      "public": "Public",
+      "search": "Personen suchen…",
+      "others": "Andere Kalender",
+      "delete_import": "Löschen",
+      "delete_confirm": "Importierten Kalender und alle Termine löschen?",
+      "pick_calendars": "Kalender",
+      "menu": "Kalender-Menü öffnen"
     },
     "feed": {
       "page_title": "In eigenen Kalender integrieren",
@@ -2253,7 +2438,11 @@
           "weekday_names": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
           "end_label": "Wiederholung endet am (optional)",
           "end_help": "Wenn leer, wird unbegrenzt wiederholt"
-        }
+        },
+        "calendar_label": "Kalender",
+        "invitees_label": "Personen einladen",
+        "invitees_help": "Personen suchen und anklicken. Eingeladene erhalten eine Benachrichtigung und können zusagen oder absagen.",
+        "invitees_search": "Person suchen…"
       },
       "buttons": {
         "submit": "Termin erstellen",

@@ -60,6 +60,8 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
         {% elif 'files' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+        {% elif 'credentials' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
         {% elif 'email' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
         {% elif 'contacts' in request.endpoint %}
@@ -79,7 +81,7 @@
     {% if current_user.is_authenticated %}
     <style>
         :root {
-            --accent-color: {{ current_user.accent_color }};
+            --accent-color: {{ current_user.accent_highlight_color }};
             --accent-style: {{ current_user.accent_style }};
         }
         
@@ -664,7 +666,7 @@
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
             {% if current_user.is_authenticated %}
                 {% set index_endpoints = [
-                    'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'calendar.index',
+                    'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'files.browse_folder', 'calendar.index',
                     'events.index', 'events.my_events', 'events.people_overview', 'email.index', 'email.folder_view',
                     'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
                     'shortlinks.index', 'booking.requests', 'music.index', 'settings.index',
@@ -679,7 +681,8 @@
                 {% endif %}
             {% endif %}
             
-            <!-- Flash Messages -->
+            <!-- Flash / App Banner Messages -->
+            <div id="appFlashBanner" class="app-flash-banner" aria-live="polite" aria-atomic="true"></div>
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
@@ -696,6 +699,32 @@
         </div>
     </main>
 
+    <!-- Global confirm dialog (replaces native window.confirm for deletes) -->
+    <div class="modal fade" id="ptConfirmModal" tabindex="-1" aria-labelledby="ptConfirmTitleText" aria-hidden="true"
+         data-i18n-title="{{ _('common.confirm_delete_title') }}"
+         data-i18n-message="{{ _('common.confirm_delete_default') }}"
+         data-i18n-ok="{{ _('common.delete') }}"
+         data-i18n-cancel="{{ _('common.cancel') }}">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content pt-confirm-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill text-danger flex-shrink-0" aria-hidden="true"></i>
+                        <span id="ptConfirmTitleText">{{ _('common.confirm_delete_title') }}</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0" id="ptConfirmMessage">{{ _('common.confirm_delete_default') }}</p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="ptConfirmCancelBtn">{{ _('common.cancel') }}</button>
+                    <button type="button" class="btn btn-danger" id="ptConfirmOkBtn">{{ _('common.delete') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -708,6 +737,14 @@
             request.endpoint.startswith('files.dropbox_')
         )
     ) | tojson }};
+    window.PRISMATEAMS_I18N.common = {{ {
+        'cancel': _('common.cancel'),
+        'delete': _('common.delete'),
+        'confirm': _('common.confirm'),
+        'close': _('common.close'),
+        'confirm_delete_title': _('common.confirm_delete_title'),
+        'confirm_delete_default': _('common.confirm_delete_default')
+    } | tojson }};
     window.PRISMATEAMS_I18N.context_menu = {{ {
         'copy_info': _('context_menu.copy_info'),
         'dashboard_remove_widget': _('context_menu.dashboard_remove_widget'),

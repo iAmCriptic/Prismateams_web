@@ -4,9 +4,7 @@ iCal Import/Export Utility Functions
 
 from icalendar import Calendar, Event as ICalEvent
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from app.models.calendar import CalendarEvent
-from pytz import UTC
 import logging
 import requests
 
@@ -241,13 +239,14 @@ def _parse_vevent_component(component):
     }
 
 
-def import_events_from_ical(ical_data: str, user_id: int):
+def import_events_from_ical(ical_data: str, user_id: int, calendar_id=None):
     """
     Importiert Events aus einem iCal-String.
     
     Args:
         ical_data: iCal-String
         user_id: ID des Benutzers, der die Events importiert
+        calendar_id: optionaler Ziel-Kalender
     
     Returns:
         Liste von CalendarEvent-Objekten (noch nicht gespeichert)
@@ -275,13 +274,14 @@ def import_events_from_ical(ical_data: str, user_id: int):
             recurrence_days=parsed['recurrence_days'],
             is_recurring_instance=False,
             ical_uid=parsed['ical_uid'],
+            calendar_id=calendar_id,
         )
         events.append(event)
 
     return events
 
 
-def sync_calendar_source(source, user_id=None):
+def sync_calendar_source(source, user_id=None, calendar_id=None):
     """
     Synchronisiert eine CalendarSyncSource: Upsert per ical_uid, entfernt fehlende UIDs.
 
@@ -295,6 +295,22 @@ def sync_calendar_source(source, user_id=None):
         raise TypeError('source must be a CalendarSyncSource')
 
     owner_id = user_id or source.created_by
+
+    # Resolve target calendar for multi-calendar mode
+    target_calendar_id = calendar_id
+    if target_calendar_id is None:
+        try:
+            from app.utils.multi_calendars import (
+                ensure_imported_calendar_for_source,
+                is_calendar_multi_enabled,
+            )
+            if is_calendar_multi_enabled():
+                cal = ensure_imported_calendar_for_source(source)
+                target_calendar_id = cal.id
+            elif getattr(source, 'calendar', None):
+                target_calendar_id = source.calendar.id
+        except Exception:
+            target_calendar_id = None
 
     try:
         ical_data = fetch_ical_from_url(source.url)
@@ -337,6 +353,8 @@ def sync_calendar_source(source, user_id=None):
                 existing.recurrence_interval = parsed['recurrence_interval']
                 existing.recurrence_days = parsed['recurrence_days']
                 existing.updated_at = datetime.utcnow()
+                if target_calendar_id and existing.calendar_id != target_calendar_id:
+                    existing.calendar_id = target_calendar_id
                 updated += 1
             else:
                 event = CalendarEvent(
@@ -353,6 +371,7 @@ def sync_calendar_source(source, user_id=None):
                     is_recurring_instance=False,
                     sync_source_id=source.id,
                     ical_uid=uid,
+                    calendar_id=target_calendar_id,
                 )
                 db.session.add(event)
                 created += 1

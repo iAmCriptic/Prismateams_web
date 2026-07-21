@@ -3,140 +3,37 @@
 {% block title %}{{ _('chat.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="chat-index-page">
-<div class="row mb-4 align-items-center g-3">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-chat-dots me-2"></i> {{ _('chat.index.heading') }}</h1>
-        <p class="text-muted mb-0">{{ _('chat.index.subtitle') }}</p>
-    </div>
-    <div class="col-auto">
-        <a href="{{ url_for('chat.create_chat') }}" class="btn btn-accent btn-lg">
-            <i class="bi bi-plus-circle me-2"></i> 
-            {{ _('chat.index.new_chat') }}
+{% set nav_items = nav_items|default([]) %}
+{% set active_chat_id = active_chat_id|default(none) %}
+
+<div class="chat-list-page">
+    <div class="chat-list-page-header">
+        <h1 class="chat-list-page-title">
+            <i class="bi bi-chat-dots me-2" aria-hidden="true"></i>{{ _('chat.index.heading') }}
+        </h1>
+        <a href="{{ url_for('chat.create_chat') }}" class="btn btn-accent chat-list-new-btn">
+            <i class="bi bi-plus-lg me-1"></i>{{ _('chat.index.new_chat') }}
         </a>
     </div>
-</div>
 
-<!-- Main Chat -->
-{% if main_chat %}
-<div class="chat-card main-chat-card">
-    <div class="chat-card-header">
-        <div class="chat-card-avatar">
-            {% if portal_logo_filename %}
-            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" 
-                 alt="Team Logo" 
-                 class="chat-card-avatar-img">
-            {% else %}
-            <img src="{{ url_for('static', filename='img/logo.png') }}" 
-                 alt="Team Logo" 
-                 class="chat-card-avatar-img">
-            {% endif %}
-        </div>
-        <div class="chat-card-info">
-            <h5 class="chat-card-title">
-                {{ _('chat.common.main_chat_name') }}
-                <span class="badge bg-primary ms-2">{{ _('chat.index.main_badge') }}</span>
-            </h5>
-            <p class="chat-card-description">{{ _('chat.index.main_description') }}</p>
-        </div>
-        <div class="chat-card-actions">
-            <a href="{{ url_for('chat.view_chat', chat_id=1) }}" class="btn btn-primary">
-                <i class="bi bi-arrow-right-circle me-1"></i> 
-                {{ _('chat.index.open') }}
-            </a>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Group Chats -->
-{% if group_chats %}
-<div class="chats-section">
-    <h4 class="section-title">
-        <i class="bi bi-people-fill me-2"></i>
-        {{ _('chat.index.group_title') }}
-    </h4>
-    <div class="row g-4">
-        {% for chat in group_chats %}
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="chat-card group-chat-card">
-                <div class="chat-card-header">
-                    <div class="chat-card-avatar">
-                        {% if chat.group_avatar %}
-                        <img src="{{ url_for('chat.serve_media', filename='avatars/' + chat.group_avatar) }}" 
-                             alt="{{ chat.name }}" 
-                             class="chat-card-avatar-img">
-                        {% else %}
-                        <div class="chat-card-avatar-group">
-                            <i class="bi bi-people-fill"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="chat-card-info">
-                        <h5 class="chat-card-title">{{ chat.name }}</h5>
-                        <p class="chat-card-description">{{ _('chat.index.member_count').format(count=chat.members|length) }}</p>
-                    </div>
-                    <div class="chat-card-actions">
-                        <a href="{{ url_for('chat.view_chat', chat_id=chat.id) }}" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-arrow-right-circle me-1"></i>
-                            {{ _('chat.index.open') }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<!-- Direct Messages -->
-{% if direct_chats %}
-<div class="chats-section">
-    <h4 class="section-title">
-        <i class="bi bi-person-circle me-2"></i>
-        {{ _('chat.index.direct_title') }}
-    </h4>
-    <div class="direct-messages-list">
-        {% for chat in direct_chats %}
-        {% set other_user = get_other_chat_user(chat) %}
-        <a href="{{ url_for('chat.view_chat', chat_id=chat.id) }}" class="direct-message-item">
-            <div class="direct-message-avatar">
-                {% if other_user and other_user.profile_picture %}
-                <img src="{{ url_for('settings.profile_picture', filename=other_user.profile_picture) }}" 
-                     alt="{{ get_chat_display_name(chat) }}" 
-                     class="rounded-circle" style="width: 100%; height: 100%; object-fit: cover;">
-                {% else %}
-                <div class="direct-message-avatar-initial">
-                    {% if other_user %}
-                    {{ other_user.full_name[0].upper() }}
-                    {% else %}
-                    <i class="bi bi-person-circle"></i>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </div>
-            <div class="direct-message-info">
-                <h6 class="direct-message-name">{{ get_chat_display_name(chat) }}</h6>
-                <small class="direct-message-status text-muted">{{ _('chat.index.direct_label') }}</small>
-            </div>
-            <div class="direct-message-arrow">
-                <i class="bi bi-chevron-right"></i>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-{% if not group_chats and not direct_chats %}
-<div class="alert alert-info mt-3">
-    <i class="bi bi-info-circle"></i>
-    {{ _('chat.index.empty') }} {{ _('chat.index.empty_cta') }}
-</div>
-{% endif %}
+    {% include 'chat/_chat_nav.html' %}
 </div>
 {% endblock %}
 
-
-
+{% block extra_js %}
+<script>
+    window.ChatNavConfig = {
+        pinUrlTemplate: {{ url_for('chat.pin_chat_api', chat_id=0)|tojson }},
+        i18n: {
+            pin: {{ _('chat.index.pin')|tojson }},
+            unpin: {{ _('chat.index.unpin')|tojson }},
+            pinLimit: {{ _('chat.index.pin_limit')|tojson }},
+            pinError: {{ _('chat.index.pin_error')|tojson }},
+            mute: {{ _('chat.view.dropdown.mute')|tojson }},
+            unmute: {{ _('chat.view.js.unmute')|tojson }},
+            deleteConfirm: {{ _('chat.settings.delete.confirm')|tojson }}
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/chat-nav.js') }}"></script>
+{% endblock %}

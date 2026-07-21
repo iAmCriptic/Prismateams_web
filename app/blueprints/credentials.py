@@ -99,24 +99,23 @@ def parse_folder_id(raw_folder_id):
 @login_required
 @check_module_access('module_credentials')
 def index():
-    """List all credentials."""
-    credentials = Credential.query.order_by(Credential.website_name).all()
+    """List credentials for the active folder (root when folder_id is empty)."""
     folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
+    active_folder_id = parse_folder_id(request.args.get('folder_id'))
+    active_folder = CredentialFolder.query.get(active_folder_id) if active_folder_id else None
 
-    credentials_by_folder = {folder.id: [] for folder in folders}
-    root_credentials = []
-
-    for credential in credentials:
-        if credential.folder_id in credentials_by_folder:
-            credentials_by_folder[credential.folder_id].append(credential)
-        else:
-            root_credentials.append(credential)
+    credentials_query = Credential.query.order_by(Credential.website_name.asc())
+    if active_folder_id is None:
+        credentials = credentials_query.filter(Credential.folder_id.is_(None)).all()
+    else:
+        credentials = credentials_query.filter(Credential.folder_id == active_folder_id).all()
 
     return render_template(
         'credentials/index.html',
         folders=folders,
-        root_credentials=root_credentials,
-        credentials_by_folder=credentials_by_folder
+        credentials=credentials,
+        active_folder_id=active_folder_id,
+        active_folder=active_folder,
     )
 
 
@@ -137,11 +136,15 @@ def create():
         if not all([website_url, website_name, username, password]):
             flash(translate('credentials.flash.fill_all_fields'), 'danger')
             folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
-            return render_template('credentials/create.html', folders=folders)
-        
+            return render_template(
+                'credentials/create.html',
+                folders=folders,
+                selected_folder_id=folder_id,
+            )
+
         # Get favicon
         favicon_url = get_favicon_url(website_url)
-        
+
         # Create credential
         credential = Credential(
             website_url=website_url,
@@ -153,19 +156,24 @@ def create():
             is_favorite=is_favorite,
             created_by=current_user.id
         )
-        
+
         # Encrypt and set password
         key = get_encryption_key()
         credential.set_password(password, key)
-        
+
         db.session.add(credential)
         db.session.commit()
-        
+
         flash(translate('credentials.flash.saved', website_name=website_name), 'success')
-        return redirect(url_for('credentials.index'))
-    
+        return redirect(url_for('credentials.index', folder_id=folder_id) if folder_id else url_for('credentials.index'))
+
     folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
-    return render_template('credentials/create.html', folders=folders)
+    selected_folder_id = parse_folder_id(request.args.get('folder_id'))
+    return render_template(
+        'credentials/create.html',
+        folders=folders,
+        selected_folder_id=selected_folder_id,
+    )
 
 
 @credentials_bp.route('/edit/<int:credential_id>', methods=['GET', 'POST'])
@@ -194,7 +202,8 @@ def edit(credential_id):
         db.session.commit()
         
         flash(translate('credentials.flash.updated', website_name=credential.website_name), 'success')
-        return redirect(url_for('credentials.index'))
+        folder_id = credential.folder_id
+        return redirect(url_for('credentials.index', folder_id=folder_id) if folder_id else url_for('credentials.index'))
     
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
@@ -214,12 +223,14 @@ def edit(credential_id):
 def delete(credential_id):
     """Delete a credential entry."""
     credential = Credential.query.get_or_404(credential_id)
-    
+    website_name = credential.website_name
+    folder_id = credential.folder_id
+
     db.session.delete(credential)
     db.session.commit()
-    
-    flash(translate('credentials.flash.deleted', website_name=credential.website_name), 'success')
-    return redirect(url_for('credentials.index'))
+
+    flash(translate('credentials.flash.deleted', website_name=website_name), 'success')
+    return redirect(url_for('credentials.index', folder_id=folder_id) if folder_id else url_for('credentials.index'))
 
 
 @credentials_bp.route('/view-password/<int:credential_id>')
@@ -260,7 +271,12 @@ def create_folder():
     db.session.commit()
 
     flash(translate('credentials.flash.folder_created', folder_name=folder.name), 'success')
-    return redirect(url_for('credentials.index'))
+    return_folder_id = parse_folder_id(request.form.get('return_folder_id'))
+    return redirect(
+        url_for('credentials.index', folder_id=return_folder_id)
+        if return_folder_id
+        else url_for('credentials.index')
+    )
 
 
 @credentials_bp.route('/folders/<int:folder_id>/move-up', methods=['POST'])

@@ -133,7 +133,7 @@
                         </button>
                         {% endif %}
                     </div>
-                    <div class="d-md-none btn-group btn-group-sm" role="group" aria-label="{{ _('email.view.zoom.label') }}">
+                    <div class="d-md-none btn-group btn-group-sm email-zoom-controls" role="group" aria-label="{{ _('email.view.zoom.label') }}">
                         <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn" title="{{ _('email.view.zoom.out') }}">
                             <i class="bi bi-dash"></i>
                         </button>
@@ -179,7 +179,7 @@
                         {% endif %}
                     </div>
                     <!-- Mobile Zoom Controls -->
-                    <div class="d-md-none btn-group btn-group-sm" role="group" aria-label="{{ _('email.view.zoom.label') }}">
+                    <div class="d-md-none btn-group btn-group-sm email-zoom-controls" role="group" aria-label="{{ _('email.view.zoom.label') }}">
                         <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn2" title="{{ _('email.view.zoom.out') }}">
                             <i class="bi bi-dash"></i>
                         </button>
@@ -334,10 +334,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Mobile Zoom Controls
     const emailContent = htmlContent || document.querySelector('.email-html-content');
     var supportsCssZoom = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('zoom', '1.5');
-    
+    var isMobileZoom = window.matchMedia('(max-width: 767.98px)').matches;
+
     // Zoom-Level aus localStorage laden oder Standard setzen
     let zoomLevel = parseFloat(localStorage.getItem('emailZoomLevel') || '1.0');
-    
+
     function applyZoom(level) {
         if (!emailContent) return;
 
@@ -372,15 +373,15 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(resizeRichEmailIframe, 50);
         }
     }
-    
+
     // Initial Zoom anwenden (nur auf mobilen Geräten)
-    if (emailContent && window.matchMedia('(max-width: 767.98px)').matches) {
+    if (emailContent && isMobileZoom) {
         // Warte kurz, damit DOM vollständig geladen ist
         setTimeout(function() {
             applyZoom(zoomLevel);
         }, 100);
     }
-    
+
     document.querySelectorAll('#zoomInBtn, #zoomInBtn2').forEach(function (btn) {
         btn.addEventListener('click', function () {
             applyZoom(zoomLevel + 0.1);
@@ -395,6 +396,64 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function () {
             applyZoom(1.0);
         });
+    });
+
+    // Pinch-to-Zoom (2 Finger) → gleiche applyZoom-Logik
+    function bindEmailPinchZoom(target) {
+        if (!target || !isMobileZoom || !emailContent) return;
+
+        var pinchStartDistance = 0;
+        var pinchStartZoom = 1;
+
+        function touchDistance(touches) {
+            var dx = touches[0].clientX - touches[1].clientX;
+            var dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        target.addEventListener('touchstart', function (e) {
+            if (e.touches.length === 2) {
+                pinchStartDistance = touchDistance(e.touches);
+                pinchStartZoom = zoomLevel;
+            }
+        }, { passive: true });
+
+        target.addEventListener('touchmove', function (e) {
+            if (e.touches.length !== 2 || !pinchStartDistance) return;
+            e.preventDefault();
+            var scale = touchDistance(e.touches) / pinchStartDistance;
+            applyZoom(pinchStartZoom * scale);
+        }, { passive: false });
+
+        target.addEventListener('touchend', function (e) {
+            if (e.touches.length < 2) {
+                pinchStartDistance = 0;
+            }
+        }, { passive: true });
+
+        target.addEventListener('touchcancel', function () {
+            pinchStartDistance = 0;
+        }, { passive: true });
+    }
+
+    document.querySelectorAll('.email-mobile-zoom-host').forEach(function (host) {
+        bindEmailPinchZoom(host);
+    });
+
+    document.querySelectorAll('.email-html-iframe').forEach(function (iframe) {
+        function attachIframePinch() {
+            try {
+                var doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+                if (doc) bindEmailPinchZoom(doc);
+            } catch (err) {
+                /* cross-origin / sandbox — ignore */
+            }
+        }
+        iframe.addEventListener('load', attachIframePinch);
+        // srcdoc may already be loaded
+        if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+            attachIframePinch();
+        }
     });
 });
 </script>

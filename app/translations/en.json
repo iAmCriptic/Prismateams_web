@@ -63,6 +63,8 @@
     "no": "No",
     "close": "Close",
     "confirm": "Confirm",
+    "confirm_delete_title": "Confirm deletion",
+    "confirm_delete_default": "Do you really want to delete this item?",
     "loading": "Loading...",
     "actions": "Actions",
     "status": "Status",
@@ -204,6 +206,86 @@
     },
     "welcome": "Welcome, {name}!",
     "overview_subtitle": "Here is your overview",
+    "whats_new": {
+      "button_label": "What's new",
+      "button_aria": "Show what's new in this version",
+      "badge": "!",
+      "badge_sr": "unread news",
+      "overview_title": "What's new in v{version}",
+      "persistent_title": "New in Version {version} - ({current}/{total})",
+      "overview_subtitle": "Only modules with updates in this version.",
+      "version_label": "New in v{version}",
+      "back_overview": "Overview",
+      "prev": "Back",
+      "next": "Next",
+      "modules": {
+        "files": {
+          "title": "Files",
+          "teaser": "Design, private, upload & favorites",
+          "items": {
+            "design": "Design refresh for a clearer, more modern file overview.",
+            "private": "Private files and internal sharing within the team.",
+            "upload": "Upload progress display for better feedback while uploading.",
+            "favorites": "Save up to 10 folders as favorites."
+          }
+        },
+        "calendar": {
+          "title": "Calendar",
+          "teaser": "Day view, sync & multi-calendar",
+          "items": {
+            "day_view": "Current day view for a quick overview.",
+            "external_sync": "External calendars can now be synchronized.",
+            "embed": "Embedding the calendar in external apps is easier.",
+            "multi_mode": "New multi-calendar mode for individuals and for everyone – better sharing and overview.",
+            "fixes": "Bug fixes and improvements."
+          }
+        },
+        "media_downloader": {
+          "title": "Media Download",
+          "teaser": "Stability & improvements",
+          "items": {
+            "fixes": "Bug fixes and improvements."
+          }
+        },
+        "email": {
+          "title": "Email",
+          "teaser": "Design & mobile",
+          "items": {
+            "design": "Design adjustments for a clearer interface.",
+            "mobile_layout": "Mobile layout fixes.",
+            "mobile_nav": "Mobile navigation fixes."
+          }
+        },
+        "general": {
+          "title": "General",
+          "teaser": "Accent colors",
+          "items": {
+            "accent": "Accent colors were fixed and are applied more consistently than before."
+          }
+        },
+        "credentials": {
+          "title": "Credentials",
+          "teaser": "Design update",
+          "items": {
+            "design": "Design update."
+          }
+        },
+        "chat": {
+          "title": "Chats",
+          "teaser": "Design update",
+          "items": {
+            "design": "Design update."
+          }
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "teaser": "What's new",
+          "items": {
+            "whats_new": "\"What's new\" to announce news for each version."
+          }
+        }
+      }
+    },
     "widgets": {
       "common": {
         "time_suffix": ""
@@ -753,7 +835,11 @@
         },
         "file_settings": {
           "title": "File Settings",
-          "description": "Enable or disable mailboxes and shares"
+          "description": "Enable or disable mailboxes, shares and private folders"
+        },
+        "calendar_settings": {
+          "title": "Calendar Settings",
+          "description": "Configure multiple calendars, import and export"
         },
         "registration_options": {
           "title": "Bot protection",
@@ -802,8 +888,25 @@
         "dropbox_help": "Allows creating mailboxes (upload-only folders) for bookings and other purposes.",
         "sharing_label": "Enable Shares",
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
+        "private_folders_label": "Enable private folders",
+        "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
         "save_button": "Save Changes",
         "flash_updated": "File settings have been updated.",
+        "flash_unauthorized": "Only administrators have access to this page."
+      },
+      "calendar_settings": {
+        "page_title": "Calendar Settings - Administration",
+        "breadcrumb": "Calendar Settings",
+        "heading": "Calendar Settings",
+        "section_title": "Calendar Features",
+        "multi_label": "Use multiple calendars",
+        "multi_help": "Each user gets a personal calendar. There is a public calendar for everyone. Others can be viewed, but events can only be created in your own and the public calendar.",
+        "export_label": "Allow calendar export",
+        "export_help": "When disabled, calendars cannot be exported as ICS or subscribed in external apps.",
+        "import_label": "Allow calendar import",
+        "import_help": "When disabled, ICS files cannot be imported and sync links cannot be created.",
+        "save_button": "Save Changes",
+        "flash_updated": "Calendar settings have been updated.",
         "flash_unauthorized": "Only administrators have access to this page."
       },
       "system": {
@@ -904,7 +1007,14 @@
       "direct_title": "Direct messages",
       "direct_label": "Direct message",
       "empty": "You don't have any group chats or direct messages yet.",
-      "empty_cta": "Create a new chat!"
+      "empty_cta": "Create a new chat!",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinned": "Pinned",
+      "pin_limit": "You can pin up to 6 chats.",
+      "pin_error": "Could not update pin.",
+      "pin_main_unavailable": "Main chat always stays on top.",
+      "unread_count": "{count} unread"
     },
     "view": {
       "page_title_suffix": "Chats",
@@ -1037,6 +1147,41 @@
       "page_title": "Files - Team Portal",
       "heading": "Files",
       "breadcrumb_root": "Root",
+      "nav": {
+        "ablage": "My Drive",
+        "freigaben": "Shared",
+        "public": "Public",
+        "trash": "Trash",
+        "menu": "Open menu"
+      },
+      "favorites": {
+        "title": "Favorites",
+        "empty": "No favorites",
+        "add": "Add to favorites",
+        "remove": "Remove from favorites",
+        "limit": "Maximum 10 favorites."
+      },
+      "list": {
+        "name": "Name",
+        "owner": "Owner",
+        "version": "Version",
+        "modified": "Modified",
+        "size": "Size",
+        "actions": "Actions"
+      },
+      "acl": {
+        "title": "Share internally",
+        "share_all": "Share with everyone",
+        "share_user": "Share with person",
+        "permission_view": "View",
+        "permission_edit": "Edit",
+        "remove": "Remove",
+        "empty": "No internal shares."
+      },
+      "trash_actions": {
+        "restore": "Restore",
+        "purge": "Delete permanently"
+      },
       "view_toggle": {
         "list": "List view",
         "grid": "Grid view"
@@ -1090,7 +1235,8 @@
       "labels": {
         "text_file": "Text file",
         "uploaded_by": "By {name}",
-        "empty_folder": "This folder is empty. Upload files or create a new folder."
+        "empty_folder": "This folder is empty. Upload files or create a new folder.",
+        "nothing_present": "Nothing here"
       },
       "modals": {
         "create_entry": {
@@ -1681,7 +1827,11 @@
           ],
           "end_label": "Repeat ends on (optional)",
           "end_help": "Leave empty for unlimited recurrence"
-        }
+        },
+        "calendar_label": "Calendar",
+        "invitees_label": "Invite people",
+        "invitees_help": "Search and click people. Invitees get a notification and can accept or decline.",
+        "invitees_search": "Search person…"
       },
       "buttons": {
         "submit": "Create event",
@@ -1772,7 +1922,32 @@
       "sync_invalid_url": "Invalid sync URL. Use http(s):// or webcal://.",
       "sync_added": "Calendar sync added.",
       "sync_added_with_error": "Calendar sync created, but the first fetch failed:",
-      "sync_deleted": "Calendar sync and related events have been deleted."
+      "sync_deleted": "Calendar sync and related events have been deleted.",
+      "no_create_permission": "You cannot create events in this calendar.",
+      "no_edit_permission": "You do not have permission to edit this event.",
+      "export_disabled": "Calendar export is disabled.",
+      "import_disabled": "Calendar import is disabled.",
+      "cannot_delete_calendar": "This calendar cannot be deleted.",
+      "participation_status": "Participation for \"{event_title}\": {status}",
+      "accepted": "accepted",
+      "declined": "declined"
+    },
+    "notifications": {
+      "invite_title": "Event invitation received",
+      "invite_body": "You were invited to \"{title}\"."
+    },
+    "sidebar": {
+      "brand": "Calendar",
+      "new_event": "New event",
+      "reset": "Reset",
+      "my_calendar": "My calendar",
+      "public": "Public",
+      "search": "Search people…",
+      "others": "Other calendars",
+      "delete_import": "Delete",
+      "delete_confirm": "Delete imported calendar and all events?",
+      "pick_calendars": "Calendars",
+      "menu": "Open calendar menu"
     },
     "feed": {
       "page_title": "Integrate into your calendar",
@@ -2021,8 +2196,22 @@
     "index": {
       "page_title": "Credentials - Team Portal",
       "heading": "Credentials",
-      "new_button": "Add new",
+      "new_button": "New",
       "password_placeholder": "********",
+      "nav": {
+        "menu": "Folder menu"
+      },
+      "dropdown": {
+        "new_entry": "New entry"
+      },
+      "view_toggle": {
+        "label": "Toggle view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "list": {
+        "name": "Name"
+      },
       "labels": {
         "username": "Username",
         "password": "Password",
@@ -2048,7 +2237,7 @@
         "color": "Color",
         "create": "Create folder",
         "root": "Root",
-        "drop_hint": "Drag cards here",
+        "drop_hint": "Drag cards onto folders",
         "root_empty": "No entries in root.",
         "empty": "This folder is empty.",
         "move_up": "Move folder up"

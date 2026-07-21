@@ -4,10 +4,28 @@
 
 {% block content %}
 {% set chat_settings_url = url_for('chat.chat_settings', chat_id=chat.id) %}
+{% set nav_items = nav_items|default([]) %}
+{% set active_chat_id = active_chat_id|default(1 if chat.is_main_chat else chat.id) %}
+
+<div class="chat-shell">
+<aside class="chat-sidebar d-none d-lg-flex flex-column">
+    <div class="chat-sidebar-brand">
+        <i class="bi bi-chat-dots" aria-hidden="true"></i>
+        <span>{{ _('chat.index.heading') }}</span>
+    </div>
+    <a href="{{ url_for('chat.create_chat') }}" class="btn chat-sidebar-new">
+        <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
+    </a>
+    <div class="chat-sidebar-nav flex-grow-1 min-width-0">
+        {% include 'chat/_chat_nav.html' %}
+    </div>
+</aside>
+
+<div class="chat-main flex-grow-1 min-width-0">
 <!-- Desktop Header -->
 <div class="desktop-chat-header d-none d-md-flex" data-context-zone data-context-menu="dropdown">
     <div class="desktop-chat-info">
-        <nav aria-label="breadcrumb" class="mb-2">
+        <nav aria-label="breadcrumb" class="mb-2 d-lg-none">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('chat.index') }}"><i class="bi bi-arrow-left me-1"></i>{{ _('chat.view.breadcrumb_chats') }}</a></li>
                 <li class="breadcrumb-item active">{{ get_chat_display_name(chat) }}</li>
@@ -532,6 +550,8 @@
         <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
     </div>
 </div>
+</div><!-- /chat-main -->
+</div><!-- /chat-shell -->
 {% endblock %}
 
 {% block extra_js %}
@@ -552,7 +572,20 @@
             guestBadge: "Gast"
         }
     };
+    window.ChatNavConfig = {
+        pinUrlTemplate: {{ url_for('chat.pin_chat_api', chat_id=0)|tojson }},
+        i18n: {
+            pin: {{ _('chat.index.pin')|tojson }},
+            unpin: {{ _('chat.index.unpin')|tojson }},
+            pinLimit: {{ _('chat.index.pin_limit')|tojson }},
+            pinError: {{ _('chat.index.pin_error')|tojson }},
+            mute: {{ _('chat.view.dropdown.mute')|tojson }},
+            unmute: {{ _('chat.view.js.unmute')|tojson }},
+            deleteConfirm: {{ _('chat.settings.delete.confirm')|tojson }}
+        }
+    };
 </script>
+<script src="{{ url_for('static', filename='js/chat-nav.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 
 <!-- Member Profile Modal -->
@@ -830,6 +863,3 @@
     </div>
 </div>
 {% endblock %}
-
-
-

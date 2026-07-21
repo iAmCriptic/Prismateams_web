@@ -86,7 +86,7 @@ class User(UserMixin, db.Model):
     
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')
     sent_messages = db.relationship('ChatMessage', back_populates='sender', cascade='all, delete-orphan')
-    uploaded_files = db.relationship('File', back_populates='uploader', cascade='all, delete-orphan')
+    uploaded_files = db.relationship('File', foreign_keys='File.uploaded_by', back_populates='uploader', cascade='all, delete-orphan')
     created_events = db.relationship('CalendarEvent', back_populates='creator', cascade='all, delete-orphan')
     event_participations = db.relationship('EventParticipant', back_populates='user', cascade='all, delete-orphan')
     email_permissions = db.relationship('EmailPermission', back_populates='user', uselist=False, cascade='all, delete-orphan')
@@ -111,6 +111,23 @@ class User(UserMixin, db.Model):
     def full_name(self):
         """Return user's full name."""
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def accent_highlight_color(self):
+        """Solid color for UI highlights (links, checkboxes).
+
+        When a gradient accent is set, use the first color stop so highlights
+        match the accent style instead of a leftover solid blue.
+        """
+        import re
+        if self.accent_gradient:
+            matches = re.findall(r'#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b', self.accent_gradient)
+            if matches:
+                raw = matches[0]
+                if len(raw) == 3:
+                    raw = ''.join(ch * 2 for ch in raw)
+                return f'#{raw.lower()}'
+        return (self.accent_color or '#0d6efd').lower()
     
     @property
     def accent_style(self):

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('settings.admin.calendar_settings.page_title') }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('settings.admin.calendar_settings.breadcrumb') }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">{{ _('settings.admin.calendar_settings.heading') }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <h5 class="mb-3">{{ _('settings.admin.calendar_settings.section_title') }}</h5>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="calendar_multi_enabled" name="calendar_multi_enabled" {% if calendar_multi_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="calendar_multi_enabled">
+                            <strong>{{ _('settings.admin.calendar_settings.multi_label') }}</strong>
+                            <p class="text-muted small mb-0">{{ _('settings.admin.calendar_settings.multi_help') }}</p>
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="calendar_export_enabled" name="calendar_export_enabled" {% if calendar_export_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="calendar_export_enabled">
+                            <strong>{{ _('settings.admin.calendar_settings.export_label') }}</strong>
+                            <p class="text-muted small mb-0">{{ _('settings.admin.calendar_settings.export_help') }}</p>
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="calendar_import_enabled" name="calendar_import_enabled" {% if calendar_import_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="calendar_import_enabled">
+                            <strong>{{ _('settings.admin.calendar_settings.import_label') }}</strong>
+                            <p class="text-muted small mb-0">{{ _('settings.admin.calendar_settings.import_help') }}</p>
+                        </label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-accent">{{ _('settings.admin.calendar_settings.save_button') }}</button>
+                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -23,6 +23,11 @@ class Folder(db.Model):
     share_name = db.Column(db.String(255), nullable=True)
     share_mode = db.Column(db.String(16), nullable=False, default='edit')
     color = db.Column(db.String(16), nullable=True)
+
+    space = db.Column(db.String(16), nullable=False, default='public')
+    is_personal_root = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
     files = db.relationship('File', back_populates='folder', cascade='all, delete-orphan')
@@ -36,6 +41,10 @@ class Folder(db.Model):
         if self.parent:
             return f"{self.parent.path}/{self.name}"
         return self.name
+
+    @property
+    def is_deleted(self):
+        return self.deleted_at is not None
 
 
 class File(db.Model):
@@ -63,12 +72,20 @@ class File(db.Model):
     share_name = db.Column(db.String(255), nullable=True)
     share_mode = db.Column(db.String(16), nullable=False, default='edit')
 
+    space = db.Column(db.String(16), nullable=False, default='public')
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
     folder = db.relationship('Folder', back_populates='files')
-    uploader = db.relationship('User', back_populates='uploaded_files')
+    uploader = db.relationship('User', foreign_keys=[uploaded_by], back_populates='uploaded_files')
     versions = db.relationship('FileVersion', back_populates='file', cascade='all, delete-orphan', order_by='FileVersion.version_number.desc()')
     
     def __repr__(self):
         return f'<File {self.name}>'
+
+    @property
+    def is_deleted(self):
+        return self.deleted_at is not None
 
 
 class FileVersion(db.Model):
@@ -88,4 +105,40 @@ class FileVersion(db.Model):
         return f'<FileVersion {self.file_id} v{self.version_number}>'
 
 
+class ResourceACL(db.Model):
+    """Internal user/all sharing (separate from public link shares)."""
+    __tablename__ = 'resource_acl'
 
+    id = db.Column(db.Integer, primary_key=True)
+    resource_type = db.Column(db.String(16), nullable=False)  # file | folder
+    resource_id = db.Column(db.Integer, nullable=False)
+    grantee_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # NULL = everyone
+    permission = db.Column(db.String(16), nullable=False, default='view')  # view | edit
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    grantee = db.relationship('User', foreign_keys=[grantee_user_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f'<ResourceACL {self.resource_type}:{self.resource_id} -> {self.grantee_user_id}>'
+
+
+class FolderFavorite(db.Model):
+    """Per-user folder favorites for quick access in the files nav (max 10 enforced in API)."""
+    __tablename__ = 'folder_favorites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='folder_favorites')
+    folder = db.relationship('Folder', backref='favorited_by')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'folder_id', name='unique_user_folder_favorite'),
+    )
+
+    def __repr__(self):
+        return f'<FolderFavorite user={self.user_id} folder={self.folder_id}>'

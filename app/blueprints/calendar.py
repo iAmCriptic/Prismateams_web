@@ -1,12 +1,28 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
-from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
+from app.models.calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
 from app.models.user import User
 from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
+from app.utils.multi_calendars import (
+    calendar_to_dict,
+    can_create_in_calendar,
+    can_delete_event,
+    can_edit_event,
+    ensure_imported_calendar_for_source,
+    events_query_for_calendars,
+    filter_events_for_calendars,
+    get_or_create_personal_calendar,
+    get_public_calendar,
+    is_calendar_export_enabled,
+    is_calendar_import_enabled,
+    is_calendar_multi_enabled,
+    list_sidebar_calendars,
+    parse_calendar_ids_param,
+)
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.utils.ical import (
@@ -31,6 +47,147 @@ def sanitize_event_color(raw_color):
     if len(color) == 7 and color.startswith('#') and all(c in '0123456789abcdef' for c in color[1:]):
         return color
     return DEFAULT_EVENT_COLOR
+
+
+def _selected_calendar_ids_from_request(user):
+    """Parse ?calendars= from query; default = personal only when multi on."""
+    multi = is_calendar_multi_enabled()
+    if not multi:
+        return []
+    personal = get_or_create_personal_calendar(user)
+    raw = request.args.get('calendars')
+    ids = parse_calendar_ids_param(raw, default_ids=[personal.id])
+    if not ids:
+        ids = [personal.id]
+    return ids
+
+
+def _sidebar_context(user, selected_ids=None):
+    multi = is_calendar_multi_enabled()
+    if not multi:
+        return {
+            'calendar_multi_enabled': False,
+            'calendar_export_enabled': is_calendar_export_enabled(),
+            'calendar_import_enabled': is_calendar_import_enabled(),
+            'sidebar_calendars': None,
+            'selected_calendar_ids': [],
+            'focus_calendar_id': None,
+            'can_create_focus': True,
+        }
+    sidebar = list_sidebar_calendars(user)
+    if selected_ids is None:
+        selected_ids = _selected_calendar_ids_from_request(user)
+    personal = sidebar['personal']
+    focus_raw = request.args.get('focus', type=int)
+    focus_id = focus_raw or (selected_ids[0] if selected_ids else personal.id)
+    focus_cal = Calendar.query.get(focus_id) or personal
+    return {
+        'calendar_multi_enabled': True,
+        'calendar_export_enabled': is_calendar_export_enabled(),
+        'calendar_import_enabled': is_calendar_import_enabled(),
+        'sidebar_calendars': {
+            'personal': calendar_to_dict(sidebar['personal'], user),
+            'public': calendar_to_dict(sidebar['public'], user),
+            'others': [calendar_to_dict(c, user) for c in sidebar['others']],
+        },
+        'selected_calendar_ids': selected_ids,
+        'focus_calendar_id': focus_cal.id,
+        'can_create_focus': can_create_in_calendar(user, focus_cal),
+    }
+
+
+def _notify_event_invites(event, invitee_ids):
+    from app.utils.notifications import notify_user
+    for uid in invitee_ids:
+        if uid == event.created_by:
+            continue
+        try:
+            notify_user(
+                uid,
+                title=translate('calendar.notifications.invite_title'),
+                body=translate('calendar.notifications.invite_body', title=event.title),
+                url=url_for('calendar.view_event', event_id=event.id, _external=False),
+                notification_type='calendar_invite',
+                dedup_key=f'calendar_invite:{event.id}:{uid}',
+                source_id=event.id,
+                data={'event_id': event.id, 'type': 'calendar_invite'},
+            )
+        except Exception:
+            import logging
+            logging.exception('Invite notification failed for user %s event %s', uid, event.id)
+
+
+def _parse_invitee_ids():
+    raw = request.form.getlist('invitee_ids')
+    ids = []
+    for item in raw:
+        try:
+            ids.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return ids
+
+
+def _add_participants_for_event(event, multi_mode, invitee_ids=None):
+    """Legacy: all users pending. Multi: creator accepted + selected invitees pending."""
+    if multi_mode:
+        db.session.add(EventParticipant(
+            event_id=event.id,
+            user_id=event.created_by,
+            status='accepted',
+            responded_at=datetime.utcnow(),
+        ))
+        notify_ids = []
+        for uid in (invitee_ids or []):
+            if uid == event.created_by:
+                continue
+            user = User.query.filter_by(id=uid, is_active=True).first()
+            if not user:
+                continue
+            db.session.add(EventParticipant(
+                event_id=event.id,
+                user_id=uid,
+                status='pending',
+            ))
+            notify_ids.append(uid)
+        return notify_ids
+
+    active_users = User.query.filter_by(is_active=True).all()
+    for user in active_users:
+        db.session.add(EventParticipant(
+            event_id=event.id,
+            user_id=user.id,
+            status='pending',
+        ))
+    return []
+
+
+def event_to_api_dict(event, participation_status=None, extra=None):
+    duration = (event.end_time.date() - event.start_time.date()).days + 1
+    data = {
+        'id': event.id,
+        'title': event.title,
+        'start_time': event.start_time.isoformat(),
+        'end_time': event.end_time.isoformat(),
+        'start_date': event.start_time.date().isoformat(),
+        'end_date': event.end_time.date().isoformat(),
+        'duration_days': duration,
+        'location': event.location,
+        'event_color': event.event_color or DEFAULT_EVENT_COLOR,
+        'description': event.description,
+        'day': event.start_time.day,
+        'time': event.start_time.strftime('%H:%M'),
+        'participation_status': participation_status,
+        'is_recurring': False,
+        'calendar_id': event.calendar_id,
+        'url': url_for('calendar.view_event', event_id=event.id),
+    }
+    if event.calendar:
+        data['calendar_color'] = event.calendar.color or data['event_color']
+        data['calendar_name'] = event.calendar.name
+    if extra:
+        data.update(extra)
+    return data
 
 
 def generate_recurring_instances(master_event, start_date, end_date):
@@ -138,26 +295,34 @@ def generate_recurring_instances(master_event, start_date, end_date):
 @check_module_access('module_calendar')
 def index():
     """Calendar overview."""
-    # Get all events
-    events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
-    
-    # Get user's participation status for each event
+    ctx = _sidebar_context(current_user)
+    selected_ids = ctx['selected_calendar_ids']
+    multi = ctx['calendar_multi_enabled']
+
+    if multi:
+        q = events_query_for_calendars(
+            current_user,
+            selected_ids,
+            base_filters=[CalendarEvent.is_recurring_instance == False],
+        )
+        events = q.order_by(CalendarEvent.start_time).all()
+    else:
+        events = CalendarEvent.query.order_by(CalendarEvent.start_time).all()
+
     participations = {}
     for event in events:
         participation = EventParticipant.query.filter_by(
             event_id=event.id,
             user_id=current_user.id
         ).first()
-        participations[event.id] = participation
-    
-    # Get current month for display
-    current_month = datetime.now()
-    
+        if participation:
+            participations[event.id] = participation
+
     return render_template(
         'calendar/index.html',
         events=events,
         participations=participations,
-        current_month=current_month
+        **ctx,
     )
 
 
@@ -186,7 +351,10 @@ def view_event(event_id):
         event=event,
         participants=participants,
         user_participation=user_participation,
-        booking_request=booking_request
+        booking_request=booking_request,
+        can_edit=can_edit_event(current_user, event),
+        can_delete=can_delete_event(current_user, event),
+        calendar_multi_enabled=is_calendar_multi_enabled(),
     )
 
 
@@ -195,6 +363,43 @@ def view_event(event_id):
 @check_module_access('module_calendar')
 def create_event():
     """Create a new event."""
+    multi = is_calendar_multi_enabled()
+    invite_users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all() if multi else []
+    writable = []
+    default_calendar_id = None
+    personal_calendar_id = None
+    public_calendar_id = None
+    if multi:
+        personal = get_or_create_personal_calendar(current_user)
+        public = get_public_calendar()
+        writable = [personal, public]
+        personal_calendar_id = personal.id
+        public_calendar_id = public.id
+        # Standard: eigener Kalender. Explizit ?calendar_id= nur wenn writable.
+        focus = request.args.get('calendar_id', type=int) or request.form.get('calendar_id', type=int)
+        if focus in (personal.id, public.id):
+            default_calendar_id = focus
+        else:
+            default_calendar_id = personal.id
+
+    def _create_template(**extra):
+        invite_payload = [
+            {'id': u.id, 'name': u.full_name}
+            for u in invite_users
+            if u.id != current_user.id
+        ]
+        return render_template(
+            'calendar/create.html',
+            calendar_multi_enabled=multi,
+            invite_users=invite_users,
+            invite_users_json=invite_payload,
+            writable_calendars=[calendar_to_dict(c, current_user) for c in writable],
+            default_calendar_id=default_calendar_id,
+            personal_calendar_id=personal_calendar_id,
+            public_calendar_id=public_calendar_id,
+            **extra,
+        )
+
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
@@ -204,49 +409,56 @@ def create_event():
         end_time = request.form.get('end_time')
         location = request.form.get('location', '').strip()
         event_color = sanitize_event_color(request.form.get('event_color'))
-        
-        # Wiederholungsoptionen
+
         is_recurring = request.form.get('is_recurring') == 'on'
         recurrence_type = request.form.get('recurrence_type', 'none')
         recurrence_end_date_str = request.form.get('recurrence_end_date')
         recurrence_interval = int(request.form.get('recurrence_interval', 1))
-        recurrence_days = request.form.get('recurrence_days', '')  # Komma-getrennte Liste von Wochentagen
-        
+        recurrence_days = request.form.get('recurrence_days', '')
+
         if not all([title, start_date, end_date]):
             flash(translate('calendar.flash.fill_all_fields'), 'danger')
-            return render_template('calendar/create.html')
-        
+            return _create_template()
+
         try:
-            # Handle all-day events: if no time is provided, set to 00:00-23:59
             if not start_time:
                 start_time = '00:00'
             if not end_time:
                 end_time = '23:59'
-            
-            # Kombiniere Datum und Zeit zu datetime-Objekten
+
             start_dt = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
             end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
-            
+
             if end_dt <= start_dt:
                 flash(translate('calendar.flash.end_after_start'), 'danger')
-                return render_template('calendar/create.html')
-            
-            # Wiederholungs-Enddatum parsen
+                return _create_template()
+
             recurrence_end_date = None
             if is_recurring and recurrence_type != 'none' and recurrence_end_date_str:
                 try:
                     recurrence_end_date = datetime.fromisoformat(recurrence_end_date_str)
                     if recurrence_end_date < start_dt:
                         flash(translate('calendar.flash.recurrence_end_after_start'), 'danger')
-                        return render_template('calendar/create.html')
+                        return _create_template()
                 except ValueError:
                     flash(translate('calendar.flash.invalid_recurrence_end'), 'danger')
-                    return render_template('calendar/create.html')
-        except ValueError as e:
+                    return _create_template()
+        except ValueError:
             flash(translate('calendar.flash.invalid_datetime_format'), 'danger')
-            return render_template('calendar/create.html')
-        
-        # Create event
+            return _create_template()
+
+        calendar_id = None
+        target_calendar = None
+        if multi:
+            calendar_id = request.form.get('calendar_id', type=int) or default_calendar_id
+            target_calendar = Calendar.query.get(calendar_id)
+            if not target_calendar or not can_create_in_calendar(current_user, target_calendar):
+                flash(translate('calendar.flash.no_create_permission'), 'danger')
+                return _create_template()
+            calendar_id = target_calendar.id
+            if not event_color or event_color == DEFAULT_EVENT_COLOR:
+                event_color = target_calendar.color or event_color
+
         event = CalendarEvent(
             title=title,
             description=description,
@@ -255,6 +467,7 @@ def create_event():
             location=location,
             event_color=event_color,
             created_by=current_user.id,
+            calendar_id=calendar_id,
             recurrence_type=recurrence_type if is_recurring else 'none',
             recurrence_end_date=recurrence_end_date,
             recurrence_interval=recurrence_interval,
@@ -263,43 +476,37 @@ def create_event():
         )
         db.session.add(event)
         db.session.flush()
-        
-        # Add all active users as participants with "pending" status
-        active_users = User.query.filter_by(is_active=True).all()
-        for user in active_users:
-            participant = EventParticipant(
-                event_id=event.id,
-                user_id=user.id,
-                status='pending'
-            )
-            db.session.add(participant)
-        
+
+        invitee_ids = []
+        if multi and target_calendar and target_calendar.calendar_type == 'personal':
+            invitee_ids = _parse_invitee_ids()
+        notify_ids = _add_participants_for_event(event, multi, invitee_ids)
         db.session.commit()
-        
-        # Sende Dashboard-Updates an alle aktiven Benutzer
+
+        if multi and notify_ids:
+            _notify_event_invites(event, notify_ids)
+
         try:
             from app.utils.dashboard_events import emit_dashboard_update
-            from datetime import timedelta
-            
-            # Berechne upcoming_count für alle Benutzer
             now = datetime.utcnow()
             week_from_now = now + timedelta(days=7)
             upcoming_count = CalendarEvent.query.filter(
                 CalendarEvent.start_time > now,
                 CalendarEvent.start_time <= week_from_now
             ).count()
-            
-            # Emittiere Update für alle aktiven Benutzer
-            for user in active_users:
-                emit_dashboard_update(user.id, 'calendar_update', {'count': upcoming_count})
+            targets = set(invitee_ids) | {current_user.id}
+            if not multi:
+                targets = {u.id for u in User.query.filter_by(is_active=True).all()}
+            for uid in targets:
+                emit_dashboard_update(uid, 'calendar_update', {'count': upcoming_count})
         except Exception as e:
             import logging
-            logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
-        
+            logging.error(f"Fehler beim Senden der Dashboard-Updates fuer Kalender: {e}")
+
         flash(f'Termin "{title}" wurde erstellt.', 'success')
         return redirect(url_for('calendar.view_event', event_id=event.id))
-    
-    return render_template('calendar/create.html')
+
+    return _create_template()
 
 
 @calendar_bp.route('/edit/<int:event_id>', methods=['GET', 'POST'])
@@ -308,109 +515,135 @@ def create_event():
 def edit_event(event_id):
     """Edit an event."""
     event = CalendarEvent.query.get_or_404(event_id)
-    
-    # Prüfe ob es eine Instanz eines wiederkehrenden Termins ist
+
+    if not can_edit_event(current_user, event):
+        flash(translate('calendar.flash.no_edit_permission'), 'danger')
+        return redirect(url_for('calendar.view_event', event_id=event_id))
+
     if event.is_recurring_instance and event.parent_event_id:
         flash(translate('calendar.flash.instance_edit_warning'), 'warning')
         return redirect(url_for('calendar.view_event', event_id=event.parent_event_id))
-    
+
+    multi = is_calendar_multi_enabled()
+    invite_users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all() if multi else []
+
     if request.method == 'POST':
         event.title = request.form.get('title', '').strip()
         event.description = request.form.get('description', '').strip()
         event.location = request.form.get('location', '').strip()
         event.event_color = sanitize_event_color(request.form.get('event_color'))
-        
+
         start_date = request.form.get('start_date')
         start_time = request.form.get('start_time')
         end_date = request.form.get('end_date')
         end_time = request.form.get('end_time')
-        
-        # Wiederholungsoptionen
+
         is_recurring = request.form.get('is_recurring') == 'on'
         recurrence_type = request.form.get('recurrence_type', 'none')
         recurrence_end_date_str = request.form.get('recurrence_end_date')
         recurrence_interval = int(request.form.get('recurrence_interval', 1))
         recurrence_days = request.form.get('recurrence_days', '')
-        
+
         if not all([start_date, end_date]):
             flash(translate('calendar.flash.fill_all_fields'), 'danger')
-            return render_template('calendar/edit.html', event=event)
-        
+            return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+
         try:
-            # Handle all-day events: if no time is provided, set to 00:00-23:59
             if not start_time:
                 start_time = '00:00'
             if not end_time:
                 end_time = '23:59'
-            
-            # Kombiniere Datum und Zeit zu datetime-Objekten
+
             event.start_time = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
             event.end_time = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
-            
+
             if event.end_time <= event.start_time:
                 flash(translate('calendar.flash.end_after_start'), 'danger')
-                return render_template('calendar/edit.html', event=event)
-            
-            # Wiederholungs-Enddatum parsen
+                return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+
             recurrence_end_date = None
             if is_recurring and recurrence_type != 'none' and recurrence_end_date_str:
                 try:
                     recurrence_end_date = datetime.fromisoformat(recurrence_end_date_str)
                     if recurrence_end_date < event.start_time:
                         flash(translate('calendar.flash.recurrence_end_after_start'), 'danger')
-                        return render_template('calendar/edit.html', event=event)
+                        return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
                 except ValueError:
                     flash(translate('calendar.flash.invalid_recurrence_end'), 'danger')
-                    return render_template('calendar/edit.html', event=event)
+                    return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
         except ValueError:
             flash(translate('calendar.flash.invalid_datetime_format'), 'danger')
-            return render_template('calendar/edit.html', event=event)
-        
-        # Aktualisiere Wiederholungsoptionen
+            return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+
         event.recurrence_type = recurrence_type if is_recurring else 'none'
         event.recurrence_end_date = recurrence_end_date
         event.recurrence_interval = recurrence_interval
         event.recurrence_days = recurrence_days if recurrence_days else None
-        
+
+        new_invite_ids = []
+        if multi:
+            existing = {p.user_id: p for p in EventParticipant.query.filter_by(event_id=event.id).all()}
+            for uid in _parse_invitee_ids():
+                if uid == event.created_by:
+                    continue
+                if uid not in existing:
+                    user = User.query.filter_by(id=uid, is_active=True).first()
+                    if user:
+                        db.session.add(EventParticipant(event_id=event.id, user_id=uid, status='pending'))
+                        new_invite_ids.append(uid)
+
         db.session.commit()
-        
-        # Sende Dashboard-Updates an alle Event-Teilnehmer
+        if new_invite_ids:
+            _notify_event_invites(event, new_invite_ids)
+
         try:
             from app.utils.dashboard_events import emit_dashboard_update
-            from datetime import timedelta
-            
-            # Berechne upcoming_count
             now = datetime.utcnow()
             week_from_now = now + timedelta(days=7)
             upcoming_count = CalendarEvent.query.filter(
                 CalendarEvent.start_time > now,
                 CalendarEvent.start_time <= week_from_now
             ).count()
-            
-            # Emittiere Update für alle Event-Teilnehmer
             participants = EventParticipant.query.filter_by(event_id=event_id).all()
             for participant in participants:
                 emit_dashboard_update(participant.user_id, 'calendar_update', {'count': upcoming_count})
         except Exception as e:
             import logging
-            logging.error(f"Fehler beim Senden der Dashboard-Updates für Kalender: {e}")
-        
+            logging.error(f"Fehler beim Senden der Dashboard-Updates fuer Kalender: {e}")
+
         flash(translate('calendar.flash.updated'), 'success')
         return redirect(url_for('calendar.view_event', event_id=event_id))
-    
-    return render_template('calendar/edit.html', event=event)
+
+    return render_template(
+        'calendar/edit.html',
+        event=event,
+        calendar_multi_enabled=multi,
+        invite_users=invite_users,
+        invite_users_json=[
+            {'id': u.id, 'name': u.full_name}
+            for u in invite_users
+            if u.id != current_user.id
+        ],
+        existing_invitee_ids=[
+            p.user_id for p in EventParticipant.query.filter_by(event_id=event.id).all()
+            if p.user_id != current_user.id and p.status in ('pending', 'accepted')
+        ],
+        show_invitees=bool(
+            multi and event.calendar and event.calendar.calendar_type == 'personal'
+        ),
+    )
 
 
 @calendar_bp.route('/delete/<int:event_id>', methods=['POST'])
 @login_required
 @check_module_access('module_calendar')
 def delete_event(event_id):
-    """Delete an event (admin only)."""
-    if not current_user.is_admin:
+    """Delete an event."""
+    event = CalendarEvent.query.get_or_404(event_id)
+
+    if not can_delete_event(current_user, event):
         flash(translate('calendar.flash.admin_only_delete'), 'danger')
         return redirect(url_for('calendar.view_event', event_id=event_id))
-    
-    event = CalendarEvent.query.get_or_404(event_id)
     
     # Entferne die Verknüpfung zu BookingRequests, bevor das Event gelöscht wird
     booking_requests = BookingRequest.query.filter_by(calendar_event_id=event.id).all()
@@ -437,7 +670,6 @@ def delete_event(event_id):
     # Sende Dashboard-Updates an alle Event-Teilnehmer
     try:
         from app.utils.dashboard_events import emit_dashboard_update
-        from datetime import timedelta
         
         # Berechne upcoming_count
         now = datetime.utcnow()
@@ -527,67 +759,62 @@ def remove_participant(event_id, user_id):
 @check_module_access('module_calendar')
 def get_events_for_month(year, month):
     """Get all events for a specific month."""
-    # Get start and end dates for the month
     start_date = datetime(year, month, 1)
     if month == 12:
         end_date = datetime(year + 1, 1, 1)
     else:
         end_date = datetime(year, month + 1, 1)
-    
-    # Get all regular events that overlap with this month
-    # Events that start before end_date and end after start_date
-    events = CalendarEvent.query.filter(
+
+    selected_ids = _selected_calendar_ids_from_request(current_user)
+    multi = is_calendar_multi_enabled()
+
+    base = [
         CalendarEvent.start_time < end_date,
         CalendarEvent.end_time > start_date,
-        CalendarEvent.is_recurring_instance == False
-    ).order_by(CalendarEvent.start_time).all()
-    
-    # Get all master events that might have instances in this month
-    # Master events should be included if:
-    # - They start before end_date AND
-    # - They either have no recurrence_end_date (infinite) OR recurrence_end_date is after start_date
-    master_events = CalendarEvent.query.filter(
-        CalendarEvent.recurrence_type != 'none',
         CalendarEvent.is_recurring_instance == False,
-        CalendarEvent.start_time < end_date,
-        or_(
-            CalendarEvent.recurrence_end_date.is_(None),
-            CalendarEvent.recurrence_end_date >= start_date
+    ]
+    if multi:
+        events = events_query_for_calendars(current_user, selected_ids, base).order_by(CalendarEvent.start_time).all()
+        master_q = events_query_for_calendars(
+            current_user,
+            selected_ids,
+            [
+                CalendarEvent.recurrence_type != 'none',
+                CalendarEvent.is_recurring_instance == False,
+                CalendarEvent.start_time < end_date,
+                or_(
+                    CalendarEvent.recurrence_end_date.is_(None),
+                    CalendarEvent.recurrence_end_date >= start_date,
+                ),
+            ],
         )
-    ).all()
+        master_events = master_q.all()
+    else:
+        events = CalendarEvent.query.filter(*base).order_by(CalendarEvent.start_time).all()
+        master_events = CalendarEvent.query.filter(
+            CalendarEvent.recurrence_type != 'none',
+            CalendarEvent.is_recurring_instance == False,
+            CalendarEvent.start_time < end_date,
+            or_(
+                CalendarEvent.recurrence_end_date.is_(None),
+                CalendarEvent.recurrence_end_date >= start_date
+            )
+        ).all()
     
-    # Get user's participation status for each event
     events_data = []
     
-    # Add regular events
     for event in events:
+        if event.recurrence_type != 'none':
+            continue
         participation = EventParticipant.query.filter_by(
             event_id=event.id,
             user_id=current_user.id
         ).first()
-        
-        # Calculate duration in days (inclusive of start and end date)
-        duration = (event.end_time.date() - event.start_time.date()).days + 1
-        
-        events_data.append({
-            'id': event.id,
-            'title': event.title,
-            'start_time': event.start_time.isoformat(),
-            'end_time': event.end_time.isoformat(),
-            'start_date': event.start_time.date().isoformat(),
-            'end_date': event.end_time.date().isoformat(),
-            'duration_days': duration,
-            'location': event.location,
-            'event_color': event.event_color or DEFAULT_EVENT_COLOR,
-            'description': event.description,
-            'day': event.start_time.day,
-            'time': event.start_time.strftime('%H:%M'),
-            'participation_status': participation.status if participation else None,
-            'is_recurring': False,
-            'url': url_for('calendar.view_event', event_id=event.id)
-        })
+        events_data.append(event_to_api_dict(
+            event,
+            participation.status if participation else None,
+        ))
     
-    # Generate recurring instances
     for master_event in master_events:
         instances = generate_recurring_instances(master_event, start_date, end_date)
         for instance in instances:
@@ -595,10 +822,7 @@ def get_events_for_month(year, month):
                 event_id=master_event.id,
                 user_id=current_user.id
             ).first()
-            
-            # Calculate duration in days (inclusive of start and end date)
             duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
-            
             events_data.append({
                 'id': master_event.id,
                 'title': instance['title'],
@@ -615,12 +839,11 @@ def get_events_for_month(year, month):
                 'participation_status': participation.status if participation else None,
                 'is_recurring': True,
                 'parent_event_id': master_event.id,
+                'calendar_id': master_event.calendar_id,
                 'url': url_for('calendar.view_event', event_id=master_event.id)
             })
     
-    # Sortiere nach Startzeit
     events_data.sort(key=lambda x: x['start_time'])
-    
     return jsonify(events_data)
 
 
@@ -632,64 +855,55 @@ def get_events_for_range(start_date, end_date):
     try:
         start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
         end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
-        # Include the entire end date
         end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
-        
-        # Get all regular events that overlap with this range
-        # Events that start before end_datetime and end after start_datetime
-        events = CalendarEvent.query.filter(
+
+        selected_ids = _selected_calendar_ids_from_request(current_user)
+        multi = is_calendar_multi_enabled()
+        base = [
             CalendarEvent.start_time <= end_datetime,
             CalendarEvent.end_time >= start_datetime,
-            CalendarEvent.is_recurring_instance == False
-        ).order_by(CalendarEvent.start_time).all()
-        
-        # Get all master events that might have instances in this range
-        # Master events should be included if:
-        # - They start before or at end_datetime AND
-        # - They either have no recurrence_end_date (infinite) OR recurrence_end_date is after start_datetime
-        master_events = CalendarEvent.query.filter(
-            CalendarEvent.recurrence_type != 'none',
             CalendarEvent.is_recurring_instance == False,
-            CalendarEvent.start_time <= end_datetime,
-            or_(
-                CalendarEvent.recurrence_end_date.is_(None),
-                CalendarEvent.recurrence_end_date >= start_datetime
-            )
-        ).all()
-        
+        ]
+        if multi:
+            events = events_query_for_calendars(current_user, selected_ids, base).order_by(CalendarEvent.start_time).all()
+            master_events = events_query_for_calendars(
+                current_user,
+                selected_ids,
+                [
+                    CalendarEvent.recurrence_type != 'none',
+                    CalendarEvent.is_recurring_instance == False,
+                    CalendarEvent.start_time <= end_datetime,
+                    or_(
+                        CalendarEvent.recurrence_end_date.is_(None),
+                        CalendarEvent.recurrence_end_date >= start_datetime,
+                    ),
+                ],
+            ).all()
+        else:
+            events = CalendarEvent.query.filter(*base).order_by(CalendarEvent.start_time).all()
+            master_events = CalendarEvent.query.filter(
+                CalendarEvent.recurrence_type != 'none',
+                CalendarEvent.is_recurring_instance == False,
+                CalendarEvent.start_time <= end_datetime,
+                or_(
+                    CalendarEvent.recurrence_end_date.is_(None),
+                    CalendarEvent.recurrence_end_date >= start_datetime
+                )
+            ).all()
+
         events_data = []
-        
-        # Add regular events
         for event in events:
+            if event.recurrence_type != 'none':
+                continue
             participation = EventParticipant.query.filter_by(
                 event_id=event.id,
                 user_id=current_user.id
             ).first()
-            
-            # Calculate duration in days
-            duration = (event.end_time - event.start_time).days + 1
-            if (event.end_time - event.start_time).total_seconds() % 86400 > 0:
-                duration = (event.end_time.date() - event.start_time.date()).days + 1
-            
-            events_data.append({
-                'id': event.id,
-                'title': event.title,
-                'start_time': event.start_time.isoformat(),
-                'end_time': event.end_time.isoformat(),
-                'start_date': event.start_time.date().isoformat(),
-                'end_date': event.end_time.date().isoformat(),
-                'duration_days': duration,
-                'location': event.location,
-                'event_color': event.event_color or DEFAULT_EVENT_COLOR,
-                'description': event.description,
-                'day': event.start_time.day,
-                'time': event.start_time.strftime('%H:%M'),
-                'participation_status': participation.status if participation else None,
-                'is_recurring': False,
-                'url': url_for('calendar.view_event', event_id=event.id)
-            })
-        
-        # Generate recurring instances
+            events_data.append(event_to_api_dict(
+                event,
+                participation.status if participation else None,
+            ))
+
         for master_event in master_events:
             instances = generate_recurring_instances(master_event, start_datetime, end_datetime)
             for instance in instances:
@@ -697,10 +911,7 @@ def get_events_for_range(start_date, end_date):
                     event_id=master_event.id,
                     user_id=current_user.id
                 ).first()
-                
-                # Calculate duration in days (inclusive of start and end date)
                 duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
-                
                 events_data.append({
                     'id': master_event.id,
                     'title': instance['title'],
@@ -717,14 +928,13 @@ def get_events_for_range(start_date, end_date):
                     'participation_status': participation.status if participation else None,
                     'is_recurring': True,
                     'parent_event_id': master_event.id,
+                    'calendar_id': master_event.calendar_id,
                     'url': url_for('calendar.view_event', event_id=master_event.id)
                 })
-        
-        # Sortiere nach Startzeit
+
         events_data.sort(key=lambda x: x['start_time'])
-        
         return jsonify(events_data)
-    except ValueError as e:
+    except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
 
 
@@ -732,12 +942,12 @@ def get_events_for_range(start_date, end_date):
 @login_required
 @check_module_access('module_calendar')
 def delete_recurring_event_all(event_id):
-    """Delete master event and all instances (admin only)."""
-    if not current_user.is_admin:
+    """Delete master event and all instances."""
+    event = CalendarEvent.query.get_or_404(event_id)
+    if not can_delete_event(current_user, event):
         flash(translate('calendar.flash.admin_only_delete'), 'danger')
         return redirect(url_for('calendar.view_event', event_id=event_id))
-    
-    event = CalendarEvent.query.get_or_404(event_id)
+
     
     if not event.is_master_event:
         flash(translate('calendar.flash.not_recurring'), 'warning')
@@ -828,6 +1038,9 @@ def https_to_webcal(url: str) -> str:
 @calendar_bp.route('/feed/public/<token>.ics')
 def public_ical_feed(token):
     """Öffentlicher iCal-Feed (keine Authentifizierung erforderlich)."""
+    if not is_calendar_export_enabled():
+        return Response('Export disabled', status=403)
+
     feed = PublicCalendarFeed.query.filter_by(token=token).first_or_404()
 
     events = CalendarEvent.query.filter(
@@ -863,6 +1076,9 @@ def create_feed():
 @check_module_access('module_calendar')
 def manage_feeds():
     """Ein fester Kalender-Link pro User zum Einbinden in externe Apps."""
+    if not is_calendar_export_enabled():
+        flash(translate('calendar.flash.export_disabled'), 'warning')
+        return redirect(url_for('calendar.index'))
     feed = get_or_create_user_feed(current_user.id)
     feed_url = url_for('calendar.public_ical_feed', token=feed.token, _external=True)
     webcal_url = https_to_webcal(feed_url)
@@ -895,10 +1111,23 @@ def delete_feed(feed_id):
 @login_required
 @check_module_access('module_calendar')
 def export_calendar():
-    """Exportiert alle Events des Benutzers als iCal-Datei."""
-    events = CalendarEvent.query.filter(
-        CalendarEvent.is_recurring_instance == False
-    ).order_by(CalendarEvent.start_time).all()
+    """Exportiert Events als iCal-Datei."""
+    if not is_calendar_export_enabled():
+        flash(translate('calendar.flash.export_disabled'), 'warning')
+        return redirect(url_for('calendar.index'))
+
+    selected_ids = _selected_calendar_ids_from_request(current_user)
+    multi = is_calendar_multi_enabled()
+    if multi:
+        events = events_query_for_calendars(
+            current_user,
+            selected_ids,
+            [CalendarEvent.is_recurring_instance == False],
+        ).order_by(CalendarEvent.start_time).all()
+    else:
+        events = CalendarEvent.query.filter(
+            CalendarEvent.is_recurring_instance == False
+        ).order_by(CalendarEvent.start_time).all()
 
     ical_string = generate_ical_feed(events, 'Mein Kalender')
 
@@ -912,11 +1141,45 @@ def export_calendar():
     )
 
 
+@calendar_bp.route('/calendar/<int:calendar_id>/delete', methods=['POST'])
+@login_required
+@check_module_access('module_calendar')
+def delete_imported_calendar(calendar_id):
+    """Delete an imported calendar (and its sync source / events)."""
+    cal = Calendar.query.get_or_404(calendar_id)
+    if cal.calendar_type != 'imported':
+        flash(translate('calendar.flash.cannot_delete_calendar'), 'danger')
+        return redirect(url_for('calendar.index'))
+    if not (current_user.is_admin or cal.owner_id == current_user.id):
+        flash(translate('calendar.flash.no_permission_delete_feed'), 'danger')
+        return redirect(url_for('calendar.index'))
+
+    source = None
+    if cal.sync_source_id:
+        source = CalendarSyncSource.query.get(cal.sync_source_id)
+
+    # Events cascade via sync source; also clear calendar link
+    for ev in CalendarEvent.query.filter_by(calendar_id=cal.id).all():
+        db.session.delete(ev)
+    db.session.delete(cal)
+    if source:
+        db.session.delete(source)
+    db.session.commit()
+    flash(translate('calendar.flash.sync_deleted'), 'success')
+    return redirect(url_for('calendar.index'))
+
+
 @calendar_bp.route('/import', methods=['GET', 'POST'])
 @login_required
 @check_module_access('module_calendar')
 def import_calendar():
     """Importiert Events aus einer iCal-Datei und verwaltet Sync-Quellen."""
+    if not is_calendar_import_enabled():
+        flash(translate('calendar.flash.import_disabled'), 'warning')
+        return redirect(url_for('calendar.index'))
+
+    multi = is_calendar_multi_enabled()
+
     if request.method == 'POST':
         action = request.form.get('action', 'import_file')
 
@@ -937,6 +1200,9 @@ def import_calendar():
                 is_active=True,
             )
             db.session.add(source)
+            db.session.flush()
+            if multi:
+                ensure_imported_calendar_for_source(source)
             db.session.commit()
 
             success, message, *_ = sync_calendar_source(source, current_user.id)
@@ -956,13 +1222,16 @@ def import_calendar():
         if action == 'delete_sync':
             source_id = request.form.get('source_id', type=int)
             source = CalendarSyncSource.query.get_or_404(source_id)
-            # Cascade löscht zugehörige Sync-Events
+            cal = Calendar.query.filter_by(sync_source_id=source.id).first()
+            if cal:
+                for ev in CalendarEvent.query.filter_by(calendar_id=cal.id).all():
+                    db.session.delete(ev)
+                db.session.delete(cal)
             db.session.delete(source)
             db.session.commit()
             flash(translate('calendar.flash.sync_deleted'), 'success')
             return redirect(url_for('calendar.import_calendar'))
 
-        # Datei-Import (bestehend)
         if 'ical_file' not in request.files:
             flash(translate('calendar.flash.select_file'), 'danger')
             return redirect(url_for('calendar.import_calendar'))
@@ -978,7 +1247,24 @@ def import_calendar():
 
         try:
             ical_data = file.read().decode('utf-8')
-            imported_events = import_events_from_ical(ical_data, current_user.id)
+            target_calendar_id = None
+            if multi:
+                # File import creates a dedicated imported calendar
+                import_name = request.form.get('import_name', '').strip() or file.filename
+                source = CalendarSyncSource(
+                    name=import_name[:200],
+                    url=f'file://{file.filename}'[:1000],
+                    created_by=current_user.id,
+                    is_active=False,
+                )
+                db.session.add(source)
+                db.session.flush()
+                cal = ensure_imported_calendar_for_source(source)
+                target_calendar_id = cal.id
+
+            imported_events = import_events_from_ical(
+                ical_data, current_user.id, calendar_id=target_calendar_id
+            )
 
             count = 0
             for event in imported_events:
@@ -987,9 +1273,12 @@ def import_calendar():
                     start_time=event.start_time,
                     created_by=current_user.id,
                     sync_source_id=None,
+                    calendar_id=target_calendar_id,
                 ).first()
 
                 if not existing:
+                    if multi and not event.calendar_id:
+                        event.calendar_id = get_or_create_personal_calendar(current_user).id
                     db.session.add(event)
                     count += 1
 
@@ -998,11 +1287,14 @@ def import_calendar():
             flash(f'{count} Termine wurden erfolgreich importiert.', 'success')
             return redirect(url_for('calendar.index'))
         except Exception as e:
+            db.session.rollback()
             flash(f'Fehler beim Importieren: {str(e)}', 'danger')
             return redirect(url_for('calendar.import_calendar'))
 
     sync_sources = CalendarSyncSource.query.order_by(CalendarSyncSource.created_at.desc()).all()
-    return render_template('calendar/import.html', sync_sources=sync_sources)
-
-
+    return render_template(
+        'calendar/import.html',
+        sync_sources=sync_sources,
+        calendar_multi_enabled=multi,
+    )
 

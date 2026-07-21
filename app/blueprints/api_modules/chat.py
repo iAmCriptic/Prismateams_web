@@ -16,6 +16,7 @@ from app.utils.dashboard_events import emit_dashboard_update
 from app.utils.i18n import translate
 from app.utils.notifications import enqueue_chat_notification
 from app.utils.chat_visibility import visible_chat_user_filters
+from app.utils.chat_nav import CHAT_PINS_MAX, toggle_chat_pin
 
 
 ALLOWED_MEDIA_EXTENSIONS = {
@@ -225,6 +226,35 @@ def register_chat_routes(api_bp, require_api_auth):
         if error:
             return error
         return jsonify({"success": True, "chat": _serialize_chat(chat)}), 200
+
+    @api_bp.route("/chats/<int:chat_id>/pin", methods=["POST"])
+    @require_api_auth
+    def pin_chat(chat_id):
+        access_error = _chat_access_required()
+        if access_error:
+            return access_error
+
+        actual_chat_id = _normalize_chat_id(chat_id)
+        if not actual_chat_id:
+            return jsonify({"success": False, "error": "Haupt-Chat nicht gefunden"}), 404
+
+        ok, pinned, error, count = toggle_chat_pin(current_user, actual_chat_id)
+        if not ok:
+            return jsonify({
+                "success": False,
+                "error": error or "Pin konnte nicht geändert werden.",
+                "pinned": pinned,
+                "count": count,
+                "max": CHAT_PINS_MAX,
+            }), 400
+
+        return jsonify({
+            "success": True,
+            "pinned": pinned,
+            "count": count,
+            "max": CHAT_PINS_MAX,
+            "chat_id": actual_chat_id,
+        }), 200
 
     @api_bp.route("/chats/<int:chat_id>/messages", methods=["GET"])
     @require_api_auth

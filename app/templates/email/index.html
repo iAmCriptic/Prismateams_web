@@ -189,6 +189,8 @@
 {% endmacro %}
 
 {% block content %}
+{% set _cf_matches = folders|selectattr('name', 'equalto', current_folder)|list if folders is defined else [] %}
+{% set current_folder_obj = _cf_matches[0] if _cf_matches else none %}
 <div class="email-content w-100" data-module="email">
 <!-- Mobile Header -->
 <div class="d-md-none mb-3">
@@ -234,7 +236,7 @@
 <!-- Mobile Email List -->
 <div class="d-md-none">
     <div class="mb-3">
-        <h5 class="mb-0"><i class="bi bi-inbox me-2"></i>{{ folder_display_name or _('email.index.folder_default') }}</h5>
+        <h5 class="mb-0"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
     </div>
     <div class="card">
         <div class="card-body p-0">
@@ -257,21 +259,26 @@
 <!-- Desktop Layout with Sidebar (from xl up) -->
 <div class="d-none d-xl-flex email-layout-desktop">
     <div class="email-folder-sidebar">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="mb-0"><i class="bi bi-envelope me-2"></i>{{ _('email.index.heading') }}</h5>
-            <a href="{{ url_for('email.compose') }}" class="btn btn-sm btn-accent" title="{{ _('email.index.buttons.compose') }}">
-                <i class="bi bi-pencil-square"></i>
-            </a>
+        <div class="email-sidebar-brand">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            <span>{{ _('email.index.heading') }}</span>
         </div>
-        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="mb-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
-            <button type="submit" class="btn btn-sm btn-outline-secondary w-100 sync-btn">
-                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
-                <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
+        <a href="{{ url_for('email.compose') }}" class="btn email-sidebar-compose w-100 text-start">
+            <i class="bi bi-pencil-square me-2"></i>{{ _('email.index.buttons.compose') }}
+        </a>
+        <div class="email-sidebar-actions">
+            <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form email-sidebar-action-form" onsubmit="return handleSyncSubmit(event, this);">
+                <button type="submit" class="btn email-sidebar-action sync-btn w-100">
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="display: none;"></span>
+                    <i class="bi bi-arrow-clockwise sync-icon"></i>
+                    <span class="email-sidebar-action-label">{{ _('email.index.buttons.sync') }}</span>
+                </button>
+            </form>
+            <button type="button" class="btn email-sidebar-action w-100" data-action="open-folder-create">
+                <i class="bi bi-folder-plus"></i>
+                <span class="email-sidebar-action-label">{{ _('email.index.buttons.new_folder') }}</span>
             </button>
-        </form>
-        <button type="button" class="btn btn-sm btn-outline-accent w-100 mb-3" data-action="open-folder-create">
-            <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
-        </button>
+        </div>
         <hr class="my-2">
         <ul class="nav nav-pills flex-column email-folder-list" id="emailFolderList">
             {{ folder_tree_links(folder_tree, current_folder, 'sidebar') }}
@@ -280,7 +287,7 @@
 
     <div class="email-main-content">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0"><i class="bi bi-inbox me-2"></i>{{ folder_display_name or _('email.index.folder_default') }}</h4>
+            <h4 class="mb-0"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
         </div>
         <div class="card">
             <div class="card-body p-0">
@@ -308,7 +315,7 @@
             <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-folder me-2"></i><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
+                    <span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
                 </button>
                 <ul class="dropdown-menu">
                     {{ folder_tree_links(folder_tree, current_folder, 'dropdown') }}
@@ -339,7 +346,7 @@
 <div class="d-none d-md-block d-xl-none">
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">{{ folder_display_name or _('email.index.folder_default') }}</h5>
+            <h5 class="mb-0"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
         </div>
         <div class="card-body p-0">
             {% if emails %}

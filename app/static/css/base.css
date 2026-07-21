@@ -1107,6 +1107,40 @@ button, .btn {
     border-top: 1px solid #1a1a1a !important;
 }
 
+/* Global confirm modal */
+#ptConfirmModal {
+    z-index: 20000 !important;
+}
+.modal-backdrop.pt-confirm-backdrop {
+    z-index: 19990 !important;
+}
+.pt-confirm-modal {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+.pt-confirm-modal .modal-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    min-width: 0;
+}
+.pt-confirm-modal .modal-title #ptConfirmTitleText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pt-confirm-modal .modal-body {
+    font-size: 0.98rem;
+    line-height: 1.45;
+    color: var(--bs-secondary-color, inherit);
+}
+.pt-confirm-modal .modal-footer {
+    gap: 0.5rem;
+}
+.pt-confirm-modal .btn {
+    border-radius: 0.75rem;
+    min-width: 6.5rem;
+}
+
 /* OLED Mode - Offcanvas */
 [data-oled-mode="true"] .offcanvas {
     background-color: #000000 !important;
@@ -1229,4 +1263,18 @@ button, .btn {
     background: var(--accent-style);
     border-color: var(--accent-color);
     color: white;
+}
+
+/* In-page flash / error banner (replaces browser alert()) */
+.app-flash-banner {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+.app-flash-banner:empty {
+    display: none;
+}
+.app-flash-banner .alert {
+    margin-bottom: 0.75rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08);
 }

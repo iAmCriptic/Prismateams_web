@@ -106,10 +106,12 @@
                             <i class="bi bi-x-circle"></i> {{ _('calendar.view.buttons.decline') }}
                         </button>
                     </form>
+                    {% if can_edit %}
                     <a href="{{ url_for('calendar.edit_event', event_id=event.id) }}" class="btn btn-outline-primary">
                         <i class="bi bi-pencil"></i> {{ _('calendar.view.buttons.edit') }}
                     </a>
-                    {% if current_user.is_admin %}
+                    {% endif %}
+                    {% if can_delete %}
                     {% if event.is_master_event %}
                     <form method="POST" action="{{ url_for('calendar.delete_recurring_event_all', event_id=event.id) }}" class="d-inline">
                         <button type="submit" class="btn btn-outline-danger" data-confirm-delete="{{ _('calendar.view.confirm.delete_recurring') }}">
