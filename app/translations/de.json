@@ -3186,7 +3186,7 @@
       "title": "Neuer Download",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
-      "url_hint": "Unterstützt: YouTube und YouTube Music",
+      "url_hint": "Unterstützt: YouTube, YouTube Music und Playlists",
       "format_label": "Format",
       "format_audio": "Audio (MP3)",
       "format_video": "Video (MP4)",
@@ -3204,7 +3204,9 @@
       "column_expires": "Verfügbar bis",
       "column_actions": "Aktionen",
       "download": "Herunterladen",
-      "empty": "Noch keine Downloads vorhanden."
+      "empty": "Noch keine Downloads vorhanden.",
+      "clear_all": "Alles löschen",
+      "clear_all_confirm": "Alle Downloads entfernen und aktive Downloads abbrechen?"
     },
     "format": {
       "audio": "MP3",
@@ -3214,7 +3216,18 @@
       "pending": "Wartend",
       "processing": "In Bearbeitung",
       "completed": "Fertig",
-      "failed": "Fehlgeschlagen"
+      "failed": "Fehlgeschlagen",
+      "cancelled": "Abgebrochen",
+      "cancelling": "Wird abgebrochen"
+    },
+    "playlist": {
+      "modal_title": "Playlist herunterladen",
+      "loading": "Playlist wird geladen…",
+      "song_count": "%(count)s Songs in dieser Playlist",
+      "mode_complete": "Alle Songs komplett herunterladen",
+      "mode_timestamps": "Zeitstempel pro Song angeben",
+      "download_all": "Alle runterladen",
+      "preview_error": "Playlist konnte nicht geladen werden."
     },
     "flash": {
       "unavailable": "Media Downloader ist nicht verfügbar.",
@@ -3234,7 +3247,15 @@
       "err_age_restricted": "Dieses Video ist altersbeschränkt und kann ohne Anmeldung/Cookies nicht heruntergeladen werden.",
       "err_video_unavailable": "Dieses Video ist nicht verfügbar.",
       "err_download_failed": "Download fehlgeschlagen. Bitte erneut versuchen.",
-      "file_missing": "Datei wurde nicht gefunden."
+      "file_missing": "Datei wurde nicht gefunden.",
+      "not_a_playlist": "Diese URL ist keine Playlist.",
+      "empty_playlist": "Die Playlist enthält keine herunterladbaren Songs.",
+      "preview_failed": "Playlist-Vorschau fehlgeschlagen.",
+      "playlist_started": "%(count)s Downloads wurden gestartet.",
+      "use_playlist_modal": "Bitte nutzen Sie das Playlist-Fenster zum Herunterladen.",
+      "invalid_batch_item": "Ungültiger Eintrag in der Download-Liste.",
+      "cancelled": "Download wurde abgebrochen.",
+      "cancelling": "Download wird abgebrochen…"
     }
   }
 }

@@ -258,6 +258,8 @@ def generate_music_wish_pdf(public_url, output=None):
     story.append(Paragraph(link_text, link_style))
     
     doc.build(story)
+    if isinstance(output, BytesIO):
+        output.seek(0)
     return output
 
 
@@ -644,4 +646,132 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
         output.seek(0)
         return output
     
+    return output
+
+
+def generate_inventory_list_pdf(products, output=None):
+    """Legacy-Inventurliste als PDF."""
+    if output is None:
+        output = BytesIO()
+    products = products or []
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
+    styles = getSampleStyleSheet()
+    story = [Paragraph("Inventurliste", styles["Heading1"]), Spacer(1, 0.5 * cm)]
+
+    table_data = [["#", "Name", "ID", "Kategorie", "Standort", "Zustand"]]
+    for idx, product in enumerate(products, 1):
+        table_data.append([
+            str(idx),
+            getattr(product, "name", "-") or "-",
+            str(getattr(product, "id", "-")),
+            getattr(product, "category", "-") or "-",
+            getattr(product, "location", "-") or "-",
+            getattr(product, "condition", "-") or "-",
+        ])
+
+    table = Table(table_data, colWidths=[1 * cm, 6 * cm, 2 * cm, 3.5 * cm, 4 * cm, 2.5 * cm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    story.append(table)
+    doc.build(story)
+    if isinstance(output, BytesIO):
+        output.seek(0)
+    return output
+
+
+def generate_inventory_tool_pdf(inventory, items, output=None):
+    """Legacy-Inventur-Export als PDF."""
+    if output is None:
+        output = BytesIO()
+    items = items or []
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
+    styles = getSampleStyleSheet()
+    title = f"Inventur: {getattr(inventory, 'name', 'Unbenannt')}"
+    story = [Paragraph(title, styles["Heading1"]), Spacer(1, 0.2 * cm)]
+
+    meta_rows = [
+        ["Status", getattr(inventory, "status", "-") or "-"],
+        ["Gestartet", getattr(getattr(inventory, "started_at", None), "strftime", lambda _fmt: "-")("%d.%m.%Y %H:%M")],
+        ["Abgeschlossen", getattr(getattr(inventory, "completed_at", None), "strftime", lambda _fmt: "-")("%d.%m.%Y %H:%M") if getattr(inventory, "completed_at", None) else "-"],
+    ]
+    meta = Table(meta_rows, colWidths=[4 * cm, 10 * cm])
+    meta.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.extend([meta, Spacer(1, 0.5 * cm)])
+
+    table_data = [["Produkt", "Gezählt", "Neuer Standort", "Neuer Zustand", "Geprüft von"]]
+    for item in items:
+        product = getattr(item, "product", None)
+        checker = getattr(item, "checker", None)
+        checker_name = "-"
+        if checker:
+            checker_name = getattr(checker, "full_name", None) or getattr(checker, "username", "-")
+        table_data.append([
+            getattr(product, "name", "-") if product else "-",
+            "Ja" if getattr(item, "is_counted", False) else "Nein",
+            getattr(item, "new_location", None) or (getattr(product, "location", "-") if product else "-"),
+            getattr(item, "new_condition", None) or (getattr(product, "condition", "-") if product else "-"),
+            checker_name,
+        ])
+
+    table = Table(table_data, colWidths=[4.5 * cm, 2 * cm, 3.5 * cm, 3 * cm, 3 * cm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d6efd")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    story.append(table)
+    doc.build(story)
+    if isinstance(output, BytesIO):
+        output.seek(0)
+    return output
+
+
+def generate_return_confirmation_pdf(borrow_transaction, output=None):
+    """Erstellt ein kompaktes Rückgabe-Bestätigungs-PDF für E-Mail-Anhänge."""
+    if output is None:
+        output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=2 * cm, bottomMargin=2 * cm)
+    styles = getSampleStyleSheet()
+    story = [Paragraph("Rückgabe-Bestätigung", styles["Heading1"]), Spacer(1, 0.5 * cm)]
+
+    borrower = getattr(borrow_transaction, "borrower", None)
+    product = getattr(borrow_transaction, "product", None)
+    borrower_name = getattr(borrower, "full_name", "-") if borrower else "-"
+    product_name = getattr(product, "name", "-") if product else "-"
+    return_date = getattr(borrow_transaction, "actual_return_date", None) or datetime.utcnow()
+
+    rows = [
+        ["Vorgangsnummer", getattr(borrow_transaction, "transaction_number", "-")],
+        ["Ausleiher", borrower_name],
+        ["Produkt", product_name],
+        ["Rückgabedatum", return_date.strftime("%d.%m.%Y %H:%M")],
+    ]
+    table = Table(rows, colWidths=[5 * cm, 10 * cm])
+    table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 11),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    story.append(table)
+    doc.build(story)
+    if isinstance(output, BytesIO):
+        output.seek(0)
     return output

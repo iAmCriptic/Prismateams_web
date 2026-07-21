@@ -342,13 +342,16 @@ def admin_users():
         ('module_chat', 'Chat'),
         ('module_files', 'Dateien'),
         ('module_calendar', 'Kalender'),
+        ('module_events', 'Veranstaltungen'),
         ('module_email', 'E-Mail'),
+        ('module_contacts', 'Kontakte'),
         ('module_credentials', 'Zugangsdaten'),
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
         ('module_music', 'Musik'),
+        ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks')
     ]
@@ -496,9 +499,21 @@ def create_user():
                     else:
                         # Modulspezifische Rollen zuweisen
                         all_modules = [
-                            'module_chat', 'module_files', 'module_calendar', 'module_email',
-                            'module_credentials', 'module_manuals',
-                            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks'
+                            'module_chat',
+                            'module_files',
+                            'module_calendar',
+                            'module_events',
+                            'module_email',
+                            'module_contacts',
+                            'module_credentials',
+                            'module_manuals',
+                            'module_inventory',
+                            'module_wiki',
+                            'module_booking',
+                            'module_music',
+                            'module_media_downloader',
+                            'module_assessment',
+                            'module_shortlinks',
                         ]
                         
                         for module_key in all_modules:
@@ -751,7 +766,15 @@ def create_user():
             # Diese werden automatisch über Freigabelinks/Chats gesteuert
             allowed_modules = [
                 'module_calendar',
-                'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment', 'module_shortlinks'
+                'module_events',
+                'module_contacts',
+                'module_manuals',
+                'module_inventory',
+                'module_wiki',
+                'module_music',
+                'module_media_downloader',
+                'module_assessment',
+                'module_shortlinks',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -799,10 +822,13 @@ def create_user():
     # Chats und Dateien werden über spezifische Zuweisungen gesteuert
     guest_modules = [
         ('module_calendar', 'Kalender'),
+        ('module_events', 'Veranstaltungen'),
+        ('module_contacts', 'Kontakte'),
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_music', 'Musik'),
+        ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks')
     ]
@@ -989,7 +1015,15 @@ def edit_guest_user(user_id):
         # Erlaubte Module für Gäste
         allowed_modules = [
             'module_calendar',
-            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_assessment', 'module_shortlinks'
+            'module_events',
+            'module_contacts',
+            'module_manuals',
+            'module_inventory',
+            'module_wiki',
+            'module_music',
+            'module_media_downloader',
+            'module_assessment',
+            'module_shortlinks',
         ]
         
         # Entferne alle bestehenden Modul-Rollen (außer automatisch gesetzte)
@@ -2334,9 +2368,21 @@ def admin_roles_user_update(user_id):
         
         # Liste aller Module
         all_modules = [
-            'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks'
+            'module_chat',
+            'module_files',
+            'module_calendar',
+            'module_events',
+            'module_email',
+            'module_contacts',
+            'module_credentials',
+            'module_manuals',
+            'module_inventory',
+            'module_wiki',
+            'module_booking',
+            'module_music',
+            'module_media_downloader',
+            'module_assessment',
+            'module_shortlinks',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -2419,13 +2465,16 @@ def admin_roles_default():
         ('module_chat', 'Chat'),
         ('module_files', 'Dateien'),
         ('module_calendar', 'Kalender'),
+        ('module_events', 'Veranstaltungen'),
         ('module_email', 'E-Mail'),
+        ('module_contacts', 'Kontakte'),
         ('module_credentials', 'Zugangsdaten'),
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
         ('module_booking', 'Buchungen'),
         ('module_music', 'Musik'),
+        ('module_media_downloader', 'Media Downloader'),
         ('module_assessment', 'Bewertung'),
         ('module_shortlinks', 'Kurzlinks')
     ]

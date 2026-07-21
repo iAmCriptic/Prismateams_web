@@ -3016,7 +3016,7 @@
       "title": "New download",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
-      "url_hint": "Supported: YouTube and YouTube Music",
+      "url_hint": "Supported: YouTube, YouTube Music, and playlists",
       "format_label": "Format",
       "format_audio": "Audio (MP3)",
       "format_video": "Video (MP4)",
@@ -3034,7 +3034,9 @@
       "column_expires": "Available until",
       "column_actions": "Actions",
       "download": "Download",
-      "empty": "No downloads yet."
+      "empty": "No downloads yet.",
+      "clear_all": "Clear all",
+      "clear_all_confirm": "Remove all downloads and abort active downloads?"
     },
     "format": {
       "audio": "MP3",
@@ -3044,7 +3046,18 @@
       "pending": "Pending",
       "processing": "Processing",
       "completed": "Completed",
-      "failed": "Failed"
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "cancelling": "Cancelling"
+    },
+    "playlist": {
+      "modal_title": "Download playlist",
+      "loading": "Loading playlist…",
+      "song_count": "%(count)s songs in this playlist",
+      "mode_complete": "Download all songs completely",
+      "mode_timestamps": "Specify timestamps per song",
+      "download_all": "Download all",
+      "preview_error": "Could not load playlist."
     },
     "flash": {
       "unavailable": "Media Downloader is not available.",
@@ -3064,7 +3077,15 @@
       "err_age_restricted": "This video is age-restricted and cannot be downloaded without sign-in/cookies.",
       "err_video_unavailable": "This video is unavailable.",
       "err_download_failed": "Download failed. Please try again.",
-      "file_missing": "File not found."
+      "file_missing": "File not found.",
+      "not_a_playlist": "This URL is not a playlist.",
+      "empty_playlist": "The playlist contains no downloadable songs.",
+      "preview_failed": "Playlist preview failed.",
+      "playlist_started": "%(count)s downloads started.",
+      "use_playlist_modal": "Please use the playlist dialog to download.",
+      "invalid_batch_item": "Invalid item in the download list.",
+      "cancelled": "Download was cancelled.",
+      "cancelling": "Download is being cancelled…"
     }
   }
 }
