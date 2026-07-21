@@ -1,147 +1,97 @@
 {% extends "base.html" %}
 
-{% block title %}Öffentliche Kalender verwalten - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block title %}{{ _('calendar.feed.page_title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
 <div class="row">
-    <div class="col-lg-10 mx-auto">
+    <div class="col-lg-8 mx-auto">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('calendar.index') }}">Termine</a></li>
-                <li class="breadcrumb-item active">Öffentliche Kalender</li>
+                <li class="breadcrumb-item"><a href="{{ url_for('calendar.index') }}">{{ _('calendar.index.heading') }}</a></li>
+                <li class="breadcrumb-item active">{{ _('calendar.feed.heading') }}</li>
             </ol>
         </nav>
-        
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1><i class="bi bi-share"></i> Öffentliche Kalender</h1>
-            <a href="{{ url_for('calendar.create_feed') }}" class="btn btn-accent">
-                <i class="bi bi-plus-circle"></i> Neuen Kalender erstellen
-            </a>
-        </div>
-        
-        {% if feed_urls %}
-        <div class="card">
+
+        <h1 class="mb-3"><i class="bi bi-phone"></i> {{ _('calendar.feed.heading') }}</h1>
+        <p class="text-muted">{{ _('calendar.feed.intro') }}</p>
+
+        <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Ihre öffentlichen Kalender</h5>
+                <h5 class="mb-0">{{ _('calendar.feed.your_link') }}</h5>
             </div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Kalender-Link</th>
-                                <th>Erstellt am</th>
-                                <th>Zuletzt synchronisiert</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in feed_urls %}
-                            <tr>
-                                <td>
-                                    <strong>{{ item.feed.name or 'Unbenannter Kalender' }}</strong>
-                                    {% if item.feed.include_all_events %}
-                                    <br><small class="text-muted">Alle Termine</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control form-control-sm" value="{{ item.url }}" readonly id="url-{{ item.feed.id }}">
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="copyToClipboard('url-{{ item.feed.id }}')">
-                                            <i class="bi bi-clipboard"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                                <td>{{ item.feed.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                                <td>
-                                    {% if item.feed.last_synced %}
-                                    {{ item.feed.last_synced.strftime('%d.%m.%Y %H:%M') }}
-                                    {% else %}
-                                    <span class="text-muted">Noch nicht synchronisiert</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <form method="POST" action="{{ url_for('calendar.delete_feed', feed_id=item.feed.id) }}" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="Kalender wirklich löschen?">
-                                            <i class="bi bi-trash"></i> Löschen
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <label class="form-label" for="feedUrlInput">{{ _('calendar.feed.link_label') }}</label>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" value="{{ feed_url }}" readonly id="feedUrlInput">
+                    <button class="btn btn-outline-secondary" type="button" id="copyFeedBtn">
+                        <i class="bi bi-clipboard"></i> {{ _('calendar.feed.copy') }}
+                    </button>
                 </div>
+
+                <div class="d-grid gap-2 d-sm-flex">
+                    <a href="{{ webcal_url }}" class="btn btn-accent">
+                        <i class="bi bi-calendar-plus"></i> {{ _('calendar.feed.open_in_app') }}
+                    </a>
+                </div>
+
+                <p class="small text-muted mt-3 mb-0">
+                    {{ _('calendar.feed.one_link_hint') }}
+                </p>
             </div>
         </div>
-        
-        <div class="card mt-4">
+
+        <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Anleitung zum Abonnieren</h5>
+                <h5 class="mb-0">{{ _('calendar.feed.howto_title') }}</h5>
             </div>
             <div class="card-body">
                 <h6>Google Calendar:</h6>
                 <ol>
-                    <li>Öffnen Sie Google Calendar</li>
-                    <li>Klicken Sie auf das "+" neben "Andere Kalender"</li>
-                    <li>Wählen Sie "Von URL"</li>
-                    <li>Fügen Sie den Kalender-Link ein</li>
-                    <li>Klicken Sie auf "Kalender hinzufügen"</li>
+                    <li>{{ _('calendar.feed.howto_google_1') }}</li>
+                    <li>{{ _('calendar.feed.howto_google_2') }}</li>
+                    <li>{{ _('calendar.feed.howto_google_3') }}</li>
                 </ol>
-                
+
                 <h6 class="mt-3">Outlook:</h6>
                 <ol>
-                    <li>Öffnen Sie Outlook</li>
-                    <li>Gehen Sie zu "Kalender" → "Kalender hinzufügen" → "Aus Internet"</li>
-                    <li>Fügen Sie den Kalender-Link ein</li>
-                    <li>Klicken Sie auf "OK"</li>
+                    <li>{{ _('calendar.feed.howto_outlook_1') }}</li>
+                    <li>{{ _('calendar.feed.howto_outlook_2') }}</li>
                 </ol>
-                
-                <h6 class="mt-3">Apple Calendar (macOS/iOS):</h6>
+
+                <h6 class="mt-3">Apple Calendar:</h6>
                 <ol>
-                    <li>Öffnen Sie die Kalender-App</li>
-                    <li>Gehen Sie zu "Ablage" → "Neuer Kalender-Abonnement"</li>
-                    <li>Fügen Sie den Kalender-Link ein</li>
-                    <li>Klicken Sie auf "Abonnieren"</li>
+                    <li>{{ _('calendar.feed.howto_apple_1') }}</li>
+                    <li>{{ _('calendar.feed.howto_apple_2') }}</li>
                 </ol>
             </div>
         </div>
-        {% else %}
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
-            Sie haben noch keine öffentlichen Kalender erstellt. 
-            <a href="{{ url_for('calendar.create_feed') }}">Erstellen Sie einen neuen Kalender</a>, um ihn in externen Kalenderanwendungen zu abonnieren.
-        </div>
-        {% endif %}
     </div>
 </div>
 
 <script>
-function copyToClipboard(elementId) {
-    const input = document.getElementById(elementId);
-    input.select();
-    input.setSelectionRange(0, 99999); // Für mobile Geräte
-    
+document.getElementById('copyFeedBtn').addEventListener('click', async function() {
+    const input = document.getElementById('feedUrlInput');
+    const button = this;
+    const original = button.innerHTML;
     try {
-        document.execCommand('copy');
-        // Zeige Feedback
-        const button = input.nextElementSibling;
-        const originalHTML = button.innerHTML;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(input.value);
+        } else {
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+        }
         button.innerHTML = '<i class="bi bi-check"></i>';
         button.classList.add('btn-success');
         button.classList.remove('btn-outline-secondary');
-        
         setTimeout(() => {
-            button.innerHTML = originalHTML;
+            button.innerHTML = original;
             button.classList.remove('btn-success');
             button.classList.add('btn-outline-secondary');
         }, 2000);
     } catch (err) {
-        alert('Fehler beim Kopieren. Bitte kopieren Sie den Link manuell.');
+        alert('{{ _("calendar.feed.copy_error") }}');
     }
-}
+});
 </script>
 {% endblock %}
-
-

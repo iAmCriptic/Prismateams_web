@@ -32,11 +32,20 @@ class CalendarEvent(db.Model):
     
     # Buchungsmodul-Integration
     booking_request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'), nullable=True)
+
+    # Inbound-Sync (externe Kalender-URLs)
+    sync_source_id = db.Column(db.Integer, db.ForeignKey('calendar_sync_sources.id'), nullable=True, index=True)
+    ical_uid = db.Column(db.String(255), nullable=True, index=True)
     
     # Relationships
     creator = db.relationship('User', back_populates='created_events')
     participants = db.relationship('EventParticipant', back_populates='event', cascade='all, delete-orphan')
     parent_event = db.relationship('CalendarEvent', remote_side=[id], backref='recurring_instances')
+    sync_source = db.relationship('CalendarSyncSource', back_populates='events')
+
+    __table_args__ = (
+        db.UniqueConstraint('sync_source_id', 'ical_uid', name='unique_sync_source_ical_uid'),
+    )
     
     def __repr__(self):
         return f'<CalendarEvent {self.title}>'
@@ -86,4 +95,26 @@ class PublicCalendarFeed(db.Model):
         return f'<PublicCalendarFeed {self.name or self.token}>'
 
 
+class CalendarSyncSource(db.Model):
+    """Externer iCal-Feed, der periodisch in den Team-Kalender synchronisiert wird."""
+    __tablename__ = 'calendar_sync_sources'
 
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    url = db.Column(db.String(1000), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_synced_at = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    creator = db.relationship('User')
+    events = db.relationship(
+        'CalendarEvent',
+        back_populates='sync_source',
+        cascade='all, delete-orphan',
+        foreign_keys='CalendarEvent.sync_source_id'
+    )
+
+    def __repr__(self):
+        return f'<CalendarSyncSource {self.name}>'

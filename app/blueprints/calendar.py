@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
-from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
+from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
 from app.models.user import User
 from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
@@ -9,7 +9,12 @@ from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from app.utils.ical import generate_ical_feed, import_events_from_ical
+from app.utils.ical import (
+    generate_ical_feed,
+    import_events_from_ical,
+    normalize_ical_url,
+    sync_calendar_source,
+)
 from sqlalchemy import or_
 import secrets
 import calendar
@@ -774,30 +779,67 @@ def view_recurring_instances(event_id):
 
 # iCal Feed Routes
 
+def _generate_unique_feed_token():
+    token = secrets.token_urlsafe(32)
+    while PublicCalendarFeed.query.filter_by(token=token).first():
+        token = secrets.token_urlsafe(32)
+    return token
+
+
+def get_or_create_user_feed(user_id):
+    """Stellt sicher, dass jeder User genau einen Outbound-Feed hat."""
+    feeds = (
+        PublicCalendarFeed.query
+        .filter_by(created_by=user_id)
+        .order_by(PublicCalendarFeed.created_at.asc(), PublicCalendarFeed.id.asc())
+        .all()
+    )
+    if feeds:
+        keep = feeds[0]
+        extras = feeds[1:]
+        if extras:
+            for extra in extras:
+                db.session.delete(extra)
+            db.session.commit()
+        if not keep.name:
+            keep.name = 'Team-Kalender'
+            db.session.commit()
+        return keep
+
+    feed = PublicCalendarFeed(
+        token=_generate_unique_feed_token(),
+        created_by=user_id,
+        name='Team-Kalender',
+        include_all_events=True,
+    )
+    db.session.add(feed)
+    db.session.commit()
+    return feed
+
+
+def https_to_webcal(url: str) -> str:
+    if url.startswith('https://'):
+        return 'webcal://' + url[8:]
+    if url.startswith('http://'):
+        return 'webcal://' + url[7:]
+    return url
+
+
 @calendar_bp.route('/feed/public/<token>.ics')
 def public_ical_feed(token):
     """Öffentlicher iCal-Feed (keine Authentifizierung erforderlich)."""
     feed = PublicCalendarFeed.query.filter_by(token=token).first_or_404()
-    
-    # Hole alle Events für den Feed
-    if feed.include_all_events:
-        events = CalendarEvent.query.filter(
-            CalendarEvent.is_recurring_instance == False
-        ).order_by(CalendarEvent.start_time).all()
-    else:
-        # Hier könnte man später spezifische Events filtern
-        events = CalendarEvent.query.filter(
-            CalendarEvent.is_recurring_instance == False
-        ).order_by(CalendarEvent.start_time).all()
-    
-    # Aktualisiere last_synced
+
+    events = CalendarEvent.query.filter(
+        CalendarEvent.is_recurring_instance == False
+    ).order_by(CalendarEvent.start_time).all()
+
     feed.last_synced = datetime.utcnow()
     db.session.commit()
-    
-    # Generiere iCal-String
+
     feed_name = feed.name or 'Kalender'
     ical_string = generate_ical_feed(events, feed_name)
-    
+
     return Response(
         ical_string,
         mimetype='text/calendar',
@@ -812,68 +854,39 @@ def public_ical_feed(token):
 @login_required
 @check_module_access('module_calendar')
 def create_feed():
-    """Erstellt einen neuen öffentlichen iCal-Feed."""
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        include_all_events = request.form.get('include_all_events') == 'on'
-        
-        # Generiere eindeutigen Token
-        token = secrets.token_urlsafe(32)
-        
-        # Stelle sicher, dass Token eindeutig ist
-        while PublicCalendarFeed.query.filter_by(token=token).first():
-            token = secrets.token_urlsafe(32)
-        
-        feed = PublicCalendarFeed(
-            token=token,
-            created_by=current_user.id,
-            name=name if name else None,
-            include_all_events=include_all_events
-        )
-        
-        db.session.add(feed)
-        db.session.commit()
-        
-        flash(translate('calendar.flash.feed_created'), 'success')
-        return redirect(url_for('calendar.manage_feeds'))
-    
-    return render_template('calendar/feed_create.html')
+    """Legacy: Create-Seite entfernt — Redirect auf Integrationsseite."""
+    return redirect(url_for('calendar.manage_feeds'))
 
 
 @calendar_bp.route('/feed/manage')
 @login_required
 @check_module_access('module_calendar')
 def manage_feeds():
-    """Übersicht aller erstellten Feeds."""
-    feeds = PublicCalendarFeed.query.filter_by(created_by=current_user.id).all()
-    
-    # Generiere vollständige URLs für jeden Feed
-    feed_urls = []
-    for feed in feeds:
-        feed_url = url_for('calendar.public_ical_feed', token=feed.token, _external=True)
-        feed_urls.append({
-            'feed': feed,
-            'url': feed_url
-        })
-    
-    return render_template('calendar/feed_manage.html', feed_urls=feed_urls)
+    """Ein fester Kalender-Link pro User zum Einbinden in externe Apps."""
+    feed = get_or_create_user_feed(current_user.id)
+    feed_url = url_for('calendar.public_ical_feed', token=feed.token, _external=True)
+    webcal_url = https_to_webcal(feed_url)
+    return render_template(
+        'calendar/feed_manage.html',
+        feed=feed,
+        feed_url=feed_url,
+        webcal_url=webcal_url,
+    )
 
 
 @calendar_bp.route('/feed/delete/<int:feed_id>', methods=['POST'])
 @login_required
 @check_module_access('module_calendar')
 def delete_feed(feed_id):
-    """Löscht einen Feed."""
-    feed = PublicCalendarFeed.query.get_or_404(feed_id)
-    
-    # Prüfe ob Benutzer der Ersteller ist
-    if feed.created_by != current_user.id and not current_user.is_admin:
+    """Nur Admins: Feed löschen (danach wird beim nächsten Besuch neu angelegt)."""
+    if not current_user.is_admin:
         flash(translate('calendar.flash.no_permission_delete_feed'), 'danger')
         return redirect(url_for('calendar.manage_feeds'))
-    
+
+    feed = PublicCalendarFeed.query.get_or_404(feed_id)
     db.session.delete(feed)
     db.session.commit()
-    
+
     flash(translate('calendar.flash.feed_deleted'), 'success')
     return redirect(url_for('calendar.manage_feeds'))
 
@@ -883,13 +896,12 @@ def delete_feed(feed_id):
 @check_module_access('module_calendar')
 def export_calendar():
     """Exportiert alle Events des Benutzers als iCal-Datei."""
-    # Hole alle Events
     events = CalendarEvent.query.filter(
         CalendarEvent.is_recurring_instance == False
     ).order_by(CalendarEvent.start_time).all()
-    
+
     ical_string = generate_ical_feed(events, 'Mein Kalender')
-    
+
     return Response(
         ical_string,
         mimetype='text/calendar',
@@ -904,48 +916,93 @@ def export_calendar():
 @login_required
 @check_module_access('module_calendar')
 def import_calendar():
-    """Importiert Events aus einer iCal-Datei."""
+    """Importiert Events aus einer iCal-Datei und verwaltet Sync-Quellen."""
     if request.method == 'POST':
+        action = request.form.get('action', 'import_file')
+
+        if action == 'add_sync':
+            name = request.form.get('sync_name', '').strip()
+            url = normalize_ical_url(request.form.get('sync_url', ''))
+            if not name or not url:
+                flash(translate('calendar.flash.sync_missing_fields'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
+            if not url.lower().startswith(('http://', 'https://')):
+                flash(translate('calendar.flash.sync_invalid_url'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
+
+            source = CalendarSyncSource(
+                name=name[:200],
+                url=url[:1000],
+                created_by=current_user.id,
+                is_active=True,
+            )
+            db.session.add(source)
+            db.session.commit()
+
+            success, message, *_ = sync_calendar_source(source, current_user.id)
+            if success:
+                flash(translate('calendar.flash.sync_added') + ' ' + message, 'success')
+            else:
+                flash(translate('calendar.flash.sync_added_with_error') + ' ' + message, 'warning')
+            return redirect(url_for('calendar.import_calendar'))
+
+        if action == 'sync_now':
+            source_id = request.form.get('source_id', type=int)
+            source = CalendarSyncSource.query.get_or_404(source_id)
+            success, message, *_ = sync_calendar_source(source, current_user.id)
+            flash(message, 'success' if success else 'danger')
+            return redirect(url_for('calendar.import_calendar'))
+
+        if action == 'delete_sync':
+            source_id = request.form.get('source_id', type=int)
+            source = CalendarSyncSource.query.get_or_404(source_id)
+            # Cascade löscht zugehörige Sync-Events
+            db.session.delete(source)
+            db.session.commit()
+            flash(translate('calendar.flash.sync_deleted'), 'success')
+            return redirect(url_for('calendar.import_calendar'))
+
+        # Datei-Import (bestehend)
         if 'ical_file' not in request.files:
             flash(translate('calendar.flash.select_file'), 'danger')
-            return render_template('calendar/import.html')
-        
+            return redirect(url_for('calendar.import_calendar'))
+
         file = request.files['ical_file']
         if file.filename == '':
             flash(translate('calendar.flash.select_file'), 'danger')
-            return render_template('calendar/import.html')
-        
+            return redirect(url_for('calendar.import_calendar'))
+
         if not file.filename.endswith('.ics'):
             flash(translate('calendar.flash.select_ics_file'), 'danger')
-            return render_template('calendar/import.html')
-        
+            return redirect(url_for('calendar.import_calendar'))
+
         try:
             ical_data = file.read().decode('utf-8')
             imported_events = import_events_from_ical(ical_data, current_user.id)
-            
-            # Speichere Events
+
             count = 0
             for event in imported_events:
-                # Prüfe auf Duplikate (optional)
                 existing = CalendarEvent.query.filter_by(
                     title=event.title,
                     start_time=event.start_time,
-                    created_by=current_user.id
+                    created_by=current_user.id,
+                    sync_source_id=None,
                 ).first()
-                
+
                 if not existing:
                     db.session.add(event)
                     count += 1
-            
+
             db.session.commit()
-            
+
             flash(f'{count} Termine wurden erfolgreich importiert.', 'success')
             return redirect(url_for('calendar.index'))
         except Exception as e:
             flash(f'Fehler beim Importieren: {str(e)}', 'danger')
-            return render_template('calendar/import.html')
-    
-    return render_template('calendar/import.html')
+            return redirect(url_for('calendar.import_calendar'))
+
+    sync_sources = CalendarSyncSource.query.order_by(CalendarSyncSource.created_at.desc()).all()
+    return render_template('calendar/import.html', sync_sources=sync_sources)
 
 
 

@@ -198,15 +198,41 @@ function hexToRgba(hexColor, alpha = 0.2) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function getContrastTextColor(hexColor) {
+function parseHexRgb(hexColor) {
     if (!hexColor || typeof hexColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(hexColor)) {
-        return '#ffffff';
+        return null;
     }
-    const r = parseInt(hexColor.slice(1, 3), 16);
-    const g = parseInt(hexColor.slice(3, 5), 16);
-    const b = parseInt(hexColor.slice(5, 7), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.6 ? '#1f2937' : '#ffffff';
+    return {
+        r: parseInt(hexColor.slice(1, 3), 16),
+        g: parseInt(hexColor.slice(3, 5), 16),
+        b: parseInt(hexColor.slice(5, 7), 16)
+    };
+}
+
+function blendColors(fgRgb, bgRgb, alpha) {
+    return {
+        r: Math.round(alpha * fgRgb.r + (1 - alpha) * bgRgb.r),
+        g: Math.round(alpha * fgRgb.g + (1 - alpha) * bgRgb.g),
+        b: Math.round(alpha * fgRgb.b + (1 - alpha) * bgRgb.b)
+    };
+}
+
+function getContrastTextColorFromRgb(rgb) {
+    const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+    return luminance > 0.55 ? '#1f2937' : '#ffffff';
+}
+
+function getThemeCalendarBgRgb() {
+    // Match calendar cell backgrounds in calendar.css
+    return isDarkThemeActive()
+        ? { r: 0x21, g: 0x25, b: 0x29 }
+        : { r: 0xff, g: 0xff, b: 0xff };
+}
+
+function getContrastTextColor(hexColor, alpha = 1) {
+    const fg = parseHexRgb(hexColor) || { r: 13, g: 110, b: 253 };
+    const blended = blendColors(fg, getThemeCalendarBgRgb(), alpha);
+    return getContrastTextColorFromRgb(blended);
 }
 
 function getMultiDayProgress(event, currentDateStr) {
@@ -233,8 +259,9 @@ function isDarkThemeActive() {
 
 function applyEventColors(eventElement, eventColor, isMultiDay = false) {
     const baseColor = eventColor || (isMultiDay ? MULTI_DAY_EVENT_COLOR : '#0d6efd');
-    eventElement.style.backgroundColor = hexToRgba(baseColor, 0.22);
-    eventElement.style.color = isDarkThemeActive() ? getContrastTextColor(baseColor) : '#1f2937';
+    const alpha = isDarkThemeActive() ? 0.35 : 0.22;
+    eventElement.style.backgroundColor = hexToRgba(baseColor, alpha);
+    eventElement.style.color = getContrastTextColor(baseColor, alpha);
     eventElement.style.borderLeftColor = baseColor;
 }
 
@@ -361,10 +388,10 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let day = 1; day <= daysInMonth; day++) {
             const dayCell = document.createElement('div');
             dayCell.className = 'calendar-day';
-            dayCell.textContent = day;
 
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             dayCell.dataset.date = dateStr;
+            dayCell.dataset.day = String(day);
             dayCell.style.cursor = 'pointer';
             dayCell.addEventListener('click', function(e) {
                 // Klicks auf ein Event nicht als Tagesklick behandeln
@@ -372,12 +399,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = `{{ url_for('calendar.create_event') }}?date=${dateStr}`;
             });
 
-            // Heute markieren
+            const dayNumber = document.createElement('span');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = day;
+
+            // Heute: nur die Zahl hervorheben
             const today = new Date();
             if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
-                dayCell.classList.add('today');
+                dayNumber.classList.add('today');
             }
-            
+
+            dayCell.appendChild(dayNumber);
             calendarBody.appendChild(dayCell);
         }
         
@@ -400,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Create a map of day numbers to grid positions
                 const dayToGridPosition = new Map();
                 dayCells.forEach((cell, index) => {
-                    const dayNum = parseInt(cell.textContent);
+                    const dayNum = parseInt(cell.dataset.day, 10);
                     if (dayNum && !dayToGridPosition.has(dayNum)) {
                         dayToGridPosition.set(dayNum, startDayOffset + index);
                     }
@@ -504,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Render events for each day
                 eventsByDay.forEach((dayEvents, dayNum) => {
-                    const dayCell = Array.from(dayCells).find(cell => parseInt(cell.textContent) === dayNum);
+                    const dayCell = Array.from(dayCells).find(cell => parseInt(cell.dataset.day, 10) === dayNum);
                     if (!dayCell) return;
                     
                     // Add single-day events first
@@ -633,7 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get correct weekday index (Monday = 0, Sunday = 6)
             const weekdayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
             const dayName = isMobileView() ? daysShort[weekdayIndex] : days[weekdayIndex];
-            html += `<div class="day-header ${isToday ? 'today' : ''}">${dayName}<br><small>${date.getDate()}.${date.getMonth() + 1}</small></div>`;
+            html += `<div class="day-header">${dayName}<br><small class="day-number${isToday ? ' today' : ''}">${date.getDate()}.${date.getMonth() + 1}</small></div>`;
         }
         html += '</div>';
         

@@ -890,7 +890,7 @@ def create_app(config_name='default'):
                 from app.models.user import User
                 from app.models.chat import Chat, ChatMessage, ChatMember
                 from app.models.file import File, FileVersion, Folder
-                from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed
+                from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
                 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
                 from app.models.credential import Credential, CredentialFolder
                 from app.models.manual import Manual
@@ -968,7 +968,7 @@ def create_app(config_name='default'):
                                 
                                 # Erstelle nur fehlende Tabellen einzeln
                                 all_models = [
-                                    CalendarEvent, EventParticipant, PublicCalendarFeed,
+                                    CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource,
                                     BookingRequest, BookingForm, BookingFormField, BookingFormImage,
                                     BookingRequestField, BookingRequestFile, BookingFormRole,
                                     BookingFormRoleUser, BookingRequestApproval
@@ -1141,6 +1141,27 @@ def create_app(config_name='default'):
                                     "ADD COLUMN event_color VARCHAR(7) NOT NULL DEFAULT '#0d6efd'"
                                 ))
                             print("[OK] calendar_events.event_color hinzugefügt")
+                        if 'sync_source_id' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.sync_source_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events ADD COLUMN sync_source_id INTEGER NULL"
+                                ))
+                            print("[OK] calendar_events.sync_source_id hinzugefügt")
+                        if 'ical_uid' not in calendar_columns:
+                            print("[INFO] Ergänze calendar_events.ical_uid ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text(
+                                    "ALTER TABLE calendar_events ADD COLUMN ical_uid VARCHAR(255) NULL"
+                                ))
+                            print("[OK] calendar_events.ical_uid hinzugefügt")
+
+                    # Kalender Sync-Sources Tabelle
+                    if 'calendar_sync_sources' not in inspector.get_table_names():
+                        print("[INFO] Erstelle calendar_sync_sources ...")
+                        from app.models.calendar import CalendarSyncSource as _CalendarSyncSource
+                        _CalendarSyncSource.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] calendar_sync_sources erstellt")
 
                     # Veranstaltungsmodul: Rückwärtskompatibilität für ältere Datenbanken
                     table_names = set(inspector.get_table_names())
@@ -1522,6 +1543,9 @@ def create_app(config_name='default'):
         
         from app.tasks.notification_scheduler import start_notification_scheduler
         start_notification_scheduler(app)
+
+        from app.tasks.calendar_sync_scheduler import start_calendar_sync_scheduler
+        start_calendar_sync_scheduler(app)
 
         from app.tasks.media_downloader_cleanup import start_media_downloader_cleanup
         start_media_downloader_cleanup(app)
