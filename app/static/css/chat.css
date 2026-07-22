@@ -1428,22 +1428,42 @@
 }
 
 .chat-sidebar-new {
-    border-radius: 1.5rem;
+    --bs-btn-border-radius: 50rem;
+    border-radius: 50rem !important;
     border: none;
     font-weight: 600;
-    padding: 0.7rem 1.1rem;
+    padding: 0.7rem 1.25rem;
     margin-bottom: 1rem;
     width: 100%;
     text-align: left;
-    color: #fff;
-    background: var(--accent-style, var(--accent-color, #0d6efd));
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    text-decoration: none;
+    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
+}
+
+.chat-sidebar-new:hover,
+.chat-sidebar-new:focus {
+    color: #fff !important;
+    filter: brightness(1.08);
     text-decoration: none;
 }
 
-.chat-sidebar-new:hover {
-    color: #fff;
-    filter: brightness(1.05);
-    text-decoration: none;
+.chat-list-new-btn {
+    --bs-btn-border-radius: 50rem;
+    border-radius: 50rem !important;
+    border: none;
+    font-weight: 600;
+    padding: 0.55rem 1.15rem;
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
+}
+
+.chat-list-new-btn:hover,
+.chat-list-new-btn:focus {
+    color: #fff !important;
+    filter: brightness(1.08);
 }
 
 .chat-sidebar-nav {
@@ -1453,7 +1473,43 @@
 
 .chat-main {
     min-width: 0;
+    flex: 1;
 }
+
+.chat-messages-column {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+}
+
+.chat-messages-column .messages-area {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Desktop composer stays in the messages column (not under members / chat-nav) */
+@media (min-width: 768px) {
+    .chat-shell .chat-input-desktop {
+        position: relative !important;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        width: 100% !important;
+        margin: 0 !important;
+        flex-shrink: 0;
+        border-radius: 0;
+        z-index: 2;
+    }
+
+    .chat-shell .chat-container {
+        margin-bottom: 0 !important;
+    }
+}
+
 
 .chat-list-page-header {
     display: flex;

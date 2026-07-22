@@ -1,171 +1,119 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ _('inventory.dashboard.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-speedometer2{% endblock %}
+{% block inventory_heading %}{{ _('inventory.dashboard.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-box-seam"></i> {{ _('inventory.dashboard.heading') }}</h1>
-        <p class="text-muted">{{ _('inventory.dashboard.subtitle') }}</p>
-    </div>
-</div>
+{% block inventory_content %}
+<p class="text-muted mb-4">{{ _('inventory.dashboard.subtitle') }}</p>
 
 <div class="row g-3 mb-4">
-    <!-- Hauptfunktionen: 3 große Punkte -->
-    <div class="col-12 col-md-4">
-        <div class="card h-100 shadow-sm" onclick="location.href='{{ url_for('inventory.stock') }}'" style="cursor: pointer; border: 2px solid #0d6efd;">
-            <div class="card-body text-center py-4">
-                <i class="bi bi-box-seam text-primary" style="font-size: 2.5rem;"></i>
-                <h4 class="card-title mt-3 mb-2">{{ _('inventory.dashboard.cards.stock.title') }}</h4>
-                <p class="text-muted mb-0 small">{{ _('inventory.dashboard.cards.stock.description') }}</p>
+    <div class="col-6 col-lg">
+        <div class="card inventory-stats-card">
+            <div class="card-body">
+                <div class="stats-value text-primary">{{ stats.total }}</div>
+                <div class="stats-label">{{ _('inventory.dashboard.stats.total') }}</div>
             </div>
         </div>
     </div>
-
-    <!-- Ausleihen geben (Scanner mit Warenkorb) -->
-    <div class="col-12 col-md-4">
-        <div class="card h-100 shadow-sm" onclick="location.href='{{ url_for('inventory.borrow_scanner') }}'" style="cursor: pointer; border: 2px solid #198754;">
-            <div class="card-body text-center py-4">
-                <i class="bi bi-qr-code-scan text-success" style="font-size: 2.5rem;"></i>
-                <h4 class="card-title mt-3 mb-2">{{ _('inventory.dashboard.cards.borrow.title') }}</h4>
-                <p class="text-muted mb-0 small">{{ _('inventory.dashboard.cards.borrow.description') }}</p>
+    <div class="col-6 col-lg">
+        <div class="card inventory-stats-card">
+            <div class="card-body">
+                <div class="stats-value text-success">{{ stats.available }}</div>
+                <div class="stats-label">{{ _('inventory.dashboard.stats.available') }}</div>
             </div>
         </div>
     </div>
-
-    <!-- Rückgabe -->
-    <div class="col-12 col-md-4">
-        <div class="card h-100 shadow-sm" onclick="location.href='{{ url_for('inventory.return_item') }}'" style="cursor: pointer; border: 2px solid #ffc107;">
-            <div class="card-body text-center py-4">
-                <i class="bi bi-arrow-counterclockwise text-warning" style="font-size: 2.5rem;"></i>
-                <h4 class="card-title mt-3 mb-2">{{ _('inventory.dashboard.cards.return.title') }}</h4>
-                <p class="text-muted mb-0 small">{{ _('inventory.dashboard.cards.return.description') }}</p>
+    <div class="col-6 col-lg">
+        <div class="card inventory-stats-card">
+            <div class="card-body">
+                <div class="stats-value text-info">{{ stats.borrowed }}</div>
+                <div class="stats-label">{{ _('inventory.dashboard.stats.borrowed') }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card inventory-stats-card">
+            <div class="card-body">
+                <div class="stats-value text-warning">{{ stats.defective }}</div>
+                <div class="stats-label">{{ _('inventory.dashboard.stats.defective') }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card inventory-stats-card">
+            <div class="card-body">
+                <div class="stats-value text-danger">{{ stats.overdue }}</div>
+                <div class="stats-label">{{ _('inventory.dashboard.stats.overdue') }}</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Meine aktuellen Ausleihen -->
-{% if my_borrows %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-clock-history"></i> {{ _('inventory.dashboard.my_borrows.title') }}</h5>
-                <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm btn-outline-primary">{{ _('inventory.dashboard.my_borrows.show_all') }}</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>{{ _('inventory.dashboard.my_borrows.table.product') }}</th>
-                                <th>{{ _('inventory.dashboard.my_borrows.table.borrow_date') }}</th>
-                                <th>{{ _('inventory.dashboard.my_borrows.table.return_date') }}</th>
-                                <th>{{ _('inventory.dashboard.my_borrows.table.status') }}</th>
-                                <th>{{ _('inventory.dashboard.my_borrows.table.actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for borrow in my_borrows[:5] %}
-                            <tr {% if borrow.is_overdue %}class="table-danger"{% endif %}>
-                                <td>
-                                    <strong>{{ borrow.product_names }}</strong>
-                                    {% if borrow.is_group %}
-                                    <br><small class="text-muted"><i class="bi bi-stack"></i> {{ borrow.count }} Artikel</small>
-                                    {% elif borrow.first.product.serial_number %}
-                                    <br><small class="text-muted">{{ _('inventory.dashboard.my_borrows.table.serial_number') }} {{ borrow.first.product.serial_number }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>{{ borrow.borrow_date.strftime('%d.%m.%Y') }}</td>
-                                <td>
-                                    {{ borrow.expected_return_date.strftime('%d.%m.%Y') }}
-                                    {% if borrow.is_overdue %}
-                                    <br><span class="badge bg-danger">{{ _('inventory.dashboard.my_borrows.table.overdue') }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge bg-warning">{{ _('inventory.dashboard.my_borrows.table.borrowed') }}</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <form method="post"
-                                              action="{{ url_for('inventory.return_complete_borrow') }}"
-                                              class="d-inline">
-                                            <input type="hidden" name="borrow_ref" value="{{ borrow.return_number }}">
-                                            <button type="submit"
-                                                    class="btn btn-sm btn-success"
-                                                    title="{{ _('inventory.dashboard.my_borrows.table.return_button') }}">
-                                                <i class="bi bi-arrow-return-left"></i> {{ _('inventory.dashboard.my_borrows.table.return_button') }}
-                                            </button>
-                                        </form>
-                                        <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.ref_id) }}"
-                                           class="btn btn-sm btn-outline-secondary"
-                                           title="{{ _('inventory.dashboard.my_borrows.table.download_receipt') }}">
-                                            <i class="bi bi-file-pdf"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> {{ _('inventory.dashboard.my_borrows.title') }}</h5>
+        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm btn-outline-primary">{{ _('inventory.dashboard.my_borrows.show_all') }}</a>
     </div>
-</div>
-{% endif %}
-
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-speedometer2"></i>
-                    {{ _('inventory.dashboard.more_functions.title') }}
-                </h5>
-                <div class="row g-3 mt-2">
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-list-check d-block fs-3 mb-2"></i>
-                            {{ _('inventory.dashboard.more_functions.my_borrows') }}
-                        </a>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url_for('inventory.borrows') }}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-list-ul d-block fs-3 mb-2"></i>
-                            {{ _('inventory.dashboard.more_functions.all_borrows') }}
-                        </a>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url_for('inventory.print_qr') }}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-printer d-block fs-3 mb-2"></i>
-                            {{ _('inventory.dashboard.more_functions.print_qr') }}
-                        </a>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url_for('inventory.inventory_tool') }}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-clipboard2-check d-block fs-3 mb-2"></i>
-                            {{ _('inventory.dashboard.more_functions.inventory_tool') }}
-                        </a>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url_for('inventory.statistics') }}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-graph-up d-block fs-3 mb-2"></i>
-                            {{ _('inventory.dashboard.more_functions.statistics') }}
-                        </a>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <a href="{{ url_for('inventory.sets') }}" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-collection d-block fs-3 mb-2"></i>
-                            {{ _('inventory.dashboard.more_functions.sets') }}
-                        </a>
-                    </div>
-                </div>
-            </div>
+    <div class="card-body">
+        {% if my_borrows %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ _('inventory.dashboard.my_borrows.table.product') }}</th>
+                        <th>{{ _('inventory.dashboard.my_borrows.table.borrow_date') }}</th>
+                        <th>{{ _('inventory.dashboard.my_borrows.table.return_date') }}</th>
+                        <th>{{ _('inventory.dashboard.my_borrows.table.status') }}</th>
+                        <th>{{ _('inventory.dashboard.my_borrows.table.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for borrow in my_borrows[:5] %}
+                    <tr {% if borrow.is_overdue %}class="table-danger"{% endif %}>
+                        <td>
+                            <strong>{{ borrow.product_names }}</strong>
+                            {% if borrow.is_group %}
+                            <br><small class="text-muted"><i class="bi bi-stack"></i> {{ borrow.count }} Artikel</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ borrow.borrow_date.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            {{ borrow.expected_return_date.strftime('%d.%m.%Y') }}
+                            {% if borrow.is_overdue %}
+                            <br><span class="badge bg-danger">{{ _('inventory.dashboard.my_borrows.table.overdue') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-warning">{{ _('inventory.dashboard.my_borrows.table.borrowed') }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <form method="post"
+                                      action="{{ url_for('inventory.return_complete_borrow') }}"
+                                      class="d-inline">
+                                    <input type="hidden" name="borrow_ref" value="{{ borrow.return_number }}">
+                                    <button type="submit"
+                                            class="btn btn-sm btn-success"
+                                            title="{{ _('inventory.dashboard.my_borrows.table.return_button') }}">
+                                        <i class="bi bi-arrow-return-left"></i> {{ _('inventory.dashboard.my_borrows.table.return_button') }}
+                                    </button>
+                                </form>
+                                <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.ref_id) }}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   title="{{ _('inventory.dashboard.my_borrows.table.download_receipt') }}">
+                                    <i class="bi bi-file-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <p class="text-muted mb-0">{{ _('inventory.dashboard.my_borrows.empty') }}</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
-

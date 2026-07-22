@@ -4,6 +4,7 @@ from io import BytesIO
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 
 from app import db
 from app.models.calendar import CalendarEvent
@@ -21,7 +22,12 @@ from app.models.inventory import Product
 from app.models.user import User
 from app.services.event_service import EventService
 from app.utils.access_control import check_module_access
-from app.utils.event_pdf_generator import generate_event_overview_pdf, generate_single_event_pdf
+from app.utils.event_pdf_generator import (
+    generate_appointments_overview_pdf,
+    generate_event_overview_pdf,
+    generate_people_overview_pdf,
+    generate_single_event_pdf,
+)
 
 events_bp = Blueprint('events', __name__)
 
@@ -98,13 +104,50 @@ def _serialize_conflicts(event_obj):
     }
 
 
+def _query_appointments(archived=False, assigned_user_id=None, order_desc=False):
+    query = (
+        EventAppointment.query.options(joinedload(EventAppointment.event))
+        .join(Event)
+        .filter(Event.is_archived.is_(archived))
+    )
+    if assigned_user_id is not None:
+        assigned_event_ids = (
+            db.session.query(EventAssignment.event_id)
+            .filter(EventAssignment.user_id == assigned_user_id)
+            .distinct()
+        )
+        query = query.filter(Event.id.in_(assigned_event_ids))
+    if order_desc:
+        query = query.order_by(EventAppointment.start_time.desc())
+    else:
+        query = query.order_by(EventAppointment.start_time.asc())
+    return query.all()
+
+
 @events_bp.route('/')
 @login_required
 @check_module_access('module_calendar')
 def index():
     _refresh_archive_state()
+    appointments = _query_appointments(archived=False, order_desc=False)
+    return render_template(
+        'events/index.html',
+        appointments=appointments,
+        active_nav='standard',
+    )
+
+
+@events_bp.route('/overview')
+@login_required
+@check_module_access('module_calendar')
+def overview():
+    _refresh_archive_state()
     events = Event.query.filter_by(is_archived=False).order_by(Event.created_at.desc()).all()
-    return render_template('events/index.html', events=events)
+    return render_template(
+        'events/overview.html',
+        events=events,
+        active_nav='overview',
+    )
 
 
 @events_bp.route('/mine')
@@ -112,18 +155,16 @@ def index():
 @check_module_access('module_calendar')
 def my_events():
     _refresh_archive_state()
-    assigned_event_ids = (
-        db.session.query(EventAssignment.event_id)
-        .filter(EventAssignment.user_id == current_user.id)
-        .distinct()
-        .all()
+    appointments = _query_appointments(
+        archived=False,
+        assigned_user_id=current_user.id,
+        order_desc=False,
     )
-    assigned_event_ids = [row[0] for row in assigned_event_ids]
-    events = (
-        Event.query.filter(Event.id.in_(assigned_event_ids), Event.is_archived.is_(False)).order_by(Event.created_at.desc()).all()
-        if assigned_event_ids else []
+    return render_template(
+        'events/my_events.html',
+        appointments=appointments,
+        active_nav='mine',
     )
-    return render_template('events/my_events.html', events=events)
 
 
 @events_bp.route('/archive')
@@ -131,8 +172,12 @@ def my_events():
 @check_module_access('module_calendar')
 def archive():
     _refresh_archive_state()
-    events = Event.query.filter_by(is_archived=True).order_by(Event.archived_at.desc(), Event.created_at.desc()).all()
-    return render_template('events/archive.html', events=events)
+    appointments = _query_appointments(archived=True, order_desc=True)
+    return render_template(
+        'events/archive.html',
+        appointments=appointments,
+        active_nav='archive',
+    )
 
 
 @events_bp.route('/people')
@@ -155,7 +200,11 @@ def people_overview():
         if user_id in users
     ]
     rows.sort(key=lambda x: x['event_count'], reverse=True)
-    return render_template('events/people_overview.html', rows=rows)
+    return render_template(
+        'events/people_overview.html',
+        rows=rows,
+        active_nav='people',
+    )
 
 
 @events_bp.route('/create', methods=['GET', 'POST'])
@@ -377,15 +426,55 @@ def event_pdf(event_id):
 @login_required
 @check_module_access('module_calendar')
 def overview_pdf():
+    """PDF-Übersicht für den aktuellen Reiter (view=standard|overview|mine|archive|people)."""
     _refresh_archive_state()
+    view = (request.args.get('view') or 'overview').strip().lower()
     now = datetime.utcnow()
-    events = Event.query.filter_by(is_archived=False).order_by(Event.created_at.desc()).all()
-    pdf_buffer = generate_event_overview_pdf(events, now=now)
+
+    if view == 'standard':
+        appointments = _query_appointments(archived=False, order_desc=False)
+        pdf_buffer = generate_appointments_overview_pdf(appointments, title='Standardübersicht')
+        download_name = 'Veranstaltungen_Standarduebersicht.pdf'
+    elif view == 'mine':
+        appointments = _query_appointments(
+            archived=False,
+            assigned_user_id=current_user.id,
+            order_desc=False,
+        )
+        pdf_buffer = generate_appointments_overview_pdf(appointments, title='Meine Veranstaltungen')
+        download_name = 'Veranstaltungen_Meine.pdf'
+    elif view == 'archive':
+        appointments = _query_appointments(archived=True, order_desc=True)
+        pdf_buffer = generate_appointments_overview_pdf(appointments, title='Archiv')
+        download_name = 'Veranstaltungen_Archiv.pdf'
+    elif view == 'people':
+        counts = defaultdict(int)
+        users = {u.id: u for u in User.query.filter_by(is_active=True).all()}
+        assignments = (
+            EventAssignment.query.join(Event)
+            .filter(EventAssignment.user_id.isnot(None), Event.is_archived.is_(False))
+            .all()
+        )
+        for assignment in assignments:
+            counts[assignment.user_id] += 1
+        rows = [
+            {'user': users[user_id], 'event_count': count}
+            for user_id, count in counts.items()
+            if user_id in users
+        ]
+        rows.sort(key=lambda x: x['event_count'], reverse=True)
+        pdf_buffer = generate_people_overview_pdf(rows, title='Personenübersicht')
+        download_name = 'Veranstaltungen_Personen.pdf'
+    else:
+        events = Event.query.filter_by(is_archived=False).order_by(Event.created_at.desc()).all()
+        pdf_buffer = generate_event_overview_pdf(events, now=now, title='Veranstaltungsübersicht')
+        download_name = 'Veranstaltungen_Uebersicht.pdf'
+
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
         as_attachment=True,
-        download_name='Veranstaltungen_Uebersicht.pdf',
+        download_name=download_name,
     )
 
 

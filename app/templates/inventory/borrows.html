@@ -1,43 +1,56 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Ausleihen - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-clock-history{% endblock %}
+{% block inventory_heading %}{{ _('inventory.shell.nav.borrows') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-list-ul"></i> Ausleihen</h1>
-    </div>
-    <!-- Zurück-Button wird jetzt global von base.html bereitgestellt -->
-</div>
 
-<!-- Filter -->
+{% block inventory_content %}
 <div class="card mb-4">
     <div class="card-body">
-        <div class="row g-3">
-            <div class="col-12 col-md-4">
-                <label for="filterBorrower" class="form-label">Ausleihender</label>
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label for="filterBorrower" class="form-label">Verantwortlicher</label>
                 <input type="text" class="form-control" id="filterBorrower" placeholder="Name suchen...">
             </div>
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
+                <label for="filterEvent" class="form-label">Projekt / Event</label>
+                <input type="text" class="form-control" id="filterEvent" placeholder="Projekt suchen...">
+            </div>
+            <div class="col-12 col-md-3">
                 <label for="filterProduct" class="form-label">Produkt</label>
                 <input type="text" class="form-control" id="filterProduct" placeholder="Produktname suchen...">
             </div>
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
                 <label for="filterStatus" class="form-label">Status</label>
                 <select class="form-select" id="filterStatus">
                     <option value="all">Alle</option>
                     <option value="active">Aktiv</option>
                     <option value="overdue">Überfällig</option>
+                    <option value="returned">Zurückgegeben</option>
                 </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="filterDateFrom" class="form-label">Von</label>
+                <input type="date" class="form-control" id="filterDateFrom">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="filterDateTo" class="form-label">Bis</label>
+                <input type="date" class="form-control" id="filterDateTo">
+            </div>
+            <div class="col-12 col-md-3">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="filterMine">
+                    <label class="form-check-label" for="filterMine">Nur meine Ausleihen</label>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Ausleihliste -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Aktuelle Ausleihen</h5>
+        <h5 class="mb-0">Ausleihen</h5>
         <span class="badge bg-primary" id="borrowsCount">0</span>
     </div>
     <div class="card-body">
@@ -46,8 +59,9 @@
                 <thead>
                     <tr>
                         <th>Vorgangsnummer</th>
+                        <th>Event</th>
                         <th>Produkt</th>
-                        <th>Ausleihender</th>
+                        <th>Verantwortlicher</th>
                         <th>Ausleihdatum</th>
                         <th>Rückgabedatum</th>
                         <th>Status</th>
@@ -56,7 +70,7 @@
                 </thead>
                 <tbody id="borrowsTableBody">
                     <tr>
-                        <td colspan="7" class="text-center py-5">
+                        <td colspan="8" class="text-center py-5">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Lädt...</span>
                             </div>
@@ -69,29 +83,28 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    window.currentUserId = {{ current_user.id }};
     const borrowsManager = new BorrowsManager();
     borrowsManager.init();
-    
-    // Filter-Handler
-    document.getElementById('filterBorrower').addEventListener('input', () => borrowsManager.applyFilters());
-    document.getElementById('filterProduct').addEventListener('input', () => borrowsManager.applyFilters());
-    document.getElementById('filterStatus').addEventListener('change', () => borrowsManager.applyFilters());
-    
-    // URL-Parameter für Filter
+
+    ['filterBorrower', 'filterEvent', 'filterProduct', 'filterDateFrom', 'filterDateTo'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('input', () => borrowsManager.applyFilters());
+    });
+    document.getElementById('filterStatus')?.addEventListener('change', () => borrowsManager.applyFilters());
+    document.getElementById('filterMine')?.addEventListener('change', () => borrowsManager.applyFilters());
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('filter') === 'my') {
-        // Nur eigene Ausleihen anzeigen (wird in JavaScript implementiert)
+        const mine = document.getElementById('filterMine');
+        if (mine) {
+            mine.checked = true;
+            borrowsManager.applyFilters();
+        }
     }
 });
 </script>
 {% endblock %}
-
-
-
-
-
-

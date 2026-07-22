@@ -3,262 +3,434 @@
 {% block title %}{{ _('contacts.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h1><i class="bi bi-person-lines-fill"></i> {{ _('contacts.index.heading') }}</h1>
+{% set has_filter_state = current_filters.salutation or current_filters.name or current_filters.email or current_filters.phone or current_filters.notes %}
+{% set create_url = url_for('contacts.create') %}
+
+{% macro contacts_view_toggle(suffix='', extra_class='') %}
+<div class="btn-group contacts-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('contacts.index.views.label') }}">
+    <button type="button" class="btn btn-outline-secondary" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro contacts_sidebar_tools(id_suffix='') %}
+<div class="contacts-sidebar-tools">
+    <div class="contacts-sidebar-section">
+        <div class="contacts-sidebar-heading">
+            <i class="bi bi-search me-1"></i>{{ _('contacts.index.search.button') }}
+        </div>
+        <form method="GET" class="contacts-sidebar-form d-grid gap-2">
+            <input type="hidden" name="sort" value="{{ current_sort }}">
+            <input type="hidden" name="dir" value="{{ current_dir }}">
+            <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
+            <input type="hidden" name="name" value="{{ current_filters.name }}">
+            <input type="hidden" name="email" value="{{ current_filters.email }}">
+            <input type="hidden" name="phone" value="{{ current_filters.phone }}">
+            <input type="hidden" name="notes" value="{{ current_filters.notes }}">
+            <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="{{ _('contacts.index.search.placeholder') }}" aria-label="{{ _('contacts.index.search.button') }}">
+            <button type="submit" class="btn contacts-sidebar-action w-100">
+                <i class="bi bi-search"></i>
+                <span>{{ _('contacts.index.search.button') }}</span>
+            </button>
+        </form>
     </div>
-    <div class="col-auto">
-        <a href="{{ url_for('contacts.create') }}" class="btn btn-accent">
-            <i class="bi bi-plus-circle"></i> {{ _('contacts.index.new_button') }}
-        </a>
+
+    <div class="contacts-sidebar-section">
+        <div class="contacts-sidebar-heading">
+            <i class="bi bi-sort-alpha-down me-1"></i>{{ _('contacts.index.sort.menu_button') }}
+        </div>
+        <form method="GET" class="contacts-sidebar-form d-grid gap-2">
+            <input type="hidden" name="q" value="{{ search_query }}">
+            <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
+            <input type="hidden" name="name" value="{{ current_filters.name }}">
+            <input type="hidden" name="email" value="{{ current_filters.email }}">
+            <input type="hidden" name="phone" value="{{ current_filters.phone }}">
+            <input type="hidden" name="notes" value="{{ current_filters.notes }}">
+            <div>
+                <label for="sort-field{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.index.sort.field') }}</label>
+                <select id="sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort">
+                    <option value="salutation" {% if current_sort == 'salutation' %}selected{% endif %}>{{ _('contacts.index.sort.options.salutation') }}</option>
+                    <option value="name" {% if current_sort == 'name' %}selected{% endif %}>{{ _('contacts.index.sort.options.name') }}</option>
+                    <option value="email" {% if current_sort == 'email' %}selected{% endif %}>{{ _('contacts.index.sort.options.email') }}</option>
+                    <option value="phone" {% if current_sort == 'phone' %}selected{% endif %}>{{ _('contacts.index.sort.options.phone') }}</option>
+                    <option value="notes" {% if current_sort == 'notes' %}selected{% endif %}>{{ _('contacts.index.sort.options.notes') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="sort-dir{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.index.sort.direction') }}</label>
+                <select id="sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir">
+                    <option value="asc" {% if current_dir == 'asc' %}selected{% endif %}>{{ _('contacts.index.sort.directions.asc') }}</option>
+                    <option value="desc" {% if current_dir == 'desc' %}selected{% endif %}>{{ _('contacts.index.sort.directions.desc') }}</option>
+                </select>
+            </div>
+            <button type="submit" class="btn contacts-sidebar-action w-100">
+                <i class="bi bi-check2"></i>
+                <span>{{ _('contacts.index.sort.apply') }}</span>
+            </button>
+        </form>
+    </div>
+
+    <div class="contacts-sidebar-section">
+        <div class="contacts-sidebar-heading">
+            <i class="bi bi-funnel me-1"></i>{{ _('contacts.index.filters.menu_button') }}
+        </div>
+        <form method="GET" class="contacts-sidebar-form d-grid gap-2">
+            <input type="hidden" name="q" value="{{ search_query }}">
+            <input type="hidden" name="sort" value="{{ current_sort }}">
+            <input type="hidden" name="dir" value="{{ current_dir }}">
+            <div>
+                <label for="filter-salutation{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.form.fields.salutation') }}</label>
+                <input id="filter-salutation{{ id_suffix }}" name="salutation" value="{{ current_filters.salutation }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.salutation_placeholder') }}">
+            </div>
+            <div>
+                <label for="filter-name{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.index.filters.name') }}</label>
+                <input id="filter-name{{ id_suffix }}" name="name" value="{{ current_filters.name }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.name_placeholder') }}">
+            </div>
+            <div>
+                <label for="filter-email{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.index.filters.email') }}</label>
+                <input id="filter-email{{ id_suffix }}" name="email" value="{{ current_filters.email }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.email_placeholder') }}">
+            </div>
+            <div>
+                <label for="filter-phone{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.index.filters.phone') }}</label>
+                <input id="filter-phone{{ id_suffix }}" name="phone" value="{{ current_filters.phone }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.phone_placeholder') }}">
+            </div>
+            <div>
+                <label for="filter-notes{{ id_suffix }}" class="form-label mb-1">{{ _('contacts.index.filters.notes') }}</label>
+                <input id="filter-notes{{ id_suffix }}" name="notes" value="{{ current_filters.notes }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.notes_placeholder') }}">
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <button type="submit" class="btn contacts-sidebar-action flex-grow-1">
+                    <i class="bi bi-check2"></i>
+                    <span>{{ _('contacts.index.filters.apply') }}</span>
+                </button>
+                {% if has_filter_state %}
+                <a href="{{ url_for('contacts.index', q=search_query, sort=current_sort, dir=current_dir) }}" class="btn contacts-sidebar-action contacts-sidebar-action--muted">
+                    <i class="bi bi-x-lg"></i>
+                    <span>{{ _('contacts.index.filters.reset') }}</span>
+                </a>
+                {% endif %}
+            </div>
+        </form>
     </div>
 </div>
+{% endmacro %}
 
-<div class="card mb-3 contacts-toolbar">
-    <div class="card-body">
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <form method="GET" class="d-flex flex-grow-1 gap-2">
-                <input type="hidden" name="view" value="{{ view_mode }}">
-                <input type="hidden" name="sort" value="{{ current_sort }}">
-                <input type="hidden" name="dir" value="{{ current_dir }}">
-                <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
-                <input type="hidden" name="name" value="{{ current_filters.name }}">
-                <input type="hidden" name="email" value="{{ current_filters.email }}">
-                <input type="hidden" name="phone" value="{{ current_filters.phone }}">
-                <input type="hidden" name="notes" value="{{ current_filters.notes }}">
-                <input type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="{{ _('contacts.index.search.placeholder') }}">
-                <button type="submit" class="btn btn-accent contacts-toolbar-button">
-                    <i class="bi bi-search"></i> {{ _('contacts.index.search.button') }}
-                </button>
-            </form>
+{% macro contact_menu_items(contact) %}
+{% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+{% if contact.name %}
+<li>
+    <button type="button" class="dropdown-item" data-copy-text="{{ contact.name }}">
+        <i class="bi bi-person me-2"></i>{{ _('contacts.index.actions.copy_name') }}
+    </button>
+</li>
+{% endif %}
+{% if contact.email %}
+<li>
+    <button type="button" class="dropdown-item" data-copy-text="{{ contact.email }}">
+        <i class="bi bi-envelope me-2"></i>{{ _('contacts.index.actions.copy_email') }}
+    </button>
+</li>
+{% endif %}
+{% if contact.phone %}
+<li>
+    <button type="button" class="dropdown-item" data-copy-text="{{ contact.phone }}">
+        <i class="bi bi-telephone me-2"></i>{{ _('contacts.index.actions.copy_phone') }}
+    </button>
+</li>
+{% endif %}
+{% if can_write_mail %}
+<li>
+    <a class="dropdown-item" href="{{ url_for('email.compose', to=contact.email) }}">
+        <i class="bi bi-pencil-square me-2"></i>{{ _('contacts.index.actions.write_mail') }}
+    </a>
+</li>
+{% endif %}
+{% if contact.name or contact.email or contact.phone or can_write_mail %}
+<li><hr class="dropdown-divider"></li>
+{% endif %}
+<li><a class="dropdown-item" href="{{ url_for('contacts.edit', contact_id=contact.id) }}"><i class="bi bi-pencil me-2"></i>{{ _('contacts.index.actions.edit') }}</a></li>
+<li>
+    <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
+        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('contacts.index.actions.delete_confirm') }}">
+            <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+        </button>
+    </form>
+</li>
+{% endmacro %}
 
-            <div class="btn-group">
-                <a href="{{ url_for('contacts.index', view='list', q=search_query, sort=current_sort, dir=current_dir, salutation=current_filters.salutation, name=current_filters.name, email=current_filters.email, phone=current_filters.phone, notes=current_filters.notes) }}"
-                   class="btn btn-outline-secondary contacts-toolbar-button {% if view_mode == 'list' %}active{% endif %}">
-                    <i class="bi bi-list-ul"></i> {{ _('contacts.index.views.list') }}
-                </a>
-                <a href="{{ url_for('contacts.index', view='grid', q=search_query, sort=current_sort, dir=current_dir, salutation=current_filters.salutation, name=current_filters.name, email=current_filters.email, phone=current_filters.phone, notes=current_filters.notes) }}"
-                   class="btn btn-outline-secondary contacts-toolbar-button {% if view_mode == 'grid' %}active{% endif %}">
-                    <i class="bi bi-grid-3x3-gap"></i> {{ _('contacts.index.views.grid') }}
-                </a>
+{% macro contact_context_menu(contact, suffix='') %}
+<div class="context-menu-source d-none" id="context-menu-contact-{{ contact.id }}{{ suffix }}">
+    <ul class="dropdown-menu">
+        {{ contact_menu_items(contact) }}
+    </ul>
+</div>
+{% endmacro %}
+
+{% macro render_contact_card(contact) %}
+<div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-grid">
+    <div class="card h-100">
+        {{ contact_context_menu(contact, '-grid') }}
+        <div class="card-body">
+            <h5 class="card-title mb-1">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</h5>
+            <a
+                href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}"
+                class="small text-muted text-decoration-none d-inline-block mb-3"
+            >
+                {{ contact.email }}
+                <i class="bi bi-envelope"></i>
+            </a>
+
+            {% if contact.phone %}
+            <div class="mb-2">
+                <small class="text-muted">{{ _('contacts.index.labels.phone') }}</small>
+                <div><a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a></div>
             </div>
+            {% endif %}
 
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle contacts-toolbar-button" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-funnel"></i> {{ _('contacts.index.filters.menu_button') }}
-                </button>
-                <div class="dropdown-menu dropdown-menu-end p-3 contacts-dropdown-panel">
-                    <form method="GET" class="d-grid gap-2">
-                        <input type="hidden" name="view" value="{{ view_mode }}">
-                        <input type="hidden" name="q" value="{{ search_query }}">
-                        <input type="hidden" name="sort" value="{{ current_sort }}">
-                        <input type="hidden" name="dir" value="{{ current_dir }}">
-                        <div>
-                            <label for="filter-salutation" class="form-label mb-1">{{ _('contacts.form.fields.salutation') }}</label>
-                            <input id="filter-salutation" name="salutation" value="{{ current_filters.salutation }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.salutation_placeholder') }}">
-                        </div>
-                        <div>
-                            <label for="filter-name" class="form-label mb-1">{{ _('contacts.index.filters.name') }}</label>
-                            <input id="filter-name" name="name" value="{{ current_filters.name }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.name_placeholder') }}">
-                        </div>
-                        <div>
-                            <label for="filter-email" class="form-label mb-1">{{ _('contacts.index.filters.email') }}</label>
-                            <input id="filter-email" name="email" value="{{ current_filters.email }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.email_placeholder') }}">
-                        </div>
-                        <div>
-                            <label for="filter-phone" class="form-label mb-1">{{ _('contacts.index.filters.phone') }}</label>
-                            <input id="filter-phone" name="phone" value="{{ current_filters.phone }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.phone_placeholder') }}">
-                        </div>
-                        <div>
-                            <label for="filter-notes" class="form-label mb-1">{{ _('contacts.index.filters.notes') }}</label>
-                            <input id="filter-notes" name="notes" value="{{ current_filters.notes }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.notes_placeholder') }}">
-                        </div>
-                        {% set has_filter_state = search_query or current_filters.salutation or current_filters.name or current_filters.email or current_filters.phone or current_filters.notes %}
-                        <div class="d-flex gap-2 mt-1">
-                            <button type="submit" class="btn btn-sm btn-accent flex-grow-1">{{ _('contacts.index.filters.apply') }}</button>
-                            {% if has_filter_state %}
-                            <a href="{{ url_for('contacts.index', view=view_mode, q=search_query, sort=current_sort, dir=current_dir) }}" class="btn btn-sm btn-outline-secondary">{{ _('contacts.index.filters.reset') }}</a>
-                            {% endif %}
-                        </div>
-                    </form>
-                </div>
+            {% if contact.notes %}
+            <div class="mb-3">
+                <small class="text-muted">{{ _('contacts.index.labels.notes') }}</small>
+                <p class="small mb-0">{{ contact.notes }}</p>
             </div>
+            {% endif %}
 
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle contacts-toolbar-button" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-sort-alpha-down"></i> {{ _('contacts.index.sort.menu_button') }}
-                </button>
-                <div class="dropdown-menu dropdown-menu-end p-3 contacts-dropdown-panel">
-                    <form method="GET" class="d-grid gap-2">
-                        <input type="hidden" name="view" value="{{ view_mode }}">
-                        <input type="hidden" name="q" value="{{ search_query }}">
-                        <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
-                        <input type="hidden" name="name" value="{{ current_filters.name }}">
-                        <input type="hidden" name="email" value="{{ current_filters.email }}">
-                        <input type="hidden" name="phone" value="{{ current_filters.phone }}">
-                        <input type="hidden" name="notes" value="{{ current_filters.notes }}">
-                        <div>
-                            <label for="sort-field" class="form-label mb-1">{{ _('contacts.index.sort.field') }}</label>
-                            <select id="sort-field" class="form-select form-select-sm" name="sort">
-                                <option value="salutation" {% if current_sort == 'salutation' %}selected{% endif %}>{{ _('contacts.index.sort.options.salutation') }}</option>
-                                <option value="name" {% if current_sort == 'name' %}selected{% endif %}>{{ _('contacts.index.sort.options.name') }}</option>
-                                <option value="email" {% if current_sort == 'email' %}selected{% endif %}>{{ _('contacts.index.sort.options.email') }}</option>
-                                <option value="phone" {% if current_sort == 'phone' %}selected{% endif %}>{{ _('contacts.index.sort.options.phone') }}</option>
-                                <option value="notes" {% if current_sort == 'notes' %}selected{% endif %}>{{ _('contacts.index.sort.options.notes') }}</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="sort-dir" class="form-label mb-1">{{ _('contacts.index.sort.direction') }}</label>
-                            <select id="sort-dir" class="form-select form-select-sm" name="dir">
-                                <option value="asc" {% if current_dir == 'asc' %}selected{% endif %}>{{ _('contacts.index.sort.directions.asc') }}</option>
-                                <option value="desc" {% if current_dir == 'desc' %}selected{% endif %}>{{ _('contacts.index.sort.directions.desc') }}</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-accent mt-1">{{ _('contacts.index.sort.apply') }}</button>
-                    </form>
-                </div>
+            <div class="d-flex gap-2 mt-3">
+                <a href="{{ url_for('contacts.edit', contact_id=contact.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i> {{ _('contacts.index.actions.edit') }}
+                </a>
+                <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('contacts.index.actions.delete_confirm') }}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
+{% endmacro %}
 
-{% if contacts %}
-{% if view_mode == 'grid' %}
-<div class="row g-3">
-    {% for contact in contacts %}
-    <div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}">
-        <div class="card h-100">
-            <div class="context-menu-source d-none" id="context-menu-contact-{{ contact.id }}">
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ url_for('contacts.edit', contact_id=contact.id) }}"><i class="bi bi-pencil me-2"></i>{{ _('contacts.index.actions.edit') }}</a></li>
-                    <li>
-                        <button type="button" class="dropdown-item" data-copy-text="{{ ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name }}{{ '\n' ~ contact.email }}{% if contact.phone %}{{ '\n' ~ contact.phone }}{% endif %}{% if contact.notes %}{{ '\n' ~ contact.notes }}{% endif %}">
-                            <i class="bi bi-clipboard me-2"></i>{{ _('context_menu.copy_info') }}
-                        </button>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
-                            <button type="submit" class="dropdown-item text-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
-                                <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
-                            </button>
-                        </form>
-                    </li>
+{% macro render_contact_list_row(contact) %}
+{% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
+<tr class="contacts-list-row" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-list">
+    <td>
+        {{ contact_context_menu(contact, '-list') }}
+        <span class="contacts-list-name">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</span>
+    </td>
+    <td class="text-nowrap d-none d-md-table-cell">
+        <a href="{% if can_write_mail %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" class="text-decoration-none">
+            {{ contact.email }}
+            <i class="bi bi-envelope"></i>
+        </a>
+    </td>
+    <td class="text-nowrap d-none d-lg-table-cell">
+        {% if contact.phone %}
+            <a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a>
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td class="contacts-notes-cell d-none d-xl-table-cell">{{ contact.notes or '—' }}</td>
+    <td class="text-end contacts-list-actions-cell">
+        <div class="contacts-list-actions">
+            <div class="contacts-list-hover-actions">
+                {% if contact.name %}
+                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_name') }}" data-copy-text="{{ contact.name }}">
+                    <i class="bi bi-person"></i>
+                </button>
+                {% endif %}
+                {% if contact.email %}
+                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_email') }}" data-copy-text="{{ contact.email }}">
+                    <i class="bi bi-envelope"></i>
+                </button>
+                {% endif %}
+                {% if contact.phone %}
+                <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_phone') }}" data-copy-text="{{ contact.phone }}">
+                    <i class="bi bi-telephone"></i>
+                </button>
+                {% endif %}
+                {% if can_write_mail %}
+                <a class="btn btn-sm btn-link" href="{{ url_for('email.compose', to=contact.email) }}" title="{{ _('contacts.index.actions.write_mail') }}">
+                    <i class="bi bi-pencil-square"></i>
+                </a>
+                {% endif %}
+                <a class="btn btn-sm btn-link" href="{{ url_for('contacts.edit', contact_id=contact.id) }}" title="{{ _('contacts.index.actions.edit') }}">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('contacts.index.actions.column') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {{ contact_menu_items(contact) }}
                 </ul>
             </div>
-            <div class="card-body">
-                <h5 class="card-title mb-1">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</h5>
-                <a
-                    href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}"
-                    class="small text-muted text-decoration-none d-inline-block mb-3"
-                >
-                    {{ contact.email }}
-                    <i class="bi bi-envelope"></i>
-                </a>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
 
-                {% if contact.phone %}
-                <div class="mb-2">
-                    <small class="text-muted">{{ _('contacts.index.labels.phone') }}</small>
-                    <div><a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a></div>
-                </div>
-                {% endif %}
+<div class="contacts-shell contacts-shell--nav">
+<aside class="contacts-sidebar d-none d-lg-flex flex-column">
+    <div class="contacts-sidebar-brand">
+        <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+        <span>{{ _('contacts.index.heading') }}</span>
+    </div>
+    <div class="contacts-sidebar-new-wrap w-100">
+        <a href="{{ create_url }}" class="btn contacts-sidebar-new w-100 text-start">
+            <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
+        </a>
+    </div>
+    {{ contacts_sidebar_tools('') }}
+</aside>
 
-                {% if contact.notes %}
-                <div class="mb-3">
-                    <small class="text-muted">{{ _('contacts.index.labels.notes') }}</small>
-                    <p class="small mb-0">{{ contact.notes }}</p>
-                </div>
-                {% endif %}
+<div class="offcanvas offcanvas-start contacts-mobile-offcanvas" tabindex="-1" id="contactsMobileNav" aria-labelledby="contactsMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="contactsMobileNavLabel">
+            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+            <span>{{ _('contacts.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        <div class="contacts-sidebar-new-wrap w-100 mb-3">
+            <a href="{{ create_url }}" class="btn contacts-sidebar-new w-100 text-start">
+                <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
+            </a>
+        </div>
+        {{ contacts_sidebar_tools('-mobile') }}
+    </div>
+</div>
 
-                <div class="d-flex gap-2 mt-3">
-                    <a href="{{ url_for('contacts.edit', contact_id=contact.id) }}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-pencil"></i> {{ _('contacts.index.actions.edit') }}
-                    </a>
-                    <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                </div>
+<div class="contacts-main flex-grow-1 min-width-0">
+    <div class="contacts-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary contacts-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#contactsMobileNav" aria-controls="contactsMobileNav" aria-label="{{ _('contacts.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate contacts-mobile-title">
+                    <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                    <span>{{ _('contacts.index.heading') }}</span>
+                </h1>
             </div>
+            <a href="{{ create_url }}" class="btn contacts-new-btn btn-sm flex-shrink-0">
+                <i class="bi bi-plus-lg"></i> {{ _('contacts.index.new_button') }}
+            </a>
+        </div>
+        <div class="contacts-mobile-view-toggle mt-2">
+            {{ contacts_view_toggle('Mobile') }}
         </div>
     </div>
-    {% endfor %}
-</div>
-{% else %}
-<div class="card contacts-list-card">
-    <div class="table-responsive">
-        <table class="table table-hover mb-0 contacts-list-table contacts-one-line-table">
-            <thead>
-                <tr>
-                    <th>{{ _('contacts.form.fields.name') }}</th>
-                    <th>{{ _('contacts.form.fields.email') }}</th>
-                    <th>{{ _('contacts.form.fields.phone') }}</th>
-                    <th>{{ _('contacts.form.fields.notes') }}</th>
-                    <th class="text-end">{{ _('contacts.index.actions.column') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for contact in contacts %}
-                <tr data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}">
-                    <td>
-                        <div class="context-menu-source d-none" id="context-menu-contact-{{ contact.id }}">
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('contacts.edit', contact_id=contact.id) }}"><i class="bi bi-pencil me-2"></i>{{ _('contacts.index.actions.edit') }}</a></li>
-                                <li>
-                                    <button type="button" class="dropdown-item" data-copy-text="{{ ((contact.salutation ~ ' ') if contact.salutation else '') ~ contact.name }}{{ '\n' ~ contact.email }}{% if contact.phone %}{{ '\n' ~ contact.phone }}{% endif %}{% if contact.notes %}{{ '\n' ~ contact.notes }}{% endif %}">
-                                        <i class="bi bi-clipboard me-2"></i>{{ _('context_menu.copy_info') }}
-                                    </button>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
-                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
-                                            <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
-                                        </button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                        {{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}
-                    </td>
-                    <td class="text-nowrap">
-                        <a href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" class="text-decoration-none">
-                            {{ contact.email }}
-                            <i class="bi bi-envelope"></i>
-                        </a>
-                    </td>
-                    <td class="text-nowrap">
-                        {% if contact.phone %}
-                            <a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a>
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                    <td class="contacts-notes-cell">{{ contact.notes or '-' }}</td>
-                    <td class="text-end">
-                        <div class="d-inline-flex gap-2">
-                            <a href="{{ url_for('contacts.edit', contact_id=contact.id) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-pencil"></i> {{ _('contacts.index.actions.edit') }}
-                            </a>
-                            <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('{{ _('contacts.index.actions.delete_confirm') }}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    <div class="row mb-3 page-toolbar-row align-items-center g-2">
+        <div class="col-auto d-none d-lg-flex ms-lg-auto">
+            {{ contacts_view_toggle('') }}
+        </div>
+    </div>
+
+    <div id="gridViewContainer" style="display: none;">
+        {% if contacts %}
+        <div class="row g-3">
+            {% for contact in contacts %}
+                {{ render_contact_card(contact) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="contacts-empty-state">
+            <div>
+                <i class="bi bi-person-lines-fill display-6 d-block mb-2 opacity-50"></i>
+                {{ _('contacts.index.empty_message') }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="listViewContainer" style="display: none;">
+        {% if contacts %}
+        <div class="contacts-list-table-wrap">
+            <table class="table contacts-list-table align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ _('contacts.form.fields.name') }}</th>
+                        <th scope="col" class="d-none d-md-table-cell">{{ _('contacts.form.fields.email') }}</th>
+                        <th scope="col" class="d-none d-lg-table-cell">{{ _('contacts.form.fields.phone') }}</th>
+                        <th scope="col" class="d-none d-xl-table-cell">{{ _('contacts.form.fields.notes') }}</th>
+                        <th scope="col" class="text-end">{{ _('contacts.index.actions.column') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                        {{ render_contact_list_row(contact) }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="contacts-empty-state">
+            <div>
+                <i class="bi bi-person-lines-fill display-6 d-block mb-2 opacity-50"></i>
+                {{ _('contacts.index.empty_message') }}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
-{% endif %}
-{% else %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    {{ _('contacts.index.empty_message') }}
 </div>
-{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setContactsViewMode(mode) {
+    const grid = document.getElementById('gridViewContainer');
+    const list = document.getElementById('listViewContainer');
+    const listBtns = [
+        document.getElementById('listViewBtn'),
+        document.getElementById('listViewBtnMobile')
+    ].filter(Boolean);
+    const gridBtns = [
+        document.getElementById('gridViewBtn'),
+        document.getElementById('gridViewBtnMobile')
+    ].filter(Boolean);
+
+    const isList = mode === 'list';
+    if (grid) grid.style.display = isList ? 'none' : '';
+    if (list) list.style.display = isList ? '' : 'none';
+
+    listBtns.forEach((btn) => btn.classList.toggle('active', isList));
+    gridBtns.forEach((btn) => btn.classList.toggle('active', !isList));
+    localStorage.setItem('contactsViewMode', isList ? 'list' : 'grid');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('contactsViewMode') || 'list';
+    setContactsViewMode(saved);
+
+    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setContactsViewMode('list'));
+    });
+    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setContactsViewMode('grid'));
+    });
+
+    document.addEventListener('click', (event) => {
+        const copyBtn = event.target.closest('[data-copy-text]');
+        if (!copyBtn || copyBtn.closest('#prismateams-context-menu')) {
+            return;
+        }
+        const text = copyBtn.getAttribute('data-copy-text');
+        if (!text) {
+            return;
+        }
+        event.preventDefault();
+        navigator.clipboard.writeText(text).catch(() => {});
+    });
+});
+</script>
 {% endblock %}

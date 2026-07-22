@@ -21,6 +21,86 @@ def wants_desktop_chat_layout(user, request):
     return not any(x in ua for x in ('iphone', 'ipod', 'android', 'mobile', 'ipad'))
 
 
+def get_main_chat():
+    return Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
+
+
+def dedupe_main_chats():
+    """
+    Ensure only one chat has is_main_chat=True.
+    Keeps the oldest main chat, demotes extras, merges missing memberships.
+    Empty duplicate main chats are removed so they vanish from the nav.
+    """
+    mains = Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).all()
+    if len(mains) <= 1:
+        return mains[0] if mains else None
+
+    keeper = mains[0]
+    if (keeper.name or '').strip().lower() in {'team chat', 'team-chat', ''}:
+        keeper.name = 'Haupt-Chat'
+
+    keeper_member_ids = {
+        m.user_id for m in ChatMember.query.filter_by(chat_id=keeper.id).all()
+    }
+
+    for extra in mains[1:]:
+        for membership in ChatMember.query.filter_by(chat_id=extra.id).all():
+            if membership.user_id not in keeper_member_ids:
+                db.session.add(ChatMember(chat_id=keeper.id, user_id=membership.user_id))
+                keeper_member_ids.add(membership.user_id)
+
+        has_messages = ChatMessage.query.filter_by(chat_id=extra.id, is_deleted=False).count() > 0
+        if not has_messages:
+            # Pure setup duplicate — drop it completely
+            ChatMember.query.filter_by(chat_id=extra.id).delete()
+            ChatPin.query.filter_by(chat_id=extra.id).delete()
+            db.session.delete(extra)
+        else:
+            extra.is_main_chat = False
+            if (extra.name or '').strip().lower() in {'haupt-chat', 'team chat', 'team-chat'}:
+                extra.name = f'{extra.name or "Chat"} ({extra.id})'
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
+    return keeper
+
+
+def user_is_chat_member(user, chat_id):
+    if not user or not chat_id:
+        return False
+    return ChatMember.query.filter_by(chat_id=chat_id, user_id=user.id).first() is not None
+
+
+def ensure_user_in_main_chat(user):
+    """
+    Self-heal: active users opening the chat module should be in the Haupt-Chat.
+    Fixes fresh installs where the main chat was created before the admin existed.
+    Returns the membership or None.
+    """
+    if not user or getattr(user, 'is_guest', False) or not getattr(user, 'is_active', True):
+        return None
+
+    main_chat = dedupe_main_chats() or get_main_chat()
+    if not main_chat:
+        return None
+
+    existing = ChatMember.query.filter_by(chat_id=main_chat.id, user_id=user.id).first()
+    if existing:
+        return existing
+
+    membership = ChatMember(chat_id=main_chat.id, user_id=user.id)
+    db.session.add(membership)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return ChatMember.query.filter_by(chat_id=main_chat.id, user_id=user.id).first()
+    return membership
+
+
 def _unread_count_for_membership(membership, user_id):
     if not membership or not membership.last_read_at:
         return ChatMessage.query.filter(
@@ -77,7 +157,7 @@ def build_chat_nav_items(user):
     last_times = _last_message_times(chat_ids)
     epoch = datetime.min
 
-    main = [c for c in chats if c.is_main_chat]
+    main = [c for c in chats if c.is_main_chat][:1]  # only one Haupt-Chat in the nav
     pinned = sorted(
         [c for c in chats if not c.is_main_chat and c.id in pinned_ids],
         key=lambda c: pin_order[c.id][0],

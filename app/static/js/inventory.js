@@ -3,6 +3,24 @@
 const INVENTORY_API_BASES = ['/inventory/api', '/inventory/vnext/api', '/vnext/api'];
 let activeInventoryApiBase = INVENTORY_API_BASES[0];
 
+/** Portal-Banner statt window.alert (success|info|warning|danger). */
+function inventoryNotify(message, category = 'info') {
+    const cat = category === 'error' ? 'danger' : (category || 'info');
+    if (typeof window.showAppBanner === 'function') {
+        window.showAppBanner(String(message || ''), cat);
+        return;
+    }
+    window.alert(String(message || ''));
+}
+
+/** Portal-Confirm-Modal statt window.confirm. */
+function inventoryConfirm(message, options) {
+    if (typeof window.ptConfirm === 'function') {
+        return window.ptConfirm(String(message || ''), options || {});
+    }
+    return Promise.resolve(window.confirm(String(message || '')));
+}
+
 function normalizeInventoryApiPath(path) {
     if (!path) return '';
     return path.startsWith('/') ? path : `/${path}`;
@@ -57,7 +75,7 @@ class StockManager {
         this.searchTimeout = null;
         this.selectedProducts = new Set(); // Verwaltet ausgewählte Produkt-IDs
         this.currentFolderId = null; // Aktueller Ordner (aus URL)
-        this.viewMode = localStorage.getItem('inventoryViewMode') || 'grid'; // 'grid' oder 'list'
+        this.viewMode = localStorage.getItem('inventoryViewMode') || 'list'; // 'grid' oder 'list'
         this.activeQuickFilter = null; // Aktiver Schnellfilter
         this.sortField = localStorage.getItem('inventorySortField') || 'name';
         this.sortDirection = localStorage.getItem('inventorySortDirection') || 'asc';
@@ -526,12 +544,13 @@ class StockManager {
         const lengthFilter = document.getElementById('lengthFilter');
         const purchaseYearFilter = document.getElementById('purchaseYearFilter');
         const resetFiltersBtn = document.getElementById('resetFiltersBtn');
-        const borrowSelectedBtn = document.getElementById('borrowSelectedBtn');
         const bulkSelectAllBtn = document.getElementById('bulkSelectAllBtn');
         const bulkDeselectAllBtn = document.getElementById('bulkDeselectAllBtn');
         const bulkEditBtn = document.getElementById('bulkEditBtn');
         const bulkBorrowBtn = document.getElementById('bulkBorrowBtn');
         const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const bulkQrBtn = document.getElementById('bulkQrBtn');
+        const bulkRepairBtn = document.getElementById('bulkRepairBtn');
         
         if (searchInput) {
             searchInput.addEventListener('input', () => {
@@ -573,13 +592,22 @@ class StockManager {
         if (bulkBorrowBtn) {
             bulkBorrowBtn.addEventListener('click', () => this.borrowSelected());
         }
+
+        if (bulkQrBtn) {
+            bulkQrBtn.addEventListener('click', () => this.printSelectedQr());
+        }
+
+        if (bulkRepairBtn) {
+            bulkRepairBtn.addEventListener('click', () => this.markSelectedInRepair());
+        }
+
+        const bulkAvailableBtn = document.getElementById('bulkAvailableBtn');
+        if (bulkAvailableBtn) {
+            bulkAvailableBtn.addEventListener('click', () => this.markSelectedAvailable());
+        }
         
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', () => this.openBulkDeleteModal());
-        }
-        
-        if (borrowSelectedBtn) {
-            borrowSelectedBtn.addEventListener('click', () => this.borrowSelected());
         }
         
         // Checkbox-Events werden direkt in attachCheckboxHandlers() behandelt
@@ -856,10 +884,12 @@ class StockManager {
         
         if (this.filteredProducts.length === 0) {
             container.innerHTML = `
-                <div class="list-group-item text-center py-5">
-                    <i class="bi bi-inbox fs-1 mb-3 text-muted"></i>
-                    <p class="text-muted mb-0">Keine Produkte gefunden</p>
-                </div>
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
+                        Keine Produkte gefunden
+                    </td>
+                </tr>
             `;
             return;
         }
@@ -867,19 +897,129 @@ class StockManager {
         const html = this.filteredProducts.map(product => this.renderProductListItem(product)).join('');
         container.innerHTML = html;
         
-        // Nach dem Rendern Event-Handler für Checkboxen setzen
         this.attachCheckboxHandlers();
         
-        // Favoriten-Buttons aktualisieren, falls Favoriten geladen wurden
         if (typeof updateFavoriteButtons === 'function') {
             setTimeout(() => updateFavoriteButtons(), 100);
         }
     }
-    
+
+    /** Checkbox: alles außer ausgemustert. Ausleihen nur bei available. */
+    isProductSelectable(product) {
+        return !!(product && product.status !== 'retired');
+    }
+
+    isProductBorrowable(product) {
+        return !!(product && product.status === 'available');
+    }
+
+    statusBadgeHtml(product) {
+        if (product.status === 'available') {
+            return '<span class="badge bg-success">Verfügbar</span>';
+        }
+        if (product.status === 'borrowed') {
+            return '<span class="badge bg-warning">Ausgeliehen</span>';
+        }
+        if (product.status === 'missing') {
+            return '<span class="badge bg-danger">Fehlend</span>';
+        }
+        if (product.status === 'defective' || product.status === 'in_repair') {
+            return '<span class="badge bg-danger">Defekt</span>';
+        }
+        if (product.status === 'retired') {
+            return '<span class="badge bg-secondary">Ausgemustert</span>';
+        }
+        return `<span class="badge bg-secondary">${this.escapeHtml(product.status || '—')}</span>`;
+    }
+
+    renderProductListItem(product) {
+        const statusBadge = this.statusBadgeHtml(product);
+        const isSelected = this.selectedProducts.has(product.id);
+        const isSelectable = this.isProductSelectable(product);
+        const isBorrowable = this.isProductBorrowable(product);
+        const checkboxTitle = isSelectable ? '' : ' title="Ausgemusterte Produkte lassen sich nicht auswählen"';
+        const selectionModeClass = isSelected ? 'selection-mode' : '';
+        const category = this.isValidValue(product.category) ? this.escapeHtml(product.category) : '—';
+        const location = this.isValidValue(product.location) ? this.escapeHtml(product.location) : '—';
+        const serial = this.isValidValue(product.serial_number) ? this.escapeHtml(product.serial_number) : '—';
+        const folderHint = product.folder_name
+            ? `<div class="small text-muted"><i class="bi bi-folder"></i> ${this.escapeHtml(product.folder_name)}</div>`
+            : '';
+        const lengthHint = this.isValidValue(product.length)
+            ? `<div class="small text-muted d-lg-none"><i class="bi bi-arrows-expand"></i> ${this.escapeHtml(product.length)}</div>`
+            : '';
+
+        const hoverBorrow = isBorrowable
+            ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
+            : '';
+
+        return `
+            <tr class="inventory-list-row ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+                <td>
+                    <input type="checkbox" class="form-check-input product-checkbox"
+                           value="${product.id}" data-product-id="${product.id}"
+                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}>
+                    ${this.buildProductContextMenuHtml(product)}
+                </td>
+                <td>
+                    <button type="button" class="inventory-list-name btn btn-link text-decoration-none text-start p-0"
+                            onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                        <i class="bi bi-box-seam me-2 text-muted"></i>${this.escapeHtml(product.name)}
+                    </button>
+                    ${folderHint}
+                    ${lengthHint}
+                    <div class="d-md-none mt-1">${statusBadge}</div>
+                </td>
+                <td class="d-none d-md-table-cell">${statusBadge}</td>
+                <td class="d-none d-md-table-cell text-muted">${category}</td>
+                <td class="d-none d-lg-table-cell text-muted">${location}</td>
+                <td class="d-none d-xl-table-cell text-muted">${serial}</td>
+                <td class="text-end">
+                    <div class="inventory-list-actions">
+                        <div class="inventory-list-hover-actions">
+                            <button type="button" class="btn btn-sm btn-link" title="Ansehen"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            ${hoverBorrow}
+                            <a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/edit" title="Bearbeiten" onclick="event.stopPropagation()">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
+                                    title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                <i class="bi bi-star"></i>
+                            </button>
+                        </div>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="event.stopPropagation()">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                        <i class="bi bi-eye me-2"></i>Ansehen
+                                    </button>
+                                </li>
+                                ${isBorrowable ? `<li><a class="dropdown-item" href="/inventory/products/${product.id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>` : ''}
+                                <li><a class="dropdown-item" href="/inventory/products/${product.id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                        <i class="bi bi-star me-2"></i>Favorit
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
     buildProductContextMenuHtml(product) {
         const id = product.id;
         let items = '';
-        if (product.status === 'available') {
+        items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${id});}"><i class="bi bi-eye me-2"></i>Ansehen</button></li>`;
+        if (this.isProductBorrowable(product)) {
             items += `<li><a class="dropdown-item" href="/inventory/products/${id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>`;
         }
         items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
@@ -896,94 +1036,17 @@ class StockManager {
                 <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <form method="POST" action="/inventory/folders/${id}/delete" class="d-inline" onsubmit="return confirm('Ordner &quot;${name}&quot; wirklich löschen? Produkte bleiben erhalten.');">
-                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Löschen</button>
+                    <form method="POST" action="/inventory/folders/${id}/delete" class="d-inline">
+                        <button type="submit" class="dropdown-item text-danger"
+                                data-confirm-delete="Ordner &quot;${name}&quot; wirklich löschen? Produkte bleiben erhalten.">
+                            <i class="bi bi-trash me-2"></i>Löschen
+                        </button>
                     </form>
                 </li>
             </ul>
         </div>`;
     }
 
-    renderProductListItem(product) {
-        let statusBadge = '';
-        if (product.status === 'available') {
-            statusBadge = '<span class="badge bg-success">Verfügbar</span>';
-        } else if (product.status === 'borrowed') {
-            statusBadge = '<span class="badge bg-warning">Ausgeliehen</span>';
-        } else if (product.status === 'missing') {
-            statusBadge = '<span class="badge bg-danger">Fehlend</span>';
-        }
-        
-        const isSelected = this.selectedProducts.has(product.id);
-        const isSelectable = product.status === 'available';
-        const checkboxTitle = isSelectable ? '' : ' title="Nur verfügbare Produkte lassen sich auswählen"';
-        const checkbox = `
-            <input type="checkbox" class="form-check-input me-2 product-checkbox"
-                   value="${product.id}" data-product-id="${product.id}"
-                   ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
-                   style="width: 1.1rem; height: 1.1rem;">
-        `;
-        
-        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
-        
-        const selectionModeClass = isSelected ? 'selection-mode' : '';
-        
-        const folderBadge = product.folder_name 
-            ? `<span class="badge bg-info me-2" 
-                     onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${product.folder_id});}" 
-                     title="Klicken um zu diesem Ordner zu navigieren">
-                  <i class="bi bi-folder"></i> ${this.escapeHtml(product.folder_name)}
-               </span>`
-            : '';
-        
-        const details = [];
-        if (this.isValidValue(product.category)) {
-            details.push(`<span class="text-muted">${this.escapeHtml(product.category)}</span>`);
-        }
-        if (this.isValidValue(product.serial_number)) {
-            details.push(`<small class="text-muted"><i class="bi bi-upc"></i> ${this.escapeHtml(product.serial_number)}</small>`);
-        }
-        if (this.isValidValue(product.location)) {
-            details.push(`<small class="text-muted"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(product.location)}</small>`);
-        }
-        if (this.isValidValue(product.length)) {
-            details.push(`<small class="text-muted"><i class="bi bi-arrows-expand"></i> ${this.escapeHtml(product.length)}</small>`);
-        }
-        
-        return `
-            <div class="list-group-item list-group-item-action ${selectionModeClass}" style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
-                ${this.buildProductContextMenuHtml(product)}
-                <div class="d-flex align-items-center">
-                    <div class="form-check me-2" style="z-index: 10; position: relative;">
-                        ${checkbox}
-                    </div>
-                    <div class="flex-grow-1" ${cardClickHandler}>
-                        <div class="d-flex align-items-center mb-1">
-                            <h6 class="mb-0 me-2">${this.escapeHtml(product.name)}</h6>
-                            ${statusBadge}
-                            ${folderBadge}
-                        </div>
-                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                            ${details.join('')}
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2 align-items-center">
-                        ${isSelectable 
-                            ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
-                            : ''}
-                        <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
-                        <button type="button" class="btn btn-sm btn-outline-warning favorite-btn" 
-                                data-product-id="${product.id}" 
-                                onclick="event.stopPropagation(); toggleFavorite(${product.id});"
-                                title="Zu Favoriten hinzufügen">
-                            <i class="bi bi-star"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -1058,6 +1121,14 @@ class StockManager {
                 listItem.classList.remove('selection-mode');
             }
         }
+        const listRow = checkbox.closest('.inventory-list-row');
+        if (listRow) {
+            if (isSelected) {
+                listRow.classList.add('selection-mode');
+            } else {
+                listRow.classList.remove('selection-mode');
+            }
+        }
     }
     
     renderProductCard(product) {
@@ -1068,6 +1139,8 @@ class StockManager {
             statusBadge = '<span class="badge bg-warning">Ausgeliehen</span>';
         } else if (product.status === 'missing') {
             statusBadge = '<span class="badge bg-danger">Fehlend</span>';
+        } else if (product.status === 'defective' || product.status === 'in_repair') {
+            statusBadge = '<span class="badge bg-danger">Defekt</span>';
         }
         
         const imageHtml = product.image_path 
@@ -1078,8 +1151,9 @@ class StockManager {
             : '<div class="product-image-placeholder"><i class="bi bi-box-seam fs-1 text-muted"></i></div>';
         
         const isSelected = this.selectedProducts.has(product.id);
-        const isSelectable = product.status === 'available';
-        const checkboxTitle = isSelectable ? '' : ' title="Nur verfügbare Produkte lassen sich auswählen"';
+        const isSelectable = this.isProductSelectable(product);
+        const isBorrowable = this.isProductBorrowable(product);
+        const checkboxTitle = isSelectable ? '' : ' title="Ausgemusterte Produkte lassen sich nicht auswählen"';
         const checkbox = `
             <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
                 <div class="form-check">
@@ -1130,7 +1204,7 @@ class StockManager {
                     </div>
                     <div class="mt-2 d-flex justify-content-between align-items-center">
                         <div>
-                            ${isSelectable 
+                            ${isBorrowable 
                                 ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
                                 : ''}
                             <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
@@ -1177,10 +1251,19 @@ class StockManager {
                 ${product.location ? `<tr><th>Lagerort:</th><td>${product.location}</td></tr>` : ''}
                 ${product.length ? `<tr><th>Länge:</th><td>${product.length}</td></tr>` : ''}
                 ${product.purchase_date ? `<tr><th>Anschaffungsdatum:</th><td>${product.purchase_date}</td></tr>` : ''}
+                ${product.purchase_price != null ? `<tr><th>Kaufpreis:</th><td>${product.purchase_price}</td></tr>` : ''}
+                ${product.replacement_value != null ? `<tr><th>Wiederbeschaffung:</th><td>${product.replacement_value}</td></tr>` : ''}
+                ${product.weight_kg != null ? `<tr><th>Gewicht:</th><td>${product.weight_kg} kg</td></tr>` : ''}
+                ${(product.width_cm || product.height_cm || product.depth_cm) ? `<tr><th>Abmessungen:</th><td>${product.width_cm || '—'} × ${product.height_cm || '—'} × ${product.depth_cm || '—'} cm</td></tr>` : ''}
+                ${product.dguv_next_check ? `<tr><th>DGUV nächste Prüfung:</th><td>${product.dguv_next_check}</td></tr>` : ''}
+                ${product.external_barcode ? `<tr><th>Externer Barcode:</th><td>${product.external_barcode}</td></tr>` : ''}
                 <tr><th>Status:</th><td>${
                     product.status === 'available' ? 'Verfügbar' : 
                     product.status === 'borrowed' ? 'Ausgeliehen' : 
-                    product.status === 'missing' ? 'Fehlend' : product.status
+                    product.status === 'missing' ? 'Fehlend' :
+                    product.status === 'in_repair' ? 'In Reparatur' :
+                    product.status === 'defective' ? 'Defekt' :
+                    product.status === 'retired' ? 'Ausgemustert' : product.status
                 }</td></tr>
             </table>
             ${product.description ? `<p>${product.description}</p>` : ''}
@@ -1218,39 +1301,7 @@ class StockManager {
     }
     
     showSuccess(message) {
-        // Erstelle Toast-Benachrichtigung
-        const toast = document.createElement('div');
-        toast.className = 'toast align-items-center text-white bg-success border-0';
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-check-circle me-2"></i>${this.escapeHtml(message)}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-        
-        // Füge Toast-Container hinzu falls nicht vorhanden
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '1060';
-            document.body.appendChild(toastContainer);
-        }
-        
-        toastContainer.appendChild(toast);
-        
-        // Zeige Toast
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-        
-        // Entferne Toast nach dem Ausblenden
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
+        inventoryNotify(message, 'success');
     }
     
     handleCardClick(productId, isSelectable) {
@@ -1282,7 +1333,7 @@ class StockManager {
             } else {
                 // Prüfe ob Produkt auswählbar ist
                 const product = this.products.find(p => p.id === productId);
-                if (product && product.status === 'available') {
+                if (product && this.isProductSelectable(product)) {
                     this.selectedProducts.add(productId);
                 }
             }
@@ -1292,9 +1343,9 @@ class StockManager {
     }
     
     selectAllAvailable() {
-        // Füge alle verfügbaren Produkte zur Auswahl hinzu
+        // Alle auswählbaren Produkte der aktuellen Filterliste
         this.filteredProducts.forEach(product => {
-            if (product.status === 'available') {
+            if (this.isProductSelectable(product)) {
                 this.selectedProducts.add(product.id);
             }
         });
@@ -1326,18 +1377,8 @@ class StockManager {
     
     updateSelectionUI() {
         const selected = this.getSelectedProducts();
-        const selectedCountEl = document.getElementById('selectedCount');
-        const borrowSelectedBtn = document.getElementById('borrowSelectedBtn');
         const bulkToolbar = document.getElementById('bulkSelectionToolbar');
         const bulkSelectionCount = document.getElementById('bulkSelectionCount');
-        
-        if (selectedCountEl) {
-            selectedCountEl.textContent = selected.length;
-        }
-        
-        if (borrowSelectedBtn) {
-            borrowSelectedBtn.style.display = selected.length > 0 ? 'inline-block' : 'none';
-        }
         
         // Toolbar anzeigen/verstecken
         if (bulkToolbar) {
@@ -1363,7 +1404,7 @@ class StockManager {
         const selectedIds = this.getSelectedProducts();
         
         if (selectedIds.length === 0) {
-            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
         
@@ -1373,7 +1414,7 @@ class StockManager {
         );
         
         if (unavailableProducts.length > 0) {
-            alert('Einige ausgewählte Produkte sind nicht verfügbar. Bitte wählen Sie nur verfügbare Produkte aus.');
+            inventoryNotify('Einige ausgewählte Produkte sind nicht verfügbar. Bitte wählen Sie nur verfügbare Produkte aus.', 'warning');
             return;
         }
         
@@ -1381,11 +1422,103 @@ class StockManager {
         const productIdsParam = selectedIds.join(',');
         window.location.href = `/inventory/borrow-multiple?product_ids=${productIdsParam}`;
     }
+
+    async printSelectedQr() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        try {
+            const response = await fetch('/inventory/api/print-qr-codes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds }),
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'QR-Druck fehlgeschlagen');
+            }
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QR-Codes_${new Date().toISOString().slice(0,10)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            inventoryNotify(e.message || 'QR-Druck fehlgeschlagen', 'danger');
+        }
+    }
+
+    async markSelectedInRepair() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        if (!(await inventoryConfirm(`${selectedIds.length} Produkt(e) auf „In Reparatur“ setzen?`, {
+            title: 'Status ändern',
+            confirmLabel: 'Ja, setzen',
+            cancelLabel: 'Abbrechen',
+            danger: false,
+        }))) {
+            return;
+        }
+        try {
+            const response = await fetch('/inventory/api/products/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds, status: 'in_repair' }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Status-Update fehlgeschlagen');
+            }
+            inventoryNotify(result.message || 'Status aktualisiert.', 'success');
+            await this.loadProducts();
+        } catch (e) {
+            inventoryNotify(e.message || 'Status-Update fehlgeschlagen', 'danger');
+        }
+    }
+
+    async markSelectedAvailable() {
+        const selectedIds = this.getSelectedProducts();
+        if (selectedIds.length === 0) {
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
+            return;
+        }
+        if (!(await inventoryConfirm(`${selectedIds.length} Produkt(e) wieder als einsatzbereit markieren?`, {
+            title: 'Einsatzbereit setzen',
+            confirmLabel: 'Ja, setzen',
+            cancelLabel: 'Abbrechen',
+            danger: false,
+        }))) {
+            return;
+        }
+        try {
+            const response = await fetch('/inventory/api/products/bulk-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_ids: selectedIds, status: 'available' }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Status-Update fehlgeschlagen');
+            }
+            inventoryNotify(result.message || 'Status aktualisiert.', 'success');
+            await this.loadProducts();
+        } catch (e) {
+            inventoryNotify(e.message || 'Status-Update fehlgeschlagen', 'danger');
+        }
+    }
     
     openBulkDeleteModal() {
         const selectedIds = this.getSelectedProducts();
         if (selectedIds.length === 0) {
-            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
         
@@ -1419,7 +1552,7 @@ class StockManager {
     
     async deleteSelectedProducts(productIds, modal) {
         if (!productIds || productIds.length === 0) {
-            alert('Keine Produkte zum Löschen ausgewählt.');
+            inventoryNotify('Keine Produkte zum Löschen ausgewählt.', 'warning');
             return;
         }
         
@@ -1511,12 +1644,16 @@ class StockManager {
     
     async deleteProduct(productId) {
         if (!productId) {
-            alert('Keine Produkt-ID angegeben.');
+            inventoryNotify('Keine Produkt-ID angegeben.', 'warning');
             return;
         }
         
         // Bestätigung
-        if (!confirm(`Möchten Sie dieses Produkt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+        if (!(await inventoryConfirm('Möchten Sie dieses Produkt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.', {
+            title: 'Produkt löschen',
+            confirmLabel: 'Löschen',
+            danger: true,
+        }))) {
             return;
         }
         
@@ -1564,7 +1701,7 @@ class StockManager {
         // Hole aktuelle Auswahl und speichere in lokaler Variable (Snapshot)
         const selectedIds = [...this.getSelectedProducts()];
         if (selectedIds.length === 0) {
-            alert('Bitte wählen Sie mindestens ein Produkt aus.');
+            inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
         
@@ -1662,6 +1799,21 @@ class StockManager {
                                     <option value="Gut">Gut</option>
                                     <option value="Gebraucht">Gebraucht</option>
                                     <option value="Beschädigt">Beschädigt</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+
+                    case 'status':
+                        fieldHtml = `
+                            <div class="mb-3">
+                                <label for="bulkEditStatus" class="form-label">Neuer Status</label>
+                                <select class="form-select" id="bulkEditStatus">
+                                    <option value="available">Einsatzbereit / Verfügbar</option>
+                                    <option value="missing">Fehlend</option>
+                                    <option value="defective">Defekt</option>
+                                    <option value="in_repair">In Reparatur</option>
+                                    <option value="retired">Ausgemustert</option>
                                 </select>
                             </div>
                         `;
@@ -1812,7 +1964,7 @@ class StockManager {
             const handleSubmit = async () => {
                 const attribute = attributeSelect ? (document.getElementById('bulkEditAttribute')?.value || '') : '';
                 if (!attribute) {
-                    alert('Bitte wählen Sie ein Attribut aus.');
+                    inventoryNotify('Bitte wählen Sie ein Attribut aus.', 'warning');
                     return;
                 }
                 
@@ -1835,7 +1987,7 @@ class StockManager {
                         if (lengthInput && lengthInput.value) {
                             value = parseFloat(lengthInput.value);
                             if (isNaN(value) || value < 0) {
-                                alert('Bitte geben Sie eine gültige Länge ein (Zahl >= 0).');
+                                inventoryNotify('Bitte geben Sie eine gültige Länge ein (Zahl >= 0).', 'warning');
                                 return;
                             }
                             updateData.length = value;
@@ -1848,6 +2000,16 @@ class StockManager {
                         const conditionSelect = document.getElementById('bulkEditCondition');
                         value = conditionSelect ? conditionSelect.value || null : null;
                         updateData.condition = value;
+                        break;
+
+                    case 'status':
+                        const statusSelect = document.getElementById('bulkEditStatus');
+                        value = statusSelect ? statusSelect.value : '';
+                        if (!value) {
+                            inventoryNotify('Bitte einen Status wählen.', 'warning');
+                            return;
+                        }
+                        updateData.status = value;
                         break;
                     
                     case 'category':
@@ -1863,7 +2025,11 @@ class StockManager {
                         break;
                     
                     case 'remove_image':
-                        if (!confirm(`Möchten Sie wirklich die Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`)) {
+                        if (!(await inventoryConfirm(`Möchten Sie wirklich die Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`, {
+                            title: 'Bilder entfernen',
+                            confirmLabel: 'Entfernen',
+                            danger: true,
+                        }))) {
                             return;
                         }
                         updateData.remove_image = true;
@@ -1892,7 +2058,7 @@ class StockManager {
                     
                     // Erfolg
                     modal.hide();
-                    alert(result.message || `${result.updated_count || selectedIds.length} Produkt(e) erfolgreich aktualisiert.`);
+                    inventoryNotify(result.message || `${result.updated_count || selectedIds.length} Produkt(e) erfolgreich aktualisiert.`, 'success');
                     
                     // Produktliste neu laden
                     await this.loadProducts();
@@ -1904,7 +2070,7 @@ class StockManager {
                     
                 } catch (error) {
                     console.error('Bulk-Update Fehler:', error);
-                    alert('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'));
+                    inventoryNotify('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'), 'danger');
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalText;
@@ -1919,40 +2085,46 @@ class StockManager {
     
     // View Toggle Funktionen
     setupViewToggle() {
-        const listViewBtn = document.getElementById('listViewBtn');
-        const gridViewBtn = document.getElementById('gridViewBtn');
-        
-        if (listViewBtn && gridViewBtn) {
-            listViewBtn.addEventListener('click', () => {
+        const bindToggle = (listBtn, gridBtn) => {
+            if (!listBtn || !gridBtn) return;
+            listBtn.addEventListener('click', () => {
                 this.viewMode = 'list';
                 localStorage.setItem('inventoryViewMode', 'list');
                 this.applyViewMode();
             });
-            
-            gridViewBtn.addEventListener('click', () => {
+            gridBtn.addEventListener('click', () => {
                 this.viewMode = 'grid';
                 localStorage.setItem('inventoryViewMode', 'grid');
                 this.applyViewMode();
             });
-        }
+        };
+
+        bindToggle(document.getElementById('listViewBtn'), document.getElementById('gridViewBtn'));
+        bindToggle(document.getElementById('listViewBtnMobile'), document.getElementById('gridViewBtnMobile'));
     }
     
     applyViewMode() {
-        const listViewBtn = document.getElementById('listViewBtn');
-        const gridViewBtn = document.getElementById('gridViewBtn');
+        const listBtns = [
+            document.getElementById('listViewBtn'),
+            document.getElementById('listViewBtnMobile'),
+        ].filter(Boolean);
+        const gridBtns = [
+            document.getElementById('gridViewBtn'),
+            document.getElementById('gridViewBtnMobile'),
+        ].filter(Boolean);
         const gridViewContainer = document.getElementById('gridViewContainer');
         const listViewContainer = document.getElementById('listViewContainer');
         
         if (this.viewMode === 'list') {
             if (listViewContainer) listViewContainer.style.display = 'block';
             if (gridViewContainer) gridViewContainer.style.display = 'none';
-            if (listViewBtn) listViewBtn.classList.add('active');
-            if (gridViewBtn) gridViewBtn.classList.remove('active');
+            listBtns.forEach((btn) => btn.classList.add('active'));
+            gridBtns.forEach((btn) => btn.classList.remove('active'));
         } else {
             if (gridViewContainer) gridViewContainer.style.display = 'block';
             if (listViewContainer) listViewContainer.style.display = 'none';
-            if (gridViewBtn) gridViewBtn.classList.add('active');
-            if (listViewBtn) listViewBtn.classList.remove('active');
+            gridBtns.forEach((btn) => btn.classList.add('active'));
+            listBtns.forEach((btn) => btn.classList.remove('active'));
         }
         
         // Rendere Produkte neu mit aktuellem View-Mode
@@ -2028,15 +2200,14 @@ class StockManager {
     renderFolderListItem(folder) {
         const productCount = folder.product_count || 0;
         return `
-            <div class="list-group-item list-group-item-action" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
+            <div class="inventory-folder-list-item d-flex align-items-center gap-2 py-2 px-1 border-bottom" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
                 ${this.buildFolderContextMenuHtml(folder)}
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
-                    <div class="flex-grow-1">
-                        <h6 class="mb-0">${this.escapeHtml(folder.name)}</h6>
-                        <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
-                    </div>
+                <i class="bi bi-folder-fill text-warning fs-5"></i>
+                <div class="flex-grow-1 min-width-0">
+                    <div class="fw-medium text-truncate">${this.escapeHtml(folder.name)}</div>
+                    <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
                 </div>
+                <i class="bi bi-chevron-right text-muted"></i>
             </div>
         `;
     }
@@ -2147,19 +2318,12 @@ class BorrowsManager {
     async init() {
         await this.loadBorrows();
         this.renderBorrows();
-        
-        // Auto-Refresh alle 30 Sekunden
         setInterval(() => this.loadBorrows(), 30000);
     }
     
     async loadBorrows() {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const filterMy = urlParams.get('filter') === 'my';
-            
-            const endpoint = filterMy ? '/borrows/my' : '/borrows';
-            const response = await fetchInventoryApi(endpoint);
-            
+            const response = await fetchInventoryApi('/borrows?status=all');
             if (response.ok) {
                 this.borrows = await response.json();
                 this.applyFilters();
@@ -2173,19 +2337,41 @@ class BorrowsManager {
     
     applyFilters() {
         const borrowerFilter = document.getElementById('filterBorrower')?.value.toLowerCase() || '';
+        const eventFilter = document.getElementById('filterEvent')?.value.toLowerCase() || '';
         const productFilter = document.getElementById('filterProduct')?.value.toLowerCase() || '';
-        const statusFilter = document.getElementById('filterStatus')?.value || '';
+        const statusFilter = document.getElementById('filterStatus')?.value || 'all';
+        const mineOnly = document.getElementById('filterMine')?.checked;
+        const dateFrom = document.getElementById('filterDateFrom')?.value || '';
+        const dateTo = document.getElementById('filterDateTo')?.value || '';
+        const uid = window.currentUserId;
         
         this.filteredBorrows = this.borrows.filter(b => {
-            const matchesBorrower = !borrowerFilter || 
+            const matchesBorrower = !borrowerFilter ||
                 (b.borrower_name && b.borrower_name.toLowerCase().includes(borrowerFilter));
-            const matchesProduct = !productFilter || 
+            const matchesEvent = !eventFilter ||
+                (b.event_name && b.event_name.toLowerCase().includes(eventFilter));
+            const matchesProduct = !productFilter ||
                 (b.product_name && b.product_name.toLowerCase().includes(productFilter));
-            const matchesStatus = statusFilter === 'all' || !statusFilter ||
-                (statusFilter === 'active' && !b.is_overdue) ||
-                (statusFilter === 'overdue' && b.is_overdue);
-            
-            return matchesBorrower && matchesProduct && matchesStatus;
+
+            let matchesStatus = true;
+            if (statusFilter === 'active') {
+                matchesStatus = b.status !== 'returned' && !b.is_overdue;
+            } else if (statusFilter === 'overdue') {
+                matchesStatus = !!b.is_overdue;
+            } else if (statusFilter === 'returned') {
+                matchesStatus = b.status === 'returned';
+            }
+
+            const matchesMine = !mineOnly || b.borrower_id === uid || b.created_by === uid;
+
+            let matchesDate = true;
+            if (dateFrom || dateTo) {
+                const d = b.borrow_date ? b.borrow_date.substring(0, 10) : '';
+                if (dateFrom && d && d < dateFrom) matchesDate = false;
+                if (dateTo && d && d > dateTo) matchesDate = false;
+            }
+
+            return matchesBorrower && matchesEvent && matchesProduct && matchesStatus && matchesMine && matchesDate;
         });
         
         this.renderBorrows();
@@ -2204,7 +2390,7 @@ class BorrowsManager {
         if (this.filteredBorrows.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-5">
+                    <td colspan="8" class="text-center py-5">
                         <p class="text-muted">Keine Ausleihen gefunden</p>
                     </td>
                 </tr>
@@ -2212,38 +2398,63 @@ class BorrowsManager {
             return;
         }
         
-        tbody.innerHTML = this.filteredBorrows.map(borrow => `
-            <tr class="${borrow.is_overdue ? 'table-danger' : ''}">
+        tbody.innerHTML = this.filteredBorrows.map(borrow => {
+            let statusBadge = '<span class="badge bg-warning text-dark">Aktiv</span>';
+            if (borrow.status === 'returned') {
+                statusBadge = '<span class="badge bg-secondary">Zurückgegeben</span>';
+            } else if (borrow.is_overdue) {
+                statusBadge = '<span class="badge bg-danger">Überfällig</span>';
+            }
+            const checkoutId = borrow.checkout_id || borrow.id;
+            const isReturned = borrow.status === 'returned';
+            const borrowPdf = resolveInventoryApiUrl(`/borrow/${checkoutId}/pdf`);
+            const returnPdf = resolveInventoryApiUrl(`/borrow/${borrow.id}/return-pdf`);
+            const returnHref = `/inventory/checkout?transaction_number=${encodeURIComponent(borrow.transaction_number)}`;
+
+            const hoverReturn = isReturned
+                ? `<a class="btn btn-sm btn-link" href="${returnPdf}" title="Rückgabeschein" onclick="event.stopPropagation()">
+                        <i class="bi bi-file-earmark-check"></i>
+                   </a>`
+                : `<a class="btn btn-sm btn-link" href="${returnHref}" title="Zurückgeben" onclick="event.stopPropagation()">
+                        <i class="bi bi-arrow-return-left"></i>
+                   </a>`;
+
+            const menuReturn = isReturned
+                ? `<li><a class="dropdown-item" href="${returnPdf}"><i class="bi bi-file-earmark-check me-2"></i>Rückgabeschein</a></li>`
+                : `<li><a class="dropdown-item" href="${returnHref}"><i class="bi bi-arrow-return-left me-2"></i>Zurückgeben</a></li>`;
+
+            return `
+            <tr class="inventory-list-row ${borrow.is_overdue ? 'table-danger' : ''}">
                 <td><code>${borrow.transaction_number}</code></td>
-                <td><strong>${borrow.product_name}</strong></td>
+                <td>${borrow.event_name || '—'}</td>
+                <td><strong>${borrow.product_name || ''}</strong></td>
                 <td>${borrow.borrower_name || 'Unbekannt'}</td>
-                <td>${new Date(borrow.borrow_date).toLocaleDateString('de-DE')}</td>
-                <td>
-                    ${new Date(borrow.expected_return_date).toLocaleDateString('de-DE')}
-                    ${borrow.is_overdue ? '<br><span class="badge bg-danger">Überfällig</span>' : ''}
-                </td>
-                <td>
-                    <span class="badge bg-warning">Aktiv</span>
-                </td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <a href="/inventory/return?transaction_number=${borrow.transaction_number}" 
-                           class="btn btn-sm btn-success" 
-                           title="Zurückgeben">
-                            <i class="bi bi-arrow-return-left"></i> Rückgabe
-                        </a>
-                        <a href="${resolveInventoryApiUrl(`/borrow/${borrow.id}/pdf`)}"
-                           class="btn btn-sm btn-outline-secondary" 
-                           title="Ausleihschein herunterladen">
-                            <i class="bi bi-file-pdf"></i>
-                        </a>
+                <td>${borrow.borrow_date ? new Date(borrow.borrow_date).toLocaleDateString('de-DE') : '—'}</td>
+                <td>${borrow.expected_return_date ? new Date(borrow.expected_return_date).toLocaleDateString('de-DE') : '—'}</td>
+                <td>${statusBadge}</td>
+                <td class="text-end">
+                    <div class="inventory-list-actions">
+                        <div class="inventory-list-hover-actions">
+                            ${hoverReturn}
+                            <a class="btn btn-sm btn-link" href="${borrowPdf}" title="Ausleihschein" onclick="event.stopPropagation()">
+                                <i class="bi bi-file-pdf"></i>
+                            </a>
+                        </div>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="event.stopPropagation()">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                ${menuReturn}
+                                <li><a class="dropdown-item" href="${borrowPdf}"><i class="bi bi-file-pdf me-2"></i>Ausleihschein</a></li>
+                            </ul>
+                        </div>
                     </div>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 }
-
 // Return Manager - Verwaltet die Rückgabe mit QR-Scanner
 class ReturnManager {
     constructor() {
@@ -3012,6 +3223,46 @@ class BorrowScannerManager {
     
     async addToCart(qrCode) {
         console.log('=== addToCart START ===', qrCode);
+        if (window.inventoryScanMode === 'return') {
+            try {
+                const response = await fetch('/inventory/api/return', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ checkout_number: qrCode, transaction_number: qrCode }),
+                });
+                let result = await response.json().catch(() => ({}));
+                if (!response.ok || result.error) {
+                    let productId = null;
+                    const m = String(qrCode).match(/PROD-?(\d+)/i);
+                    if (m) productId = parseInt(m[1], 10);
+                    else if (/^\d+$/.test(String(qrCode).trim())) productId = parseInt(qrCode, 10);
+                    if (productId) {
+                        const r2 = await fetch('/inventory/api/return', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ product_id: productId }),
+                        });
+                        result = await r2.json().catch(() => ({}));
+                        if (!r2.ok || result.error) throw new Error(result.error || 'Rückgabe fehlgeschlagen');
+                    } else {
+                        throw new Error(result.error || 'Rückgabe fehlgeschlagen');
+                    }
+                }
+                const resultEl = document.getElementById('returnScanResult');
+                if (resultEl) {
+                    resultEl.innerHTML = `<div class="alert alert-success mb-0">Rückgabe OK${result.returned_count ? ' (' + result.returned_count + ')' : ''}.</div>`;
+                }
+                this.showSuccess('Rückgabe erfolgreich.');
+                return result;
+            } catch (error) {
+                const resultEl = document.getElementById('returnScanResult');
+                if (resultEl) {
+                    resultEl.innerHTML = `<div class="alert alert-danger mb-0">${error.message || 'Fehler'}</div>`;
+                }
+                this.showError(error.message || 'Rückgabe fehlgeschlagen');
+                throw error;
+            }
+        }
         try {
             const formData = new FormData();
             formData.append('action', 'add_to_cart');
@@ -3045,6 +3296,14 @@ class BorrowScannerManager {
             
             if (result.success) {
                 console.log('=== SERVER ERFOLGREICH ===');
+
+                if (result.is_return) {
+                    const resultEl = document.getElementById('returnScanResult');
+                    const msg = `Rückgabe OK${result.returned_count ? ' (' + result.returned_count + ')' : ''}${result.checkout_number ? ': ' + result.checkout_number : ''}.`;
+                    if (resultEl) resultEl.innerHTML = `<div class="alert alert-success mb-0">${msg}</div>`;
+                    this.showSuccess('Rückgabe erfolgreich.');
+                    return Promise.resolve(result);
+                }
                 
                 // Zeige Modal für Sets
                 if (result.is_set) {
@@ -3264,21 +3523,11 @@ class BorrowScannerManager {
     }
     
     ensureCheckoutForm(cartCount) {
-        // Stelle sicher, dass das Checkout-Formular vorhanden ist, wenn Produkte im Warenkorb sind
         const checkoutForm = document.getElementById('checkoutForm');
-        if (!checkoutForm && cartCount > 0) {
-            // Warte bis updateCartFromJSON vollständig fertig ist
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    const checkoutFormNow = document.getElementById('checkoutForm');
-                    if (!checkoutFormNow) {
-                        console.log('Lade Checkout-Formular für', cartCount, 'Produkte...');
-                        this.loadCheckoutForm().catch(err => {
-                            console.error('Checkout-Formular konnte nicht geladen werden:', err);
-                        });
-                    }
-                });
-            });
+        if (!checkoutForm) return;
+        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = !(cartCount > 0);
         }
     }
     
@@ -3960,7 +4209,11 @@ let borrowScannerManager;
 
 // Markiere Produkt als gefunden (Status: available)
 async function markAsFound(productId) {
-    if (!confirm('Möchten Sie dieses Produkt als gefunden markieren?')) {
+    if (!(await inventoryConfirm('Möchten Sie dieses Produkt als gefunden markieren?', {
+        title: 'Als gefunden markieren',
+        confirmLabel: 'Markieren',
+        danger: false,
+    }))) {
         return;
     }
     
@@ -3975,20 +4228,24 @@ async function markAsFound(productId) {
         
         const result = await response.json();
         if (response.ok) {
-            alert('Produkt wurde als gefunden markiert.');
+            inventoryNotify('Produkt wurde als gefunden markiert.', 'success');
             window.location.reload();
         } else {
-            alert('Fehler beim Aktualisieren des Status.');
+            inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
         }
     } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Aktualisieren des Status.');
+        inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
     }
 }
 
 // Markiere Produkt als fehlend (Status: missing)
 async function markAsMissing(productId) {
-    if (!confirm('Möchten Sie dieses Produkt als fehlend markieren?')) {
+    if (!(await inventoryConfirm('Möchten Sie dieses Produkt als fehlend markieren?', {
+        title: 'Als fehlend markieren',
+        confirmLabel: 'Markieren',
+        danger: true,
+    }))) {
         return;
     }
     
@@ -4003,14 +4260,14 @@ async function markAsMissing(productId) {
         
         const result = await response.json();
         if (response.ok) {
-            alert('Produkt wurde als fehlend markiert.');
+            inventoryNotify('Produkt wurde als fehlend markiert.', 'success');
             window.location.reload();
         } else {
-            alert('Fehler beim Aktualisieren des Status.');
+            inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
         }
     } catch (error) {
         console.error('Fehler:', error);
-        alert('Fehler beim Aktualisieren des Status.');
+        inventoryNotify('Fehler beim Aktualisieren des Status.', 'danger');
     }
 }
 

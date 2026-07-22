@@ -1,14 +1,11 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Produktordner - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-folder{% endblock %}
+{% block inventory_heading %}Produktordner{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-folder"></i> Produktordner</h1>
-    </div>
-</div>
 
+{% block inventory_content %}
 <div class="row">
     <div class="col-12 col-lg-4 mb-4">
         <div class="card">
@@ -83,9 +80,9 @@
                                 </td>
                                 <td>
                                     <form method="POST" action="{{ url_for('inventory.folder_delete', folder_id=folder.id) }}" 
-                                          style="display: inline;" 
-                                          onsubmit="return confirm('Möchten Sie den Ordner \"{{ folder.name }}\" wirklich löschen? Produkte in diesem Ordner werden nicht gelöscht, sondern nur der Ordnerzuweisung entfernt.');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                          style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                data-confirm-delete="Möchten Sie den Ordner &quot;{{ folder.name }}&quot; wirklich löschen? Produkte in diesem Ordner werden nicht gelöscht, sondern nur der Ordnerzuweisung entfernt.">
                                             <i class="bi bi-trash"></i> Löschen
                                         </button>
                                     </form>

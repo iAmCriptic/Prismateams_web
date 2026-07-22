@@ -839,6 +839,7 @@ body.files-dnd-dragging .folder-item {
     display: flex;
     align-items: flex-start;
     gap: 1.25rem;
+    position: relative;
 }
 .files-sidebar {
     width: 240px;
@@ -849,6 +850,13 @@ body.files-dnd-dragging .folder-item {
     overflow: visible;
     padding: 0 0.35rem 1.25rem;
     margin-top: 0;
+    /* Über .files-main legen, sonst schneidet Content das NEU-Menü ab */
+    z-index: 40;
+}
+.files-main {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
 }
 .files-sidebar-brand {
     display: flex;
@@ -870,7 +878,7 @@ body.files-dnd-dragging .folder-item {
     margin-top: 0;
     margin-bottom: 1.75rem;
     overflow: visible;
-    z-index: 30;
+    z-index: 50;
 }
 .files-sidebar-new {
     border-radius: 1.5rem;
@@ -900,6 +908,7 @@ body.files-dnd-dragging .folder-item {
     overflow: visible !important;
     z-index: 1080 !important;
     transform: none !important;
+    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.18);
 }
 .files-sidebar-new-menu .dropdown-item {
     white-space: nowrap;
@@ -935,6 +944,34 @@ body.files-dnd-dragging .folder-item {
     line-height: 1;
     opacity: 0.95;
 }
+.files-path-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+.files-path-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.85;
+}
+.files-path-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.files-path-nav .breadcrumb {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+.files-path-nav .breadcrumb-item {
+    white-space: nowrap;
+}
 .files-back-row {
     display: flex;
     justify-content: flex-start;
@@ -955,6 +992,17 @@ body.files-dnd-dragging .folder-item {
     align-items: center;
     gap: 0.4rem;
     font-weight: 600;
+}
+.files-mobile-path {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+.files-mobile-path-text {
+    min-width: 0;
 }
 .files-mobile-menu-btn {
     flex-shrink: 0;

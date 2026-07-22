@@ -1,14 +1,11 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Mehrere Produkte ausleihen - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-box-arrow-right{% endblock %}
+{% block inventory_heading %}Mehrere Produkte ausleihen{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> Mehrere Produkte ausleihen</h1>
-    </div>
-</div>
 
+{% block inventory_content %}
 <div class="row">
     <div class="col-12 col-lg-6">
         <div class="card">
@@ -86,7 +83,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('borrowForm');
@@ -104,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedDate <= today) {
             e.preventDefault();
-            alert('Das Rückgabedatum muss in der Zukunft liegen.');
+            if (window.showAppBanner) window.showAppBanner('Das Rückgabedatum muss in der Zukunft liegen.', 'warning');
             return false;
         }
         
@@ -133,14 +130,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fehler
                 const text = await response.text();
                 if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
-                    alert('Bitte überprüfen Sie Ihre Eingaben.');
+                    if (window.showAppBanner) window.showAppBanner('Bitte überprüfen Sie Ihre Eingaben.', 'warning');
                 } else {
                     window.location.href = '/inventory/';
                 }
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.');
+            if (window.showAppBanner) window.showAppBanner('Fehler bei der Ausleihe. Bitte versuchen Sie es erneut.', 'danger');
         }
     });
 });

@@ -13,7 +13,7 @@
         <i class="bi bi-chat-dots" aria-hidden="true"></i>
         <span>{{ _('chat.index.heading') }}</span>
     </div>
-    <a href="{{ url_for('chat.create_chat') }}" class="btn chat-sidebar-new">
+    <a href="{{ url_for('chat.create_chat') }}" class="btn chat-sidebar-new rounded-pill">
         <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
     </a>
     <div class="chat-sidebar-nav flex-grow-1 min-width-0">
@@ -284,6 +284,7 @@
         </div>
     </div>
     
+    <div class="chat-messages-column">
     <div class="messages-area" id="messages-container" style="display: flex; flex-direction: column; min-height: 200px;">
         {% if messages %}
             {% for message in messages %}
@@ -493,8 +494,35 @@
                 </div>
             </div>
         {% endif %}
+    </div><!-- /messages-area -->
+
+<!-- Desktop Message Input - only under messages column -->
+<div class="chat-input-container chat-input-desktop d-none d-md-block">
+    <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
+        <div class="input-group">
+            <button class="btn btn-outline-secondary" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
+                <i class="bi bi-paperclip"></i>
+            </button>
+            <button class="btn btn-outline-secondary" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
+                <i class="bi bi-mic" id="mic-icon-desktop"></i>
+            </button>
+            <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
+            <input type="text" id="message-input-desktop" class="form-control" name="content" placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
+            <button class="btn btn-accent" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
+                <i class="bi bi-send"></i>
+            </button>
+        </div>
+        <small class="text-muted" id="file-name-desktop"></small>
+    </form>
+    <div class="attachment-popup shadow-sm">
+        <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
+        <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
     </div>
 </div>
+    </div><!-- /chat-messages-column -->
+</div><!-- /chat-container -->
 
 <!-- Mobile Message Input - New Design -->
 <div class="chat-input-container d-md-none">
@@ -516,32 +544,6 @@
         <div class="file-info mt-2" id="file-info" style="display: none;">
             <small class="text-muted" id="file-name"></small>
         </div>
-    </form>
-    <div class="attachment-popup shadow-sm">
-        <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>
-        <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
-        <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
-        <button type="button" class="btn attachment-action" data-attachment-action="poll"><i class="bi bi-bar-chart me-2"></i>Abstimmung</button>
-    </div>
-</div>
-
-<!-- Desktop Message Input -->
-<div class="chat-input-container d-none d-md-block">
-    <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
-        <div class="input-group">
-            <button class="btn btn-outline-secondary" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
-                <i class="bi bi-paperclip"></i>
-            </button>
-            <button class="btn btn-outline-secondary" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
-                <i class="bi bi-mic" id="mic-icon-desktop"></i>
-            </button>
-            <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
-            <input type="text" id="message-input-desktop" class="form-control" name="content" placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
-            <button class="btn btn-accent" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
-                <i class="bi bi-send"></i>
-            </button>
-        </div>
-        <small class="text-muted" id="file-name-desktop"></small>
     </form>
     <div class="attachment-popup shadow-sm">
         <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>

@@ -219,14 +219,40 @@
       "prev": "Back",
       "next": "Next",
       "modules": {
+        "general": {
+          "title": "General",
+          "teaser": "Accent colors & alerts",
+          "items": {
+            "accent": "Accent colors were fixed and are applied more consistently than before.",
+            "alerts": "Adjusted alert bubbles to cause less layout shift."
+          }
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "teaser": "What's new",
+          "items": {
+            "whats_new": "\"What's new\" to announce news for each version."
+          }
+        },
+        "chat": {
+          "title": "Chats",
+          "teaser": "Design update",
+          "items": {
+            "design": "Design update."
+          }
+        },
         "files": {
           "title": "Files",
-          "teaser": "Design, private, upload & favorites",
+          "teaser": "Design, limits & admin",
           "items": {
             "design": "Design refresh for a clearer, more modern file overview.",
             "private": "Private files and internal sharing within the team.",
             "upload": "Upload progress display for better feedback while uploading.",
-            "favorites": "Save up to 10 folders as favorites."
+            "favorites": "Save up to 10 folders as favorites.",
+            "fixes": "Bug fixes and corrections.",
+            "admin_settings": "New settings options for administrators.",
+            "upload_limit": "Uploads larger than 10 MB possible – depending on administrator settings.",
+            "user_quota": "Option to set an overall storage limit per user."
           }
         },
         "calendar": {
@@ -240,11 +266,13 @@
             "fixes": "Bug fixes and improvements."
           }
         },
-        "media_downloader": {
-          "title": "Media Download",
-          "teaser": "Stability & improvements",
+        "events": {
+          "title": "Events",
+          "teaser": "Design & PDF",
           "items": {
-            "fixes": "Bug fixes and improvements."
+            "design": "Design update.",
+            "pdf": "Adjustments to PDF generation.",
+            "fixes": "Adjustments and bug fixes."
           }
         },
         "email": {
@@ -256,11 +284,11 @@
             "mobile_nav": "Mobile navigation fixes."
           }
         },
-        "general": {
-          "title": "General",
-          "teaser": "Accent colors",
+        "contacts": {
+          "title": "Contacts",
+          "teaser": "Design & fixes",
           "items": {
-            "accent": "Accent colors were fixed and are applied more consistently than before."
+            "design": "Design update and bug fixes."
           }
         },
         "credentials": {
@@ -270,18 +298,28 @@
             "design": "Design update."
           }
         },
-        "chat": {
-          "title": "Chats",
-          "teaser": "Design update",
+        "manuals": {
+          "title": "Manuals",
+          "teaser": "Design & fixes",
           "items": {
-            "design": "Design update."
+            "design": "Design adjustments.",
+            "fixes": "Bug fixes and corrections."
           }
         },
-        "dashboard": {
-          "title": "Dashboard",
-          "teaser": "What's new",
+        "inventory": {
+          "title": "Inventory",
+          "teaser": "Design, borrow & colors",
           "items": {
-            "whats_new": "\"What's new\" to announce news for each version."
+            "design": "Design adjustments.",
+            "borrow": "Adjustments to borrow/return functions.",
+            "colors": "Color codes with improved readability for small size differences."
+          }
+        },
+        "media_downloader": {
+          "title": "Media Download",
+          "teaser": "Stability & improvements",
+          "items": {
+            "fixes": "Bug fixes and improvements."
           }
         }
       }
@@ -2309,7 +2347,10 @@
     "index": {
       "page_title": "Contacts - Team Portal",
       "heading": "Contacts",
-      "new_button": "New Contact",
+      "new_button": "New",
+      "nav": {
+        "menu": "Contacts menu"
+      },
       "filters": {
         "menu_button": "Filter",
         "name": "Filter name",
@@ -2357,7 +2398,11 @@
       "actions": {
         "edit": "Edit",
         "column": "Actions",
-        "delete_confirm": "Delete this contact?"
+        "delete_confirm": "Delete this contact?",
+        "copy_name": "Copy name",
+        "copy_email": "Copy email",
+        "copy_phone": "Copy phone number",
+        "write_mail": "Write email"
       },
       "empty_message": "No contacts available."
     },
@@ -2411,19 +2456,60 @@
       "uploaded": "Manual \"{title}\" has been uploaded.",
       "file_not_found": "The manual file could not be found.",
       "delete_admin_only": "Only administrators can delete manuals.",
-      "deleted": "Manual \"{title}\" has been deleted."
+      "deleted": "Manual \"{title}\" has been deleted.",
+      "folder_admin_only": "Only administrators can manage folders.",
+      "folder_name_required": "Please enter a folder name.",
+      "folder_created": "Folder \"{folder_name}\" has been created.",
+      "folder_renamed": "Folder \"{folder_name}\" has been renamed.",
+      "folder_deleted": "Folder \"{folder_name}\" has been deleted. Manuals were moved to All manuals."
     },
     "index": {
       "page_title": "Manuals - Team Portal",
       "heading": "Manuals",
+      "new_button": "New",
       "upload_button": "Upload manual",
+      "nav": {
+        "menu": "Folder menu"
+      },
+      "dropdown": {
+        "upload": "Upload PDF"
+      },
+      "view_toggle": {
+        "label": "Toggle view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "list": {
+        "name": "Name",
+        "size": "Size",
+        "date": "Date"
+      },
       "actions": {
         "view": "View",
+        "download": "Download",
         "delete_confirm": "Delete this manual?"
       },
       "empty": {
         "message": "No manuals available.",
         "hint": "Upload the first manual!"
+      },
+      "messages": {
+        "move_error": "Could not move the manual."
+      },
+      "folders": {
+        "modal_title": "Create new folder",
+        "rename_modal_title": "Edit folder",
+        "name": "Folder name",
+        "color": "Color",
+        "create": "Create folder",
+        "rename": "Rename",
+        "delete": "Delete folder",
+        "delete_confirm": "Delete folder? Manuals will be moved to All manuals.",
+        "root": "All manuals",
+        "drop_hint": "Drag cards onto folders",
+        "root_empty": "No manuals without a folder.",
+        "empty": "This folder is empty.",
+        "move_up": "Move folder up"
       }
     },
     "upload": {
@@ -2436,6 +2522,8 @@
       "form": {
         "title": "Title",
         "title_placeholder": "e.g. User guide",
+        "folder": "Folder",
+        "root_folder": "All manuals (no folder)",
         "file": "PDF file",
         "file_help": "Only PDF files are allowed"
       },
@@ -2443,30 +2531,56 @@
         "submit": "Upload",
         "cancel": "Cancel"
       }
+    },
+    "view": {
+      "page_title_suffix": "Manuals",
+      "download": "Download",
+      "close": "Close",
+      "iframe_title": "PDF viewer"
     }
   },
   "inventory": {
+    "shell": {
+      "brand": "Inventory",
+      "new_button": "New",
+      "new": {
+        "product": "New product",
+        "set": "New set"
+      },
+      "nav": {
+        "menu": "Menu",
+        "overview": "Overview",
+        "stock": "Stock & equipment",
+        "quick_scan": "Quick Scan",
+        "checkout": "Borrow / Return",
+        "borrows": "Loan history",
+        "return": "Return",
+        "sets": "Product sets",
+        "inventory_tool": "Inventory count",
+        "print_qr": "QR / Labels",
+        "statistics": "Statistics"
+      },
+      "view_toggle": {
+        "label": "Toggle view",
+        "list": "List view",
+        "grid": "Grid view"
+      }
+    },
     "dashboard": {
       "page_title": "Inventory - Team Portal",
-      "heading": "Inventory",
-      "subtitle": "Manage your inventory and loans",
-      "cards": {
-        "stock": {
-          "title": "Stock",
-          "description": "Overview of all products"
-        },
-        "borrow": {
-          "title": "Borrow",
-          "description": "Scan and borrow products"
-        },
-        "return": {
-          "title": "Return",
-          "description": "Return borrowed items"
-        }
+      "heading": "Overview",
+      "subtitle": "Quick stats and current loans",
+      "stats": {
+        "total": "Total stock",
+        "available": "Available",
+        "borrowed": "On loan",
+        "defective": "Defect / repair",
+        "overdue": "Overdue"
       },
       "my_borrows": {
         "title": "My current loans",
         "show_all": "Show all",
+        "empty": "No active loans",
         "table": {
           "product": "Product",
           "borrow_date": "Borrow date",
@@ -2479,15 +2593,6 @@
           "return_button": "Return",
           "download_receipt": "Download receipt"
         }
-      },
-      "more_functions": {
-        "title": "More functions",
-        "my_borrows": "My loans",
-        "all_borrows": "All loans",
-        "print_qr": "Print QR codes",
-        "inventory_tool": "Inventory tool",
-        "statistics": "Statistics",
-        "sets": "Product sets"
       }
     },
     "stock": {
@@ -2550,6 +2655,14 @@
       "views": {
         "list": "List view",
         "grid": "Grid view"
+      },
+      "list": {
+        "name": "Name",
+        "status": "Status",
+        "category": "Category",
+        "location": "Location",
+        "serial": "Serial number",
+        "actions": "Actions"
       },
       "modals": {
         "product_details": {
@@ -2795,6 +2908,15 @@
       "no_file_selected": "No file selected.",
       "document_uploaded": "Document \"{filename}\" has been uploaded successfully.",
       "invalid_request": "Invalid request.",
+      "event_name_required": "Please enter project / event name.",
+      "borrower_name_required": "Please enter responsible person / technician.",
+      "contact_email_required": "Please enter a contact email (no portal user selected).",
+      "contact_email_invalid": "Invalid contact email.",
+      "end_date_required": "Please enter a return date.",
+      "product_added_to_cart": "Product was added to the borrow cart.",
+      "borrow_failed": "Borrow failed.",
+      "no_available_products": "No available products in cart.",
+      "end_before_start": "End date is before start date.",
       "document_deleted": "Document \"{filename}\" has been deleted successfully.",
       "file_not_found": "The file could not be found.",
       "fill_all_fields": "Please fill in all fields.",

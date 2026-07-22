@@ -56,12 +56,16 @@
     {% if request.endpoint %}
         {% if 'chat' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
-        {% elif 'calendar' in request.endpoint or 'events' in request.endpoint %}
+        {% elif 'events' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/events.css') }}">
+        {% elif 'calendar' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
         {% elif 'files' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
         {% elif 'credentials' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/credentials.css') }}">
+        {% elif 'manuals' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
         {% elif 'email' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/email.css') }}">
         {% elif 'contacts' in request.endpoint %}
@@ -72,10 +76,10 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
         {% elif 'errors' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
-        {% elif 'dashboard' in request.endpoint %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% elif 'inventory' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
+        {% elif 'dashboard' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}
     {% endif %}
     {% if current_user.is_authenticated %}
@@ -663,16 +667,18 @@
     <!-- Main Content -->
     <main class="{% if current_user.is_authenticated %}main-content{% endif %}">
         <div class="container-fluid py-3">
-            <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten) -->
+            <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten / Inventar-Shell) -->
             {% if current_user.is_authenticated %}
                 {% set index_endpoints = [
                     'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'files.browse_folder', 'calendar.index',
-                    'events.index', 'events.my_events', 'events.people_overview', 'email.index', 'email.folder_view',
+                    'events.index', 'events.overview', 'events.my_events', 'events.archive', 'events.people_overview',
+                    'email.index', 'email.folder_view',
                     'contacts.index', 'credentials.index', 'manuals.index', 'inventory.dashboard', 'wiki.index',
                     'shortlinks.index', 'booking.requests', 'music.index', 'settings.index',
                     'assessment.general.home'
                 ] %}
-                {% if request.endpoint not in index_endpoints %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and request.endpoint.startswith('inventory.')) %}
+                {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
                         <i class="bi bi-arrow-left"></i> {{ _('layout.nav.back') }}
@@ -681,18 +687,20 @@
                 {% endif %}
             {% endif %}
             
-            <!-- Flash / App Banner Messages -->
-            <div id="appFlashBanner" class="app-flash-banner" aria-live="polite" aria-atomic="true"></div>
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+            <!-- Flash / App Banner Messages (fixed overlay — does not push content) -->
+            <div id="appFlashBanner" class="app-flash-banner" aria-live="polite" aria-atomic="true">
+                {% block portal_alerts %}{% endblock %}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
             
             <!-- Page Content -->
             {% block content %}{% endblock %}

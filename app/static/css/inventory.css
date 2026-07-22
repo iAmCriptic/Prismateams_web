@@ -1,6 +1,6 @@
-/* Touch-optimierte Styles für Mobile/PWA */
+/* Touch-optimierte Styles f?r Mobile/PWA */
 
-/* Größere Touch-Targets für Mobile */
+/* Gr??ere Touch-Targets f?r Mobile */
 @media (max-width: 768px) {
     .btn {
         min-height: 44px; /* Apple HIG empfiehlt mindestens 44x44px */
@@ -12,7 +12,7 @@
         padding: 0.375rem 0.75rem;
     }
     
-    /* Größere Produktkarten für bessere Touch-Interaktion */
+    /* Gr??ere Produktkarten f?r bessere Touch-Interaktion */
     .product-card {
         margin-bottom: 1rem;
         transition: transform 0.2s, box-shadow 0.2s;
@@ -23,24 +23,24 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    /* Größere Icons für Touch */
+    /* Gr??ere Icons f?r Touch */
     .bi {
         font-size: 1.2em;
     }
     
-    /* Größere Formular-Elemente */
+    /* Gr??ere Formular-Elemente */
     .form-control, .form-select {
         min-height: 44px;
         font-size: 16px; /* Verhindert Zoom auf iOS */
     }
     
-    /* Größere Checkboxen */
+    /* Gr??ere Checkboxen */
     .form-check-input {
         width: 1.5rem;
         height: 1.5rem;
     }
     
-    /* Größere Dropdown-Menüs */
+    /* Gr??ere Dropdown-Men?s */
     .dropdown-menu {
         font-size: 1rem;
     }
@@ -55,7 +55,7 @@
         -webkit-overflow-scrolling: touch;
     }
     
-    /* Größere Modals für Mobile */
+    /* Gr??ere Modals f?r Mobile */
     .modal-dialog {
         margin: 0.5rem;
     }
@@ -69,7 +69,7 @@
         padding: 1rem;
     }
     
-    /* Größere Badges */
+    /* Gr??ere Badges */
     .badge {
         font-size: 0.875rem;
         padding: 0.5em 0.75em;
@@ -80,7 +80,7 @@
         padding: 0.75rem 1rem;
     }
     
-    /* Größere QR-Scanner Buttons */
+    /* Gr??ere QR-Scanner Buttons */
     #startScanBtn, #stopScanBtn {
         min-width: 150px;
         min-height: 50px;
@@ -106,13 +106,13 @@
     transform: scale(1.15);
 }
 
-/* Touch-Feedback für Buttons */
+/* Touch-Feedback f?r Buttons */
 .btn:active {
     transform: scale(0.95);
     transition: transform 0.1s;
 }
 
-/* Smooth Scrolling für Mobile */
+/* Smooth Scrolling f?r Mobile */
 html {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
@@ -139,14 +139,14 @@ html {
 
 /* PWA-spezifische Styles */
 @media (display-mode: standalone) {
-    /* Zusätzliche Styles für installierte PWA */
+    /* Zus?tzliche Styles f?r installierte PWA */
     body {
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
     }
 }
 
-/* Verbesserte Produktkarten für Touch */
+/* Verbesserte Produktkarten f?r Touch */
 .product-card {
     cursor: pointer;
     user-select: none;
@@ -234,13 +234,13 @@ html {
     user-select: none;
 }
 
-/* Verbesserte Formulare für Touch */
+/* Verbesserte Formulare f?r Touch */
 .form-label {
     font-weight: 500;
     margin-bottom: 0.5rem;
 }
 
-/* Größere Input-Gruppen für Mobile */
+/* Gr??ere Input-Gruppen f?r Mobile */
 .input-group .form-control {
     min-height: 44px;
 }
@@ -250,7 +250,7 @@ html {
     margin-left: 0.5em;
 }
 
-/* Verbesserte Modals für Touch */
+/* Verbesserte Modals f?r Touch */
 .modal-content {
     border-radius: 12px;
 }
@@ -328,7 +328,7 @@ html {
     -webkit-overflow-scrolling: touch;
 }
 
-/* Verbesserte Buttons für Touch */
+/* Verbesserte Buttons f?r Touch */
 .btn-group .btn {
     min-width: 44px;
 }
@@ -416,7 +416,7 @@ html {
     border-color: #0d6efd;
 }
 
-/* Loading States für Touch */
+/* Loading States f?r Touch */
 .spinner-border {
     width: 3rem;
     height: 3rem;
@@ -443,7 +443,7 @@ html {
     border: 1px solid var(--bs-alert-border-color) !important;
 }
 
-/* Verbesserte Navigation für Touch */
+/* Verbesserte Navigation f?r Touch */
 .navbar-brand {
     font-size: 1.25rem;
 }
@@ -513,7 +513,7 @@ html {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Produktbilder - Feste Größe für konsistentes Layout */
+/* Produktbilder - Feste Gr??e f?r konsistentes Layout */
 .product-image {
     width: 100%;
     height: 200px;
@@ -529,7 +529,7 @@ html {
     border: 1px solid #1a1a1a !important;
 }
 
-/* Platzhalter für Produktbilder */
+/* Platzhalter f?r Produktbilder */
 .product-image-placeholder {
     width: 100%;
     height: 200px;
@@ -561,4 +561,362 @@ html {
     max-height: 400px;
     object-fit: contain;
     border-radius: 8px;
+}
+
+/* Inventory shell ? mirrors manuals/files layout */
+.inventory-shell--nav {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.inventory-sidebar {
+    width: 260px;
+    max-width: 260px;
+    flex: 0 0 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 1rem;
+    overflow: visible;
+    padding: 0 0.35rem 1.25rem;
+    box-sizing: border-box;
+}
+
+.inventory-sidebar-brand {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    padding: 0.15rem 0.35rem 1rem;
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: inherit;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.inventory-sidebar-brand > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.inventory-sidebar-brand .bi {
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    opacity: 0.95;
+}
+
+.inventory-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.inventory-sidebar-new-wrap {
+    position: relative;
+    margin-top: 0;
+    margin-bottom: 1.75rem;
+    overflow: visible;
+    z-index: 30;
+}
+
+.inventory-sidebar-new {
+    border-radius: 1.5rem;
+    border: none;
+    font-weight: 600;
+    padding: 0.7rem 1.1rem;
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
+}
+
+.inventory-sidebar-new:hover,
+.inventory-sidebar-new:focus {
+    filter: brightness(1.08);
+    color: #fff !important;
+}
+
+.inventory-sidebar-new-menu {
+    position: absolute !important;
+    inset: auto auto auto 0 !important;
+    top: calc(100% + 0.4rem) !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    min-width: max(100%, 16.5rem);
+    width: max-content;
+    max-width: min(22rem, 90vw);
+    max-height: none !important;
+    overflow: visible !important;
+    z-index: 1080 !important;
+    transform: none !important;
+}
+
+.inventory-sidebar-new-menu .dropdown-item {
+    white-space: nowrap;
+}
+
+.inventory-sidebar-nav {
+    margin-top: 0.25rem;
+    padding-top: 0.35rem;
+}
+
+.inventory-nav-link {
+    display: flex;
+    align-items: center;
+    border-radius: 1.5rem;
+    color: inherit;
+    padding: 0.55rem 1rem;
+    min-width: 0;
+}
+
+.inventory-nav-link:hover {
+    background: rgba(127, 127, 127, 0.12);
+}
+
+.inventory-nav-link.active {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+    color: var(--accent-color, #0d6efd);
+    font-weight: 600;
+}
+
+.inventory-new-wrap {
+    position: relative;
+    overflow: visible;
+    z-index: 30;
+}
+
+.inventory-new-btn {
+    border-radius: 1.5rem;
+    border: none;
+    font-weight: 600;
+    padding: 0.55rem 1.1rem;
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
+}
+
+.inventory-new-btn:hover,
+.inventory-new-btn:focus {
+    filter: brightness(1.08);
+    color: #fff !important;
+}
+
+.inventory-new-menu {
+    position: absolute !important;
+    inset: auto auto auto 0 !important;
+    top: calc(100% + 0.4rem) !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    min-width: max(100%, 14rem);
+    width: max-content;
+    max-width: min(22rem, 90vw);
+    max-height: none !important;
+    overflow: visible !important;
+    z-index: 1080 !important;
+    transform: none !important;
+}
+
+.inventory-view-toggle .btn {
+    padding: 0.35rem 0.7rem;
+}
+
+.inventory-view-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.35rem !important;
+}
+
+.inventory-view-heading .bi {
+    font-size: 1.2rem;
+    line-height: 1;
+    opacity: 0.95;
+}
+
+.inventory-mobile-topbar {
+    padding: 0.15rem 0;
+}
+
+.inventory-mobile-topbar .inventory-mobile-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+}
+
+.inventory-mobile-actions:empty {
+    display: none;
+}
+
+.inventory-mobile-topbar .inventory-new-btn {
+    white-space: nowrap;
+}
+
+.inventory-mobile-topbar .inventory-new-menu {
+    inset: auto 0 auto auto !important;
+    left: auto !important;
+    right: 0 !important;
+}
+
+.inventory-mobile-view-toggle {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.inventory-mobile-view-toggle .inventory-view-toggle .btn {
+    padding: 0.3rem 0.65rem;
+}
+
+.inventory-stats-card {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.06);
+    height: 100%;
+}
+
+.inventory-stats-card .stats-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.inventory-stats-card .stats-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+@media (max-width: 991.98px) {
+    .inventory-shell--nav {
+        display: block;
+    }
+
+    .inventory-sidebar {
+        width: auto;
+        max-width: none;
+        flex: none;
+    }
+
+    .inventory-mobile-offcanvas {
+        width: 280px;
+        max-width: 85vw;
+        z-index: 1080;
+    }
+
+    .inventory-mobile-offcanvas .inventory-sidebar-new-wrap {
+        margin-bottom: 1rem;
+    }
+
+    .inventory-mobile-offcanvas .inventory-sidebar-new-menu {
+        position: static !important;
+        inset: auto !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        margin-top: 0.35rem;
+        box-shadow: none;
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    }
+}
+/* Inventory list view ? mirrors files list */
+.inventory-list-table-wrap {
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+.inventory-list-table {
+    margin: 0;
+    table-layout: fixed;
+    width: 100%;
+    background: transparent !important;
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: transparent;
+    --bs-table-hover-bg: rgba(127, 127, 127, 0.08);
+    border-color: transparent;
+}
+
+.inventory-list-table > :not(caption) > * > * {
+    background-color: transparent !important;
+    border-bottom-color: var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+    box-shadow: none !important;
+    vertical-align: middle;
+}
+
+.inventory-list-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    border-top: none;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.35));
+    white-space: nowrap;
+    background: transparent !important;
+}
+
+.inventory-list-table tbody tr:last-child > * {
+    border-bottom: none;
+}
+
+.inventory-list-name {
+    color: inherit !important;
+    font-weight: 500;
+    max-width: 100%;
+}
+
+.inventory-list-name:hover {
+    color: var(--accent-color, #0d6efd) !important;
+}
+
+.inventory-list-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.15rem;
+    min-height: 2rem;
+    min-width: 9.5rem;
+}
+
+.inventory-list-hover-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.inventory-list-row:hover .inventory-list-hover-actions {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.inventory-list-row.selection-mode {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+}
+
+.inventory-list-row.selection-mode > * {
+    background: transparent !important;
+}
+
+@media (max-width: 991.98px) {
+    .inventory-list-hover-actions {
+        display: none !important;
+    }
+
+    .inventory-list-actions {
+        min-width: 2.5rem;
+    }
 }

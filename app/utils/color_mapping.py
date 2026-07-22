@@ -1,238 +1,136 @@
-"""Farbzuordnungs-Logik für Längen in QR-Code-Labels."""
+"""Farbzuordnungs-Logik für Längen in QR-Code-Labels.
+
+Nahe Längen bekommen bewusst weit auseinanderliegende Farbtöne (Hue),
+damit z.B. 1 m und 1,5 m gut unterscheidbar bleiben.
+"""
 
 import colorsys
-from typing import Dict, Optional
+from typing import Dict, List, Optional
+
 from app import db
 from app.models.inventory import Product, LengthColorMapping
 from app.utils.lengths import parse_length_to_meters
 
 
-def generate_color_for_index(index: int, total: int) -> str:
-    """
-    Generiert eine eindeutige Farbe basierend auf dem Index.
-    Verwendet HSL-Farbraum für maximale Unterscheidbarkeit.
-    
-    Args:
-        index: Index der Farbe (0-basiert)
-        total: Gesamtanzahl der Farben
-    
-    Returns:
-        Hex-Farbcode (z.B. "#FF0000")
-    """
-    if total == 0:
-        return "#000000"
-    
-    # Verwende HSL-Farbraum für gleichmäßige Verteilung
-    # Hue: 0-360 Grad (Farbton)
-    # Saturation: 70-100% (Sättigung)
-    # Lightness: 40-60% (Helligkeit)
-    
-    hue = (index * 360.0 / total) % 360
-    saturation = 70 + (index % 3) * 10  # 70, 80, 90%
-    lightness = 45 + (index % 2) * 10  # 45, 55%
-    
-    # Konvertiere HSL zu RGB
-    rgb = colorsys.hls_to_rgb(hue / 360.0, lightness / 100.0, saturation / 100.0)
-    
-    # Konvertiere zu Hex
-    r, g, b = [int(x * 255) for x in rgb]
-    return f"#{r:02X}{g:02X}{b:02X}"
+GOLDEN_ANGLE = 137.50776405003785  # Grad
 
 
-def get_or_create_color_mapping(length_meters: float) -> str:
-    """
-    Holt die Farbe für eine Länge oder erstellt eine neue Zuordnung.
-    
-    Args:
-        length_meters: Länge in Metern
-    
-    Returns:
-        Hex-Farbcode
-    """
-    if length_meters is None:
-        return "#000000"
-    
-    # Runde auf 2 Dezimalstellen für Konsistenz
-    length_meters = round(float(length_meters), 2)
-    
-    # Prüfe ob Zuordnung bereits existiert
-    mapping = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
-    
-    if mapping:
-        return mapping.color_hex
-    
-    # Erstelle neue Zuordnung
-    # Hole alle vorhandenen Längen für Farbverteilung
-    all_lengths = db.session.query(Product.length).distinct().all()
+def _collect_sorted_lengths(extra: Optional[float] = None) -> List[float]:
     all_lengths_meters = []
-    for length_tuple in all_lengths:
+    for length_tuple in db.session.query(Product.length).distinct().all():
         if length_tuple[0]:
             meters = parse_length_to_meters(length_tuple[0])
             if meters is not None:
                 all_lengths_meters.append(round(meters, 2))
-    
-    # Entferne Duplikate und sortiere
-    all_lengths_meters = sorted(set(all_lengths_meters))
-    
-    # Finde Index der aktuellen Länge
-    try:
-        index = all_lengths_meters.index(length_meters)
-    except ValueError:
-        # Falls Länge nicht in Liste, füge hinzu und sortiere neu
-        all_lengths_meters.append(length_meters)
-        all_lengths_meters = sorted(all_lengths_meters)
-        index = all_lengths_meters.index(length_meters)
-    
-    # Generiere Farbe basierend auf Index
-    color = generate_color_for_index(index, len(all_lengths_meters))
-    
-    # Speichere Zuordnung mit Fehlerbehandlung für Race Conditions
-    from sqlalchemy.exc import IntegrityError
-    
-    try:
-        # Verwende no_autoflush, um vorzeitige Flushes zu vermeiden
-        with db.session.no_autoflush:
-            mapping = LengthColorMapping(
-                length_meters=length_meters,
-                color_hex=color
-            )
-            db.session.add(mapping)
-        db.session.commit()
-    except IntegrityError as e:
-        # Bei Duplicate Entry: Rollback und erneut prüfen
-        db.session.rollback()
-        
-        # Prüfe erneut, ob Mapping inzwischen von anderem Thread erstellt wurde
-        mapping = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
-        if mapping:
-            return mapping.color_hex
-        
-        # Falls immer noch nicht vorhanden, erneut versuchen (max. 1x)
-        # Dies sollte nur in seltenen Fällen passieren
-        try:
-            with db.session.no_autoflush:
-                mapping = LengthColorMapping(
-                    length_meters=length_meters,
-                    color_hex=color
-                )
-                db.session.add(mapping)
-            db.session.commit()
-        except IntegrityError:
-            # Bei erneutem Fehler: Rollback und prüfe nochmal
-            db.session.rollback()
-            mapping = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
-            if mapping:
-                return mapping.color_hex
-            # Falls immer noch nicht vorhanden, verwende Standardfarbe
-            from flask import current_app
-            current_app.logger.warning(f"Konnte Farbzuordnung für {length_meters}m nicht erstellen: {e}")
-            return "#000000"
-    except Exception as e:
-        # Bei anderen Fehlern: Rollback und verwende Standardfarbe
-        db.session.rollback()
-        from flask import current_app
-        current_app.logger.warning(f"Konnte Farbzuordnung für {length_meters}m nicht erstellen: {e}")
+    for mapping in LengthColorMapping.query.all():
+        all_lengths_meters.append(round(float(mapping.length_meters), 2))
+    if extra is not None:
+        all_lengths_meters.append(round(float(extra), 2))
+    return sorted(set(all_lengths_meters))
+
+
+def generate_color_for_slot(slot: int, total: int) -> str:
+    """Farbe für Slot in einer maximierten Hue-Verteilung."""
+    if total <= 0:
         return "#000000"
-    
-    return color
+    # Golden-angle Walk: benachbarte Slots liegen im Farbkreis weit auseinander
+    hue = (slot * GOLDEN_ANGLE) % 360.0
+    saturation = 0.78 + (slot % 3) * 0.06  # 0.78–0.90
+    lightness = 0.42 + (slot % 2) * 0.08   # 0.42 / 0.50
+    r, g, b = colorsys.hls_to_rgb(hue / 360.0, lightness, saturation)
+    return f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}"
+
+
+def assign_colors_for_sorted_lengths(sorted_lengths: List[float]) -> Dict[float, str]:
+    """
+    Ordnet sortierten Längen Farben so zu, dass benachbarte Längen
+    große Hue-Abstände bekommen (golden-angle Indexierung).
+    """
+    n = len(sorted_lengths)
+    if n == 0:
+        return {}
+    # Permutation: Index i in sortierter Liste → Slot = bit-reversal-ähnlicher golden Schritt
+    # Einfach: Slot = i (golden angle auf Slot) reicht, weil golden angle benachbarte Slots trennt.
+    # Zusätzlich: gerade/ungerade Indexe in zwei Halbkreise spiegeln für Extra-Abstand.
+    result = {}
+    for i, length in enumerate(sorted_lengths):
+        slot = (i * 2) % n if n > 1 else 0
+        if i % 2 == 1 and n > 1:
+            slot = (slot + n // 2) % n
+        result[length] = generate_color_for_slot(slot if n > 1 else i, max(n, 1))
+    return result
+
+
+def generate_color_for_index(index: int, total: int) -> str:
+    """Compat-Alias."""
+    return generate_color_for_slot(index, total)
+
+
+def reassign_all_color_mappings() -> Dict[float, str]:
+    """Berechnet alle Farben neu und speichert sie (benachbarte Längen = großer Hue-Abstand)."""
+    sorted_lengths = _collect_sorted_lengths()
+    color_map = assign_colors_for_sorted_lengths(sorted_lengths)
+    from sqlalchemy.exc import IntegrityError
+
+    try:
+        with db.session.no_autoflush:
+            for length_meters, color in color_map.items():
+                existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+                if existing:
+                    existing.color_hex = color
+                else:
+                    db.session.add(LengthColorMapping(length_meters=length_meters, color_hex=color))
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        for length_meters, color in color_map.items():
+            existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+            if existing:
+                existing.color_hex = color
+            else:
+                try:
+                    db.session.add(LengthColorMapping(length_meters=length_meters, color_hex=color))
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+    return color_map
+
+
+def get_or_create_color_mapping(length_meters: float) -> str:
+    """Holt die Farbe für eine Länge oder erstellt/aktualisiert die Zuordnung."""
+    if length_meters is None:
+        return "#000000"
+
+    length_meters = round(float(length_meters), 2)
+    mapping = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
+    if mapping:
+        return mapping.color_hex
+
+    # Neue Länge: alle Farben neu verteilen, damit Abstände stimmen
+    color_map = reassign_all_color_mappings()
+    return color_map.get(length_meters, "#000000")
 
 
 def get_color_for_length(length: Optional[str]) -> Optional[str]:
-    """
-    Holt die Farbe für eine Längenangabe (String).
-    
-    Args:
-        length: Längenangabe (z.B. "5m", "1.5", "120cm")
-    
-    Returns:
-        Hex-Farbcode oder None
-    """
     if not length:
         return None
-    
     meters = parse_length_to_meters(length)
     if meters is None:
         return None
-    
     return get_or_create_color_mapping(meters)
 
 
 def get_all_color_mappings() -> Dict[float, str]:
-    """
-    Holt alle Längen-Farb-Zuordnungen.
-    
-    Returns:
-        Dictionary mit length_meters -> color_hex
-    """
     mappings = LengthColorMapping.query.order_by(LengthColorMapping.length_meters).all()
     return {mapping.length_meters: mapping.color_hex for mapping in mappings}
 
 
 def initialize_color_mappings():
-    """
-    Initialisiert Farbzuordnungen für alle vorhandenen Längen in der Datenbank.
-    Wird beim ersten Aufruf der QR-Code-Generierung ausgeführt.
-    """
+    """Initialisiert bzw. aktualisiert Farbzuordnungen für alle Längen."""
     from flask import current_app
-    from sqlalchemy.exc import IntegrityError
-    
     try:
-        # Hole alle eindeutigen Längen aus der Datenbank
-        all_lengths = db.session.query(Product.length).distinct().all()
-        all_lengths_meters = []
-        
-        for length_tuple in all_lengths:
-            if length_tuple[0]:
-                meters = parse_length_to_meters(length_tuple[0])
-                if meters is not None:
-                    all_lengths_meters.append(round(meters, 2))
-        
-        # Entferne Duplikate und sortiere
-        all_lengths_meters = sorted(set(all_lengths_meters))
-        
-        # Verwende no_autoflush, um vorzeitige Flushes zu vermeiden
-        with db.session.no_autoflush:
-            # Erstelle Zuordnungen für alle Längen
-            for index, length_meters in enumerate(all_lengths_meters):
-                # Prüfe ob bereits existiert
-                existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
-                if not existing:
-                    color = generate_color_for_index(index, len(all_lengths_meters))
-                    mapping = LengthColorMapping(
-                        length_meters=length_meters,
-                        color_hex=color
-                    )
-                    db.session.add(mapping)
-        
-        # Commit alle Änderungen auf einmal
-        db.session.commit()
-    except IntegrityError as e:
-        # Bei Duplikaten: Rollback und erneut prüfen
-        db.session.rollback()
-        
-        # Erneut versuchen, aber diesmal einzeln mit Fehlerbehandlung
-        for index, length_meters in enumerate(all_lengths_meters):
-            # Prüfe ob bereits existiert
-            existing = LengthColorMapping.query.filter_by(length_meters=length_meters).first()
-            if not existing:
-                try:
-                    color = generate_color_for_index(index, len(all_lengths_meters))
-                    mapping = LengthColorMapping(
-                        length_meters=length_meters,
-                        color_hex=color
-                    )
-                    db.session.add(mapping)
-                    db.session.commit()
-                except IntegrityError:
-                    # Mapping wurde inzwischen von anderem Thread erstellt
-                    db.session.rollback()
-                    # Überspringe diese Länge, da sie bereits existiert
-                    continue
+        reassign_all_color_mappings()
     except Exception as e:
-        # Bei anderen Fehlern: Rollback und loggen
         db.session.rollback()
-        from flask import current_app
         current_app.logger.warning(f"Fehler beim Initialisieren der Farbzuordnungen: {e}")
         raise
-
-

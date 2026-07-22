@@ -3,29 +3,163 @@
 {% block title %}{{ _('manuals.index.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h1><i class="bi bi-book"></i> {{ _('manuals.index.heading') }}</h1>
-    </div>
-    {% if current_user.is_admin %}
-    <div class="col-auto">
-        <a href="{{ url_for('manuals.upload') }}" class="btn btn-accent">
-            <i class="bi bi-upload"></i> {{ _('manuals.index.upload_button') }}
-        </a>
-    </div>
-    {% endif %}
-</div>
+{% set active_folder_id = active_folder_id|default(none) %}
+{% set active_folder = active_folder|default(none) %}
+{% set upload_url = url_for('manuals.upload', folder_id=active_folder_id) if active_folder_id else url_for('manuals.upload') %}
+{% set active_folder_label = active_folder.name if active_folder else _('manuals.index.folders.root') %}
+{% set can_manage = current_user.is_admin %}
 
-{% if manuals %}
-<div class="row g-3">
-    {% for manual in manuals %}
-    <div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-manual-{{ manual.id }}">
-        <div class="card h-100">
-            <div class="context-menu-source d-none" id="context-menu-manual-{{ manual.id }}">
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ url_for('manuals.view', manual_id=manual.id) }}" target="_blank"><i class="bi bi-eye me-2"></i>{{ _('manuals.index.actions.view') }}</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('manuals.download', manual_id=manual.id) }}"><i class="bi bi-download me-2"></i>{{ _('manuals.index.actions.view') }}</a></li>
-                    {% if current_user.is_admin %}
+{% macro manuals_new_menu(menu_id) %}
+<ul class="dropdown-menu manuals-sidebar-new-menu manuals-new-menu" id="{{ menu_id }}" style="display: none;">
+    {% if can_manage %}
+    <li>
+        <a class="dropdown-item" href="{{ upload_url }}">
+            <i class="bi bi-upload me-2"></i>{{ _('manuals.index.dropdown.upload') }}
+        </a>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+            <i class="bi bi-folder-plus me-2"></i>{{ _('manuals.index.folders.create') }}
+        </a>
+    </li>
+    {% endif %}
+</ul>
+{% endmacro %}
+
+{% macro manuals_folder_nav(dismiss_offcanvas=false) %}
+<nav class="manuals-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link manuals-nav-link {% if not active_folder_id %}active{% endif %}"
+       href="{{ url_for('manuals.index') }}"
+       data-folder-dropzone
+       data-folder-id=""
+       {% if dismiss_offcanvas %}data-bs-dismiss="offcanvas"{% endif %}>
+        <i class="bi bi-house-door me-2"></i>{{ _('manuals.index.folders.root') }}
+    </a>
+    {% for folder in folders %}
+    <a class="nav-link manuals-nav-link {% if active_folder_id == folder.id %}active{% endif %}"
+       href="{{ url_for('manuals.index', folder_id=folder.id) }}"
+       data-folder-dropzone
+       data-folder-id="{{ folder.id }}"
+       {% if dismiss_offcanvas %}data-bs-dismiss="offcanvas"{% endif %}>
+        <span class="manuals-color-dot" style="background: {{ folder.color }};"></span>
+        <span class="text-truncate flex-grow-1">{{ folder.name }}</span>
+    </a>
+    {% endfor %}
+</nav>
+{% endmacro %}
+
+{% macro manuals_view_toggle(suffix='', extra_class='') %}
+<div class="btn-group manuals-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('manuals.index.view_toggle.label') }}">
+    <button type="button" class="btn btn-outline-secondary" id="listViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="btn btn-outline-secondary active" id="gridViewBtn{{ suffix }}" title="{{ _('manuals.index.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro manual_context_menu(manual, suffix='') %}
+<div class="context-menu-source d-none" id="context-menu-manual-{{ manual.id }}{{ suffix }}">
+    <ul class="dropdown-menu">
+        <li>
+            <a class="dropdown-item" href="{{ url_for('manuals.view', manual_id=manual.id) }}">
+                <i class="bi bi-eye me-2"></i>{{ _('manuals.index.actions.view') }}
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" href="{{ url_for('manuals.download', manual_id=manual.id) }}">
+                <i class="bi bi-download me-2"></i>{{ _('manuals.index.actions.download') }}
+            </a>
+        </li>
+        {% if can_manage %}
+        <li><hr class="dropdown-divider"></li>
+        <li>
+            <form method="POST" action="{{ url_for('manuals.delete', manual_id=manual.id) }}" class="d-inline">
+                <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('manuals.index.actions.delete_confirm') }}">
+                    <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                </button>
+            </form>
+        </li>
+        {% endif %}
+    </ul>
+</div>
+{% endmacro %}
+
+{% macro render_manual_card(manual) %}
+<div class="col-12 col-md-6 col-xl-4 manual-item" {% if can_manage %}draggable="true"{% endif %} data-manual-id="{{ manual.id }}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-manual-{{ manual.id }}-grid">
+    <div class="card h-100">
+        {{ manual_context_menu(manual, '-grid') }}
+        <div class="card-body d-flex flex-column">
+            <div class="text-center mb-3">
+                <i class="bi bi-file-pdf text-danger manual-card-icon"></i>
+            </div>
+            <h5 class="card-title text-truncate" title="{{ manual.title }}">{{ manual.title }}</h5>
+            <p class="card-text text-muted small mb-3">
+                <i class="bi bi-file-earmark"></i> {{ (manual.file_size / 1024)|round(2) }} KB<br>
+                <i class="bi bi-calendar"></i> {{ manual.uploaded_at.strftime('%d.%m.%Y') }}
+            </p>
+            <div class="d-flex gap-2 mt-auto">
+                <a href="{{ url_for('manuals.view', manual_id=manual.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                    <i class="bi bi-eye"></i> {{ _('manuals.index.actions.view') }}
+                </a>
+                <a href="{{ url_for('manuals.download', manual_id=manual.id) }}" class="btn btn-sm btn-outline-secondary" title="{{ _('manuals.index.actions.download') }}">
+                    <i class="bi bi-download"></i>
+                </a>
+                {% if can_manage %}
+                <form method="POST" action="{{ url_for('manuals.delete', manual_id=manual.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('manuals.index.actions.delete_confirm') }}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_manual_list_row(manual) %}
+<tr class="manuals-list-row manual-item" {% if can_manage %}draggable="true"{% endif %} data-manual-id="{{ manual.id }}" data-context-zone data-context-menu="dropdown">
+    <td>
+        <a class="manuals-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('manuals.view', manual_id=manual.id) }}">
+            <i class="bi bi-file-pdf text-danger flex-shrink-0"></i>
+            <span class="text-truncate">{{ manual.title }}</span>
+        </a>
+    </td>
+    <td class="d-none d-md-table-cell text-muted">
+        {{ (manual.file_size / 1024)|round(2) }} KB
+    </td>
+    <td class="d-none d-lg-table-cell text-muted">
+        {{ manual.uploaded_at.strftime('%d.%m.%Y') }}
+    </td>
+    <td class="text-end">
+        <div class="manuals-list-actions">
+            <div class="manuals-list-hover-actions">
+                <a class="btn btn-sm btn-link" href="{{ url_for('manuals.view', manual_id=manual.id) }}" title="{{ _('manuals.index.actions.view') }}">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a class="btn btn-sm btn-link" href="{{ url_for('manuals.download', manual_id=manual.id) }}" title="{{ _('manuals.index.actions.download') }}">
+                    <i class="bi bi-download"></i>
+                </a>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('manuals.view', manual_id=manual.id) }}">
+                            <i class="bi bi-eye me-2"></i>{{ _('manuals.index.actions.view') }}
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('manuals.download', manual_id=manual.id) }}">
+                            <i class="bi bi-download me-2"></i>{{ _('manuals.index.actions.download') }}
+                        </a>
+                    </li>
+                    {% if can_manage %}
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form method="POST" action="{{ url_for('manuals.delete', manual_id=manual.id) }}" class="d-inline">
@@ -37,46 +171,348 @@
                     {% endif %}
                 </ul>
             </div>
-            <div class="card-body">
-                <div class="text-center mb-3">
-                    <i class="bi bi-file-pdf text-danger" style="font-size: 4rem;"></i>
-                </div>
-                <h5 class="card-title">{{ manual.title }}</h5>
-                <p class="card-text text-muted small">
-                    <i class="bi bi-file-earmark"></i> {{ (manual.file_size / 1024)|round(2) }} KB<br>
-                    <i class="bi bi-calendar"></i> {{ manual.uploaded_at.strftime('%d.%m.%Y') }}
-                </p>
-                
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('manuals.view', manual_id=manual.id) }}" target="_blank" class="btn btn-sm btn-outline-primary flex-grow-1">
-                        <i class="bi bi-eye"></i> {{ _('manuals.index.actions.view') }}
-                    </a>
-                    <a href="{{ url_for('manuals.download', manual_id=manual.id) }}" class="btn btn-sm btn-outline-secondary" title="{{ _('manuals.index.actions.view') }}">
-                        <i class="bi bi-download"></i>
-                    </a>
-                    {% if current_user.is_admin %}
-                    <form method="POST" action="{{ url_for('manuals.delete', manual_id=manual.id) }}" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('manuals.index.actions.delete_confirm') }}">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+<div class="manuals-shell manuals-shell--nav">
+<aside class="manuals-sidebar d-none d-lg-flex flex-column">
+    <div class="manuals-sidebar-brand">
+        <i class="bi bi-book" aria-hidden="true"></i>
+        <span>{{ _('manuals.index.heading') }}</span>
+    </div>
+    {% if can_manage %}
+    <div class="dropdown manuals-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
+        <button class="btn manuals-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
+            <i class="bi bi-plus-lg me-2"></i>{{ _('manuals.index.new_button') }}
+        </button>
+        {{ manuals_new_menu('newDropdownMenuSidebar') }}
+    </div>
+    {% endif %}
+    {{ manuals_folder_nav(false) }}
+</aside>
+
+<div class="manuals-main">
+    <div class="manuals-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary manuals-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#manualsMobileNav" aria-controls="manualsMobileNav" aria-label="{{ _('manuals.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate manuals-mobile-title">
+                    <i class="bi bi-book" aria-hidden="true"></i>
+                    <span>{{ active_folder_label }}</span>
+                </h1>
+            </div>
+            {% if can_manage %}
+            <div class="dropdown flex-shrink-0 manuals-new-wrap" id="newButtonDropdownMobile">
+                <button class="btn manuals-new-btn btn-sm rounded-pill" type="button" id="newButtonMobile">
+                    <i class="bi bi-plus-lg"></i> {{ _('manuals.index.new_button') }}
+                </button>
+                {{ manuals_new_menu('newDropdownMenuMobile') }}
+            </div>
+            {% endif %}
+        </div>
+        <div class="manuals-mobile-view-toggle mt-2">
+            {{ manuals_view_toggle('Mobile') }}
+        </div>
+    </div>
+
+    <div class="d-none d-lg-flex align-items-center justify-content-between gap-2 mb-2">
+        <h1 class="mb-0 text-break manuals-view-heading">
+            <i class="bi bi-folder2-open" aria-hidden="true"></i>
+            <span>{{ active_folder_label }}</span>
+        </h1>
+        {{ manuals_view_toggle('') }}
+    </div>
+    {% if can_manage %}
+    <p class="text-muted small mb-3 d-none d-lg-block">{{ _('manuals.index.folders.drop_hint') }}</p>
+    {% endif %}
+
+    {% if can_manage and active_folder %}
+    <div class="d-none d-lg-flex gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#renameFolderModal">
+            <i class="bi bi-pencil"></i> {{ _('manuals.index.folders.rename') }}
+        </button>
+        <form method="POST" action="{{ url_for('manuals.move_folder_up', folder_id=active_folder.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ _('manuals.index.folders.move_up') }}">
+                <i class="bi bi-arrow-up"></i> {{ _('manuals.index.folders.move_up') }}
+            </button>
+        </form>
+        <form method="POST" action="{{ url_for('manuals.delete_folder', folder_id=active_folder.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('manuals.index.folders.delete_confirm') }}">
+                <i class="bi bi-trash"></i> {{ _('manuals.index.folders.delete') }}
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if can_manage %}
+    <div class="modal fade" id="createFolderModal" tabindex="-1" aria-labelledby="createFolderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('manuals.create_folder') }}">
+                    {% if active_folder_id %}
+                    <input type="hidden" name="return_folder_id" value="{{ active_folder_id }}">
                     {% endif %}
-                </div>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createFolderModalLabel">{{ _('manuals.index.folders.modal_title') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="folder-create-name">{{ _('manuals.index.folders.name') }}</label>
+                            <input type="text" class="form-control" id="folder-create-name" name="name" maxlength="120" required autocomplete="off">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="folder-create-color">{{ _('manuals.index.folders.color') }}</label>
+                            <input type="color" class="form-control form-control-color" id="folder-create-color" name="color" value="#0d6efd" title="{{ _('manuals.index.folders.color') }}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-folder-plus"></i> {{ _('manuals.index.folders.create') }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-    {% endfor %}
-</div>
-{% else %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    {{ _('manuals.index.empty.message') }}
-    {% if current_user.is_admin %}
-    {{ _('manuals.index.empty.hint') }}
+
+    {% if active_folder %}
+    <div class="modal fade" id="renameFolderModal" tabindex="-1" aria-labelledby="renameFolderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('manuals.rename_folder', folder_id=active_folder.id) }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="renameFolderModalLabel">{{ _('manuals.index.folders.rename_modal_title') }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="folder-rename-name">{{ _('manuals.index.folders.name') }}</label>
+                            <input type="text" class="form-control" id="folder-rename-name" name="name" maxlength="120" value="{{ active_folder.name }}" required autocomplete="off">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="folder-rename-color">{{ _('manuals.index.folders.color') }}</label>
+                            <input type="color" class="form-control form-control-color" id="folder-rename-color" name="color" value="{{ active_folder.color }}" title="{{ _('manuals.index.folders.color') }}">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ _('common.save') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     {% endif %}
+    {% endif %}
+
+    <div id="gridViewContainer" style="display: none;">
+        {% if manuals %}
+        <div class="row g-3">
+            {% for manual in manuals %}
+                {{ render_manual_card(manual) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="manuals-empty-state">
+            <div>
+                <i class="bi bi-book display-6 d-block mb-2 opacity-50"></i>
+                {% if active_folder_id %}
+                {{ _('manuals.index.folders.empty') }}
+                {% else %}
+                {{ _('manuals.index.folders.root_empty') }}
+                {% endif %}
+                {% if can_manage %}
+                <div class="small mt-1">{{ _('manuals.index.empty.hint') }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="listViewContainer" style="display: none;">
+        {% if manuals %}
+        <div class="manuals-list-table-wrap">
+            <table class="table manuals-list-table align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ _('manuals.index.list.name') }}</th>
+                        <th scope="col" class="d-none d-md-table-cell">{{ _('manuals.index.list.size') }}</th>
+                        <th scope="col" class="d-none d-lg-table-cell">{{ _('manuals.index.list.date') }}</th>
+                        <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for manual in manuals %}
+                        {{ render_manual_list_row(manual) }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="manuals-empty-state">
+            <div>
+                <i class="bi bi-book display-6 d-block mb-2 opacity-50"></i>
+                {% if active_folder_id %}
+                {{ _('manuals.index.folders.empty') }}
+                {% else %}
+                {{ _('manuals.index.folders.root_empty') }}
+                {% endif %}
+                {% if can_manage %}
+                <div class="small mt-1">{{ _('manuals.index.empty.hint') }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </div>
-{% endif %}
+</div>
+
+<div class="offcanvas offcanvas-start manuals-mobile-offcanvas" tabindex="-1" id="manualsMobileNav" aria-labelledby="manualsMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="manualsMobileNavLabel">
+            <i class="bi bi-book" aria-hidden="true"></i>
+            <span>{{ _('manuals.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ manuals_folder_nav(true) }}
+    </div>
+</div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+const MANUALS_I18N = {{ current_translations.get('manuals', {}).get('index', {})|tojson }};
+let draggedManualId = null;
 
+function wireNewDropdown(buttonId, menuId) {
+    const button = document.getElementById(buttonId);
+    const menu = document.getElementById(menuId);
+    if (!button || !menu) {
+        return;
+    }
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const isOpen = menu.style.display === 'block';
+        document.querySelectorAll('.manuals-sidebar-new-menu, .manuals-new-menu').forEach((el) => {
+            el.style.display = 'none';
+        });
+        menu.style.display = isOpen ? 'none' : 'block';
+    });
+}
 
+wireNewDropdown('newButtonSidebar', 'newDropdownMenuSidebar');
+wireNewDropdown('newButtonMobile', 'newDropdownMenuMobile');
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.manuals-sidebar-new-menu, .manuals-new-menu').forEach((el) => {
+        el.style.display = 'none';
+    });
+});
+
+function setManualsViewMode(mode) {
+    const grid = document.getElementById('gridViewContainer');
+    const list = document.getElementById('listViewContainer');
+    const listBtns = [
+        document.getElementById('listViewBtn'),
+        document.getElementById('listViewBtnMobile')
+    ].filter(Boolean);
+    const gridBtns = [
+        document.getElementById('gridViewBtn'),
+        document.getElementById('gridViewBtnMobile')
+    ].filter(Boolean);
+
+    const isList = mode === 'list';
+    if (grid) grid.style.display = isList ? 'none' : '';
+    if (list) list.style.display = isList ? '' : 'none';
+
+    listBtns.forEach((btn) => btn.classList.toggle('active', isList));
+    gridBtns.forEach((btn) => btn.classList.toggle('active', !isList));
+    localStorage.setItem('manualsViewMode', isList ? 'list' : 'grid');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('manualsViewMode') || 'grid';
+    setManualsViewMode(saved);
+
+    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setManualsViewMode('list'));
+    });
+    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setManualsViewMode('grid'));
+    });
+});
+
+function moveManual(manualId, folderId) {
+    fetch(`{{ url_for('manuals.move_manual', manual_id=0) }}`.replace('/0', '/' + manualId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ folder_id: folderId === '' ? null : Number(folderId) })
+    })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error();
+            }
+            return response.json();
+        })
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(() => {
+            alert(MANUALS_I18N.messages?.move_error || '');
+        });
+}
+
+{% if can_manage %}
+document.querySelectorAll('.manual-item').forEach((item) => {
+    item.addEventListener('dragstart', (event) => {
+        draggedManualId = event.currentTarget.dataset.manualId;
+        event.currentTarget.classList.add('opacity-50');
+    });
+    item.addEventListener('dragend', (event) => {
+        event.currentTarget.classList.remove('opacity-50');
+    });
+});
+
+document.querySelectorAll('[data-folder-dropzone]').forEach((zone) => {
+    zone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+    });
+    zone.addEventListener('dragenter', (event) => {
+        event.preventDefault();
+        zone.classList.add('manuals-drop-active');
+    });
+    zone.addEventListener('dragleave', () => {
+        zone.classList.remove('manuals-drop-active');
+    });
+    zone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        zone.classList.remove('manuals-drop-active');
+        if (!draggedManualId) {
+            return;
+        }
+        const targetFolderId = zone.dataset.folderId || '';
+        const currentFolderId = {{ (active_folder_id if active_folder_id is not none else '')|tojson }};
+        if (String(targetFolderId) === String(currentFolderId === null || currentFolderId === undefined ? '' : currentFolderId)) {
+            return;
+        }
+        moveManual(draggedManualId, targetFolderId);
+    });
+});
+{% endif %}
+</script>
+{% endblock %}

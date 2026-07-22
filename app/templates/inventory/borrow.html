@@ -1,14 +1,11 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ _('inventory.borrow.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-box-arrow-right{% endblock %}
+{% block inventory_heading %}{{ _('inventory.borrow.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-box-arrow-right"></i> {{ _('inventory.borrow.heading') }}</h1>
-    </div>
-</div>
 
+{% block inventory_content %}
 <div class="row">
     <div class="col-12 col-lg-6">
         <div class="card">
@@ -97,7 +94,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('borrowForm');
@@ -115,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedDate <= today) {
             e.preventDefault();
-            alert('{{ _('inventory.borrow.errors.date_future') }}');
+            if (window.showAppBanner) window.showAppBanner('{{ _('inventory.borrow.errors.date_future') }}', 'warning');
             return false;
         }
         
@@ -144,14 +141,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fehler
                 const text = await response.text();
                 if (text.includes('Ungültiges') || text.includes('Rückgabedatum')) {
-                    alert('{{ _('inventory.borrow.errors.check_inputs') }}');
+                    if (window.showAppBanner) window.showAppBanner('{{ _('inventory.borrow.errors.check_inputs') }}', 'warning');
                 } else {
                     window.location.href = '/inventory/';
                 }
             }
         } catch (error) {
             console.error('Fehler:', error);
-            alert('{{ _('inventory.borrow.errors.borrow_error') }}');
+            if (window.showAppBanner) window.showAppBanner('{{ _('inventory.borrow.errors.borrow_error') }}', 'danger');
         }
     });
 });

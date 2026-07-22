@@ -1,17 +1,11 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{% if product_set %}Set bearbeiten{% else %}Neues Set erstellen{% endif %} - Lagerverwaltung{% endblock %}
+{% block inventory_heading_icon %}bi-collection{% endblock %}
+{% block inventory_heading %}{% if product_set %}Set bearbeiten{% else %}Neues Set erstellen{% endif %}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3">
-            <i class="bi bi-{% if product_set %}pencil{% else %}plus-circle{% endif %}"></i> 
-            {% if product_set %}Set bearbeiten{% else %}Neues Set erstellen{% endif %}
-        </h1>
-    </div>
-</div>
 
+{% block inventory_content %}
 <form method="POST" id="setForm">
     <div class="row">
         <div class="col-12 col-lg-8">
@@ -140,7 +134,7 @@ function removeProductRow(button) {
     if (rows.length > 1) {
         button.closest('.product-row').remove();
     } else {
-        alert('Mindestens ein Produkt muss im Set sein.');
+        if (window.showAppBanner) window.showAppBanner('Mindestens ein Produkt muss im Set sein.', 'warning');
     }
 }
 

@@ -1,35 +1,30 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
+{% set inventory_show_view_toggle = true %}
 
 {% block title %}{{ _('inventory.stock.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-box-seam{% endblock %}
+{% block inventory_heading %}{{ _('inventory.stock.heading') }}{% if current_folder %} – {{ current_folder.name }}{% endif %}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3">
-            <i class="bi bi-box-seam"></i> {{ _('inventory.stock.heading') }}
-            {% if current_folder %}
-                <small class="text-muted">- {{ current_folder.name }}</small>
-            {% endif %}
-        </h1>
-        {% if current_folder %}
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock') }}">{{ _('inventory.stock.breadcrumb_root') }}</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ current_folder.name }}</li>
-            </ol>
-        </nav>
-        {% endif %}
-    </div>
-    <div class="col-auto d-flex gap-2">
-        <button id="borrowSelectedBtn" class="btn btn-primary" style="display: none;">
-            <i class="bi bi-cart-check"></i> {{ _('inventory.stock.borrow_selected') }} (<span id="selectedCount">0</span>)
-        </button>
-        <a href="{{ url_for('inventory.product_new') }}" class="btn btn-accent">
-            <i class="bi bi-plus-circle"></i> {{ _('inventory.stock.add_product') }}
-        </a>
-    </div>
-</div>
+{% block inventory_mobile_actions %}
+{% if show_new %}
+<a href="{{ url_for('inventory.product_new') }}" class="btn inventory-new-btn btn-sm">
+    <i class="bi bi-plus-lg"></i> {{ _('inventory.shell.new_button') }}
+</a>
+{% endif %}
+{% endblock %}
 
+{% block inventory_toolbar_extra %}
+{% if current_folder %}
+<nav aria-label="breadcrumb" class="mb-0 mt-1">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock') }}">{{ _('inventory.stock.breadcrumb_root') }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ current_folder.name }}</li>
+    </ol>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block inventory_content %}
 <!-- Such- und Filterleiste -->
 <div class="card mb-4">
     <div class="card-body">
@@ -194,6 +189,15 @@
                 <button id="bulkBorrowBtn" class="btn btn-sm btn-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
                     <i class="bi bi-cart-check"></i> {{ _('inventory.stock.bulk_selection.borrow') }}
                 </button>
+                <button id="bulkQrBtn" class="btn btn-sm btn-outline-secondary" title="QR-Codes drucken">
+                    <i class="bi bi-qr-code"></i> QR drucken
+                </button>
+                <button id="bulkRepairBtn" class="btn btn-sm btn-warning" title="Status: In Reparatur">
+                    <i class="bi bi-tools"></i> Reparatur
+                </button>
+                <button id="bulkAvailableBtn" class="btn btn-sm btn-success" title="Status: Einsatzbereit">
+                    <i class="bi bi-check2-circle"></i> Einsatzbereit
+                </button>
                 <button id="bulkDeleteBtn" class="btn btn-sm btn-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
                     <i class="bi bi-trash"></i> {{ _('inventory.stock.bulk_selection.delete') }}
                 </button>
@@ -205,29 +209,8 @@
 <!-- Produktliste -->
 <div class="card">
     <div class="card-body">
-        <div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="d-flex gap-2">
-                {% if current_folder %}
-                <a href="{{ url_for('inventory.stock') }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Zurück
-                </a>
-                {% endif %}
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-                <!-- View Toggle -->
-                <div class="btn-group" role="group">
-                    <button class="btn btn-sm btn-outline-secondary" id="listViewBtn" title="{{ _('inventory.stock.views.list') }}">
-                        <i class="bi bi-list"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary active" id="gridViewBtn" title="{{ _('inventory.stock.views.grid') }}">
-                        <i class="bi bi-grid-3x3-gap"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
         <!-- Grid View Container -->
-        <div id="gridViewContainer">
+        <div id="gridViewContainer" style="display: none;">
             <!-- Ordner Grid View -->
             <div id="foldersGridView" class="row g-3 mb-4" style="display: none;">
                 <!-- Wird dynamisch gefüllt -->
@@ -248,15 +231,28 @@
         <!-- List View Container -->
         <div id="listViewContainer" style="display: none;">
             <!-- Ordner List View -->
-            <div id="foldersListView" class="list-group mb-4" style="display: none;">
+            <div id="foldersListView" class="mb-3" style="display: none;">
                 <!-- Wird dynamisch gefüllt -->
             </div>
             
             <!-- Produkte List View -->
-            <div id="productsListContainer">
-                <div id="productsList" class="list-group">
-                    <!-- Wird dynamisch gefüllt -->
-                </div>
+            <div id="productsListContainer" class="inventory-list-table-wrap">
+                <table class="table inventory-list-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width: 2.5rem;"></th>
+                            <th scope="col">{{ _('inventory.stock.list.name') }}</th>
+                            <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.stock.list.status') }}</th>
+                            <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.stock.list.category') }}</th>
+                            <th scope="col" class="d-none d-lg-table-cell">{{ _('inventory.stock.list.location') }}</th>
+                            <th scope="col" class="d-none d-xl-table-cell">{{ _('inventory.stock.list.serial') }}</th>
+                            <th scope="col" class="text-end">{{ _('inventory.stock.list.actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsList">
+                        <!-- Wird dynamisch gefüllt -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -332,6 +328,7 @@
                             <option value="location">{{ _('inventory.stock.modals.bulk_edit.location') }}</option>
                             <option value="length">{{ _('inventory.stock.modals.bulk_edit.length') }}</option>
                             <option value="condition">{{ _('inventory.stock.modals.bulk_edit.condition') }}</option>
+                            <option value="status">Status</option>
                             <option value="category">{{ _('inventory.stock.modals.bulk_edit.category') }}</option>
                             <option value="folder_id">{{ _('inventory.stock.modals.bulk_edit.folder') }}</option>
                             <option value="remove_image">{{ _('inventory.stock.modals.bulk_edit.remove_image') }}</option>
@@ -360,7 +357,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 // Bestandsübersicht-Initialisierung

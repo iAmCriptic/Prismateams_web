@@ -1,6 +1,9 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}QR-Codes drucken - {{ app_name or 'Rpismateams' }}{% endblock %}
+{% block inventory_heading_icon %}bi-printer{% endblock %}
+{% block inventory_heading %}QR-Codes drucken{% endblock %}
+
 
 {% block extra_css %}
 <style>
@@ -177,14 +180,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-printer"></i> QR-Codes drucken</h1>
-        <p class="text-muted">Wählen Sie Produkte aus, um einen QR-Code-Druckbogen zu erstellen</p>
-    </div>
-</div>
-
+{% block inventory_content %}
 <!-- Toolbar -->
 <div id="qrToolbar" class="d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -203,9 +199,24 @@
         <a href="{{ url_for('inventory.print_color_codes') }}" class="btn btn-sm btn-info" target="_blank">
             <i class="bi bi-palette"></i> Farbcodes drucken
         </a>
-        <button type="button" id="generatePdfBtn" class="btn btn-sm btn-accent" disabled>
-            <i class="bi bi-file-pdf"></i> PDF generieren
-        </button>
+        <div class="dropdown d-inline-block">
+            <button type="button" id="generatePdfBtn" class="btn btn-sm btn-accent dropdown-toggle"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-file-pdf"></i> PDF generieren
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end inventory-pdf-menu" id="pdfTypeMenu">
+                <li>
+                    <button type="button" class="dropdown-item pdf-type-option" data-label-type="cable">
+                        <i class="bi bi-lightning-charge me-2"></i>Kabel (Farbstreifen)
+                    </button>
+                </li>
+                <li>
+                    <button type="button" class="dropdown-item pdf-type-option" data-label-type="device">
+                        <i class="bi bi-device-hdd me-2"></i>Geräte
+                    </button>
+                </li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -282,36 +293,9 @@
         </div>
     </div>
 </div>
-
-<!-- Modal für Label-Typ Auswahl -->
-<div class="modal fade" id="labelTypeModal" tabindex="-1" aria-labelledby="labelTypeModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="labelTypeModalLabel">
-                    <i class="bi bi-file-pdf"></i> PDF generieren
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <label class="form-label fw-bold mb-3">Bitte wählen Sie den Label-Typ:</label>
-                <select class="form-select form-select-lg" id="labelTypeSelect">
-                    <option value="cable">Kabel (mit Farbstreifen für Länge, invertierte QR-Codes)</option>
-                    <option value="device">Geräte (mit Produktname, normale QR-Codes)</option>
-                </select>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-accent" id="confirmPdfBtn">
-                    <i class="bi bi-file-pdf"></i> PDF generieren
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.product-checkbox');
@@ -323,10 +307,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const printForm = document.getElementById('printForm');
     const folderFilterBtns = document.querySelectorAll('.folder-filter-btn');
     const productItems = document.querySelectorAll('.product-item');
-    const labelTypeModalElement = document.getElementById('labelTypeModal');
-    const labelTypeModal = labelTypeModalElement ? new bootstrap.Modal(labelTypeModalElement) : null;
-    const labelTypeSelect = document.getElementById('labelTypeSelect');
-    const confirmPdfBtn = document.getElementById('confirmPdfBtn');
     
     // Ordner-Filter
     folderFilterBtns.forEach(btn => {
@@ -359,8 +339,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return productItem && !productItem.classList.contains('hidden');
         });
         const selected = visibleCheckboxes.filter(cb => cb.checked);
-        generateBtn.disabled = selected.length === 0;
-        selectedCount.textContent = selected.length;
+        if (generateBtn) {
+            generateBtn.classList.toggle('disabled', selected.length === 0);
+            generateBtn.setAttribute('aria-disabled', selected.length === 0 ? 'true' : 'false');
+        }
+        if (selectedCount) selectedCount.textContent = selected.length;
     }
     
     checkboxes.forEach(cb => {
@@ -397,38 +380,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const selected = Array.from(checkboxes).filter(cb => cb.checked);
             if (selected.length === 0) {
                 e.preventDefault();
-                alert('Bitte wählen Sie mindestens ein Produkt aus.');
+                if (window.showAppBanner) window.showAppBanner('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
                 return false;
             }
         });
     }
-    
-    // PDF-Generierung Button - öffne Modal
-    if (generateBtn && labelTypeModal) {
-        generateBtn.addEventListener('click', function() {
-            // Setze Standard-Auswahl auf "cable"
-            if (labelTypeSelect) {
-                labelTypeSelect.value = 'cable';
-            }
-            labelTypeModal.show();
-        });
-    }
-    
-    // Bestätige PDF-Generierung
-    if (confirmPdfBtn && labelTypeSelect && labelTypeInput && printForm) {
-        confirmPdfBtn.addEventListener('click', function() {
-            const selectedType = labelTypeSelect.value;
-            if (!selectedType) {
-                alert('Bitte wählen Sie einen Label-Typ aus.');
+
+    // PDF-Typ direkt aus Dropdown unter dem Button
+    document.querySelectorAll('.pdf-type-option').forEach((btn) => {
+        btn.addEventListener('click', function() {
+            const selected = Array.from(checkboxes).filter(cb => cb.checked);
+            if (selected.length === 0) {
+                if (window.showAppBanner) window.showAppBanner('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
                 return;
             }
-            labelTypeInput.value = selectedType;
-            if (labelTypeModal) {
-                labelTypeModal.hide();
-            }
-            printForm.submit();
+            if (labelTypeInput) labelTypeInput.value = this.dataset.labelType || 'cable';
+            if (printForm) printForm.submit();
         });
-    }
+    });
     
     // Aktualisiere Produktanzahl in Ordner-Badges
     function updateFolderCounts() {

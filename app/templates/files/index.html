@@ -24,13 +24,13 @@
 {% macro files_nav_links(dismiss_offcanvas=false) %}
 <nav class="files-sidebar-nav nav flex-column gap-1">
     {% if files_private_folders_enabled %}
-    <a class="nav-link files-nav-link {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
+    <a class="nav-link files-nav-link {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
     {% endif %}
-    <a class="nav-link files-nav-link {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
+    <a class="nav-link files-nav-link {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
     {% if files_private_folders_enabled %}
-    <a class="nav-link files-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
+    <a class="nav-link files-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
     {% endif %}
-    <a class="nav-link files-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}><i class="bi bi-trash me-2"></i>{{ _('files.index.nav.trash') }}</a>
+    <a class="nav-link files-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash me-2"></i>{{ _('files.index.nav.trash') }}</a>
 </nav>
 {% endmacro %}
 
@@ -42,7 +42,7 @@
     <div class="files-favorites-list nav flex-column gap-1">
         {% if folder_favorites %}
             {% for fav in folder_favorites %}
-            <a class="nav-link files-nav-link files-favorite-link" href="{{ fav.url }}" data-folder-id="{{ fav.id }}"{% if dismiss_offcanvas %} data-bs-dismiss="offcanvas"{% endif %}>
+            <a class="nav-link files-nav-link files-favorite-link" href="{{ fav.url }}" data-folder-id="{{ fav.id }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}>
                 <i class="bi bi-folder-fill me-2 folder-color-icon {% if not fav.color %}text-warning{% endif %}" {% if fav.color %}style="color: {{ fav.color }};"{% endif %}></i>
                 <span class="files-favorite-name text-truncate">{{ fav.name }}</span>
             </a>
@@ -104,10 +104,12 @@
             <button type="button" class="btn btn-outline-secondary files-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#filesMobileNav" aria-controls="filesMobileNav" aria-label="{{ _('files.index.nav.menu') }}">
                 <i class="bi bi-list"></i>
             </button>
-            <h1 class="h5 mb-0 text-truncate files-mobile-title">
-                {{ files_view_icon(files_view) }}
-                <span>{{ _('files.index.nav.' + files_view) }}</span>
-            </h1>
+            <div class="files-mobile-path text-truncate min-width-0">
+                <span class="files-path-icon" aria-hidden="true">{{ files_view_icon(files_view) }}</span>
+                <span class="files-mobile-path-text text-truncate">
+                    {% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.heading') }}{% endif %}{% for breadcrumb in breadcrumb_folders %} / {{ breadcrumb.name }}{% endfor %}
+                </span>
+            </div>
         </div>
         <div class="dropdown flex-shrink-0" id="newButtonDropdownMobile">
             <button class="btn btn-accent btn-sm" type="button" id="newButtonMobile">
@@ -131,27 +133,30 @@
 {% endif %}
 <div class="row mb-4 page-toolbar-row align-items-start g-3">
     <div class="col min-width-0">
-        <h1 class="mb-3 text-break files-view-heading {% if files_view %}d-none d-lg-flex{% endif %}">
-            {{ files_view_icon(files_view) }}
-            {% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.heading') }}{% endif %}
-        </h1>
-        {% if breadcrumb_folders %}
-        <nav aria-label="breadcrumb" class="mb-2">
-            <ol class="breadcrumb mb-0 files-breadcrumb-dropzone">
-                <li class="breadcrumb-item files-drop-target files-breadcrumb-drop-target" data-drop-target="folder" data-item-id="">
-                    <a href="{{ files_root_url }}">{% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.breadcrumb_root') }}{% endif %}</a>
-                </li>
-                {% for breadcrumb in breadcrumb_folders %}
-                    {% if loop.last %}
-                    <li class="breadcrumb-item active files-drop-target files-breadcrumb-drop-target" data-drop-target="folder" data-item-id="{{ breadcrumb.id }}" aria-current="page">{{ breadcrumb.name }}</li>
-                    {% else %}
-                    <li class="breadcrumb-item files-drop-target files-breadcrumb-drop-target" data-drop-target="folder" data-item-id="{{ breadcrumb.id }}">
-                        <a href="{{ breadcrumb.url }}">{{ breadcrumb.name }}</a>
+        <div class="files-path-row mb-2 {% if files_view %}d-none d-lg-flex{% endif %}">
+            <span class="files-path-icon" aria-hidden="true">{{ files_view_icon(files_view) }}</span>
+            <nav aria-label="breadcrumb" class="files-path-nav min-width-0">
+                <ol class="breadcrumb mb-0 files-breadcrumb-dropzone">
+                    <li class="breadcrumb-item files-drop-target files-breadcrumb-drop-target{% if not breadcrumb_folders %} active{% endif %}" data-drop-target="folder" data-item-id=""{% if not breadcrumb_folders %} aria-current="page"{% endif %}>
+                        {% if breadcrumb_folders %}
+                        <a href="{{ files_root_url }}">{% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.breadcrumb_root') }}{% endif %}</a>
+                        {% else %}
+                        {% if files_view %}{{ _('files.index.nav.' + files_view) }}{% else %}{{ _('files.index.breadcrumb_root') }}{% endif %}
+                        {% endif %}
                     </li>
-                    {% endif %}
-                {% endfor %}
-            </ol>
-        </nav>
+                    {% for breadcrumb in breadcrumb_folders %}
+                        {% if loop.last %}
+                        <li class="breadcrumb-item active files-drop-target files-breadcrumb-drop-target" data-drop-target="folder" data-item-id="{{ breadcrumb.id }}" aria-current="page">{{ breadcrumb.name }}</li>
+                        {% else %}
+                        <li class="breadcrumb-item files-drop-target files-breadcrumb-drop-target" data-drop-target="folder" data-item-id="{{ breadcrumb.id }}">
+                            <a href="{{ breadcrumb.url }}">{{ breadcrumb.name }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% if breadcrumb_folders %}
         {% set files_back_url = breadcrumb_folders[-2].url if breadcrumb_folders|length > 1 else files_root_url %}
         <div class="files-back-row mb-3">
             <a href="{{ files_back_url }}" class="btn btn-outline-secondary back-button btn-sm" aria-label="{{ _('layout.nav.back') }}">

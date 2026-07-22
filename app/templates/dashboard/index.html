@@ -2,7 +2,7 @@
 
 {% block title %}{{ _('dashboard.page_title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
-{% block content %}
+{% block portal_alerts %}
 {% if setup_completed %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     <div class="d-flex align-items-center">
@@ -15,7 +15,6 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('common.close') }}"></button>
 </div>
 {% endif %}
-
 {% if update_info and update_info.update_available %}
 <div class="alert alert-info alert-dismissible fade show" role="alert" id="update-banner">
     <div class="d-flex align-items-start">
@@ -45,7 +44,9 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
 
+{% block content %}
 <div class="row mb-4 page-toolbar-row align-items-start">
     <div class="col min-width-0">
         <div class="d-flex justify-content-between align-items-start">
@@ -96,7 +97,7 @@
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title" id="whatsNewModalLabel">
                     <i class="bi bi-stars text-primary me-2"></i>
-                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version='2.6', current=1, total=9) }}</span>
+                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version='2.6', current=1, total=13) }}</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
@@ -106,10 +107,32 @@
                 <div class="whats-new-panel is-active" data-panel="overview">
                     <p class="text-muted mb-3">{{ _('dashboard.whats_new.overview_subtitle') }}</p>
                     <div class="list-group whats-new-module-list">
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="files">
-                            <span class="whats-new-module-icon bg-primary-subtle text-primary">
-                                <i class="bi bi-folder2-open"></i>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="general">
+                            <span class="whats-new-module-icon bg-secondary-subtle text-secondary"><i class="bi bi-sliders"></i></span>
+                            <span class="flex-grow-1 text-start">
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.general.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.general.teaser') }}</small>
                             </span>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="dashboard">
+                            <span class="whats-new-module-icon bg-success-subtle text-success"><i class="bi bi-house-door"></i></span>
+                            <span class="flex-grow-1 text-start">
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.dashboard.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.dashboard.teaser') }}</small>
+                            </span>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="chat">
+                            <span class="whats-new-module-icon bg-primary-subtle text-primary"><i class="bi bi-chat-dots"></i></span>
+                            <span class="flex-grow-1 text-start">
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.chat.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.chat.teaser') }}</small>
+                            </span>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="files">
+                            <span class="whats-new-module-icon bg-primary-subtle text-primary"><i class="bi bi-folder2-open"></i></span>
                             <span class="flex-grow-1 text-start">
                                 <strong class="d-block">{{ _('dashboard.whats_new.modules.files.title') }}</strong>
                                 <small class="text-muted">{{ _('dashboard.whats_new.modules.files.teaser') }}</small>
@@ -117,105 +140,124 @@
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
                         <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="calendar">
-                            <span class="whats-new-module-icon bg-success-subtle text-success">
-                                <i class="bi bi-calendar3"></i>
-                            </span>
+                            <span class="whats-new-module-icon bg-success-subtle text-success"><i class="bi bi-calendar3"></i></span>
                             <span class="flex-grow-1 text-start">
                                 <strong class="d-block">{{ _('dashboard.whats_new.modules.calendar.title') }}</strong>
                                 <small class="text-muted">{{ _('dashboard.whats_new.modules.calendar.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="media_downloader">
-                            <span class="whats-new-module-icon bg-warning-subtle text-warning">
-                                <i class="bi bi-download"></i>
-                            </span>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="events">
+                            <span class="whats-new-module-icon bg-warning-subtle text-warning"><i class="bi bi-calendar2-week"></i></span>
                             <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.media_downloader.teaser') }}</small>
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.events.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.events.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
                         <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="email">
-                            <span class="whats-new-module-icon bg-info-subtle text-info">
-                                <i class="bi bi-envelope"></i>
-                            </span>
+                            <span class="whats-new-module-icon bg-info-subtle text-info"><i class="bi bi-envelope"></i></span>
                             <span class="flex-grow-1 text-start">
                                 <strong class="d-block">{{ _('dashboard.whats_new.modules.email.title') }}</strong>
                                 <small class="text-muted">{{ _('dashboard.whats_new.modules.email.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="general">
-                            <span class="whats-new-module-icon bg-secondary-subtle text-secondary">
-                                <i class="bi bi-sliders"></i>
-                            </span>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="contacts">
+                            <span class="whats-new-module-icon bg-info-subtle text-info"><i class="bi bi-person-lines-fill"></i></span>
                             <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.general.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.general.teaser') }}</small>
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.contacts.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.contacts.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
                         <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="credentials">
-                            <span class="whats-new-module-icon bg-danger-subtle text-danger">
-                                <i class="bi bi-key"></i>
-                            </span>
+                            <span class="whats-new-module-icon bg-danger-subtle text-danger"><i class="bi bi-key"></i></span>
                             <span class="flex-grow-1 text-start">
                                 <strong class="d-block">{{ _('dashboard.whats_new.modules.credentials.title') }}</strong>
                                 <small class="text-muted">{{ _('dashboard.whats_new.modules.credentials.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="chat">
-                            <span class="whats-new-module-icon bg-primary-subtle text-primary">
-                                <i class="bi bi-chat-dots"></i>
-                            </span>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="manuals">
+                            <span class="whats-new-module-icon bg-secondary-subtle text-secondary"><i class="bi bi-book"></i></span>
                             <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.chat.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.chat.teaser') }}</small>
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.manuals.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.manuals.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="dashboard">
-                            <span class="whats-new-module-icon bg-success-subtle text-success">
-                                <i class="bi bi-house-door"></i>
-                            </span>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="inventory">
+                            <span class="whats-new-module-icon bg-warning-subtle text-warning"><i class="bi bi-box-seam"></i></span>
                             <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.dashboard.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.dashboard.teaser') }}</small>
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.inventory.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.inventory.teaser') }}</small>
+                            </span>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="media_downloader">
+                            <span class="whats-new-module-icon bg-warning-subtle text-warning"><i class="bi bi-download"></i></span>
+                            <span class="flex-grow-1 text-start">
+                                <strong class="d-block">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</strong>
+                                <small class="text-muted">{{ _('dashboard.whats_new.modules.media_downloader.teaser') }}</small>
                             </span>
                             <i class="bi bi-chevron-right text-muted"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Modul: Dateien -->
+                <div class="whats-new-panel" data-panel="general">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-secondary-subtle text-secondary"><i class="bi bi-sliders"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.general.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        <li>{{ _('dashboard.whats_new.modules.general.items.accent') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.general.items.alerts') }}</li>
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="dashboard">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-success-subtle text-success"><i class="bi bi-house-door"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.dashboard.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        <li>{{ _('dashboard.whats_new.modules.dashboard.items.whats_new') }}</li>
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="chat">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-primary-subtle text-primary"><i class="bi bi-chat-dots"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.chat.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        <li>{{ _('dashboard.whats_new.modules.chat.items.design') }}</li>
+                    </ul>
+                </div>
+
                 <div class="whats-new-panel" data-panel="files">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-primary-subtle text-primary">
-                            <i class="bi bi-folder2-open"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.files.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-primary-subtle text-primary"><i class="bi bi-folder2-open"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.files.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
                         <li>{{ _('dashboard.whats_new.modules.files.items.design') }}</li>
                         <li>{{ _('dashboard.whats_new.modules.files.items.private') }}</li>
                         <li>{{ _('dashboard.whats_new.modules.files.items.upload') }}</li>
                         <li>{{ _('dashboard.whats_new.modules.files.items.favorites') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.files.items.fixes') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.files.items.admin_settings') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.files.items.upload_limit') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.files.items.user_quota') }}</li>
                     </ul>
                 </div>
 
-                <!-- Modul: Kalender -->
                 <div class="whats-new-panel" data-panel="calendar">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-success-subtle text-success">
-                            <i class="bi bi-calendar3"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.calendar.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-success-subtle text-success"><i class="bi bi-calendar3"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.calendar.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
                         <li>{{ _('dashboard.whats_new.modules.calendar.items.day_view') }}</li>
@@ -226,30 +268,22 @@
                     </ul>
                 </div>
 
-                <!-- Modul: Media Download -->
-                <div class="whats-new-panel" data-panel="media_downloader">
+                <div class="whats-new-panel" data-panel="events">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning">
-                            <i class="bi bi-download"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning"><i class="bi bi-calendar2-week"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.events.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.media_downloader.items.fixes') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.events.items.design') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.events.items.pdf') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.events.items.fixes') }}</li>
                     </ul>
                 </div>
 
-                <!-- Modul: E-Mail -->
                 <div class="whats-new-panel" data-panel="email">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-info-subtle text-info">
-                            <i class="bi bi-envelope"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.email.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-info-subtle text-info"><i class="bi bi-envelope"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.email.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
                         <li>{{ _('dashboard.whats_new.modules.email.items.design') }}</li>
@@ -258,63 +292,56 @@
                     </ul>
                 </div>
 
-                <!-- Reiter: General -->
-                <div class="whats-new-panel" data-panel="general">
+                <div class="whats-new-panel" data-panel="contacts">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-secondary-subtle text-secondary">
-                            <i class="bi bi-sliders"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.general.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-info-subtle text-info"><i class="bi bi-person-lines-fill"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.contacts.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.general.items.accent') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.contacts.items.design') }}</li>
                     </ul>
                 </div>
 
-                <!-- Modul: Zugangsdaten -->
                 <div class="whats-new-panel" data-panel="credentials">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-danger-subtle text-danger">
-                            <i class="bi bi-key"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.credentials.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-danger-subtle text-danger"><i class="bi bi-key"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.credentials.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
                         <li>{{ _('dashboard.whats_new.modules.credentials.items.design') }}</li>
                     </ul>
                 </div>
 
-                <!-- Modul: Chats -->
-                <div class="whats-new-panel" data-panel="chat">
+                <div class="whats-new-panel" data-panel="manuals">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-primary-subtle text-primary">
-                            <i class="bi bi-chat-dots"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.chat.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-secondary-subtle text-secondary"><i class="bi bi-book"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.manuals.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.chat.items.design') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.manuals.items.design') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.manuals.items.fixes') }}</li>
                     </ul>
                 </div>
 
-                <!-- Modul: Dashboard -->
-                <div class="whats-new-panel" data-panel="dashboard">
+                <div class="whats-new-panel" data-panel="inventory">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-success-subtle text-success">
-                            <i class="bi bi-house-door"></i>
-                        </span>
-                        <div>
-                            <h6 class="mb-0">{{ _('dashboard.whats_new.modules.dashboard.title') }}</h6>
-                        </div>
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning"><i class="bi bi-box-seam"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.inventory.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.dashboard.items.whats_new') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.inventory.items.design') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.inventory.items.borrow') }}</li>
+                        <li>{{ _('dashboard.whats_new.modules.inventory.items.colors') }}</li>
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="media_downloader">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning"><i class="bi bi-download"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        <li>{{ _('dashboard.whats_new.modules.media_downloader.items.fixes') }}</li>
                     </ul>
                 </div>
                 </div>
@@ -997,18 +1024,22 @@ setInterval(updateClock, 1000);
 (function initWhatsNew() {
     const VERSION = '2.6';
     const STORAGE_KEY = 'prismateams_whats_new_seen_v' + VERSION;
-    const panelsOrder = ['overview', 'files', 'calendar', 'media_downloader', 'email', 'general', 'credentials', 'chat', 'dashboard'];
+    const panelsOrder = ['overview', 'general', 'dashboard', 'chat', 'files', 'calendar', 'events', 'email', 'contacts', 'credentials', 'manuals', 'inventory', 'media_downloader'];
     const titleEl = document.querySelector('[data-whats-new-title]');
     const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version='2.6', current='{current}', total='{total}')|tojson }};
     const moduleTitles = {
+        general: {{ _('dashboard.whats_new.modules.general.title')|tojson }},
+        dashboard: {{ _('dashboard.whats_new.modules.dashboard.title')|tojson }},
+        chat: {{ _('dashboard.whats_new.modules.chat.title')|tojson }},
         files: {{ _('dashboard.whats_new.modules.files.title')|tojson }},
         calendar: {{ _('dashboard.whats_new.modules.calendar.title')|tojson }},
-        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }},
+        events: {{ _('dashboard.whats_new.modules.events.title')|tojson }},
         email: {{ _('dashboard.whats_new.modules.email.title')|tojson }},
-        general: {{ _('dashboard.whats_new.modules.general.title')|tojson }},
+        contacts: {{ _('dashboard.whats_new.modules.contacts.title')|tojson }},
         credentials: {{ _('dashboard.whats_new.modules.credentials.title')|tojson }},
-        chat: {{ _('dashboard.whats_new.modules.chat.title')|tojson }},
-        dashboard: {{ _('dashboard.whats_new.modules.dashboard.title')|tojson }}
+        manuals: {{ _('dashboard.whats_new.modules.manuals.title')|tojson }},
+        inventory: {{ _('dashboard.whats_new.modules.inventory.title')|tojson }},
+        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }}
     };
     let currentPanel = 'overview';
 

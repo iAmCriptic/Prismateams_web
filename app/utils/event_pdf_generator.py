@@ -1,53 +1,27 @@
 from datetime import datetime
-from io import BytesIO
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
-from app.utils.pdf_generator import get_logo_path
-
-
-def _build_pdf(story):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+from app.utils.pdf_generator import build_standard_header, build_standard_pdf
 
 
 def generate_single_event_pdf(event_obj):
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('SingleTitle', parent=styles['Heading2'], fontSize=18, textColor=colors.HexColor('#0d6efd'))
-    subtitle_style = ParagraphStyle('SingleSubtitle', parent=styles['Normal'], fontSize=12)
     body_style = ParagraphStyle('SingleBody', parent=styles['Normal'], fontSize=11, leading=14)
 
-    logo_path = get_logo_path()
-    logo_cell = ''
-    if logo_path:
-        try:
-            logo_cell = Image(logo_path, width=2.2 * cm, height=2.2 * cm, kind='proportional')
-        except Exception:
-            logo_cell = ''
-
     stand_date = event_obj.created_at.strftime('%d.%m.%Y') if event_obj.created_at else datetime.now().strftime('%d.%m.%Y')
-    header_text = [
-        Paragraph(f"Veranstaltung: {event_obj.name}", title_style),
-        Paragraph(f"Stand: {stand_date}", subtitle_style),
+    story = [
+        build_standard_header(
+            f"Veranstaltung: {event_obj.name}",
+            subtitle=f"Stand: {stand_date}",
+            pagesize=A4,
+        ),
+        Spacer(1, 0.4 * cm),
     ]
-    header = Table([[logo_cell, header_text]], colWidths=[2.8 * cm, 14.8 * cm])
-    header.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-
-    story = [header, Spacer(1, 0.35 * cm)]
     story.append(Paragraph(f"<b>Beschreibung:</b> {event_obj.description or '-'}", body_style))
     story.append(Paragraph(f"<b>Ort:</b> {event_obj.default_location or '-'}", body_style))
     story.append(Spacer(1, 0.25 * cm))
@@ -61,13 +35,7 @@ def generate_single_event_pdf(event_obj):
             appointment.location or event_obj.default_location or '-',
         ])
     table = Table(table_data, colWidths=[4.5 * cm, 4 * cm, 4 * cm, 5.1 * cm])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTSIZE', (0, 0), (-1, -1), 10.5),
-        ('LEADING', (0, 0), (-1, -1), 13),
-    ]))
+    table.setStyle(_table_style())
     story.append(table)
     story.append(Spacer(1, 0.35 * cm))
 
@@ -107,7 +75,21 @@ def generate_single_event_pdf(event_obj):
     else:
         story.append(Paragraph("- Kein Zeitplan", body_style))
 
-    return _build_pdf(story)
+    return build_standard_pdf(story, pagesize=A4)
+
+
+def _table_style():
+    return TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('LEADING', (0, 0), (-1, -1), 12),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ])
 
 
 def _future_appointments_for_event(event_obj, now):
@@ -138,47 +120,6 @@ def _collect_materials_for_event(event_obj):
     return materials or ['-']
 
 
-def _build_overview_header(styles):
-    title_style = ParagraphStyle(
-        'EventOverviewTitle',
-        parent=styles['Heading2'],
-        fontSize=24,
-        textColor=colors.HexColor('#0d6efd'),
-        spaceAfter=4,
-    )
-    subtitle_style = ParagraphStyle(
-        'EventOverviewSubtitle',
-        parent=styles['Normal'],
-        fontSize=14,
-        textColor=colors.HexColor('#555555'),
-    )
-    stand = datetime.now().strftime('%d.%m.%Y')
-    title_block = [
-        Paragraph('Veranstaltungsübersicht', title_style),
-        Paragraph(f'Stand: {stand}', subtitle_style),
-    ]
-
-    logo_cell = ''
-    logo_path = get_logo_path()
-    if logo_path:
-        try:
-            logo_cell = Image(logo_path, width=1.7 * cm, height=1.7 * cm, kind='proportional')
-        except Exception:
-            logo_cell = ''
-
-    header_table = Table([[logo_cell, title_block, '']], colWidths=[2.8 * cm, 12 * cm, 12.5 * cm])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (1, 0), 'LEFT'),
-        ('ALIGN', (2, 0), (2, 0), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    return header_table
-
-
 def _collect_contacts(event_obj):
     contacts = []
     for contact in event_obj.contacts:
@@ -194,7 +135,7 @@ def _event_card(event_obj, future_appointments, styles):
         'CardTitle',
         parent=styles['Heading4'],
         fontSize=15,
-        textColor=colors.HexColor('#0d6efd'),
+        textColor=colors.black,
         spaceAfter=6,
     )
     body_style = ParagraphStyle(
@@ -207,8 +148,7 @@ def _event_card(event_obj, future_appointments, styles):
 
     people = _collect_people(event_obj)
     materials = _collect_materials_for_event(event_obj)
-    people_text = ', '.join(people)
-    material_text = ', '.join(materials)
+    contacts = _collect_contacts(event_obj)
 
     term_lines = []
     for appointment in future_appointments:
@@ -216,10 +156,6 @@ def _event_card(event_obj, future_appointments, styles):
             f"{appointment.start_time.strftime('%d.%m. %H:%M')} - "
             f"{appointment.end_time.strftime('%H:%M')} | {appointment.label}"
         )
-    terms_text = '<br/>'.join(term_lines) if term_lines else '-'
-
-    contacts = _collect_contacts(event_obj)
-    contacts_text = ', '.join(contacts)
 
     lines = [Paragraph(f"{event_obj.name}", card_title)]
     sections = [
@@ -245,19 +181,21 @@ def _event_card(event_obj, future_appointments, styles):
     return table
 
 
-def generate_event_overview_pdf(events, now=None):
+def generate_event_overview_pdf(events, now=None, title='Veranstaltungsübersicht'):
+    """Karten-Übersicht aktiver Events mit zukünftigen Terminen (Querformat)."""
     now = now or datetime.utcnow()
     styles = getSampleStyleSheet()
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(A4),
-        leftMargin=0.55 * cm,
-        rightMargin=0.55 * cm,
-        topMargin=0.55 * cm,
-        bottomMargin=0.55 * cm,
-    )
-    story = [_build_overview_header(styles), Spacer(1, 0.45 * cm)]
+    page = landscape(A4)
+    story = [
+        build_standard_header(
+            title,
+            subtitle=f"Stand: {datetime.now().strftime('%d.%m.%Y')}",
+            pagesize=page,
+            logo_size=1.6 * cm,
+            content_width=page[0] - 1.1 * cm,
+        ),
+        Spacer(1, 0.4 * cm),
+    ]
 
     event_items = []
     for event_obj in events:
@@ -291,6 +229,64 @@ def generate_event_overview_pdf(events, now=None):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ]))
         story.append(grid)
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+
+    return build_standard_pdf(
+        story,
+        pagesize=page,
+        leftMargin=0.55 * cm,
+        rightMargin=0.55 * cm,
+        topMargin=0.7 * cm,
+        bottomMargin=1.8 * cm,
+    )
+
+
+def generate_appointments_overview_pdf(appointments, title='Standardübersicht'):
+    """Tabellen-PDF für Terminlisten (Standard / Meine / Archiv)."""
+    styles = getSampleStyleSheet()
+    story = [
+        build_standard_header(title, subtitle=f"Stand: {datetime.now().strftime('%d.%m.%Y')}", pagesize=A4),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    table_data = [['Termin', 'Veranstaltung', 'Start', 'Ende', 'Ort']]
+    for appointment in appointments:
+        event_name = appointment.event.name if appointment.event else '-'
+        location = appointment.location or (appointment.event.default_location if appointment.event else None) or '-'
+        table_data.append([
+            Paragraph(appointment.label, styles['Normal']),
+            Paragraph(event_name, styles['Normal']),
+            appointment.start_time.strftime('%d.%m.%Y %H:%M'),
+            appointment.end_time.strftime('%d.%m.%Y %H:%M'),
+            Paragraph(location, styles['Normal']),
+        ])
+
+    if len(table_data) == 1:
+        story.append(Paragraph("Keine Termine vorhanden.", styles['Normal']))
+    else:
+        table = Table(table_data, colWidths=[3.4 * cm, 4.2 * cm, 3.2 * cm, 3.2 * cm, 3.2 * cm])
+        table.setStyle(_table_style())
+        story.append(table)
+
+    return build_standard_pdf(story, pagesize=A4)
+
+
+def generate_people_overview_pdf(rows, title='Personenübersicht'):
+    """Tabellen-PDF für die Personenübersicht."""
+    styles = getSampleStyleSheet()
+    story = [
+        build_standard_header(title, subtitle=f"Stand: {datetime.now().strftime('%d.%m.%Y')}", pagesize=A4),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    table_data = [['Person', 'Anzahl Veranstaltungen']]
+    for row in rows:
+        table_data.append([row['user'].full_name, str(row['event_count'])])
+
+    if len(table_data) == 1:
+        story.append(Paragraph("Noch keine Zuordnungen vorhanden.", styles['Normal']))
+    else:
+        table = Table(table_data, colWidths=[10 * cm, 7 * cm])
+        table.setStyle(_table_style())
+        story.append(table)
+
+    return build_standard_pdf(story, pagesize=A4)

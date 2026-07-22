@@ -255,14 +255,40 @@
       "prev": "Zurück",
       "next": "Weiter",
       "modules": {
+        "general": {
+          "title": "General",
+          "teaser": "Akzentfarben & Alerts",
+          "items": {
+            "accent": "Akzentfarben wurden gefixt und werden häufiger angewendet als vorher.",
+            "alerts": "Angepasste Alert-Bubbles, damit weniger Verschiebung entsteht."
+          }
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "teaser": "Neues",
+          "items": {
+            "whats_new": "„Neues“ um Neuigkeiten der Version bekannt zu geben."
+          }
+        },
+        "chat": {
+          "title": "Chats",
+          "teaser": "Designupdate",
+          "items": {
+            "design": "Designupdate."
+          }
+        },
         "files": {
           "title": "Dateien",
-          "teaser": "Design, Privat, Upload & Favoriten",
+          "teaser": "Design, Limits & Admin",
           "items": {
             "design": "Design-Erneuerungen für eine klarere und modernere Dateiübersicht.",
             "private": "Private Dateien und internes Teilen innerhalb des Teams.",
             "upload": "Upload-Anzeige für besseres Feedback während des Hochladens.",
-            "favorites": "Bis zu 10 Ordner als Favoriten speichern."
+            "favorites": "Bis zu 10 Ordner als Favoriten speichern.",
+            "fixes": "Bugfixes und Fehlerbehebungen.",
+            "admin_settings": "Neue Einstellungsmöglichkeiten für Administratoren.",
+            "upload_limit": "Uploads größer als 10 MB möglich – je nach Einstellung der Administratoren.",
+            "user_quota": "Möglichkeit zum Einstellen eines Gesamtlimits pro Benutzer."
           }
         },
         "calendar": {
@@ -276,11 +302,13 @@
             "fixes": "Fehlerbehebungen und Verbesserungen."
           }
         },
-        "media_downloader": {
-          "title": "Media Download",
-          "teaser": "Stabilität & Verbesserungen",
+        "events": {
+          "title": "Veranstaltungen",
+          "teaser": "Design & PDF",
           "items": {
-            "fixes": "Fehlerbehebungen und Verbesserungen."
+            "design": "Designupdate.",
+            "pdf": "Anpassungen der PDF-Generierung.",
+            "fixes": "Anpassungen und Fehlerbehebungen."
           }
         },
         "email": {
@@ -292,11 +320,11 @@
             "mobile_nav": "Mobile Navigation Fixes."
           }
         },
-        "general": {
-          "title": "General",
-          "teaser": "Akzentfarben",
+        "contacts": {
+          "title": "Kontakte",
+          "teaser": "Design & Fixes",
           "items": {
-            "accent": "Akzentfarben wurden gefixt und werden häufiger angewendet als vorher."
+            "design": "Designupdate und Fehlerbehebungen."
           }
         },
         "credentials": {
@@ -306,18 +334,28 @@
             "design": "Designupdate."
           }
         },
-        "chat": {
-          "title": "Chats",
-          "teaser": "Designupdate",
+        "manuals": {
+          "title": "Handbücher",
+          "teaser": "Design & Fixes",
           "items": {
-            "design": "Designupdate."
+            "design": "Designanpassungen.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
           }
         },
-        "dashboard": {
-          "title": "Dashboard",
-          "teaser": "Neues",
+        "inventory": {
+          "title": "Inventar",
+          "teaser": "Design, Ausleihe & Farben",
           "items": {
-            "whats_new": "„Neues“ um Neuigkeiten der Version bekannt zu geben."
+            "design": "Designanpassungen.",
+            "borrow": "Anpassungen der Ausleih-/Rückgabefunktionen.",
+            "colors": "Farbcodes mit verbesserter Lesbarkeit bei geringen Größenunterschieden."
+          }
+        },
+        "media_downloader": {
+          "title": "Media Download",
+          "teaser": "Stabilität & Verbesserungen",
+          "items": {
+            "fixes": "Fehlerbehebungen und Verbesserungen."
           }
         }
       }
@@ -1832,7 +1870,10 @@
     "index": {
       "page_title": "Kontakte - Team Portal",
       "heading": "Kontakte",
-      "new_button": "Neuer Kontakt",
+      "new_button": "Neu",
+      "nav": {
+        "menu": "Kontakte-Menü"
+      },
       "filters": {
         "menu_button": "Filtern",
         "name": "Name filtern",
@@ -1880,7 +1921,11 @@
       "actions": {
         "edit": "Bearbeiten",
         "column": "Aktionen",
-        "delete_confirm": "Kontakt wirklich löschen?"
+        "delete_confirm": "Kontakt wirklich löschen?",
+        "copy_name": "Name kopieren",
+        "copy_email": "Mail kopieren",
+        "copy_phone": "Telefonnummer kopieren",
+        "write_mail": "Mail schreiben"
       },
       "empty_message": "Keine Kontakte vorhanden."
     },
@@ -2518,19 +2563,60 @@
       "uploaded": "Anleitung \"{title}\" wurde hochgeladen.",
       "file_not_found": "Die Anleitung-Datei konnte nicht gefunden werden.",
       "delete_admin_only": "Nur Administratoren können Anleitungen löschen.",
-      "deleted": "Anleitung \"{title}\" wurde gelöscht."
+      "deleted": "Anleitung \"{title}\" wurde gelöscht.",
+      "folder_admin_only": "Nur Administratoren können Ordner verwalten.",
+      "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
+      "folder_created": "Ordner \"{folder_name}\" wurde erstellt.",
+      "folder_renamed": "Ordner \"{folder_name}\" wurde umbenannt.",
+      "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Anleitungen liegen wieder unter Alle Anleitungen."
     },
     "index": {
-      "page_title": "Bedienungsanleitungen - Team Portal",
-      "heading": "Bedienungsanleitungen",
+      "page_title": "Anleitungen - Team Portal",
+      "heading": "Anleitungen",
+      "new_button": "Neu",
       "upload_button": "Anleitung hochladen",
+      "nav": {
+        "menu": "Ordner-Menü"
+      },
+      "dropdown": {
+        "upload": "PDF hochladen"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      },
+      "list": {
+        "name": "Name",
+        "size": "Größe",
+        "date": "Datum"
+      },
       "actions": {
         "view": "Ansehen",
+        "download": "Herunterladen",
         "delete_confirm": "Anleitung wirklich löschen?"
       },
       "empty": {
         "message": "Keine Anleitungen vorhanden.",
         "hint": "Laden Sie die erste Anleitung hoch!"
+      },
+      "messages": {
+        "move_error": "Anleitung konnte nicht verschoben werden."
+      },
+      "folders": {
+        "modal_title": "Neuen Ordner anlegen",
+        "rename_modal_title": "Ordner bearbeiten",
+        "name": "Ordnername",
+        "color": "Farbe",
+        "create": "Ordner erstellen",
+        "rename": "Umbenennen",
+        "delete": "Ordner löschen",
+        "delete_confirm": "Ordner löschen? Anleitungen werden nach Alle Anleitungen verschoben.",
+        "root": "Alle Anleitungen",
+        "drop_hint": "Karten auf Ordner ziehen",
+        "root_empty": "Keine Anleitungen ohne Ordner.",
+        "empty": "Dieser Ordner ist leer.",
+        "move_up": "Ordner nach oben"
       }
     },
     "upload": {
@@ -2543,6 +2629,8 @@
       "form": {
         "title": "Titel",
         "title_placeholder": "z.B. Benutzerhandbuch",
+        "folder": "Ordner",
+        "root_folder": "Alle Anleitungen (ohne Ordner)",
         "file": "PDF-Datei",
         "file_help": "Nur PDF-Dateien sind erlaubt"
       },
@@ -2550,9 +2638,41 @@
         "submit": "Hochladen",
         "cancel": "Abbrechen"
       }
+    },
+    "view": {
+      "page_title_suffix": "Anleitungen",
+      "download": "Herunterladen",
+      "close": "Schließen",
+      "iframe_title": "PDF-Viewer"
     }
   },
   "inventory": {
+    "shell": {
+      "brand": "Inventar",
+      "new_button": "Neu",
+      "new": {
+        "product": "Neues Produkt",
+        "set": "Neues Set"
+      },
+      "nav": {
+        "menu": "Menü",
+        "overview": "Übersicht",
+        "stock": "Bestand & Geräte",
+        "quick_scan": "Quick Scan",
+        "checkout": "Ausleihe / Rückgabe",
+        "borrows": "Ausleih-Historie",
+        "return": "Rückgabe",
+        "sets": "Produktsets",
+        "inventory_tool": "Inventur",
+        "print_qr": "QR / Etiketten",
+        "statistics": "Statistik"
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      }
+    },
     "errors": {
       "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_action_specified": "Keine Aktion angegeben.",
@@ -2616,29 +2736,29 @@
       "enter_set_name": "Bitte geben Sie einen Namen für das Set ein.",
       "select_at_least_one_product": "Bitte wählen Sie mindestens ein Produkt aus.",
       "no_permission_delete_set": "Sie haben keine Berechtigung, dieses Set zu löschen.",
-      "invalid_request": "Ungültige Anfrage."
+      "invalid_request": "Ungültige Anfrage.",
+      "event_name_required": "Bitte Projekt / Veranstaltung angeben.",
+      "borrower_name_required": "Bitte Verantwortlichen / Techniker angeben.",
+      "product_added_to_cart": "Produkt wurde dem Ausleih-Warenkorb hinzugefügt.",
+      "borrow_failed": "Ausleihe fehlgeschlagen.",
+      "no_available_products": "Keine verfügbaren Produkte im Warenkorb.",
+      "end_before_start": "Das Enddatum liegt vor dem Startdatum."
     },
     "dashboard": {
       "page_title": "Lagerverwaltung - Team Portal",
-      "heading": "Lagerverwaltung",
-      "subtitle": "Verwalten Sie Ihr Inventar und Ausleihen",
-      "cards": {
-        "stock": {
-          "title": "Bestand",
-          "description": "Übersicht aller Produkte"
-        },
-        "borrow": {
-          "title": "Ausleihen",
-          "description": "Produkte scannen und ausleihen"
-        },
-        "return": {
-          "title": "Rückgabe",
-          "description": "Ausgeliehene Artikel zurückgeben"
-        }
+      "heading": "Übersicht",
+      "subtitle": "Schnellstatistiken und aktuelle Ausleihen",
+      "stats": {
+        "total": "Bestand gesamt",
+        "available": "Verfügbar",
+        "borrowed": "Unterwegs",
+        "defective": "Defekt / Reparatur",
+        "overdue": "Überfällig"
       },
       "my_borrows": {
         "title": "Meine aktuellen Ausleihen",
         "show_all": "Alle anzeigen",
+        "empty": "Keine aktiven Ausleihen",
         "table": {
           "product": "Produkt",
           "borrow_date": "Ausleihdatum",
@@ -2651,15 +2771,6 @@
           "return_button": "Rückgabe",
           "download_receipt": "Ausleihschein herunterladen"
         }
-      },
-      "more_functions": {
-        "title": "Weitere Funktionen",
-        "my_borrows": "Meine Ausleihen",
-        "all_borrows": "Alle Ausleihen",
-        "print_qr": "QR-Codes drucken",
-        "inventory_tool": "Inventurtool",
-        "statistics": "Statistiken",
-        "sets": "Produktsets"
       }
     },
     "stock": {
@@ -2722,6 +2833,14 @@
       "views": {
         "list": "Listenansicht",
         "grid": "Rasteransicht"
+      },
+      "list": {
+        "name": "Name",
+        "status": "Status",
+        "category": "Kategorie",
+        "location": "Lagerort",
+        "serial": "Seriennummer",
+        "actions": "Aktionen"
       },
       "modals": {
         "product_details": {
@@ -2967,6 +3086,15 @@
       "no_file_selected": "Keine Datei ausgewählt.",
       "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
       "invalid_request": "Ungültige Anfrage.",
+      "event_name_required": "Bitte Projekt / Veranstaltung angeben.",
+      "borrower_name_required": "Bitte Verantwortlichen / Techniker angeben.",
+      "contact_email_required": "Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).",
+      "contact_email_invalid": "Ungültige Kontakt-E-Mail.",
+      "end_date_required": "Bitte Rückgabedatum angeben.",
+      "product_added_to_cart": "Produkt wurde dem Ausleih-Warenkorb hinzugefügt.",
+      "borrow_failed": "Ausleihe fehlgeschlagen.",
+      "no_available_products": "Keine verfügbaren Produkte im Warenkorb.",
+      "end_before_start": "Das Enddatum liegt vor dem Startdatum.",
       "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
       "file_not_found": "Die Datei konnte nicht gefunden werden.",
       "fill_all_fields": "Bitte füllen Sie alle Felder aus.",

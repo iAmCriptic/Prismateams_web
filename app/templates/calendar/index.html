@@ -21,9 +21,30 @@
     <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}">
         <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
     </a>
-    <button type="button" class="btn calendar-sidebar-reset w-100 mb-3" id="calendarResetBtnDesktop">
-        <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
-    </button>
+    <div class="calendar-sidebar-actions d-flex align-items-center gap-1 mb-3">
+        <button type="button" class="btn calendar-sidebar-reset flex-grow-1" id="calendarResetBtnDesktop">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
+        </button>
+        {% if calendar_export_enabled or calendar_import_enabled %}
+        <div class="dropdown">
+            <button type="button" class="btn calendar-sidebar-more" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('calendar.index.dropdown.toggle') }}">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu">
+                {% if calendar_export_enabled %}
+                <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
+                {% endif %}
+                {% if calendar_import_enabled %}
+                <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
+                {% endif %}
+                {% if calendar_export_enabled %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
     <nav class="calendar-sidebar-nav nav flex-column gap-1" id="calendarSidebarNav">
         {% macro cal_nav_item(cal, label=none) %}
         <div class="calendar-nav-item d-flex align-items-center gap-2" data-calendar-id="{{ cal.id }}" data-calendar-name="{{ label or cal.name }}" data-calendar-type="{{ cal.calendar_type }}">
@@ -79,7 +100,7 @@
 
 <div class="calendar-main flex-grow-1 min-width-0">
 {% if calendar_multi_enabled and sc %}
-<div class="calendar-mobile-topbar d-lg-none mb-3">
+<div class="calendar-mobile-topbar d-lg-none mb-2">
     <div class="d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex align-items-center min-width-0 gap-2">
             <button type="button" class="btn btn-outline-secondary calendar-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#calendarMobileNav" aria-controls="calendarMobileNav" aria-label="{{ _('calendar.sidebar.menu') }}">
@@ -90,19 +111,42 @@
                 <span>{{ _('calendar.index.heading') }}</span>
             </h1>
         </div>
-        {% if sc %}
-        <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn btn-accent btn-sm flex-shrink-0">
-            <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
-        </a>
-        {% endif %}
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+            {% if calendar_export_enabled or calendar_import_enabled %}
+            <div class="dropdown">
+                <button type="button" class="btn calendar-mobile-more-btn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('calendar.index.dropdown.toggle') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if calendar_export_enabled %}
+                    <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
+                    {% endif %}
+                    {% if calendar_import_enabled %}
+                    <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
+                    {% endif %}
+                    {% if calendar_export_enabled %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+            {% if sc %}
+            <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn calendar-mobile-new-btn btn-sm">
+                <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
+            </a>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endif %}
 <div class="row mb-3 page-toolbar-row align-items-start g-2">
+    {% if not calendar_multi_enabled %}
     <div class="col min-width-0">
-        <h1 class="text-break {% if calendar_multi_enabled %}d-none d-lg-block{% endif %}"><i class="bi bi-calendar-event"></i> {{ _('calendar.index.heading') }}</h1>
+        <h1 class="text-break"><i class="bi bi-calendar-event"></i> {{ _('calendar.index.heading') }}</h1>
     </div>
-    <div class="col-12 col-lg-auto ms-lg-auto">
+    {% endif %}
+    <div class="col-12 {% if not calendar_multi_enabled %}col-lg-auto ms-lg-auto{% endif %}">
         <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
         <div class="btn-group mb-0" role="group">
             <button type="button" class="btn btn-accent active" id="monthViewBtn">
@@ -118,12 +162,9 @@
                 <i class="bi bi-list-ul"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.list') }}</span>
             </button>
         </div>
-        <div class="btn-group {% if calendar_multi_enabled %}d-none d-lg-flex{% endif %}" role="group">
-            {% if calendar_multi_enabled %}
-            <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn btn-accent">
-                <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">{{ _('calendar.index.new_event') }}</span>
-            </a>
-            {% elif can_create_focus %}
+        {% if not calendar_multi_enabled %}
+        <div class="btn-group" role="group">
+            {% if can_create_focus %}
             <a href="{{ url_for('calendar.create_event') }}" class="btn btn-accent">
                 <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">{{ _('calendar.index.new_event') }}</span>
             </a>
@@ -147,39 +188,21 @@
             </ul>
             {% endif %}
         </div>
-        {% if calendar_multi_enabled and (calendar_export_enabled or calendar_import_enabled) %}
-        <div class="btn-group d-lg-none" role="group">
-            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-three-dots"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-                {% if calendar_export_enabled %}
-                <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
-                {% endif %}
-                {% if calendar_import_enabled %}
-                <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
-                {% endif %}
-                {% if calendar_export_enabled %}
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
-                {% endif %}
-            </ul>
-        </div>
         {% endif %}
         </div>
     </div>
 </div>
 
 <!-- Monatsansicht -->
-<div id="monthView" class="calendar-view">
-    <div class="row mb-3">
+<div id="monthView" class="calendar-view" style="display: flex;">
+    <div class="row mb-2 calendar-view-nav flex-shrink-0">
         <div class="col-auto">
             <button class="btn btn-outline-secondary" id="prevMonth">
                 <i class="bi bi-chevron-left"></i>
             </button>
         </div>
         <div class="col text-center">
-            <h3 id="currentMonth"></h3>
+            <h3 id="currentMonth" class="mb-0"></h3>
         </div>
         <div class="col-auto">
             <button class="btn btn-outline-secondary" id="nextMonth">
@@ -188,7 +211,7 @@
         </div>
     </div>
     
-    <div class="calendar-grid">
+    <div class="calendar-grid calendar-grid--fill">
         <div class="calendar-header">
             {% for weekday in current_translations.get('calendar', {}).get('index', {}).get('weekday_short', []) %}
             <div class="day-header">{{ weekday }}</div>
@@ -256,9 +279,9 @@
 
 <!-- Wochenansicht -->
 <div id="weekView" class="calendar-view" style="display: none;">
-    <div class="row mb-3">
+    <div class="row mb-2 calendar-view-nav flex-shrink-0">
         <div class="col">
-            <h4 id="weekTitle">{{ _('calendar.index.week.title_prefix') }}</h4>
+            <h4 id="weekTitle" class="mb-0">{{ _('calendar.index.week.title_prefix') }}</h4>
         </div>
         <div class="col-auto">
             <div class="btn-group" role="group">
@@ -272,14 +295,14 @@
             </div>
         </div>
     </div>
-    <div id="weekCalendar"></div>
+    <div id="weekCalendar" class="calendar-fill-host"></div>
 </div>
 
 <!-- Tagesansicht -->
 <div id="dayView" class="calendar-view" style="display: none;">
-    <div class="row mb-3">
+    <div class="row mb-2 calendar-view-nav flex-shrink-0">
         <div class="col">
-            <h4 id="dayTitle">{{ _('calendar.index.day.title') }}</h4>
+            <h4 id="dayTitle" class="mb-0">{{ _('calendar.index.day.title') }}</h4>
         </div>
         <div class="col-auto">
             <div class="btn-group" role="group">
@@ -293,7 +316,7 @@
             </div>
         </div>
     </div>
-    <div id="dayCalendar"></div>
+    <div id="dayCalendar" class="calendar-fill-host"></div>
 </div>
 
 </div>{# calendar-main #}
@@ -311,18 +334,50 @@ const LOCALE_MAP = { "de": "de-DE", "en": "en-US", "es": "es-ES", "pt": "pt-PT",
 
 function getSelectedCalendarIds() {
     if (!CAL_MULTI) return [];
-    const checks = document.querySelectorAll('.calendar-visibility-check:checked');
+    // Nur Desktop-Sidebar als Quelle — Mobile-Offcanvas klont die Checkboxen
+    const root = document.getElementById('calendarSidebarNav') || document;
+    const checks = root.querySelectorAll('.calendar-visibility-check:checked');
     if (checks.length) {
-        return Array.from(checks).map(c => parseInt(c.value, 10)).filter(Boolean);
+        const ids = Array.from(checks).map(c => parseInt(c.value, 10)).filter(Boolean);
+        return [...new Set(ids)];
     }
     try {
         const raw = localStorage.getItem(CAL_STORAGE_KEY);
         if (raw) {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length) return parsed.map(Number);
+            if (Array.isArray(parsed) && parsed.length) return [...new Set(parsed.map(Number))];
         }
     } catch (e) {}
     return CAL_SELECTED_IDS && CAL_SELECTED_IDS.length ? CAL_SELECTED_IDS : (CAL_PERSONAL_ID ? [CAL_PERSONAL_ID] : []);
+}
+
+function syncVisibilityCheckboxes(calendarId, checked) {
+    document.querySelectorAll(`.calendar-visibility-check[value="${calendarId}"]`).forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+function countCheckedCalendarsInSidebar() {
+    const root = document.getElementById('calendarSidebarNav');
+    if (!root) return 0;
+    return root.querySelectorAll('.calendar-visibility-check:checked').length;
+}
+
+function onVisibilityCheckboxChange(checkbox) {
+    // Mindestens ein Kalender muss aktiv bleiben
+    if (!checkbox.checked && countCheckedCalendarsInSidebar() === 0) {
+        checkbox.checked = true;
+        return;
+    }
+    // Desktop + Mobile-Klone synchron halten
+    syncVisibilityCheckboxes(checkbox.value, checkbox.checked);
+    const ids = getSelectedCalendarIds();
+    if (!ids.length && CAL_PERSONAL_ID) {
+        syncVisibilityCheckboxes(String(CAL_PERSONAL_ID), true);
+        ids.push(CAL_PERSONAL_ID);
+    }
+    persistSelectedCalendars();
+    reloadWithCalendars(ids);
 }
 
 function calendarQuerySuffix() {
@@ -471,10 +526,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         syncChecksFromStorage();
 
-        document.querySelectorAll('.calendar-visibility-check').forEach(cb => {
+        document.querySelectorAll('#calendarSidebarNav .calendar-visibility-check').forEach(cb => {
             cb.addEventListener('change', function() {
-                persistSelectedCalendars();
-                reloadWithCalendars(getSelectedCalendarIds());
+                onVisibilityCheckboxChange(this);
             });
         });
 
@@ -509,11 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             mobileNav.querySelectorAll('.calendar-visibility-check').forEach(cb => {
                 cb.addEventListener('change', function() {
-                    const id = this.value;
-                    const desktopCb = document.querySelector(`#calendarSidebarNav .calendar-visibility-check[value="${id}"]`);
-                    if (desktopCb) desktopCb.checked = this.checked;
-                    persistSelectedCalendars();
-                    reloadWithCalendars(getSelectedCalendarIds());
+                    onVisibilityCheckboxChange(this);
                 });
             });
             const mobileSearch = mobileNav.querySelector('input[type="search"]');
@@ -565,8 +615,9 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.classList.add('btn-outline-accent');
         });
         
-        // Show active view and button
-        activeView.style.display = 'block';
+        // Show active view and button (flex for fill-height layouts)
+        const useFlex = activeView === monthView || activeView === weekView || activeView === dayView;
+        activeView.style.display = useFlex ? 'flex' : 'block';
         activeBtn.classList.add('active', 'btn-accent');
         activeBtn.classList.remove('btn-outline-accent');
     }

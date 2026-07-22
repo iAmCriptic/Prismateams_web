@@ -1,17 +1,11 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{% if product %}{{ _('inventory.product.form.page_title_edit') }}{% else %}{{ _('inventory.product.form.page_title_new') }}{% endif %}{% endblock %}
+{% block inventory_heading_icon %}bi-box-seam{% endblock %}
+{% block inventory_heading %}{% if product %}{{ _('inventory.product.form.heading_edit') }}{% else %}{{ _('inventory.product.form.heading_new') }}{% endif %}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3">
-            <i class="bi bi-{% if product %}pencil{% else %}plus-circle{% endif %}"></i> 
-            {% if product %}{{ _('inventory.product.form.heading_edit') }}{% else %}{{ _('inventory.product.form.heading_new') }}{% endif %}
-        </h1>
-    </div>
-</div>
 
+{% block inventory_content %}
 <div class="row">
     <div class="col-12 col-lg-8">
         <div class="card">
@@ -122,6 +116,67 @@
                                value="{{ purchase_date_formatted if purchase_date_formatted else '' }}">
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="purchase_price" class="form-label">Kaufpreis</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="purchase_price" name="purchase_price"
+                                   value="{{ product.purchase_price if product and product.purchase_price is not none else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="replacement_value" class="form-label">Wiederbeschaffungswert</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="replacement_value" name="replacement_value"
+                                   value="{{ product.replacement_value if product and product.replacement_value is not none else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="weight_kg" class="form-label">Gewicht (kg)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="weight_kg" name="weight_kg"
+                                   value="{{ product.weight_kg if product and product.weight_kg is not none else '' }}">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="width_cm" class="form-label">Breite (cm)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="width_cm" name="width_cm"
+                                   value="{{ product.width_cm if product and product.width_cm is not none else '' }}">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="height_cm" class="form-label">Höhe (cm)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="height_cm" name="height_cm"
+                                   value="{{ product.height_cm if product and product.height_cm is not none else '' }}">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="depth_cm" class="form-label">Tiefe (cm)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="depth_cm" name="depth_cm"
+                                   value="{{ product.depth_cm if product and product.depth_cm is not none else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="dguv_last_check" class="form-label">DGUV letzte Prüfung</label>
+                            <input type="date" class="form-control" id="dguv_last_check" name="dguv_last_check"
+                                   value="{{ product.dguv_last_check.strftime('%Y-%m-%d') if product and product.dguv_last_check else '' }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="dguv_next_check" class="form-label">DGUV nächste Prüfung</label>
+                            <input type="date" class="form-control" id="dguv_next_check" name="dguv_next_check"
+                                   value="{{ product.dguv_next_check.strftime('%Y-%m-%d') if product and product.dguv_next_check else '' }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="dguv_interval_months" class="form-label">DGUV Intervall (Monate)</label>
+                            <input type="number" min="1" class="form-control" id="dguv_interval_months" name="dguv_interval_months"
+                                   value="{{ product.dguv_interval_months if product and product.dguv_interval_months is not none else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="external_barcode" class="form-label">Externer Barcode / QR-ID</label>
+                        <input type="text" class="form-control" id="external_barcode" name="external_barcode"
+                               value="{{ product.external_barcode if product and product.external_barcode else '' }}"
+                               placeholder="Eigene Barcode-ID">
+                    </div>
+
                     <!-- Status -->
                     {% if product %}
                     <div class="mb-3">
@@ -130,6 +185,9 @@
                             <option value="available" {% if product.status == 'available' %}selected{% endif %}>{{ _('inventory.stock.filters.available') }}</option>
                             <option value="borrowed" {% if product.status == 'borrowed' %}selected{% endif %}>{{ _('inventory.stock.filters.borrowed') }}</option>
                             <option value="missing" {% if product.status == 'missing' %}selected{% endif %}>{{ _('inventory.stock.filters.missing') }}</option>
+                            <option value="defective" {% if product.status == 'defective' %}selected{% endif %}>Defekt</option>
+                            <option value="in_repair" {% if product.status == 'in_repair' %}selected{% endif %}>In Reparatur</option>
+                            <option value="retired" {% if product.status == 'retired' %}selected{% endif %}>Ausgemustert</option>
                         </select>
                     </div>
                     {% endif %}
@@ -251,21 +309,30 @@
     </div>
 </div>
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 {{ super() }}
 <script>
 function removeProductImage(productId) {
-    if (confirm('Möchten Sie das Produktbild wirklich entfernen?')) {
-        // Setze hidden input für Bild-Entfernung
+    const doRemove = () => {
         const removeInput = document.getElementById('remove_image');
         if (removeInput) {
             removeInput.value = '1';
         }
-        // Verstecke Bild-Vorschau
         const imageContainer = document.querySelector('.img-thumbnail');
         if (imageContainer) {
             imageContainer.closest('div.mt-2').style.display = 'none';
         }
+    };
+    if (typeof window.ptConfirm === 'function') {
+        window.ptConfirm('Möchten Sie das Produktbild wirklich entfernen?', {
+            title: 'Bild entfernen',
+            confirmLabel: 'Entfernen',
+            danger: true,
+        }).then((ok) => { if (ok) doRemove(); });
+        return;
+    }
+    if (confirm('Möchten Sie das Produktbild wirklich entfernen?')) {
+        doRemove();
     }
 }
 

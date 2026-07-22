@@ -13,7 +13,10 @@ from app.utils.chat_visibility import visible_chat_user_filters, selectable_chat
 from app.utils.chat_nav import (
     CHAT_PINS_MAX,
     build_chat_nav_items,
+    ensure_user_in_main_chat,
+    get_main_chat,
     toggle_chat_pin,
+    user_is_chat_member,
     wants_desktop_chat_layout,
 )
 from datetime import datetime
@@ -119,8 +122,15 @@ def _build_calendar_message_metadata(event, current_user_status='pending'):
 @check_module_access('module_chat')
 def index():
     """List chats (mobile) or redirect to main chat (desktop shell)."""
-    if wants_desktop_chat_layout(current_user, request):
-        return redirect(url_for('chat.view_chat', chat_id=1))
+    # Fresh installs: Haupt-Chat may exist before admin — self-heal membership
+    ensure_user_in_main_chat(current_user)
+
+    # ?list=1 forces the list view and breaks desktop redirect loops
+    force_list = request.args.get('list') == '1'
+    if not force_list and wants_desktop_chat_layout(current_user, request):
+        main_chat = get_main_chat()
+        if main_chat and user_is_chat_member(current_user, main_chat.id):
+            return redirect(url_for('chat.view_chat', chat_id=1))
 
     nav_items = build_chat_nav_items(current_user)
     return render_template(
@@ -175,12 +185,15 @@ def view_chat(chat_id):
             # Use the actual main chat ID for all operations, but keep URL as /chat/1
             actual_chat_id = main_chat.id
         else:
-            flash('Haupt-Chat nicht gefunden.', 'danger')
-            return redirect(url_for('chat.index'))
+            flash(translate('chat.flash.main_chat_not_found'), 'danger')
+            return redirect(url_for('chat.index', list=1))
     else:
         actual_chat_id = chat_id
     
     chat = Chat.query.get_or_404(actual_chat_id)
+
+    if chat.is_main_chat:
+        ensure_user_in_main_chat(current_user)
     
     # Check if user is a member
     membership = ChatMember.query.filter_by(
@@ -189,8 +202,9 @@ def view_chat(chat_id):
     ).first()
     
     if not membership:
-        flash('Sie sind kein Mitglied dieses Chats.', 'danger')
-        return redirect(url_for('chat.index'))
+        flash(translate('chat.flash.not_member'), 'danger')
+        # list=1 prevents /chat/ → /chat/1 redirect loop on desktop
+        return redirect(url_for('chat.index', list=1))
     
     # Get all messages
     messages = ChatMessage.query.filter_by(

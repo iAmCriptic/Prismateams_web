@@ -484,6 +484,7 @@ def create_app(config_name='default'):
                 'credentials.edit': 'credentials.index',
                 'credentials.create': 'credentials.index',
                 'manuals.view': 'manuals.index',
+                'manuals.raw': 'manuals.index',
                 'manuals.edit': 'manuals.index',
                 'manuals.create': 'manuals.index',
                 'assessment.lists.manage_list_subjects_page': 'assessment.lists.manage_lists_page',

@@ -1,15 +1,12 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ _('inventory.return.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-arrow-counterclockwise{% endblock %}
+{% block inventory_heading %}{{ _('inventory.return.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-arrow-counterclockwise"></i> {{ _('inventory.return.heading') }}</h1>
-        <p class="text-muted">{{ _('inventory.return.subtitle') }}</p>
-    </div>
-</div>
 
+{% block inventory_content %}
+<p class="text-muted mb-3">{{ _('inventory.return.subtitle') }}</p>
 <div class="row">
     <div class="col-12 col-lg-8 mx-auto">
         <div class="card">
@@ -76,23 +73,36 @@
                 <div class="mt-4">
                     <h5 class="mb-3"><i class="bi bi-list-check"></i> Artikel aus Ausleihe auswählen</h5>
                     <p class="text-muted mb-3">Wählen Sie aus, welche Artikel jetzt zurückgegeben werden sollen.</p>
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="borrow_ref" value="{{ borrow_ref }}">
+                        {% if checkout %}
+                        <p class="small text-muted mb-2">
+                            <strong>{{ checkout.event_name }}</strong> — {{ checkout.borrower_name }}
+                        </p>
+                        {% endif %}
                         <div class="list-group mb-3">
                             {% for tx in return_candidates %}
                             <label class="list-group-item d-flex justify-content-between align-items-start">
                                 <div class="ms-2 me-auto">
-                                    <div class="fw-bold">{{ tx.product.name }}</div>
+                                    <div class="fw-bold">{{ tx.product.name if tx.product else 'Produkt' }}</div>
                                     <small class="text-muted">
-                                        {{ _('inventory.return.manual.transaction_number') }}: {{ tx.transaction_number }}
-                                        {% if tx.product.serial_number %}
-                                        - {{ _('inventory.dashboard.my_borrows.table.serial_number') }} {{ tx.product.serial_number }}
+                                        Item #{{ tx.id }}
+                                        {% if tx.product and tx.product.serial_number %}
+                                        - SN: {{ tx.product.serial_number }}
                                         {% endif %}
                                     </small>
                                 </div>
-                                <input class="form-check-input me-1" type="checkbox" name="return_transaction_ids" value="{{ tx.id }}" checked>
+                                <input class="form-check-input me-1" type="checkbox" name="return_item_ids" value="{{ tx.id }}" checked>
                             </label>
                             {% endfor %}
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" value="1" id="mark_defective" name="mark_defective">
+                            <label class="form-check-label" for="mark_defective">Defekt / Wartung nötig</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="damage_image">Schadensfoto (optional)</label>
+                            <input type="file" class="form-control" id="damage_image" name="damage_image" accept="image/*">
                         </div>
                         <button type="submit" class="btn btn-success w-100">
                             <i class="bi bi-check2-square"></i> Ausgewählte Artikel zurückgeben
@@ -106,7 +116,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block inventory_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>

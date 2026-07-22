@@ -1,20 +1,19 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}Produktsets - Lagerverwaltung{% endblock %}
+{% block inventory_heading_icon %}bi-collection{% endblock %}
+{% block inventory_heading %}Produktsets{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-collection"></i> Produktsets</h1>
-        <p class="text-muted">Mehrere Produkte zu einem Set zusammenfassen</p>
-    </div>
-    <div class="col-auto">
-        <a href="{{ url_for('inventory.set_new') }}" class="btn btn-accent">
-            <i class="bi bi-plus-circle"></i> Neues Set erstellen
-        </a>
-    </div>
-</div>
+{% block inventory_mobile_actions %}
+{% if show_new %}
+<a href="{{ url_for('inventory.set_new') }}" class="btn inventory-new-btn btn-sm">
+    <i class="bi bi-plus-lg"></i> {{ _('inventory.shell.new_button') }}
+</a>
+{% endif %}
+{% endblock %}
 
+{% block inventory_content %}
+<p class="text-muted mb-3">Mehrere Produkte zu einem Set zusammenfassen</p>
 {% if sets %}
 <div class="row g-3">
     {% for set in sets %}

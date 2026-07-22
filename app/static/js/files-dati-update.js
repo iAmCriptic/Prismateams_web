@@ -688,11 +688,30 @@
         const sideMenu = document.getElementById('newDropdownMenuSidebar');
         const sideWrap = document.getElementById('newButtonDropdownSidebar');
         if (sideBtn && sideMenu) {
+            const placeSideMenu = () => {
+                const rect = sideBtn.getBoundingClientRect();
+                sideMenu.style.position = 'fixed';
+                sideMenu.style.inset = 'auto';
+                sideMenu.style.top = `${Math.round(rect.bottom + 6)}px`;
+                sideMenu.style.left = `${Math.round(rect.left)}px`;
+                sideMenu.style.right = 'auto';
+                sideMenu.style.bottom = 'auto';
+                sideMenu.style.minWidth = `${Math.max(rect.width, 264)}px`;
+                sideMenu.style.zIndex = '2000';
+            };
+            const closeSideMenu = () => {
+                sideMenu.style.display = 'none';
+            };
+            const openSideMenu = () => {
+                sideMenu.style.display = 'block';
+                placeSideMenu();
+            };
             sideBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const open = sideMenu.style.display === 'block';
-                sideMenu.style.display = open ? 'none' : 'block';
+                if (open) closeSideMenu();
+                else openSideMenu();
             });
             sideMenu.querySelectorAll('[data-pt-trigger-click]').forEach((item) => {
                 item.addEventListener('click', (e) => {
@@ -700,14 +719,21 @@
                     e.stopPropagation();
                     const sel = item.getAttribute('data-pt-trigger-click');
                     const trigger = sel ? document.querySelector(sel) : null;
-                    sideMenu.style.display = 'none';
+                    closeSideMenu();
                     if (trigger) trigger.click();
                 });
             });
             document.addEventListener('click', (e) => {
                 if (sideWrap && sideWrap.contains(e.target)) return;
-                sideMenu.style.display = 'none';
+                if (sideMenu.contains(e.target)) return;
+                closeSideMenu();
             });
+            window.addEventListener('resize', () => {
+                if (sideMenu.style.display === 'block') placeSideMenu();
+            });
+            window.addEventListener('scroll', () => {
+                if (sideMenu.style.display === 'block') placeSideMenu();
+            }, true);
         }
 
         document.querySelectorAll('form[action*="create-folder"]').forEach(form => {
@@ -746,12 +772,15 @@
             });
         }
 
-        document.querySelectorAll('#filesMobileNav a.files-nav-link, #filesMobileNav a.files-favorite-link').forEach((link) => {
+        document.querySelectorAll('#filesMobileNav a[data-files-dismiss-offcanvas]').forEach((link) => {
             link.addEventListener('click', () => {
-                const el = document.getElementById('filesMobileNav');
-                if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
-                const oc = bootstrap.Offcanvas.getInstance(el);
-                if (oc) oc.hide();
+                // Do not preventDefault — Bootstrap data-bs-dismiss blocks <a> navigation.
+                setTimeout(() => {
+                    const el = document.getElementById('filesMobileNav');
+                    if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
+                    const oc = bootstrap.Offcanvas.getInstance(el);
+                    if (oc) oc.hide();
+                }, 50);
             });
         });
 
@@ -779,13 +808,25 @@
             list.innerHTML = items.map((fav) => {
                 const colorClass = fav.color ? '' : ' text-warning';
                 const colorStyle = fav.color ? ` style="color: ${fav.color};"` : '';
-                const dismissAttr = dismiss ? ' data-bs-dismiss="offcanvas"' : '';
+                const dismissAttr = dismiss ? ' data-files-dismiss-offcanvas="1"' : '';
                 const name = (fav.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const url = fav.url || '#';
                 return `<a class="nav-link files-nav-link files-favorite-link" href="${url}" data-folder-id="${fav.id}"${dismissAttr}>` +
                     `<i class="bi bi-folder-fill me-2 folder-color-icon${colorClass}"${colorStyle}></i>` +
                     `<span class="files-favorite-name text-truncate">${name}</span></a>`;
             }).join('');
+            if (dismiss) {
+                list.querySelectorAll('a[data-files-dismiss-offcanvas]').forEach((link) => {
+                    link.addEventListener('click', () => {
+                        setTimeout(() => {
+                            const el = document.getElementById('filesMobileNav');
+                            if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
+                            const oc = bootstrap.Offcanvas.getInstance(el);
+                            if (oc) oc.hide();
+                        }, 50);
+                    });
+                });
+            }
         });
     }
 

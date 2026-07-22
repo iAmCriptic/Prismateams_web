@@ -3,15 +3,17 @@
 {% block title %}{{ _('manuals.upload.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('manuals.index') }}">{{ _('manuals.upload.breadcrumb.index') }}</a></li>
-                <li class="breadcrumb-item active">{{ _('manuals.upload.breadcrumb.current') }}</li>
-            </ol>
-        </nav>
-        
+{% set selected_folder_id = selected_folder_id|default(none) %}
+{% set folders = folders|default([]) %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('manuals.index') }}">{{ _('manuals.upload.breadcrumb.index') }}</a></li>
+        <li class="breadcrumb-item active">{{ _('manuals.upload.breadcrumb.current') }}</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
         <div class="card">
             <div class="card-header">
                 <h4 class="mb-0">{{ _('manuals.upload.card_title') }}</h4>
@@ -22,18 +24,25 @@
                         <label for="title" class="form-label">{{ _('manuals.upload.form.title') }}</label>
                         <input type="text" class="form-control" id="title" name="title" placeholder="{{ _('manuals.upload.form.title_placeholder') }}">
                     </div>
-                    
+                    <div class="mb-3">
+                        <label for="folder_id" class="form-label">{{ _('manuals.upload.form.folder') }}</label>
+                        <select class="form-select" id="folder_id" name="folder_id">
+                            <option value="" {% if not selected_folder_id %}selected{% endif %}>{{ _('manuals.upload.form.root_folder') }}</option>
+                            {% for folder in folders %}
+                            <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="mb-3">
                         <label for="file" class="form-label">{{ _('manuals.upload.form.file') }}</label>
-                        <input type="file" class="form-control" id="file" name="file" accept=".pdf" required>
+                        <input type="file" class="form-control" id="file" name="file" accept=".pdf,application/pdf" required>
                         <div class="form-text">{{ _('manuals.upload.form.file_help') }}</div>
                     </div>
-                    
-                    <div class="d-grid gap-2">
+                    <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-accent">
                             <i class="bi bi-upload"></i> {{ _('manuals.upload.buttons.submit') }}
                         </button>
-                        <a href="{{ url_for('manuals.index') }}" class="btn btn-outline-secondary">{{ _('manuals.upload.buttons.cancel') }}</a>
+                        <a href="{% if selected_folder_id %}{{ url_for('manuals.index', folder_id=selected_folder_id) }}{% else %}{{ url_for('manuals.index') }}{% endif %}" class="btn btn-outline-secondary">{{ _('manuals.upload.buttons.cancel') }}</a>
                     </div>
                 </form>
             </div>
@@ -41,6 +50,3 @@
     </div>
 </div>
 {% endblock %}
-
-
-

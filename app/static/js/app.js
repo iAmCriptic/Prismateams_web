@@ -138,12 +138,14 @@ window.showAppBanner = function showAppBanner(message, category, options) {
         }
     }
     if (clear) {
-        host.innerHTML = '';
+        // Only remove previous JS banners; keep portal_alerts / server flashes
+        host.querySelectorAll('[data-app-banner]').forEach((node) => node.remove());
     }
     const cat = (category === 'error' ? 'danger' : (category || 'info'));
     const el = document.createElement('div');
     el.className = `alert alert-${cat} alert-dismissible fade show`;
     el.setAttribute('role', 'alert');
+    el.setAttribute('data-app-banner', '1');
     el.innerHTML = '';
     const text = document.createElement('span');
     text.textContent = String(message || '');
@@ -155,9 +157,6 @@ window.showAppBanner = function showAppBanner(message, category, options) {
     closeBtn.setAttribute('aria-label', 'Close');
     el.appendChild(closeBtn);
     host.appendChild(el);
-    try {
-        host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } catch (e) { /* ignore */ }
     if (timeout && timeout > 0) {
         setTimeout(() => {
             try {
@@ -1225,7 +1224,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Confirmation dialogs for delete actions (custom modal, not native confirm)
     document.addEventListener('click', function (e) {
-        const button = e.target.closest('[data-confirm-delete]');
+        const button = e.target.closest('[data-confirm-delete], [data-pt-confirm]');
         if (!button || button.disabled) return;
         if (button.dataset.ptConfirmOk === '1') {
             button.dataset.ptConfirmOk = '';
@@ -1233,10 +1232,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         e.preventDefault();
         e.stopPropagation();
+        const isDelete = button.hasAttribute('data-confirm-delete');
         const message =
             button.getAttribute('data-confirm-delete') ||
+            button.getAttribute('data-pt-confirm') ||
             ptI18nCommon('confirm_delete_default', 'Möchten Sie dieses Element wirklich löschen?');
-        window.ptConfirm(message, { danger: true }).then((ok) => {
+        const opts = {
+            title: button.getAttribute('data-pt-confirm-title') || undefined,
+            confirmLabel: button.getAttribute('data-pt-confirm-ok') || undefined,
+            cancelLabel: button.getAttribute('data-pt-confirm-cancel') || undefined,
+            danger: button.getAttribute('data-pt-confirm-danger') === 'false' ? false : (isDelete || button.getAttribute('data-pt-confirm-danger') !== '0'),
+        };
+        window.ptConfirm(message, opts).then((ok) => {
             if (!ok) return;
             button.dataset.ptConfirmOk = '1';
             button.click();

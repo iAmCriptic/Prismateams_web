@@ -137,6 +137,24 @@ class InventoryToolManager {
                 }
             }
             
+            const statusLabels = {
+                available: 'Verfügbar',
+                borrowed: 'Ausgeliehen',
+                missing: 'Fehlend',
+                defective: 'Defekt',
+                in_repair: 'In Reparatur',
+                retired: 'Ausgemustert',
+            };
+            const status = item.product_status || '';
+            let statusBadge = '<span class="badge bg-secondary">—</span>';
+            if (status === 'available') statusBadge = '<span class="badge bg-success">Verfügbar</span>';
+            else if (status === 'borrowed') statusBadge = '<span class="badge bg-warning text-dark">Ausgeliehen</span>';
+            else if (status === 'missing' || status === 'defective' || status === 'in_repair') {
+                statusBadge = `<span class="badge bg-danger">${statusLabels[status] || status}</span>`;
+            } else if (status) {
+                statusBadge = `<span class="badge bg-secondary">${statusLabels[status] || status}</span>`;
+            }
+
             const checkedClass = item.checked ? 'checked' : '';
             const hasChanges = item.location_changed || item.condition_changed || item.notes;
             const changeBadge = hasChanges ? '<span class="badge bg-warning ms-2">Geändert</span>' : '';
@@ -152,6 +170,7 @@ class InventoryToolManager {
                         <strong>${this.escapeHtml(product.name)}</strong>
                         ${changeBadge}
                     </td>
+                    <td>${statusBadge}</td>
                     <td>${this.escapeHtml(product.category || '-')}</td>
                     <td>
                         ${item.location_changed ? '<span class="text-warning">' + this.escapeHtml(item.new_location || '-') + '</span>' : this.escapeHtml(product.location || '-')}
@@ -171,7 +190,7 @@ class InventoryToolManager {
             `;
         }
         
-        tbody.innerHTML = html || '<tr><td colspan="7" class="text-center text-muted">Keine Produkte gefunden</td></tr>';
+        tbody.innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Keine Produkte gefunden</td></tr>';
         
         // Event Listeners für Checkboxen
         tbody.querySelectorAll('.item-checkbox').forEach(checkbox => {

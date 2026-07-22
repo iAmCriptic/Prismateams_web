@@ -36,10 +36,6 @@ def extract_email_addresses(text):
 @check_module_access('module_contacts')
 def index():
     """Liste aller Kontakte."""
-    view_mode = request.args.get('view', 'list')
-    if view_mode not in {'list', 'grid'}:
-        view_mode = 'list'
-
     sort_field = request.args.get('sort', 'name')
     if sort_field not in CONTACT_SORT_FIELDS:
         sort_field = 'name'
@@ -86,7 +82,6 @@ def index():
     return render_template(
         'contacts/index.html',
         contacts=contacts,
-        view_mode=view_mode,
         search_query=search_query,
         current_sort=sort_field,
         current_dir=sort_dir,

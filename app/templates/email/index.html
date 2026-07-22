@@ -116,14 +116,15 @@
         </li>
         {% elif mode == 'offcanvas' %}
         <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
-           class="list-group-item list-group-item-action email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+           class="nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
            data-folder="{{ folder.name }}"
            data-folder-type="{{ folder.folder_type }}"
            data-is-system="{{ 'true' if folder.is_system else 'false' }}"
-           style="padding-left: {{ 1 + (entry.depth * 1.1) }}rem;"
-           onclick="setTimeout(function(){ var oc = bootstrap.Offcanvas.getInstance(document.getElementById('mobileFolderMenu')); if(oc) oc.hide(); }, 100);">
+           data-email-dismiss-offcanvas="1"
+           style="padding-left: {{ 0.75 + (entry.depth * 1.15) }}rem;">
+            <span class="email-folder-drop-indicator" aria-hidden="true"></span>
             {{ folder_icon(folder) }}
-            <span class="ms-2">{{ entry.short_name }}</span>
+            <span class="email-folder-name ms-2">{{ entry.short_name }}</span>
         </a>
         {% elif mode == 'dropdown' %}
         <li>
@@ -192,52 +193,56 @@
 {% set _cf_matches = folders|selectattr('name', 'equalto', current_folder)|list if folders is defined else [] %}
 {% set current_folder_obj = _cf_matches[0] if _cf_matches else none %}
 <div class="email-content w-100" data-module="email">
-<!-- Mobile Header -->
-<div class="d-md-none mb-3">
-    <div class="d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center">
-            <button class="btn btn-sm btn-outline-secondary me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileFolderMenu" aria-controls="mobileFolderMenu">
+<!-- Mobile Header (wie Dateien-Topbar) -->
+<div class="d-md-none mb-3 email-mobile-topbar">
+    <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center min-width-0 gap-2">
+            <button type="button" class="btn btn-outline-secondary email-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#mobileFolderMenu" aria-controls="mobileFolderMenu" aria-label="{{ _('email.index.mobile.folders_title') }}">
                 <i class="bi bi-list"></i>
             </button>
-            <h1 class="h5 mb-0"><i class="bi bi-envelope me-2"></i>{{ _('email.index.heading') }}</h1>
+            <div class="email-mobile-path text-truncate min-width-0">
+                <span class="email-mobile-path-icon" aria-hidden="true">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>
+                <span class="email-mobile-path-text text-truncate">{{ folder_display_name or _('email.index.folder_default') }}</span>
+            </div>
         </div>
-        <a href="{{ url_for('email.compose') }}" class="btn btn-sm btn-accent" title="{{ _('email.index.buttons.compose') }}">
-            <i class="bi bi-pencil-square"></i>
-        </a>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form mb-0" onsubmit="return handleSyncSubmit(event, this);">
+                <button type="submit" class="btn btn-link email-mobile-sync-btn sync-btn p-1" title="{{ _('email.index.buttons.sync') }}">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                    <i class="bi bi-arrow-clockwise sync-icon"></i>
+                </button>
+            </form>
+            <a href="{{ url_for('email.compose') }}" class="btn email-mobile-compose-btn btn-sm" title="{{ _('email.index.buttons.compose') }}">
+                <i class="bi bi-pencil-square me-1"></i>{{ _('email.index.buttons.compose') }}
+            </a>
+        </div>
     </div>
 </div>
 
-<!-- Mobile Folder Menu Overlay -->
-<div class="offcanvas offcanvas-start" tabindex="-1" id="mobileFolderMenu" aria-labelledby="mobileFolderMenuLabel">
+<!-- Mobile Folder Menu Overlay (wie Dateien-Offcanvas) -->
+<div class="offcanvas offcanvas-start email-mobile-offcanvas" tabindex="-1" id="mobileFolderMenu" aria-labelledby="mobileFolderMenuLabel">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="mobileFolderMenuLabel">
-            <i class="bi bi-envelope me-2"></i>{{ _('email.index.mobile.folders_title') }}
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="mobileFolderMenuLabel">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            <span>{{ _('email.index.heading') }}</span>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('email.index.mobile.close') }}"></button>
     </div>
-    <div class="offcanvas-body p-0">
-        <div class="list-group list-group-flush">
+    <div class="offcanvas-body pt-0">
+        <nav class="nav flex-column gap-1 email-folder-list email-mobile-folder-nav">
             {{ folder_tree_links(folder_tree, current_folder, 'offcanvas') }}
-        </div>
-        <div class="p-3 border-top">
-            <button type="button" class="btn btn-outline-accent w-100 mb-2" data-action="open-folder-create">
-                <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
+        </nav>
+        <div class="email-mobile-offcanvas-actions mt-3 pt-3">
+            <button type="button" class="btn email-sidebar-action w-100 justify-content-start" data-action="open-folder-create" data-bs-dismiss="offcanvas">
+                <i class="bi bi-folder-plus"></i>
+                <span class="email-sidebar-action-label">{{ _('email.index.buttons.new_folder') }}</span>
             </button>
-            <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form" onsubmit="return handleSyncSubmit(event, this);">
-                <button type="submit" class="btn btn-outline-secondary w-100 sync-btn" data-bs-dismiss="offcanvas">
-                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
-                    <i class="bi bi-arrow-clockwise me-2 sync-icon"></i>{{ _('email.index.buttons.sync') }}
-                </button>
-            </form>
         </div>
     </div>
 </div>
 
 <!-- Mobile Email List -->
 <div class="d-md-none">
-    <div class="mb-3">
-        <h5 class="mb-0"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
-    </div>
     <div class="card">
         <div class="card-body p-0">
             {% if emails %}
@@ -280,7 +285,7 @@
             </button>
         </div>
         <hr class="my-2">
-        <ul class="nav nav-pills flex-column email-folder-list" id="emailFolderList">
+        <ul class="nav flex-column gap-1 email-folder-list" id="emailFolderList">
             {{ folder_tree_links(folder_tree, current_folder, 'sidebar') }}
         </ul>
     </div>
@@ -687,6 +692,18 @@ document.addEventListener('click', function(e) {
     contentEl.querySelectorAll('.dropdown-item').forEach(item => item.classList.add('py-2'));
     const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
     bsModal.show();
+});
+
+// Mobile Ordner-Offcanvas schließen nach Klick (wie Dateien)
+document.querySelectorAll('#mobileFolderMenu a[data-email-dismiss-offcanvas]').forEach(function(link) {
+    link.addEventListener('click', function() {
+        setTimeout(function() {
+            const el = document.getElementById('mobileFolderMenu');
+            if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
+            const oc = bootstrap.Offcanvas.getInstance(el);
+            if (oc) oc.hide();
+        }, 50);
+    });
 });
 
 // Sync submit handler (shared)

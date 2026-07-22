@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}{{ manual.title }} - {{ _('manuals.view.page_title_suffix') }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .file-viewer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bs-body-bg);
+        z-index: 1050;
+        overflow-y: auto;
+    }
+
+    .file-viewer-header {
+        position: sticky;
+        top: 0;
+        background: var(--bs-body-bg);
+        border-bottom: 1px solid var(--bs-border-color);
+        z-index: 1051;
+        padding: 1rem;
+    }
+
+    .file-viewer--pdf {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        height: 100vh;
+        height: 100dvh;
+        overscroll-behavior: none;
+    }
+
+    .file-viewer--pdf .file-viewer-header {
+        flex: 0 0 auto;
+        position: relative;
+        padding: 0.65rem 1rem;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    .file-viewer--pdf .file-viewer-header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .file-viewer--pdf .file-viewer-meta {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .file-viewer--pdf .file-viewer-meta h4 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-viewer--pdf .file-viewer-meta small {
+        display: block;
+        margin-top: 0.15rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-viewer--pdf .file-viewer-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-shrink: 0;
+    }
+
+    .file-viewer--pdf .file-viewer-content--pdf {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 0;
+        max-width: none;
+        margin: 0;
+        overflow: hidden;
+        background: #525659;
+    }
+
+    .file-viewer--pdf .file-viewer-pdf-frame {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        background: #525659;
+        display: block;
+    }
+
+    .file-viewer-close-fab {
+        display: none;
+    }
+
+    .file-viewer .btn-outline-primary,
+    .file-viewer .btn-outline-secondary {
+        border-color: var(--accent-color) !important;
+        color: var(--accent-color) !important;
+        background: transparent !important;
+    }
+    .file-viewer .btn-outline-primary:hover,
+    .file-viewer .btn-outline-primary:focus,
+    .file-viewer .btn-outline-secondary:hover,
+    .file-viewer .btn-outline-secondary:focus {
+        background: var(--accent-style) !important;
+        border-color: var(--accent-color) !important;
+        color: white !important;
+    }
+
+    html.file-viewer-pdf-open,
+    body.file-viewer-pdf-open {
+        overflow: hidden !important;
+        height: 100%;
+    }
+
+    @media (max-width: 768px) {
+        .file-viewer--pdf .file-viewer-header {
+            padding: 0.5rem 0.75rem;
+        }
+
+        .file-viewer--pdf .file-viewer-header-inner {
+            flex-wrap: wrap;
+        }
+
+        .file-viewer--pdf .file-viewer-meta h4 {
+            font-size: 0.95rem;
+        }
+
+        .file-viewer--pdf .file-viewer-meta small {
+            font-size: 0.75rem;
+        }
+
+        .file-viewer--pdf .file-viewer-actions .btn-label {
+            display: none;
+        }
+
+        .file-viewer--pdf .file-viewer-actions .btn {
+            padding: 0.35rem 0.55rem;
+        }
+
+        .file-viewer--pdf .file-viewer-close-fab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0.55rem;
+            right: 0.55rem;
+            z-index: 1060;
+            width: 2.25rem;
+            height: 2.25rem;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.55);
+            color: #fff;
+        }
+
+        .file-viewer--pdf .file-viewer-actions .file-viewer-close-btn {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="file-viewer file-viewer--pdf">
+    <div class="file-viewer-header">
+        <div class="file-viewer-header-inner">
+            <div class="file-viewer-meta">
+                <h4 title="{{ manual.title }}">{{ manual.title }}</h4>
+                <small class="text-muted">
+                    {{ (manual.file_size / 1024)|round(2) }} KB •
+                    {{ manual.uploaded_at.strftime('%d.%m.%Y %H:%M') }}
+                </small>
+            </div>
+            <div class="file-viewer-actions">
+                <a href="{{ download_url }}" class="btn btn-outline-primary" title="{{ _('manuals.view.download') }}">
+                    <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('manuals.view.download') }}</span>
+                </a>
+                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn" onclick="closeViewer()" title="{{ _('manuals.view.close') }}">
+                    <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('manuals.view.close') }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('manuals.view.close') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+    <div class="file-viewer-content file-viewer-content--pdf">
+        <iframe class="file-viewer-pdf-frame"
+                src="{{ pdf_src }}#view=FitH"
+                title="{{ _('manuals.view.iframe_title') }}"
+                allowfullscreen></iframe>
+    </div>
+</div>
+
+<script>
+function closeViewer() {
+    window.location.href = {{ back_url|tojson }};
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeViewer();
+    }
+});
+
+document.documentElement.classList.add('file-viewer-pdf-open');
+document.body.classList.add('file-viewer-pdf-open');
+document.addEventListener('DOMContentLoaded', function() {
+    var mobileNav = document.getElementById('mobileNav');
+    if (mobileNav) mobileNav.classList.add('d-none');
+});
+</script>
+{% endblock %}

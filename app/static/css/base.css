@@ -3,21 +3,48 @@
 :root {
     --accent-color: #0d6efd;
     --accent-style: #0d6efd;
+    /* Angenehmes Light-Mode-Grau (nicht Schneeweiß) */
+    --portal-bg: #f0f2f5;
+}
+
+/* Bootstrap Color Mode: Body-Fläche grau statt #fff */
+[data-bs-theme="light"] {
+    --bs-body-bg: #f0f2f5;
+    --bs-tertiary-bg: #e9ecef;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f0f2f5;
+    background-color: var(--portal-bg, #f0f2f5);
+}
+
+.main-content {
+    background-color: var(--portal-bg, #f0f2f5);
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+}
+
+[data-bs-theme="dark"] {
+    --bs-body-bg: #1a1a1a;
 }
 
 [data-bs-theme="dark"] body {
-    background-color: #1a1a1a;
+    background-color: #1a1a1a !important;
+}
+
+[data-bs-theme="dark"] .main-content {
+    background-color: #1a1a1a !important;
 }
 
 /* OLED Mode - echtes Schwarz für OLED-Displays */
 [data-oled-mode="true"] body {
+    background-color: #000000 !important;
+}
+
+[data-oled-mode="true"] .main-content {
     background-color: #000000 !important;
 }
 
@@ -1265,16 +1292,29 @@ button, .btn {
     color: white;
 }
 
-/* In-page flash / error banner (replaces browser alert()) */
+/* Portal flash / error banner — fixed overlay, does not push layout */
 .app-flash-banner {
-    position: sticky;
-    top: 0;
-    z-index: 1020;
+    position: fixed;
+    top: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(40rem, calc(100vw - 1.5rem));
+    z-index: 1030;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
 }
-.app-flash-banner:empty {
+.app-flash-banner:not(:has(.alert)) {
     display: none;
 }
 .app-flash-banner .alert {
-    margin-bottom: 0.75rem;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08);
+    margin-bottom: 0;
+    pointer-events: auto;
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+}
+@media (min-width: 992px) {
+    body:has(#desktopSidebar) .app-flash-banner {
+        left: calc(280px + (100vw - 280px) / 2);
+    }
 }

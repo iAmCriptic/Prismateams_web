@@ -1,17 +1,11 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ product_set.name }} ausleihen{% endblock %}
+{% block inventory_heading_icon %}bi-cart-check{% endblock %}
+{% block inventory_heading %}Set "{{ product_set.name }}" ausleihen{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3">
-            <i class="bi bi-cart-check"></i> Set "{{ product_set.name }}" ausleihen
-        </h1>
-        <p class="text-muted">Alle Produkte des Sets werden auf einmal ausgeliehen</p>
-    </div>
-</div>
 
+{% block inventory_content %}
 <div class="row">
     <div class="col-12 col-lg-8">
         <div class="card mb-4">

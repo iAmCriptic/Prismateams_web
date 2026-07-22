@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app import db
 from app.utils.i18n import _, translate
-from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
+from app.models.inventory import Product, Checkout, CheckoutItem, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem
 from app.models.api_token import ApiToken
 from app.models.user import User
 from app.models.settings import SystemSettings
@@ -33,6 +33,51 @@ ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     """Prüft ob die Dateiendung erlaubt ist."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def _parse_optional_float(value):
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    try:
+        return float(raw.replace(',', '.'))
+    except ValueError:
+        return None
+
+
+def _parse_optional_int(value):
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _parse_optional_date(value):
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _product_extra_fields(p):
+    return {
+        'weight_kg': p.weight_kg,
+        'width_cm': p.width_cm,
+        'height_cm': p.height_cm,
+        'depth_cm': p.depth_cm,
+        'purchase_price': p.purchase_price,
+        'replacement_value': p.replacement_value,
+        'dguv_last_check': p.dguv_last_check.isoformat() if p.dguv_last_check else None,
+        'dguv_next_check': p.dguv_next_check.isoformat() if p.dguv_next_check else None,
+        'dguv_interval_months': p.dguv_interval_months,
+        'external_barcode': p.external_barcode,
+    }
 
 
 def get_inventory_categories():
@@ -123,40 +168,53 @@ def public_product(product_id):
 @check_module_access('module_inventory')
 def dashboard():
     """Lager-Dashboard Hauptansicht."""
-    from collections import OrderedDict
-    all_borrows = BorrowTransaction.query.filter_by(
-        borrower_id=current_user.id,
-        status='active'
-    ).order_by(BorrowTransaction.borrow_date.desc()).all()
+    from datetime import date as date_cls
 
-    # Group transactions by borrow_group_id so multi-item borrows appear as one entry
-    groups = OrderedDict()
-    for borrow in all_borrows:
-        key = borrow.borrow_group_id if borrow.borrow_group_id else f'_single_{borrow.id}'
-        if key not in groups:
-            groups[key] = []
-        groups[key].append(borrow)
+    checkouts = Checkout.query.filter(
+        Checkout.status.in_(('active', 'partially_returned')),
+        or_(Checkout.borrower_id == current_user.id, Checkout.created_by == current_user.id),
+    ).order_by(Checkout.start_date.desc()).all()
 
     my_borrows = []
-    for txns in groups.values():
-        first = txns[0]
-        names = [t.product.name for t in txns if t.product]
+    for checkout in checkouts:
+        active = checkout.active_items
+        if not active:
+            continue
+        names = [i.product.name for i in active if i.product]
         display_names = ', '.join(names[:3])
         if len(names) > 3:
             display_names += f' (+{len(names) - 3})'
+        end_date = checkout.end_date.date() if checkout.end_date else date_cls.today()
         my_borrows.append({
-            'first': first,
-            'count': len(txns),
-            'is_group': len(txns) > 1,
-            'product_names': display_names,
-            'borrow_date': first.borrow_date,
-            'expected_return_date': first.expected_return_date,
-            'is_overdue': any(t.is_overdue for t in txns),
-            'ref_id': first.id,
-            'return_number': first.borrow_group_id or first.transaction_number,
+            'first': checkout,
+            'count': len(active),
+            'is_group': len(active) > 1,
+            'product_names': display_names or checkout.event_name,
+            'borrow_date': checkout.start_date,
+            'expected_return_date': end_date,
+            'is_overdue': checkout.is_overdue,
+            'ref_id': checkout.id,
+            'return_number': checkout.checkout_number,
         })
 
-    return render_template('inventory/dashboard.html', my_borrows=my_borrows)
+    stats = {
+        'total': Product.query.count(),
+        'available': Product.query.filter_by(status='available').count(),
+        'borrowed': Product.query.filter_by(status='borrowed').count(),
+        'defective': Product.query.filter(
+            Product.status.in_(('defective', 'in_repair'))
+        ).count(),
+        'overdue': Checkout.query.filter(
+            Checkout.status.in_(('active', 'partially_returned')),
+            Checkout.end_date < datetime.combine(date_cls.today(), datetime.min.time()),
+        ).count(),
+    }
+
+    return render_template(
+        'inventory/dashboard.html',
+        my_borrows=my_borrows,
+        stats=stats,
+    )
 
 
 @inventory_bp.route('/stock')
@@ -273,7 +331,17 @@ def product_new():
                     folder_id=folder_id_int,
                     status='available',
                     image_path=image_path,  # Gleiches Bild für alle
-                    created_by=current_user.id
+                    created_by=current_user.id,
+                    weight_kg=_parse_optional_float(request.form.get('weight_kg')),
+                    width_cm=_parse_optional_float(request.form.get('width_cm')),
+                    height_cm=_parse_optional_float(request.form.get('height_cm')),
+                    depth_cm=_parse_optional_float(request.form.get('depth_cm')),
+                    purchase_price=_parse_optional_float(request.form.get('purchase_price')),
+                    replacement_value=_parse_optional_float(request.form.get('replacement_value')),
+                    dguv_last_check=_parse_optional_date(request.form.get('dguv_last_check')),
+                    dguv_next_check=_parse_optional_date(request.form.get('dguv_next_check')),
+                    dguv_interval_months=_parse_optional_int(request.form.get('dguv_interval_months')),
+                    external_barcode=(request.form.get('external_barcode') or '').strip() or None,
                 )
                 
                 db.session.add(product)
@@ -369,6 +437,17 @@ def product_edit(product_id):
                 product.purchase_date = None
         else:
             product.purchase_date = None
+
+        product.weight_kg = _parse_optional_float(request.form.get('weight_kg'))
+        product.width_cm = _parse_optional_float(request.form.get('width_cm'))
+        product.height_cm = _parse_optional_float(request.form.get('height_cm'))
+        product.depth_cm = _parse_optional_float(request.form.get('depth_cm'))
+        product.purchase_price = _parse_optional_float(request.form.get('purchase_price'))
+        product.replacement_value = _parse_optional_float(request.form.get('replacement_value'))
+        product.dguv_last_check = _parse_optional_date(request.form.get('dguv_last_check'))
+        product.dguv_next_check = _parse_optional_date(request.form.get('dguv_next_check'))
+        product.dguv_interval_months = _parse_optional_int(request.form.get('dguv_interval_months'))
+        product.external_barcode = (request.form.get('external_barcode') or '').strip() or None
         
         if request.form.get('remove_image') == '1':
             if product.image_path:
@@ -495,7 +574,7 @@ def product_update_status(product_id):
     data = request.get_json()
     new_status = data.get('status', '').strip()
     
-    if new_status not in ['available', 'borrowed', 'missing']:
+    if new_status not in ['available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired']:
         return jsonify({'success': False, 'error': 'Ungültiger Status.'}), 400
     
     product.status = new_status
@@ -515,12 +594,8 @@ def product_delete(product_id):
     
     product = Product.query.get_or_404(product_id)
     
-    active_borrow = BorrowTransaction.query.filter_by(
-        product_id=product_id,
-        status='active'
-    ).first()
-    
-    if active_borrow:
+    from app.services.inventory.checkout_service import find_active_checkout_item_for_product
+    if find_active_checkout_item_for_product(product_id) or product.status == 'borrowed':
         flash(_('inventory.flash.product_cannot_delete'), 'danger')
         return redirect(url_for('inventory.stock'))
     
@@ -540,200 +615,60 @@ def product_delete(product_id):
 @inventory_bp.route('/borrow-multiple', methods=['GET', 'POST'])
 @login_required
 def borrow_multiple():
-    """Mehrfachausleihe - mehrere Produkte gleichzeitig ausleihen."""
+    """Mehrfachausleihe → Quick Scan Warenkorb (Checkout-Flow)."""
     if not check_borrow_permission():
         flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.stock'))
-    
-    if request.method == 'GET':
-        product_ids_str = request.args.get('product_ids', '')
-        if not product_ids_str:
-            flash(_('inventory.flash.no_products_selected'), 'danger')
-            return redirect(url_for('inventory.stock'))
-        
-        try:
-            product_ids = [int(pid) for pid in product_ids_str.split(',')]
-        except ValueError:
-            flash(_('inventory.flash.invalid_product_ids'), 'danger')
-            return redirect(url_for('inventory.stock'))
-        
-        products = Product.query.filter(Product.id.in_(product_ids)).all()
-        
-        unavailable_products = [p for p in products if p.status != 'available']
-        if unavailable_products:
-            flash(_('inventory.flash.products_unavailable', products=', '.join([p.name for p in unavailable_products])), 'danger')
-            return redirect(url_for('inventory.stock'))
-        
-        if not products:
-            flash(_('inventory.flash.no_valid_products'), 'danger')
-            return redirect(url_for('inventory.stock'))
-        
-        users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
-        
-        return render_template('inventory/borrow_multiple.html', products=products, users=users)
-    
-    if request.method == 'POST':
-        product_ids_str = request.form.get('product_ids', '')
-        if not product_ids_str:
-            flash(translate('inventory.flash.no_products_selected'), 'danger')
-            return redirect(url_for('inventory.stock'))
-        
-        try:
-            product_ids = [int(pid) for pid in product_ids_str.split(',')]
-        except ValueError:
-            flash(translate('inventory.flash.invalid_product_ids'), 'danger')
-            return redirect(url_for('inventory.stock'))
-        
-        expected_return_date_str = request.form.get('expected_return_date', '').strip()
-        borrower_id = request.form.get('borrower_id', '').strip()
-        
-        if not expected_return_date_str:
-            flash(_('inventory.flash.return_date_required'), 'danger')
-            return redirect(url_for('inventory.borrow_multiple', product_ids=','.join(map(str, product_ids))))
-        
-        try:
-            expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            flash(_('inventory.flash.invalid_date_format'), 'danger')
-            return redirect(url_for('inventory.borrow_multiple', product_ids=','.join(map(str, product_ids))))
-        
-        if expected_return_date < date.today():
-            flash(_('inventory.flash.return_date_past'), 'danger')
-            return redirect(url_for('inventory.borrow_multiple', product_ids=','.join(map(str, product_ids))))
-        
-        if borrower_id:
-            try:
-                borrower = User.query.get(int(borrower_id))
-                if not borrower:
-                    borrower = current_user
-            except:
-                borrower = current_user
-        else:
-            borrower = current_user
-        
-        products = Product.query.filter(Product.id.in_(product_ids)).all()
-        transactions = []
-        
-        borrow_group_id = generate_borrow_group_id()
-        
-        for product in products:
-            if product.status != 'available':
-                continue
-            
-            transaction_number = generate_transaction_number()
-            borrow_transaction = BorrowTransaction(
-                transaction_number=transaction_number,
-                borrow_group_id=borrow_group_id,
-                product_id=product.id,
-                borrower_id=borrower.id,
-                borrowed_by_id=current_user.id,
-                borrow_date=datetime.utcnow(),
-                expected_return_date=expected_return_date,
-                status='active'
-            )
-            
-            # Gemeinsame Ausleihnummer für den gesamten Mehrfachvorgang
-            qr_data = generate_borrow_qr_code(borrow_group_id)
-            borrow_transaction.qr_code_data = qr_data
-            product.status = 'borrowed'
-            
-            db.session.add(borrow_transaction)
-            transactions.append(borrow_transaction)
-        
-        db.session.commit()
-        
-        flash(_('inventory.flash.borrow_success', count=len(transactions)), 'success')
-        
-        if transactions:
-            from app.utils.email_sender import send_borrow_receipt_email
-            email_sent = send_borrow_receipt_email(transactions)
-            
-            if email_sent:
-                flash(_('inventory.flash.receipt_sent'), 'success')
-            else:
-                flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
-        
-        return redirect(url_for('inventory.dashboard'))
+
+    product_ids_str = request.args.get('product_ids', '') if request.method == 'GET' else request.form.get('product_ids', '')
+    if not product_ids_str:
+        flash(_('inventory.flash.no_products_selected'), 'danger')
+        return redirect(url_for('inventory.stock'))
+
+    try:
+        product_ids = [int(pid) for pid in product_ids_str.split(',')]
+    except ValueError:
+        flash(_('inventory.flash.invalid_product_ids'), 'danger')
+        return redirect(url_for('inventory.stock'))
+
+    products = Product.query.filter(Product.id.in_(product_ids)).all()
+    unavailable_products = [p for p in products if p.status != 'available']
+    if unavailable_products:
+        flash(_('inventory.flash.products_unavailable', products=', '.join([p.name for p in unavailable_products])), 'danger')
+        return redirect(url_for('inventory.stock'))
+    if not products:
+        flash(_('inventory.flash.no_valid_products'), 'danger')
+        return redirect(url_for('inventory.stock'))
+
+    cart = session.get('borrow_cart', [])
+    for p in products:
+        if p.id not in cart:
+            cart.append(p.id)
+    session['borrow_cart'] = cart
+    session.modified = True
+    flash(_('inventory.flash.product_added_to_cart'), 'info')
+    return redirect(url_for('inventory.borrow_scanner'))
 
 
 @inventory_bp.route('/products/<int:product_id>/borrow', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_inventory')
 def product_borrow(product_id):
-    """Ausleihvorgang starten."""
+    """Einzelausleihe -> Quick Scan mit vorgefuelltem Warenkorb."""
     if not check_borrow_permission():
         flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.stock'))
-    
     product = Product.query.get_or_404(product_id)
-    
     if product.status != 'available':
-        flash(_('inventory.flash.product_unavailable'), 'danger')
+        flash(_('inventory.errors.product_not_available'), 'danger')
         return redirect(url_for('inventory.stock'))
-    
-    if request.method == 'POST':
-        expected_return_date_str = request.form.get('expected_return_date', '').strip()
-        borrower_id = request.form.get('borrower_id', '').strip()
-        
-        if not expected_return_date_str:
-            flash(_('inventory.flash.return_date_required'), 'danger')
-            return render_template('inventory/borrow.html', product=product)
-        
-        try:
-            expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            flash(_('inventory.flash.invalid_date_format'), 'danger')
-            return render_template('inventory/borrow.html', product=product)
-        
-        if expected_return_date < date.today():
-            flash(_('inventory.flash.return_date_past'), 'danger')
-            return render_template('inventory/borrow.html', product=product)
-        
-        if borrower_id:
-            try:
-                borrower = User.query.get(int(borrower_id))
-                if not borrower:
-                    borrower = current_user
-            except:
-                borrower = current_user
-        else:
-            borrower = current_user
-        
-        transaction_number = generate_transaction_number()
-        
-        borrow_transaction = BorrowTransaction(
-            transaction_number=transaction_number,
-            product_id=product.id,
-            borrower_id=borrower.id,
-            borrowed_by_id=current_user.id,
-            borrow_date=datetime.utcnow(),
-            expected_return_date=expected_return_date,
-            status='active'
-        )
-        
-        qr_data = generate_borrow_qr_code(transaction_number)
-        borrow_transaction.qr_code_data = qr_data
-        
-        product.status = 'borrowed'
-        product.qr_code_data = qr_data  # Temporär für Ausleihe
-        
-        db.session.add(borrow_transaction)
-        db.session.commit()
-        
-        flash(_('inventory.flash.borrow_registered', transaction_number=transaction_number), 'success')
-        
-        from app.utils.email_sender import send_borrow_receipt_email
-        email_sent = send_borrow_receipt_email(borrow_transaction)
-        
-        if email_sent:
-            flash(_('inventory.flash.receipt_sent'), 'success')
-        else:
-            flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
-        
-        return redirect(url_for('inventory.dashboard'))
-    
-    users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
-    
-    return render_template('inventory/borrow.html', product=product, users=users)
+    cart = session.get('borrow_cart', [])
+    if product.id not in cart:
+        cart.append(product.id)
+        session['borrow_cart'] = cart
+        session.modified = True
+    flash(_('inventory.flash.product_added_to_cart'), 'info')
+    return redirect(url_for('inventory.borrow_scanner'))
 
 
 @inventory_bp.route('/borrows')
@@ -745,176 +680,40 @@ def borrows():
 
 @inventory_bp.route('/return', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_inventory')
 def return_item():
-    """Rückgabe-Interface."""
-    preset_transaction_number = request.args.get('transaction_number', '')
-    
-    if request.method == 'POST':
-        selected_transaction_ids = request.form.getlist('return_transaction_ids')
-        borrow_ref = request.form.get('borrow_ref', '').strip()
-
-        if selected_transaction_ids:
-            try:
-                selected_ids_int = [int(tx_id) for tx_id in selected_transaction_ids]
-            except (TypeError, ValueError):
-                flash(_('inventory.flash.no_active_borrow'), 'danger')
-                return redirect(url_for('inventory.return_item'))
-
-            selected_transactions = BorrowTransaction.query.filter(
-                BorrowTransaction.id.in_(selected_ids_int),
-                BorrowTransaction.status == 'active'
-            ).all()
-
-            if borrow_ref:
-                ref_transactions = BorrowTransaction.query.filter(
-                    BorrowTransaction.status == 'active',
-                    or_(
-                        BorrowTransaction.borrow_group_id == borrow_ref,
-                        BorrowTransaction.transaction_number == borrow_ref
-                    )
-                ).all()
-
-                if len(ref_transactions) == 1 and ref_transactions[0].borrow_group_id:
-                    ref_transactions = BorrowTransaction.query.filter_by(
-                        borrow_group_id=ref_transactions[0].borrow_group_id,
-                        status='active'
-                    ).all()
-
-                ref_ids = {tx.id for tx in ref_transactions}
-                selected_ids = set(selected_ids_int)
-
-                # Wenn alle Positionen der Referenz markiert wurden, gib garantiert alle zurück.
-                if ref_ids and ref_ids.issubset(selected_ids):
-                    selected_transactions = ref_transactions
-                elif ref_ids:
-                    selected_transactions = [tx for tx in selected_transactions if tx.id in ref_ids]
-
-            if not selected_transactions:
-                flash(_('inventory.flash.no_active_borrow'), 'danger')
-                return redirect(url_for('inventory.return_item'))
-
-            for transaction in selected_transactions:
-                transaction.mark_as_returned()
-
-            db.session.commit()
-            flash(_('inventory.flash.return_success'), 'success')
-            return redirect(url_for('inventory.dashboard'))
-
-        qr_code = request.form.get('qr_code', '').strip()
-        transaction_number = request.form.get('transaction_number', '').strip()
-        
-        borrow_transactions = []
-        
-        if qr_code:
-            parsed = parse_qr_code(qr_code)
-            if parsed:
-                qr_type, identifier = parsed
-                if qr_type == 'borrow':
-                    borrow_transactions = BorrowTransaction.query.filter(
-                        BorrowTransaction.status == 'active',
-                        or_(
-                            BorrowTransaction.transaction_number == identifier,
-                            BorrowTransaction.borrow_group_id == identifier
-                        )
-                    ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
-
-                    if len(borrow_transactions) == 1 and borrow_transactions[0].borrow_group_id:
-                        borrow_transactions = BorrowTransaction.query.filter_by(
-                            borrow_group_id=borrow_transactions[0].borrow_group_id,
-                            status='active'
-                        ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
-                elif qr_type == 'product':
-                    product = Product.query.get(identifier)
-                    if product:
-                        tx = BorrowTransaction.query.filter_by(
-                            product_id=product.id,
-                            status='active'
-                        ).first()
-                        if tx:
-                            borrow_transactions = [tx]
-        
-        elif transaction_number:
-            borrow_transactions = BorrowTransaction.query.filter(
-                BorrowTransaction.status == 'active',
-                or_(
-                    BorrowTransaction.transaction_number == transaction_number,
-                    BorrowTransaction.borrow_group_id == transaction_number
-                )
-            ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
-
-            if len(borrow_transactions) == 1 and borrow_transactions[0].borrow_group_id:
-                borrow_transactions = BorrowTransaction.query.filter_by(
-                    borrow_group_id=borrow_transactions[0].borrow_group_id,
-                    status='active'
-                ).order_by(BorrowTransaction.borrow_date.asc(), BorrowTransaction.id.asc()).all()
-        
-        if not borrow_transactions:
-            flash(_('inventory.flash.no_active_borrow'), 'danger')
-            return render_template('inventory/return.html', preset_transaction_number=preset_transaction_number)
-
-        if len(borrow_transactions) > 1:
-            shared_group_id = borrow_transactions[0].borrow_group_id
-            if not shared_group_id or any(tx.borrow_group_id != shared_group_id for tx in borrow_transactions):
-                shared_group_id = transaction_number or borrow_transactions[0].transaction_number
-            return render_template(
-                'inventory/return.html',
-                preset_transaction_number=shared_group_id,
-                return_candidates=borrow_transactions,
-                borrow_ref=shared_group_id
-            )
-        
-        borrow_transaction = borrow_transactions[0]
-        borrow_transaction.mark_as_returned()
-        db.session.commit()
-        
-        from app.utils.email_sender import send_return_confirmation_email
-        try:
-            send_return_confirmation_email(borrow_transaction)
-        except Exception as e:
-            current_app.logger.error(f"Fehler beim Senden der Rückgabe-Bestätigung: {e}")
-        
-        flash(_('inventory.flash.return_success'), 'success')
-        return redirect(url_for('inventory.dashboard'))
-    
-    return render_template('inventory/return.html', preset_transaction_number=preset_transaction_number)
+    """Legacy-Rückgabe → Ausleihe / Rückgabe (Deep-Link mit QR/Nummer)."""
+    args = {}
+    ref = (
+        request.args.get('transaction_number')
+        or request.args.get('checkout_number')
+        or request.form.get('transaction_number')
+        or request.form.get('checkout_number')
+        or request.form.get('qr_code')
+        or ''
+    ).strip()
+    if ref:
+        args['transaction_number'] = ref
+    return redirect(url_for('inventory.inventory_checkout', **args))
 
 
 @inventory_bp.route('/return/complete', methods=['POST'])
 @login_required
 def return_complete_borrow():
-    """Komplette Rückgabe eines Ausleihvorgangs (inkl. Mehrfachausleihe)."""
+    """Komplette Rueckgabe eines Checkout-Vorgangs."""
+    from app.services.inventory.checkout_service import return_checkout_by_ref
+
     borrow_ref = request.form.get('borrow_ref', '').strip()
     if not borrow_ref:
         flash(_('inventory.flash.no_active_borrow'), 'danger')
         return redirect(url_for('inventory.dashboard'))
 
-    transactions = BorrowTransaction.query.filter_by(
-        borrow_group_id=borrow_ref,
-        status='active'
-    ).all()
-
-    if not transactions:
-        transaction = BorrowTransaction.query.filter_by(
-            transaction_number=borrow_ref,
-            status='active'
-        ).first()
-        if transaction:
-            if transaction.borrow_group_id:
-                transactions = BorrowTransaction.query.filter_by(
-                    borrow_group_id=transaction.borrow_group_id,
-                    status='active'
-                ).all()
-            else:
-                transactions = [transaction]
-
-    if not transactions:
+    try:
+        return_checkout_by_ref(borrow_ref)
+    except ValueError:
         flash(_('inventory.flash.no_active_borrow'), 'danger')
         return redirect(url_for('inventory.dashboard'))
 
-    for transaction in transactions:
-        transaction.mark_as_returned()
-
-    db.session.commit()
     flash(_('inventory.flash.return_success'), 'success')
     return redirect(url_for('inventory.dashboard'))
 
@@ -938,6 +737,11 @@ def borrow_scanner():
             return jsonify({'error': translate('inventory.errors.no_action_specified')}), 400
         
         if action == 'add_to_cart':
+            from app.services.inventory.checkout_service import (
+                looks_like_return_qr,
+                return_checkout_by_ref,
+                find_checkout,
+            )
             qr_code = request.form.get('qr_code', '').strip()
             product_id = request.form.get('product_id')
             
@@ -949,12 +753,38 @@ def borrow_scanner():
                 current_app.logger.debug(f'QR-Code geparst: {parsed}, Original: {qr_code}')
                 if parsed:
                     qr_type, qr_id = parsed
+                    if qr_type == 'borrow':
+                        try:
+                            checkout = return_checkout_by_ref(str(qr_id) if qr_id else qr_code)
+                            return jsonify({
+                                'success': True,
+                                'is_return': True,
+                                'checkout_id': checkout.id,
+                                'checkout_number': checkout.checkout_number,
+                                'returned_count': len(checkout.returned_items),
+                                'status': checkout.status,
+                            })
+                        except ValueError as exc:
+                            return jsonify({'error': str(exc), 'is_return': True}), 400
                     if qr_type == 'product':
                         product = Product.query.get(qr_id)
                         current_app.logger.debug(f'Produkt gefunden: {product.id if product else None}')
                     elif qr_type == 'set':
                         product_set = ProductSet.query.get(qr_id)
                         current_app.logger.debug(f'Set gefunden: {product_set.id if product_set else None}')
+                elif looks_like_return_qr(qr_code):
+                    try:
+                        checkout = return_checkout_by_ref(qr_code)
+                        return jsonify({
+                            'success': True,
+                            'is_return': True,
+                            'checkout_id': checkout.id,
+                            'checkout_number': checkout.checkout_number,
+                            'returned_count': len([i for i in checkout.items if i.returned_at]),
+                            'status': checkout.status,
+                        })
+                    except ValueError as exc:
+                        return jsonify({'error': str(exc), 'is_return': True}), 400
                 else:
                     try:
                         direct_product_id = int(qr_code)
@@ -963,6 +793,8 @@ def borrow_scanner():
                     except (ValueError, TypeError):
                         current_app.logger.debug(f'QR-Code konnte nicht als Produkt-ID interpretiert werden: {qr_code}')
                         pass  # Keine gültige Produkt-ID
+                if not product and not product_set and qr_code:
+                    product = Product.query.filter_by(external_barcode=qr_code).first()
             elif product_id:
                 try:
                     product = Product.query.get(int(product_id))
@@ -1035,7 +867,14 @@ def borrow_scanner():
             current_app.logger.debug(f'Produkt Status: {product.status}, ID: {product.id}, Name: {product.name}')
             if product.status != 'available':
                 current_app.logger.warning(f'Produkt nicht verfügbar: {product.id}, Status: {product.status}')
-                return jsonify({'error': f'Produkt ist nicht verfügbar. Status: {product.status}'}), 400
+                blocked = product.status in ('borrowed', 'in_repair', 'defective', 'missing', 'retired')
+                return jsonify({
+                    'error': f'Alarm: Artikel „{product.name}“ ist nicht ausleihbar (Status: {product.status}).',
+                    'blocked': blocked,
+                    'status': product.status,
+                    'product_id': product.id,
+                    'product_name': product.name,
+                }), 400
             
             cart = session.get('borrow_cart', [])
             if product.id not in cart:
@@ -1082,7 +921,9 @@ def borrow_scanner():
 @inventory_bp.route('/borrow-scanner/checkout', methods=['POST'])
 @login_required
 def borrow_scanner_checkout():
-    """Warenkorb checkout - alle Produkte ausleihen."""
+    """Quick Scan: Warenkorb ohne Pflicht-Kopfdaten ausleihen."""
+    from app.services.inventory.checkout_service import create_checkout
+
     if not check_borrow_permission():
         flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
@@ -1091,83 +932,154 @@ def borrow_scanner_checkout():
     if not cart_product_ids:
         flash(_('inventory.flash.no_products_to_borrow'), 'danger')
         return redirect(url_for('inventory.borrow_scanner'))
-    
-    expected_return_date_str = request.form.get('expected_return_date', '').strip()
-    borrower_id = request.form.get('borrower_id', '').strip()
-    
-    if not expected_return_date_str:
-        flash(_('inventory.flash.return_date_required'), 'danger')
-        return redirect(url_for('inventory.borrow_scanner'))
-    
+
+    event_name = request.form.get('event_name', '').strip()
+    end_date_str = request.form.get('end_date', '').strip()
+    start_date = datetime.utcnow()
+    end_date = None
+    if end_date_str:
+        try:
+            if 'T' in end_date_str:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H:%M')
+            else:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+        except ValueError:
+            flash(_('inventory.flash.invalid_date_format'), 'danger')
+            return redirect(url_for('inventory.borrow_scanner'))
+
     try:
-        expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
+        checkout = create_checkout(
+            product_ids=cart_product_ids,
+            event_name=event_name,
+            borrower_name=current_user.full_name,
+            created_by_id=current_user.id,
+            start_date=start_date,
+            end_date=end_date,
+            borrower_id=current_user.id,
+            require_event=False,
+            require_end_date=False,
+        )
+    except ValueError as exc:
+        code = str(exc)
+        flash(_(f'inventory.flash.{code}') if code else _('inventory.flash.borrow_failed'), 'danger')
+        return redirect(url_for('inventory.borrow_scanner'))
+
+    session.pop('borrow_cart', None)
+    flash(_('inventory.flash.borrow_success', count=len(checkout.items)), 'success')
+    return redirect(url_for('inventory.borrows'))
+
+
+@inventory_bp.route('/checkout', methods=['GET', 'POST'])
+@login_required
+def inventory_checkout():
+    """Ausleihe / Rückgabe mit Kopfdaten (Projekt, Verantwortlicher, Zeitraum)."""
+    if not check_borrow_permission():
+        if request.method == 'POST':
+            return jsonify({'error': translate('inventory.errors.no_borrow_permission')}), 403
+        flash(translate('inventory.flash.no_borrow_permission'), 'danger')
+        return redirect(url_for('inventory.dashboard'))
+
+    # Same cart + scan POST handling as Quick Scan
+    if request.method == 'POST':
+        return borrow_scanner()
+
+    cart_product_ids = session.get('borrow_cart', [])
+    cart_products = Product.query.filter(Product.id.in_(cart_product_ids)).all() if cart_product_ids else []
+    users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
+    users_payload = [
+        {
+            'id': u.id,
+            'name': u.full_name,
+            'email': u.email or '',
+        }
+        for u in users
+    ]
+    return render_template(
+        'inventory/checkout.html',
+        cart_products=cart_products,
+        users=users,
+        users_json=users_payload,
+        preset_ref=request.args.get('transaction_number') or request.args.get('checkout_number') or '',
+    )
+
+
+@inventory_bp.route('/checkout/confirm', methods=['POST'])
+@login_required
+def inventory_checkout_confirm():
+    """Voller Checkout mit Pflicht-Kopfdaten."""
+    from app.services.inventory.checkout_service import create_checkout
+
+    if not check_borrow_permission():
+        flash(_('inventory.flash.no_borrow_permission'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+
+    cart_product_ids = session.get('borrow_cart', [])
+    if not cart_product_ids:
+        flash(_('inventory.flash.no_products_to_borrow'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+
+    event_name = request.form.get('event_name', '').strip()
+    borrower_name = request.form.get('borrower_name', '').strip()
+    borrower_id_raw = request.form.get('borrower_id', '').strip()
+    contact_email = request.form.get('contact_email', '').strip()
+    start_date_str = request.form.get('start_date', '').strip()
+    end_date_str = request.form.get('end_date', '').strip()
+
+    if not event_name:
+        flash(_('inventory.flash.event_name_required'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+    if not borrower_name:
+        flash(_('inventory.flash.borrower_name_required'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+    if not end_date_str:
+        flash(_('inventory.flash.return_date_required'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+
+    linked_borrower_id = None
+    if borrower_id_raw:
+        try:
+            linked_borrower_id = int(borrower_id_raw)
+        except ValueError:
+            linked_borrower_id = None
+
+    if not linked_borrower_id and not contact_email:
+        flash(_('inventory.flash.contact_email_required'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M') if 'T' in start_date_str else datetime.strptime(start_date_str, '%Y-%m-%d')
+        else:
+            start_date = datetime.utcnow()
+        if 'T' in end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H:%M')
+        else:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
     except ValueError:
         flash(_('inventory.flash.invalid_date_format'), 'danger')
-        return redirect(url_for('inventory.borrow_scanner'))
-    
-    if expected_return_date < date.today():
-        flash(_('inventory.flash.return_date_past'), 'danger')
-        return redirect(url_for('inventory.borrow_scanner'))
-    
-    # Ausleihender bestimmen
-    if borrower_id:
-        try:
-            borrower = User.query.get(int(borrower_id))
-            if not borrower:
-                borrower = current_user
-        except:
-            borrower = current_user
-    else:
-        borrower = current_user
-    
-    # Alle Produkte ausleihen
-    products = Product.query.filter(Product.id.in_(cart_product_ids)).all()
-    transactions = []
-    
-    # Gemeinsame Gruppierungs-ID für alle Produkte dieser Mehrfachausleihe
-    borrow_group_id = generate_borrow_group_id()
-    
-    for product in products:
-        if product.status != 'available':
-            continue
-        
-        transaction_number = generate_transaction_number()
-        borrow_transaction = BorrowTransaction(
-            transaction_number=transaction_number,
-            borrow_group_id=borrow_group_id,
-            product_id=product.id,
-            borrower_id=borrower.id,
-            borrowed_by_id=current_user.id,
-            borrow_date=datetime.utcnow(),
-            expected_return_date=expected_return_date,
-            status='active'
+        return redirect(url_for('inventory.inventory_checkout'))
+
+    try:
+        checkout = create_checkout(
+            product_ids=cart_product_ids,
+            event_name=event_name,
+            borrower_name=borrower_name,
+            created_by_id=current_user.id,
+            start_date=start_date,
+            end_date=end_date,
+            borrower_id=linked_borrower_id,
+            contact_email=contact_email,
+            require_event=True,
+            require_end_date=True,
         )
-        
-        # Gemeinsame Ausleihnummer für den gesamten Mehrfachvorgang
-        qr_data = generate_borrow_qr_code(borrow_group_id)
-        borrow_transaction.qr_code_data = qr_data
-        product.status = 'borrowed'
-        
-        db.session.add(borrow_transaction)
-        transactions.append(borrow_transaction)
-    
-    db.session.commit()
-    
+    except ValueError as exc:
+        code = str(exc)
+        flash(_(f'inventory.flash.{code}') if code else _('inventory.flash.borrow_failed'), 'danger')
+        return redirect(url_for('inventory.inventory_checkout'))
+
     session.pop('borrow_cart', None)
-    
-    flash(_('inventory.flash.borrow_success', count=len(transactions)), 'success')
-    
-    # PDF per E-Mail versenden mit allen Transaktionen
-    if transactions:
-        from app.utils.email_sender import send_borrow_receipt_email
-        email_sent = send_borrow_receipt_email(transactions)
-        
-        if email_sent:
-            flash(_('inventory.flash.receipt_sent'), 'success')
-        else:
-            flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
-    
-    return redirect(url_for('inventory.dashboard'))
+    flash(_('inventory.flash.borrow_success', count=len(checkout.items)), 'success')
+    return redirect(url_for('inventory.borrows'))
 
 
 @inventory_bp.route('/inventory-list')
@@ -1231,7 +1143,7 @@ def inventory_tool():
             db.session.add(new_inventory)
             db.session.flush()
             
-            products = Product.query.all()
+            products = Product.query.filter(Product.status != 'retired').order_by(Product.name).all()
             for product in products:
                 inventory_item = InventoryItem(
                     inventory_id=new_inventory.id,
@@ -1326,11 +1238,34 @@ def inventory_tool_pdf(inventory_id):
 
 # ========== Inventurtool API Routes ==========
 
+def _sync_inventory_products(inventory):
+    """Stellt sicher, dass alle relevanten Produkte (inkl. Defekt/Fehlend) in der Inventur sind."""
+    if not inventory or inventory.status != 'active':
+        return 0
+    existing_ids = {
+        row[0]
+        for row in db.session.query(InventoryItem.product_id)
+        .filter_by(inventory_id=inventory.id)
+        .all()
+    }
+    products = Product.query.filter(Product.status != 'retired').all()
+    added = 0
+    for product in products:
+        if product.id in existing_ids:
+            continue
+        db.session.add(InventoryItem(inventory_id=inventory.id, product_id=product.id))
+        added += 1
+    if added:
+        db.session.commit()
+    return added
+
+
 @inventory_bp.route('/api/inventory/<int:inventory_id>/items', methods=['GET'])
 @login_required
 def api_inventory_items(inventory_id):
     """API: Alle Items einer Inventur abrufen."""
     inventory = Inventory.query.get_or_404(inventory_id)
+    _sync_inventory_products(inventory)
     
     items = InventoryItem.query.filter_by(inventory_id=inventory_id).options(
         joinedload(InventoryItem.product),
@@ -1339,6 +1274,9 @@ def api_inventory_items(inventory_id):
     
     result = []
     for item in items:
+        if not item.product:
+            continue
+        # Ausgemusterte weiterhin anzeigen, falls schon in Inventur; neue kommen nicht dazu
         result.append({
             'id': item.id,
             'product_id': item.product_id,
@@ -1346,6 +1284,7 @@ def api_inventory_items(inventory_id):
             'product_category': item.product.category,
             'product_location': item.product.location,
             'product_condition': item.product.condition,
+            'product_status': item.product.status,
             'checked': item.checked,
             'notes': item.notes,
             'location_changed': item.location_changed,
@@ -1355,7 +1294,8 @@ def api_inventory_items(inventory_id):
             'checked_by': item.checked_by,
             'checked_by_name': item.checker.full_name if item.checker else None,
             'checked_at': item.checked_at.isoformat() if item.checked_at else None,
-            'updated_at': item.updated_at.isoformat()
+            'updated_at': item.updated_at.isoformat(),
+            'version': item.version,
         })
     
     return jsonify({
@@ -1523,6 +1463,36 @@ def api_inventory_scan(inventory_id):
                 'condition_changed': item.condition_changed,
                 'new_condition': item.new_condition
             }
+        })
+    elif qr_type == 'set':
+        product_set = ProductSet.query.get(qr_id)
+        if not product_set:
+            return jsonify({'error': 'Set nicht gefunden.'}), 404
+        checked = []
+        missing = []
+        for set_item in product_set.items:
+            inv_item = InventoryItem.query.filter_by(
+                inventory_id=inventory_id,
+                product_id=set_item.product_id,
+            ).first()
+            if not inv_item:
+                missing.append(set_item.product.name if set_item.product else str(set_item.product_id))
+                continue
+            inv_item.checked = True
+            inv_item.checked_by = current_user.id
+            inv_item.checked_at = datetime.utcnow()
+            checked.append({
+                'id': set_item.product_id,
+                'name': set_item.product.name if set_item.product else None,
+            })
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'is_set': True,
+            'set': {'id': product_set.id, 'name': product_set.name},
+            'checked_products': checked,
+            'missing_products': missing,
+            'checked_count': len(checked),
         })
     else:
         return jsonify({'error': translate('inventory.errors.only_product_qr_supported')}), 400
@@ -1766,7 +1736,8 @@ def api_products():
                     'image_path': image_path_value,
                     'qr_code_data': p.qr_code_data,
                     'created_at': p.created_at.isoformat(),
-                    'created_by': p.created_by
+                    'created_by': p.created_by,
+                    **_product_extra_fields(p),
                 })
             except Exception as e:
                 current_app.logger.error(f"Fehler beim Serialisieren von Produkt {p.id}: {e}", exc_info=True)
@@ -1833,7 +1804,8 @@ def api_product_get(product_id):
         'image_path': image_path_value,
         'qr_code_data': product.qr_code_data,
         'created_at': product.created_at.isoformat(),
-        'created_by': product.created_by
+        'created_by': product.created_by,
+        **_product_extra_fields(product),
     })
 
 
@@ -1943,12 +1915,8 @@ def api_product_delete(product_id):
     
     product = Product.query.get_or_404(product_id)
     
-    active_borrow = BorrowTransaction.query.filter_by(
-        product_id=product_id,
-        status='active'
-    ).first()
-    
-    if active_borrow:
+    from app.services.inventory.checkout_service import find_active_checkout_item_for_product
+    if find_active_checkout_item_for_product(product_id) or product.status == 'borrowed':
         return jsonify({'error': translate('inventory.errors.product_borrowed_cannot_delete')}), 400
     
     # Prüfe ob Produkt in Produktsets enthalten ist
@@ -2074,6 +2042,13 @@ def api_products_bulk_update():
                     updates['folder_id'] = folder_id_int
             except (ValueError, TypeError):
                 errors.append('Ungültige Ordner-ID.')
+
+    if 'status' in data:
+        status_value = (data.get('status') or '').strip()
+        if status_value not in ('available', 'borrowed', 'missing', 'defective', 'in_repair', 'retired'):
+            errors.append('Ungültiger Status.')
+        else:
+            updates['status'] = status_value
     
     if 'remove_image' in data and data.get('remove_image'):
         updates['remove_image'] = True
@@ -2098,6 +2073,8 @@ def api_products_bulk_update():
                 product.category = updates['category']
             if 'folder_id' in updates:
                 product.folder_id = updates['folder_id']
+            if 'status' in updates:
+                product.status = updates['status']
             if updates.get('remove_image'):
                 if product.image_path:
                     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
@@ -2155,13 +2132,13 @@ def api_products_bulk_delete():
     if len(products) != len(product_ids_int):
         return jsonify({'error': translate('inventory.errors.some_product_ids_not_found')}), 404
     
-    active_borrows = BorrowTransaction.query.filter(
-        BorrowTransaction.product_id.in_(product_ids_int),
-        BorrowTransaction.status == 'active'
+    active_items = CheckoutItem.query.filter(
+        CheckoutItem.product_id.in_(product_ids_int),
+        CheckoutItem.returned_at.is_(None),
     ).all()
     
-    if active_borrows:
-        borrowed_product_ids = [b.product_id for b in active_borrows]
+    if active_items:
+        borrowed_product_ids = [i.product_id for i in active_items]
         borrowed_products = [p for p in products if p.id in borrowed_product_ids]
         product_names = [p.name for p in borrowed_products]
         return jsonify({
@@ -2460,7 +2437,9 @@ def api_filter_options():
 @inventory_bp.route('/api/borrow', methods=['POST'])
 @login_required
 def api_borrow():
-    """API: Ausleihvorgang registrieren."""
+    """API: Ausleihvorgang registrieren (Checkout Compat)."""
+    from app.services.inventory.checkout_service import create_checkout, serialize_checkout
+
     if not check_borrow_permission():
         return jsonify({'error': translate('inventory.errors.no_borrow_permission')}), 403
     
@@ -2470,252 +2449,274 @@ def api_borrow():
         return jsonify({'error': translate('inventory.errors.no_data_submitted')}), 400
     
     product_id = data.get('product_id')
+    product_ids = data.get('product_ids') or ([product_id] if product_id else [])
     borrower_id = data.get('borrower_id', current_user.id)
-    expected_return_date_str = data.get('expected_return_date')
+    expected_return_date_str = data.get('expected_return_date') or data.get('end_date')
+    event_name = (data.get('event_name') or 'API Ausleihe').strip()
+    borrower_name = (data.get('borrower_name') or '').strip()
     
-    if not product_id or not expected_return_date_str:
+    if not product_ids or not expected_return_date_str:
         return jsonify({'error': translate('inventory.errors.product_id_return_date_required')}), 400
     
-    product = Product.query.get(product_id)
-    if not product:
-        return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
-    
-    if product.status != 'available':
-        return jsonify({'error': translate('inventory.errors.product_not_available')}), 400
-    
     try:
-        expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
+        product_ids = [int(pid) for pid in product_ids]
+    except (TypeError, ValueError):
+        return jsonify({'error': translate('inventory.errors.invalid_product_ids')}), 400
+
+    try:
+        if 'T' in str(expected_return_date_str):
+            end_date = datetime.strptime(expected_return_date_str, '%Y-%m-%dT%H:%M')
+        else:
+            end_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d')
     except ValueError:
         return jsonify({'error': translate('inventory.errors.invalid_date_format')}), 400
     
-    borrower = User.query.get(borrower_id)
+    borrower = User.query.get(borrower_id) if borrower_id else current_user
     if not borrower:
         return jsonify({'error': translate('inventory.errors.user_not_found')}), 404
-    
-    transaction_number = generate_transaction_number()
-    
-    borrow_transaction = BorrowTransaction(
-        transaction_number=transaction_number,
-        product_id=product.id,
-        borrower_id=borrower.id,
-        borrowed_by_id=current_user.id,
-        borrow_date=datetime.utcnow(),
-        expected_return_date=expected_return_date,
-        status='active'
-    )
-    
-    qr_data = generate_borrow_qr_code(transaction_number)
-    borrow_transaction.qr_code_data = qr_data
-    
-    product.status = 'borrowed'
-    
-    db.session.add(borrow_transaction)
-    db.session.commit()
+    if not borrower_name:
+        borrower_name = borrower.full_name
+
+    start_raw = data.get('start_date')
+    if start_raw:
+        try:
+            start_date = datetime.strptime(start_raw, '%Y-%m-%dT%H:%M') if 'T' in str(start_raw) else datetime.strptime(start_raw, '%Y-%m-%d')
+        except ValueError:
+            start_date = datetime.utcnow()
+    else:
+        start_date = datetime.utcnow()
+
+    try:
+        checkout = create_checkout(
+            product_ids=product_ids,
+            event_name=event_name,
+            borrower_name=borrower_name,
+            created_by_id=current_user.id,
+            start_date=start_date,
+            end_date=end_date,
+            borrower_id=borrower.id,
+        )
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     
     return jsonify({
-        'transaction_id': borrow_transaction.id,
-        'transaction_number': transaction_number,
-        'borrow_group_id': borrow_transaction.borrow_group_id,
-        'qr_code_data': qr_data
+        'transaction_id': checkout.id,
+        'checkout_id': checkout.id,
+        'transaction_number': checkout.checkout_number,
+        'borrow_group_id': checkout.checkout_number,
+        'qr_code_data': checkout.qr_code_data,
+        'checkout': serialize_checkout(checkout),
     }), 201
 
 
 @inventory_bp.route('/api/borrows', methods=['GET'])
 @login_required
 def api_borrows():
-    """API: Liste aller aktuell ausgeliehenen Produkte."""
-    borrows = BorrowTransaction.query.filter_by(
-        status='active'
-    ).order_by(BorrowTransaction.borrow_date.desc()).all()
-    
-    return jsonify([{
-        'id': b.id,
-        'transaction_number': b.transaction_number,
-        'borrow_group_id': b.borrow_group_id,
-        'product_id': b.product_id,
-        'product_name': b.product.name,
-        'borrower_id': b.borrower_id,
-        'borrower_name': f"{b.borrower.first_name} {b.borrower.last_name}",
-        'borrow_date': b.borrow_date.isoformat(),
-        'expected_return_date': b.expected_return_date.isoformat(),
-        'is_overdue': b.is_overdue,
-        'qr_code_data': b.qr_code_data
-    } for b in borrows])
+    """API: Checkout-Items für Historie-UI (inkl. zurückgegebene)."""
+    status = request.args.get('status', 'all')
+    mine = request.args.get('mine', '').lower() in ('1', 'true', 'yes')
+    q = Checkout.query
+    if status == 'active':
+        q = q.filter(Checkout.status.in_(('active', 'partially_returned')))
+    elif status == 'completed':
+        q = q.filter_by(status='completed')
+    elif status not in ('all', 'returned', 'overdue'):
+        q = q.filter_by(status=status)
+    if mine:
+        q = q.filter(or_(Checkout.borrower_id == current_user.id, Checkout.created_by == current_user.id))
+    checkouts = q.order_by(Checkout.start_date.desc()).all()
+    payload = []
+    for c in checkouts:
+        for item in c.items:
+            item_status = 'returned' if item.returned_at else 'active'
+            is_overdue = bool(c.is_overdue and item.returned_at is None)
+            if status == 'active' and item.returned_at is not None:
+                continue
+            if status == 'returned' and item.returned_at is None:
+                continue
+            if status == 'overdue' and not is_overdue:
+                continue
+            end_date = c.end_date.date().isoformat() if c.end_date else None
+            payload.append({
+                'id': item.id,
+                'checkout_id': c.id,
+                'transaction_number': c.checkout_number,
+                'borrow_group_id': c.checkout_number,
+                'product_id': item.product_id,
+                'product_name': item.product.name if item.product else None,
+                'borrower_id': c.borrower_id,
+                'borrower_name': c.borrower_name,
+                'created_by': c.created_by,
+                'contact_email': c.contact_email,
+                'event_name': c.event_name,
+                'borrow_date': c.start_date.isoformat() if c.start_date else None,
+                'expected_return_date': end_date,
+                'is_overdue': is_overdue,
+                'qr_code_data': c.qr_code_data,
+                'status': item_status,
+                'returned_at': item.returned_at.isoformat() if item.returned_at else None,
+            })
+    return jsonify(payload)
 
 
 @inventory_bp.route('/api/borrows/my', methods=['GET'])
 @login_required
 def api_borrows_my():
-    """API: Meine aktuellen Ausleihen."""
-    borrows = BorrowTransaction.query.filter_by(
-        borrower_id=current_user.id,
-        status='active'
-    ).order_by(BorrowTransaction.borrow_date.desc()).all()
-    
-    return jsonify([{
-        'id': b.id,
-        'transaction_number': b.transaction_number,
-        'borrow_group_id': b.borrow_group_id,
-        'product_id': b.product_id,
-        'product_name': b.product.name,
-        'borrow_date': b.borrow_date.isoformat(),
-        'expected_return_date': b.expected_return_date.isoformat(),
-        'is_overdue': b.is_overdue,
-        'qr_code_data': b.qr_code_data
-    } for b in borrows])
+    """API: Meine aktuellen Checkout-Items."""
+    checkouts = Checkout.query.filter(
+        Checkout.borrower_id == current_user.id,
+        Checkout.status.in_(('active', 'partially_returned')),
+    ).order_by(Checkout.start_date.desc()).all()
+
+    payload = []
+    for c in checkouts:
+        for item in c.active_items:
+            payload.append({
+                'id': item.id,
+                'checkout_id': c.id,
+                'transaction_number': c.checkout_number,
+                'borrow_group_id': c.checkout_number,
+                'product_id': item.product_id,
+                'product_name': item.product.name if item.product else None,
+                'event_name': c.event_name,
+                'borrow_date': c.start_date.isoformat() if c.start_date else None,
+                'expected_return_date': c.end_date.date().isoformat() if c.end_date else None,
+                'is_overdue': c.is_overdue,
+                'qr_code_data': c.qr_code_data,
+            })
+    return jsonify(payload)
 
 
 @inventory_bp.route('/api/borrows/my/grouped', methods=['GET'])
 @login_required
 def api_borrows_my_grouped():
-    """API: Meine Ausleihen gruppiert nach Ausleihvorgang (für Widget)."""
-    borrows = BorrowTransaction.query.filter_by(
-        borrower_id=current_user.id,
-        status='active'
-    ).order_by(BorrowTransaction.borrow_date.desc()).all()
-    
-    # Gruppiere nach borrow_group_id (oder falls None, nach transaction_number für Einzelausleihen)
-    grouped = {}
-    for b in borrows:
-        # Verwende borrow_group_id falls vorhanden, sonst transaction_number für Einzelausleihen
-        group_key = b.borrow_group_id if b.borrow_group_id else b.transaction_number
-        
-        if group_key not in grouped:
-            grouped[group_key] = {
-                'borrow_group_id': b.borrow_group_id,
-                'borrow_date': b.borrow_date.isoformat(),
-                'expected_return_date': b.expected_return_date.isoformat(),
-                'transactions': [],
-                'product_count': 0,
-                'is_overdue': False
-            }
-        
-        grouped[group_key]['transactions'].append({
-            'id': b.id,
-            'transaction_number': b.transaction_number,
-            'product_id': b.product_id,
-            'product_name': b.product.name,
-            'expected_return_date': b.expected_return_date.isoformat(),
-            'is_overdue': b.is_overdue,
-            'qr_code_data': b.qr_code_data
-        })
-        
-        # Aktualisiere erwartetes Rückgabedatum (spätestes Datum)
-        current_max_date = date.fromisoformat(grouped[group_key]['expected_return_date'])
-        if b.expected_return_date > current_max_date:
-            grouped[group_key]['expected_return_date'] = b.expected_return_date.isoformat()
-        
-        if b.is_overdue:
-            grouped[group_key]['is_overdue'] = True
-    
-    # Formatiere für Widget
+    """API: Meine Ausleihen gruppiert nach Checkout (für Widget)."""
+    checkouts = Checkout.query.filter(
+        Checkout.borrower_id == current_user.id,
+        Checkout.status.in_(('active', 'partially_returned')),
+    ).order_by(Checkout.start_date.desc()).all()
+
     result = []
-    for group_key, group_data in grouped.items():
-        group_data['product_count'] = len(group_data['transactions'])
-        # Entferne transactions aus der Hauptantwort (optional, kann auch enthalten bleiben)
+    for c in checkouts:
+        items = list(c.active_items)
+        if not items:
+            continue
         result.append({
-            'borrow_group_id': group_data['borrow_group_id'],
-            'borrow_date': group_data['borrow_date'],
-            'expected_return_date': group_data['expected_return_date'],
-            'product_count': group_data['product_count'],
-            'is_overdue': group_data['is_overdue'],
-            'products': [t['product_name'] for t in group_data['transactions']],
-            'transactions': group_data['transactions']  # Für Details falls benötigt
+            'borrow_group_id': c.checkout_number,
+            'checkout_id': c.id,
+            'event_name': c.event_name,
+            'borrow_date': c.start_date.isoformat() if c.start_date else None,
+            'expected_return_date': c.end_date.date().isoformat() if c.end_date else None,
+            'product_count': len(items),
+            'is_overdue': c.is_overdue,
+            'products': [i.product.name for i in items if i.product],
+            'transactions': [{
+                'id': i.id,
+                'transaction_number': c.checkout_number,
+                'product_id': i.product_id,
+                'product_name': i.product.name if i.product else None,
+                'expected_return_date': c.end_date.date().isoformat() if c.end_date else None,
+                'is_overdue': c.is_overdue,
+                'qr_code_data': c.qr_code_data,
+            } for i in items],
         })
-    
-    result.sort(key=lambda x: x['borrow_date'], reverse=True)
-    
     return jsonify(result)
 
 
 @inventory_bp.route('/api/return', methods=['POST'])
 @login_required
 def api_return():
-    """API: Rückgabe registrieren."""
-    data = request.get_json()
-    
-    qr_code = data.get('qr_code', '').strip() if data else ''
-    transaction_number = data.get('transaction_number', '').strip() if data else ''
-    
-    borrow_transaction = None
-    
-    if qr_code:
-        parsed = parse_qr_code(qr_code)
-        if parsed:
-            qr_type, identifier = parsed
-            if qr_type == 'borrow':
-                borrow_transaction = BorrowTransaction.query.filter_by(
-                    transaction_number=identifier,
-                    status='active'
-                ).first()
-                if not borrow_transaction:
-                    borrow_transaction = BorrowTransaction.query.filter_by(
-                        borrow_group_id=identifier,
-                        status='active'
-                    ).first()
-            elif qr_type == 'product':
-                product = Product.query.get(identifier)
-                if product:
-                    borrow_transaction = BorrowTransaction.query.filter_by(
-                        product_id=product.id,
-                        status='active'
-                    ).first()
-    
-    elif transaction_number:
-        borrow_transaction = BorrowTransaction.query.filter_by(
-            transaction_number=transaction_number,
-            status='active'
-        ).first()
-        if not borrow_transaction:
-            borrow_transaction = BorrowTransaction.query.filter_by(
-                borrow_group_id=transaction_number,
-                status='active'
-            ).first()
-    
-    if not borrow_transaction:
-        return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
-    
-    borrow_transaction.mark_as_returned()
-    db.session.commit()
-    
-    from app.utils.email_sender import send_return_confirmation_email
+    """API: Rueckgabe eines oder mehrerer Checkout-Items."""
+    from app.services.inventory.checkout_service import (
+        find_active_checkout_item_for_product,
+        return_checkout_items,
+        return_checkout_by_ref,
+    )
+    data = request.get_json() or {}
+    item_ids = data.get('item_ids') or data.get('return_item_ids') or []
+    transaction_id = data.get('transaction_id')
+    checkout_ref = data.get('checkout_number') or data.get('borrow_ref') or data.get('transaction_number')
+    product_id = data.get('product_id')
+    mark_defective = bool(data.get('mark_defective'))
+
     try:
-        send_return_confirmation_email(borrow_transaction)
-    except Exception as e:
-        current_app.logger.error(f"Fehler beim Senden der Rückgabe-Bestätigung: {e}")
-    
-    return jsonify({
-        'message': 'Rückgabe erfolgreich registriert.',
-        'transaction_id': borrow_transaction.id
-    })
+        if item_ids:
+            returned = return_checkout_items(item_ids, mark_defective=mark_defective)
+            return jsonify({'success': True, 'returned_count': len(returned)})
+        if transaction_id:
+            returned = return_checkout_items([int(transaction_id)], mark_defective=mark_defective)
+            return jsonify({'success': True, 'returned_count': len(returned)})
+        if product_id:
+            item = find_active_checkout_item_for_product(int(product_id))
+            if not item:
+                return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
+            returned = return_checkout_items([item.id], mark_defective=mark_defective)
+            return jsonify({'success': True, 'returned_count': len(returned)})
+        if checkout_ref:
+            checkout = return_checkout_by_ref(str(checkout_ref))
+            return jsonify({'success': True, 'checkout_id': checkout.id, 'status': checkout.status})
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+    return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
 
 
 @inventory_bp.route('/api/borrow/<int:transaction_id>/pdf', methods=['GET'])
 @login_required
 @check_module_access('module_inventory')
 def api_borrow_pdf(transaction_id):
-    """API: Ausleihschein-PDF generieren."""
-    borrow_transaction = BorrowTransaction.query.get_or_404(transaction_id)
+    """API: Ausleihschein-PDF generieren (Checkout-ID)."""
+    checkout = Checkout.query.get(transaction_id)
+    if not checkout:
+        # Compat: legacy borrow transaction id -> mapped checkout item
+        item = CheckoutItem.query.filter_by(legacy_transaction_id=transaction_id).first()
+        checkout = item.checkout if item else None
+    if not checkout:
+        return jsonify({'error': 'Checkout nicht gefunden.'}), 404
 
-    # Nur eigene Ausleihen dürfen von Nicht-Admins als PDF abgerufen werden.
-    if not current_user.is_admin and borrow_transaction.borrower_id != current_user.id:
+    if not current_user.is_admin and checkout.borrower_id != current_user.id and checkout.created_by != current_user.id:
         return jsonify({'error': 'Keine Berechtigung für diesen Ausleihschein.'}), 403
 
-    # For group borrows: combine all items of the group into one receipt
-    if borrow_transaction.borrow_group_id:
-        transactions = BorrowTransaction.query.filter_by(
-            borrow_group_id=borrow_transaction.borrow_group_id
-        ).order_by(BorrowTransaction.id).all()
-    else:
-        transactions = [borrow_transaction]
-
     pdf_buffer = BytesIO()
-    generate_borrow_receipt_pdf(transactions, pdf_buffer)
+    generate_borrow_receipt_pdf(checkout, pdf_buffer)
     pdf_buffer.seek(0)
+    filename = f"Ausleihschein_{checkout.checkout_number}.pdf"
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
-    first = transactions[0]
-    ref = first.borrow_group_id or first.transaction_number
-    filename = f"Ausleihschein_{ref}.pdf"
+
+@inventory_bp.route('/api/borrow/<int:transaction_id>/return-pdf', methods=['GET'])
+@login_required
+@check_module_access('module_inventory')
+def api_return_pdf(transaction_id):
+    """API: Rückgabeschein-PDF (CheckoutItem-ID bevorzugt, sonst Checkout-ID)."""
+    from app.utils.pdf_generator import generate_return_confirmation_pdf
+
+    # Historie liefert Item-IDs — zuerst CheckoutItem prüfen (vermeidet ID-Kollision mit Checkout)
+    item = CheckoutItem.query.get(transaction_id)
+    checkout = item.checkout if item else None
+    if not checkout:
+        checkout = Checkout.query.get(transaction_id)
+    if not checkout:
+        legacy = CheckoutItem.query.filter_by(legacy_transaction_id=transaction_id).first()
+        if legacy:
+            item = legacy
+            checkout = legacy.checkout
+    if not checkout:
+        return jsonify({'error': 'Checkout nicht gefunden.'}), 404
+
+    if not current_user.is_admin and checkout.borrower_id != current_user.id and checkout.created_by != current_user.id:
+        return jsonify({'error': 'Keine Berechtigung für diesen Rückgabeschein.'}), 403
+
+    source = item if item else checkout
+    pdf_buffer = BytesIO()
+    generate_return_confirmation_pdf(source, pdf_buffer)
+    pdf_buffer.seek(0)
+    filename = f"Rueckgabeschein_{checkout.checkout_number}.pdf"
     return send_file(
         pdf_buffer,
         mimetype='application/pdf',
@@ -2926,69 +2927,35 @@ def set_delete(set_id):
 @inventory_bp.route('/sets/<int:set_id>/borrow', methods=['GET', 'POST'])
 @login_required
 def set_borrow(set_id):
-    """Alle Produkte eines Sets ausleihen."""
+    """Set-Ausleihe → Quick Scan Warenkorb."""
     if not check_borrow_permission():
         flash(_('inventory.flash.no_borrow_permission'), 'danger')
         return redirect(url_for('inventory.sets'))
     
     product_set = ProductSet.query.get_or_404(set_id)
-    
-    if request.method == 'POST':
-        borrower_id = request.form.get('borrower_id', type=int)
-        expected_return_date = request.form.get('expected_return_date')
-        
-        if not borrower_id or not expected_return_date:
-            flash(_('inventory.flash.fill_all_fields'), 'danger')
-            users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
-            return render_template('inventory/set_borrow.html', product_set=product_set, users=users)
-        
-        try:
-            expected_return_date = datetime.strptime(expected_return_date, '%Y-%m-%d').date()
-        except ValueError:
-            flash(_('inventory.flash.invalid_date'), 'danger')
-            users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
-            return render_template('inventory/set_borrow.html', product_set=product_set, users=users)
-        
-        borrower = User.query.get_or_404(borrower_id)
-        borrow_group_id = generate_borrow_group_id()
-        
-        borrowed_products = []
-        failed_products = []
-        
-        for item in product_set.items:
-            product = item.product
-            if product.status != 'available':
-                failed_products.append(product.name)
-                continue
-            
-            transaction_number = generate_transaction_number()
-            borrow_transaction = BorrowTransaction(
-                transaction_number=transaction_number,
-                borrow_group_id=borrow_group_id,
-                product_id=product.id,
-                borrower_id=borrower.id,
-                borrowed_by_id=current_user.id,
-                expected_return_date=expected_return_date,
-                qr_code_data=generate_borrow_qr_code(transaction_number)
-            )
-            
-            product.status = 'borrowed'
-            db.session.add(borrow_transaction)
-            borrowed_products.append(product.name)
-        
-        db.session.commit()
-        
-        if borrowed_products:
-            flash(_('inventory.flash.set_borrow_success', name=product_set.name, count=len(borrowed_products)), 'success')
-        if failed_products:
-            flash(_('inventory.flash.set_borrow_partial', products=', '.join(failed_products)), 'warning')
-        
-        return redirect(url_for('inventory.dashboard'))
-    
-    # GET: Formular anzeigen
-    users = User.query.filter_by(is_active=True).order_by(User.last_name, User.first_name).all()
-    min_date = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
-    return render_template('inventory/set_borrow.html', product_set=product_set, users=users, min_date=min_date)
+    cart = session.get('borrow_cart', [])
+    added = 0
+    failed = []
+    for item in product_set.items:
+        product = item.product
+        if not product:
+            continue
+        if product.status != 'available':
+            failed.append(product.name)
+            continue
+        if product.id not in cart:
+            cart.append(product.id)
+            added += 1
+    session['borrow_cart'] = cart
+    session.modified = True
+    if added:
+        flash(_('inventory.flash.set_borrow_success', name=product_set.name, count=added), 'success')
+    if failed:
+        flash(_('inventory.flash.set_borrow_partial', products=', '.join(failed)), 'warning')
+    if not added and not failed:
+        flash(_('inventory.flash.no_available_products'), 'danger')
+        return redirect(url_for('inventory.sets'))
+    return redirect(url_for('inventory.borrow_scanner'))
 
 
 @inventory_bp.route('/api/sets', methods=['GET'])
@@ -3349,10 +3316,11 @@ def api_statistics():
         # Ausgeliehene Artikel
         borrowed_count = Product.query.filter_by(status='borrowed').count()
         
-        # Überfällige Ausleihen
-        overdue_count = BorrowTransaction.query.filter(
-            BorrowTransaction.status == 'active',
-            BorrowTransaction.expected_return_date < date.today()
+        # Überfällige Checkout-Items
+        overdue_count = CheckoutItem.query.join(Checkout).filter(
+            CheckoutItem.returned_at.is_(None),
+            Checkout.status.in_(('active', 'partially_returned')),
+            Checkout.end_date < datetime.combine(date.today(), datetime.min.time()),
         ).count()
         
         # Verfügbare Artikel
@@ -3363,20 +3331,20 @@ def api_statistics():
         
         # Meist ausgeliehene Produkte (Top 10)
         try:
-            returned_count = BorrowTransaction.query.filter_by(status='returned').count()
+            returned_count = CheckoutItem.query.filter(CheckoutItem.returned_at.isnot(None)).count()
             if returned_count > 0:
                 top_borrowed = db.session.query(
                     Product.id,
                     Product.name,
-                    func.count(BorrowTransaction.id).label('borrow_count')
+                    func.count(CheckoutItem.id).label('borrow_count')
                 ).join(
-                    BorrowTransaction, Product.id == BorrowTransaction.product_id
+                    CheckoutItem, Product.id == CheckoutItem.product_id
                 ).filter(
-                    BorrowTransaction.status == 'returned'
+                    CheckoutItem.returned_at.isnot(None)
                 ).group_by(
                     Product.id, Product.name
                 ).order_by(
-                    func.count(BorrowTransaction.id).desc()
+                    func.count(CheckoutItem.id).desc()
                 ).limit(10).all()
                 
                 top_borrowed_list = [{
@@ -3413,17 +3381,17 @@ def api_statistics():
         try:
             twelve_months_ago = datetime.utcnow() - timedelta(days=365)
             monthly_borrows = db.session.query(
-                extract('year', BorrowTransaction.borrow_date).label('year'),
-                extract('month', BorrowTransaction.borrow_date).label('month'),
-                func.count(BorrowTransaction.id).label('count')
+                extract('year', Checkout.start_date).label('year'),
+                extract('month', Checkout.start_date).label('month'),
+                func.count(Checkout.id).label('count')
             ).filter(
-                BorrowTransaction.borrow_date >= twelve_months_ago
+                Checkout.start_date >= twelve_months_ago
             ).group_by(
-                extract('year', BorrowTransaction.borrow_date),
-                extract('month', BorrowTransaction.borrow_date)
+                extract('year', Checkout.start_date),
+                extract('month', Checkout.start_date)
             ).order_by(
-                extract('year', BorrowTransaction.borrow_date),
-                extract('month', BorrowTransaction.borrow_date)
+                extract('year', Checkout.start_date),
+                extract('month', Checkout.start_date)
             ).all()
             
             monthly_data = []
@@ -3601,82 +3569,105 @@ def api_mobile_product_detail(product_id):
 
 @inventory_bp.route('/api/mobile/borrow', methods=['POST'])
 def api_mobile_borrow():
-    """Mobile API: Ausleihe erstellen."""
+    """Mobile API: Checkout erstellen (Compat)."""
+    from app.services.inventory.checkout_service import create_checkout
+
     user = verify_api_token()
     if not user:
         return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
-    data = request.get_json()
-    product_id = data.get('product_id', type=int)
-    borrower_id = data.get('borrower_id', type=int) or user.id
-    expected_return_date_str = data.get('expected_return_date')
+    data = request.get_json() or {}
+    product_id = data.get('product_id')
+    product_ids = data.get('product_ids') or ([product_id] if product_id else [])
+    borrower_id = data.get('borrower_id') or user.id
+    expected_return_date_str = data.get('expected_return_date') or data.get('end_date')
+    event_name = (data.get('event_name') or 'Mobile Ausleihe').strip()
+    borrower_name = (data.get('borrower_name') or '').strip()
     
-    if not product_id or not expected_return_date_str:
+    if not product_ids or not expected_return_date_str:
         return jsonify({'error': translate('inventory.errors.product_id_return_date_required')}), 400
     
     try:
-        expected_return_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d').date()
-    except ValueError:
+        product_ids = [int(pid) for pid in product_ids]
+        end_date = datetime.strptime(expected_return_date_str, '%Y-%m-%d')
+    except (ValueError, TypeError):
         return jsonify({'error': translate('inventory.errors.invalid_date_format_iso')}), 400
     
-    product = Product.query.get_or_404(product_id)
-    
-    if product.status != 'available':
-        return jsonify({'error': translate('inventory.errors.product_not_available')}), 400
-    
-    borrower = User.query.get_or_404(borrower_id)
-    transaction_number = generate_transaction_number()
-    
-    borrow_transaction = BorrowTransaction(
-        transaction_number=transaction_number,
-        product_id=product_id,
-        borrower_id=borrower_id,
-        borrowed_by_id=user.id,
-        expected_return_date=expected_return_date,
-        qr_code_data=generate_borrow_qr_code(transaction_number)
-    )
-    
-    product.status = 'borrowed'
-    db.session.add(borrow_transaction)
-    db.session.commit()
+    borrower = User.query.get_or_404(int(borrower_id))
+    if not borrower_name:
+        borrower_name = borrower.full_name
+
+    try:
+        checkout = create_checkout(
+            product_ids=product_ids,
+            event_name=event_name,
+            borrower_name=borrower_name,
+            created_by_id=user.id,
+            start_date=datetime.utcnow(),
+            end_date=end_date,
+            borrower_id=borrower.id,
+        )
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     
     return jsonify({
         'message': 'Ausleihe erfolgreich erstellt.',
-        'transaction_id': borrow_transaction.id,
-        'transaction_number': transaction_number
+        'transaction_id': checkout.id,
+        'checkout_id': checkout.id,
+        'transaction_number': checkout.checkout_number,
     })
 
 
 @inventory_bp.route('/api/mobile/return', methods=['POST'])
 def api_mobile_return():
-    """Mobile API: Rückgabe."""
+    """Mobile API: Rückgabe (Checkout Compat + Partial)."""
+    from app.services.inventory.checkout_service import return_checkout_items, find_active_checkout_item_for_product
+
     user = verify_api_token()
     if not user:
         return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
     
-    data = request.get_json()
-    transaction_id = data.get('transaction_id', type=int)
+    data = request.get_json() or {}
+    item_ids = data.get('item_ids') or []
+    transaction_id = data.get('transaction_id')
+    product_id = data.get('product_id')
+    mark_defective = bool(data.get('mark_defective'))
     
-    if not transaction_id:
-        return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
-    
-    borrow_transaction = BorrowTransaction.query.get_or_404(transaction_id)
-    
-    if borrow_transaction.status == 'returned':
-        return jsonify({'error': translate('inventory.errors.already_returned')}), 400
-    
-    borrow_transaction.mark_as_returned()
-    db.session.commit()
+    try:
+        if item_ids:
+            returned = return_checkout_items(item_ids, mark_defective=mark_defective)
+        elif transaction_id:
+            # Compat: id kann Checkout-Item oder Checkout sein
+            item = CheckoutItem.query.get(int(transaction_id))
+            if item:
+                returned = return_checkout_items([item.id], mark_defective=mark_defective)
+            else:
+                checkout = Checkout.query.get(int(transaction_id))
+                if not checkout:
+                    return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
+                returned = return_checkout_items([i.id for i in checkout.active_items], mark_defective=mark_defective)
+        elif product_id:
+            item = find_active_checkout_item_for_product(int(product_id))
+            if not item:
+                return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
+            returned = return_checkout_items([item.id], mark_defective=mark_defective)
+        else:
+            return jsonify({'error': translate('inventory.errors.transaction_id_required')}), 400
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
     
     return jsonify({
         'message': 'Rückgabe erfolgreich registriert.',
-        'transaction_id': borrow_transaction.id
+        'returned_count': len(returned),
+        'transaction_id': returned[0].id if returned else None,
     })
 
 
 @inventory_bp.route('/api/mobile/scan', methods=['POST'])
 def api_mobile_scan():
     """Mobile API: QR-Code-Scanning."""
+    from app.services.inventory.checkout_service import find_checkout
+
     user = verify_api_token()
     if not user:
         return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
@@ -3690,7 +3681,12 @@ def api_mobile_scan():
     # QR-Code parsen
     parsed = parse_qr_code(qr_data)
     if not parsed:
-        return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
+        # Fallback: raw checkout number
+        checkout = find_checkout(qr_data)
+        if checkout:
+            parsed = ('borrow', checkout.checkout_number)
+        else:
+            return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
     
     qr_type, qr_id = parsed
     
@@ -3710,46 +3706,38 @@ def api_mobile_scan():
             return jsonify({'error': translate('inventory.errors.product_not_found')}), 404
     
     elif qr_type == 'borrow':
-        # Ausleihtransaktion gefunden
-        transaction = BorrowTransaction.query.filter_by(transaction_number=qr_id).first()
-        if transaction:
+        checkout = find_checkout(str(qr_id))
+        if checkout:
+            active = list(checkout.active_items)
+            first = active[0] if active else None
             return jsonify({
                 'type': 'borrow',
                 'transaction': {
-                    'id': transaction.id,
-                    'transaction_number': transaction.transaction_number,
-                    'product_name': transaction.product.name,
-                    'borrower_name': transaction.borrower.full_name,
-                    'status': transaction.status,
-                    'expected_return_date': transaction.expected_return_date.isoformat()
+                    'id': first.id if first else checkout.id,
+                    'checkout_id': checkout.id,
+                    'transaction_number': checkout.checkout_number,
+                    'product_name': first.product.name if first and first.product else None,
+                    'borrower_name': checkout.borrower_name,
+                    'event_name': checkout.event_name,
+                    'status': checkout.status,
+                    'expected_return_date': checkout.end_date.date().isoformat() if checkout.end_date else None,
                 }
             })
-        else:
-            return jsonify({'error': translate('inventory.errors.borrow_transaction_not_found')}), 404
-    
+        return jsonify({'error': translate('inventory.errors.transaction_not_found')}), 404
     elif qr_type == 'set':
         product_set = ProductSet.query.get(qr_id)
         if product_set:
-            items_data = [{
-                'product_id': item.product_id,
-                'product_name': item.product.name,
-                'quantity': item.quantity
-            } for item in product_set.items]
             return jsonify({
                 'type': 'set',
                 'set': {
                     'id': product_set.id,
                     'name': product_set.name,
-                    'description': product_set.description,
                     'product_count': product_set.product_count,
-                    'items': items_data
                 }
             })
-        else:
-            return jsonify({'error': translate('inventory.errors.product_set_not_found')}), 404
+        return jsonify({'error': 'Set nicht gefunden.'}), 404
     
-    else:
-        return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
+    return jsonify({'error': translate('inventory.errors.invalid_qr_code')}), 400
 
 
 @inventory_bp.route('/api/mobile/statistics', methods=['GET'])

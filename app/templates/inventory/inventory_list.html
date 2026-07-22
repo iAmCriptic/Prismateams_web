@@ -1,23 +1,16 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ _('inventory.product.list.page_title') }}{% endblock %}
+{% block inventory_heading_icon %}bi-clipboard-checklist{% endblock %}
+{% block inventory_heading %}{{ _('inventory.product.list.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3"><i class="bi bi-clipboard-checklist"></i> {{ _('inventory.product.list.heading') }}</h1>
-        <p class="text-muted">{{ _('inventory.product.list.subtitle') }}</p>
-    </div>
-    <div class="col-auto">
-        <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-primary">
-            <i class="bi bi-file-pdf"></i> {{ _('inventory.product.list.download_pdf') }}
-        </a>
-        <button class="btn btn-outline-primary ms-2" onclick="window.print()">
-            <i class="bi bi-printer"></i> {{ _('inventory.product.list.print') }}
-        </button>
-    </div>
+
+{% block inventory_content %}
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-primary">
+        <i class="bi bi-file-pdf"></i> PDF
+    </a>
 </div>
-
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">

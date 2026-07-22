@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from app import db
-from app.models.inventory import Inventory, InventoryItem
+from app.models.inventory import Inventory, InventoryItem, Product
 from app.services.inventory import InventoryLockService
 
 from .common import api_error, api_ok
@@ -13,16 +13,66 @@ from .common import api_error, api_ok
 inventory_sessions_bp = Blueprint("inventory_vnext_inventory_sessions", __name__)
 
 
+def _sync_inventory_products(inventory):
+    """Fehlende Produkte (inkl. Defekt/Fehlend) in aktive Inventur nachziehen."""
+    if not inventory or inventory.status != "active":
+        return 0
+    existing_ids = {
+        row[0]
+        for row in db.session.query(InventoryItem.product_id)
+        .filter_by(inventory_id=inventory.id)
+        .all()
+    }
+    added = 0
+    for product in Product.query.filter(Product.status != "retired").all():
+        if product.id in existing_ids:
+            continue
+        db.session.add(InventoryItem(inventory_id=inventory.id, product_id=product.id))
+        added += 1
+    if added:
+        db.session.commit()
+    return added
+
+
 @inventory_sessions_bp.route("/inventory/<int:inventory_id>/items", methods=["GET"])
 @login_required
 def inventory_items(inventory_id):
     inventory = Inventory.query.get_or_404(inventory_id)
+    _sync_inventory_products(inventory)
     items = (
         InventoryItem.query.filter_by(inventory_id=inventory.id)
         .options(joinedload(InventoryItem.product), joinedload(InventoryItem.checker))
         .order_by(InventoryItem.updated_at.desc())
         .all()
     )
+
+    payload_items = []
+    for item in items:
+        if not item.product:
+            continue
+        payload_items.append(
+            {
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": item.product.name,
+                "product_category": item.product.category,
+                "product_location": item.product.location,
+                "product_condition": item.product.condition,
+                "product_status": item.product.status,
+                "checked": item.checked,
+                "notes": item.notes,
+                "location_changed": item.location_changed,
+                "new_location": item.new_location,
+                "condition_changed": item.condition_changed,
+                "new_condition": item.new_condition,
+                "version": item.version,
+                "checked_by": item.checked_by,
+                "checked_by_name": item.checker.full_name if item.checker else None,
+                "last_changed_by": item.checker.full_name if item.checker else None,
+                "last_changed_at": item.updated_at.isoformat() if item.updated_at else None,
+                "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+            }
+        )
 
     return api_ok(
         {
@@ -33,20 +83,7 @@ def inventory_items(inventory_id):
                 "checked_count": inventory.checked_count,
                 "total_count": inventory.total_count,
             },
-            "items": [
-                {
-                    "product_id": item.product_id,
-                    "product_name": item.product.name,
-                    "checked": item.checked,
-                    "notes": item.notes,
-                    "new_location": item.new_location,
-                    "new_condition": item.new_condition,
-                    "version": item.version,
-                    "last_changed_by": item.checker.full_name if item.checker else None,
-                    "last_changed_at": item.updated_at.isoformat() if item.updated_at else None,
-                }
-                for item in items
-            ],
+            "items": payload_items,
         }
     )
 

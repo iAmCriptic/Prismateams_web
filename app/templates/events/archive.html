@@ -1,21 +1,14 @@
 {% extends "base.html" %}
+{% from "events/_shell.html" import events_shell_open, events_shell_close, appointments_grid_list, events_view_mode_js %}
 
 {% block title %}Archivierte Veranstaltungen{% endblock %}
 
 {% block content %}
-<h1 class="mb-3"><i class="bi bi-archive"></i> Archivierte Veranstaltungen</h1>
-<div class="list-group">
-    {% for event in events %}
-    <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="list-group-item list-group-item-action">
-        <div class="d-flex justify-content-between">
-            <strong>{{ event.name }}</strong>
-            <span class="text-muted">
-                {% if event.archived_at %}Archiviert: {{ event.archived_at.strftime('%d.%m.%Y') }}{% else %}Archiviert{% endif %}
-            </span>
-        </div>
-    </a>
-    {% else %}
-    <div class="alert alert-info">Noch keine archivierten Veranstaltungen vorhanden.</div>
-    {% endfor %}
-</div>
+{{ events_shell_open(active_nav|default('archive'), 'Archiv', 'bi-archive', true) }}
+{{ appointments_grid_list(appointments, 'Noch keine archivierten Termine vorhanden.') }}
+{{ events_shell_close(active_nav|default('archive')) }}
+{% endblock %}
+
+{% block extra_js %}
+{{ events_view_mode_js() }}
 {% endblock %}

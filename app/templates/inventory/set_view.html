@@ -1,36 +1,33 @@
-{% extends "base.html" %}
+{% extends "inventory/layout.html" %}
 
 {% block title %}{{ product_set.name }} - Produktset{% endblock %}
+{% block inventory_heading_icon %}bi-collection{% endblock %}
+{% block inventory_heading %}{{ product_set.name }}{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="mb-3">
-            <i class="bi bi-collection"></i> {{ product_set.name }}
-        </h1>
-        {% if product_set.description %}
-        <p class="text-muted">{{ product_set.description }}</p>
-        {% endif %}
-    </div>
-    <div class="col-auto">
-        <a href="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" class="btn btn-outline-info me-2" target="_blank">
-            <i class="bi bi-qr-code"></i> QR-Code
-        </a>
-        <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn btn-success me-2">
-            <i class="bi bi-cart-check"></i> Set ausleihen
-        </a>
-        {% if current_user.is_admin or product_set.created_by == current_user.id %}
-        <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn btn-outline-primary me-2">
-            <i class="bi bi-pencil"></i> Bearbeiten
-        </a>
-        <form method="POST" action="{{ url_for('inventory.set_delete', set_id=product_set.id) }}" 
-              class="d-inline" onsubmit="return confirm('Möchten Sie dieses Set wirklich löschen?');">
-            <button type="submit" class="btn btn-outline-danger">
-                <i class="bi bi-trash"></i> Löschen
-            </button>
-        </form>
-        {% endif %}
-    </div>
+
+{% block inventory_content %}
+{% if product_set.description %}
+<p class="text-muted mb-3">{{ product_set.description }}</p>
+{% endif %}
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" class="btn btn-outline-info" target="_blank">
+        <i class="bi bi-qr-code"></i> QR-Code
+    </a>
+    <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn btn-success">
+        <i class="bi bi-cart-check"></i> Set ausleihen
+    </a>
+    {% if current_user.is_admin or product_set.created_by == current_user.id %}
+    <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn btn-outline-primary">
+        <i class="bi bi-pencil"></i> Bearbeiten
+    </a>
+    <form method="POST" action="{{ url_for('inventory.set_delete', set_id=product_set.id) }}"
+          class="d-inline">
+        <button type="submit" class="btn btn-outline-danger"
+                data-confirm-delete="Möchten Sie dieses Set wirklich löschen?">
+            <i class="bi bi-trash"></i> Löschen
+        </button>
+    </form>
+    {% endif %}
 </div>
 
 <div class="row mb-4">

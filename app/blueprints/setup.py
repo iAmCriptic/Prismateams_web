@@ -240,21 +240,32 @@ def setup_complete():
                 email_perm.can_send = True
                 logging.info("EmailPermission updated for admin")
             
-            # Haupt-Chat erstellen
-            main_chat = Chat(
-                name="Haupt-Chat",
-                is_main_chat=True,
-                created_by=admin_user.id
-            )
-            db.session.add(main_chat)
-            db.session.flush()
+            # Haupt-Chat erstellen (oder bestehenden nutzen — vermeidet Duplikate mit create_app)
+            main_chat = Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
+            if not main_chat:
+                main_chat = Chat(
+                    name="Haupt-Chat",
+                    is_main_chat=True,
+                    created_by=admin_user.id
+                )
+                db.session.add(main_chat)
+                db.session.flush()
+            elif (main_chat.name or '').strip().lower() in {'team chat', 'team-chat', ''}:
+                main_chat.name = "Haupt-Chat"
+                if not main_chat.created_by:
+                    main_chat.created_by = admin_user.id
             
             # Admin zum Haupt-Chat hinzufügen
-            chat_member = ChatMember(
+            chat_member = ChatMember.query.filter_by(
                 chat_id=main_chat.id,
                 user_id=admin_user.id
-            )
-            db.session.add(chat_member)
+            ).first()
+            if not chat_member:
+                chat_member = ChatMember(
+                    chat_id=main_chat.id,
+                    user_id=admin_user.id
+                )
+                db.session.add(chat_member)
             
             # System-Einstellungen erstellen
             if portal_name:
@@ -715,21 +726,32 @@ def setup_step4():
             email_perm = admin_user.ensure_email_permissions()
             logging.info(f"Email permissions created for admin user - can_read: {email_perm.can_read}, can_send: {email_perm.can_send}")
             
-            # Haupt-Chat erstellen
-            main_chat = Chat(
-                name="Haupt-Chat",
-                is_main_chat=True,
-                created_by=admin_user.id
-            )
-            db.session.add(main_chat)
-            db.session.flush()  # Um die ID zu erhalten
+            # Haupt-Chat erstellen (oder bestehenden nutzen — vermeidet Duplikate mit create_app)
+            main_chat = Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
+            if not main_chat:
+                main_chat = Chat(
+                    name="Haupt-Chat",
+                    is_main_chat=True,
+                    created_by=admin_user.id
+                )
+                db.session.add(main_chat)
+                db.session.flush()  # Um die ID zu erhalten
+            elif (main_chat.name or '').strip().lower() in {'team chat', 'team-chat', ''}:
+                main_chat.name = "Haupt-Chat"
+                if not main_chat.created_by:
+                    main_chat.created_by = admin_user.id
             
             # Admin zum Haupt-Chat hinzufügen
-            chat_member = ChatMember(
+            chat_member = ChatMember.query.filter_by(
                 chat_id=main_chat.id,
                 user_id=admin_user.id
-            )
-            db.session.add(chat_member)
+            ).first()
+            if not chat_member:
+                chat_member = ChatMember(
+                    chat_id=main_chat.id,
+                    user_id=admin_user.id
+                )
+                db.session.add(chat_member)
             
             # System-Einstellungen erstellen oder aktualisieren
             logging.info("Creating/updating system settings")
