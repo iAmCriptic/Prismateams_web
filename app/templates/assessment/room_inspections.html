@@ -1,7 +1,9 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Rauminspektionen{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-bucket{% endblock %}
+{% block assessment_heading %}Rauminspektionen{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Rauminspektionen', icon='clipboard2-pulse') }}
     <div id="rooms" class="row g-3"></div>
 <script>
@@ -19,7 +21,7 @@ async function loadRooms() {
     const data = await res.json();
     document.getElementById('rooms').innerHTML = (data.rooms || []).map(r => `
         <div class="col-md-6">
-            <div class="card">
+            <div class="assessment-panel">
                 <div class="card-body">
                     <h2 class="h6">${r.name}</h2>
                     <div class="form-check mb-2">

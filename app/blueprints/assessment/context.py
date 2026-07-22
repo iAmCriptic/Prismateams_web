@@ -1,4 +1,4 @@
-from flask import current_app
+from datetime import datetime
 
 from app.models.assessment import AssessmentAppSetting
 from app.utils.assessment_auth import accessible_sections, get_assessment_identity
@@ -35,4 +35,5 @@ def inject_assessment_context():
         "assessment_settings": settings,
         "assessment_welcome_title": settings.get("welcome_title"),
         "assessment_welcome_subtitle": settings.get("welcome_subtitle"),
+        "assessment_print_created_at": datetime.now().strftime("%d.%m.%Y %H:%M"),
     }

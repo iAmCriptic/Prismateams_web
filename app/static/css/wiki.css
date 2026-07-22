@@ -1,7 +1,72 @@
-/* Wiki Styles */
+/* Wiki Styles — domain only (shell in module-ui.css) */
 
-.wiki-index {
-    padding: 1rem 0;
+.wiki-favorites-nav {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+}
+
+.wiki-favorites-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.25rem 0.35rem 0.5rem;
+}
+
+.wiki-favorites-list .wiki-favorite-link {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.wiki-favorites-empty {
+    padding-bottom: 0.35rem;
+}
+
+.wiki-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.wiki-mobile-topbar {
+    padding: 0.15rem 0;
+}
+
+.wiki-mobile-topbar .wiki-mobile-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+}
+
+.wiki-mobile-menu-btn {
+    flex-shrink: 0;
+    padding: 0.35rem 0.55rem;
+}
+
+.wiki-mobile-offcanvas {
+    width: 280px;
+    max-width: 85vw;
+}
+
+.wiki-mobile-offcanvas .wiki-sidebar-new-wrap {
+    margin-bottom: 1rem;
+}
+
+.wiki-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: min(48vh, 22rem);
+    width: 100%;
+    text-align: center;
+    color: var(--bs-secondary-color, #8a8a8a);
+    font-size: 1.15rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    user-select: none;
 }
 
 .wiki-page-card {
@@ -23,7 +88,7 @@
     color: var(--accent-color);
 }
 
-/* Wiki Editor Styles */
+/* Wiki Editor Styles (create/edit — remain fullscreen) */
 .wiki-editor-fullscreen {
     position: fixed !important;
     top: 0 !important;
@@ -82,16 +147,12 @@
     box-sizing: border-box !important;
 }
 
-/* Wiki Viewer Styles */
+/* Wiki Viewer — inline in wiki-main (not fullscreen) */
 .wiki-viewer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     background: var(--bs-body-bg);
-    z-index: 1050;
-    overflow-y: auto;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: 0.75rem;
+    overflow: hidden;
 }
 
 .wiki-viewer-header {
@@ -99,14 +160,13 @@
     top: 0;
     background: var(--bs-body-bg);
     border-bottom: 1px solid var(--bs-border-color);
-    z-index: 1051;
-    padding: 1rem;
+    z-index: 2;
+    padding: 1rem 1.25rem;
 }
 
 .wiki-viewer-content {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
+    padding: 1.5rem 1.75rem 2rem;
+    max-width: 960px;
     overflow-x: hidden;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -133,23 +193,23 @@
     overflow-wrap: break-word;
 }
 
-.markdown-content h1 { 
-    font-size: 2rem; 
-    border-bottom: 2px solid var(--bs-border-color); 
+.markdown-content h1 {
+    font-size: 2rem;
+    border-bottom: 2px solid var(--bs-border-color);
     padding-bottom: 0.5rem;
 }
 
-.markdown-content h2 { 
-    font-size: 1.5rem; 
-    border-bottom: 1px solid var(--bs-border-color); 
+.markdown-content h2 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
     padding-bottom: 0.25rem;
 }
 
-.markdown-content h3 { 
+.markdown-content h3 {
     font-size: 1.25rem;
 }
 
-.markdown-content p { 
+.markdown-content p {
     margin-bottom: 1rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -246,7 +306,6 @@
     border-color: #495057 !important;
 }
 
-/* OLED Mode Wiki Table */
 [data-oled-mode="true"] .markdown-content table {
     background: #000000 !important;
     border-color: #1a1a1a !important;
@@ -257,12 +316,11 @@
     color: #fff !important;
 }
 
-/* OLED Mode Wiki Table Header */
 [data-oled-mode="true"] .markdown-content th {
     background: #0a0a0a !important;
 }
 
-[data-bs-theme="dark"] .markdown-content th, 
+[data-bs-theme="dark"] .markdown-content th,
 [data-bs-theme="dark"] .markdown-content td {
     border-color: #495057 !important;
     color: #fff !important;
@@ -272,7 +330,6 @@
     background: #343a40 !important;
 }
 
-/* OLED Mode Wiki Table Even Rows */
 [data-oled-mode="true"] .markdown-content tr:nth-child(even) {
     background: #0a0a0a !important;
 }
@@ -281,25 +338,21 @@
     background: #495057 !important;
 }
 
-/* OLED Mode Wiki Table Row Hover */
 [data-oled-mode="true"] .markdown-content tr:hover {
     background: #1a1a1a !important;
 }
 
-/* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: 991.98px) {
     .wiki-viewer-content {
         padding: 1rem;
     }
-    
+
     .wiki-editor-toolbar {
         padding: 0.5rem;
         flex-wrap: wrap;
     }
-    
+
     .wiki-editor-textarea {
         font-size: 16px; /* Prevent zoom on iOS */
     }
 }
-
-

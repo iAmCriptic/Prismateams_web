@@ -1,18 +1,9 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{% if form %}Formular bearbeiten{% else %}Neues Formular{% endif %} - Admin{% endblock %}
 
-{% block content %}
+{% block settings_content %}
 <div class="booking-page">
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.booking_forms') }}">Buchungsformulare</a></li>
-        <li class="breadcrumb-item active">{% if form %}Bearbeiten{% else %}Erstellen{% endif %}</li>
-    </ol>
-</nav>
-
 <h2>{% if form %}Formular bearbeiten{% else %}Neues Formular erstellen{% endif %}</h2>
 
 {% with messages = get_flashed_messages(with_categories=true) %}

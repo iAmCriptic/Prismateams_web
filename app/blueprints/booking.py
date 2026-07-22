@@ -15,11 +15,140 @@ from app.utils.i18n import translate
 from app.tasks.booking_archiver import archive_old_booking_requests
 from datetime import datetime, timedelta, date, time
 from werkzeug.utils import secure_filename
+from sqlalchemy import func
 import os
 import secrets
 import json
 
 booking_bp = Blueprint('booking', __name__)
+
+BOOKING_VIEWS = ('overview', 'neu', 'accepted', 'rejected', 'archived')
+VIEW_TO_STATUS = {
+    'neu': 'pending',
+    'accepted': 'accepted',
+    'rejected': 'rejected',
+    'archived': 'archived',
+}
+STATUS_TO_VIEW = {
+    'pending': 'neu',
+    'accepted': 'accepted',
+    'rejected': 'rejected',
+    'archived': 'archived',
+}
+
+
+def _booking_sidebar_context(form_id=None, view='overview'):
+    """Gemeinsamer Sidebar-Kontext für Team-Buchungsseiten."""
+    forms = BookingForm.query.order_by(
+        BookingForm.is_active.desc(),
+        BookingForm.created_at.desc()
+    ).all()
+
+    view = view if view in BOOKING_VIEWS else 'overview'
+    current_form = None
+    if form_id is not None:
+        try:
+            form_id = int(form_id)
+        except (TypeError, ValueError):
+            form_id = None
+    if form_id:
+        current_form = next((f for f in forms if f.id == form_id), None)
+    if current_form is None and forms:
+        current_form = next((f for f in forms if f.is_active), None) or forms[0]
+        form_id = current_form.id
+    elif current_form is None:
+        form_id = None
+
+    pending_counts = {}
+    if forms:
+        rows = (
+            db.session.query(BookingRequest.form_id, func.count(BookingRequest.id))
+            .filter(BookingRequest.status == 'pending')
+            .group_by(BookingRequest.form_id)
+            .all()
+        )
+        pending_counts = {fid: count for fid, count in rows}
+
+    return {
+        'booking_forms': forms,
+        'current_form_id': form_id,
+        'current_form': current_form,
+        'current_view': view,
+        'pending_counts': pending_counts,
+    }
+
+
+def _form_dashboard_stats(form_id):
+    """Kennzahlen für die Formular-Übersicht."""
+    today = date.today()
+    window_end = today + timedelta(days=30)
+    month_start = today.replace(day=1)
+
+    base = BookingRequest.query.filter_by(form_id=form_id)
+    count_pending = base.filter_by(status='pending').count()
+    count_accepted = base.filter_by(status='accepted').count()
+    count_rejected = base.filter_by(status='rejected').count()
+    count_archived = base.filter_by(status='archived').count()
+    total = count_pending + count_accepted + count_rejected + count_archived
+
+    decided = count_accepted + count_rejected
+    acceptance_rate = round((count_accepted / decided) * 100) if decided else None
+
+    upcoming_q = (
+        BookingRequest.query
+        .filter_by(form_id=form_id, status='accepted')
+        .filter(BookingRequest.event_date.isnot(None))
+        .filter(BookingRequest.event_date >= today)
+        .filter(BookingRequest.event_date <= window_end)
+    )
+    upcoming_count = upcoming_q.count()
+    busy_days = (
+        db.session.query(func.count(func.distinct(BookingRequest.event_date)))
+        .filter(
+            BookingRequest.form_id == form_id,
+            BookingRequest.status == 'accepted',
+            BookingRequest.event_date.isnot(None),
+            BookingRequest.event_date >= today,
+            BookingRequest.event_date <= window_end,
+        )
+        .scalar()
+    ) or 0
+
+    this_month = (
+        BookingRequest.query
+        .filter_by(form_id=form_id)
+        .filter(BookingRequest.created_at >= datetime.combine(month_start, time.min))
+        .count()
+    )
+
+    upcoming_events = (
+        upcoming_q
+        .order_by(BookingRequest.event_date.asc(), BookingRequest.event_start_time.asc())
+        .limit(8)
+        .all()
+    )
+    recent_requests = (
+        BookingRequest.query
+        .filter_by(form_id=form_id)
+        .order_by(BookingRequest.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return {
+        'pending': count_pending,
+        'accepted': count_accepted,
+        'rejected': count_rejected,
+        'archived': count_archived,
+        'total': total,
+        'acceptance_rate': acceptance_rate,
+        'upcoming_count': upcoming_count,
+        'busy_days': busy_days,
+        'busy_window_days': 30,
+        'this_month': this_month,
+        'upcoming_events': upcoming_events,
+        'recent_requests': recent_requests,
+    }
 
 
 def allowed_image_file(filename):
@@ -346,29 +475,44 @@ def mailbox_upload(token):
 @login_required
 @check_module_access('module_booking')
 def requests():
-    """Übersicht aller Buchungsanfragen."""
-    # Führe Archivierung aus (kann auch als separater Task laufen)
+    """Übersicht aller Buchungsanfragen (Shell: Sidebar + Dashboard/Liste)."""
     try:
         archive_old_booking_requests()
     except Exception as e:
         current_app.logger.error(f"Fehler bei automatischer Archivierung: {e}")
-    
-    status_filter = request.args.get('status', 'pending')
-    
-    query = BookingRequest.query
-    
-    if status_filter == 'pending':
-        query = query.filter_by(status='pending')
-    elif status_filter == 'accepted':
-        query = query.filter_by(status='accepted')
-    elif status_filter == 'rejected':
-        query = query.filter_by(status='rejected')
-    elif status_filter == 'archived':
-        query = query.filter_by(status='archived')
-    
-    requests_list = query.order_by(BookingRequest.created_at.desc()).all()
-    
-    return render_template('booking/requests.html', requests=requests_list, status_filter=status_filter)
+
+    # Legacy ?status= → neue view-Namen
+    legacy_status = request.args.get('status')
+    view = request.args.get('view')
+    if not view and legacy_status:
+        view = STATUS_TO_VIEW.get(legacy_status, 'overview')
+    if not view:
+        view = 'overview'
+
+    form_id = request.args.get('form_id', type=int)
+    ctx = _booking_sidebar_context(form_id=form_id, view=view)
+    view = ctx['current_view']
+    current_form = ctx['current_form']
+
+    stats = None
+    requests_list = []
+    if current_form:
+        if view == 'overview':
+            stats = _form_dashboard_stats(current_form.id)
+        else:
+            status = VIEW_TO_STATUS.get(view)
+            query = BookingRequest.query.filter_by(form_id=current_form.id)
+            if status:
+                query = query.filter_by(status=status)
+            requests_list = query.order_by(BookingRequest.created_at.desc()).all()
+
+    return render_template(
+        'booking/requests.html',
+        requests=requests_list,
+        stats=stats,
+        status_filter=VIEW_TO_STATUS.get(view, 'pending'),
+        **ctx,
+    )
 
 
 @booking_bp.route('/request/<int:request_id>')
@@ -378,36 +522,39 @@ def request_detail(request_id):
     """Details einer Buchung anzeigen."""
     booking_request = BookingRequest.query.get_or_404(request_id)
     form = booking_request.form
-    
-    # Lade Feldwerte
+
     field_values = {}
     for field_value in booking_request.field_values:
         field_values[field_value.field_id] = field_value
-    
-    # Lade Zustimmungen
+
     approvals = {}
-    user_role_assignments = {}  # Welche Rollen hat der aktuelle Benutzer?
-    
+    user_role_assignments = {}
+
     for role in form.roles:
         approval = BookingRequestApproval.query.filter_by(
             request_id=booking_request.id,
             role_id=role.id
         ).first()
         approvals[role.id] = approval
-        
-        # Prüfe ob aktueller Benutzer dieser Rolle zugewiesen ist
+
         role_user = BookingFormRoleUser.query.filter_by(
             role_id=role.id,
             user_id=current_user.id
         ).first()
         user_role_assignments[role.id] = role_user is not None
-    
-    return render_template('booking/request_detail.html', 
-                         request=booking_request, 
-                         form=form,
-                         field_values=field_values,
-                         approvals=approvals,
-                         user_role_assignments=user_role_assignments)
+
+    detail_view = STATUS_TO_VIEW.get(booking_request.status, 'overview')
+    ctx = _booking_sidebar_context(form_id=form.id, view=detail_view)
+
+    return render_template(
+        'booking/request_detail.html',
+        request=booking_request,
+        form=form,
+        field_values=field_values,
+        approvals=approvals,
+        user_role_assignments=user_role_assignments,
+        **ctx,
+    )
 
 
 @booking_bp.route('/request/<int:request_id>/accept', methods=['POST'])

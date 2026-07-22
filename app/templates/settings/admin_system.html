@@ -1,16 +1,8 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.system.page_title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.admin.breadcrumb_settings') }}</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">{{ _('settings.admin.breadcrumb_admin') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('settings.admin.system.breadcrumb_system') }}</li>
-    </ol>
-</nav>
-
+{% block settings_content %}
 <div class="row">
     <div class="col-lg-8 mx-auto">
         <div class="card">

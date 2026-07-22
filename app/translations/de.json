@@ -421,6 +421,12 @@
           "password": "Passwort"
         },
         "error": "Passwort konnte nicht geladen werden."
+      },
+      "contacts": {
+        "title": "Kontakte",
+        "empty": "Keine Kontakte",
+        "call": "Anrufen",
+        "mail": "E-Mail"
       }
     },
     "quick_access": {
@@ -474,8 +480,19 @@
           "buchungen": {
             "label": "Buchungen",
             "description": "Zeigt ausstehende Buchungsanfragen."
+          },
+          "kontakte": {
+            "label": "Kontakte",
+            "description": "Zeigt ausgewählte Kontakte mit Schnellaktionen."
           }
-        }
+        },
+        "add": "Widget hinzufügen",
+        "empty": "Noch keine Widgets. Fügen Sie welche hinzu.",
+        "calendars_label": "Kalender",
+        "contacts_label": "Kontakte auswählen",
+        "contacts_hint": "Wählen Sie bis zu fünf Kontakte für das Widget.",
+        "contacts_search": "Kontakt suchen…",
+        "contacts_max": "Maximal 5 Kontakte"
       },
       "quick_access": {
         "title": "Schnellzugriff",
@@ -497,6 +514,11 @@
           "logout": "Abmelden"
         }
       }
+    },
+    "greeting": {
+      "morning": "Guten Morgen, {name}!",
+      "afternoon": "Guten Tag, {name}!",
+      "evening": "Guten Abend, {name}!"
     }
   },
   "languages": {
@@ -507,6 +529,23 @@
     "ru": "Русский"
   },
   "settings": {
+    "sidebar": {
+      "brand": "Einstellungen",
+      "nav_label": "Einstellungen Navigation",
+      "menu": "Menü",
+      "start": "Start",
+      "admin_heading": "Admineinstellungen",
+      "push_subscriptions": "Web-Push-Abonnements",
+      "push_subscriptions_desc": "Aktive Browser-Push-Registrierungen aller Nutzer einsehen und verwalten.",
+      "email_module": "E-Mail-Einstellungen",
+      "email_module_desc": "E-Mail-Test, Footer und System-Einstellungen für das E-Mail-Modul konfigurieren.",
+      "inventory": "Lagerverwaltung",
+      "inventory_desc": "Einstellungen für öffentliche Produktseiten und QR-Codes",
+      "sections": {
+        "account": "Konto",
+        "modules": "Moduleinstellungen"
+      }
+    },
     "appearance": {
       "page_title": "Darstellung - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
@@ -560,6 +599,8 @@
     "index": {
       "page_title": "Einstellungen - Team Portal",
       "heading": "Einstellungen",
+      "lead": "Persönliche Einstellungen und, als Administrator, Schnellzugriff auf Systembereiche.",
+      "admin_hint": "Alle Module auch in der Navigation links. Hier nur der Überblick.",
       "cards": {
         "profile": {
           "title": "Profil",
@@ -715,9 +756,6 @@
         "no_sessions": "Keine aktiven Sitzungen gefunden.",
         "invalid_session": "Ungültige Sitzung."
       }
-    },
-    "notifications": {
-      "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert."
     },
     "notifications": {
       "page_title": "Benachrichtigungen - Einstellungen",
@@ -911,9 +949,34 @@
         "flash_send_toggled": "E-Mail-Sendeberechtigung für {name} wurde {status}."
       },
       "system": {
-        "flash_logo_too_large": "Logo ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
-        "flash_logo_uploaded": "Portalslogo wurde erfolgreich hochgeladen.",
-        "flash_logo_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG, GIF und SVG Dateien sind erlaubt."
+        "page_title": "System-Einstellungen - Administration",
+        "breadcrumb_system": "System-Einstellungen",
+        "heading": "System-Einstellungen",
+        "section_title": "Portal-Einstellungen",
+        "portal_name_label": "Portalsname",
+        "portal_name_placeholder": "z.B. Prismateams",
+        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
+        "portal_logo_label": "Portalslogo",
+        "current_logo": "Aktuelles Logo",
+        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
+        "default_accent_color_label": "Standard-Akzentfarbe",
+        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
+        "color_gradient_label": "Farbverlauf für Login/Register",
+        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
+        "color_gradient_default": "Standard (Blau-Violett)",
+        "color_gradient_purple_blue": "Blau-Violett",
+        "color_gradient_pink_red": "Pink-Rot",
+        "color_gradient_blue_cyan": "Blau-Cyan",
+        "color_gradient_green_teal": "Grün-Türkis",
+        "color_gradient_pink_yellow": "Pink-Gelb",
+        "color_gradient_pastel": "Pastell",
+        "color_gradient_rose_pastel": "Rosa-Pastell",
+        "color_gradient_orange_pastel": "Orange-Pastell",
+        "timezone_label": "Zeitzone",
+        "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
+        "save_button": "Änderungen speichern",
+        "back_button": "Zurück",
+        "flash_updated": "System-Einstellungen wurden aktualisiert."
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
@@ -949,6 +1012,7 @@
         "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags."
       },
       "booking_forms": {
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_title_required": "Bitte geben Sie einen Titel ein.",
         "flash_form_created": "Formular \"{title}\" wurde erstellt.",
         "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
@@ -1117,44 +1181,6 @@
         "save_button": "Änderungen speichern",
         "flash_updated": "Kalender-Einstellungen wurden aktualisiert.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
-      },
-      "system": {
-        "page_title": "System-Einstellungen - Administration",
-        "breadcrumb_system": "System-Einstellungen",
-        "heading": "System-Einstellungen",
-        "section_title": "Portal-Einstellungen",
-        "portal_name_label": "Portalsname",
-        "portal_name_placeholder": "z.B. Prismateams",
-        "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
-        "portal_logo_label": "Portalslogo",
-        "current_logo": "Aktuelles Logo",
-        "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
-        "default_accent_color_label": "Standard-Akzentfarbe",
-        "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
-        "color_gradient_label": "Farbverlauf für Login/Register",
-        "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
-        "color_gradient_default": "Standard (Blau-Violett)",
-        "color_gradient_purple_blue": "Blau-Violett",
-        "color_gradient_pink_red": "Pink-Rot",
-        "color_gradient_blue_cyan": "Blau-Cyan",
-        "color_gradient_green_teal": "Grün-Türkis",
-        "color_gradient_pink_yellow": "Pink-Gelb",
-        "color_gradient_pastel": "Pastell",
-        "color_gradient_rose_pastel": "Rosa-Pastell",
-        "color_gradient_orange_pastel": "Orange-Pastell",
-        "timezone_label": "Zeitzone",
-        "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
-        "save_button": "Änderungen speichern",
-        "back_button": "Zurück",
-        "flash_updated": "System-Einstellungen wurden aktualisiert."
-      },
-      "booking_forms": {
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
-        "flash_title_required": "Bitte geben Sie einen Titel ein.",
-        "flash_form_created": "Formular \"{title}\" wurde erstellt.",
-        "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
-        "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
-        "flash_status_updated": "Status wurde aktualisiert."
       }
     }
   },
@@ -2093,6 +2119,30 @@
       },
       "js": {
         "favorite_error": "Fehler beim Aktualisieren der Favoriten."
+      },
+      "new_button": "Neu",
+      "nav": {
+        "menu": "Menü"
+      },
+      "sort": {
+        "menu_button": "Sortierung",
+        "field": "Feld",
+        "direction": "Richtung",
+        "apply": "Anwenden",
+        "directions": {
+          "asc": "Aufsteigend",
+          "desc": "Absteigend"
+        }
+      },
+      "filters": {
+        "menu_button": "Filter",
+        "category": "Kategorie",
+        "tag": "Tag",
+        "apply": "Anwenden"
+      },
+      "favorites": {
+        "title": "Favoriten",
+        "empty": "Keine Favoriten"
       }
     },
     "create": {
@@ -2410,11 +2460,37 @@
         "feeds": "In eigenen Kalender integrieren"
       },
       "month_names": [
-        "Januar", "Februar", "März", "April", "Mai", "Juni",
-        "Juli", "August", "September", "Oktober", "November", "Dezember"
+        "Januar",
+        "Februar",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember"
       ],
-      "weekday_short": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
-      "weekday_long": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+      "weekday_short": [
+        "Mo",
+        "Di",
+        "Mi",
+        "Do",
+        "Fr",
+        "Sa",
+        "So"
+      ],
+      "weekday_long": [
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag"
+      ],
       "list": {
         "details": "Details",
         "time_suffix": "Uhr",
@@ -2480,7 +2556,15 @@
             "yearly": "z.B. alle 2 Jahre"
           },
           "days_label": "Wochentage",
-          "weekday_names": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+          "weekday_names": [
+            "Montag",
+            "Dienstag",
+            "Mittwoch",
+            "Donnerstag",
+            "Freitag",
+            "Samstag",
+            "Sonntag"
+          ],
           "end_label": "Wiederholung endet am (optional)",
           "end_help": "Wenn leer, wird unbegrenzt wiederholt"
         },
@@ -2725,24 +2809,68 @@
       "new_category_name_required": "Der neue Kategoriename ist verpflichtend."
     },
     "flash": {
-      "guests_cannot_create": "Gast-Accounts können keine Produkte erstellen.",
+      "folder_not_found": "Ordner nicht gefunden.",
       "product_name_required": "Der Produktname ist verpflichtend.",
-      "guests_cannot_edit": "Gast-Accounts können keine Produkte bearbeiten.",
       "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
-      "guests_cannot_delete": "Gast-Accounts können keine Produkte löschen.",
+      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
+      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
+      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
+      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
+      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
+      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
+      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
+      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
+      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_products_selected": "Keine Produkte ausgewählt.",
       "invalid_product_ids": "Ungültige Produkt-IDs.",
-      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
-      "enter_set_name": "Bitte geben Sie einen Namen für das Set ein.",
-      "select_at_least_one_product": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "no_permission_delete_set": "Sie haben keine Berechtigung, dieses Set zu löschen.",
+      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
+      "no_valid_products": "Keine gültigen Produkte gefunden.",
+      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
+      "invalid_date_format": "Ungültiges Datumsformat.",
+      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
+      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
+      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
+      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
+      "product_unavailable": "Das Produkt ist nicht verfügbar.",
+      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
+      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
+      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
+      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
+      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
+      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
+      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
+      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
+      "folder_name_required": "Der Ordnername ist verpflichtend.",
+      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
+      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
+      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
+      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "generate_error": "Fehler beim Generieren des Druckbogens.",
+      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
+      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
+      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
+      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
+      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
+      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
+      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
+      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
+      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
+      "no_file_selected": "Keine Datei ausgewählt.",
+      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
       "invalid_request": "Ungültige Anfrage.",
       "event_name_required": "Bitte Projekt / Veranstaltung angeben.",
       "borrower_name_required": "Bitte Verantwortlichen / Techniker angeben.",
+      "contact_email_required": "Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).",
+      "contact_email_invalid": "Ungültige Kontakt-E-Mail.",
+      "end_date_required": "Bitte Rückgabedatum angeben.",
       "product_added_to_cart": "Produkt wurde dem Ausleih-Warenkorb hinzugefügt.",
       "borrow_failed": "Ausleihe fehlgeschlagen.",
       "no_available_products": "Keine verfügbaren Produkte im Warenkorb.",
-      "end_before_start": "Das Enddatum liegt vor dem Startdatum."
+      "end_before_start": "Das Enddatum liegt vor dem Startdatum.",
+      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
+      "file_not_found": "Die Datei konnte nicht gefunden werden.",
+      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
+      "invalid_date": "Ungültiges Datum."
     },
     "dashboard": {
       "page_title": "Lagerverwaltung - Team Portal",
@@ -3035,70 +3163,6 @@
     "print_qr": {
       "page_title": "QR-Codes drucken - Team Portal",
       "heading": "QR-Codes drucken"
-    },
-    "flash": {
-      "folder_not_found": "Ordner nicht gefunden.",
-      "product_name_required": "Der Produktname ist verpflichtend.",
-      "invalid_length": "Ungültige Längenangabe. Bitte geben Sie die Länge in Metern an (z.B. 5,5).",
-      "quantity_range": "Die Anzahl muss zwischen 1 und 100 liegen.",
-      "invalid_quantity": "Ungültige Anzahl. Bitte geben Sie eine Zahl zwischen 1 und 100 ein.",
-      "product_created": "Produkt \"{name}\" wurde erfolgreich erstellt.",
-      "products_created": "{quantity} Produkte \"{name}\" wurden erfolgreich erstellt.",
-      "create_error": "Fehler beim Erstellen der Produkte. Bitte versuchen Sie es erneut.",
-      "product_updated": "Produkt \"{name}\" wurde erfolgreich aktualisiert.",
-      "product_cannot_delete": "Das Produkt kann nicht gelöscht werden, da es aktuell ausgeliehen ist.",
-      "product_deleted": "Produkt \"{name}\" wurde gelöscht.",
-      "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
-      "no_products_selected": "Keine Produkte ausgewählt.",
-      "invalid_product_ids": "Ungültige Produkt-IDs.",
-      "products_unavailable": "Einige Produkte sind nicht verfügbar: {products}",
-      "no_valid_products": "Keine gültigen Produkte gefunden.",
-      "return_date_required": "Das erwartete Rückgabedatum ist verpflichtend.",
-      "invalid_date_format": "Ungültiges Datumsformat.",
-      "return_date_past": "Das Rückgabedatum darf nicht in der Vergangenheit liegen.",
-      "borrow_success": "{count} Produkt(e) erfolgreich ausgeliehen.",
-      "receipt_sent": "Der Ausleihschein wurde per E-Mail an Sie gesendet.",
-      "borrow_registered_no_email": "Die Ausleihe wurde registriert, aber die E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
-      "product_unavailable": "Das Produkt ist nicht verfügbar.",
-      "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
-      "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
-      "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
-      "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
-      "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
-      "inventory_started": "Inventur \"{name}\" wurde gestartet.",
-      "inventory_completed": "Diese Inventur ist bereits abgeschlossen.",
-      "inventory_finished": "Inventur wurde abgeschlossen. {count} Produkt(e) wurden aktualisiert.",
-      "folder_name_required": "Der Ordnername ist verpflichtend.",
-      "folder_exists": "Ein Ordner mit diesem Namen existiert bereits.",
-      "folder_created": "Ordner \"{name}\" wurde erfolgreich erstellt.",
-      "folder_deleted": "Ordner \"{name}\" wurde gelöscht.",
-      "select_products": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "generate_error": "Fehler beim Generieren des Druckbogens.",
-      "color_table_error": "Fehler beim Generieren der Farbcodes-Tabelle.",
-      "set_name_required": "Bitte geben Sie einen Namen für das Set ein.",
-      "set_products_required": "Bitte wählen Sie mindestens ein Produkt aus.",
-      "set_created": "Produktset \"{name}\" wurde erfolgreich erstellt.",
-      "set_updated": "Produktset \"{name}\" wurde erfolgreich aktualisiert.",
-      "set_no_delete_permission": "Sie haben keine Berechtigung, dieses Set zu löschen.",
-      "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
-      "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
-      "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
-      "no_file_selected": "Keine Datei ausgewählt.",
-      "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
-      "invalid_request": "Ungültige Anfrage.",
-      "event_name_required": "Bitte Projekt / Veranstaltung angeben.",
-      "borrower_name_required": "Bitte Verantwortlichen / Techniker angeben.",
-      "contact_email_required": "Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).",
-      "contact_email_invalid": "Ungültige Kontakt-E-Mail.",
-      "end_date_required": "Bitte Rückgabedatum angeben.",
-      "product_added_to_cart": "Produkt wurde dem Ausleih-Warenkorb hinzugefügt.",
-      "borrow_failed": "Ausleihe fehlgeschlagen.",
-      "no_available_products": "Keine verfügbaren Produkte im Warenkorb.",
-      "end_before_start": "Das Enddatum liegt vor dem Startdatum.",
-      "document_deleted": "Dokument \"{filename}\" wurde erfolgreich gelöscht.",
-      "file_not_found": "Die Datei konnte nicht gefunden werden.",
-      "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
-      "invalid_date": "Ungültiges Datum."
     }
   },
   "music": {
@@ -3135,7 +3199,8 @@
         "title": "Bereits Gespielt",
         "empty": "Noch keine Lieder gespielt",
         "played_at": "Gespielt:",
-        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden"
+        "loading_hint": "Klicken Sie auf den Tab, um die Liste zu laden",
+        "clear": "Gespielte leeren"
       },
       "confirmations": {
         "mark_as_played": "Möchten Sie dieses Lied als bereits gespielt markieren?",
@@ -3143,11 +3208,33 @@
         "clear_queue": "Möchten Sie die Warteschlange wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
         "clear_wishlist": "Möchten Sie die Wunschliste wirklich leeren? Diese Aktion kann nicht rückgängig gemacht werden.",
         "reset_all": "Möchten Sie wirklich ALLES zurücksetzen?\n\nDies löscht:\n- Die gesamte Wunschliste\n- Die gesamte Warteschlange\n- Alle bereits gespielten Lieder\n\nDiese Aktion kann nicht rückgängig gemacht werden!",
-        "reset_all_confirm": "Sind Sie sich wirklich sicher? Alle Daten werden unwiderruflich gelöscht!"
+        "reset_all_confirm": "Sind Sie sich wirklich sicher? Alle Daten werden unwiderruflich gelöscht!",
+        "title": "Bestätigen",
+        "reset_title": "Alles zurücksetzen?",
+        "clear_played": "Möchten Sie die Liste der bereits gespielten Lieder wirklich leeren?"
       },
       "errors": {
         "generic": "Fehler: {error}",
         "unknown": "Unbekannter Fehler"
+      },
+      "nav": {
+        "label": "Musik-Navigation",
+        "menu": "Menü"
+      },
+      "sort": {
+        "heading": "Sortierung",
+        "field": "Feld",
+        "direction": "Richtung",
+        "apply": "Anwenden",
+        "reset": "Zurücksetzen",
+        "options": {
+          "created": "Erstellt",
+          "wish_count": "Wünsche"
+        },
+        "directions": {
+          "asc": "Aufsteigend",
+          "desc": "Absteigend"
+        }
       }
     },
     "public_wishlist": {
@@ -3265,29 +3352,21 @@
   },
   "booking": {
     "flash": {
-      "form_not_active": "Dieses Buchungsformular ist nicht mehr aktiv.",
-      "enter_name": "Bitte geben Sie Ihren Namen ein.",
-      "enter_event_name": "Bitte geben Sie einen Namen für die Veranstaltung ein.",
-      "enter_valid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-      "field_required": "Das Feld \"{field_label}\" ist ein Pflichtfeld.",
-      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
-      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt.",
-      "no_file_selected": "Keine Datei ausgewählt.",
-      "no_files_uploaded": "Keine Dateien wurden hochgeladen.",
-      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
-      "enter_event_date": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
-      "accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
-      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
-      "enter_rejection_reason": "Bitte geben Sie einen Ablehnungsgrund ein.",
-      "rejected": "Buchung wurde abgelehnt.",
-      "fill_subject_message": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
+      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
+      "request_rejected": "Buchung wurde abgelehnt.",
       "email_sent": "E-Mail wurde gesendet.",
       "email_error": "Fehler beim Senden der E-Mail.",
-      "not_assigned_to_role": "Sie sind dieser Rolle nicht zugewiesen.",
-      "file_too_large": "Datei \"{filename}\" ist zu groß (max. 50MB).",
-      "files_uploaded": "{count} Datei(en) wurden erfolgreich hochgeladen.",
+      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
+      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
+      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
+      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
+      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
+      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
       "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
-      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert."
+      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
+      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
+      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     },
     "requests": {
       "page_title": "Buchungsanfragen - Team Portal",
@@ -3316,7 +3395,33 @@
         "rejected": "Abgelehnt",
         "archived": "Archiviert"
       },
-      "empty": "Keine Buchungsanfragen vorhanden"
+      "empty": "Keine Buchungsanfragen vorhanden",
+      "sidebar_brand": "Buchungen",
+      "nav": {
+        "overview": "Übersicht",
+        "neu": "Neu",
+        "accepted": "Angenommen",
+        "rejected": "Abgelehnt",
+        "archived": "Archiviert",
+        "no_forms": "Keine Formulare vorhanden",
+        "public_link": "Öffentlicher Link"
+      },
+      "stats": {
+        "pending": "Ausstehend",
+        "accepted": "Angenommen",
+        "rejected": "Abgelehnt",
+        "archived": "Archiviert",
+        "total": "Gesamt",
+        "acceptance_rate": "Annahmequote",
+        "upcoming": "Bevorstehend",
+        "busy_days": "Belegte Tage",
+        "this_month": "Diesen Monat"
+      },
+      "dashboard": {
+        "upcoming_title": "Nächste Termine",
+        "upcoming_empty": "Keine kommenden Buchungen",
+        "recent_title": "Zuletzt eingegangen"
+      }
     },
     "request_detail": {
       "page_title": "{event_name} - Buchungsanfrage",
@@ -3371,7 +3476,8 @@
         "email_body_required": "*",
         "send": "Senden"
       },
-      "confirm_accept": "Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt."
+      "confirm_accept": "Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt.",
+      "actions_heading": "Aktionen"
     },
     "public_form": {
       "page_title": "{form_title} - Buchung",
@@ -3445,23 +3551,6 @@
           "description": "Spotify und YouTube Music verbinden und konfigurieren"
         }
       }
-    },
-    "flash": {
-      "form_inactive": "Dieses Buchungsformular ist nicht mehr aktiv.",
-      "request_accepted": "Buchung wurde angenommen und Kalendereintrag wurde erstellt.",
-      "request_rejected": "Buchung wurde abgelehnt.",
-      "email_sent": "E-Mail wurde gesendet.",
-      "email_error": "Fehler beim Senden der E-Mail.",
-      "rejection_reason_required": "Bitte geben Sie einen Ablehnungsgrund ein.",
-      "cannot_accept": "Diese Buchung kann nicht mehr angenommen werden.",
-      "cannot_reject": "Diese Buchung kann nicht mehr abgelehnt werden.",
-      "date_required": "Bitte geben Sie ein Datum für die Veranstaltung ein.",
-      "email_subject_required": "Bitte füllen Sie Betreff und Nachricht aus.",
-      "role_not_assigned": "Sie sind dieser Rolle nicht zugewiesen.",
-      "approval_saved": "Zustimmung für {role_name} wurde gespeichert.",
-      "rejection_saved": "Ablehnung für {role_name} wurde gespeichert.",
-      "mailbox_not_available": "Briefkasten ist für diese Buchung nicht verfügbar.",
-      "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     }
   },
   "setup": {
@@ -3499,6 +3588,13 @@
     "heading": "Media Downloader",
     "description": "Laden Sie Inhalte von YouTube und YouTube Music als MP3 oder MP4 herunter.",
     "legal_notice": "Sie sind für die Einhaltung von Urheberrecht und Nutzungsbedingungen der Plattformen verantwortlich. Heruntergeladene Dateien werden nach einer Stunde automatisch gelöscht.",
+    "nav": {
+      "label": "Media Downloader Navigation",
+      "menu": "Menü",
+      "download": "Neuer Download",
+      "jobs": "Meine Downloads",
+      "clear_all": "Alles löschen"
+    },
     "form": {
       "title": "Neuer Download",
       "url_label": "URL",

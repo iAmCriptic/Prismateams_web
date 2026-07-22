@@ -811,7 +811,7 @@
                 const dismissAttr = dismiss ? ' data-files-dismiss-offcanvas="1"' : '';
                 const name = (fav.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const url = fav.url || '#';
-                return `<a class="nav-link files-nav-link files-favorite-link" href="${url}" data-folder-id="${fav.id}"${dismissAttr}>` +
+                return `<a class="nav-link mod-nav-link files-favorite-link" href="${url}" data-folder-id="${fav.id}"${dismissAttr}>` +
                     `<i class="bi bi-folder-fill me-2 folder-color-icon${colorClass}"${colorStyle}></i>` +
                     `<span class="files-favorite-name text-truncate">${name}</span></a>`;
             }).join('');

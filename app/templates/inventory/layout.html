@@ -36,48 +36,48 @@
 {% endmacro %}
 
 {% macro inventory_nav_links(dismiss_offcanvas=false) %}
-<nav class="inventory-sidebar-nav nav flex-column gap-1">
-    <a class="nav-link inventory-nav-link {% if inv_nav.overview %}active{% endif %}"
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link {% if inv_nav.overview %}active{% endif %}"
        href="{{ url_for('inventory.dashboard') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-speedometer2 me-2"></i>{{ _('inventory.shell.nav.overview') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.stock %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.stock %}active{% endif %}"
        href="{{ url_for('inventory.stock') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-box-seam me-2"></i>{{ _('inventory.shell.nav.stock') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.quick_scan %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.quick_scan %}active{% endif %}"
        href="{{ url_for('inventory.borrow_scanner') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-qr-code-scan me-2"></i>{{ _('inventory.shell.nav.quick_scan') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.checkout %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.checkout %}active{% endif %}"
        href="{{ url_for('inventory.inventory_checkout') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-box-arrow-right me-2"></i>{{ _('inventory.shell.nav.checkout') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.borrows %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.borrows %}active{% endif %}"
        href="{{ url_for('inventory.borrows') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-clock-history me-2"></i>{{ _('inventory.shell.nav.borrows') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.sets %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.sets %}active{% endif %}"
        href="{{ url_for('inventory.sets') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-collection me-2"></i>{{ _('inventory.shell.nav.sets') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.inventory_tool %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.inventory_tool %}active{% endif %}"
        href="{{ url_for('inventory.inventory_tool') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-clipboard2-check me-2"></i>{{ _('inventory.shell.nav.inventory_tool') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.print_qr %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.print_qr %}active{% endif %}"
        href="{{ url_for('inventory.print_qr') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-printer me-2"></i>{{ _('inventory.shell.nav.print_qr') }}
     </a>
-    <a class="nav-link inventory-nav-link {% if inv_nav.statistics %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if inv_nav.statistics %}active{% endif %}"
        href="{{ url_for('inventory.statistics') }}"
        {% if dismiss_offcanvas %}data-inventory-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-graph-up me-2"></i>{{ _('inventory.shell.nav.statistics') }}
@@ -97,15 +97,15 @@
 {% endmacro %}
 
 {% block content %}
-<div class="inventory-shell inventory-shell--nav">
-    <aside class="inventory-sidebar d-none d-lg-flex flex-column">
-        <div class="inventory-sidebar-brand">
+<div class="inventory-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
             <i class="bi bi-box-seam" aria-hidden="true"></i>
             <span>{{ _('inventory.shell.brand') }}</span>
         </div>
         {% if show_new %}
-        <div class="dropdown inventory-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
-            <button class="btn inventory-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
+        <div class="dropdown mod-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
+            <button class="btn mod-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
                 <i class="bi bi-plus-lg me-2"></i>{{ _('inventory.shell.new_button') }}
             </button>
             {{ inventory_new_menu('newDropdownMenuSidebar') }}
@@ -114,17 +114,17 @@
         {{ inventory_nav_links(false) }}
     </aside>
 
-    <div class="inventory-main">
-        <div class="inventory-mobile-topbar d-lg-none mb-3">
+    <div class="mod-main">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
             <div class="d-flex justify-content-between align-items-center gap-2">
                 <div class="d-flex align-items-center min-width-0 gap-2">
-                    <button type="button" class="btn btn-outline-secondary inventory-mobile-menu-btn"
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn"
                             data-bs-toggle="offcanvas" data-bs-target="#inventoryMobileNav"
                             aria-controls="inventoryMobileNav"
                             aria-label="{{ _('inventory.shell.nav.menu') }}">
                         <i class="bi bi-list"></i>
                     </button>
-                    <h1 class="h5 mb-0 text-truncate inventory-mobile-title">
+                    <h1 class="h5 mb-0 text-truncate mod-mobile-title">
                         <i class="bi {% block inventory_heading_icon %}bi-box-seam{% endblock %}" aria-hidden="true"></i>
                         <span>{% block inventory_heading %}{{ _('inventory.shell.brand') }}{% endblock %}</span>
                     </h1>
@@ -142,7 +142,7 @@
 
         <div class="page-toolbar-row d-none d-lg-flex align-items-center justify-content-between gap-2 mb-3">
             <div class="min-width-0">
-                <h1 class="mb-0 text-break inventory-view-heading">
+                <h1 class="mb-0 text-break mod-view-heading">
                     <i class="bi {{ self.inventory_heading_icon() }}" aria-hidden="true"></i>
                     <span>{{ self.inventory_heading() }}</span>
                 </h1>
@@ -157,7 +157,7 @@
     </div>
 </div>
 
-<div class="offcanvas offcanvas-start inventory-mobile-offcanvas" tabindex="-1" id="inventoryMobileNav" aria-labelledby="inventoryMobileNavLabel">
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="inventoryMobileNav" aria-labelledby="inventoryMobileNavLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="inventoryMobileNavLabel">
             <i class="bi bi-box-seam" aria-hidden="true"></i>
@@ -191,7 +191,7 @@ function wireInventoryNewDropdown(buttonId, menuId) {
 wireInventoryNewDropdown('newButtonSidebar', 'newDropdownMenuSidebar');
 
 document.addEventListener('click', (event) => {
-    if (event.target.closest('.inventory-sidebar-new-wrap, .inventory-new-wrap')) return;
+    if (event.target.closest('.mod-sidebar-new-wrap, .inventory-new-wrap')) return;
     document.querySelectorAll('.inventory-sidebar-new-menu, .inventory-new-menu').forEach((el) => {
         el.style.display = 'none';
     });

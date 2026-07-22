@@ -7,7 +7,7 @@
 
 {% block inventory_mobile_actions %}
 {% if show_new %}
-<a href="{{ url_for('inventory.product_new') }}" class="btn inventory-new-btn btn-sm">
+<a href="{{ url_for('inventory.product_new') }}" class="btn mod-new-btn btn-sm">
     <i class="bi bi-plus-lg"></i> {{ _('inventory.shell.new_button') }}
 </a>
 {% endif %}
@@ -236,8 +236,8 @@
             </div>
             
             <!-- Produkte List View -->
-            <div id="productsListContainer" class="inventory-list-table-wrap">
-                <table class="table inventory-list-table align-middle mb-0">
+            <div id="productsListContainer" class="mod-list-table-wrap">
+                <table class="table mod-list-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th scope="col" style="width: 2.5rem;"></th>

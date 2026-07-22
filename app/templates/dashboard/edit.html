@@ -3,331 +3,377 @@
 {% block title %}{{ _('dashboard.edit.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
+<div class="dashboard-edit-page">
+    <header class="dashboard-edit-header">
         <h1>{{ _('dashboard.edit.heading') }}</h1>
-        <p class="text-muted">{{ _('dashboard.edit.subtitle') }}</p>
-    </div>
-</div>
+        <p class="dashboard-edit-subtitle">{{ _('dashboard.edit.subtitle') }}</p>
+    </header>
 
-<form method="POST" action="{{ url_for('dashboard.edit') }}">
-    <div class="row">
-        <div class="col-12 col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-grid-3x3-gap me-2"></i>
+    <form method="POST" action="{{ url_for('dashboard.edit') }}" id="dashboardEditForm">
+        <input type="hidden" name="widgets_json" id="widgets_json" value="">
+
+        <div class="dashboard-edit-grid">
+            <section class="dashboard-edit-panel">
+                <div class="dashboard-edit-panel-head">
+                    <h2>
+                        <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
                         {{ _('dashboard.edit.widgets.title') }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">{{ _('dashboard.edit.widgets.description') }}</p>
-                    
-                    {% set enabled_widgets = dashboard_config.get('enabled_widgets', []) %}
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_termine" id="widget_termine" {% if 'termine' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_termine">
-                            <i class="bi bi-calendar-event text-primary me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.termine.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.termine.description') }}</small>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_nachrichten" id="widget_nachrichten" {% if 'nachrichten' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_nachrichten">
-                            <i class="bi bi-chat-dots text-success me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.nachrichten.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.nachrichten.description') }}</small>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_emails" id="widget_emails" {% if 'emails' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_emails">
-                            <i class="bi bi-envelope text-info me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.emails.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.emails.description') }}</small>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_dateien" id="widget_dateien" {% if 'dateien' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_dateien">
-                            <i class="bi bi-folder text-warning me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.dateien.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.dateien.description') }}</small>
-                        </label>
-                    </div>
-
-                    {% if is_module_enabled('module_credentials') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_passwoerter" id="widget_passwoerter" {% if 'passwoerter' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_passwoerter">
-                            <i class="bi bi-key text-danger me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.passwoerter.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.passwoerter.description') }}</small>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_wiki') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_neue_wikieintraege" id="widget_neue_wikieintraege" {% if 'neue_wikieintraege' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_neue_wikieintraege">
-                            <i class="bi bi-journal-text text-info me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.neue_wikieintraege.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.neue_wikieintraege.description') }}</small>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_meine_wikis" id="widget_meine_wikis" {% if 'meine_wikis' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_meine_wikis">
-                            <i class="bi bi-star-fill text-warning me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.meine_wikis.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.meine_wikis.description') }}</small>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_inventory') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_meine_ausleihen" id="widget_meine_ausleihen" {% if 'meine_ausleihen' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_meine_ausleihen">
-                            <i class="bi bi-box-arrow-right text-success me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.meine_ausleihen.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.meine_ausleihen.description') }}</small>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_booking') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="widget_buchungen" id="widget_buchungen" {% if 'buchungen' in enabled_widgets %}checked{% endif %}>
-                        <label class="form-check-label" for="widget_buchungen">
-                            <i class="bi bi-calendar-check text-primary me-2"></i>
-                            <strong>{{ _('dashboard.edit.widgets.items.buchungen.label') }}</strong>
-                            <small class="text-muted d-block ms-4">{{ _('dashboard.edit.widgets.items.buchungen.description') }}</small>
-                        </label>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-12 col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        {{ _('dashboard.edit.quick_access.title') }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">{{ _('dashboard.edit.quick_access.description') }}</p>
-                    
-                    {% set quick_access_links = dashboard_config.get('quick_access_links', []) %}
-                    
-                    {% if is_module_enabled('module_files') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_files" id="link_files" {% if 'files' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_files">
-                            <i class="bi bi-folder me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.files') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_chat') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_chat" id="link_chat" {% if 'chat' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_chat">
-                            <i class="bi bi-chat-dots me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.chat') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_calendar') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_calendar" id="link_calendar" {% if 'calendar' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_calendar">
-                            <i class="bi bi-calendar-event me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.calendar') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-
-                    {% if is_module_enabled('module_events') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_events" id="link_events" {% if 'events' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_events">
-                            <i class="bi bi-calendar2-week me-2"></i>
-                            <strong>Veranstaltungen</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_email') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_email" id="link_email" {% if 'email' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_email">
-                            <i class="bi bi-envelope me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.email') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-
-                    {% if is_module_enabled('module_contacts') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_contacts" id="link_contacts" {% if 'contacts' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_contacts">
-                            <i class="bi bi-person-lines-fill me-2"></i>
-                            <strong>{{ _('layout.nav.contacts') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_credentials') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_credentials" id="link_credentials" {% if 'credentials' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_credentials">
-                            <i class="bi bi-key me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.credentials') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_manuals') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_manuals" id="link_manuals" {% if 'manuals' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_manuals">
-                            <i class="bi bi-book me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.manuals') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_inventory') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_inventory" id="link_inventory" {% if 'inventory' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_inventory">
-                            <i class="bi bi-box-seam me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.inventory') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_wiki') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_wiki" id="link_wiki" {% if 'wiki' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_wiki">
-                            <i class="bi bi-journal-text me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.wiki') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-
-                    {% if is_module_enabled('module_shortlinks') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_shortlinks" id="link_shortlinks" {% if 'shortlinks' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_shortlinks">
-                            <i class="bi bi-link-45deg me-2"></i>
-                            <strong>Kurzlinks</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_booking') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_booking" id="link_booking" {% if 'booking' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_booking">
-                            <i class="bi bi-calendar-check me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.booking') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    {% if is_module_enabled('module_music') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_music" id="link_music" {% if 'music' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_music">
-                            <i class="bi bi-music-note-beamed me-2"></i>
-                            <strong>{{ _('dashboard.edit.quick_access.items.music') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-
-                    {% if is_module_enabled('module_media_downloader') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_media_downloader" id="link_media_downloader" {% if 'media_downloader' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_media_downloader">
-                            <i class="bi bi-download me-2"></i>
-                            <strong>{{ _('layout.nav.media_downloader') }}</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-
-                    {% if is_module_enabled('module_assessment') %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_assessment" id="link_assessment" {% if 'assessment' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_assessment">
-                            <i class="bi bi-clipboard2-check me-2"></i>
-                            <strong>Bewertung</strong>
-                        </label>
-                    </div>
-                    {% endif %}
-                    
-                    <hr class="my-3">
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_settings" id="link_settings" {% if 'settings' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_settings">
-                            <i class="bi bi-gear me-2"></i>
-                            <strong>{{ _('layout.nav.settings') }}</strong>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_profile" id="link_profile" {% if 'profile' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_profile">
-                            <i class="bi bi-person me-2"></i>
-                            <strong>{{ _('settings.profile.title') }}</strong>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="link_logout" id="link_logout" {% if 'logout' in quick_access_links %}checked{% endif %}>
-                        <label class="form-check-label" for="link_logout">
-                            <i class="bi bi-box-arrow-right me-2"></i>
-                            <strong>{{ _('layout.nav.logout') }}</strong>
-                        </label>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-2"></i>
-                            {{ _('common.cancel') }}
-                        </a>
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-check-circle me-2"></i>
-                            {{ _('common.save') }}
+                    </h2>
+                    <div class="dropdown">
+                        <button class="btn dashboard-edit-pill-btn dashboard-edit-pill-btn--accent dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-plus-lg me-1"></i>{{ _('dashboard.edit.widgets.add') }}
                         </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="addWidgetMenu">
+                            {% if is_module_enabled('module_calendar') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="termine"><i class="bi bi-calendar-event me-2"></i>{{ _('dashboard.edit.widgets.items.termine.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_contacts') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="kontakte"><i class="bi bi-person-lines-fill me-2"></i>{{ _('dashboard.edit.widgets.items.kontakte.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_chat') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="nachrichten"><i class="bi bi-chat-dots me-2"></i>{{ _('dashboard.edit.widgets.items.nachrichten.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_email') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="emails"><i class="bi bi-envelope me-2"></i>{{ _('dashboard.edit.widgets.items.emails.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_files') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="dateien"><i class="bi bi-folder me-2"></i>{{ _('dashboard.edit.widgets.items.dateien.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_credentials') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="passwoerter"><i class="bi bi-key me-2"></i>{{ _('dashboard.edit.widgets.items.passwoerter.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_wiki') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="neue_wikieintraege"><i class="bi bi-journal-text me-2"></i>{{ _('dashboard.edit.widgets.items.neue_wikieintraege.label') }}</button></li>
+                            <li><button type="button" class="dropdown-item" data-add-widget="meine_wikis"><i class="bi bi-star-fill me-2"></i>{{ _('dashboard.edit.widgets.items.meine_wikis.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_inventory') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="meine_ausleihen"><i class="bi bi-box-arrow-right me-2"></i>{{ _('dashboard.edit.widgets.items.meine_ausleihen.label') }}</button></li>
+                            {% endif %}
+                            {% if is_module_enabled('module_booking') %}
+                            <li><button type="button" class="dropdown-item" data-add-widget="buchungen"><i class="bi bi-calendar-check me-2"></i>{{ _('dashboard.edit.widgets.items.buchungen.label') }}</button></li>
+                            {% endif %}
+                        </ul>
                     </div>
                 </div>
-            </div>
+                <p class="dashboard-edit-panel-desc">{{ _('dashboard.edit.widgets.description') }}</p>
+                <div id="widgetInstances"></div>
+                <p class="text-muted small mb-0 d-none" id="widgetsEmptyHint">{{ _('dashboard.edit.widgets.empty') }}</p>
+            </section>
+
+            <section class="dashboard-edit-panel">
+                <div class="dashboard-edit-panel-head">
+                    <h2>
+                        <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                        {{ _('dashboard.edit.quick_access.title') }}
+                    </h2>
+                </div>
+                <p class="dashboard-edit-panel-desc">{{ _('dashboard.edit.quick_access.description') }}</p>
+                {% set quick_access_links = dashboard_config.get('quick_access_links', []) %}
+                <div class="dashboard-edit-qa-list">
+                    {% if is_module_enabled('module_files') %}
+                    <label class="dashboard-edit-qa-item" for="link_files">
+                        <input class="form-check-input" type="checkbox" name="link_files" id="link_files" {% if 'files' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-folder"></i><span>{{ _('dashboard.edit.quick_access.items.files') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_chat') %}
+                    <label class="dashboard-edit-qa-item" for="link_chat">
+                        <input class="form-check-input" type="checkbox" name="link_chat" id="link_chat" {% if 'chat' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-chat-dots"></i><span>{{ _('dashboard.edit.quick_access.items.chat') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_calendar') %}
+                    <label class="dashboard-edit-qa-item" for="link_calendar">
+                        <input class="form-check-input" type="checkbox" name="link_calendar" id="link_calendar" {% if 'calendar' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-calendar-event"></i><span>{{ _('dashboard.edit.quick_access.items.calendar') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_events') %}
+                    <label class="dashboard-edit-qa-item" for="link_events">
+                        <input class="form-check-input" type="checkbox" name="link_events" id="link_events" {% if 'events' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-calendar2-week"></i><span>Veranstaltungen</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_email') %}
+                    <label class="dashboard-edit-qa-item" for="link_email">
+                        <input class="form-check-input" type="checkbox" name="link_email" id="link_email" {% if 'email' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-envelope"></i><span>{{ _('dashboard.edit.quick_access.items.email') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_contacts') %}
+                    <label class="dashboard-edit-qa-item" for="link_contacts">
+                        <input class="form-check-input" type="checkbox" name="link_contacts" id="link_contacts" {% if 'contacts' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-person-lines-fill"></i><span>{{ _('layout.nav.contacts') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_credentials') %}
+                    <label class="dashboard-edit-qa-item" for="link_credentials">
+                        <input class="form-check-input" type="checkbox" name="link_credentials" id="link_credentials" {% if 'credentials' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-key"></i><span>{{ _('dashboard.edit.quick_access.items.credentials') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_manuals') %}
+                    <label class="dashboard-edit-qa-item" for="link_manuals">
+                        <input class="form-check-input" type="checkbox" name="link_manuals" id="link_manuals" {% if 'manuals' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-book"></i><span>{{ _('dashboard.edit.quick_access.items.manuals') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_inventory') %}
+                    <label class="dashboard-edit-qa-item" for="link_inventory">
+                        <input class="form-check-input" type="checkbox" name="link_inventory" id="link_inventory" {% if 'inventory' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-box-seam"></i><span>{{ _('dashboard.edit.quick_access.items.inventory') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_wiki') %}
+                    <label class="dashboard-edit-qa-item" for="link_wiki">
+                        <input class="form-check-input" type="checkbox" name="link_wiki" id="link_wiki" {% if 'wiki' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-journal-text"></i><span>{{ _('dashboard.edit.quick_access.items.wiki') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_shortlinks') %}
+                    <label class="dashboard-edit-qa-item" for="link_shortlinks">
+                        <input class="form-check-input" type="checkbox" name="link_shortlinks" id="link_shortlinks" {% if 'shortlinks' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-link-45deg"></i><span>Kurzlinks</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_booking') %}
+                    <label class="dashboard-edit-qa-item" for="link_booking">
+                        <input class="form-check-input" type="checkbox" name="link_booking" id="link_booking" {% if 'booking' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-calendar-check"></i><span>{{ _('dashboard.edit.quick_access.items.booking') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_music') %}
+                    <label class="dashboard-edit-qa-item" for="link_music">
+                        <input class="form-check-input" type="checkbox" name="link_music" id="link_music" {% if 'music' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-music-note-beamed"></i><span>{{ _('dashboard.edit.quick_access.items.music') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_media_downloader') %}
+                    <label class="dashboard-edit-qa-item" for="link_media_downloader">
+                        <input class="form-check-input" type="checkbox" name="link_media_downloader" id="link_media_downloader" {% if 'media_downloader' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-download"></i><span>{{ _('layout.nav.media_downloader') }}</span>
+                    </label>
+                    {% endif %}
+                    {% if is_module_enabled('module_assessment') %}
+                    <label class="dashboard-edit-qa-item" for="link_assessment">
+                        <input class="form-check-input" type="checkbox" name="link_assessment" id="link_assessment" {% if 'assessment' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-clipboard2-check"></i><span>Bewertung</span>
+                    </label>
+                    {% endif %}
+                    <div class="dashboard-edit-qa-divider"></div>
+                    <label class="dashboard-edit-qa-item" for="link_settings">
+                        <input class="form-check-input" type="checkbox" name="link_settings" id="link_settings" {% if 'settings' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-gear"></i><span>{{ _('layout.nav.settings') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_profile">
+                        <input class="form-check-input" type="checkbox" name="link_profile" id="link_profile" {% if 'profile' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-person"></i><span>{{ _('settings.profile.title') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_logout">
+                        <input class="form-check-input" type="checkbox" name="link_logout" id="link_logout" {% if 'logout' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-box-arrow-right"></i><span>{{ _('layout.nav.logout') }}</span>
+                    </label>
+                </div>
+            </section>
         </div>
-    </div>
-</form>
+
+        <div class="dashboard-edit-actions">
+            <button type="submit" class="btn dashboard-edit-pill-btn dashboard-edit-pill-btn--accent dashboard-edit-save">
+                <i class="bi bi-check-lg me-1"></i>{{ _('common.save') }}
+            </button>
+        </div>
+    </form>
+</div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+(function () {
+    const labels = {{ {
+        'termine': _('dashboard.edit.widgets.items.termine.label'),
+        'kontakte': _('dashboard.edit.widgets.items.kontakte.label'),
+        'nachrichten': _('dashboard.edit.widgets.items.nachrichten.label'),
+        'emails': _('dashboard.edit.widgets.items.emails.label'),
+        'dateien': _('dashboard.edit.widgets.items.dateien.label'),
+        'passwoerter': _('dashboard.edit.widgets.items.passwoerter.label'),
+        'neue_wikieintraege': _('dashboard.edit.widgets.items.neue_wikieintraege.label'),
+        'meine_wikis': _('dashboard.edit.widgets.items.meine_wikis.label'),
+        'meine_ausleihen': _('dashboard.edit.widgets.items.meine_ausleihen.label'),
+        'buchungen': _('dashboard.edit.widgets.items.buchungen.label'),
+    }|tojson }};
+    const icons = {
+        termine: 'bi-calendar-event',
+        kontakte: 'bi-person-lines-fill',
+        nachrichten: 'bi-chat-dots',
+        emails: 'bi-envelope',
+        dateien: 'bi-folder',
+        passwoerter: 'bi-key',
+        neue_wikieintraege: 'bi-journal-text',
+        meine_wikis: 'bi-star-fill',
+        meine_ausleihen: 'bi-box-arrow-right',
+        buchungen: 'bi-calendar-check'
+    };
+    const calendars = {{ available_calendars|tojson }};
+    const calendarMulti = {{ calendar_multi_enabled|tojson }};
+    const contactsById = {};
+    {% for c in selected_contacts %}
+    contactsById[{{ c.id }}] = {{ {'id': c.id, 'name': c.name, 'email': c.email}|tojson }};
+    {% endfor %}
+    const i18n = {
+        calendars: {{ _('dashboard.edit.widgets.calendars_label')|tojson }},
+        contacts: {{ _('dashboard.edit.widgets.contacts_label')|tojson }},
+        contactsHint: {{ _('dashboard.edit.widgets.contacts_hint')|tojson }},
+        searchPlaceholder: {{ _('dashboard.edit.widgets.contacts_search')|tojson }},
+        remove: {{ _('common.delete')|tojson }},
+        maxContacts: {{ _('dashboard.edit.widgets.contacts_max')|tojson }}
+    };
+
+    let widgets = {{ dashboard_config.get('widgets', [])|tojson }};
+    const listEl = document.getElementById('widgetInstances');
+    const emptyHint = document.getElementById('widgetsEmptyHint');
+    const form = document.getElementById('dashboardEditForm');
+    const jsonInput = document.getElementById('widgets_json');
+
+    function uid() {
+        return Math.random().toString(16).slice(2, 12);
+    }
+
+    function uniqueTypesOnce(type) {
+        return !['termine', 'kontakte'].includes(type);
+    }
+
+    function render() {
+        listEl.innerHTML = '';
+        emptyHint.classList.toggle('d-none', widgets.length > 0);
+        widgets.forEach((w, idx) => {
+            const card = document.createElement('div');
+            card.className = 'dashboard-edit-instance';
+            card.dataset.idx = String(idx);
+
+            let extra = '';
+            if (w.type === 'termine' && calendars.length) {
+                const selected = new Set((w.calendar_ids || []).map(Number));
+                extra = `<div class="small text-muted mt-2">${i18n.calendars}</div><div class="dashboard-edit-cal-list">` +
+                    calendars.map(c => {
+                        const checked = selected.has(c.id) ? 'checked' : '';
+                        return `<label class="form-check form-check-inline mb-0"><input class="form-check-input cal-check" type="checkbox" data-cal-id="${c.id}" ${checked}><span class="form-check-label"><span class="dash-cal-dot me-1" style="background:${c.color || '#0d6efd'};vertical-align:middle;"></span>${c.name}</span></label>`;
+                    }).join('') + '</div>';
+            } else if (w.type === 'kontakte') {
+                const ids = w.contact_ids || [];
+                const chips = ids.map(id => {
+                    const c = contactsById[id] || { id, name: '#' + id };
+                    return `<span class="dashboard-edit-contact-chip" data-contact-id="${id}">${c.name}<button type="button" class="btn-close btn-close-sm ms-1 remove-contact" aria-label="${i18n.remove}"></button></span>`;
+                }).join('');
+                extra = `<div class="small text-muted mt-2">${i18n.contacts}</div>
+                    <div class="dashboard-edit-contact-chips" data-chips>${chips}</div>
+                    <input type="search" class="form-control dashboard-edit-search contact-search" placeholder="${i18n.contactsHint}" autocomplete="off">
+                    <div class="list-group mt-1 contact-results"></div>
+                    <div class="form-text">${i18n.maxContacts}</div>`;
+            }
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <strong><i class="bi ${icons[w.type] || 'bi-grid'} me-2"></i>${labels[w.type] || w.type}</strong>
+                    </div>
+                    <button type="button" class="btn dashboard-edit-remove remove-widget" title="${i18n.remove}"><i class="bi bi-trash"></i></button>
+                </div>
+                ${extra}`;
+            listEl.appendChild(card);
+        });
+    }
+
+    listEl.addEventListener('change', (e) => {
+        const cal = e.target.closest('.cal-check');
+        if (!cal) return;
+        const idx = Number(cal.closest('.dashboard-edit-instance').dataset.idx);
+        const id = Number(cal.dataset.calId);
+        const set = new Set((widgets[idx].calendar_ids || []).map(Number));
+        if (cal.checked) set.add(id); else set.delete(id);
+        widgets[idx].calendar_ids = Array.from(set);
+    });
+
+    listEl.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.remove-widget');
+        if (removeBtn) {
+            const idx = Number(removeBtn.closest('.dashboard-edit-instance').dataset.idx);
+            widgets.splice(idx, 1);
+            render();
+            return;
+        }
+        const chipBtn = e.target.closest('.remove-contact');
+        if (chipBtn) {
+            const chip = chipBtn.closest('[data-contact-id]');
+            const idx = Number(chipBtn.closest('.dashboard-edit-instance').dataset.idx);
+            const cid = Number(chip.dataset.contactId);
+            widgets[idx].contact_ids = (widgets[idx].contact_ids || []).filter(x => Number(x) !== cid);
+            render();
+        }
+    });
+
+    let searchTimer = null;
+    listEl.addEventListener('input', (e) => {
+        const input = e.target.closest('.contact-search');
+        if (!input) return;
+        const card = input.closest('.dashboard-edit-instance');
+        const idx = Number(card.dataset.idx);
+        const results = card.querySelector('.contact-results');
+        clearTimeout(searchTimer);
+        const q = input.value.trim();
+        if (q.length < 1) { results.innerHTML = ''; return; }
+        searchTimer = setTimeout(() => {
+            fetch(`/contacts/api/search?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const items = (data.results || data.contacts || []);
+                    const list = (Array.isArray(items) ? items : []).filter(c => c && c.type === 'contact' && c.id);
+                    results.innerHTML = list.slice(0, 8).map(c => {
+                        const id = c.id;
+                        const name = c.name || '';
+                        const email = c.email || '';
+                        return `<button type="button" class="list-group-item list-group-item-action py-2 pick-contact" data-id="${id}" data-name="${String(name).replace(/"/g, '&quot;')}" data-email="${String(email).replace(/"/g, '&quot;')}">${name}${email ? ' <small class="text-muted">' + email + '</small>' : ''}</button>`;
+                    }).join('') || `<div class="list-group-item text-muted small">${i18n.contactsHint}</div>`;
+                })
+                .catch(() => { results.innerHTML = ''; });
+        }, 220);
+    });
+
+    listEl.addEventListener('click', (e) => {
+        const pick = e.target.closest('.pick-contact');
+        if (!pick) return;
+        const card = pick.closest('.dashboard-edit-instance');
+        const idx = Number(card.dataset.idx);
+        const id = Number(pick.dataset.id);
+        contactsById[id] = { id, name: pick.dataset.name, email: pick.dataset.email };
+        const ids = widgets[idx].contact_ids || [];
+        if (ids.includes(id)) return;
+        if (ids.length >= 3) {
+            alert(i18n.maxContacts);
+            return;
+        }
+        widgets[idx].contact_ids = [...ids, id];
+        render();
+    });
+
+    document.getElementById('addWidgetMenu').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-add-widget]');
+        if (!btn) return;
+        const type = btn.dataset.addWidget;
+        if (uniqueTypesOnce(type) && widgets.some(w => w.type === type)) {
+            return;
+        }
+        const entry = { id: uid(), type };
+        if (type === 'termine') entry.calendar_ids = [];
+        if (type === 'kontakte') entry.contact_ids = [];
+        widgets.push(entry);
+        render();
+    });
+
+    form.addEventListener('submit', () => {
+        jsonInput.value = JSON.stringify(widgets);
+    });
+
+    render();
+})();
+</script>
+{% endblock %}

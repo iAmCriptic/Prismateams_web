@@ -1,17 +1,10 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.appearance.page_title') }}{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">{{ _('settings.appearance.breadcrumb_settings') }}</a></li>
-        <li class="breadcrumb-item active">{{ _('settings.appearance.breadcrumb_appearance') }}</li>
-    </ol>
-</nav>
-
+{% block settings_content %}
 <div class="row">
-    <div class="col-lg-8 mx-auto">
+    <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h4 class="mb-0">{{ _('settings.appearance.heading') }}</h4>

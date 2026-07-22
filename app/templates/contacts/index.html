@@ -18,12 +18,12 @@
 {% endmacro %}
 
 {% macro contacts_sidebar_tools(id_suffix='') %}
-<div class="contacts-sidebar-tools">
-    <div class="contacts-sidebar-section">
-        <div class="contacts-sidebar-heading">
+<div class="mod-sidebar-tools">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
             <i class="bi bi-search me-1"></i>{{ _('contacts.index.search.button') }}
         </div>
-        <form method="GET" class="contacts-sidebar-form d-grid gap-2">
+        <form method="GET" class="mod-sidebar-form d-grid gap-2">
             <input type="hidden" name="sort" value="{{ current_sort }}">
             <input type="hidden" name="dir" value="{{ current_dir }}">
             <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
@@ -32,18 +32,18 @@
             <input type="hidden" name="phone" value="{{ current_filters.phone }}">
             <input type="hidden" name="notes" value="{{ current_filters.notes }}">
             <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="{{ _('contacts.index.search.placeholder') }}" aria-label="{{ _('contacts.index.search.button') }}">
-            <button type="submit" class="btn contacts-sidebar-action w-100">
+            <button type="submit" class="btn mod-sidebar-action w-100">
                 <i class="bi bi-search"></i>
                 <span>{{ _('contacts.index.search.button') }}</span>
             </button>
         </form>
     </div>
 
-    <div class="contacts-sidebar-section">
-        <div class="contacts-sidebar-heading">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
             <i class="bi bi-sort-alpha-down me-1"></i>{{ _('contacts.index.sort.menu_button') }}
         </div>
-        <form method="GET" class="contacts-sidebar-form d-grid gap-2">
+        <form method="GET" class="mod-sidebar-form d-grid gap-2">
             <input type="hidden" name="q" value="{{ search_query }}">
             <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
             <input type="hidden" name="name" value="{{ current_filters.name }}">
@@ -67,18 +67,18 @@
                     <option value="desc" {% if current_dir == 'desc' %}selected{% endif %}>{{ _('contacts.index.sort.directions.desc') }}</option>
                 </select>
             </div>
-            <button type="submit" class="btn contacts-sidebar-action w-100">
+            <button type="submit" class="btn mod-sidebar-action w-100">
                 <i class="bi bi-check2"></i>
                 <span>{{ _('contacts.index.sort.apply') }}</span>
             </button>
         </form>
     </div>
 
-    <div class="contacts-sidebar-section">
-        <div class="contacts-sidebar-heading">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
             <i class="bi bi-funnel me-1"></i>{{ _('contacts.index.filters.menu_button') }}
         </div>
-        <form method="GET" class="contacts-sidebar-form d-grid gap-2">
+        <form method="GET" class="mod-sidebar-form d-grid gap-2">
             <input type="hidden" name="q" value="{{ search_query }}">
             <input type="hidden" name="sort" value="{{ current_sort }}">
             <input type="hidden" name="dir" value="{{ current_dir }}">
@@ -103,12 +103,12 @@
                 <input id="filter-notes{{ id_suffix }}" name="notes" value="{{ current_filters.notes }}" type="text" class="form-control form-control-sm" placeholder="{{ _('contacts.index.filters.notes_placeholder') }}">
             </div>
             <div class="d-flex flex-wrap gap-1">
-                <button type="submit" class="btn contacts-sidebar-action flex-grow-1">
+                <button type="submit" class="btn mod-sidebar-action flex-grow-1">
                     <i class="bi bi-check2"></i>
                     <span>{{ _('contacts.index.filters.apply') }}</span>
                 </button>
                 {% if has_filter_state %}
-                <a href="{{ url_for('contacts.index', q=search_query, sort=current_sort, dir=current_dir) }}" class="btn contacts-sidebar-action contacts-sidebar-action--muted">
+                <a href="{{ url_for('contacts.index', q=search_query, sort=current_sort, dir=current_dir) }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
                     <i class="bi bi-x-lg"></i>
                     <span>{{ _('contacts.index.filters.reset') }}</span>
                 </a>
@@ -215,10 +215,10 @@
 
 {% macro render_contact_list_row(contact) %}
 {% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
-<tr class="contacts-list-row" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-list">
+<tr class="mod-list-row" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-list">
     <td>
         {{ contact_context_menu(contact, '-list') }}
-        <span class="contacts-list-name">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</span>
+        <span class="mod-list-name">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</span>
     </td>
     <td class="text-nowrap d-none d-md-table-cell">
         <a href="{% if can_write_mail %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" class="text-decoration-none">
@@ -235,8 +235,8 @@
     </td>
     <td class="contacts-notes-cell d-none d-xl-table-cell">{{ contact.notes or '—' }}</td>
     <td class="text-end contacts-list-actions-cell">
-        <div class="contacts-list-actions">
-            <div class="contacts-list-hover-actions">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
                 {% if contact.name %}
                 <button type="button" class="btn btn-sm btn-link" title="{{ _('contacts.index.actions.copy_name') }}" data-copy-text="{{ contact.name }}">
                     <i class="bi bi-person"></i>
@@ -274,21 +274,21 @@
 </tr>
 {% endmacro %}
 
-<div class="contacts-shell contacts-shell--nav">
-<aside class="contacts-sidebar d-none d-lg-flex flex-column">
-    <div class="contacts-sidebar-brand">
+<div class="contacts-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
         <span>{{ _('contacts.index.heading') }}</span>
     </div>
-    <div class="contacts-sidebar-new-wrap w-100">
-        <a href="{{ create_url }}" class="btn contacts-sidebar-new w-100 text-start">
+    <div class="mod-sidebar-new-wrap w-100">
+        <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
             <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
         </a>
     </div>
     {{ contacts_sidebar_tools('') }}
 </aside>
 
-<div class="offcanvas offcanvas-start contacts-mobile-offcanvas" tabindex="-1" id="contactsMobileNav" aria-labelledby="contactsMobileNavLabel">
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="contactsMobileNav" aria-labelledby="contactsMobileNavLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="contactsMobileNavLabel">
             <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
@@ -297,8 +297,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        <div class="contacts-sidebar-new-wrap w-100 mb-3">
-            <a href="{{ create_url }}" class="btn contacts-sidebar-new w-100 text-start">
+        <div class="mod-sidebar-new-wrap w-100 mb-3">
+            <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
                 <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
             </a>
         </div>
@@ -306,19 +306,19 @@
     </div>
 </div>
 
-<div class="contacts-main flex-grow-1 min-width-0">
-    <div class="contacts-mobile-topbar d-lg-none mb-3">
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
         <div class="d-flex justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center min-width-0 gap-2">
-                <button type="button" class="btn btn-outline-secondary contacts-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#contactsMobileNav" aria-controls="contactsMobileNav" aria-label="{{ _('contacts.index.nav.menu') }}">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#contactsMobileNav" aria-controls="contactsMobileNav" aria-label="{{ _('contacts.index.nav.menu') }}">
                     <i class="bi bi-list"></i>
                 </button>
-                <h1 class="h5 mb-0 text-truncate contacts-mobile-title">
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
                     <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
                     <span>{{ _('contacts.index.heading') }}</span>
                 </h1>
             </div>
-            <a href="{{ create_url }}" class="btn contacts-new-btn btn-sm flex-shrink-0">
+            <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
                 <i class="bi bi-plus-lg"></i> {{ _('contacts.index.new_button') }}
             </a>
         </div>
@@ -341,7 +341,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="contacts-empty-state">
+        <div class="mod-empty-state">
             <div>
                 <i class="bi bi-person-lines-fill display-6 d-block mb-2 opacity-50"></i>
                 {{ _('contacts.index.empty_message') }}
@@ -352,8 +352,8 @@
 
     <div id="listViewContainer" style="display: none;">
         {% if contacts %}
-        <div class="contacts-list-table-wrap">
-            <table class="table contacts-list-table align-middle">
+        <div class="mod-list-table-wrap">
+            <table class="table mod-list-table align-middle">
                 <thead>
                     <tr>
                         <th scope="col">{{ _('contacts.form.fields.name') }}</th>
@@ -371,7 +371,7 @@
             </table>
         </div>
         {% else %}
-        <div class="contacts-empty-state">
+        <div class="mod-empty-state">
             <div>
                 <i class="bi bi-person-lines-fill display-6 d-block mb-2 opacity-50"></i>
                 {{ _('contacts.index.empty_message') }}

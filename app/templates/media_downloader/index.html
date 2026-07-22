@@ -3,73 +3,117 @@
 {% block title %}{{ _('media_downloader.page_title') }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <h1 class="mb-1"><i class="bi bi-download"></i> {{ _('media_downloader.heading') }}</h1>
-    <p class="text-muted mb-0">{{ _('media_downloader.description') }}</p>
-</div>
+{% from 'media_downloader/_sidebar.html' import media_downloader_sidebar_chrome with context %}
 
-<div class="alert alert-info">
-    <i class="bi bi-info-circle me-2"></i>{{ _('media_downloader.legal_notice') }}
-</div>
-
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">{{ _('media_downloader.form.title') }}</h5>
+<div class="media-shell media-shell--nav">
+<aside class="media-sidebar d-none d-lg-flex flex-column">
+    <div class="media-sidebar-brand">
+        <i class="bi bi-download" aria-hidden="true"></i>
+        <span>{{ _('media_downloader.heading') }}</span>
     </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('media_downloader.start_download') }}" id="downloadForm">
-            <div class="mb-3">
-                <label for="source_url" class="form-label">{{ _('media_downloader.form.url_label') }}</label>
-                <input type="text" class="form-control" id="source_url" name="source_url" required
-                       inputmode="url" autocomplete="url"
-                       placeholder="{{ _('media_downloader.form.url_placeholder') }}">
-                <div class="form-text">{{ _('media_downloader.form.url_hint') }}</div>
-            </div>
+    {{ media_downloader_sidebar_chrome('') }}
+</aside>
 
-            <div class="mb-3">
-                <label class="form-label">{{ _('media_downloader.form.format_label') }}</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="format" id="format_audio" value="audio" checked>
-                    <label class="form-check-label" for="format_audio">{{ _('media_downloader.form.format_audio') }}</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="format" id="format_video" value="video">
-                    <label class="form-check-label" for="format_video">{{ _('media_downloader.form.format_video') }}</label>
-                </div>
-            </div>
+<div class="offcanvas offcanvas-start media-mobile-offcanvas" tabindex="-1" id="mediaMobileNav" aria-labelledby="mediaMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="mediaMobileNavLabel">
+            <i class="bi bi-download" aria-hidden="true"></i>
+            <span>{{ _('media_downloader.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ media_downloader_sidebar_chrome('-mobile', true) }}
+    </div>
+</div>
 
-            <div class="row mb-3" id="singleSegmentFields">
-                <div class="col-md-6">
-                    <label for="start_time" class="form-label">{{ _('media_downloader.form.start_label') }}</label>
-                    <input type="text" class="form-control" id="start_time" name="start_time"
-                           placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
-                </div>
-                <div class="col-md-6">
-                    <label for="end_time" class="form-label">{{ _('media_downloader.form.end_label') }}</label>
-                    <input type="text" class="form-control" id="end_time" name="end_time"
-                           placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
-                </div>
+<div class="media-main flex-grow-1 min-width-0">
+    <div class="media-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary media-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#mediaMobileNav" aria-controls="mediaMobileNav" aria-label="{{ _('media_downloader.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate media-mobile-title">
+                    <i class="bi bi-download" aria-hidden="true"></i>
+                    <span>{{ _('media_downloader.heading') }}</span>
+                </h1>
             </div>
-            <div class="form-text mb-3" id="segmentHint">{{ _('media_downloader.form.segment_hint') }}</div>
-
-            <button type="submit" class="btn btn-accent">
-                <i class="bi bi-download me-1"></i>{{ _('media_downloader.form.submit') }}
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill flex-shrink-0" data-media-tab="jobs" aria-label="{{ _('media_downloader.nav.jobs') }}">
+                <i class="bi bi-list-ul"></i>
+                <span class="badge media-nav-badge ms-1" data-media-jobs-badge data-count="{{ active_jobs_count|default(0) }}">{% if active_jobs_count %}{{ active_jobs_count }}{% endif %}</span>
             </button>
-        </form>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">{{ _('media_downloader.jobs.title') }}</h5>
-        <button type="button" class="btn btn-sm btn-outline-danger" id="clearAllJobsBtn">
-            <i class="bi bi-trash3 me-1"></i>{{ _('media_downloader.jobs.clear_all') }}
-        </button>
+    <div class="media-panel-header d-none d-lg-flex align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h5 h4-lg mb-0 media-view-heading" id="mediaViewHeading">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            <span>{{ _('media_downloader.nav.download') }}</span>
+        </h1>
     </div>
-    <div class="card-body">
+
+    <div class="media-panel" id="media-panel-download" data-media-panel="download" role="tabpanel">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>{{ _('media_downloader.legal_notice') }}
+        </div>
+
+        <p class="text-muted mb-3">{{ _('media_downloader.description') }}</p>
+
+        <div class="media-form-section">
+            <form method="POST" action="{{ url_for('media_downloader.start_download') }}" id="downloadForm">
+                <div class="mb-3">
+                    <label for="source_url" class="form-label">{{ _('media_downloader.form.url_label') }}</label>
+                    <input type="text" class="form-control" id="source_url" name="source_url" required
+                           inputmode="url" autocomplete="url"
+                           placeholder="{{ _('media_downloader.form.url_placeholder') }}">
+                    <div class="form-text">{{ _('media_downloader.form.url_hint') }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ _('media_downloader.form.format_label') }}</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="format" id="format_audio" value="audio" checked>
+                        <label class="form-check-label" for="format_audio">{{ _('media_downloader.form.format_audio') }}</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="format" id="format_video" value="video">
+                        <label class="form-check-label" for="format_video">{{ _('media_downloader.form.format_video') }}</label>
+                    </div>
+                </div>
+
+                <div class="row mb-3" id="singleSegmentFields">
+                    <div class="col-md-6">
+                        <label for="start_time" class="form-label">{{ _('media_downloader.form.start_label') }}</label>
+                        <input type="text" class="form-control" id="start_time" name="start_time"
+                               placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="end_time" class="form-label">{{ _('media_downloader.form.end_label') }}</label>
+                        <input type="text" class="form-control" id="end_time" name="end_time"
+                               placeholder="{{ _('media_downloader.form.time_placeholder') }}" pattern="^\d+:[0-5]\d(:\d+)?$">
+                    </div>
+                </div>
+                <div class="form-text mb-3" id="segmentHint">{{ _('media_downloader.form.segment_hint') }}</div>
+
+                <button type="submit" class="btn btn-accent rounded-pill">
+                    <i class="bi bi-download me-1"></i>{{ _('media_downloader.form.submit') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="media-panel d-none" id="media-panel-jobs" data-media-panel="jobs" role="tabpanel" hidden>
+        <div class="d-lg-none mb-3">
+            <h2 class="h5 mb-0 media-view-heading">
+                <i class="bi bi-list-ul" aria-hidden="true"></i>
+                <span>{{ _('media_downloader.jobs.title') }}</span>
+            </h2>
+        </div>
+
         <p class="text-muted mb-0{% if jobs %} d-none{% endif %}" id="jobsEmpty">{{ _('media_downloader.jobs.empty') }}</p>
         <div class="table-responsive{% if not jobs %} d-none{% endif %}" id="jobsTableWrapper">
-            <table class="table align-middle" id="downloadJobsTable">
+            <table class="table align-middle media-jobs-table" id="downloadJobsTable">
                 <thead>
                     <tr>
                         <th>{{ _('media_downloader.jobs.column_title') }}</th>
@@ -131,6 +175,7 @@
             </table>
         </div>
     </div>
+</div>
 </div>
 
 <div class="modal fade" id="playlistModal" tabindex="-1" aria-labelledby="playlistModalLabel" aria-hidden="true">
@@ -220,6 +265,10 @@
     const batchUrl = {{ url_for('media_downloader.download_batch')|tojson }};
     const clearAllUrl = {{ url_for('media_downloader.clear_all')|tojson }};
     const clearAllConfirm = {{ _('media_downloader.jobs.clear_all_confirm')|tojson }};
+    const tabMeta = {
+        download: { icon: 'bi-plus-circle', title: {{ _('media_downloader.nav.download')|tojson }} },
+        jobs: { icon: 'bi-list-ul', title: {{ _('media_downloader.nav.jobs')|tojson }} }
+    };
 
     const progressState = new Map();
     const progressIntervals = new Map();
@@ -229,6 +278,56 @@
     let playlistModal = null;
 
     const playlistModalEl = document.getElementById('playlistModal');
+
+    function switchMediaTab(tab) {
+        if (!tabMeta[tab]) return;
+
+        document.querySelectorAll('.media-nav-link[data-media-tab]').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-media-tab') === tab);
+        });
+
+        document.querySelectorAll('[data-media-panel]').forEach(panel => {
+            const isActive = panel.getAttribute('data-media-panel') === tab;
+            panel.classList.toggle('d-none', !isActive);
+            if (isActive) {
+                panel.removeAttribute('hidden');
+            } else {
+                panel.setAttribute('hidden', '');
+            }
+        });
+
+        const heading = document.getElementById('mediaViewHeading');
+        if (heading && tabMeta[tab]) {
+            heading.innerHTML = `<i class="bi ${tabMeta[tab].icon}" aria-hidden="true"></i><span>${tabMeta[tab].title}</span>`;
+        }
+    }
+
+    function dismissMediaOffcanvas() {
+        const offcanvasEl = document.getElementById('mediaMobileNav');
+        if (offcanvasEl && window.bootstrap && window.bootstrap.Offcanvas) {
+            const instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+            if (instance) instance.hide();
+        }
+    }
+
+    function countActiveJobs() {
+        let count = 0;
+        document.querySelectorAll('#downloadJobsTable tbody tr').forEach(row => {
+            const status = row.dataset.status;
+            if (status === 'pending' || status === 'processing' || status === 'cancelling') {
+                count += 1;
+            }
+        });
+        return count;
+    }
+
+    function updateJobsBadge() {
+        const count = countActiveJobs();
+        document.querySelectorAll('[data-media-jobs-badge]').forEach(badge => {
+            badge.dataset.count = String(count);
+            badge.textContent = count > 0 ? String(count) : '';
+        });
+    }
 
     function getPlaylistModal() {
         if (playlistModal) return playlistModal;
@@ -242,7 +341,6 @@
             return playlistModal;
         }
 
-        // Fallback without Bootstrap JS: toggle classes manually
         playlistModal = {
             show() {
                 playlistModalEl.classList.add('show');
@@ -283,7 +381,6 @@
     function isTruePlaylistListId(listId) {
         if (!listId) return false;
         const upper = String(listId).trim().toUpperCase();
-        // RD (mix/radio) intentionally excluded — same as backend PLAYLIST_LIST_PREFIXES
         const prefixes = ['PL', 'OL', 'LL', 'FL', 'VL', 'PU', 'UU'];
         return prefixes.some(prefix => upper.startsWith(prefix));
     }
@@ -303,12 +400,10 @@
             const path = (parsed.pathname || '').replace(/\/+$/, '').toLowerCase() || '/';
             const listId = parsed.searchParams.get('list');
 
-            // Explicit playlist pages (YouTube + YouTube Music)
             if (path === '/playlist' || path.endsWith('/playlist')) {
                 return Boolean(listId);
             }
 
-            // music.youtube.com browse / library playlist links
             if (host === 'music.youtube.com' || host.endsWith('.music.youtube.com')) {
                 if (isTruePlaylistListId(listId)) return true;
                 if (path.startsWith('/browse/') && listId) return true;
@@ -318,7 +413,6 @@
                 return isTruePlaylistListId(listId);
             }
 
-            // youtu.be/VIDEO_ID?list=PLxxx
             if (host === 'youtu.be' && path !== '/' && isTruePlaylistListId(listId)) {
                 return true;
             }
@@ -582,6 +676,7 @@
         tbody.prepend(row);
         startProgressAnimation(row);
         pollJob(row);
+        updateJobsBadge();
         return row;
     }
 
@@ -638,6 +733,8 @@
                     actionsCell.innerHTML = '';
                 }
 
+                updateJobsBadge();
+
                 if (data.status === 'pending' || data.status === 'processing' || data.status === 'cancelling') {
                     setTimeout(() => pollJob(row), 2500);
                 }
@@ -685,6 +782,7 @@
             document.getElementById('source_url').value = '';
             ensureJobsTableVisible();
             (data.jobs || []).forEach(job => createJobRow(job));
+            switchMediaTab('jobs');
         } catch (err) {
             showPlaylistError(previewErrorLabel);
             btn.disabled = false;
@@ -736,13 +834,12 @@
         playlistDownloadAllBtn.addEventListener('click', downloadPlaylistBatch);
     }
 
-    const clearAllJobsBtn = document.getElementById('clearAllJobsBtn');
-    if (clearAllJobsBtn) {
-        clearAllJobsBtn.addEventListener('click', async () => {
+    document.querySelectorAll('.media-clear-all-btn').forEach(clearBtn => {
+        clearBtn.addEventListener('click', async () => {
             if (!window.confirm(clearAllConfirm)) {
                 return;
             }
-            clearAllJobsBtn.disabled = true;
+            document.querySelectorAll('.media-clear-all-btn').forEach(btn => { btn.disabled = true; });
             try {
                 const response = await fetch(clearAllUrl, { method: 'POST' });
                 if (response.ok) {
@@ -752,9 +849,24 @@
             } catch (error) {
                 // ignore and re-enable button below
             }
-            clearAllJobsBtn.disabled = false;
+            document.querySelectorAll('.media-clear-all-btn').forEach(btn => { btn.disabled = false; });
         });
-    }
+    });
+
+    document.querySelectorAll('[data-media-tab]').forEach(button => {
+        button.addEventListener('click', function() {
+            const tab = this.getAttribute('data-media-tab');
+            if (tab) switchMediaTab(tab);
+            if (this.hasAttribute('data-media-dismiss-offcanvas')) {
+                dismissMediaOffcanvas();
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-media-dismiss-offcanvas]').forEach(el => {
+        if (el.hasAttribute('data-media-tab')) return;
+        el.addEventListener('click', dismissMediaOffcanvas);
+    });
 
     if (playlistModalEl) {
         playlistModalEl.addEventListener('hidden.bs.modal', () => {
@@ -771,6 +883,13 @@
             pollJob(row);
         }
     });
+
+    updateJobsBadge();
+
+    // After successful single download redirect, land on jobs panel
+    if (window.location.hash === '#jobs') {
+        switchMediaTab('jobs');
+    }
     }
 })();
 </script>

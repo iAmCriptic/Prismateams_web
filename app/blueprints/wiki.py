@@ -24,6 +24,24 @@ def check_wiki_module():
     return True
 
 
+def _wiki_sidebar_context():
+    """Gemeinsame Sidebar-Daten für Index und View."""
+    favorites = WikiFavorite.query.filter_by(user_id=current_user.id).all()
+    my_wiki_favorites = [fav.wiki_page for fav in favorites if fav.wiki_page]
+    return {
+        'categories': WikiCategory.query.order_by(WikiCategory.name).all(),
+        'tags': WikiTag.query.order_by(WikiTag.name).all(),
+        'my_wiki_favorites': my_wiki_favorites,
+        'search_query': '',
+        'selected_category': None,
+        'selected_tag': None,
+        'sort_by': 'updated',
+        'sort_dir': 'desc',
+        'favorites_only': False,
+        'current_wiki_page_id': None,
+    }
+
+
 @wiki_bp.route('/')
 @login_required
 @check_module_access('module_wiki')
@@ -38,6 +56,11 @@ def index():
     tag_id = request.args.get('tag', type=int)
     favorites_only = request.args.get('favorites', type=int) == 1
     sort_by = request.args.get('sort', 'updated')  # updated, created, title
+    sort_dir = request.args.get('dir', 'desc')
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'desc'
+    if sort_by not in ('updated', 'created', 'title'):
+        sort_by = 'updated'
     
     # Basis-Query
     query = WikiPage.query
@@ -72,34 +95,32 @@ def index():
     
     # Sortierung
     if sort_by == 'created':
-        query = query.order_by(WikiPage.created_at.desc())
+        sort_col = WikiPage.created_at
     elif sort_by == 'title':
-        query = query.order_by(WikiPage.title.asc())
+        sort_col = WikiPage.title
     else:  # updated (default)
-        query = query.order_by(WikiPage.updated_at.desc())
+        sort_col = WikiPage.updated_at
+
+    if sort_dir == 'asc':
+        query = query.order_by(sort_col.asc())
+    else:
+        query = query.order_by(sort_col.desc())
     
     pages = query.all()
-    
-    # Alle Kategorien und Tags für Filter
-    categories = WikiCategory.query.order_by(WikiCategory.name).all()
-    tags = WikiTag.query.order_by(WikiTag.name).all()
-    
-    # Favoriten-Anzahl für Button-Badge
-    favorites = WikiFavorite.query.filter_by(
-        user_id=current_user.id
-    ).all()
-    my_wiki_favorites = [fav.wiki_page for fav in favorites]
+    sidebar = _wiki_sidebar_context()
     
     return render_template('wiki/index.html',
                          pages=pages,
-                         categories=categories,
-                         tags=tags,
+                         categories=sidebar['categories'],
+                         tags=sidebar['tags'],
                          search_query=search_query,
                          selected_category=category_id,
                          selected_tag=tag_id,
                          sort_by=sort_by,
+                         sort_dir=sort_dir,
                          favorites_only=favorites_only,
-                         my_wiki_favorites=my_wiki_favorites)
+                         my_wiki_favorites=sidebar['my_wiki_favorites'],
+                         current_wiki_page_id=None)
 
 
 @wiki_bp.route('/view/<slug>')
@@ -114,8 +135,13 @@ def view(slug):
     
     # Markdown verarbeiten
     processed_content = process_markdown(page.content, wiki_mode=True)
+    sidebar = _wiki_sidebar_context()
+    sidebar['current_wiki_page_id'] = page.id
     
-    return render_template('wiki/view.html', page=page, processed_content=processed_content)
+    return render_template('wiki/view.html',
+                         page=page,
+                         processed_content=processed_content,
+                         **sidebar)
 
 
 @wiki_bp.route('/create', methods=['GET', 'POST'])

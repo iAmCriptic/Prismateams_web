@@ -1,11 +1,13 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Bewertung abgeben{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-pencil-square{% endblock %}
+{% block assessment_heading %}Bewerten{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Bewertung abgeben', icon='clipboard-check') }}
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
-            <div class="mb-3">
+            <div class="mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
                 <label class="form-label">Bewertungsliste</label>
                 <select class="form-select" id="listSelect">
                     {% for lst in evaluation_lists %}

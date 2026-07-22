@@ -1,0 +1,317 @@
+{# Renders all dashboard widget instances. Expects: dashboard_widgets, widget_data #}
+{% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
+{% for w in dashboard_widgets %}
+{% set wid = w.id %}
+{% set wtype = w.type %}
+{% set data = widget_data.get(wid, {}) %}
+
+{% if wtype == 'termine' %}
+{% set events = data.get('events', []) %}
+{% set cals = data.get('calendars', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('calendar.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.calendar.title') }}</span>
+            {% if cals %}
+            <span class="dash-cal-dots" aria-hidden="true">
+                {% for cal in cals[:4] %}
+                <span class="dash-cal-dot" style="background: {{ cal.color or '#0d6efd' }};" title="{{ cal.name }}"></span>
+                {% endfor %}
+            </span>
+            {% endif %}
+        </h3>
+        <span class="dash-widget-badge calendar-badge">{{ events|length }}</span>
+    </div>
+    {% if events %}
+    <div class="dash-widget-list">
+        {% for event in events %}
+        <a class="dash-widget-row" href="{{ url_for('calendar.view_event', event_id=event.id) }}" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ event.title }}</p>
+                <span class="dash-widget-row-meta">{{ event.start_time.strftime('%d.%m.') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ event.start_time.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.calendar.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'kontakte' %}
+{% set contacts = data.get('contacts', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('contacts.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.contacts.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge">{{ contacts|length }}</span>
+    </div>
+    {% if contacts %}
+    <div class="dash-widget-list">
+        {% for contact in contacts %}
+        <div class="dash-widget-row" onclick="event.stopPropagation(); location.href='{{ url_for('contacts.edit', contact_id=contact.id) }}';">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ contact.name }}</p>
+            </div>
+            {% if contact.email %}
+            <p class="dash-widget-row-sub">{{ contact.email }}</p>
+            {% endif %}
+            <div class="dash-contact-actions">
+                {% if contact.phone %}
+                <a href="tel:{{ contact.phone }}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.call') }}"><i class="bi bi-telephone"></i></a>
+                {% endif %}
+                {% if contact.email %}
+                <a href="mailto:{{ contact.email }}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.contacts.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'nachrichten' %}
+{% set unread_messages = data.get('messages', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('chat.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-chat-dots" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.chat.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge notification-badge" id="chat-count-badge">0</span>
+    </div>
+    {% if unread_messages %}
+    <div class="dash-widget-list">
+        {% for message in unread_messages[:3] %}
+        <a class="dash-widget-row" href="{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ message.sender.full_name }}</p>
+                <span class="dash-widget-row-meta">{{ message.created_at.strftime('%H:%M') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ message.content or _('dashboard.widgets.chat.fallback_file') }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.chat.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'emails' %}
+{% set recent_emails = data.get('emails', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('email.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.email.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge email-badge">{{ recent_emails|length }}</span>
+    </div>
+    {% if recent_emails %}
+    <div class="dash-widget-list">
+        {% for email in recent_emails[:3] %}
+        <a class="dash-widget-row" href="{{ url_for('email.view_email', email_id=email.id) }}" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ email.subject|decode_email_header }}</p>
+                {% if not email.is_read %}
+                <span class="badge bg-danger">{{ _('dashboard.widgets.email.unread_badge') }}</span>
+                {% endif %}
+            </div>
+            <p class="dash-widget-row-sub">{{ email.sender|decode_email_header }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.email.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'dateien' %}
+{% set recent_files = data.get('files', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('files.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-folder" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.files.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge files-badge">{{ recent_files|length }}</span>
+    </div>
+    {% if recent_files %}
+    <div class="dash-widget-list">
+        {% for file in recent_files %}
+        {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+        {% set is_onlyoffice_type = file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
+        {% if onlyoffice_available and is_onlyoffice_type %}
+            {% set file_url = url_for('files.edit_onlyoffice', file_id=file.id) %}
+        {% elif file.folder_id %}
+            {% set file_url = url_for('files.browse_folder', folder_id=file.folder_id) %}
+        {% elif file.name.endswith(('.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log')) %}
+            {% set file_url = url_for('files.view_file', file_id=file.id) %}
+        {% else %}
+            {% set file_url = url_for('files.download_file', file_id=file.id) %}
+        {% endif %}
+        <a class="dash-widget-row" href="{{ file_url }}" {% if onlyoffice_available and is_onlyoffice_type %}target="_blank"{% endif %} onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ file.original_name }}</p>
+                <span class="dash-widget-row-meta">{{ file.updated_at.strftime('%d.%m.') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ file.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.files.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'passwoerter' %}
+{% set favorite_credentials = data.get('credentials', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('credentials.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-key" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.passwords.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge">{{ favorite_credentials|length }}</span>
+    </div>
+    {% if favorite_credentials %}
+    <div class="dash-widget-list">
+        {% for credential in favorite_credentials %}
+        <div class="dash-widget-row" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ credential.website_name }}</p>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})" title="{{ _('dashboard.widgets.passwords.reveal') }}">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </div>
+            <button type="button" class="btn btn-link p-0 text-muted text-start text-decoration-none d-block small" id="dashboard-user-{{ credential.id }}" onclick='copyDashboardCredentialField({{ credential.id }}, "username", {{ credential.username|tojson }})' title="{{ _('dashboard.widgets.passwords.copy_username') }}">••••••••</button>
+            <button type="button" class="btn btn-link p-0 text-muted text-start text-decoration-none d-block small" id="dashboard-pwd-{{ credential.id }}" onclick="copyDashboardCredentialField({{ credential.id }}, 'password')" title="{{ _('dashboard.widgets.passwords.copy_password') }}">••••••••</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.passwords.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'neue_wikieintraege' %}
+{% set recent_wiki_pages = data.get('pages', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('wiki.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-journal-text" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.wiki_new.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge wiki-badge">{{ recent_wiki_pages|length }}</span>
+    </div>
+    {% if recent_wiki_pages %}
+    <div class="dash-widget-list">
+        {% for page in recent_wiki_pages %}
+        <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ page.title }}</p>
+                <span class="dash-widget-row-meta">{{ page.updated_at.strftime('%d.%m.') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ page.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.wiki_new.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'meine_wikis' %}
+{% set my_wiki_favorites = data.get('pages', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('wiki.index') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-star-fill" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.wiki_favorites.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge favorites-badge">{{ my_wiki_favorites|length }}</span>
+    </div>
+    {% if my_wiki_favorites %}
+    <div class="dash-widget-list">
+        {% for page in my_wiki_favorites %}
+        <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title"><i class="bi bi-star-fill text-warning me-1"></i>{{ page.title }}</p>
+                <span class="dash-widget-row-meta">{{ page.updated_at.strftime('%d.%m.') }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.wiki_favorites.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'meine_ausleihen' %}
+{% set my_borrow_groups = data.get('groups', []) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('inventory.dashboard') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.borrows.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge borrows-badge">{{ my_borrow_groups|length }}</span>
+    </div>
+    {% if my_borrow_groups %}
+    <div class="dash-widget-list">
+        {% for group in my_borrow_groups %}
+        <div class="dash-widget-row" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date.strftime('%d.%m.%Y')) }}</p>
+                {% if group.is_overdue %}<span class="badge bg-danger">{{ _('dashboard.widgets.borrows.overdue') }}</span>{% endif %}
+            </div>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date.strftime('%d.%m.%Y')) }}</p>
+            <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="btn btn-sm btn-success mt-1" onclick="event.stopPropagation();">
+                <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.borrows.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'buchungen' %}
+{% set new_booking_requests = data.get('requests', []) %}
+{% set total_pending_bookings = data.get('total_pending', 0) %}
+<div class="dash-widget" data-context-zone data-context-menu="dashboard-widget" data-widget-id="{{ wid }}" onclick="location.href='{{ url_for('booking.requests') }}'">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-calendar-check" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.bookings.title') }}</span>
+        </h3>
+        <span class="dash-widget-badge bookings-badge">{{ total_pending_bookings }}</span>
+    </div>
+    {% if new_booking_requests %}
+    <div class="dash-widget-list">
+        {% for req in new_booking_requests %}
+        <a class="dash-widget-row" href="{{ url_for('booking.request_detail', request_id=req.id) }}" onclick="event.stopPropagation();">
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ req.event_name }}</p>
+                <span class="dash-widget-row-meta">{{ req.created_at.strftime('%d.%m.') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ req.created_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}{% if req.email %} · {{ req.email }}{% endif %}</p>
+        </a>
+        {% endfor %}
+        {% if total_pending_bookings > 3 %}
+        <div class="dash-widget-row-sub text-center px-2">{{ _('dashboard.widgets.bookings.more_indicator', count=total_pending_bookings - 3) }}</div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.bookings.empty') }}</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endfor %}

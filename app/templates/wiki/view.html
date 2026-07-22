@@ -3,206 +3,104 @@
 {% block title %}{{ _('wiki.view.page_title', title=page.title) }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
-<style>
-    .wiki-viewer {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--bs-body-bg);
-        z-index: 1050;
-        overflow-y: auto;
-    }
-    
-    .wiki-viewer-header {
-        position: sticky;
-        top: 0;
-        background: var(--bs-body-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-        z-index: 1051;
-        padding: 1rem;
-    }
-    
-    .wiki-viewer-content {
-        padding: 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
-        overflow-x: hidden;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-    
-    .markdown-content {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        line-height: 1.6;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-    
-    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        font-weight: 600;
-    }
-    
-    .markdown-content h1 { 
-        font-size: 2rem; 
-        border-bottom: 2px solid var(--bs-border-color); 
-        padding-bottom: 0.5rem;
-    }
-    .markdown-content h2 { 
-        font-size: 1.5rem; 
-        border-bottom: 1px solid var(--bs-border-color); 
-        padding-bottom: 0.25rem;
-    }
-    .markdown-content h3 { 
-        font-size: 1.25rem;
-    }
-    
-    .markdown-content p { 
-        margin-bottom: 1rem;
-    }
-    
-    .markdown-content code {
-        background: var(--bs-secondary-bg);
-        padding: 0.2rem 0.4rem;
-        border-radius: 0.25rem;
-        font-family: 'Courier New', monospace;
-    }
-    
-    .markdown-content pre {
-        background: var(--bs-secondary-bg);
-        padding: 1rem;
-        border-radius: 0.5rem;
-        overflow-x: auto;
-        margin-bottom: 1rem;
-    }
-    
-    .markdown-content pre code {
-        white-space: pre-wrap;
-        display: block;
-    }
-    
-    .markdown-content blockquote {
-        border-left: 4px solid var(--accent-color);
-        padding-left: 1rem;
-        margin: 1rem 0;
-        font-style: italic;
-        color: var(--bs-secondary);
-    }
-    
-    .markdown-content table {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        margin: 1rem 0 !important;
-        border: 2px solid #007bff !important;
-        border-radius: 0.5rem !important;
-        overflow: hidden !important;
-        background: white !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-    }
-    
-    .markdown-content th, .markdown-content td {
-        border: 1px solid #dee2e6 !important;
-        padding: 0.75rem !important;
-        text-align: left !important;
-    }
-    
-    .markdown-content th {
-        background: #f8f9fa !important;
-        font-weight: 600 !important;
-        border-bottom: 2px solid #007bff !important;
-    }
-    
-    .markdown-content tr:nth-child(even) {
-        background: #f8f9fa !important;
-    }
-    
-    .markdown-content ul, .markdown-content ol {
-        margin-bottom: 1rem;
-        padding-left: 2rem;
-    }
-    
-    .markdown-content li {
-        margin-bottom: 0.5rem;
-    }
-    
-    .markdown-content a[href^="/wiki/view/"] {
-        color: var(--accent-color);
-        text-decoration: none;
-    }
-    
-    .markdown-content a[href^="/wiki/view/"]:hover {
-        text-decoration: underline;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="wiki-viewer">
-    <div class="wiki-viewer-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="mb-0">{{ page.title }}</h4>
-                <small class="text-muted">
-                    {{ _('wiki.view.meta.by_author', name=page.creator.full_name) }} • 
-                    {{ _('wiki.view.meta.updated_at', date=page.updated_at.strftime('%d.%m.%Y %H:%M')) }}
-                    {% if page.version_number > 1 %}
-                    • {{ _('wiki.view.meta.version', number=page.version_number) }}
-                    {% endif %}
-                </small>
-            </div>
-            <div class="btn-group">
-                <a href="{{ url_for('wiki.edit', slug=page.slug) }}" class="btn btn-primary">
-                    <i class="bi bi-pencil"></i> {{ _('wiki.view.buttons.edit') }}
-                </a>
-                <a href="{{ url_for('wiki.history', slug=page.slug) }}" class="btn btn-outline-primary">
-                    <i class="bi bi-clock-history"></i> {{ _('wiki.view.buttons.history') }}
-                </a>
-                <div class="btn-group" data-context-zone data-context-menu="dropdown">
-                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-three-dots-vertical"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li>
-                            <a class="dropdown-item" href="#" id="toggle-favorite-btn" data-page-id="{{ page.id }}">
-                                <i class="bi bi-star" id="favorite-icon"></i> <span id="favorite-text">{{ _('wiki.view.buttons.favorite_add') }}</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                <button class="btn btn-outline-secondary" onclick="closeViewer()">
-                    <i class="bi bi-x-lg"></i> {{ _('wiki.view.buttons.close') }}
-                </button>
-            </div>
-        </div>
+{% from 'wiki/_sidebar.html' import wiki_sidebar_chrome with context %}
+{% set create_url = url_for('wiki.create') %}
+
+<div class="wiki-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-journal-text" aria-hidden="true"></i>
+        <span>{{ _('wiki.index.heading') }}</span>
     </div>
-    
-    <div class="wiki-viewer-content">
-        <div class="markdown-content">
-            {{ processed_content | safe }}
-        </div>
-        
-        {% set content_type='wiki' %}{% set content_id=page.id %}{% include 'comments/_comments.html' %}
+    {{ wiki_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="wikiMobileNav" aria-labelledby="wikiMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="wikiMobileNavLabel">
+            <i class="bi bi-journal-text" aria-hidden="true"></i>
+            <span>{{ _('wiki.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ wiki_sidebar_chrome('-mobile', true) }}
     </div>
 </div>
 
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#wikiMobileNav" aria-controls="wikiMobileNav" aria-label="{{ _('wiki.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-journal-text" aria-hidden="true"></i>
+                    <span>{{ page.title }}</span>
+                </h1>
+            </div>
+            <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                <i class="bi bi-plus-lg"></i> {{ _('wiki.index.new_button') }}
+            </a>
+        </div>
+    </div>
+
+    <div class="wiki-viewer">
+        <div class="wiki-viewer-header">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div class="min-width-0">
+                    <h1 class="h4 mb-1 text-break">{{ page.title }}</h1>
+                    <small class="text-muted">
+                        {{ _('wiki.view.meta.by_author', name=page.creator.full_name) }} •
+                        {{ _('wiki.view.meta.updated_at', date=page.updated_at.strftime('%d.%m.%Y %H:%M')) }}
+                        {% if page.version_number > 1 %}
+                        • {{ _('wiki.view.meta.version', number=page.version_number) }}
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="btn-group flex-shrink-0">
+                    <a href="{{ url_for('wiki.index') }}" class="btn btn-outline-secondary" title="{{ _('wiki.view.buttons.close') }}">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <a href="{{ url_for('wiki.edit', slug=page.slug) }}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> <span class="d-none d-sm-inline">{{ _('wiki.view.buttons.edit') }}</span>
+                    </a>
+                    <a href="{{ url_for('wiki.history', slug=page.slug) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-clock-history"></i> <span class="d-none d-md-inline">{{ _('wiki.view.buttons.history') }}</span>
+                    </a>
+                    <div class="btn-group" data-context-zone data-context-menu="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="#" id="toggle-favorite-btn" data-page-id="{{ page.id }}">
+                                    <i class="bi bi-star" id="favorite-icon"></i> <span id="favorite-text">{{ _('wiki.view.buttons.favorite_add') }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wiki-viewer-content">
+            <div class="markdown-content">
+                {{ processed_content | safe }}
+            </div>
+
+            {% set content_type='wiki' %}{% set content_id=page.id %}{% include 'comments/_comments.html' %}
+        </div>
+    </div>
+</div>
+</div>
+
 <div id="current-user-id" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}" style="display: none;"></div>
-
-<script>
-function closeViewer() {
-    window.location.href = '{{ url_for("wiki.index") }}';
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeViewer();
-    }
-});
-</script>
 {% endblock %}
 
 {% block extra_js %}
@@ -212,23 +110,33 @@ const WIKI_VIEW_I18N = {{ current_translations.get('wiki', {}).get('view', {})|t
 const WIKI_INDEX_JS = {{ current_translations.get('wiki', {}).get('index', {}).get('js', {})|tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-wiki-dismiss-offcanvas]').forEach(function(el) {
+        el.addEventListener('click', function() {
+            const offcanvasEl = document.getElementById('wikiMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                const instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+
     const toggleFavoriteBtn = document.getElementById('toggle-favorite-btn');
     const favoriteIcon = document.getElementById('favorite-icon');
     const favoriteText = document.getElementById('favorite-text');
     const pageId = toggleFavoriteBtn ? toggleFavoriteBtn.getAttribute('data-page-id') : null;
-    
+
     if (pageId) {
         fetch(`/wiki/api/favorite/check/${pageId}`)
             .then(response => response.json())
             .then(data => {
                 updateFavoriteUI(data.is_favorite);
             });
-        
+
         toggleFavoriteBtn.addEventListener('click', function(e) {
             e.preventDefault();
             const isFavorite = favoriteIcon.classList.contains('bi-star-fill');
             const method = isFavorite ? 'DELETE' : 'POST';
-            
+
             fetch(`/wiki/api/favorite/${pageId}`, {
                 method: method,
                 headers: {
@@ -239,12 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     updateFavoriteUI(data.is_favorite);
-                    const toast = document.createElement('div');
-                    toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
-                    toast.style.zIndex = '9999';
-                    toast.textContent = data.message || '';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
+                    window.location.reload();
                 } else if (data.error) {
                     alert(data.error);
                 }
@@ -255,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
+
     function updateFavoriteUI(isFavorite) {
         const buttons = WIKI_VIEW_I18N.buttons || {};
         if (isFavorite) {
@@ -271,4 +174,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-

@@ -213,16 +213,37 @@ def public_search():
         }), 500
 
 
+def _parse_music_sort(default_field='created', default_dir='desc'):
+    """Liest und validiert Sortierparameter aus der Query."""
+    sort_by = request.args.get('sort', default_field)
+    sort_dir = request.args.get('dir', default_dir)
+    if sort_by not in ('created', 'wish_count'):
+        sort_by = default_field
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = default_dir
+    return sort_by, sort_dir
+
+
+def _wish_order_clause(sort_by, sort_dir, chronological_col=None):
+    """Order-By für Wishlist/Played."""
+    col = chronological_col or MusicWish.created_at
+    if sort_by == 'wish_count':
+        col = MusicWish.wish_count
+    return col.asc() if sort_dir == 'asc' else col.desc()
+
+
 # Admin-Routen (Login erforderlich)
 @music_bp.route('/')
 @login_required
 @check_module_access('module_music')
 def index():
     """Hauptseite für Musikmodul - Warteschlangen-Verwaltung."""
+    sort_by, sort_dir = _parse_music_sort()
+
     # Optimiertes Initial-Load: Nur Counts und erste Tab-Daten laden
     # Nur Wunschliste für ersten Tab laden (maximal 50 Einträge)
     wishes = MusicWish.query.filter_by(status='pending').order_by(
-        MusicWish.created_at.desc()
+        _wish_order_clause(sort_by, sort_dir)
     ).limit(50).all()
     
     # Hole Warteschlange mit joinedload für N+1 Optimierung
@@ -239,6 +260,8 @@ def index():
     wish_count = db.session.query(func.count(MusicWish.id)).filter_by(status='pending').scalar() or 0
     queue_count = db.session.query(func.count(MusicQueue.id)).filter_by(status='pending').scalar() or 0
     played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
+
+    public_url = url_for('music.public_wishlist', _external=True)
     
     return render_template('music/index.html',
                          wishes=wishes,
@@ -246,7 +269,10 @@ def index():
                          playing=playing,
                          wish_count=wish_count,
                          queue_count=queue_count,
-                         played_count=played_count)
+                         played_count=played_count,
+                         sort_by=sort_by,
+                         sort_dir=sort_dir,
+                         public_url=public_url)
 
 
 @music_bp.route('/wishlist/add-to-queue', methods=['POST'])
@@ -590,11 +616,16 @@ def clear_queue():
         db.session.delete(entry)
     
     db.session.commit()
+
+    played_count = db.session.query(func.count(MusicWish.id)).filter_by(status='played').scalar() or 0
     
     # WebSocket-Update senden mit leerer Queue (nur an Clients im Musikmodul)
     emit_music_update('queue_updated', {
         'action': 'cleared',
         'queue': []
+    })
+    emit_music_update('played_updated', {
+        'count': played_count
     })
     
     return jsonify({'success': True})
@@ -619,6 +650,25 @@ def clear_wishlist():
         'wish_count': 0
     })
     
+    return jsonify({'success': True})
+
+
+@music_bp.route('/played/clear', methods=['POST'])
+@login_required
+@check_module_access('module_music')
+def clear_played():
+    """Löscht alle bereits gespielten Lieder."""
+    wishes = MusicWish.query.filter_by(status='played').all()
+    for wish in wishes:
+        db.session.delete(wish)
+
+    db.session.commit()
+
+    emit_music_update('played_updated', {
+        'action': 'cleared',
+        'count': 0
+    })
+
     return jsonify({'success': True})
 
 
@@ -647,6 +697,10 @@ def reset_all():
     emit_music_update('wishlist_cleared', {
         'force_reload': True,
         'wish_count': 0
+    })
+    emit_music_update('played_updated', {
+        'action': 'cleared',
+        'count': 0
     })
     
     return jsonify({'success': True})
@@ -857,12 +911,13 @@ def api_wishlist_list():
     """Gibt paginierte Wunschliste als JSON zurück."""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
+    sort_by, sort_dir = _parse_music_sort()
     
     # Begrenze per_page auf maximal 50 (Performance-Optimierung)
     per_page = min(per_page, 50)
     
     pagination = MusicWish.query.filter_by(status='pending').order_by(
-        MusicWish.created_at.desc()
+        _wish_order_clause(sort_by, sort_dir)
     ).paginate(page=page, per_page=per_page, error_out=False)
     
     wishes_data = []
@@ -906,12 +961,13 @@ def api_played_list():
     """Gibt paginierte Liste der bereits gespielten Lieder als JSON zurück."""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
+    sort_by, sort_dir = _parse_music_sort()
     
     # Begrenze per_page auf maximal 50 (Performance-Optimierung)
     per_page = min(per_page, 50)
     
     pagination = MusicWish.query.filter_by(status='played').order_by(
-        MusicWish.updated_at.desc()
+        _wish_order_clause(sort_by, sort_dir, chronological_col=MusicWish.updated_at)
     ).paginate(page=page, per_page=per_page, error_out=False)
     
     played_data = []

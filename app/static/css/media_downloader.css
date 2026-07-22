@@ -1,0 +1,173 @@
+/* Media Downloader — shell mirrors music/shortlinks layout */
+
+.media-shell--nav {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+}
+
+.media-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 1rem;
+    overflow: visible;
+    padding: 0 0.35rem 1.25rem;
+}
+
+.media-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.15rem 0.35rem 1rem;
+    font-size: 1.55rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: inherit;
+}
+
+.media-sidebar-brand .bi {
+    font-size: 1.45rem;
+    opacity: 0.95;
+}
+
+.media-sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+}
+
+.media-clear-link,
+.btn.media-clear-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    border-radius: 1.5rem;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--bs-danger, #dc3545) !important;
+    box-shadow: none;
+    width: 100%;
+}
+
+.media-clear-link .bi,
+.media-clear-link span,
+.btn.media-clear-link .bi,
+.btn.media-clear-link span {
+    color: var(--bs-danger, #dc3545) !important;
+}
+
+.media-clear-link:hover,
+.media-clear-link:focus,
+.btn.media-clear-link:hover,
+.btn.media-clear-link:focus {
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 12%, transparent);
+    color: var(--bs-danger, #dc3545) !important;
+    box-shadow: none;
+    filter: none;
+}
+
+.media-sidebar-nav {
+    margin-top: 0.15rem;
+}
+
+.media-nav-link {
+    display: flex;
+    align-items: center;
+    border-radius: 1.5rem;
+    color: inherit;
+    padding: 0.55rem 1rem;
+    border: none;
+    background: transparent;
+    text-align: left;
+    width: 100%;
+}
+
+.media-nav-link:hover {
+    background: rgba(127, 127, 127, 0.12);
+    color: inherit;
+}
+
+.media-nav-link.active {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+    font-weight: 600;
+}
+
+.media-nav-badge {
+    font-weight: 600;
+    font-size: 0.72rem;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    color: var(--accent-color, #0d6efd);
+}
+
+.media-nav-link.active .media-nav-badge {
+    background: var(--accent-color, #0d6efd);
+    color: #fff;
+}
+
+.media-nav-badge:empty,
+.media-nav-badge[data-count="0"] {
+    display: none;
+}
+
+.media-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.media-mobile-topbar {
+    padding: 0.15rem 0;
+}
+
+.media-mobile-topbar .media-mobile-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+}
+
+.media-mobile-menu-btn {
+    flex-shrink: 0;
+    padding: 0.35rem 0.55rem;
+}
+
+.media-mobile-offcanvas {
+    width: 280px;
+    max-width: 85vw;
+}
+
+.media-view-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.media-panel-header {
+    margin-bottom: 1rem;
+}
+
+.media-form-section {
+    width: 100%;
+    max-width: none;
+}
+
+.media-jobs-table .job-title-cell {
+    max-width: 320px;
+    word-break: break-word;
+}
+
+@media (max-width: 991.98px) {
+    .media-shell--nav {
+        display: block;
+    }
+}

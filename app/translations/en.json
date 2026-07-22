@@ -385,6 +385,12 @@
           "password": "Password"
         },
         "error": "Could not load password."
+      },
+      "contacts": {
+        "title": "Contacts",
+        "empty": "No contacts",
+        "call": "Call",
+        "mail": "Email"
       }
     },
     "quick_access": {
@@ -438,8 +444,19 @@
           "buchungen": {
             "label": "Bookings",
             "description": "Shows pending booking requests."
+          },
+          "kontakte": {
+            "label": "Contacts",
+            "description": "Shows selected contacts with quick actions."
           }
-        }
+        },
+        "add": "Add widget",
+        "empty": "No widgets yet. Add some.",
+        "calendars_label": "Calendars",
+        "contacts_label": "Select contacts",
+        "contacts_hint": "Choose up to five contacts for the widget.",
+        "contacts_search": "Search contact…",
+        "contacts_max": "Maximum 5 contacts"
       },
       "quick_access": {
         "title": "Quick access",
@@ -465,6 +482,11 @@
     "flash": {
       "guests_cannot_edit": "Guest accounts cannot edit the dashboard.",
       "saved": "Dashboard configuration successfully saved!"
+    },
+    "greeting": {
+      "morning": "Good morning, {name}!",
+      "afternoon": "Good afternoon, {name}!",
+      "evening": "Good evening, {name}!"
     }
   },
   "languages": {
@@ -475,6 +497,23 @@
     "ru": "Russian"
   },
   "settings": {
+    "sidebar": {
+      "brand": "Settings",
+      "nav_label": "Settings navigation",
+      "menu": "Menu",
+      "start": "Home",
+      "admin_heading": "Admin settings",
+      "push_subscriptions": "Web push subscriptions",
+      "push_subscriptions_desc": "View and manage active browser push registrations for all users.",
+      "email_module": "Email settings",
+      "email_module_desc": "Configure email test, footer and system settings for the email module.",
+      "inventory": "Inventory",
+      "inventory_desc": "Settings for public product pages and QR codes",
+      "sections": {
+        "account": "Account",
+        "modules": "Module settings"
+      }
+    },
     "appearance": {
       "page_title": "Appearance - Settings",
       "breadcrumb_settings": "Settings",
@@ -528,6 +567,8 @@
     "index": {
       "page_title": "Settings - Team Portal",
       "heading": "Settings",
+      "lead": "Personal settings and, for administrators, quick access to system areas.",
+      "admin_hint": "All modules are also in the left navigation. This is just an overview.",
       "cards": {
         "profile": {
           "title": "Profile",
@@ -1541,6 +1582,30 @@
       },
       "js": {
         "favorite_error": "Failed to update favorites."
+      },
+      "new_button": "New",
+      "nav": {
+        "menu": "Menu"
+      },
+      "sort": {
+        "menu_button": "Sort",
+        "field": "Field",
+        "direction": "Direction",
+        "apply": "Apply",
+        "directions": {
+          "asc": "Ascending",
+          "desc": "Descending"
+        }
+      },
+      "filters": {
+        "menu_button": "Filters",
+        "category": "Category",
+        "tag": "Tag",
+        "apply": "Apply"
+      },
+      "favorites": {
+        "title": "Favorites",
+        "empty": "No favorites"
       }
     },
     "create": {
@@ -3007,7 +3072,8 @@
         "title": "Played",
         "empty": "No songs played yet",
         "played_at": "Played:",
-        "loading_hint": "Click on the tab to load the list"
+        "loading_hint": "Click on the tab to load the list",
+        "clear": "Clear played"
       },
       "confirmations": {
         "clear_queue": "Do you really want to clear the queue? This action cannot be undone.",
@@ -3015,13 +3081,35 @@
         "reset_all": "Do you really want to reset EVERYTHING?\n\nThis will delete:\n- The entire wishlist\n- The entire queue\n- All played songs\n\nThis action cannot be undone!",
         "reset_all_confirm": "Are you really sure? All data will be permanently deleted!",
         "mark_as_played": "Do you want to mark this song as already played?",
-        "remove_from_queue": "Do you want to remove this song from the queue?"
+        "remove_from_queue": "Do you want to remove this song from the queue?",
+        "title": "Confirm",
+        "reset_title": "Reset everything?",
+        "clear_played": "Really clear the played songs list?"
       },
       "errors": {
         "generic": "Error: {error}",
         "unknown": "Unknown error"
       },
-      "public_url_button": "Get Public URL"
+      "public_url_button": "Get Public URL",
+      "nav": {
+        "label": "Music navigation",
+        "menu": "Menu"
+      },
+      "sort": {
+        "heading": "Sort",
+        "field": "Field",
+        "direction": "Direction",
+        "apply": "Apply",
+        "reset": "Reset",
+        "options": {
+          "created": "Created",
+          "wish_count": "Wishes"
+        },
+        "directions": {
+          "asc": "Ascending",
+          "desc": "Descending"
+        }
+      }
     },
     "public_wishlist": {
       "page_title": "Music Wishlist",
@@ -3155,7 +3243,33 @@
         "rejected": "Rejected",
         "archived": "Archived"
       },
-      "empty": "No booking requests available"
+      "empty": "No booking requests available",
+      "sidebar_brand": "Bookings",
+      "nav": {
+        "overview": "Overview",
+        "neu": "New",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "archived": "Archived",
+        "no_forms": "No forms available",
+        "public_link": "Public link"
+      },
+      "stats": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "archived": "Archived",
+        "total": "Total",
+        "acceptance_rate": "Acceptance rate",
+        "upcoming": "Upcoming",
+        "busy_days": "Busy days",
+        "this_month": "This month"
+      },
+      "dashboard": {
+        "upcoming_title": "Upcoming",
+        "upcoming_empty": "No upcoming bookings",
+        "recent_title": "Recently received"
+      }
     },
     "request_detail": {
       "page_title": "{event_name} - Booking Request",
@@ -3210,7 +3324,8 @@
         "email_body_required": "*",
         "send": "Send"
       },
-      "confirm_accept": "Really accept this booking? A calendar event will be created."
+      "confirm_accept": "Really accept this booking? A calendar event will be created.",
+      "actions_heading": "Actions"
     },
     "public_form": {
       "page_title": "{form_title} - Booking",
@@ -3323,6 +3438,13 @@
     "heading": "Media Downloader",
     "description": "Download content from YouTube and YouTube Music as MP3 or MP4.",
     "legal_notice": "You are responsible for complying with copyright and platform terms of service. Downloaded files are automatically deleted after one hour.",
+    "nav": {
+      "label": "Media Downloader navigation",
+      "menu": "Menu",
+      "download": "New download",
+      "jobs": "My downloads",
+      "clear_all": "Clear all"
+    },
     "form": {
       "title": "New download",
       "url_label": "URL",

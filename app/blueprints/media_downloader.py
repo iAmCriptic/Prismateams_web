@@ -206,7 +206,15 @@ def index():
         MediaDownloadJob.created_at.desc()
     ).limit(50).all()
 
-    return render_template('media_downloader/index.html', jobs=jobs)
+    active_jobs_count = sum(
+        1 for job in jobs if job.status in ('pending', 'processing', 'cancelling')
+    )
+
+    return render_template(
+        'media_downloader/index.html',
+        jobs=jobs,
+        active_jobs_count=active_jobs_count,
+    )
 
 
 @media_downloader_bp.route('/download', methods=['POST'])
@@ -259,7 +267,7 @@ def start_download():
     get_upload_dir()
 
     flash(translate('media_downloader.flash.started'), 'success')
-    return redirect(url_for('media_downloader.index'))
+    return redirect(url_for('media_downloader.index') + '#jobs')
 
 
 @media_downloader_bp.route('/playlist-preview', methods=['POST'])

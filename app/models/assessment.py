@@ -68,6 +68,10 @@ class AssessmentUser(UserMixin, db.Model):
         return "#0d6efd"
 
     @property
+    def accent_highlight_color(self):
+        return self.accent_color
+
+    @property
     def accent_style(self):
         return "linear-gradient(45deg, #0d6efd, #0d6efd)"
 
@@ -333,7 +337,7 @@ class AssessmentWarning(db.Model):
     __tablename__ = "ass_warnings"
 
     id = db.Column(db.Integer, primary_key=True)
-    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), nullable=True, index=True)
     stand_id = db.Column(db.Integer, db.ForeignKey("ass_stands.id", ondelete="CASCADE"), nullable=True)
     subject_id = db.Column(db.Integer, db.ForeignKey("ass_list_subjects.id", ondelete="CASCADE"), nullable=True)
     user_type = db.Column(db.String(16), nullable=False, default="ass")

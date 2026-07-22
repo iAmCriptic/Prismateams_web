@@ -156,22 +156,97 @@ class User(UserMixin, db.Model):
         return email_perm
     
     def get_dashboard_config(self):
-        """Gibt die Dashboard-Konfiguration zurück."""
+        """Gibt die Dashboard-Konfiguration zurück (inkl. widgets[]-Migration)."""
+        raw = None
         if self.dashboard_config:
             try:
-                return json.loads(self.dashboard_config)
-            except:
-                pass
-        # Standard-Konfiguration - nur die wichtigsten Widgets aktiv
+                raw = json.loads(self.dashboard_config)
+            except Exception:
+                raw = None
+        needs_persist = (
+            not isinstance(raw, dict)
+            or not isinstance(raw.get('widgets'), list)
+        )
+        normalized = self.normalize_dashboard_config(raw)
+        if needs_persist:
+            # Altes Schema einmalig speichern, damit Widget-IDs stabil bleiben
+            self.dashboard_config = json.dumps(normalized)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        return normalized
+
+    @staticmethod
+    def _new_widget_instance_id():
+        import uuid
+        return uuid.uuid4().hex[:10]
+
+    @classmethod
+    def normalize_dashboard_config(cls, config):
+        """Stellt widgets[] bereit; migriert alte enabled_widgets-Listen."""
+        if not isinstance(config, dict):
+            config = {}
+
+        quick_access = config.get('quick_access_links')
+        if not isinstance(quick_access, list):
+            quick_access = ['files', 'credentials', 'manuals']
+
+        mobile_nav = config.get('mobile_nav_slots')
+        if not isinstance(mobile_nav, dict):
+            mobile_nav = {'left': 'chat', 'right': 'calendar'}
+
+        widgets = config.get('widgets')
+        if not isinstance(widgets, list):
+            widgets = None
+
+        if widgets is None:
+            enabled = config.get('enabled_widgets')
+            if not isinstance(enabled, list):
+                enabled = ['termine', 'nachrichten', 'emails', 'passwoerter']
+            widgets = []
+            for wtype in enabled:
+                if not wtype:
+                    continue
+                widgets.append({
+                    'id': cls._new_widget_instance_id(),
+                    'type': str(wtype),
+                })
+
+        normalized = []
+        for item in widgets:
+            if not isinstance(item, dict):
+                continue
+            wtype = item.get('type')
+            if not wtype:
+                continue
+            wid = item.get('id') or cls._new_widget_instance_id()
+            entry = {'id': str(wid), 'type': str(wtype)}
+            if wtype == 'termine':
+                cids = item.get('calendar_ids') or []
+                if isinstance(cids, list):
+                    entry['calendar_ids'] = [int(c) for c in cids if str(c).isdigit() or isinstance(c, int)]
+                else:
+                    entry['calendar_ids'] = []
+            elif wtype == 'kontakte':
+                cids = item.get('contact_ids') or []
+                if isinstance(cids, list):
+                    entry['contact_ids'] = [int(c) for c in cids if str(c).isdigit() or isinstance(c, int)][:3]
+                else:
+                    entry['contact_ids'] = []
+            normalized.append(entry)
+
         return {
-            "enabled_widgets": ["termine", "nachrichten", "emails", "passwoerter"],
-            "quick_access_links": ["files", "credentials", "manuals"],
-            "mobile_nav_slots": {"left": "chat", "right": "calendar"},
+            'widgets': normalized,
+            'enabled_widgets': [w['type'] for w in normalized],
+            'quick_access_links': quick_access,
+            'mobile_nav_slots': mobile_nav,
         }
-    
+
     def set_dashboard_config(self, config):
-        """Setzt die Dashboard-Konfiguration."""
-        self.dashboard_config = json.dumps(config)
+        """Setzt die Dashboard-Konfiguration (normalisiert)."""
+        normalized = self.normalize_dashboard_config(config)
+        self.dashboard_config = json.dumps(normalized)
         db.session.commit()
     
     def is_online(self, threshold_minutes=5):

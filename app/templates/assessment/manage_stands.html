@@ -1,10 +1,12 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Standverwaltung - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-shop{% endblock %}
+{% block assessment_heading %}Stände{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Standverwaltung', icon='shop') }}
 
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neuen Stand anlegen</h2>
             <form id="standForm">
@@ -44,11 +46,11 @@
         'Spalten: <code>Standname</code>, <code>Beschreibung</code>, <code>Raum</code>, <code>Stand-Typ</code>'
     ) }}
 
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Stände</h2>
             <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
+                <table class="table assessment-table align-middle mb-0">
                     <thead><tr><th>Name</th><th>Typ</th><th>Beschreibung</th><th>Raum</th><th class="text-end">Aktion</th></tr></thead>
                     <tbody id="rows"></tbody>
                 </table>

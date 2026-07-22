@@ -325,7 +325,8 @@ body {
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* visible: User-Dropdown im Footer darf nach oben rausragen */
+    overflow: visible;
 }
 
 /* Dynamische Höhe für mobile Browser mit Adressleiste */
@@ -364,6 +365,71 @@ body {
 .sidebar-footer {
     flex-shrink: 0;
     margin-top: auto;
+    position: relative;
+    z-index: 1100;
+    overflow: visible;
+}
+
+/* Cookie-Button: gleiche Pill-Form wie Glocke in der Desktop-Sidebar */
+.sidebar-footer #cookieConsentDesktopBtn {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 999px;
+}
+
+/* User-Dropdown: volle Sidebar-Breite, öffnet über der Trennlinie */
+.sidebar-footer .dropdown {
+    position: static;
+}
+
+.sidebar-footer .dropdown-menu.sidebar-user-dropdown {
+    --bs-dropdown-min-width: 100%;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    top: auto !important;
+    margin: 0 0 0.35rem;
+    padding: 0.35rem;
+    border-radius: 0.75rem;
+    transform: none !important;
+    inset: auto 0 100% 0 !important;
+    z-index: 1100;
+}
+
+.sidebar-footer .sidebar-user-dropdown .dropdown-item {
+    display: flex;
+    align-items: center;
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.75rem;
+}
+
+.sidebar-footer .sidebar-user-dropdown .dropdown-divider {
+    margin: 0.25rem 0.35rem;
+}
+
+.sidebar-footer .sidebar-user-dropdown .sidebar-user-logout {
+    color: #dc3545;
+}
+
+.sidebar-footer .sidebar-user-dropdown .sidebar-user-logout:hover,
+.sidebar-footer .sidebar-user-dropdown .sidebar-user-logout:focus {
+    color: #b02a37;
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+[data-bs-theme="dark"] .sidebar-footer .sidebar-user-dropdown .sidebar-user-logout {
+    color: #ff6b7a;
+}
+
+[data-bs-theme="dark"] .sidebar-footer .sidebar-user-dropdown .sidebar-user-logout:hover,
+[data-bs-theme="dark"] .sidebar-footer .sidebar-user-dropdown .sidebar-user-logout:focus {
+    color: #ff8a95;
+    background-color: rgba(220, 53, 69, 0.18);
 }
 
 /* Fix for vertical text display issues in sidebar */
@@ -428,7 +494,9 @@ body {
 
 /* Dark Mode Sidebar Dropdown */
 [data-bs-theme="dark"] .sidebar .dropdown a,
-.sidebar.dark-mode .dropdown a {
+[data-bs-theme="dark"] .sidebar .dropdown .dropdown-toggle,
+.sidebar.dark-mode .dropdown a,
+.sidebar.dark-mode .dropdown .dropdown-toggle {
     color: #ffffff !important;
 }
 
@@ -1159,6 +1227,9 @@ button, .btn {
     font-size: 0.98rem;
     line-height: 1.45;
     color: var(--bs-secondary-color, inherit);
+}
+.pt-confirm-modal .modal-body #ptConfirmMessage {
+    white-space: pre-line;
 }
 .pt-confirm-modal .modal-footer {
     gap: 0.5rem;

@@ -1,0 +1,123 @@
+{% macro shortlinks_sidebar_tools(id_suffix='') %}
+{% set has_filter_state = search_query or status_filter or expiry_filter or password_filter or clicks_filter %}
+<div class="mod-sidebar-tools">
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-search me-1"></i>Suche
+        </div>
+        <form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-sidebar-form d-grid gap-2">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
+            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+            {% if expiry_filter %}<input type="hidden" name="expiry" value="{{ expiry_filter }}">{% endif %}
+            {% if password_filter %}<input type="hidden" name="password" value="{{ password_filter }}">{% endif %}
+            {% if clicks_filter %}<input type="hidden" name="clicks" value="{{ clicks_filter }}">{% endif %}
+            <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Kürzel oder Ziel-URL…" aria-label="Suche">
+            <button type="submit" class="btn mod-sidebar-action w-100">
+                <i class="bi bi-search"></i>
+                <span>Suchen</span>
+            </button>
+        </form>
+    </div>
+
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-sort-alpha-down me-1"></i>Sortierung
+        </div>
+        <form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-sidebar-form d-grid gap-2">
+            <input type="hidden" name="q" value="{{ search_query }}">
+            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+            {% if expiry_filter %}<input type="hidden" name="expiry" value="{{ expiry_filter }}">{% endif %}
+            {% if password_filter %}<input type="hidden" name="password" value="{{ password_filter }}">{% endif %}
+            {% if clicks_filter %}<input type="hidden" name="clicks" value="{{ clicks_filter }}">{% endif %}
+            <div>
+                <label for="sl-sort-field{{ id_suffix }}" class="form-label mb-1">Feld</label>
+                <select id="sl-sort-field{{ id_suffix }}" class="form-select form-select-sm" name="sort">
+                    <option value="created" {% if sort_by == 'created' %}selected{% endif %}>Erstellt</option>
+                    <option value="clicks" {% if sort_by == 'clicks' %}selected{% endif %}>Aufrufe</option>
+                    <option value="expires" {% if sort_by == 'expires' %}selected{% endif %}>Ablaufdatum</option>
+                    <option value="slug" {% if sort_by == 'slug' %}selected{% endif %}>Kürzel</option>
+                    <option value="last_click" {% if sort_by == 'last_click' %}selected{% endif %}>Letzter Aufruf</option>
+                </select>
+            </div>
+            <div>
+                <label for="sl-sort-dir{{ id_suffix }}" class="form-label mb-1">Richtung</label>
+                <select id="sl-sort-dir{{ id_suffix }}" class="form-select form-select-sm" name="dir">
+                    <option value="asc" {% if sort_dir == 'asc' %}selected{% endif %}>Aufsteigend</option>
+                    <option value="desc" {% if sort_dir == 'desc' %}selected{% endif %}>Absteigend</option>
+                </select>
+            </div>
+            <button type="submit" class="btn mod-sidebar-action w-100">
+                <i class="bi bi-check2"></i>
+                <span>Anwenden</span>
+            </button>
+        </form>
+    </div>
+
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-funnel me-1"></i>Filter
+        </div>
+        <form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-sidebar-form d-grid gap-2">
+            <input type="hidden" name="q" value="{{ search_query }}">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
+            <div>
+                <label for="sl-filter-status{{ id_suffix }}" class="form-label mb-1">Status</label>
+                <select id="sl-filter-status{{ id_suffix }}" class="form-select form-select-sm" name="status">
+                    <option value="" {% if not status_filter %}selected{% endif %}>Alle</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Aktiv (erreichbar)</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inaktiv / abgelaufen</option>
+                    <option value="disabled" {% if status_filter == 'disabled' %}selected{% endif %}>Manuell deaktiviert</option>
+                </select>
+            </div>
+            <div>
+                <label for="sl-filter-expiry{{ id_suffix }}" class="form-label mb-1">Ablaufdatum</label>
+                <select id="sl-filter-expiry{{ id_suffix }}" class="form-select form-select-sm" name="expiry">
+                    <option value="" {% if not expiry_filter %}selected{% endif %}>Alle</option>
+                    <option value="with" {% if expiry_filter == 'with' %}selected{% endif %}>Mit Ablaufdatum</option>
+                    <option value="without" {% if expiry_filter == 'without' %}selected{% endif %}>Ohne Ablaufdatum</option>
+                    <option value="soon" {% if expiry_filter == 'soon' %}selected{% endif %}>Läuft bald ab (≤ 7 Tage)</option>
+                </select>
+            </div>
+            <div>
+                <label for="sl-filter-password{{ id_suffix }}" class="form-label mb-1">Passwortschutz</label>
+                <select id="sl-filter-password{{ id_suffix }}" class="form-select form-select-sm" name="password">
+                    <option value="" {% if not password_filter %}selected{% endif %}>Alle</option>
+                    <option value="yes" {% if password_filter == 'yes' %}selected{% endif %}>Mit Passwort</option>
+                    <option value="no" {% if password_filter == 'no' %}selected{% endif %}>Ohne Passwort</option>
+                </select>
+            </div>
+            <div>
+                <label for="sl-filter-clicks{{ id_suffix }}" class="form-label mb-1">Aufruf-Limit</label>
+                <select id="sl-filter-clicks{{ id_suffix }}" class="form-select form-select-sm" name="clicks">
+                    <option value="" {% if not clicks_filter %}selected{% endif %}>Alle</option>
+                    <option value="with_limit" {% if clicks_filter == 'with_limit' %}selected{% endif %}>Mit Limit</option>
+                    <option value="limit_reached" {% if clicks_filter == 'limit_reached' %}selected{% endif %}>Limit erreicht</option>
+                </select>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <button type="submit" class="btn mod-sidebar-action flex-grow-1">
+                    <i class="bi bi-check2"></i>
+                    <span>Anwenden</span>
+                </button>
+                {% if has_filter_state %}
+                <a href="{{ url_for('shortlinks.index', sort=sort_by, dir=sort_dir) }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
+                    <i class="bi bi-x-lg"></i>
+                    <span>Reset</span>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro shortlinks_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+<div class="mod-sidebar-new-wrap w-100">
+    <a href="{{ url_for('shortlinks.create') }}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-shortlinks-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-plus-lg me-2"></i>Neu
+    </a>
+</div>
+{{ shortlinks_sidebar_tools(id_suffix) }}
+{% endmacro %}

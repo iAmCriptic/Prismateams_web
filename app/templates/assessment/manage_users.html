@@ -1,10 +1,12 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Benutzerverwaltung - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-people{% endblock %}
+{% block assessment_heading %}Benutzer{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Benutzerverwaltung', icon='people') }}
 
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-person-plus me-2"></i>Neuen Benutzer anlegen</h2>
             <form id="userForm">
@@ -42,11 +44,11 @@
         'Pflicht-Spalten: <code>Benutzername</code>, <code>Password</code>, <code>Anzeigename</code>, <code>Rollen</code> (kommagetrennt).'
     ) }}
 
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-people me-2"></i>Vorhandene Benutzer</h2>
             <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
+                <table class="table assessment-table align-middle mb-0">
                     <thead><tr><th>Benutzername</th><th>Anzeigename</th><th>Rollen</th><th class="text-end">Aktion</th></tr></thead>
                     <tbody id="rows"></tbody>
                 </table>

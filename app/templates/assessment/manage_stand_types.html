@@ -1,9 +1,11 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Stand-Typen - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-tags{% endblock %}
+{% block assessment_heading %}Stand-Typen{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Stand-Typen', icon='tags') }}
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4">
         <div class="card-body">
             <form id="typeForm" class="row g-3 align-items-end">
                 <input type="hidden" id="typeId">
@@ -22,9 +24,9 @@
             </form>
         </div>
     </div>
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
-            <table class="table table-striped mb-0">
+            <table class="table assessment-table align-middle mb-0">
                 <thead><tr><th>Name</th><th>Stände</th><th class="text-end">Aktion</th></tr></thead>
                 <tbody id="rows"></tbody>
             </table>

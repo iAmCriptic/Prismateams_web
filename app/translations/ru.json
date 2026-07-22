@@ -166,11 +166,39 @@
         "return_by": "Вернуть до {date}",
         "return_button": "Вернуть",
         "empty": "Нет активных выдач"
+      },
+      "contacts": {
+        "title": "Контакты",
+        "empty": "Нет контактов",
+        "call": "Позвонить",
+        "mail": "Почта"
       }
     },
     "quick_access": {
       "title": "Быстрый доступ",
       "edit_dashboard": "Редактировать панель"
+    },
+    "greeting": {
+      "morning": "Доброе утро, {name}!",
+      "afternoon": "Добрый день, {name}!",
+      "evening": "Добрый вечер, {name}!"
+    },
+    "edit": {
+      "widgets": {
+        "add": "Добавить виджет",
+        "empty": "Пока нет виджетов.",
+        "calendars_label": "Календари",
+        "contacts_label": "Выбрать контакты",
+        "contacts_hint": "Выберите до пяти контактов.",
+        "contacts_search": "Поиск контакта…",
+        "contacts_max": "Максимум 5 контактов",
+        "items": {
+          "kontakte": {
+            "label": "Контакты",
+            "description": "Показывает выбранные контакты."
+          }
+        }
+      }
     }
   },
   "media_downloader": {
@@ -178,6 +206,13 @@
     "heading": "Загрузчик медиа",
     "description": "Скачивайте контент с YouTube и YouTube Music в MP3 или MP4.",
     "legal_notice": "Вы несёте ответственность за соблюдение авторских прав и условий платформ. Файлы автоматически удаляются через час.",
+    "nav": {
+      "label": "Навигация загрузчика медиа",
+      "menu": "Меню",
+      "download": "Новая загрузка",
+      "jobs": "Мои загрузки",
+      "clear_all": "Удалить всё"
+    },
     "form": {
       "title": "Новая загрузка",
       "url_label": "URL",
@@ -200,7 +235,9 @@
       "column_expires": "Доступно до",
       "column_actions": "Действия",
       "download": "Скачать",
-      "empty": "Загрузок пока нет."
+      "empty": "Загрузок пока нет.",
+      "clear_all": "Удалить всё",
+      "clear_all_confirm": "Удалить все загрузки и отменить активные?"
     },
     "format": {
       "audio": "MP3",
@@ -232,6 +269,97 @@
       "err_download_failed": "Ошибка загрузки. Попробуйте снова.",
       "file_missing": "Файл не найден."
     }
+  },
+  "booking": {
+    "requests": {
+      "sidebar_brand": "Бронирования",
+      "nav": {
+        "overview": "Обзор",
+        "neu": "Новые",
+        "accepted": "Принятые",
+        "rejected": "Отклонённые",
+        "archived": "Архив",
+        "no_forms": "Нет форм",
+        "public_link": "Публичная ссылка"
+      },
+      "stats": {
+        "pending": "Ожидают",
+        "accepted": "Приняты",
+        "rejected": "Отклонены",
+        "archived": "Архив",
+        "total": "Всего",
+        "acceptance_rate": "Доля принятых",
+        "upcoming": "Предстоящие",
+        "busy_days": "Занятые дни",
+        "this_month": "В этом месяце"
+      },
+      "dashboard": {
+        "upcoming_title": "Предстоящие",
+        "upcoming_empty": "Нет предстоящих бронирований",
+        "recent_title": "Недавно полученные"
+      }
+    },
+    "request_detail": {
+      "actions_heading": "Действия"
+    }
+  },
+  "music": {
+    "index": {
+      "nav": {
+        "label": "Навигация музыки",
+        "menu": "Меню"
+      },
+      "played": {
+        "clear": "Очистить сыгранные"
+      },
+      "sort": {
+        "heading": "Сортировка",
+        "field": "Поле",
+        "direction": "Направление",
+        "apply": "Применить",
+        "reset": "Сбросить",
+        "options": {
+          "created": "Создано",
+          "wish_count": "Желания"
+        },
+        "directions": {
+          "asc": "По возрастанию",
+          "desc": "По убыванию"
+        }
+      },
+      "confirmations": {
+        "title": "Подтвердить",
+        "reset_title": "Сбросить всё?",
+        "clear_played": "Очистить список сыгранных?"
+      }
+    }
+  },
+  "wiki": {
+    "index": {
+      "new_button": "Создать",
+      "nav": {
+        "menu": "Меню"
+      },
+      "sort": {
+        "menu_button": "Сортировка",
+        "field": "Поле",
+        "direction": "Направление",
+        "apply": "Применить",
+        "directions": {
+          "asc": "По возрастанию",
+          "desc": "По убыванию"
+        }
+      },
+      "filters": {
+        "menu_button": "Фильтры",
+        "category": "Категория",
+        "tag": "Тег",
+        "apply": "Применить"
+      },
+      "favorites": {
+        "title": "Избранное",
+        "empty": "Нет избранного"
+      }
+    }
   }
 }
-

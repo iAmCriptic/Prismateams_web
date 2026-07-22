@@ -1,16 +1,8 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}Bestätigungscodes - Administration{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item active">Bestätigungscodes</li>
-    </ol>
-</nav>
-
+{% block settings_content %}
 <h2 class="mb-4"><i class="bi bi-key"></i> Ausstehende E-Mail-Bestätigungscodes</h2>
 
 {% if users %}

@@ -166,11 +166,39 @@
         "return_by": "Devolver até {date}",
         "return_button": "Devolver",
         "empty": "Nenhum empréstimo ativo"
+      },
+      "contacts": {
+        "title": "Contactos",
+        "empty": "Sem contactos",
+        "call": "Ligar",
+        "mail": "E-mail"
       }
     },
     "quick_access": {
       "title": "Acesso rápido",
       "edit_dashboard": "Editar painel"
+    },
+    "greeting": {
+      "morning": "Bom dia, {name}!",
+      "afternoon": "Boa tarde, {name}!",
+      "evening": "Boa noite, {name}!"
+    },
+    "edit": {
+      "widgets": {
+        "add": "Adicionar widget",
+        "empty": "Ainda sem widgets.",
+        "calendars_label": "Calendários",
+        "contacts_label": "Selecionar contactos",
+        "contacts_hint": "Escolha até cinco contactos.",
+        "contacts_search": "Pesquisar contacto…",
+        "contacts_max": "Máximo 5 contactos",
+        "items": {
+          "kontakte": {
+            "label": "Contactos",
+            "description": "Mostra contactos selecionados."
+          }
+        }
+      }
     }
   },
   "media_downloader": {
@@ -178,6 +206,13 @@
     "heading": "Downloader de mídia",
     "description": "Baixe conteúdo do YouTube e YouTube Music como MP3 ou MP4.",
     "legal_notice": "Você é responsável por cumprir os direitos autorais e os termos das plataformas. Os arquivos são excluídos automaticamente após uma hora.",
+    "nav": {
+      "label": "Navegação do downloader de mídia",
+      "menu": "Menu",
+      "download": "Novo download",
+      "jobs": "Meus downloads",
+      "clear_all": "Limpar tudo"
+    },
     "form": {
       "title": "Novo download",
       "url_label": "URL",
@@ -200,7 +235,9 @@
       "column_expires": "Disponível até",
       "column_actions": "Ações",
       "download": "Baixar",
-      "empty": "Nenhum download ainda."
+      "empty": "Nenhum download ainda.",
+      "clear_all": "Limpar tudo",
+      "clear_all_confirm": "Remover todos os downloads e cancelar os ativos?"
     },
     "format": {
       "audio": "MP3",
@@ -231,6 +268,98 @@
       "err_video_unavailable": "Este vídeo não está disponível.",
       "err_download_failed": "Falha no download. Tente novamente.",
       "file_missing": "Arquivo não encontrado."
+    }
+  },
+  "booking": {
+    "requests": {
+      "sidebar_brand": "Reservas",
+      "nav": {
+        "overview": "Visão geral",
+        "neu": "Novas",
+        "accepted": "Aceites",
+        "rejected": "Rejeitadas",
+        "archived": "Arquivadas",
+        "no_forms": "Sem formulários",
+        "public_link": "Link público"
+      },
+      "stats": {
+        "pending": "Pendentes",
+        "accepted": "Aceites",
+        "rejected": "Rejeitadas",
+        "archived": "Arquivadas",
+        "total": "Total",
+        "acceptance_rate": "Taxa de aceitação",
+        "upcoming": "Próximas",
+        "busy_days": "Dias ocupados",
+        "this_month": "Este mês"
+      },
+      "dashboard": {
+        "upcoming_title": "Próximas",
+        "upcoming_empty": "Sem reservas próximas",
+        "recent_title": "Recebidas recentemente"
+      }
+    },
+    "request_detail": {
+      "actions_heading": "Ações"
+    }
+  },
+  "music": {
+    "index": {
+      "nav": {
+        "label": "Navegação de música",
+        "menu": "Menu"
+      },
+      "played": {
+        "clear": "Limpar tocadas"
+      },
+      "sort": {
+        "heading": "Ordenação",
+        "field": "Campo",
+        "direction": "Direção",
+        "apply": "Aplicar",
+        "reset": "Repor",
+        "options": {
+          "created": "Criado",
+          "wish_count": "Pedidos"
+        },
+        "directions": {
+          "asc": "Ascendente",
+          "desc": "Descendente"
+        }
+      },
+      "confirmations": {
+        "title": "Confirmar",
+        "reset_title": "Repor tudo?",
+        "clear_played": "Limpar a lista de tocadas?"
+      }
+    }
+  },
+  "wiki": {
+    "index": {
+      "new_button": "Novo",
+      "nav": {
+        "menu": "Menu"
+      },
+      "sort": {
+        "menu_button": "Ordenação",
+        "field": "Campo",
+        "direction": "Direção",
+        "apply": "Aplicar",
+        "directions": {
+          "asc": "Ascendente",
+          "desc": "Descendente"
+        }
+      },
+      "filters": {
+        "menu_button": "Filtros",
+        "category": "Categoria",
+        "tag": "Tag",
+        "apply": "Aplicar"
+      },
+      "favorites": {
+        "title": "Favoritos",
+        "empty": "Sem favoritos"
+      }
     }
   }
 }

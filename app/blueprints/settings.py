@@ -327,12 +327,11 @@ def appearance():
 @settings_bp.route('/admin')
 @login_required
 def admin():
-    """Admin settings page."""
+    """Admin settings hub — redirects to Start dashboard (sidebar has all admin links)."""
     if not current_user.is_admin:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
-    return render_template('settings/admin.html')
+    return redirect(url_for('settings.index') + '#admin')
 
 
 @settings_bp.route('/admin/users')

@@ -22,15 +22,15 @@
 {%- endmacro %}
 
 {% macro files_nav_links(dismiss_offcanvas=false) %}
-<nav class="files-sidebar-nav nav flex-column gap-1">
+<nav class="mod-sidebar-nav nav flex-column gap-1">
     {% if files_private_folders_enabled %}
-    <a class="nav-link files-nav-link {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
+    <a class="nav-link mod-nav-link {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
     {% endif %}
-    <a class="nav-link files-nav-link {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
+    <a class="nav-link mod-nav-link {% if files_view == 'public' %}active{% endif %}" href="{{ url_for('files.index', view='public') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
     {% if files_private_folders_enabled %}
-    <a class="nav-link files-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
+    <a class="nav-link mod-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
     {% endif %}
-    <a class="nav-link files-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash me-2"></i>{{ _('files.index.nav.trash') }}</a>
+    <a class="nav-link mod-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash me-2"></i>{{ _('files.index.nav.trash') }}</a>
 </nav>
 {% endmacro %}
 
@@ -42,7 +42,7 @@
     <div class="files-favorites-list nav flex-column gap-1">
         {% if folder_favorites %}
             {% for fav in folder_favorites %}
-            <a class="nav-link files-nav-link files-favorite-link" href="{{ fav.url }}" data-folder-id="{{ fav.id }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}>
+            <a class="nav-link mod-nav-link files-favorite-link" href="{{ fav.url }}" data-folder-id="{{ fav.id }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}>
                 <i class="bi bi-folder-fill me-2 folder-color-icon {% if not fav.color %}text-warning{% endif %}" {% if fav.color %}style="color: {{ fav.color }};"{% endif %}></i>
                 <span class="files-favorite-name text-truncate">{{ fav.name }}</span>
             </a>
@@ -56,13 +56,13 @@
 
 <div class="files-shell {% if files_view %}files-shell--private{% endif %}">
 {% if files_view %}
-<aside class="files-sidebar d-none d-lg-flex flex-column">
-    <div class="files-sidebar-brand">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-folder2-open" aria-hidden="true"></i>
         <span>{{ _('files.index.heading') }}</span>
     </div>
-    <div class="dropdown files-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
-        <button class="btn files-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
+    <div class="dropdown mod-sidebar-new-wrap w-100" id="newButtonDropdownSidebar">
+        <button class="btn mod-sidebar-new w-100 text-start" type="button" id="newButtonSidebar">
             <i class="bi bi-plus-lg me-2"></i> {{ _('files.index.new_button') }}
         </button>
         <ul class="dropdown-menu files-sidebar-new-menu" id="newDropdownMenuSidebar" style="display: none;">
@@ -82,7 +82,7 @@
     {{ files_favorites_nav(false) }}
 </aside>
 
-<div class="offcanvas offcanvas-start files-mobile-offcanvas" tabindex="-1" id="filesMobileNav" aria-labelledby="filesMobileNavLabel">
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="filesMobileNav" aria-labelledby="filesMobileNavLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="filesMobileNavLabel">
             <i class="bi bi-folder2-open" aria-hidden="true"></i>
@@ -96,12 +96,12 @@
     </div>
 </div>
 {% endif %}
-<div class="files-main flex-grow-1 min-width-0">
+<div class="mod-main flex-grow-1 min-width-0">
 {% if files_view %}
-<div class="files-mobile-topbar d-lg-none mb-3">
+<div class="mod-mobile-topbar d-lg-none mb-3">
     <div class="d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex align-items-center min-width-0 gap-2">
-            <button type="button" class="btn btn-outline-secondary files-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#filesMobileNav" aria-controls="filesMobileNav" aria-label="{{ _('files.index.nav.menu') }}">
+            <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#filesMobileNav" aria-controls="filesMobileNav" aria-label="{{ _('files.index.nav.menu') }}">
                 <i class="bi bi-list"></i>
             </button>
             <div class="files-mobile-path text-truncate min-width-0">
@@ -112,7 +112,7 @@
             </div>
         </div>
         <div class="dropdown flex-shrink-0" id="newButtonDropdownMobile">
-            <button class="btn btn-accent btn-sm" type="button" id="newButtonMobile">
+            <button class="btn files-mobile-new-btn btn-sm rounded-pill" type="button" id="newButtonMobile">
                 <i class="bi bi-plus-lg"></i> {{ _('files.index.new_button') }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end files-mobile-new-menu" id="newDropdownMenuMobile" style="display: none;">
@@ -255,7 +255,7 @@
      data-has-files="{{ '1' if files else '0' }}"></div>
 <div id="gridViewContainer" style="display: none;">
     {% if not subfolders and not files %}
-    <div class="files-empty-state" id="filesEmptyStateGrid">{{ _('files.index.labels.nothing_present') }}</div>
+    <div class="mod-empty-state" id="filesEmptyStateGrid">{{ _('files.index.labels.nothing_present') }}</div>
     {% endif %}
 
     <!-- Ordner Überschrift - nur wenn Ordner vorhanden (oder Inline-Erstellung) -->
@@ -644,10 +644,10 @@
 <!-- LIST VIEW (detailed table) -->
 <div id="listViewContainer" style="display: none;">
     {% if not subfolders and not files %}
-    <div class="files-empty-state" id="filesEmptyStateList">{{ _('files.index.labels.nothing_present') }}</div>
+    <div class="mod-empty-state" id="filesEmptyStateList">{{ _('files.index.labels.nothing_present') }}</div>
     {% else %}
-    <div class="files-list-table-wrap">
-        <table class="table files-list-table align-middle mb-0">
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
             <thead>
                 <tr>
                     <th scope="col">{{ _('files.index.list.name') }}</th>
@@ -662,9 +662,9 @@
             {% for folder in subfolders %}
                 {% set owner = users_by_id.get(folder.created_by) %}
                 {% set allow_internal_acl = files_view != 'public' and (folder.space|default('public')) != 'public' %}
-                <tr class="files-list-row files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
+                <tr class="mod-list-row files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
                     <td>
-                        <a class="files-list-name text-decoration-none" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
+                        <a class="mod-list-name text-decoration-none" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
                             <i class="bi bi-folder-fill me-2 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>{{ folder.name }}
                         </a>
                     </td>
@@ -673,8 +673,8 @@
                     <td class="d-none d-lg-table-cell text-muted">{% if folder.updated_at %}{{ folder.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
                     <td class="d-none d-md-table-cell text-muted">—</td>
                     <td class="text-end">
-                        <div class="files-list-actions">
-                            <div class="files-list-hover-actions">
+                        <div class="mod-list-actions">
+                            <div class="mod-list-hover-actions">
                                 {% if not is_trash_view %}
                                 {% if allow_internal_acl %}
                                 <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.acl.title') }}" onclick="openInternalShare('folder', {{ folder.id }}); return false;"><i class="bi bi-person-plus"></i></button>
@@ -720,9 +720,9 @@
                 {% else %}
                     {% set open_url = url_for('files.download_file', file_id=file.id) %}
                 {% endif %}
-                <tr class="files-list-row files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
+                <tr class="mod-list-row files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
                     <td>
-                        <a class="files-list-name text-decoration-none" href="{{ open_url }}">
+                        <a class="mod-list-name text-decoration-none" href="{{ open_url }}">
                             <i class="bi bi-file-earmark me-2"></i>{{ file.original_name or file.name }}
                         </a>
                     </td>
@@ -731,8 +731,8 @@
                     <td class="d-none d-lg-table-cell text-muted">{% if file.updated_at %}{{ file.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
                     <td class="d-none d-md-table-cell text-muted">{% if file.file_size %}{% if file.file_size >= 1048576 %}{{ '%.1f'|format(file.file_size/1048576) }} MB{% elif file.file_size >= 1024 %}{{ '%.1f'|format(file.file_size/1024) }} KB{% else %}{{ file.file_size }} B{% endif %}{% else %}—{% endif %}</td>
                     <td class="text-end">
-                        <div class="files-list-actions">
-                            <div class="files-list-hover-actions">
+                        <div class="mod-list-actions">
+                            <div class="mod-list-hover-actions">
                                 {% if not is_trash_view %}
                                 <a class="btn btn-sm btn-link" href="{{ url_for('files.download_file', file_id=file.id) }}" title="Download"><i class="bi bi-download"></i></a>
                                 <button type="button" class="btn btn-sm btn-link" title="{{ _('files.index.file_actions.rename') }}" onclick="openRenameFileModal({{ file.id }}, {{ file.name|tojson }}); return false;"><i class="bi bi-pencil"></i></button>
@@ -1684,7 +1684,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setFilesEmptyStateVisible(visible) {
-        document.querySelectorAll('.files-empty-state').forEach(function(el) {
+        document.querySelectorAll('.mod-empty-state').forEach(function(el) {
             el.style.display = visible ? '' : 'none';
         });
     }

@@ -1,10 +1,12 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Raumverwaltung - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-door-open{% endblock %}
+{% block assessment_heading %}Räume{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Raumverwaltung', icon='door-open') }}
 
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2"></i>Neuen Raum anlegen</h2>
             <form id="roomForm" class="row g-2 align-items-end">
@@ -21,7 +23,7 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-door-open me-2"></i>Vorhandene Räume</h2>
             <ul class="list-group list-group-flush" id="rows"></ul>

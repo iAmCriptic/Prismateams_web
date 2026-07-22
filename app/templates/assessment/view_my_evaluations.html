@@ -1,31 +1,39 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Meine Bewertungen{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-ui-checks{% endblock %}
+{% block assessment_heading %}Meine Bewertungen{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Meine Bewertungen', icon='journal-text') }}
-    <div class="mb-3">
+    <div class="assessment-panel mb-3" id="listPickerWrap" hidden>
         <label class="form-label">Bewertungsliste (optional)</label>
         <select class="form-select" id="listFilter">
             <option value="">Alle Listen</option>
         </select>
     </div>
+    <div class="assessment-panel">
     <div class="table-responsive">
-        <table class="table table-striped mb-0">
+        <table class="table assessment-table align-middle mb-0">
             <thead><tr><th>Liste</th><th>Ziel</th><th>Punkte</th><th>Zeit</th><th>Druck</th></tr></thead>
             <tbody id="rows"></tbody>
         </table>
+    </div>
     </div>
 <script>
 async function loadLists() {
     const res = await fetch('/assessment/api/lists/active');
     const data = await res.json();
+    const lists = data.lists || [];
     const sel = document.getElementById('listFilter');
-    (data.lists || []).forEach(l => {
+    const wrap = document.getElementById('listPickerWrap');
+    lists.forEach(l => {
         const opt = document.createElement('option');
         opt.value = l.id;
         opt.textContent = l.name;
         sel.appendChild(opt);
     });
+    // Nur bei mehreren Listen Filter zeigen
+    wrap.hidden = lists.length <= 1;
 }
 async function load() {
     const listId = document.getElementById('listFilter').value;

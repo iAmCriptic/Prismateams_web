@@ -1,0 +1,242 @@
+/* Music module — domain only (shell in module-ui.css) */
+
+.music-sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+}
+
+.music-public-url-pill,
+.btn.music-public-url-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-weight: 600;
+    padding: 0.65rem 1.1rem;
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
+    text-decoration: none;
+}
+
+.music-public-url-pill:hover,
+.music-public-url-pill:focus,
+.btn.music-public-url-pill:hover,
+.btn.music-public-url-pill:focus {
+    filter: brightness(1.08);
+    color: #fff !important;
+}
+
+.music-public-url-pill--sm {
+    padding: 0.4rem 0.75rem;
+}
+
+.music-reset-link,
+.btn.music-reset-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--bs-danger, #dc3545) !important;
+    box-shadow: none;
+}
+
+.music-reset-link .bi,
+.music-reset-link span,
+.btn.music-reset-link .bi,
+.btn.music-reset-link span {
+    color: var(--bs-danger, #dc3545) !important;
+}
+
+.music-reset-link:hover,
+.music-reset-link:focus,
+.btn.music-reset-link:hover,
+.btn.music-reset-link:focus {
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 12%, transparent);
+    color: var(--bs-danger, #dc3545) !important;
+    box-shadow: none;
+    filter: none;
+}
+
+.music-now-playing {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--mod-radius-card, 0.75rem);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+}
+
+.music-clear-btn,
+.btn.music-clear-btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-weight: 600;
+    padding: 0.4rem 0.95rem;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, transparent);
+    color: var(--accent-color, #0d6efd);
+    background: transparent;
+}
+
+.music-clear-btn:hover,
+.music-clear-btn:focus,
+.btn.music-clear-btn:hover,
+.btn.music-clear-btn:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    border-color: var(--accent-color, #0d6efd);
+    color: var(--accent-color, #0d6efd);
+}
+
+.music-track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.music-track-item {
+    padding: 0.55rem 0.65rem;
+    border: 1px solid transparent;
+    border-bottom-color: var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: var(--mod-radius-panel, 0.85rem);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.music-track-item:last-child {
+    border-bottom-color: transparent;
+}
+
+.music-track-item:hover,
+.music-track-item:focus-within {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 6%, transparent);
+}
+
+.music-track-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.music-track-cover {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(127, 127, 127, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.music-track-cover .bi {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.music-track-cover img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.music-track-title {
+    font-weight: 560;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.music-track-artist {
+    margin-bottom: 0.15rem;
+}
+
+.music-track-actions {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+
+.music-track-actions .btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: none;
+    box-shadow: none;
+    line-height: 1;
+}
+
+.music-track-actions .btn-success {
+    color: #198754;
+    background: color-mix(in srgb, #198754 14%, transparent);
+}
+
+.music-track-actions .btn-success:hover,
+.music-track-actions .btn-success:focus {
+    color: #fff;
+    background: #198754;
+}
+
+.music-track-actions .btn-primary {
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+}
+
+.music-track-actions .btn-primary:hover,
+.music-track-actions .btn-primary:focus {
+    color: #fff;
+    background: var(--accent-color, #0d6efd);
+}
+
+.music-track-actions .btn-danger,
+.music-track-actions .btn-outline-danger {
+    color: #dc3545;
+    background: color-mix(in srgb, #dc3545 12%, transparent);
+    border: none;
+}
+
+.music-track-actions .btn-danger:hover,
+.music-track-actions .btn-danger:focus,
+.music-track-actions .btn-outline-danger:hover,
+.music-track-actions .btn-outline-danger:focus {
+    color: #fff;
+    background: #dc3545;
+}
+
+.music-drag-handle {
+    cursor: move;
+    flex-shrink: 0;
+}
+
+.music-position-badge {
+    flex-shrink: 0;
+}
+
+.music-empty {
+    user-select: none;
+}
+
+.music-track-item.dragging {
+    opacity: 0.5;
+}

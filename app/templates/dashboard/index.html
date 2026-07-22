@@ -47,876 +47,97 @@
 {% endblock %}
 
 {% block content %}
-<div class="row mb-4 page-toolbar-row align-items-start">
-    <div class="col min-width-0">
-        <div class="d-flex justify-content-between align-items-start">
-            <div class="d-flex align-items-center">
-                <!-- Mobile Logo (neben Text) -->
-                <div class="d-lg-none me-3">
-                    <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center text-decoration-none">
-                        {% if portal_logo_filename %}
-                        <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48">
-                        {% elif app_logo %}
-                        <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48">
-                        {% endif %}
-                    </a>
-                </div>
-                <div>
-                    <h1>{{ _('dashboard.welcome', name=current_user.first_name) }}</h1>
-                    <p class="text-muted">{{ _('dashboard.overview_subtitle') }}</p>
-                </div>
+{% include 'dashboard/_whats_new_modal.html' %}
+
+<div class="dashboard-shell dashboard-page" data-dashboard-edit-url="{{ url_for('dashboard.edit') }}">
+    <aside class="mod-sidebar">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-house-door" aria-hidden="true"></i>
+            <span>{{ _('dashboard.page_title') }}</span>
+        </div>
+        <nav class="mod-sidebar-nav" aria-label="{{ _('dashboard.quick_access.title') }}">
+            {% set qa_variant = 'sidebar' %}
+            {% include 'dashboard/_quick_access.html' %}
+        </nav>
+        <div class="mod-sidebar-footer">
+            <button type="button"
+                    class="dashboard-sidebar-whats-new position-relative"
+                    id="whatsNewBtn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#whatsNewModal"
+                    aria-label="{{ _('dashboard.whats_new.button_aria') }}">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span>{{ _('dashboard.whats_new.button_label') }}</span>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger dashboard-whats-new-badge d-none" id="whatsNewBadge">
+                    {{ _('dashboard.whats_new.badge') }}
+                    <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
+                </span>
+            </button>
+            {% if not current_user.is_guest %}
+            <a href="{{ url_for('dashboard.edit') }}" class="mod-nav-link dashboard-sidebar-edit-link">
+                <i class="bi bi-pencil-square"></i>
+                <span>{{ _('dashboard.quick_access.edit_dashboard') }}</span>
+            </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <div class="mod-main">
+        <div class="mod-mobile-topbar d-lg-none">
+            <a href="{{ url_for('dashboard.index') }}" class="dashboard-mobile-logo">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% else %}
+                <i class="bi bi-house-door fs-2 text-muted"></i>
+                {% endif %}
+            </a>
+            <div class="dashboard-mobile-welcome min-width-0">
+                <p class="dash-hello">{{ _(greeting_key, name=current_user.first_name) }}</p>
+                <p class="dash-sub">{{ _('dashboard.overview_subtitle') }}</p>
             </div>
-            <!-- Neues + Uhrzeit (oben rechts, Desktop & Mobile) -->
-            <div class="dashboard-header-actions d-flex align-items-center gap-2 gap-lg-3 flex-shrink-0">
+        </div>
+
+        <div class="dashboard-main-toolbar d-none d-lg-flex">
+            <div class="dashboard-main-greeting">
+                <p class="dash-hello mb-0">{{ _(greeting_key, name=current_user.first_name) }}</p>
+                <p class="dash-sub mb-0">{{ _('dashboard.overview_subtitle') }}</p>
+            </div>
+            <div class="dashboard-main-clock" id="current-time" aria-live="polite"></div>
+        </div>
+
+        {% if not current_user.is_guest %}
+        <div class="dashboard-widget-grid">
+            {% include 'dashboard/_widgets.html' %}
+        </div>
+        {% endif %}
+
+        <div class="dashboard-mobile-qa">
+            <div class="dashboard-mobile-qa-heading">{{ _('dashboard.quick_access.title') }}</div>
+            <div class="dashboard-mobile-qa-grid">
+                {% set qa_variant = 'mobile' %}
+                {% include 'dashboard/_quick_access.html' %}
                 <button type="button"
-                        class="btn btn-link dashboard-whats-new-btn position-relative text-decoration-none p-1 p-lg-2"
-                        id="whatsNewBtn"
+                        class="dashboard-qa-tile dashboard-qa-tile--neu"
                         data-bs-toggle="modal"
                         data-bs-target="#whatsNewModal"
-                        aria-label="{{ _('dashboard.whats_new.button_aria') }}"
-                        title="{{ _('dashboard.whats_new.button_label') }}">
-                    <i class="bi bi-stars fs-4"></i>
-                    <span class="d-none d-md-inline ms-1 fw-semibold">{{ _('dashboard.whats_new.button_label') }}</span>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger dashboard-whats-new-badge d-none" id="whatsNewBadge">
-                        {{ _('dashboard.whats_new.badge') }}
-                        <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
-                    </span>
+                        aria-label="{{ _('dashboard.whats_new.button_aria') }}">
+                    <i class="bi bi-stars"></i>
+                    <span>{{ _('dashboard.whats_new.button_label') }}</span>
                 </button>
-                <div class="d-none d-lg-block text-end">
-                    <div id="current-time" class="fs-5 fw-bold text-muted"></div>
-                </div>
             </div>
         </div>
+
+        {% if not current_user.is_guest %}
+        <div class="dashboard-main-edit">
+            <a href="{{ url_for('dashboard.edit') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-pencil-square me-1"></i>{{ _('dashboard.quick_access.edit_dashboard') }}
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
-
-{# What's New Modal – v2.6 #}
-<div class="modal fade" id="whatsNewModal" tabindex="-1" aria-labelledby="whatsNewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content whats-new-modal">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title" id="whatsNewModalLabel">
-                    <i class="bi bi-stars text-primary me-2"></i>
-                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version='2.6', current=1, total=13) }}</span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-            </div>
-            <div class="modal-body pt-2">
-                <div class="whats-new-panels">
-                <!-- Startseite -->
-                <div class="whats-new-panel is-active" data-panel="overview">
-                    <p class="text-muted mb-3">{{ _('dashboard.whats_new.overview_subtitle') }}</p>
-                    <div class="list-group whats-new-module-list">
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="general">
-                            <span class="whats-new-module-icon bg-secondary-subtle text-secondary"><i class="bi bi-sliders"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.general.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.general.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="dashboard">
-                            <span class="whats-new-module-icon bg-success-subtle text-success"><i class="bi bi-house-door"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.dashboard.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.dashboard.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="chat">
-                            <span class="whats-new-module-icon bg-primary-subtle text-primary"><i class="bi bi-chat-dots"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.chat.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.chat.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="files">
-                            <span class="whats-new-module-icon bg-primary-subtle text-primary"><i class="bi bi-folder2-open"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.files.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.files.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="calendar">
-                            <span class="whats-new-module-icon bg-success-subtle text-success"><i class="bi bi-calendar3"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.calendar.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.calendar.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="events">
-                            <span class="whats-new-module-icon bg-warning-subtle text-warning"><i class="bi bi-calendar2-week"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.events.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.events.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="email">
-                            <span class="whats-new-module-icon bg-info-subtle text-info"><i class="bi bi-envelope"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.email.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.email.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="contacts">
-                            <span class="whats-new-module-icon bg-info-subtle text-info"><i class="bi bi-person-lines-fill"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.contacts.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.contacts.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="credentials">
-                            <span class="whats-new-module-icon bg-danger-subtle text-danger"><i class="bi bi-key"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.credentials.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.credentials.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="manuals">
-                            <span class="whats-new-module-icon bg-secondary-subtle text-secondary"><i class="bi bi-book"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.manuals.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.manuals.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="inventory">
-                            <span class="whats-new-module-icon bg-warning-subtle text-warning"><i class="bi bi-box-seam"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.inventory.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.inventory.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                        <button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3 whats-new-module-btn" data-goto="media_downloader">
-                            <span class="whats-new-module-icon bg-warning-subtle text-warning"><i class="bi bi-download"></i></span>
-                            <span class="flex-grow-1 text-start">
-                                <strong class="d-block">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</strong>
-                                <small class="text-muted">{{ _('dashboard.whats_new.modules.media_downloader.teaser') }}</small>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="whats-new-panel" data-panel="general">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-secondary-subtle text-secondary"><i class="bi bi-sliders"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.general.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.general.items.accent') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.general.items.alerts') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="dashboard">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-success-subtle text-success"><i class="bi bi-house-door"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.dashboard.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.dashboard.items.whats_new') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="chat">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-primary-subtle text-primary"><i class="bi bi-chat-dots"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.chat.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.chat.items.design') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="files">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-primary-subtle text-primary"><i class="bi bi-folder2-open"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.files.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.files.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.private') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.upload') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.favorites') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.fixes') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.admin_settings') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.upload_limit') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.user_quota') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="calendar">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-success-subtle text-success"><i class="bi bi-calendar3"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.calendar.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.day_view') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.external_sync') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.embed') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.multi_mode') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.fixes') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="events">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning"><i class="bi bi-calendar2-week"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.events.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.events.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.events.items.pdf') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.events.items.fixes') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="email">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-info-subtle text-info"><i class="bi bi-envelope"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.email.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.email.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.email.items.mobile_layout') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.email.items.mobile_nav') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="contacts">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-info-subtle text-info"><i class="bi bi-person-lines-fill"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.contacts.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.contacts.items.design') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="credentials">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-danger-subtle text-danger"><i class="bi bi-key"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.credentials.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.credentials.items.design') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="manuals">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-secondary-subtle text-secondary"><i class="bi bi-book"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.manuals.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.manuals.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.manuals.items.fixes') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="inventory">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning"><i class="bi bi-box-seam"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.inventory.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.inventory.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.inventory.items.borrow') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.inventory.items.colors') }}</li>
-                    </ul>
-                </div>
-
-                <div class="whats-new-panel" data-panel="media_downloader">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <span class="whats-new-module-icon whats-new-module-icon-lg bg-warning-subtle text-warning"><i class="bi bi-download"></i></span>
-                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</h6></div>
-                    </div>
-                    <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.media_downloader.items.fixes') }}</li>
-                    </ul>
-                </div>
-                </div>
-            </div>
-            <div class="modal-footer border-0 pt-0 whats-new-footer">
-                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="whatsNewBackBtn">
-                    <i class="bi bi-arrow-left me-1"></i>{{ _('dashboard.whats_new.back_overview') }}
-                </button>
-                <div class="whats-new-dots" id="whatsNewDots" aria-hidden="true"></div>
-                <div class="d-flex gap-2 whats-new-nav-actions">
-                    <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="whatsNewPrevBtn">
-                        <i class="bi bi-chevron-left"></i>
-                        <span class="d-none d-sm-inline">{{ _('dashboard.whats_new.prev') }}</span>
-                    </button>
-                    <button type="button" class="btn btn-primary btn-sm" id="whatsNewNextBtn">
-                        <span class="d-none d-sm-inline">{{ _('dashboard.whats_new.next') }}</span>
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <button type="button" class="btn btn-primary btn-sm d-none" data-bs-dismiss="modal" id="whatsNewCloseBtn">
-                        {{ _('common.close') }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 dashboard-page" data-dashboard-edit-url="{{ url_for('dashboard.edit') }}">
-    {% set enabled_widgets = dashboard_config.get('enabled_widgets', []) %}
-    
-    <!-- Widgets werden für Gast-Accounts nicht angezeigt -->
-    {% if not current_user.is_guest %}
-    <!-- Upcoming Events Widget -->
-    {% if 'termine' in enabled_widgets and is_module_enabled('module_calendar') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="termine">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('calendar.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-calendar-event widget-icon text-primary"></i>
-                        {{ _('dashboard.widgets.calendar.title') }}
-                    </h5>
-                    <span class="badge bg-primary calendar-badge">{{ upcoming_events|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if upcoming_events %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for event in upcoming_events %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('calendar.view_event', event_id=event.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ event.title }}</h6>
-                                <small class="text-muted">{{ event.start_time.strftime('%d.%m.') }}</small>
-                            </div>
-                                <small class="text-muted">{{ event.start_time.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.calendar.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Unread Messages Widget -->
-    {% if 'nachrichten' in enabled_widgets and is_module_enabled('module_chat') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="nachrichten">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('chat.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-chat-dots widget-icon text-success"></i>
-                        {{ _('dashboard.widgets.chat.title') }}
-                    </h5>
-                    <span class="badge bg-primary notification-badge" id="chat-count-badge">0</span>
-                </div>
-                
-                {% if unread_messages %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for message in unread_messages[:3] %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ message.sender.full_name }}</h6>
-                                <small class="text-muted">{{ message.created_at.strftime('%H:%M') }}</small>
-                            </div>
-                            <p class="mb-0 text-truncate">{{ message.content or _('dashboard.widgets.chat.fallback_file') }}</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.chat.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Recent Emails Widget -->
-    {% if 'emails' in enabled_widgets and is_module_enabled('module_email') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="emails">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('email.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-envelope widget-icon text-info"></i>
-                        {{ _('dashboard.widgets.email.title') }}
-                    </h5>
-                    <span class="badge bg-primary email-badge">{{ recent_emails|length }}</span>
-                </div>
-                
-                {% if recent_emails %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for email in recent_emails[:3] %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('email.view_email', email_id=email.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ email.subject|decode_email_header }}</h6>
-                                {% if not email.is_read %}
-                                <span class="badge bg-danger">{{ _('dashboard.widgets.email.unread_badge') }}</span>
-                                {% endif %}
-                            </div>
-                            <small class="text-muted">{{ email.sender|decode_email_header }}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.email.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Recent Files Widget -->
-    {% if 'dateien' in enabled_widgets and is_module_enabled('module_files') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="dateien">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('files.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-folder widget-icon text-warning"></i>
-                        {{ _('dashboard.widgets.files.title') }}
-                    </h5>
-                    <span class="badge bg-primary files-badge">{{ recent_files|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if recent_files %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for file in recent_files %}
-                        {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
-                        {% set is_onlyoffice_type = file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
-                        {% if onlyoffice_available and is_onlyoffice_type %}
-                            {% set file_url = url_for('files.edit_onlyoffice', file_id=file.id) %}
-                        {% elif file.folder_id %}
-                            {% set file_url = url_for('files.browse_folder', folder_id=file.folder_id) %}
-                        {% elif file.name.endswith(('.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log')) %}
-                            {% set file_url = url_for('files.view_file', file_id=file.id) %}
-                        {% else %}
-                            {% set file_url = url_for('files.download_file', file_id=file.id) %}
-                        {% endif %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); {% if onlyoffice_available and is_onlyoffice_type %}window.open('{{ file_url }}', '_blank');{% else %}location.href='{{ file_url }}';{% endif %}">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ file.original_name }}</h6>
-                                <small class="text-muted">{{ file.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ file.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.files.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Passwort-Favoriten Widget -->
-    {% if 'passwoerter' in enabled_widgets and is_module_enabled('module_credentials') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="passwoerter">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('credentials.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-key widget-icon text-danger"></i>
-                        {{ _('dashboard.widgets.passwords.title') }}
-                    </h5>
-                    <span class="badge bg-primary">{{ favorite_credentials|length }}</span>
-                </div>
-
-                {% if favorite_credentials %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for credential in favorite_credentials %}
-                        <div class="list-group-item px-0">
-                            <div class="d-flex w-100 justify-content-between align-items-start gap-2">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1 text-truncate">{{ credential.website_name }}</h6>
-                                    <button
-                                        type="button"
-                                        class="btn btn-link p-0 text-muted text-start text-decoration-none d-block"
-                                        id="dashboard-user-{{ credential.id }}"
-                                        onclick='event.stopPropagation(); copyDashboardCredentialField({{ credential.id }}, "username", {{ credential.username|tojson }})'
-                                        title="{{ _('dashboard.widgets.passwords.copy_username') }}"
-                                    >
-                                        ••••••••
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-link p-0 text-muted text-start text-decoration-none d-block"
-                                        id="dashboard-pwd-{{ credential.id }}"
-                                        onclick="event.stopPropagation(); copyDashboardCredentialField({{ credential.id }}, 'password')"
-                                        title="{{ _('dashboard.widgets.passwords.copy_password') }}"
-                                    >
-                                        ••••••••
-                                    </button>
-                                </div>
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-outline-secondary"
-                                    onclick='event.stopPropagation(); revealDashboardCredential({{ credential.id }}, {{ credential.username|tojson }})'
-                                    title="{{ _('dashboard.widgets.passwords.reveal') }}"
-                                >
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.passwords.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Neue Wikieinträge Widget -->
-    {% if 'neue_wikieintraege' in enabled_widgets and is_module_enabled('module_wiki') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="neue_wikieintraege">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('wiki.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-journal-text widget-icon text-info"></i>
-                        {{ _('dashboard.widgets.wiki_new.title') }}
-                    </h5>
-                    <span class="badge bg-primary wiki-badge">{{ recent_wiki_pages|length }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if recent_wiki_pages %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for page in recent_wiki_pages %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('wiki.view', slug=page.slug) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ page.title }}</h6>
-                                <small class="text-muted">{{ page.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ page.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.wiki_new.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Meine Wikis Widget -->
-    {% if 'meine_wikis' in enabled_widgets and is_module_enabled('module_wiki') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="meine_wikis">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('wiki.index') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-star-fill widget-icon text-warning"></i>
-                        {{ _('dashboard.widgets.wiki_favorites.title') }}
-                    </h5>
-                    <span class="badge bg-primary favorites-badge">{{ my_wiki_favorites|length }}</span>
-                </div>
-                
-                {% if my_wiki_favorites %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for page in my_wiki_favorites %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('wiki.view', slug=page.slug) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">
-                                    <i class="bi bi-star-fill text-warning me-1"></i>{{ page.title }}
-                                </h6>
-                                <small class="text-muted">{{ page.updated_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ page.updated_at.strftime('%H:%M') }} Uhr</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.wiki_favorites.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Meine Ausleihen Widget -->
-    {% if 'meine_ausleihen' in enabled_widgets and is_module_enabled('module_inventory') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="meine_ausleihen">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('inventory.dashboard') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-box-arrow-right widget-icon text-success"></i>
-                        {{ _('dashboard.widgets.borrows.title') }}
-                    </h5>
-                    <span class="badge bg-primary borrows-badge">{{ my_borrow_groups|length }}</span>
-                </div>
-                
-                {% if my_borrow_groups %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for group in my_borrow_groups %}
-                        <div class="list-group-item px-0 {% if group.is_overdue %}border-danger{% endif %}">
-                            <div class="d-flex w-100 justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date.strftime('%d.%m.%Y')) }}
-                                    </h6>
-                                    <small class="text-muted">
-                                        {{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }}
-                                    </small>
-                                </div>
-                                <div class="text-end">
-                                    {% if group.is_overdue %}
-                                    <span class="badge bg-danger mb-1">{{ _('dashboard.widgets.borrows.overdue') }}</span><br>
-                                    {% endif %}
-                                    <small class="text-muted">
-                                        {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date.strftime('%d.%m.%Y')) }}
-                                    </small>
-                                    <br>
-                                    <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" 
-                                       class="btn btn-sm btn-success mt-2" 
-                                       onclick="event.stopPropagation();"
-                                       title="{{ _('dashboard.widgets.borrows.return_button') }}">
-                                        <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.borrows.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Buchungen Widget -->
-    {% if 'buchungen' in enabled_widgets and is_module_enabled('module_booking') %}
-    <div class="col-12 col-md-6 col-lg-4 d-flex" data-context-zone data-context-menu="dashboard-widget" data-widget-id="buchungen">
-        <div class="card widget h-100 w-100" onclick="location.href='{{ url_for('booking.requests') }}'">
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-calendar-check widget-icon text-primary"></i>
-                        {{ _('dashboard.widgets.bookings.title') }}
-                    </h5>
-                    <span class="badge bg-primary bookings-badge">{{ total_pending_bookings }}</span>
-                </div>
-                
-                {% set time_suffix = _('dashboard.widgets.common.time_suffix') %}
-                {% if new_booking_requests %}
-                    <div class="list-group list-group-flush flex-grow-1">
-                        {% for request in new_booking_requests %}
-                        <div class="list-group-item px-0" onclick="event.stopPropagation(); location.href='{{ url_for('booking.request_detail', request_id=request.id) }}';">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1 text-truncate">{{ request.event_name }}</h6>
-                                <small class="text-muted">{{ request.created_at.strftime('%d.%m.') }}</small>
-                            </div>
-                            <small class="text-muted">{{ request.created_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</small>
-                            {% if request.email %}
-                            <br><small class="text-muted">{{ request.email }}</small>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                        {% if total_pending_bookings > 3 %}
-                        <div class="list-group-item px-0 text-center">
-                            <small class="text-muted">
-                                {{ _('dashboard.widgets.bookings.more_indicator', count=total_pending_bookings - 3) }}
-                            </small>
-                        </div>
-                        {% endif %}
-                    </div>
-                {% else %}
-                    <div class="d-flex align-items-center" style="min-height: 100px;">
-                        <p class="text-muted mb-0 w-100">{{ _('dashboard.widgets.bookings.empty') }}</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
-</div>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-speedometer2"></i>
-                    {{ _('dashboard.quick_access.title') }}
-                </h5>
-                <div class="row g-3 mt-2">
-                    {% set quick_access_links = dashboard_config.get('quick_access_links', []) %}
-                    {% set link_map = {
-                        'files': {'url': url_for('files.index'), 'icon': 'bi-folder', 'label_key': 'layout.nav.files', 'module': 'module_files'},
-                        'credentials': {'url': url_for('credentials.index'), 'icon': 'bi-key', 'label_key': 'layout.nav.credentials', 'module': 'module_credentials'},
-                        'manuals': {'url': url_for('manuals.index'), 'icon': 'bi-book', 'label_key': 'layout.nav.manuals', 'module': 'module_manuals'},
-                        'chat': {'url': url_for('chat.index'), 'icon': 'bi-chat-dots', 'label_key': 'layout.nav.chats', 'module': 'module_chat'},
-                        'calendar': {'url': url_for('calendar.index'), 'icon': 'bi-calendar-event', 'label_key': 'layout.nav.calendar', 'module': 'module_calendar'},
-                        'events': {'url': url_for('events.index'), 'icon': 'bi-calendar2-week', 'label_key': None, 'fallback_label': 'Veranstaltungen', 'module': 'module_events'},
-                        'email': {'url': url_for('email.index'), 'icon': 'bi-envelope', 'label_key': 'layout.nav.email', 'module': 'module_email'},
-                        'contacts': {'url': url_for('contacts.index'), 'icon': 'bi-person-lines-fill', 'label_key': 'layout.nav.contacts', 'module': 'module_contacts'},
-                        'inventory': {'url': url_for('inventory.dashboard'), 'icon': 'bi-box-seam', 'label_key': 'layout.nav.inventory', 'module': 'module_inventory'},
-                        'wiki': {'url': url_for('wiki.index'), 'icon': 'bi-journal-text', 'label_key': 'layout.nav.wiki', 'module': 'module_wiki'},
-                        'shortlinks': {'url': url_for('shortlinks.index'), 'icon': 'bi-link-45deg', 'label_key': None, 'fallback_label': 'Kurzlinks', 'module': 'module_shortlinks'},
-                        'booking': {'url': url_for('booking.requests'), 'icon': 'bi-calendar-check', 'label_key': 'layout.nav.booking', 'module': 'module_booking'},
-                        'music': {'url': url_for('music.index'), 'icon': 'bi-music-note-beamed', 'label_key': 'layout.nav.music', 'module': 'module_music'},
-                        'media_downloader': {'url': url_for('media_downloader.index'), 'icon': 'bi-download', 'label_key': 'layout.nav.media_downloader', 'module': 'module_media_downloader'},
-                        'assessment': {'url': url_for('assessment.general.home'), 'icon': 'bi-clipboard2-check', 'label_key': None, 'fallback_label': 'Bewertung', 'module': 'module_assessment'},
-                        'settings': {'url': url_for('settings.index'), 'icon': 'bi-gear', 'label_key': 'layout.nav.settings', 'module': None},
-                        'profile': {'url': url_for('settings.profile'), 'icon': 'bi-person', 'label_key': 'settings.profile.title', 'module': None},
-                        'logout': {'url': url_for('auth.logout'), 'icon': 'bi-box-arrow-right', 'label_key': 'layout.nav.logout', 'module': None}
-                    } %}
-                    {% if current_user.is_guest %}
-                        {# Für Gäste: Zeige ALLE zugänglichen Module, nicht nur konfigurierte #}
-                        {# Erstelle Mapping von Modul-Schlüssel zu Link-Key #}
-                        {% set module_to_link_key = {
-                            'module_chat': 'chat',
-                            'module_files': 'files',
-                            'module_calendar': 'calendar',
-                            'module_events': 'events',
-                            'module_contacts': 'contacts',
-                            'module_manuals': 'manuals',
-                            'module_inventory': 'inventory',
-                            'module_wiki': 'wiki',
-                            'module_music': 'music',
-                            'module_shortlinks': 'shortlinks',
-                            'module_media_downloader': 'media_downloader',
-                            'module_assessment': 'assessment',
-                            'module_booking': 'booking'
-                        } %}
-                        {# Definiere Reihenfolge für Module (entspricht Navigation) #}
-                        {% set module_order = [
-                            'module_chat',
-                            'module_files',
-                            'module_calendar',
-                            'module_events',
-                            'module_contacts',
-                            'module_manuals',
-                            'module_inventory',
-                            'module_wiki',
-                            'module_music',
-                            'module_shortlinks',
-                            'module_media_downloader',
-                            'module_assessment',
-                            'module_booking'
-                        ] %}
-                        {# Sortiere zugängliche Module nach definierter Reihenfolge #}
-                        {% set sorted_modules = [] %}
-                        {% for module_key in module_order %}
-                            {% if module_key in guest_accessible_modules %}
-                                {% set _ = sorted_modules.append(module_key) %}
-                            {% endif %}
-                        {% endfor %}
-                        {# Zeige alle zugänglichen Module in der richtigen Reihenfolge #}
-                        {% for module_key in sorted_modules %}
-                            {% set link_key = module_to_link_key.get(module_key) %}
-                            {% if link_key and link_key in link_map %}
-                                {% set link = link_map[link_key] %}
-                                {% set should_show = false %}
-                                {# Prüfe spezielle Bedingungen für Chats und Dateien #}
-                                {% if module_key == 'module_chat' %}
-                                    {% if guest_has_chat_access %}
-                                        {% set should_show = true %}
-                                    {% endif %}
-                                {% elif module_key == 'module_files' %}
-                                    {% if guest_has_file_access %}
-                                        {% set should_show = true %}
-                                    {% endif %}
-                                {% else %}
-                                    {# Andere Module: Zeige wenn Modul aktiviert ist #}
-                                    {% if is_module_enabled(module_key) %}
-                                        {% set should_show = true %}
-                                    {% endif %}
-                                {% endif %}
-                                {% if should_show %}
-                                <div class="col-6 col-md-3">
-                                    <a href="{{ link.url }}" class="btn btn-outline-primary w-100">
-                                        <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                        {{ _(link.label_key) if link.label_key else link.fallback_label }}
-                                    </a>
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                        {# Settings und Logout immer anzeigen #}
-                        {% if 'settings' in link_map %}
-                        <div class="col-6 col-md-3">
-                            <a href="{{ link_map['settings'].url }}" class="btn btn-outline-primary w-100">
-                                <i class="bi {{ link_map['settings'].icon }} d-block fs-3 mb-2"></i>
-                                {{ _(link_map['settings'].label_key) }}
-                            </a>
-                        </div>
-                        {% endif %}
-                        {% if 'logout' in link_map %}
-                        <div class="col-6 col-md-3">
-                            <a href="{{ link_map['logout'].url }}" class="btn btn-outline-danger w-100">
-                                <i class="bi {{ link_map['logout'].icon }} d-block fs-3 mb-2"></i>
-                                {{ _(link_map['logout'].label_key) }}
-                            </a>
-                        </div>
-                        {% endif %}
-                    {% else %}
-                        {# Normale Benutzer: Standard-Logik #}
-                        {% for link_key in quick_access_links %}
-                            {% if link_key in link_map %}
-                                {% set link = link_map[link_key] %}
-                                {% if link.module is none or is_module_enabled(link.module) %}
-                                <div class="col-6 col-md-3">
-                                    <a href="{{ link.url }}" class="btn {% if link_key == 'logout' %}btn-outline-danger{% else %}btn-outline-primary{% endif %} w-100">
-                                        <i class="bi {{ link.icon }} d-block fs-3 mb-2"></i>
-                                        {{ _(link.label_key) if link.label_key else link.fallback_label }}
-                                    </a>
-                                </div>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% if not current_user.is_guest %}
-<div class="row mt-4">
-    <div class="col-12 text-center">
-        <a href="{{ url_for('dashboard.edit') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-pencil-square me-2"></i>
-            {{ _('dashboard.quick_access.edit_dashboard') }}
-        </a>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}

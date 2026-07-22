@@ -1,10 +1,12 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Kriterienverwaltung - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-list-check{% endblock %}
+{% block assessment_heading %}Kriterien{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Kriterienverwaltung', icon='ui-checks-grid') }}
 
-    <div class="card mb-3">
+    <div class="assessment-panel mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
         <div class="card-body">
             <label class="form-label">Bewertungsliste</label>
             <select class="form-select" id="listSelect">
@@ -15,7 +17,7 @@
         </div>
     </div>
 
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Kriterium anlegen</h2>
             <form id="criterionForm">
@@ -50,11 +52,11 @@
         'Import gilt für die oben gewählte Bewertungsliste.'
     ) }}
 
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-list-check me-2"></i>Vorhandene Kriterien</h2>
             <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
+                <table class="table assessment-table align-middle mb-0">
                     <thead><tr><th>Name</th><th class="text-center">Max</th><th>Beschreibung</th><th class="text-end">Aktion</th></tr></thead>
                     <tbody id="rows"></tbody>
                 </table>

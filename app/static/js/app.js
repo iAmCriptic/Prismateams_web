@@ -49,69 +49,87 @@ window.ptConfirm = function ptConfirm(message, options) {
     const okBtn = document.getElementById('ptConfirmOkBtn');
     const cancelBtn = document.getElementById('ptConfirmCancelBtn');
     const i18nCommon = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
-
-    if (titleEl) {
-        titleEl.textContent =
-            opts.title ||
-            modalEl.getAttribute('data-i18n-title') ||
-            i18nCommon.confirm_delete_title ||
-            'Löschen bestätigen';
-    }
-    if (msgEl) {
-        msgEl.textContent = String(
-            message ||
-            modalEl.getAttribute('data-i18n-message') ||
-            i18nCommon.confirm_delete_default ||
-            'Möchten Sie dieses Element wirklich löschen?'
-        );
-    }
-    if (okBtn) {
-        okBtn.textContent =
-            opts.confirmLabel ||
-            modalEl.getAttribute('data-i18n-ok') ||
-            i18nCommon.delete ||
-            'Löschen';
-        okBtn.className = opts.danger === false ? 'btn btn-accent' : 'btn btn-danger';
-    }
-    if (cancelBtn) {
-        cancelBtn.textContent =
-            opts.cancelLabel ||
-            modalEl.getAttribute('data-i18n-cancel') ||
-            i18nCommon.cancel ||
-            'Abbrechen';
-    }
-
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: true });
 
-    return new Promise((resolve) => {
-        let settled = false;
-        const finish = (value) => {
-            if (settled) return;
-            settled = true;
-            okBtn?.removeEventListener('click', onOk);
-            modalEl.removeEventListener('hidden.bs.modal', onHidden);
-            resolve(value);
-        };
-        const onOk = () => {
-            finish(true);
-            modal.hide();
-        };
-        const onHidden = () => finish(false);
-        const onShown = () => {
-            modalEl.style.zIndex = '20000';
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            const bd = backdrops[backdrops.length - 1];
-            if (bd) {
-                bd.style.zIndex = '19990';
-                bd.classList.add('pt-confirm-backdrop');
-            }
-        };
+    const applyCopy = () => {
+        if (titleEl) {
+            titleEl.textContent =
+                opts.title ||
+                modalEl.getAttribute('data-i18n-title') ||
+                i18nCommon.confirm_delete_title ||
+                'Löschen bestätigen';
+        }
+        if (msgEl) {
+            msgEl.textContent = String(
+                message ||
+                modalEl.getAttribute('data-i18n-message') ||
+                i18nCommon.confirm_delete_default ||
+                'Möchten Sie dieses Element wirklich löschen?'
+            );
+        }
+        if (okBtn) {
+            okBtn.textContent =
+                opts.confirmLabel ||
+                modalEl.getAttribute('data-i18n-ok') ||
+                i18nCommon.delete ||
+                'Löschen';
+            okBtn.className = opts.danger === false ? 'btn btn-accent' : 'btn btn-danger';
+        }
+        if (cancelBtn) {
+            cancelBtn.textContent =
+                opts.cancelLabel ||
+                modalEl.getAttribute('data-i18n-cancel') ||
+                i18nCommon.cancel ||
+                'Abbrechen';
+        }
+    };
 
-        okBtn?.addEventListener('click', onOk);
-        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
-        modalEl.addEventListener('shown.bs.modal', onShown, { once: true });
-        modal.show();
-    });
+    const openConfirm = () => {
+        applyCopy();
+        return new Promise((resolve) => {
+            let settled = false;
+            let accepted = false;
+            const finish = (value) => {
+                if (settled) return;
+                settled = true;
+                okBtn?.removeEventListener('click', onOk);
+                modalEl.removeEventListener('hidden.bs.modal', onHidden);
+                resolve(value);
+            };
+            // Resolve erst nach fully-hidden, sonst bricht ein zweites ptConfirm
+            // (z.B. Doppel-Bestätigung) durch das hide-Event des ersten Modals ab.
+            const onOk = () => {
+                accepted = true;
+                modal.hide();
+            };
+            const onHidden = () => finish(accepted);
+            const onShown = () => {
+                modalEl.style.zIndex = '20000';
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                const bd = backdrops[backdrops.length - 1];
+                if (bd) {
+                    bd.style.zIndex = '19990';
+                    bd.classList.add('pt-confirm-backdrop');
+                }
+            };
+
+            okBtn?.addEventListener('click', onOk);
+            modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+            modalEl.addEventListener('shown.bs.modal', onShown, { once: true });
+            modal.show();
+        });
+    };
+
+    // Warte, bis ein noch offenes/schließendes Modal fertig ist
+    if (modalEl.classList.contains('show') || modalEl.classList.contains('showing')) {
+        return new Promise((resolve) => {
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                openConfirm().then(resolve);
+            }, { once: true });
+        });
+    }
+
+    return openConfirm();
 };
 
 /**

@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -437,6 +438,9 @@ function updatePreview() {
             throw new Error(data.error);
         }
         preview.innerHTML = data.html;
+        if (window.FilesMarkdownEnhance) {
+            window.FilesMarkdownEnhance.enhance(preview);
+        }
     })
     .catch(error => {
         console.error('Error:', error);
@@ -444,6 +448,10 @@ function updatePreview() {
     });
 }
 </script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/files-markdown-enhance.js') }}"></script>
 {% endblock %}
 
 

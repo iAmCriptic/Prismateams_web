@@ -954,7 +954,7 @@ class StockManager {
             : '';
 
         return `
-            <tr class="inventory-list-row ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+            <tr class="mod-list-row ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
                 <td>
                     <input type="checkbox" class="form-check-input product-checkbox"
                            value="${product.id}" data-product-id="${product.id}"
@@ -962,7 +962,7 @@ class StockManager {
                     ${this.buildProductContextMenuHtml(product)}
                 </td>
                 <td>
-                    <button type="button" class="inventory-list-name btn btn-link text-decoration-none text-start p-0"
+                    <button type="button" class="mod-list-name btn btn-link text-decoration-none text-start p-0"
                             onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
                         <i class="bi bi-box-seam me-2 text-muted"></i>${this.escapeHtml(product.name)}
                     </button>
@@ -975,8 +975,8 @@ class StockManager {
                 <td class="d-none d-lg-table-cell text-muted">${location}</td>
                 <td class="d-none d-xl-table-cell text-muted">${serial}</td>
                 <td class="text-end">
-                    <div class="inventory-list-actions">
-                        <div class="inventory-list-hover-actions">
+                    <div class="mod-list-actions">
+                        <div class="mod-list-hover-actions">
                             <button type="button" class="btn btn-sm btn-link" title="Ansehen"
                                     onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
                                 <i class="bi bi-eye"></i>
@@ -1121,7 +1121,7 @@ class StockManager {
                 listItem.classList.remove('selection-mode');
             }
         }
-        const listRow = checkbox.closest('.inventory-list-row');
+        const listRow = checkbox.closest('.mod-list-row');
         if (listRow) {
             if (isSelected) {
                 listRow.classList.add('selection-mode');
@@ -2424,7 +2424,7 @@ class BorrowsManager {
                 : `<li><a class="dropdown-item" href="${returnHref}"><i class="bi bi-arrow-return-left me-2"></i>Zurückgeben</a></li>`;
 
             return `
-            <tr class="inventory-list-row ${borrow.is_overdue ? 'table-danger' : ''}">
+            <tr class="mod-list-row ${borrow.is_overdue ? 'table-danger' : ''}">
                 <td><code>${borrow.transaction_number}</code></td>
                 <td>${borrow.event_name || '—'}</td>
                 <td><strong>${borrow.product_name || ''}</strong></td>
@@ -2433,8 +2433,8 @@ class BorrowsManager {
                 <td>${borrow.expected_return_date ? new Date(borrow.expected_return_date).toLocaleDateString('de-DE') : '—'}</td>
                 <td>${statusBadge}</td>
                 <td class="text-end">
-                    <div class="inventory-list-actions">
-                        <div class="inventory-list-hover-actions">
+                    <div class="mod-list-actions">
+                        <div class="mod-list-hover-actions">
                             ${hoverReturn}
                             <a class="btn btn-sm btn-link" href="${borrowPdf}" title="Ausleihschein" onclick="event.stopPropagation()">
                                 <i class="bi bi-file-pdf"></i>

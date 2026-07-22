@@ -168,13 +168,14 @@
             const res = await fetch('/api/dashboard/config');
             if (!res.ok) throw new Error('load failed');
             const config = await res.json();
-            const widgets = (config.enabled_widgets || []).filter((w) => w !== widgetId);
             const save = await fetch('/api/dashboard/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    enabled_widgets: widgets,
-                    quick_access_links: config.quick_access_links || []
+                    widgets: config.widgets || [],
+                    remove_widget_id: widgetId,
+                    quick_access_links: config.quick_access_links || [],
+                    mobile_nav_slots: config.mobile_nav_slots || undefined
                 })
             });
             if (!save.ok) throw new Error('save failed');

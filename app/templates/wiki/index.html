@@ -2,99 +2,50 @@
 
 {% block title %}{{ _('wiki.index.page_title') }}{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
-{% endblock %}
-
 {% block content %}
-<div class="wiki-index">
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="mb-0"><i class="bi bi-journal-text"></i> {{ _('wiki.index.heading') }}</h1>
-            <p class="text-muted">{{ _('wiki.index.subtitle') }}</p>
-        </div>
-        <div class="col-auto">
-            <div class="btn-group">
-                {% if favorites_only %}
-                <a href="{{ url_for('wiki.index') }}" class="btn btn-warning" id="favorites-btn">
-                    <i class="bi bi-star-fill" id="favorites-icon"></i> {{ _('wiki.index.buttons.favorites_all') }}
-                </a>
-                {% else %}
-                <a href="{{ url_for('wiki.index') }}?favorites=1" class="btn btn-outline-warning" id="favorites-btn">
-                    <i class="bi bi-star-fill" id="favorites-icon"></i> {{ _('wiki.index.buttons.favorites') }}
-                    {% if my_wiki_favorites|length > 0 %}
-                    <span class="badge bg-warning text-dark ms-1">{{ my_wiki_favorites|length }}</span>
-                    {% endif %}
-                </a>
-                {% endif %}
-                <a href="{{ url_for('wiki.create') }}" class="btn btn-accent">
-                    <i class="bi bi-plus-circle"></i> {{ _('wiki.index.buttons.create') }}
-                </a>
+{% from 'wiki/_sidebar.html' import wiki_sidebar_chrome with context %}
+{% set create_url = url_for('wiki.create') %}
+
+<div class="wiki-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-journal-text" aria-hidden="true"></i>
+        <span>{{ _('wiki.index.heading') }}</span>
+    </div>
+    {{ wiki_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="wikiMobileNav" aria-labelledby="wikiMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="wikiMobileNavLabel">
+            <i class="bi bi-journal-text" aria-hidden="true"></i>
+            <span>{{ _('wiki.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ wiki_sidebar_chrome('-mobile', true) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#wikiMobileNav" aria-controls="wikiMobileNav" aria-label="{{ _('wiki.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-journal-text" aria-hidden="true"></i>
+                    <span>{{ _('wiki.index.heading') }}</span>
+                </h1>
             </div>
+            <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                <i class="bi bi-plus-lg"></i> {{ _('wiki.index.new_button') }}
+            </a>
         </div>
     </div>
-    
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="GET" action="{{ url_for('wiki.index') }}" id="searchForm">
-                {% if favorites_only %}
-                <input type="hidden" name="favorites" value="1">
-                {% endif %}
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" 
-                                   class="form-control" 
-                                   name="q" 
-                                   placeholder="{{ _('wiki.index.search.placeholder') }}" 
-                                   value="{{ search_query }}">
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <select class="form-select" name="category" id="categoryFilter">
-                            <option value="">{{ _('wiki.index.search.category_all') }}</option>
-                            {% for category in categories %}
-                            <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
-                                {{ category.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <select class="form-select" name="tag" id="tagFilter">
-                            <option value="">{{ _('wiki.index.search.tag_all') }}</option>
-                            {% for tag in tags %}
-                            <option value="{{ tag.id }}" {% if selected_tag == tag.id %}selected{% endif %}>
-                                {{ tag.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-12 col-md-6">
-                        <select class="form-select form-select-sm" name="sort" id="sortFilter">
-                            <option value="updated" {% if sort_by == 'updated' %}selected{% endif %}>{{ _('wiki.index.search.sort.updated') }}</option>
-                            <option value="created" {% if sort_by == 'created' %}selected{% endif %}>{{ _('wiki.index.search.sort.created') }}</option>
-                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>{{ _('wiki.index.search.sort.title') }}</option>
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-6 text-end">
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="bi bi-search"></i> {{ _('wiki.index.search.submit') }}
-                        </button>
-                        {% if search_query or selected_category or selected_tag %}
-                        <a href="{{ url_for('wiki.index') }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-x"></i> {{ _('wiki.index.search.reset') }}
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    
+
     {% if pages %}
     <div class="row g-3">
         {% for page in pages %}
@@ -138,13 +89,13 @@
                             </ul>
                         </div>
                     </div>
-                    
+
                     {% if page.category %}
                     <span class="badge" style="background-color: {{ page.category.color or '#0d6efd' }}">
                         {{ page.category.name }}
                     </span>
                     {% endif %}
-                    
+
                     {% if page.tags %}
                     <div class="mt-2">
                         {% for tag in page.tags %}
@@ -152,7 +103,7 @@
                         {% endfor %}
                     </div>
                     {% endif %}
-                    
+
                     <p class="card-text text-muted small mt-2 mb-0">
                         <i class="bi bi-person"></i> {{ _('wiki.index.card.created_by', name=page.creator.full_name) }}<br>
                         <i class="bi bi-calendar"></i> {{ _('wiki.index.card.updated_at', date=page.updated_at | localtime('%d.%m.%Y %H:%M')) }}
@@ -166,15 +117,18 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
-        {% if search_query or selected_category or selected_tag %}
-        {{ _('wiki.index.empty.filtered') }}
-        {% else %}
-        {{ _('wiki.index.empty.default') }}
-        {% endif %}
+    <div class="mod-empty-state">
+        <div>
+            <i class="bi bi-journal-text display-6 d-block mb-2 opacity-50"></i>
+            {% if search_query or selected_category or selected_tag or favorites_only %}
+            {{ _('wiki.index.empty.filtered') }}
+            {% else %}
+            {{ _('wiki.index.empty.default') }}
+            {% endif %}
+        </div>
     </div>
     {% endif %}
+</div>
 </div>
 {% endblock %}
 
@@ -185,23 +139,33 @@ const WIKI_INDEX_CARD = WIKI_INDEX_I18N.card || {};
 const WIKI_INDEX_JS = WIKI_INDEX_I18N.js || {};
 
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-wiki-dismiss-offcanvas]').forEach(function(el) {
+        el.addEventListener('click', function() {
+            const offcanvasEl = document.getElementById('wikiMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                const instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+
     const favoriteItems = document.querySelectorAll('.toggle-favorite-item');
     favoriteItems.forEach(item => {
         const pageId = item.getAttribute('data-page-id');
         if (!pageId) return;
-        
+
         fetch(`/wiki/api/favorite/check/${pageId}`)
             .then(response => response.json())
             .then(data => {
                 updateFavoriteUI(pageId, data.is_favorite);
             });
-        
+
         item.addEventListener('click', function(e) {
             e.preventDefault();
             const icon = document.querySelector(`.favorite-icon-${pageId}`);
             const isFavorite = icon.classList.contains('bi-star-fill');
             const method = isFavorite ? 'DELETE' : 'POST';
-            
+
             fetch(`/wiki/api/favorite/${pageId}`, {
                 method: method,
                 headers: {
@@ -212,12 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     updateFavoriteUI(pageId, data.is_favorite);
-                    const toast = document.createElement('div');
-                    toast.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
-                    toast.style.zIndex = '9999';
-                    toast.textContent = data.message || '';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
+                    window.location.reload();
                 } else if (data.error) {
                     alert(data.error);
                 } else {
@@ -230,12 +189,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
-    
+
     function updateFavoriteUI(pageId, isFavorite) {
         const icon = document.querySelector(`.favorite-icon-${pageId}`);
         const text = document.querySelector(`.favorite-text-${pageId}`);
         if (!icon || !text) return;
-        
+
         if (isFavorite) {
             icon.classList.remove('bi-star');
             icon.classList.add('bi-star-fill');

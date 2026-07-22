@@ -1,16 +1,8 @@
-{% extends "base.html" %}
+{% extends "settings/base_settings.html" %}
 
 {% block title %}E-Mail-Einstellungen - Administration{% endblock %}
 
-{% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.index') }}">Einstellungen</a></li>
-        <li class="breadcrumb-item"><a href="{{ url_for('settings.admin') }}">Administration</a></li>
-        <li class="breadcrumb-item active">E-Mail-Einstellungen</li>
-    </ol>
-</nav>
-
+{% block settings_content %}
 <div class="card">
     <div class="card-header">
         <h4 class="mb-0">

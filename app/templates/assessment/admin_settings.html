@@ -1,12 +1,14 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Einstellungen – Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-sliders{% endblock %}
+{% block assessment_heading %}Einstellungen{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Bewertungsmodul-Einstellungen', 'Texte, Ranking und Darstellung', 'sliders') }}
 
 <div class="row g-3">
     <div class="col-lg-7">
-        <div class="card h-100">
+        <div class="assessment-panel h-100">
             <div class="card-body">
                 <h2 class="h5 card-title"><i class="bi bi-card-text text-primary me-2"></i>Inhalte</h2>
                 <form id="settingsForm" class="row g-3">
@@ -35,7 +37,7 @@
     </div>
 
     <div class="col-lg-5">
-        <div class="card h-100">
+        <div class="assessment-panel h-100">
             <div class="card-body">
                 <h2 class="h5 card-title"><i class="bi bi-moon-stars text-primary me-2"></i>Darstellung</h2>
                 {% if show_assessment_appearance %}
@@ -63,7 +65,7 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block assessment_extra_js %}
 <script>
 async function loadSettings() {
     const res = await fetch('/assessment/api/admin_settings');

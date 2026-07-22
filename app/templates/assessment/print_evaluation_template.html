@@ -2,7 +2,7 @@
 {% block title %}Leerer Bewertungsbogen{% endblock %}
 
 {% block document_title %}Leerer Bewertungsbogen{% endblock %}
-{% block document_subtitle %}<small>Zum Ausfüllen drucken</small>{% endblock %}
+{% block document_subtitle %}<p class="subtitle">Zum Ausfüllen drucken{% if evaluation_list %} · {{ evaluation_list.name }}{% endif %}</p>{% endblock %}
 
 {% block extra_style %}
 <style>

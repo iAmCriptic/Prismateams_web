@@ -3,736 +3,585 @@
 {% block title %}{{ _('music.common.title') }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12 mb-4 d-flex justify-content-between align-items-center">
-            <h2 class="mb-0"><i class="bi bi-music-note-beamed"></i> {{ _('music.common.title') }}</h2>
-            <div class="btn-group">
-                <a href="{{ url_for('music.public_url_page') }}" class="btn btn-primary" target="_blank">
-                    <i class="bi bi-link-45deg"></i> {{ _('music.index.public_url_button') }}
-                </a>
-                <button class="btn btn-danger" onclick="resetAll()">
-                    <i class="bi bi-arrow-counterclockwise"></i> {{ _('music.index.reset_all') }}
+{% from 'music/_sidebar.html' import music_sidebar_chrome, music_wish_count_badge, music_cover with context %}
+{% set sort_by = sort_by|default('created') %}
+{% set sort_dir = sort_dir|default('desc') %}
+
+<div class="music-shell mod-shell--nav"
+     data-music-sort="{{ sort_by }}"
+     data-music-dir="{{ sort_dir }}">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
+        <span>{{ _('music.common.title') }}</span>
+    </div>
+    {{ music_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="musicMobileNav" aria-labelledby="musicMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="musicMobileNavLabel">
+            <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
+            <span>{{ _('music.common.title') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ music_sidebar_chrome('-mobile', true) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#musicMobileNav" aria-controls="musicMobileNav" aria-label="{{ _('music.index.nav.menu') }}">
+                    <i class="bi bi-list"></i>
                 </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
+                    <span>{{ _('music.common.title') }}</span>
+                </h1>
             </div>
+            <a href="{{ url_for('music.public_url_page') }}" class="btn music-public-url-pill music-public-url-pill--sm rounded-pill flex-shrink-0" target="_blank" rel="noopener">
+                <i class="bi bi-link-45deg"></i>
+            </a>
         </div>
     </div>
-    
-    <!-- Tab Navigation -->
-    <ul class="nav nav-tabs mb-4" id="musicTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="wishlist-tab" data-bs-toggle="tab" data-bs-target="#wishlist" type="button" role="tab" aria-controls="wishlist" aria-selected="true">
-                <i class="bi bi-heart"></i> {{ _('music.index.tabs.wishlist') }}
-                <span class="badge bg-primary ms-2">{{ wish_count }}</span>
+
+    <div class="music-panel-header d-flex align-items-center justify-content-between gap-2 mb-3">
+        <h1 class="h5 h4-lg mb-0 mod-view-heading" id="musicViewHeading">
+            <i class="bi bi-heart" aria-hidden="true"></i>
+            <span>{{ _('music.index.tabs.wishlist') }}</span>
+        </h1>
+        <div class="music-panel-actions">
+            <button type="button" class="btn btn-sm music-clear-btn rounded-pill" id="musicClearWishlistBtn" onclick="clearWishlist()" {% if not wishes %}hidden{% endif %}>
+                <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">{{ _('music.index.wishlist.clear') }}</span>
             </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab" aria-controls="queue" aria-selected="false">
-                <i class="bi bi-list-ol"></i> {{ _('music.index.tabs.queue') }}
-                <span class="badge bg-primary ms-2">{{ queue_count }}</span>
+            <button type="button" class="btn btn-sm music-clear-btn rounded-pill" id="musicClearQueueBtn" onclick="clearQueue()" hidden>
+                <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">{{ _('music.index.queue.clear') }}</span>
             </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="played-tab" data-bs-toggle="tab" data-bs-target="#played" type="button" role="tab" aria-controls="played" aria-selected="false">
-                <i class="bi bi-check-circle"></i> {{ _('music.index.tabs.played') }}
-                <span class="badge bg-secondary ms-2">{{ played_count }}</span>
+            <button type="button" class="btn btn-sm music-clear-btn rounded-pill" id="musicClearPlayedBtn" onclick="clearPlayed()" hidden>
+                <i class="bi bi-trash"></i> <span class="d-none d-sm-inline">{{ _('music.index.played.clear') }}</span>
             </button>
-        </li>
-    </ul>
-    
-    <!-- Tab Content -->
-    <div class="tab-content" id="musicTabContent">
-        <!-- Wunschliste Tab -->
-        <div class="tab-pane fade show active" id="wishlist" role="tabpanel" aria-labelledby="wishlist-tab">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-heart"></i> {{ _('music.index.wishlist.title') }}</h5>
-                    <div>
-                        {% if wishes|length > 0 %}
-                        <button class="btn btn-sm btn-outline-danger" onclick="clearWishlist()">
-                            <i class="bi bi-trash"></i> {{ _('music.index.wishlist.clear') }}
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="list-group" id="wishlist-list">
-                        {% if wishes and wishes|length > 0 %}
-                        {% for wish in wishes %}
-                        <div class="list-group-item" data-wish-id="{{ wish.id }}">
-                            <div class="d-flex align-items-center">
-                                <div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-music-note" style="color: #000000;"></i>
-                                    {% if wish.image_url %}
-                                    <img data-src="{{ wish.image_url }}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';">
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{ wish.title }}
-                                        {% set wish_count = wish.wish_count or 1 %}
-                                        {% if wish_count > 1 %}
-                                            {% if wish_count <= 3 %}
-                                                <span class="badge bg-primary ms-2">{{ wish_count }}x</span>
-                                            {% elif wish_count <= 5 %}
-                                                <span class="badge bg-warning ms-2">{{ wish_count }}x</span>
-                                            {% else %}
-                                                <span class="badge bg-danger ms-2">{{ wish_count }}x</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
-                                        {% endif %}
-                                    </h6>
-                                    <p class="text-muted mb-1 small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
-                                    <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
-                                </div>
-                                <div class="btn-group-vertical btn-group-sm">
-                                    <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
-                                        <i class="bi bi-arrow-up-circle"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
-                                        <i class="bi bi-arrow-down-circle"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" onclick="markAsPlayed({{ wish.id }})" title="{{ _('music.index.wishlist.mark_played') }}">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <p class="text-muted text-center py-4">{{ _('music.index.wishlist.empty') }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Warteschlange Tab -->
-        <div class="tab-pane fade" id="queue" role="tabpanel" aria-labelledby="queue-tab">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-list-ol"></i> {{ _('music.index.queue.title') }}</h5>
-                    <div>
-                        {% if queue|length > 0 %}
-                        <button class="btn btn-sm btn-outline-danger" onclick="clearQueue()">
-                            <i class="bi bi-trash"></i> {{ _('music.index.queue.clear') }}
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if playing %}
-                    <div class="alert alert-info mb-3">
-                        <strong><i class="bi bi-play-circle"></i> {{ _('music.index.queue.playing') }}</strong><br>
-                        {{ playing.wish.title }} - {{ playing.wish.artist or _('music.index.wishlist.unknown_artist') }}
-                    </div>
-                    {% endif %}
-                    
-                    <div class="list-group" id="queue-list">
-                        {% if queue and queue|length > 0 %}
-                        {% for entry in queue %}
-                        <div class="list-group-item queue-item" data-queue-id="{{ entry.id }}" data-position="{{ entry.position }}" draggable="true">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-grip-vertical text-muted me-2" style="cursor: move;"></i>
-                                <span class="badge bg-secondary me-2">{{ entry.position }}</span>
-                                <div class="me-3 position-relative" style="width: 48px; height: 48px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-music-note" style="color: #000000;"></i>
-                                    {% if entry.wish.image_url %}
-                                    <img data-src="{{ entry.wish.image_url }}" alt="Cover" class="lazy-image position-absolute" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; top: 0; left: 0; opacity: 0; transition: opacity 0.3s;" onerror="this.onerror=null; this.style.display='none';" onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';">
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{ entry.wish.title }}
-                                        {% set wish_count = entry.wish.wish_count or 1 %}
-                                        {% if wish_count > 1 %}
-                                            {% if wish_count <= 3 %}
-                                                <span class="badge bg-primary ms-2">{{ wish_count }}x</span>
-                                            {% elif wish_count <= 5 %}
-                                                <span class="badge bg-warning ms-2">{{ wish_count }}x</span>
-                                            {% else %}
-                                                <span class="badge bg-danger ms-2">{{ wish_count }}x</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="badge bg-secondary ms-2">{{ wish_count }}x</span>
-                                        {% endif %}
-                                    </h6>
-                                    <p class="text-muted mb-1 small">{{ entry.wish.artist or _('music.index.wishlist.unknown_artist') }}</p>
-                                    <span class="badge bg-{{ 'success' if entry.wish.provider == 'spotify' else 'danger' }} provider-badge">{{ entry.wish.provider }}</span>
-                                </div>
-                                <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue({{ entry.id }})">
-                                    <i class="bi bi-x"></i>
-                                </button>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <p class="text-muted text-center py-4">{{ _('music.index.queue.empty') }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Bereits Gespielt Tab -->
-        <div class="tab-pane fade" id="played" role="tabpanel" aria-labelledby="played-tab">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-check-circle"></i> {{ _('music.index.played.title') }}</h5>
-                </div>
-                <div class="card-body">
-                    <!-- Wird per Lazy Loading geladen -->
-                    <div class="list-group">
-                        <p class="text-muted text-center py-4">
-                            <i class="bi bi-info-circle"></i> {{ _('music.index.played.loading_hint') }}
-                        </p>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
+
+    <!-- Wunschliste -->
+    <div class="music-panel" id="wishlist" data-music-panel="wishlist" role="tabpanel">
+        <div class="music-track-list" id="wishlist-list">
+            {% if wishes and wishes|length > 0 %}
+            {% for wish in wishes %}
+            <div class="music-track-item" data-wish-id="{{ wish.id }}">
+                <div class="music-track-row">
+                    {{ music_cover(wish.image_url) }}
+                    <div class="music-track-meta flex-grow-1 min-width-0">
+                        <div class="music-track-title">
+                            {{ wish.title }}
+                            {{ music_wish_count_badge(wish.wish_count) }}
+                        </div>
+                        <div class="music-track-artist text-muted small">{{ wish.artist or _('music.index.wishlist.unknown_artist') }}</div>
+                        <span class="badge bg-{{ 'success' if wish.provider == 'spotify' else 'danger' }} provider-badge">{{ wish.provider }}</span>
+                    </div>
+                    <div class="music-track-actions">
+                        <button class="btn btn-sm btn-success" onclick="addToQueue({{ wish.id }}, 'next')" title="{{ _('music.index.wishlist.add_next') }}">
+                            <i class="bi bi-arrow-up-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="addToQueue({{ wish.id }}, 'last')" title="{{ _('music.index.wishlist.add_last') }}">
+                            <i class="bi bi-arrow-down-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="markAsPlayed({{ wish.id }})" title="{{ _('music.index.wishlist.mark_played') }}">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="music-empty text-muted text-center py-4">{{ _('music.index.wishlist.empty') }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Warteschlange -->
+    <div class="music-panel d-none" id="queue" data-music-panel="queue" role="tabpanel" hidden>
+        {% if playing %}
+        <div class="music-now-playing mb-3">
+            <strong><i class="bi bi-play-circle"></i> {{ _('music.index.queue.playing') }}</strong>
+            <span>{{ playing.wish.title }} — {{ playing.wish.artist or _('music.index.wishlist.unknown_artist') }}</span>
+        </div>
+        {% endif %}
+        <div class="music-track-list" id="queue-list">
+            {% if queue and queue|length > 0 %}
+            {% for entry in queue %}
+            <div class="music-track-item queue-item" data-queue-id="{{ entry.id }}" data-position="{{ entry.position }}" draggable="true">
+                <div class="music-track-row">
+                    <i class="bi bi-grip-vertical text-muted music-drag-handle" aria-hidden="true"></i>
+                    <span class="badge bg-secondary music-position-badge">{{ entry.position }}</span>
+                    {{ music_cover(entry.wish.image_url) }}
+                    <div class="music-track-meta flex-grow-1 min-width-0">
+                        <div class="music-track-title">
+                            {{ entry.wish.title }}
+                            {{ music_wish_count_badge(entry.wish.wish_count) }}
+                        </div>
+                        <div class="music-track-artist text-muted small">{{ entry.wish.artist or _('music.index.wishlist.unknown_artist') }}</div>
+                        <span class="badge bg-{{ 'success' if entry.wish.provider == 'spotify' else 'danger' }} provider-badge">{{ entry.wish.provider }}</span>
+                    </div>
+                    <div class="music-track-actions">
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromQueue({{ entry.id }})" title="{{ _('music.index.queue.remove') }}">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="music-empty text-muted text-center py-4">{{ _('music.index.queue.empty') }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bereits gespielt -->
+    <div class="music-panel d-none" id="played" data-music-panel="played" role="tabpanel" hidden>
+        <div class="music-track-list list-group" id="played-list">
+            <p class="music-empty text-muted text-center py-4">
+                <i class="bi bi-info-circle"></i> {{ _('music.index.played.loading_hint') }}
+            </p>
+        </div>
+    </div>
+</div>
 </div>
 
 <script src="{{ url_for('static', filename='js/music.js') }}"></script>
 <script>
-    // Globale Funktionen - außerhalb von DOMContentLoaded
     const translations = {
         markAsPlayedConfirm: {{ _('music.index.confirmations.mark_as_played') | tojson }},
         removeFromQueueConfirm: {{ _('music.index.confirmations.remove_from_queue') | tojson }},
         clearQueueConfirm: {{ _('music.index.confirmations.clear_queue') | tojson }},
         clearWishlistConfirm: {{ _('music.index.confirmations.clear_wishlist') | tojson }},
+        clearPlayedConfirm: {{ _('music.index.confirmations.clear_played') | tojson }},
         resetAllConfirm: {{ _('music.index.confirmations.reset_all') | tojson }},
         resetAllConfirm2: {{ _('music.index.confirmations.reset_all_confirm') | tojson }},
         errorGeneric: {{ _('music.index.errors.generic') | tojson }},
         errorUnknown: {{ _('music.index.errors.unknown') | tojson }},
         noWishes: {{ _('music.index.wishlist.empty') | tojson }},
-        queueEmpty: {{ _('music.index.queue.empty') | tojson }}
+        queueEmpty: {{ _('music.index.queue.empty') | tojson }},
+        playedEmpty: {{ _('music.index.played.empty') | tojson }},
+        clearWishlistLabel: {{ _('music.index.wishlist.clear') | tojson }},
+        clearQueueLabel: {{ _('music.index.queue.clear') | tojson }},
+        clearPlayedLabel: {{ _('music.index.played.clear') | tojson }},
+        tabWishlist: {{ _('music.index.tabs.wishlist') | tojson }},
+        tabQueue: {{ _('music.index.tabs.queue') | tojson }},
+        tabPlayed: {{ _('music.index.tabs.played') | tojson }},
+        confirmTitle: {{ _('music.index.confirmations.title') | tojson }},
+        resetTitle: {{ _('music.index.confirmations.reset_title') | tojson }},
+        confirmOk: {{ _('common.confirm') | tojson }},
+        resetOk: {{ _('music.index.reset_all') | tojson }},
+        cancelLabel: {{ _('common.cancel') | tojson }}
     };
-    
-    function markAsPlayed(wishId) {
-        console.log('markAsPlayed aufgerufen:', wishId);
-        if (!confirm(translations.markAsPlayedConfirm)) {
+
+    function musicConfirm(message, options) {
+        const opts = Object.assign({
+            title: translations.confirmTitle,
+            confirmLabel: translations.confirmOk,
+            cancelLabel: translations.cancelLabel,
+            danger: true
+        }, options || {});
+        if (typeof window.ptConfirm === 'function') {
+            return window.ptConfirm(message, opts);
+        }
+        return Promise.resolve(window.confirm(String(message || '')));
+    }
+
+    function musicAlert(message, category) {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(message, category || 'danger');
             return;
         }
-        
-        // Button deaktivieren während Request läuft
+        window.alert(String(message || ''));
+    }
+
+    function musicError(error) {
+        musicAlert(translations.errorGeneric.replace('{error}', error || translations.errorUnknown), 'danger');
+    }
+
+    async function markAsPlayed(wishId) {
+        const ok = await musicConfirm(translations.markAsPlayedConfirm, {
+            confirmLabel: translations.confirmOk
+        });
+        if (!ok) return;
+
         const button = event?.target?.closest('button');
         const originalHTML = button?.innerHTML;
         if (button) {
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
-        
-        fetch('/music/wishlist/mark-as-played', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                wish_id: wishId
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+
+        try {
+            const response = await fetch('/music/wishlist/mark-as-played', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wish_id: wishId })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Invalidiere Cache für SSE-Updates
-                if (typeof invalidateCache === 'function') {
-                    invalidateCache('wishlist');
-                    invalidateCache('played');
-                    invalidateCache('queue');
-                }
-                
-                // Optimistisches Update: Entferne Wunsch sofort aus der Anzeige
-                const wishItem = document.querySelector(`#wishlist-list [data-wish-id="${wishId}"]`);
-                if (wishItem) {
-                    wishItem.style.transition = 'opacity 0.3s';
-                    wishItem.style.opacity = '0.5';
-                    setTimeout(() => wishItem.remove(), 300);
-                }
-                
-                // Prüfe ob Liste jetzt leer ist
-                const wishlistContainer = document.querySelector('#wishlist-list');
-                if (wishlistContainer) {
-                    const remainingItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
-                    if (remainingItems.length <= 1) {  // <= 1 weil current item noch da ist
-                        setTimeout(() => {
-                            const finalItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
-                            if (finalItems.length === 0) {
-                                wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.noWishes + '</p>';
-                            }
-                        }, 350);
-                    }
-                }
-                
-                // SSE-Event wird die korrekten Updates senden (inkl. genauer Badge-Zahlen)
-                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Daten neu
+            if (typeof invalidateCache === 'function') {
+                invalidateCache('wishlist');
+                invalidateCache('played');
+                invalidateCache('queue');
+            }
+            const wishItem = document.querySelector(`#wishlist-list [data-wish-id="${wishId}"]`);
+            if (wishItem) {
+                wishItem.style.transition = 'opacity 0.3s';
+                wishItem.style.opacity = '0.5';
+                setTimeout(() => wishItem.remove(), 300);
+            }
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
                 setTimeout(() => {
-                    if (typeof updateWishlistBadge === 'function') {
-                        updateWishlistBadge();
+                    const finalItems = wishlistContainer.querySelectorAll('[data-wish-id]');
+                    if (finalItems.length === 0) {
+                        wishlistContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.noWishes + '</p>';
                     }
-                    if (typeof updatePlayedBadge === 'function') {
-                        updatePlayedBadge();
-                    }
-                }, 2000);
-                
-                console.log('Lied als gespielt markiert - SSE-Update wird kommen');
-            } else {
-                const errorMsg = data.error || translations.errorUnknown;
-                alert(translations.errorGeneric.replace('{error}', errorMsg));
+                }, 350);
             }
-        })
-        .catch(error => {
-            console.error('Fehler beim Markieren als gespielt:', error);
-            alert(translations.errorGeneric.replace('{error}', error.message));
-        })
-        .finally(() => {
-            // Button wieder aktivieren
+            setTimeout(() => {
+                if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
+                if (typeof updatePlayedBadge === 'function') updatePlayedBadge();
+            }, 2000);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
             if (button) {
                 button.disabled = false;
-                if (originalHTML) {
-                    button.innerHTML = originalHTML;
-                }
+                if (originalHTML) button.innerHTML = originalHTML;
             }
-        });
+        }
     }
-    
-    function addToQueue(wishId, position) {
-        console.log('addToQueue aufgerufen:', wishId, position);
-        
-        // Button deaktivieren während Request läuft
+
+    async function addToQueue(wishId, position) {
         const button = event?.target?.closest('button');
         const originalHTML = button?.innerHTML;
         if (button) {
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
-        
-        fetch('/music/wishlist/add-to-queue', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                wish_id: wishId,
-                position: position
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+
+        try {
+            const response = await fetch('/music/wishlist/add-to-queue', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wish_id: wishId, position: position })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Invalidiere Cache für SSE-Updates
-                if (typeof invalidateCache === 'function') {
-                    invalidateCache('wishlist');
-                    invalidateCache('queue');
-                }
-                
-                // Optimistisches Update: Entferne Wunsch sofort aus der Wishlist-Anzeige
-                const wishItem = document.querySelector(`#wishlist-list [data-wish-id="${wishId}"]`);
-                if (wishItem) {
-                    wishItem.style.transition = 'opacity 0.3s';
-                    wishItem.style.opacity = '0.5';
-                    setTimeout(() => wishItem.remove(), 300);
-                }
-                
-                // Prüfe ob Wishlist jetzt leer ist
-                const wishlistContainer = document.querySelector('#wishlist-list');
-                if (wishlistContainer) {
-                    const remainingItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
-                    if (remainingItems.length <= 1) {
-                        setTimeout(() => {
-                            const finalItems = wishlistContainer.querySelectorAll('.list-group-item[data-wish-id]');
-                            if (finalItems.length === 0) {
-                                wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.noWishes + '</p>';
-                            }
-                        }, 350);
-                    }
-                }
-                
-                // SSE-Event wird die Queue vollständig aktualisieren (inkl. korrekter Positionen)
-                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
+            if (typeof invalidateCache === 'function') {
+                invalidateCache('wishlist');
+                invalidateCache('queue');
+            }
+            const wishItem = document.querySelector(`#wishlist-list [data-wish-id="${wishId}"]`);
+            if (wishItem) {
+                wishItem.style.transition = 'opacity 0.3s';
+                wishItem.style.opacity = '0.5';
+                setTimeout(() => wishItem.remove(), 300);
+            }
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
                 setTimeout(() => {
-                    if (typeof updateQueueDisplay === 'function') {
-                        updateQueueDisplay();
+                    const finalItems = wishlistContainer.querySelectorAll('[data-wish-id]');
+                    if (finalItems.length === 0) {
+                        wishlistContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.noWishes + '</p>';
                     }
-                    if (typeof updateWishlistBadge === 'function') {
-                        updateWishlistBadge();
-                    }
-                }, 2000);
-                
-                console.log('Lied zur Queue hinzugefügt - SSE-Update wird kommen');
-            } else {
-                const errorMsg = data.error || translations.errorUnknown;
-                alert(translations.errorGeneric.replace('{error}', errorMsg));
+                }, 350);
             }
-        })
-        .catch(error => {
-            console.error('Fehler beim Hinzufügen zur Warteschlange:', error);
-            alert(translations.errorGeneric.replace('{error}', error.message));
-        })
-        .finally(() => {
-            // Button wieder aktivieren
+            setTimeout(() => {
+                if (typeof updateQueueDisplay === 'function') updateQueueDisplay();
+                if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
+            }, 2000);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
             if (button) {
                 button.disabled = false;
-                if (originalHTML) {
-                    button.innerHTML = originalHTML;
-                }
+                if (originalHTML) button.innerHTML = originalHTML;
             }
-        });
-    }
-    
-    function removeFromQueue(queueId) {
-        console.log('removeFromQueue aufgerufen:', queueId);
-        if (!confirm(translations.removeFromQueueConfirm)) {
-            return;
         }
-        
-        // Button deaktivieren während Request läuft
+    }
+
+    async function removeFromQueue(queueId) {
+        const ok = await musicConfirm(translations.removeFromQueueConfirm);
+        if (!ok) return;
+
         const button = event?.target?.closest('button');
         const originalHTML = button?.innerHTML;
         if (button) {
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
-        
-        fetch('/music/queue/remove', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                queue_id: queueId
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+
+        try {
+            const response = await fetch('/music/queue/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ queue_id: queueId })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Invalidiere Cache für SSE-Updates
-                if (typeof invalidateCache === 'function') {
-                    invalidateCache('queue');
-                }
-                
-                // Optimistisches Update: Entferne Queue-Item sofort
-                const queueItem = document.querySelector(`#queue-list [data-queue-id="${queueId}"]`);
-                if (queueItem) {
-                    queueItem.style.transition = 'opacity 0.3s';
-                    queueItem.style.opacity = '0.5';
-                    setTimeout(() => queueItem.remove(), 300);
-                }
-                
-                // Prüfe ob Queue jetzt leer ist
-                const queueContainer = document.querySelector('#queue-list');
-                if (queueContainer) {
-                    const remainingItems = queueContainer.querySelectorAll('.queue-item[data-queue-id]');
-                    if (remainingItems.length <= 1) {
-                        setTimeout(() => {
-                            const finalItems = queueContainer.querySelectorAll('.queue-item[data-queue-id]');
-                            if (finalItems.length === 0) {
-                                queueContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.queueEmpty + '</p>';
-                            }
-                        }, 350);
-                    }
-                }
-                
-                // SSE-Event wird die Queue vollständig aktualisieren (inkl. korrekter Positionen)
-                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
+            if (typeof invalidateCache === 'function') invalidateCache('queue');
+            const queueItem = document.querySelector(`#queue-list [data-queue-id="${queueId}"]`);
+            if (queueItem) {
+                queueItem.style.transition = 'opacity 0.3s';
+                queueItem.style.opacity = '0.5';
+                setTimeout(() => queueItem.remove(), 300);
+            }
+            const queueContainer = document.querySelector('#queue-list');
+            if (queueContainer) {
                 setTimeout(() => {
-                    if (typeof updateQueueDisplay === 'function') {
-                        updateQueueDisplay();
+                    const finalItems = queueContainer.querySelectorAll('.queue-item[data-queue-id]');
+                    if (finalItems.length === 0) {
+                        queueContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.queueEmpty + '</p>';
                     }
-                }, 2000);
-                
-                console.log('Lied aus Queue entfernt - SSE-Update wird kommen');
-            } else {
-                const errorMsg = data.error || translations.errorUnknown;
-                alert(translations.errorGeneric.replace('{error}', errorMsg));
+                }, 350);
             }
-        })
-        .catch(error => {
-            console.error('Fehler beim Entfernen aus der Warteschlange:', error);
-            alert(translations.errorGeneric.replace('{error}', error.message));
-        })
-        .finally(() => {
-            // Button wieder aktivieren
+            setTimeout(() => {
+                if (typeof updateQueueDisplay === 'function') updateQueueDisplay();
+            }, 2000);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
             if (button) {
                 button.disabled = false;
-                if (originalHTML) {
-                    button.innerHTML = originalHTML;
-                }
+                if (originalHTML) button.innerHTML = originalHTML;
             }
-        });
-    }
-    
-    function clearQueue() {
-        console.log('clearQueue aufgerufen');
-        if (!confirm(translations.clearQueueConfirm)) {
-            return;
         }
-        
-        // Button deaktivieren während Request läuft
-        const button = event?.target?.closest('button');
+    }
+
+    async function clearQueue() {
+        const ok = await musicConfirm(translations.clearQueueConfirm, {
+            confirmLabel: translations.clearQueueLabel
+        });
+        if (!ok) return;
+
+        const button = (typeof event !== 'undefined' && event?.target)
+            ? event.target.closest('button')
+            : document.getElementById('musicClearQueueBtn');
         const originalHTML = button?.innerHTML;
         if (button) {
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
-        
-        fetch('/music/queue/clear', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+
+        try {
+            const response = await fetch('/music/queue/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
             }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (typeof invalidateCache === 'function') {
+                invalidateCache('queue');
+                invalidateCache('played');
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Invalidiere Cache für SSE-Updates
-                if (typeof invalidateCache === 'function') {
-                    invalidateCache('queue');
-                }
-                
-                // Optimistisches Update: Leere Queue sofort
-                const queueContainer = document.querySelector('#queue-list');
-                if (queueContainer) {
-                    queueContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.queueEmpty + '</p>';
-                }
-                
-                // Badge sofort aktualisieren
-                const badge = document.querySelector('#queue-tab .badge');
-                if (badge) {
-                    badge.textContent = '0';
-                }
-                
-                // SSE-Event wird die Queue vollständig aktualisieren
-                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Queue neu
-                setTimeout(() => {
-                    if (typeof updateQueueDisplay === 'function') {
-                        updateQueueDisplay();
-                    }
-                }, 2000);
-                
-                console.log('Queue geleert - SSE-Update wird kommen');
-            } else {
-                const errorMsg = data.error || translations.errorUnknown;
-                alert(translations.errorGeneric.replace('{error}', errorMsg));
+            const queueContainer = document.querySelector('#queue-list');
+            if (queueContainer) {
+                queueContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.queueEmpty + '</p>';
             }
-        })
-        .catch(error => {
-            console.error('Fehler beim Leeren der Warteschlange:', error);
-            alert(translations.errorGeneric.replace('{error}', error.message));
-        })
-        .finally(() => {
-            // Button wieder aktivieren
+            document.querySelectorAll('.music-badge-queue').forEach(b => { b.textContent = '0'; });
+            const clearBtn = document.getElementById('musicClearQueueBtn');
+            if (clearBtn) clearBtn.hidden = true;
+            if (typeof updatePlayedBadge === 'function') updatePlayedBadge();
+            setTimeout(() => {
+                if (typeof updateQueueDisplay === 'function') updateQueueDisplay();
+            }, 2000);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
             if (button) {
                 button.disabled = false;
-                if (originalHTML) {
-                    button.innerHTML = originalHTML;
-                }
+                if (originalHTML) button.innerHTML = originalHTML;
             }
-        });
-    }
-    
-    function clearWishlist() {
-        console.log('clearWishlist aufgerufen');
-        if (!confirm(translations.clearWishlistConfirm)) {
-            return;
         }
-        
-        // Button deaktivieren während Request läuft
-        const button = event?.target?.closest('button');
+    }
+
+    async function clearWishlist() {
+        const ok = await musicConfirm(translations.clearWishlistConfirm, {
+            confirmLabel: translations.clearWishlistLabel
+        });
+        if (!ok) return;
+
+        const button = (typeof event !== 'undefined' && event?.target)
+            ? event.target.closest('button')
+            : document.getElementById('musicClearWishlistBtn');
         const originalHTML = button?.innerHTML;
         if (button) {
             button.disabled = true;
             button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
-        
-        fetch('/music/wishlist/clear', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+
+        try {
+            const response = await fetch('/music/wishlist/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
             }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (typeof invalidateCache === 'function') invalidateCache('wishlist');
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
+                wishlistContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.noWishes + '</p>';
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Invalidiere Cache für SSE-Updates
-                if (typeof invalidateCache === 'function') {
-                    invalidateCache('wishlist');
-                }
-                
-                // Optimistisches Update: Leere Wishlist sofort
-                const wishlistContainer = document.querySelector('#wishlist-list');
-                if (wishlistContainer) {
-                    wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.noWishes + '</p>';
-                }
-                
-                // Badge sofort aktualisieren
-                const badge = document.querySelector('#wishlist-tab .badge');
-                if (badge) {
-                    badge.textContent = '0';
-                }
-                
-                // SSE-Event wird die Wishlist vollständig aktualisieren
-                // Falls SSE-Event nicht innerhalb von 2 Sekunden kommt, lade Wishlist neu
-                setTimeout(() => {
-                    if (typeof loadWishlist === 'function') {
-                        loadWishlist();
-                    } else if (typeof updateWishlistBadge === 'function') {
-                        updateWishlistBadge();
-                    }
-                }, 2000);
-                
-                console.log('Wishlist geleert - SSE-Update wird kommen');
-            } else {
-                const errorMsg = data.error || translations.errorUnknown;
-                alert(translations.errorGeneric.replace('{error}', errorMsg));
-            }
-        })
-        .catch(error => {
-            console.error('Fehler beim Leeren der Wunschliste:', error);
-            alert(translations.errorGeneric.replace('{error}', error.message));
-        })
-        .finally(() => {
-            // Button wieder aktivieren
+            document.querySelectorAll('.music-badge-wishlist').forEach(b => { b.textContent = '0'; });
+            const clearBtn = document.getElementById('musicClearWishlistBtn');
+            if (clearBtn) clearBtn.hidden = true;
+            setTimeout(() => {
+                if (typeof loadWishlist === 'function') loadWishlist();
+                else if (typeof updateWishlistBadge === 'function') updateWishlistBadge();
+            }, 2000);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
             if (button) {
                 button.disabled = false;
-                if (originalHTML) {
-                    button.innerHTML = originalHTML;
-                }
+                if (originalHTML) button.innerHTML = originalHTML;
             }
-        });
+        }
     }
-    
-    function resetAll() {
-        console.log('resetAll aufgerufen');
-        if (!confirm(translations.resetAllConfirm)) {
-            return;
-        }
-        
-        // Doppelte Bestätigung
-        if (!confirm(translations.resetAllConfirm2)) {
-            return;
-        }
-        
-        // Button deaktivieren während Request läuft
-        const button = event?.target?.closest('button');
+
+    async function clearPlayed() {
+        const ok = await musicConfirm(translations.clearPlayedConfirm, {
+            confirmLabel: translations.clearPlayedLabel
+        });
+        if (!ok) return;
+
+        const button = (typeof event !== 'undefined' && event?.target)
+            ? event.target.closest('button')
+            : document.getElementById('musicClearPlayedBtn');
         const originalHTML = button?.innerHTML;
         if (button) {
             button.disabled = true;
-            button.innerHTML = '<i class="bi bi-hourglass-split"></i> Zurücksetzen...';
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
         }
-        
-        fetch('/music/reset-all', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+
+        try {
+            const response = await fetch('/music/played/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
             }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (typeof invalidateCache === 'function') invalidateCache('played');
+            const playedContainer = document.querySelector('#played-list');
+            if (playedContainer) {
+                playedContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.playedEmpty + '</p>';
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Invalidiere alle Caches für SSE-Updates
-                if (typeof invalidateCache === 'function') {
-                    invalidateCache('wishlist');
-                    invalidateCache('queue');
-                    invalidateCache('played');
-                }
-                
-                // Optimistisches Update: Leere alles sofort
-                const wishlistContainer = document.querySelector('#wishlist-list');
-                if (wishlistContainer) {
-                    wishlistContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.noWishes + '</p>';
-                }
-                
-                const queueContainer = document.querySelector('#queue-list');
-                if (queueContainer) {
-                    queueContainer.innerHTML = '<p class="text-muted text-center py-4">' + translations.queueEmpty + '</p>';
-                }
-                
-                // Badges sofort aktualisieren
-                const wishlistBadge = document.querySelector('#wishlist-tab .badge');
-                if (wishlistBadge) {
-                    wishlistBadge.textContent = '0';
-                }
-                
-                const queueBadge = document.querySelector('#queue-tab .badge');
-                if (queueBadge) {
-                    queueBadge.textContent = '0';
-                }
-                
-                const playedBadge = document.querySelector('#played-tab .badge');
-                if (playedBadge) {
-                    playedBadge.textContent = '0';
-                }
-                
-                // SSE-Events werden alles vollständig aktualisieren
-                // Falls SSE-Events nicht innerhalb von 2 Sekunden kommen, lade Daten neu
-                setTimeout(() => {
-                    if (typeof loadWishlist === 'function') {
-                        loadWishlist();
-                    }
-                    if (typeof updateQueueDisplay === 'function') {
-                        updateQueueDisplay();
-                    }
-                    if (typeof loadPlayedTab === 'function') {
-                        loadPlayedTab(1);
-                    }
-                }, 2000);
-                
-                console.log('Alles zurückgesetzt - SSE-Updates werden kommen');
-            } else {
-                const errorMsg = data.error || translations.errorUnknown;
-                alert(translations.errorGeneric.replace('{error}', errorMsg));
-            }
-        })
-        .catch(error => {
-            console.error('Fehler beim Zurücksetzen:', error);
-            alert(translations.errorGeneric.replace('{error}', error.message));
-        })
-        .finally(() => {
-            // Button wieder aktivieren
+            const pagination = document.getElementById('played-pagination');
+            if (pagination) pagination.innerHTML = '';
+            document.querySelectorAll('.music-badge-played').forEach(b => { b.textContent = '0'; });
+            if (typeof loadedTabs !== 'undefined') loadedTabs.played = true;
+            const clearBtn = document.getElementById('musicClearPlayedBtn');
+            if (clearBtn) clearBtn.hidden = true;
+            if (typeof updatePlayedBadgeDirect === 'function') updatePlayedBadgeDirect(0);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
             if (button) {
                 button.disabled = false;
-                if (originalHTML) {
-                    button.innerHTML = originalHTML;
-                }
+                if (originalHTML) button.innerHTML = originalHTML;
             }
-        });
+        }
     }
-    
-    // Tab-Navigation wird in music.js gehandhabt
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Music-Modul geladen');
-    });
+
+    async function resetAll() {
+        const button = (typeof event !== 'undefined' && event?.target)
+            ? event.target.closest('button')
+            : document.querySelector('.music-reset-link');
+        const originalHTML = button?.innerHTML;
+
+        const ok1 = await musicConfirm(translations.resetAllConfirm, {
+            title: translations.resetTitle,
+            confirmLabel: translations.resetOk
+        });
+        if (!ok1) return;
+
+        const ok2 = await musicConfirm(translations.resetAllConfirm2, {
+            title: translations.resetTitle,
+            confirmLabel: translations.resetOk
+        });
+        if (!ok2) return;
+
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        }
+
+        try {
+            const response = await fetch('/music/reset-all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.success) {
+                musicError(data.error || translations.errorUnknown);
+                return;
+            }
+            if (typeof invalidateCache === 'function') {
+                invalidateCache('wishlist');
+                invalidateCache('queue');
+                invalidateCache('played');
+            }
+            const wishlistContainer = document.querySelector('#wishlist-list');
+            if (wishlistContainer) {
+                wishlistContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.noWishes + '</p>';
+            }
+            const queueContainer = document.querySelector('#queue-list');
+            if (queueContainer) {
+                queueContainer.innerHTML = '<p class="music-empty text-muted text-center py-4">' + translations.queueEmpty + '</p>';
+            }
+            document.querySelectorAll('.music-badge-wishlist, .music-badge-queue, .music-badge-played').forEach(b => {
+                b.textContent = '0';
+            });
+            setTimeout(() => {
+                if (typeof loadWishlist === 'function') loadWishlist();
+                if (typeof updateQueueDisplay === 'function') updateQueueDisplay();
+                if (typeof loadPlayedTab === 'function') {
+                    if (typeof loadedTabs !== 'undefined') loadedTabs.played = false;
+                    loadPlayedTab(1);
+                }
+            }, 2000);
+        } catch (error) {
+            musicError(error.message);
+        } finally {
+            if (button) {
+                button.disabled = false;
+                if (originalHTML) button.innerHTML = originalHTML;
+            }
+        }
+    }
 </script>
 {% endblock %}

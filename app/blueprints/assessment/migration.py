@@ -97,6 +97,19 @@ def run_assessment_migrations():
         with db.engine.begin() as connection:
             _drop_index_if_exists(connection, dialect, "ass_visitor_evaluations", "uq_ass_visitor_stand")
 
+    # Verwarnungen sind listenunabhängig → list_id darf NULL sein
+    if "ass_warnings" in tables:
+        with db.engine.begin() as connection:
+            if dialect == "mysql":
+                try:
+                    connection.execute(text("ALTER TABLE ass_warnings MODIFY list_id INT NULL"))
+                except Exception:
+                    pass
+            elif dialect == "sqlite":
+                # SQLite: bestehende NOT-NULL-Constraint bleibt oft; neue Inserts mit NULL funktionieren
+                # wenn Spalte schon NULL angelegt wurde. Kein Table-Rebuild nötig für den Normalfall.
+                pass
+
     _migrate_default_data()
 
 
@@ -147,7 +160,6 @@ def _migrate_default_data():
     for visitor in AssessmentVisitorEvaluation.query.filter(AssessmentVisitorEvaluation.list_id.is_(None)).all():
         visitor.list_id = default_list.id
 
-    for warning in AssessmentWarning.query.filter(AssessmentWarning.list_id.is_(None)).all():
-        warning.list_id = default_list.id
+    # Verwarnungen bewusst listenunabhängig — fehlende list_id nicht mehr befüllen
 
     db.session.commit()

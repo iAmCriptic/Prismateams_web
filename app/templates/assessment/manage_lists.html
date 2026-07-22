@@ -1,10 +1,12 @@
-{% extends "base.html" %}
+{% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header, assessment_excel_upload %}
 {% block title %}Bewertungslisten - Bewertung{% endblock %}
-{% block content %}
+{% block assessment_heading_icon %}bi-list-ul{% endblock %}
+{% block assessment_heading %}Listen{% endblock %}
+{% block assessment_content %}
 {{ assessment_page_header('Bewertungslisten', icon='list-check') }}
 
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4">
         <div class="card-body">
             <h2 class="h5 mb-3">Neue Bewertungsliste</h2>
             <form id="listForm">
@@ -45,7 +47,7 @@
         </div>
     </div>
 
-    <div class="card mb-4">
+    <div class="assessment-panel mb-4" id="excelListPickerWrap">
         <div class="card-body">
             <h2 class="h5 mb-3"><i class="bi bi-file-earmark-spreadsheet text-primary me-2"></i>Excel-Import pro Bewertungsliste</h2>
             <label class="form-label" for="excelListSelect">Bewertungsliste</label>
@@ -71,11 +73,11 @@
         ) }}
     </div>
 
-    <div class="card">
+    <div class="assessment-panel">
         <div class="card-body">
             <h2 class="h5 mb-3">Vorhandene Listen</h2>
             <div class="table-responsive">
-                <table class="table table-striped align-middle mb-0">
+                <table class="table assessment-table align-middle mb-0">
                     <thead><tr><th>Name</th><th>Modus</th><th>Aktiv</th><th class="text-end">Aktion</th></tr></thead>
                     <tbody id="rows"></tbody>
                 </table>
@@ -103,12 +105,14 @@ async function loadStandTypes() {
 
 function syncExcelListSelect() {
     const sel = document.getElementById('excelListSelect');
+    const wrap = document.getElementById('excelListPickerWrap');
     if (!sel) return;
     const prev = sel.value;
     sel.innerHTML = (loadedLists || []).map(l =>
         `<option value="${l.id}" data-mode="${l.subject_mode}">${escapeHtml(l.name)}</option>`
     ).join('');
     if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+    if (wrap) wrap.hidden = (loadedLists || []).length <= 1;
     toggleSubjectsExcel();
 }
 
