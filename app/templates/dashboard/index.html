@@ -3,41 +3,29 @@
 {% block title %}{{ _('dashboard.page_title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block portal_alerts %}
-{% if setup_completed %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    <div class="d-flex align-items-center">
-        <i class="bi bi-check-circle-fill me-3 fs-4"></i>
-        <div>
-            <h5 class="alert-heading mb-1">{{ _('dashboard.setup.success_title') }}</h5>
-            <p class="mb-0">{{ _('dashboard.setup.success_body') }}</p>
-        </div>
-    </div>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ _('common.close') }}"></button>
-</div>
-{% endif %}
 {% if update_info and update_info.update_available %}
-<div class="alert alert-info alert-dismissible fade show" role="alert" id="update-banner">
-    <div class="d-flex align-items-start">
-        <i class="bi bi-arrow-down-circle-fill me-3 fs-4"></i>
-        <div class="flex-grow-1">
-            <h5 class="alert-heading mb-2">
-                <i class="bi bi-download me-2"></i>{{ _('dashboard.update.title') }}
-            </h5>
-            <p class="mb-2">
+<div class="alert portal-msg portal-msg--info fade show" role="alert" id="update-banner">
+    <div class="portal-msg__body">
+        <div class="portal-msg__icon" aria-hidden="true">
+            <i class="bi bi-info-circle-fill"></i>
+        </div>
+        <div class="portal-msg__content">
+            <h6 class="portal-msg__title">{{ _('dashboard.update.title') }}</h6>
+            <p class="portal-msg__text">
                 {{ _('dashboard.update.description') }}
                 {% if update_info.latest_commit %}
-                <br><small class="text-muted">{{ _('dashboard.update.latest_commit') }} <code>{{ update_info.latest_commit }}</code></small>
+                <br>{{ _('dashboard.update.latest_commit') }} <code>{{ update_info.latest_commit }}</code>
                 {% endif %}
             </p>
-            <div class="d-flex gap-2 flex-wrap">
-                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+            <div class="portal-msg__actions">
+                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-sm portal-msg__btn portal-msg__btn--primary">
                     <i class="bi bi-github me-1"></i>{{ _('dashboard.update.actions.open_github') }}
                 </a>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="dismissUpdateBanner()">
-                    <i class="bi bi-x-circle me-1"></i>{{ _('dashboard.update.actions.dismiss') }}
+                <button type="button" class="btn btn-sm portal-msg__btn portal-msg__btn--ghost" onclick="disableUpdateNotifications()">
+                    {{ _('dashboard.update.actions.disable') }}
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="disableUpdateNotifications()">
-                    <i class="bi bi-bell-slash me-1"></i>{{ _('dashboard.update.actions.disable') }}
+                <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close" onclick="dismissUpdateBanner()">
+                    {{ _('dashboard.update.actions.dismiss') }}
                 </button>
             </div>
         </div>
@@ -68,7 +56,7 @@
                     aria-label="{{ _('dashboard.whats_new.button_aria') }}">
                 <i class="bi bi-stars" aria-hidden="true"></i>
                 <span>{{ _('dashboard.whats_new.button_label') }}</span>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger dashboard-whats-new-badge d-none" id="whatsNewBadge">
+                <span class="position-absolute badge rounded-pill bg-danger dashboard-whats-new-badge d-none" id="whatsNewBadge">
                     {{ _('dashboard.whats_new.badge') }}
                     <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
                 </span>

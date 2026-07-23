@@ -31,11 +31,11 @@
 {% endmacro %}
 
 {% macro events_view_toggle(suffix='', extra_class='') %}
-<div class="btn-group events-view-toggle {{ extra_class }}" role="group" aria-label="Ansicht umschalten">
-    <button type="button" class="btn btn-outline-secondary" id="listViewBtn{{ suffix }}" title="Listenansicht">
+<div class="events-view-toggle {{ extra_class }}" role="group" aria-label="Ansicht umschalten">
+    <button type="button" class="events-view-toggle__btn" id="listViewBtn{{ suffix }}" title="Listenansicht">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="btn btn-outline-secondary active" id="gridViewBtn{{ suffix }}" title="Kachelansicht">
+    <button type="button" class="events-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="Kachelansicht">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -402,8 +402,14 @@ function setEventsViewMode(mode) {
     if (grid) grid.style.display = isList ? 'none' : '';
     if (list) list.style.display = isList ? '' : 'none';
 
-    listBtns.forEach((btn) => btn.classList.toggle('active', isList));
-    gridBtns.forEach((btn) => btn.classList.toggle('active', !isList));
+    listBtns.forEach((btn) => {
+        btn.classList.toggle('active', isList);
+        btn.classList.toggle('is-active', isList);
+    });
+    gridBtns.forEach((btn) => {
+        btn.classList.toggle('active', !isList);
+        btn.classList.toggle('is-active', !isList);
+    });
     localStorage.setItem('eventsViewMode', isList ? 'list' : 'grid');
 }
 

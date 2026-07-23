@@ -305,7 +305,9 @@ def index():
 
     widget_data = _load_widget_payload(current_user, visible_widgets) if not getattr(current_user, 'is_guest', False) else {}
 
-    setup_completed = session.pop('setup_completed', False)
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
 
     update_info = None
     if current_user.is_admin and current_user.show_update_notifications:
@@ -339,7 +341,6 @@ def index():
         dashboard_widgets=visible_widgets,
         widget_data=widget_data,
         dashboard_config=config,
-        setup_completed=setup_completed,
         update_info=update_info,
         guest_has_chat_access=guest_has_chat_access,
         guest_has_file_access=guest_has_file_access,

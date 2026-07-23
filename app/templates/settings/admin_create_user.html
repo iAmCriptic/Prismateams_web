@@ -1,572 +1,344 @@
 {% extends "settings/base_settings.html" %}
 
-{% block title %}Benutzer erstellen{% endblock %}
+{% block title %}{{ _('settings.admin.create_user.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.create_user.heading') }}{% endblock %}
 
 {% block settings_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Neuen Benutzer erstellen</h2>
-    <a href="{{ url_for('settings.admin_users') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Zurück
+<div class="settings-admin-create">
+    <a href="{{ url_for('settings.admin_users') }}" class="settings-subpage-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
     </a>
-</div>
-
-<div class="card">
-    <div class="card-header">
-        <ul class="nav nav-tabs card-header-tabs" id="accountTypeTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="full-tab" data-bs-toggle="tab" data-bs-target="#full" type="button" role="tab" aria-controls="full" aria-selected="true">
-                    <i class="bi bi-person-check"></i> Vollwertiger Account
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="guest-tab" data-bs-toggle="tab" data-bs-target="#guest" type="button" role="tab" aria-controls="guest" aria-selected="false">
-                    <i class="bi bi-person-dash"></i> Gast-Account
-                </button>
-            </li>
-        </ul>
+    <div class="settings-admin-create-header">
+        <div>
+            <h1 class="settings-admin-create-title">{{ _('settings.admin.create_user.heading') }}</h1>
+            <p class="settings-admin-create-subtitle">{{ _('settings.admin.create_user.subtitle') }}</p>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('settings.create_user') }}">
-            <div class="tab-content" id="accountTypeTabsContent">
-                <!-- Vollwertiger Account Tab -->
-                <div class="tab-pane fade show active" id="full" role="tabpanel" aria-labelledby="full-tab">
-                    <input type="hidden" name="account_type" value="full">
-                    
-                    <div class="mb-3">
-                        <label for="first_name" class="form-label">Vorname <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="first_name" name="first_name" data-required-for="full">
+
+    <div class="settings-admin-create-type" role="group" aria-label="{{ _('settings.admin.create_user.account_type') }}">
+        <input type="radio" class="btn-check" name="create_type_toggle" id="type_full" value="full" checked>
+        <label class="settings-admin-create-type-btn" for="type_full">
+            <i class="bi bi-person-check" aria-hidden="true"></i>
+            {{ _('settings.admin.create_user.tab_full') }}
+        </label>
+        <input type="radio" class="btn-check" name="create_type_toggle" id="type_guest" value="guest">
+        <label class="settings-admin-create-type-btn" for="type_guest">
+            <i class="bi bi-person-dash" aria-hidden="true"></i>
+            {{ _('settings.admin.create_user.tab_guest') }}
+        </label>
+    </div>
+
+    <form method="POST" action="{{ url_for('settings.create_user') }}" id="createUserForm" class="settings-admin-create-form">
+        <input type="hidden" name="account_type" id="account_type" value="full">
+
+        {# —— Vollwertig —— #}
+        <div id="panel-full" class="settings-admin-create-panel" data-account-type="full">
+            <section class="settings-admin-create-card">
+                <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.section_details') }}</h2>
+                <div class="settings-admin-create-fields">
+                    <div class="settings-admin-create-field">
+                        <label for="first_name" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control settings-admin-create-input" id="first_name" name="first_name" data-panel="full" autocomplete="given-name">
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="last_name" class="form-label">Nachname <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="last_name" name="last_name" data-required-for="full">
+                    <div class="settings-admin-create-field">
+                        <label for="last_name" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control settings-admin-create-input" id="last_name" name="last_name" data-panel="full" autocomplete="family-name">
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">E-Mail-Adresse <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" id="email" name="email" data-required-for="full">
-                        <small class="form-text text-muted">Der Benutzer erhält eine E-Mail mit Zugangsdaten.</small>
+                    <div class="settings-admin-create-field">
+                        <div class="settings-admin-create-label-row">
+                            <label for="email" class="form-label mb-0">{{ _('settings.admin.create_user.email') }} <span class="text-danger">*</span></label>
+                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.email_help') }}" aria-label="{{ _('settings.admin.create_user.email_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <input type="email" class="form-control settings-admin-create-input" id="email" name="email" data-panel="full" autocomplete="email">
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">Telefonnummer (optional)</label>
-                        <input type="text" class="form-control" id="phone" name="phone">
+                    <div class="settings-admin-create-field">
+                        <label for="phone" class="form-label">{{ _('settings.admin.create_user.phone') }}</label>
+                        <input type="text" class="form-control settings-admin-create-input" id="phone" name="phone" data-panel="full" autocomplete="tel">
                     </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Der Benutzer erhält automatisch die Standardrollen und eine E-Mail mit einem zufällig generierten 8-stelligen Passwort.
+                </div>
+                <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.full_hint') }}</p>
+            </section>
+            <button type="submit" class="btn btn-accent settings-admin-create-submit" data-submit-for="full">
+                <i class="bi bi-person-plus" aria-hidden="true"></i>
+                {{ _('settings.admin.create_user.submit_full') }}
+            </button>
+        </div>
+
+        {# —— Gast —— #}
+        <div id="panel-guest" class="settings-admin-create-panel" data-account-type="guest" hidden>
+            <section class="settings-admin-create-card">
+                <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.section_details') }}</h2>
+                <div class="settings-admin-create-fields">
+                    <div class="settings-admin-create-field">
+                        <label for="guest_first_name" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control settings-admin-create-input" id="guest_first_name" name="first_name" data-panel="guest" autocomplete="off" disabled>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-person-plus"></i> Account erstellen und E-Mail senden
+                    <div class="settings-admin-create-field">
+                        <label for="guest_last_name" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control settings-admin-create-input" id="guest_last_name" name="last_name" data-panel="guest" autocomplete="off" disabled>
+                    </div>
+                    <div class="settings-admin-create-field">
+                        <div class="settings-admin-create-label-row">
+                            <label for="guest_username" class="form-label mb-0">{{ _('settings.admin.create_user.guest_username') }} <span class="text-danger">*</span></label>
+                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.guest_username_help') }}" aria-label="{{ _('settings.admin.create_user.guest_username_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="settings-admin-create-username">
+                            <input type="text" class="form-control settings-admin-create-input" id="guest_username" name="guest_username" data-panel="guest" pattern="[a-zA-Z0-9._\-]+" autocomplete="off" disabled>
+                            <span class="settings-admin-create-username-suffix">@gast.system.local</span>
+                        </div>
+                    </div>
+                    <div class="settings-admin-create-field">
+                        <div class="settings-admin-create-label-row">
+                            <label for="guest_expires_at" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
+                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <input type="datetime-local" class="form-control settings-admin-create-input" id="guest_expires_at" name="guest_expires_at" data-panel="guest" disabled>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-admin-create-card">
+                <div class="settings-admin-create-card-head">
+                    <h2 class="settings-admin-create-section-title mb-0">{{ _('settings.admin.create_user.shares_title') }}</h2>
+                    <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.shares_help') }}" aria-label="{{ _('settings.admin.create_user.shares_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </div>
-                
-                <!-- Gast-Account Tab -->
-                <div class="tab-pane fade" id="guest" role="tabpanel" aria-labelledby="guest-tab">
-                    <input type="hidden" name="account_type" value="guest">
-                    
-                    <div class="mb-3">
-                        <label for="guest_first_name" class="form-label">Vorname <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="guest_first_name" name="first_name" data-required-for="guest" autocomplete="off">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="guest_last_name" class="form-label">Nachname <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="guest_last_name" name="last_name" data-required-for="guest" autocomplete="off">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="guest_username" class="form-label">Gast-Benutzername <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="guest_username" name="guest_username" data-required-for="guest" pattern="[a-zA-Z0-9._\-]+" title="Buchstaben (Groß- und Kleinbuchstaben), Zahlen, Punkte, Unterstriche und Bindestriche erlaubt" autocomplete="off">
-                            <span class="input-group-text">@gast.system.local</span>
-                        </div>
-                        <small class="form-text text-muted">Der Gast meldet sich mit "{benutzername}@gast.system.local" an.</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="guest_expires_at" class="form-label">Ablaufzeit (optional)</label>
-                        <input type="datetime-local" class="form-control" id="guest_expires_at" name="guest_expires_at">
-                        <small class="form-text text-muted">Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.</small>
-                    </div>
-                    
-                    <hr>
-                    
-                    <h5 class="mb-3">Freigabelink-Zugriff</h5>
-                    <div class="mb-3">
-                        <small class="text-muted">Wählen Sie die Freigabelinks, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Freigabeordnern wird automatisch Zugriff auf das Dateien-Modul gewährt.</small>
-                    </div>
-                    
-                    {% if assignable_shares %}
-                    <div class="mb-3">
-                        {% for share in assignable_shares %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="share_tokens" value="{{ share.token }}" id="share_{{ share.token_prefix }}_{{ loop.index }}">
-                            <label class="form-check-label" for="share_{{ share.token_prefix }}_{{ loop.index }}">
-                                {{ share.label }} ({{ share.token_prefix }}…)
-                            </label>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
+                {% if assignable_shares %}
+                <div class="settings-admin-create-chips">
+                    {% for share in assignable_shares %}
+                    <input type="checkbox" class="btn-check" name="share_tokens" value="{{ share.token }}" id="share_{{ share.token_prefix }}_{{ loop.index }}" data-panel="guest" disabled autocomplete="off">
+                    <label class="settings-admin-create-chip" for="share_{{ share.token_prefix }}_{{ loop.index }}">{{ share.label }} ({{ share.token_prefix }}…)</label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="settings-admin-create-empty">{{ _('settings.admin.create_user.shares_empty') }}</p>
+                {% endif %}
+            </section>
 
-                    {% if not assignable_shares %}
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i> Keine Freigabelinks verfügbar. Erstellen Sie zuerst Freigabelinks für Dateien oder Ordner.
-                    </div>
-                    {% endif %}
-                    
-                    <hr>
-                    
-                    <h5 class="mb-3">Chat-Zugriff</h5>
-                    <div class="mb-3">
-                        <small class="text-muted">Wählen Sie die Chats, auf die der Gast-Account Zugriff haben soll. Bei Zuweisung von Chats wird automatisch Zugriff auf das Chat-Modul gewährt.</small>
-                    </div>
-                    
-                    {% if all_chats %}
+            <section class="settings-admin-create-card">
+                <div class="settings-admin-create-card-head">
+                    <h2 class="settings-admin-create-section-title mb-0">{{ _('settings.admin.create_user.chats_title') }}</h2>
+                    <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.chats_help') }}" aria-label="{{ _('settings.admin.create_user.chats_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </div>
+                {% if all_chats %}
+                <div class="settings-admin-create-chips">
                     {% for chat in all_chats %}
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="chat_ids" value="{{ chat.id }}" id="chat_{{ chat.id }}">
-                        <label class="form-check-label" for="chat_{{ chat.id }}">
-                            <strong>{{ chat.name }}</strong>
-                            {% if chat.is_main_chat %}<span class="badge bg-primary ms-2">Haupt-Chat</span>{% endif %}
-                        </label>
-                    </div>
+                    <input type="checkbox" class="btn-check" name="chat_ids" value="{{ chat.id }}" id="chat_{{ chat.id }}" data-panel="guest" disabled autocomplete="off">
+                    <label class="settings-admin-create-chip" for="chat_{{ chat.id }}">
+                        {{ chat.name }}{% if chat.is_main_chat %} · {{ _('settings.admin.create_user.main_chat') }}{% endif %}
+                    </label>
                     {% endfor %}
-                    {% else %}
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i> Keine Chats verfügbar.
-                    </div>
-                    {% endif %}
-                    
-                    <hr>
-                    
-                    <h5 class="mb-3">Modul-Zugriff</h5>
-                    <div class="mb-3">
-                        <small class="text-muted">Wählen Sie zusätzliche Module, auf die der Gast-Account Zugriff haben soll. E-Mail, Passwort, Chats und Dateien werden automatisch über die obigen Zuweisungen gesteuert.</small>
-                    </div>
-                    {% for module_key, module_name in guest_modules %}
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="allowed_modules" value="{{ module_key }}" id="module_{{ module_key }}">
-                        <label class="form-check-label" for="module_{{ module_key }}">
-                            <strong>{{ module_name }}</strong>
-                        </label>
-                    </div>
-                    {% endfor %}
-                    
-                    <hr>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Gast-Accounts haben keinen Zugriff auf E-Mail & Passwort-Modul. Sie können im Inventar nur anzeigen (keine Ausleihen). Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary" id="guest-submit-btn">
-                        <i class="bi bi-person-dash"></i> Gast-Account erstellen
+                </div>
+                {% else %}
+                <p class="settings-admin-create-empty">{{ _('settings.admin.create_user.chats_empty') }}</p>
+                {% endif %}
+            </section>
+
+            <section class="settings-admin-create-card">
+                <div class="settings-admin-create-card-head">
+                    <h2 class="settings-admin-create-section-title mb-0">{{ _('settings.admin.create_user.modules_title') }}</h2>
+                    <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.modules_help') }}" aria-label="{{ _('settings.admin.create_user.modules_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </div>
-            </div>
-        </form>
-    </div>
+                <div class="settings-admin-create-chips">
+                    {% for module_key, module_name in guest_modules %}
+                    <input type="checkbox" class="btn-check" name="allowed_modules" value="{{ module_key }}" id="module_{{ module_key }}" data-panel="guest" disabled autocomplete="off">
+                    <label class="settings-admin-create-chip" for="module_{{ module_key }}">{{ module_name }}</label>
+                    {% endfor %}
+                </div>
+                <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.guest_hint') }}</p>
+            </section>
+
+            <button type="submit" class="btn btn-accent settings-admin-create-submit" data-submit-for="guest" id="guest-submit-btn">
+                <i class="bi bi-person-dash" aria-hidden="true"></i>
+                {{ _('settings.admin.create_user.submit_guest') }}
+            </button>
+        </div>
+    </form>
 </div>
 
-<!-- Modal für Gast-Account-Zugangsdaten -->
 <div class="modal fade" id="guestCredentialsModal" tabindex="-1" aria-labelledby="guestCredentialsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="guestCredentialsModalLabel">
-                    <i class="bi bi-check-circle-fill me-2"></i> Gast-Account erfolgreich erstellt!
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="guestCredentialsModalLabel">{{ _('settings.admin.create_user.guest_modal_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Bitte notieren Sie sich die Zugangsdaten. Sie können sie später nicht mehr abrufen.
-                </div>
-                
-                <div class="card bg-light mb-3">
-                    <div class="card-body">
-                        <h6 class="card-title mb-3">
-                            <i class="bi bi-person-badge me-2"></i> Zugangsdaten für <span id="guest-full-name"></span>
-                        </h6>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Benutzername / E-Mail:</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control font-monospace" id="guest-username-display" readonly value="">
-                                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('guest-username-display')">
-                                    <i class="bi bi-clipboard"></i> Kopieren
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Passwort:</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control font-monospace fw-bold text-primary" id="guest-password-display" readonly value="">
-                                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('guest-password-display')">
-                                    <i class="bi bi-clipboard"></i> Kopieren
-                                </button>
-                            </div>
-                        </div>
+                <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.guest_modal_note') }}</p>
+                <p class="mb-2"><strong id="guest-full-name"></strong></p>
+                <div class="settings-admin-create-field mb-3">
+                    <label class="form-label" for="guest-username-display">{{ _('settings.admin.create_user.guest_modal_username') }}</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-username-display" readonly>
+                        <button class="btn btn-outline-secondary settings-admin-create-copy" type="button" data-copy="guest-username-display">{{ _('settings.admin.create_user.copy') }}</button>
                     </div>
                 </div>
-                
-                <div class="alert alert-warning" id="guest-login-hint">
-                    <i class="bi bi-exclamation-triangle"></i> <strong>Wichtig:</strong> Der Gast-Account meldet sich mit dem oben angegebenen Benutzernamen an.
+                <div class="settings-admin-create-field mb-3">
+                    <label class="form-label" for="guest-password-display">{{ _('settings.admin.create_user.guest_modal_password') }}</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-password-display" readonly>
+                        <button class="btn btn-outline-secondary settings-admin-create-copy" type="button" data-copy="guest-password-display">{{ _('settings.admin.create_user.copy') }}</button>
+                    </div>
                 </div>
+                <p class="settings-admin-create-hint" id="guest-login-hint"></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="redirectToUserManagement()">
-                    <i class="bi bi-check-lg me-2"></i> Verstanden, weiter zur Benutzerverwaltung
-                </button>
+                <button type="button" class="btn btn-accent" data-bs-dismiss="modal" id="guest-modal-done">{{ _('settings.admin.create_user.guest_modal_done') }}</button>
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM geladen, initialisiere Event-Listener...');
-    
-    // Funktion zum Aktualisieren der required-Attribute basierend auf aktivem Tab
-    function updateRequiredFields(accountType) {
-        // Entferne required von allen Feldern
-        document.querySelectorAll('[data-required-for]').forEach(field => {
-            field.removeAttribute('required');
+(function () {
+    var form = document.getElementById('createUserForm');
+    var accountTypeInput = document.getElementById('account_type');
+    var panelFull = document.getElementById('panel-full');
+    var panelGuest = document.getElementById('panel-guest');
+
+    function setAccountType(type) {
+        accountTypeInput.value = type;
+        var isGuest = type === 'guest';
+        panelFull.hidden = isGuest;
+        panelGuest.hidden = !isGuest;
+
+        document.querySelectorAll('[data-panel]').forEach(function (el) {
+            var active = el.getAttribute('data-panel') === type;
+            el.disabled = !active;
+            el.removeAttribute('required');
         });
-        
-        // Füge required nur für den aktiven Tab hinzu
-        document.querySelectorAll(`[data-required-for="${accountType}"]`).forEach(field => {
-            field.setAttribute('required', 'required');
+
+        var requiredIds = isGuest
+            ? ['guest_first_name', 'guest_last_name', 'guest_username']
+            : ['first_name', 'last_name', 'email'];
+        requiredIds.forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el && !el.disabled) el.setAttribute('required', 'required');
         });
-    }
-    
-    // Synchronisiere Tab-Wechsel mit verstecktem Input und required-Attributen
-    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
-        tab.addEventListener('shown.bs.tab', function (event) {
-            const targetId = event.target.getAttribute('data-bs-target');
-            const accountTypeInputs = document.querySelectorAll('input[name="account_type"]');
-            let accountType = 'full';
-            
-            accountTypeInputs.forEach(input => {
-                if (targetId === '#full') {
-                    input.value = 'full';
-                    accountType = 'full';
-                } else if (targetId === '#guest') {
-                    input.value = 'guest';
-                    accountType = 'guest';
-                }
-            });
-            
-            // Aktualisiere required-Attribute
-            updateRequiredFields(accountType);
-        });
-    });
-    
-    // Initialisiere required-Felder basierend auf aktivem Tab
-    const activeTab = document.querySelector('.tab-pane.active');
-    if (activeTab) {
-        const accountTypeInput = activeTab.querySelector('input[name="account_type"]');
-        if (accountTypeInput) {
-            updateRequiredFields(accountTypeInput.value);
-        }
     }
 
-    // Formular per AJAX absenden für Gast-Accounts
-    const form = document.querySelector('form[method="POST"]');
-    if (!form) {
-        console.error('Formular nicht gefunden!');
-        return;
-    }
-    
-    console.log('Formular gefunden:', form);
-    
-    form.addEventListener('submit', function(e) {
-        console.log('Formular-Submit-Event ausgelöst');
-        
-        const activeTab = document.querySelector('.tab-pane.active');
-        if (!activeTab) {
-            console.error('Aktiver Tab nicht gefunden!');
+    document.querySelectorAll('input[name="create_type_toggle"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            if (radio.checked) setAccountType(radio.value);
+        });
+    });
+
+    document.querySelectorAll('.settings-admin-create [data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+
+    setAccountType('full');
+
+    document.querySelectorAll('.settings-admin-create-copy').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-copy');
+            var el = document.getElementById(id);
+            if (!el || !navigator.clipboard) return;
+            navigator.clipboard.writeText(el.value || '').then(function () {
+                var prev = btn.textContent;
+                btn.textContent = '✓';
+                setTimeout(function () { btn.textContent = prev; }, 1200);
+            });
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        var type = accountTypeInput.value;
+        setAccountType(type);
+
+        if (type !== 'guest') return;
+
+        e.preventDefault();
+        var guestFields = panelGuest.querySelectorAll('[data-panel="guest"]:not([type="checkbox"])');
+        var ok = true;
+        guestFields.forEach(function (field) {
+            if (!field.required) return;
+            var value = (field.value || '').trim();
+            field.classList.toggle('is-invalid', !value);
+            if (!value) ok = false;
+            if (value && field.pattern) {
+                try {
+                    if (!new RegExp('^' + field.pattern + '$').test(value)) {
+                        field.classList.add('is-invalid');
+                        ok = false;
+                    }
+                } catch (err) {}
+            }
+        });
+        if (!ok) {
+            alert({{ _('settings.admin.create_user.validation_error')|tojson }});
             return;
         }
-        
-        const accountTypeInput = activeTab.querySelector('input[name="account_type"]');
-        console.log('Account-Type-Input:', accountTypeInput, accountTypeInput ? accountTypeInput.value : 'nicht gefunden');
-        
-        // Aktualisiere required-Attribute basierend auf aktivem Tab (BEVOR Validierung)
-        const accountType = accountTypeInput ? accountTypeInput.value : 'full';
-        updateRequiredFields(accountType);
-        
-        // Entferne required von versteckten Feldern im anderen Tab
-        const hiddenTab = accountType === 'guest' ? document.getElementById('full') : document.getElementById('guest');
-        if (hiddenTab) {
-            hiddenTab.querySelectorAll('[data-required-for]').forEach(field => {
-                field.removeAttribute('required');
-                field.removeAttribute('pattern'); // Entferne auch Pattern-Validierung
-            });
-        }
-        
-        // Für Gast-Accounts: Validiere manuell und sende per AJAX
-        if (accountType === 'guest') {
-            const guestFields = activeTab.querySelectorAll('[data-required-for="guest"]');
-            let isValid = true;
-            let firstInvalidField = null;
-            let validationErrors = [];
-            
-            guestFields.forEach(field => {
-                const value = field.value ? field.value.trim() : '';
-                field.classList.remove('is-invalid');
-                
-                console.log('Validiere Feld:', field.name || field.id, 'Wert:', value);
-                
-                // Prüfe ob Feld leer ist
-                if (!value) {
-                    isValid = false;
-                    field.classList.add('is-invalid');
-                    const fieldLabel = field.previousElementSibling?.textContent?.trim() || field.id || field.name;
-                    validationErrors.push(fieldLabel);
-                    if (!firstInvalidField) {
-                        firstInvalidField = field;
-                    }
-                } else {
-                    // Prüfe Pattern-Validierung (nur wenn Pattern vorhanden)
-                    const pattern = field.getAttribute('pattern');
-                    if (pattern) {
-                        try {
-                            const regex = new RegExp('^' + pattern + '$');
-                            if (!regex.test(value)) {
-                                isValid = false;
-                                field.classList.add('is-invalid');
-                                validationErrors.push('Ungültiges Format für: ' + (field.previousElementSibling?.textContent?.trim() || field.id || field.name));
-                                if (!firstInvalidField) {
-                                    firstInvalidField = field;
-                                }
-                            }
-                        } catch (regexError) {
-                            console.error('Regex-Fehler:', regexError, 'Pattern:', pattern);
-                        }
-                    }
-                }
-            });
-            
-            if (!isValid) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (firstInvalidField) {
-                    firstInvalidField.focus();
-                    firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-                
-                const errorMsg = validationErrors.length > 0 
-                    ? 'Bitte korrigieren Sie folgende Felder:\n- ' + validationErrors.join('\n- ')
-                    : 'Bitte füllen Sie alle erforderlichen Felder korrekt aus.';
-                alert(errorMsg);
-                return;
-            }
-            
-            // Validierung erfolgreich - fahre mit AJAX fort
-            console.log('Validierung erfolgreich, sende Daten...');
-        }
-        
-        // Nur für Gast-Accounts per AJAX absenden
-        if (accountType === 'guest') {
-            console.log('Gast-Account erkannt, verhindere Standard-Submit und sende per AJAX...');
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Erstelle FormData nur mit Feldern des aktiven Tabs
-            const formData = new FormData();
-            
-            // Füge account_type hinzu
-            formData.append('account_type', 'guest');
-            
-            // Füge nur Felder aus dem Gast-Tab hinzu
-            const guestTab = document.getElementById('guest');
-            if (guestTab) {
-                const guestInputs = guestTab.querySelectorAll('input, select, textarea');
-                guestInputs.forEach(input => {
-                    if (!input.name || input.type === 'hidden' && input.name === 'account_type') {
-                        return; // Überspringe account_type (wird bereits hinzugefügt)
-                    }
-                    
-                    if (input.type === 'checkbox') {
-                        if (input.checked) {
-                            // Für Checkboxen: Füge jeden ausgewählten Wert hinzu (für getlist)
-                            formData.append(input.name, input.value);
-                        }
-                    } else if (input.type === 'radio') {
-                        if (input.checked) {
-                            formData.append(input.name, input.value);
-                        }
-                    } else if (input.tagName === 'SELECT' && input.multiple) {
-                        // Multiple-Select: Füge alle ausgewählten Optionen hinzu
-                        Array.from(input.selectedOptions).forEach(option => {
-                            formData.append(input.name, option.value);
-                        });
-                    } else if (input.type === 'file') {
-                        if (input.files && input.files.length > 0) {
-                            for (let i = 0; i < input.files.length; i++) {
-                                formData.append(input.name, input.files[i]);
-                            }
-                        }
-                    } else {
-                        // Normale Text/Number/Email/etc. Inputs
-                        // Immer senden, auch wenn leer (für Validierung auf Server-Seite wichtig)
-                        formData.append(input.name, input.value || '');
-                    }
-                });
-                
-                // Debug: Zeige alle Form-Daten
-                console.log('Form-Daten (nur Gast-Tab) vor dem Senden:');
-                for (let pair of formData.entries()) {
-                    console.log(pair[0] + ': ' + pair[1]);
-                }
+
+        var formData = new FormData();
+        formData.append('account_type', 'guest');
+        panelGuest.querySelectorAll('input, select, textarea').forEach(function (input) {
+            if (!input.name || input.disabled) return;
+            if (input.type === 'checkbox') {
+                if (input.checked) formData.append(input.name, input.value);
             } else {
-                console.error('Gast-Tab nicht gefunden!');
-                alert('Fehler: Gast-Tab nicht gefunden.');
-                return;
+                formData.append(input.name, input.value || '');
             }
-            
-            const submitBtn = activeTab.querySelector('button[type="submit"]');
-            if (!submitBtn) {
-                console.error('Submit-Button nicht gefunden!');
-                alert('Fehler: Submit-Button nicht gefunden.');
-                return;
-            }
-            
-            const originalText = submitBtn.innerHTML;
-            
-            // Button deaktivieren und Loading-State anzeigen
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Wird erstellt...';
-            
-            console.log('Sende AJAX-Request an:', this.action);
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                console.log('Response erhalten:', response.status, response.statusText);
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'Unbekannter Fehler');
-                    }).catch(err => {
-                        if (err.message) throw err;
-                        throw new Error(`Server-Fehler: ${response.status} ${response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Daten erhalten:', data);
-                if (data.success) {
-                    // Zeige Modal mit Zugangsdaten
-                    const fullNameEl = document.getElementById('guest-full-name');
-                    const usernameEl = document.getElementById('guest-username-display');
-                    const passwordEl = document.getElementById('guest-password-display');
-                    
-                    if (!fullNameEl || !usernameEl || !passwordEl) {
-                        console.error('Modal-Elemente nicht gefunden!');
-                        alert('Fehler: Modal-Elemente nicht gefunden. Zugangsdaten: ' + data.credentials.username + ' / ' + data.credentials.password);
-                        window.location.href = "{{ url_for('settings.admin_users') }}";
-                        return;
-                    }
-                    
-                    fullNameEl.textContent = data.credentials.full_name;
-                    usernameEl.value = data.credentials.username;
-                    passwordEl.value = data.credentials.password;
-                    
-                    // Aktualisiere Hinweistext mit tatsächlichem Benutzernamen
-                    const warningAlert = document.querySelector('#guestCredentialsModal .alert-warning');
-                    if (warningAlert && data.credentials.guest_username) {
-                        warningAlert.innerHTML = `<i class="bi bi-exclamation-triangle"></i> <strong>Wichtig:</strong> Der Gast-Account meldet sich mit "${data.credentials.guest_username}@gast.system.local" an.`;
-                    }
-                    
-                    const modalElement = document.getElementById('guestCredentialsModal');
-                    if (!modalElement) {
-                        console.error('Modal-Element nicht gefunden!');
-                        alert('Fehler: Modal nicht gefunden. Zugangsdaten: ' + data.credentials.username + ' / ' + data.credentials.password);
-                        window.location.href = "{{ url_for('settings.admin_users') }}";
-                        return;
-                    }
-                    
-                    const modal = new bootstrap.Modal(modalElement);
-                    modal.show();
-                    console.log('Modal angezeigt');
-                    
-                    // Bei Schließen zur Benutzerverwaltung weiterleiten
-                    const handleModalHidden = function() {
-                        console.log('Modal geschlossen, weiterleiten...');
-                        window.location.href = "{{ url_for('settings.admin_users') }}";
-                        modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
-                    };
-                    modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
-                } else {
-                    alert('Fehler beim Erstellen des Gast-Accounts: ' + (data.message || 'Unbekannter Fehler'));
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
-                }
-            })
-            .catch(error => {
-                console.error('Fehler beim AJAX-Request:', error);
-                alert('Fehler beim Erstellen des Gast-Accounts: ' + (error.message || 'Bitte versuchen Sie es erneut.'));
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+        });
+
+        var submitBtn = document.getElementById('guest-submit-btn');
+        var original = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (response) {
+            return response.json().then(function (data) {
+                if (!response.ok) throw new Error(data.message || 'Error');
+                return data;
             });
-        } else {
-            console.log('Vollwertiger Account oder kein Gast-Account, normaler Submit...');
-            // Für vollwertige Accounts: Normal submit (weiterleiten)
-        }
+        })
+        .then(function (data) {
+            if (!data.success) throw new Error(data.message || 'Error');
+            document.getElementById('guest-full-name').textContent = data.credentials.full_name;
+            document.getElementById('guest-username-display').value = data.credentials.username;
+            document.getElementById('guest-password-display').value = data.credentials.password;
+            var hint = document.getElementById('guest-login-hint');
+            if (hint && data.credentials.guest_username) {
+                hint.textContent = {{ _('settings.admin.create_user.guest_login_hint')|tojson }}.replace('{username}', data.credentials.guest_username);
+            }
+            var modalEl = document.getElementById('guestCredentialsModal');
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                window.location.href = {{ url_for('settings.admin_users')|tojson }};
+            }, { once: true });
+        })
+        .catch(function (err) {
+            alert(err.message || 'Error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = original;
+        });
     });
-    
-    console.log('Event-Listener erfolgreich angehängt');
-});
 
-function copyToClipboard(elementId) {
-    const element = document.getElementById(elementId);
-    if (!element) {
-        alert('Element nicht gefunden');
-        return;
-    }
-    
-    element.select();
-    element.setSelectionRange(0, 99999); // Für Mobile-Geräte
-    
-    try {
-        document.execCommand('copy');
-        
-        // Feedback anzeigen
-        const btn = event.target.closest('button');
-        if (btn) {
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check-lg"></i> Kopiert!';
-            btn.classList.add('btn-success');
-            btn.classList.remove('btn-outline-secondary');
-            
-            setTimeout(() => {
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('btn-success');
-                btn.classList.add('btn-outline-secondary');
-            }, 2000);
-        }
-    } catch (err) {
-        console.error('Fehler beim Kopieren:', err);
-        alert('Fehler beim Kopieren. Bitte kopieren Sie den Text manuell.');
-    }
-}
-
-function redirectToUserManagement() {
-    window.location.href = "{{ url_for('settings.admin_users') }}";
-}
+    document.getElementById('guest-modal-done').addEventListener('click', function () {
+        window.location.href = {{ url_for('settings.admin_users')|tojson }};
+    });
+})();
 </script>
 {% endblock %}

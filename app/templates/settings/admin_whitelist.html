@@ -1,141 +1,128 @@
 {% extends "settings/base_settings.html" %}
 
-{% block title %}Whitelist-Verwaltung - Administration{% endblock %}
+{% block title %}{{ _('settings.admin.whitelist.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.whitelist.title') }}{% endblock %}
 
 {% block settings_content %}
-<h2 class="mb-4">Whitelist-Verwaltung</h2>
-
-<div class="row">
-    <div class="col-md-8">
-        <!-- Whitelist Entries -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-shield-check"></i> Whitelist-Einträge</h5>
-            </div>
-            <div class="card-body p-0">
-                {% if whitelist_entries %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Eintrag</th>
-                                <th>Typ</th>
-                                <th>Beschreibung</th>
-                                <th>Status</th>
-                                <th>Erstellt</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for entry in whitelist_entries %}
-                            <tr>
-                                <td>
-                                    <code>{{ entry.entry }}</code>
-                                </td>
-                                <td>
-                                    {% if entry.entry_type == 'email' %}
-                                    <span class="badge bg-primary">E-Mail</span>
-                                    {% else %}
-                                    <span class="badge bg-info">Domain</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ entry.description or '-' }}</td>
-                                <td>
-                                    {% if entry.is_active %}
-                                    <span class="badge bg-success">Aktiv</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Inaktiv</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <form method="POST" action="{{ url_for('settings.toggle_whitelist_entry', entry_id=entry.id) }}" class="d-inline">
-                                            <button type="submit" class="btn btn-outline-{% if entry.is_active %}warning{% else %}success{% endif %}" 
-                                                    title="{% if entry.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}">
-                                                <i class="bi bi-{% if entry.is_active %}pause{% else %}play{% endif %}-circle"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="{{ url_for('settings.delete_whitelist_entry', entry_id=entry.id) }}" class="d-inline">
-                                            <button type="submit" class="btn btn-outline-danger" 
-                                                    data-confirm-delete="Whitelist-Eintrag wirklich löschen?" title="Löschen">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center p-4">
-                    <i class="bi bi-shield-x text-muted" style="font-size: 3rem;"></i>
-                    <p class="text-muted mt-2">Keine Whitelist-Einträge vorhanden</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
+<div class="settings-admin-whitelist">
+    <div class="settings-admin-whitelist-header">
+        <h1 class="settings-admin-whitelist-title">{{ _('settings.admin.whitelist.heading') }}</h1>
+        <p class="settings-admin-whitelist-subtitle">{{ _('settings.admin.whitelist.subtitle') }}</p>
     </div>
-    
-    <div class="col-md-4">
-        <!-- Add New Entry -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Neuen Eintrag hinzufügen</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('settings.add_whitelist_entry') }}">
-                    <div class="mb-3">
-                        <label for="entry_type" class="form-label">Typ</label>
-                        <select class="form-select" id="entry_type" name="entry_type" required>
-                            <option value="">Bitte wählen...</option>
-                            <option value="email">E-Mail-Adresse</option>
-                            <option value="domain">Domain</option>
-                        </select>
+
+    <div class="settings-admin-whitelist-grid">
+        <section class="settings-admin-whitelist-add" aria-labelledby="whitelist-add-title">
+            <h2 id="whitelist-add-title" class="settings-admin-whitelist-section-title">{{ _('settings.admin.whitelist.add_title') }}</h2>
+            <form method="POST" action="{{ url_for('settings.add_whitelist_entry') }}" class="settings-admin-whitelist-form">
+                <div class="settings-admin-whitelist-field">
+                    <div class="settings-admin-whitelist-label-row">
+                        <span class="form-label mb-0">{{ _('settings.admin.whitelist.type_label') }}</span>
+                        <button type="button" class="settings-admin-whitelist-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.whitelist.tooltip_system') }}" aria-label="{{ _('settings.admin.whitelist.tooltip_system') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="entry" class="form-label">Eintrag</label>
-                        <input type="text" class="form-control" id="entry" name="entry" 
-                               placeholder="z.B. user@example.com oder @example.com" required>
-                        <div class="form-text">
-                            <strong>E-Mail:</strong> Vollständige E-Mail-Adresse<br>
-                            <strong>Domain:</strong> Domain mit @ (z.B. @merian.schule)
+                    <div class="settings-admin-whitelist-type" role="group" aria-label="{{ _('settings.admin.whitelist.type_label') }}">
+                        <input type="radio" class="btn-check" name="entry_type" id="wl_type_email" value="email" checked required>
+                        <label class="settings-admin-whitelist-type-btn" for="wl_type_email">
+                            <i class="bi bi-envelope" aria-hidden="true"></i>
+                            {{ _('settings.admin.whitelist.type_email') }}
+                        </label>
+                        <input type="radio" class="btn-check" name="entry_type" id="wl_type_domain" value="domain">
+                        <label class="settings-admin-whitelist-type-btn" for="wl_type_domain">
+                            <i class="bi bi-globe" aria-hidden="true"></i>
+                            {{ _('settings.admin.whitelist.type_domain') }}
+                        </label>
+                    </div>
+                </div>
+
+                <div class="settings-admin-whitelist-field">
+                    <div class="settings-admin-whitelist-label-row">
+                        <label for="entry" class="form-label mb-0">{{ _('settings.admin.whitelist.entry_label') }}</label>
+                        <button type="button" class="settings-admin-whitelist-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.whitelist.tooltip_entry') }}" aria-label="{{ _('settings.admin.whitelist.tooltip_entry') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <input type="text" class="form-control settings-admin-whitelist-input" id="entry" name="entry"
+                           placeholder="{{ _('settings.admin.whitelist.entry_placeholder') }}" required autocomplete="off">
+                </div>
+
+                <div class="settings-admin-whitelist-field">
+                    <label for="description" class="form-label">{{ _('settings.admin.whitelist.description_label') }}</label>
+                    <input type="text" class="form-control settings-admin-whitelist-input" id="description" name="description"
+                           placeholder="{{ _('settings.admin.whitelist.description_placeholder') }}" autocomplete="off">
+                </div>
+
+                <button type="submit" class="btn btn-accent settings-admin-whitelist-submit">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    {{ _('settings.admin.whitelist.add_submit') }}
+                </button>
+            </form>
+        </section>
+
+        <section class="settings-admin-whitelist-list-wrap" aria-labelledby="whitelist-list-title">
+            <h2 id="whitelist-list-title" class="settings-admin-whitelist-section-title">
+                {{ _('settings.admin.whitelist.list_title') }}
+                {% if whitelist_entries %}
+                <span class="badge rounded-pill text-bg-secondary">{{ whitelist_entries|length }}</span>
+                {% endif %}
+            </h2>
+
+            {% if whitelist_entries %}
+            <div class="settings-admin-whitelist-list">
+                {% for entry in whitelist_entries %}
+                <div class="settings-admin-whitelist-row{% if not entry.is_active %} is-muted{% endif %}">
+                    <div class="settings-admin-whitelist-row-main">
+                        <div class="settings-admin-whitelist-row-top">
+                            <code class="settings-admin-whitelist-code">{{ entry.entry }}</code>
+                            {% if entry.entry_type == 'email' %}
+                            <span class="badge rounded-pill text-bg-primary">{{ _('settings.admin.whitelist.badge_email') }}</span>
+                            {% else %}
+                            <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.whitelist.badge_domain') }}</span>
+                            {% endif %}
+                            {% if entry.is_active %}
+                            <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.whitelist.badge_active') }}</span>
+                            {% else %}
+                            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.whitelist.badge_inactive') }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="settings-admin-whitelist-row-meta">
+                            {% if entry.description %}
+                            <span>{{ entry.description }}</span>
+                            <span aria-hidden="true">·</span>
+                            {% endif %}
+                            <span>{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Beschreibung (optional)</label>
-                        <input type="text" class="form-control" id="description" name="description" 
-                               placeholder="z.B. Lehrer der Schule">
+                    <div class="settings-admin-whitelist-row-actions">
+                        <form method="POST" action="{{ url_for('settings.toggle_whitelist_entry', entry_id=entry.id) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary settings-admin-whitelist-icon-btn"
+                                    title="{% if entry.is_active %}{{ _('settings.admin.whitelist.deactivate') }}{% else %}{{ _('settings.admin.whitelist.activate') }}{% endif %}">
+                                <i class="bi bi-{% if entry.is_active %}pause{% else %}play{% endif %}-circle" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('settings.delete_whitelist_entry', entry_id=entry.id) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger settings-admin-whitelist-icon-btn"
+                                    data-confirm-delete="{{ _('settings.admin.whitelist.delete_confirm') }}"
+                                    title="{{ _('settings.admin.whitelist.delete') }}">
+                                <i class="bi bi-trash" aria-hidden="true"></i>
+                            </button>
+                        </form>
                     </div>
-                    
-                    <button type="submit" class="btn btn-accent w-100">
-                        <i class="bi bi-plus-circle"></i> Hinzufügen
-                    </button>
-                </form>
+                </div>
+                {% endfor %}
             </div>
-        </div>
-        
-        <!-- Info -->
-        <div class="card mt-3">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informationen</h6>
-            </div>
-            <div class="card-body">
-                <p class="small mb-2">
-                    <strong>Whitelist-System:</strong> E-Mail-Adressen und Domains auf der Whitelist werden bei der Registrierung automatisch aktiviert.
-                </p>
-                <p class="small mb-2">
-                    <strong>E-Mail-Adressen:</strong> Exakte Übereinstimmung erforderlich (z.B. user@example.com)
-                </p>
-                <p class="small mb-0">
-                    <strong>Domains:</strong> Alle E-Mails von dieser Domain werden automatisch aktiviert (z.B. @merian.schule)
-                </p>
-            </div>
-        </div>
+            {% else %}
+            <p class="settings-admin-whitelist-empty">{{ _('settings.admin.whitelist.empty') }}</p>
+            {% endif %}
+        </section>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.settings-admin-whitelist [data-bs-toggle="tooltip"]').forEach(function (el) {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        new bootstrap.Tooltip(el);
+    }
+});
+</script>
 {% endblock %}

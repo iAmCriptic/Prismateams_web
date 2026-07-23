@@ -1,96 +1,105 @@
 {% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.about.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.index.cards.about.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header about-page-header">
-                <h4 class="mb-0"><i class="bi bi-info-circle"></i> {{ _('settings.about.heading') }}</h4>
-            </div>
-            <div class="card-body">
-                <div class="text-center mb-4">
-                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ _('settings.about.logo_alt') }}" class="img-fluid" style="max-height: 200px; width: auto;">
-                </div>
-                
-                <div class="mb-4">
-                    <h5 class="mb-3">{{ _('settings.about.section_product_title') }}</h5>
-                    <p class="text-muted">
-                        {{ _('settings.about.section_product_description') }}
-                    </p>
-                </div>
-                
-                <div class="mb-4">
-                    <hr>
-                    <p class="mb-1"><strong>{{ _('settings.about.author_label') }}</strong> Enrico R. Matzke</p>
-                    <p class="mb-0 text-muted"><small>{{ _('settings.about.copyright') }}</small></p>
-                </div>
-                
-                <div class="mb-4">
-                    <hr>
-                    <h5 class="mb-3">{{ _('settings.about.section_repository_title') }}</h5>
-                    <p class="mb-2">{{ _('settings.about.section_repository_description') }}</p>
-                    <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark">
-                        <i class="bi bi-github me-2"></i>
-                        {{ _('settings.about.section_repository_button') }}
-                    </a>
-                    <div class="mt-3">
-                        <p class="text-muted mb-2">{{ _('settings.about.section_repository_improvement_note') }}</p>
-                        <a href="https://github.com/iAmCriptic/Prismateams_web/issues" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-bug me-2"></i>
-                            {{ _('settings.about.section_repository_issues_button') }}
-                        </a>
-                    </div>
-                </div>
-                
-                <div class="mt-4">
-                    <hr>
-                    <h5 class="mb-3">{{ _('settings.about.section_system_title') }}</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <p class="mb-1"><strong>Release Version</strong></p>
-                            <p class="text-muted">V2.6.0 - Alpha</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <p class="mb-1"><strong>Build Number</strong></p>
-                            <p class="text-muted">2.6.0-alpha.1+202607220123</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <p class="mb-1"><strong>{{ _('settings.about.creator_label') }}</strong></p>
-                            <p class="text-muted">{{ creator_name }}</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <p class="mb-1"><strong>{{ _('settings.about.onlyoffice_label') }}</strong></p>
-                            <p class="text-muted">
-                                {% if onlyoffice_enabled %}
-                                    <span class="badge bg-success">{{ _('settings.about.onlyoffice_active') }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ _('settings.about.onlyoffice_inactive') }}</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <p class="mb-1"><strong>{{ _('settings.about.media_downloader_label') }}</strong></p>
-                            <p class="text-muted">
-                                {% if media_downloader_compatible %}
-                                    <span class="badge bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-4">
-                    <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> {{ _('settings.about.back_button') }}
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="settings-about">
+    <div class="settings-about-header">
+        <h1 class="settings-about-title">{{ _('settings.about.heading') }}</h1>
+        <p class="settings-about-subtitle">{{ _('settings.about.subtitle') }}</p>
     </div>
-</div>
-{% endblock %}
 
+    <section class="settings-about-brand" aria-labelledby="about-product-heading">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ _('settings.about.logo_alt') }}" class="settings-about-logo" width="96" height="96">
+        <div class="settings-about-brand-text">
+            <h2 id="about-product-heading" class="settings-about-product-name">{{ _('settings.about.section_product_title') }}</h2>
+            <p class="settings-about-product-desc">{{ _('settings.about.section_product_description') }}</p>
+        </div>
+    </section>
+
+    <div class="settings-about-grid">
+        <section class="settings-about-card" aria-labelledby="about-system-heading">
+            <div class="settings-about-card-head">
+                <h2 id="about-system-heading" class="settings-about-section-title mb-0">{{ _('settings.about.section_system_title') }}</h2>
+            </div>
+
+            <div class="settings-about-meta-list">
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.release_label') }}</span>
+                    <span class="settings-about-meta-value">{{ release_version }}</span>
+                </div>
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.build_label') }}</span>
+                    <span class="settings-about-meta-value settings-about-meta-value--mono">{{ build_number }}</span>
+                </div>
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.portal_label') }}</span>
+                    <span class="settings-about-meta-value">{{ portal_name or _('settings.about.portal_unset') }}</span>
+                </div>
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.creator_label') }}</span>
+                    <span class="settings-about-meta-value">{{ creator_name }}</span>
+                </div>
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.onlyoffice_label') }}</span>
+                    <span class="settings-about-meta-value">
+                        {% if onlyoffice_enabled %}
+                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.onlyoffice_active') }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.onlyoffice_inactive') }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="settings-about-meta-row">
+                    <span class="settings-about-meta-label">{{ _('settings.about.media_downloader_label') }}</span>
+                    <span class="settings-about-meta-value">
+                        {% if media_downloader_compatible %}
+                        <span class="badge rounded-pill text-bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-about-card" aria-labelledby="about-repo-heading">
+            <div class="settings-about-card-head">
+                <h2 id="about-repo-heading" class="settings-about-section-title mb-0">{{ _('settings.about.section_repository_title') }}</h2>
+                <button type="button" class="settings-about-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.about.section_repository_improvement_note') }}" aria-label="{{ _('settings.about.section_repository_improvement_note') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <p class="settings-about-hint">{{ _('settings.about.section_repository_description') }}</p>
+
+            <div class="settings-about-repo-actions">
+                <a href="https://github.com/iAmCriptic/Prismateams_web" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark settings-about-btn">
+                    <i class="bi bi-github" aria-hidden="true"></i>
+                    {{ _('settings.about.section_repository_button') }}
+                </a>
+                <a href="https://github.com/iAmCriptic/Prismateams_web/issues" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary settings-about-btn">
+                    <i class="bi bi-bug" aria-hidden="true"></i>
+                    {{ _('settings.about.section_repository_issues_button') }}
+                </a>
+            </div>
+        </section>
+    </div>
+
+    <footer class="settings-about-footer">
+        <p class="settings-about-footer-author"><strong>{{ _('settings.about.author_label') }}</strong> Enrico R. Matzke</p>
+        <p class="settings-about-footer-copy">{{ _('settings.about.copyright') }}</p>
+    </footer>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.settings-about [data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+});
+</script>
+{% endblock %}

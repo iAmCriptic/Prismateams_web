@@ -1,0 +1,65 @@
+{# Dateityp-Icons: PNG aus static/img für Office/MD/PDF, Bootstrap Icons für Medien #}
+
+{% macro _file_ext(filename) -%}
+{%- set name = (filename or '')|lower -%}
+{%- if '.' in name -%}{{ name[name.rfind('.'):] }}{%- endif -%}
+{%- endmacro %}
+
+{% macro _asset_or_bi(src, alt, bi_class, size='sm', extra_class='') %}
+{%- set is_lg = size == 'lg' -%}
+{%- if is_lg -%}
+<div class="file-icon-preview {{ extra_class }}">
+    <img src="{{ url_for('static', filename=src) }}"
+         alt="{{ alt }}"
+         class="file-type-icon file-type-icon--lg"
+         onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';">
+    <i class="bi {{ bi_class }} fs-1" style="display: none;" aria-hidden="true"></i>
+</div>
+{%- else -%}
+<span class="file-type-icon-wrap file-type-icon-wrap--sm {{ extra_class }}">
+    <img src="{{ url_for('static', filename=src) }}"
+         alt=""
+         class="file-type-icon file-type-icon--sm"
+         onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';">
+    <i class="bi {{ bi_class }}" style="display: none;" aria-hidden="true"></i>
+</span>
+{%- endif -%}
+{% endmacro %}
+
+{% macro _bi_icon(bi_class, size='sm', extra_class='') %}
+{%- set is_lg = size == 'lg' -%}
+{%- if is_lg -%}
+<div class="file-icon-preview {{ extra_class }}">
+    <i class="bi {{ bi_class }} fs-1" aria-hidden="true"></i>
+</div>
+{%- else -%}
+<i class="bi {{ bi_class }} file-type-bi {{ extra_class }}" aria-hidden="true"></i>
+{%- endif -%}
+{% endmacro %}
+
+{% macro file_type_icon(filename, size='sm', extra_class='') %}
+{%- set ext = _file_ext(filename)|trim -%}
+{%- set me = '' if size == 'lg' else 'me-2' -%}
+{%- set cls = (me ~ ' ' ~ (extra_class or ''))|trim -%}
+{%- if ext in ['.docx', '.doc', '.odt', '.rtf'] -%}
+{{ _asset_or_bi('img/docx.png', 'Word', 'bi-file-earmark-word text-primary', size, cls) }}
+{%- elif ext in ['.xlsx', '.xls', '.ods', '.csv'] -%}
+{{ _asset_or_bi('img/xlsx.png', 'Excel', 'bi-file-earmark-spreadsheet text-success', size, cls) }}
+{%- elif ext in ['.pptx', '.ppt', '.odp'] -%}
+{{ _asset_or_bi('img/pptx.png', 'PowerPoint', 'bi-file-earmark-slides text-warning', size, cls) }}
+{%- elif ext in ['.md', '.markdown'] -%}
+{{ _asset_or_bi('img/markdown.png', 'Markdown', 'bi-markdown text-info', size, cls) }}
+{%- elif ext == '.pdf' -%}
+{{ _asset_or_bi('img/PDF.png', 'PDF', 'bi-file-earmark-pdf text-danger', size, cls) }}
+{%- elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.heic', '.tif', '.tiff'] -%}
+{{ _bi_icon('bi-image text-success', size, cls) }}
+{%- elif ext in ['.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mkv'] -%}
+{{ _bi_icon('bi-camera-video text-danger', size, cls) }}
+{%- elif ext in ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus', '.wma'] -%}
+{{ _bi_icon('bi-music-note-beamed text-info', size, cls) }}
+{%- elif ext in ['.txt', '.log', '.json', '.xml'] -%}
+{{ _bi_icon('bi-file-earmark-text text-secondary', size, cls) }}
+{%- else -%}
+{{ _bi_icon('bi-file-earmark text-primary', size, cls) }}
+{%- endif -%}
+{% endmacro %}

@@ -281,6 +281,7 @@
         const dialog = modal.querySelector('.modal-dialog');
         dialog.classList.toggle('modal-lg', !!large);
         dialog.classList.toggle('modal-xl', !!large);
+        modal.querySelector('.modal-content')?.classList.add('files-share-modal-content');
         modal.querySelector('.modal-title').innerText = title;
         modal.querySelector('.modal-body').innerHTML = bodyHtml;
         bootstrap.Modal.getOrCreateInstance(modal).show();
@@ -308,11 +309,76 @@
         return String(iso).replace('T', ' ').substring(0, 16);
     }
 
+    function shareIconActionsHtml(formAction, link) {
+        const url = link.share_url || '';
+        const enabled = !!link.enabled;
+        const toggleAction = enabled ? 'disable' : 'enable';
+        const toggleTitle = enabled ? 'Deaktivieren' : 'Aktivieren';
+        const toggleIcon = enabled ? 'bi-pause-circle' : 'bi-play-circle';
+        const toggleCls = enabled ? 'btn-outline-warning' : 'btn-outline-success';
+        return `
+            <div class="files-share-icon-actions">
+                <button type="button" class="btn btn-sm files-share-icon-btn" data-copy-url="${escapeHtml(url)}" title="Link kopieren" aria-label="Link kopieren">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <button type="button" class="btn btn-sm files-share-icon-btn" data-edit-share='${escapeHtml(JSON.stringify(link))}' title="Bearbeiten" aria-label="Bearbeiten">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <form method="POST" action="${formAction}" class="d-inline">
+                    <input type="hidden" name="share_id" value="${link.id}">
+                    <input type="hidden" name="action" value="regenerate">
+                    <button type="submit" class="btn btn-sm files-share-icon-btn" title="Token neu" aria-label="Token neu">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </form>
+                <form method="POST" action="${formAction}" class="d-inline">
+                    <input type="hidden" name="share_id" value="${link.id}">
+                    <input type="hidden" name="action" value="${toggleAction}">
+                    <button type="submit" class="btn btn-sm files-share-icon-btn ${toggleCls}" title="${toggleTitle}" aria-label="${toggleTitle}">
+                        <i class="bi ${toggleIcon}"></i>
+                    </button>
+                </form>
+                <form method="POST" action="${formAction}" class="d-inline">
+                    <input type="hidden" name="share_id" value="${link.id}">
+                    <input type="hidden" name="action" value="delete">
+                    <button type="submit" class="btn btn-sm files-share-icon-btn btn-outline-danger" title="Löschen" aria-label="Löschen">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </form>
+            </div>`;
+    }
+
+    function renderModePicker(modeOptions) {
+        if (!modeOptions.length) return '';
+        // modeOptions are <option value="x">Label</option>
+        const parsed = modeOptions.map(html => {
+            const m = String(html).match(/value="([^"]+)".*?>([^<]+)</);
+            return m ? { value: m[1], label: m[2] } : null;
+        }).filter(Boolean);
+        if (!parsed.length) return '';
+        const first = parsed[0];
+        const items = parsed.map((opt, i) => `
+            <li>
+                <button type="button" class="dropdown-item ${i === 0 ? 'active' : ''}" data-share-mode-value="${escapeHtml(opt.value)}">
+                    ${opt.value === 'dropbox' ? '<i class="bi bi-mailbox me-2"></i>' : (opt.value === 'edit' ? '<i class="bi bi-pencil me-2"></i>' : '<i class="bi bi-eye me-2"></i>')}
+                    ${escapeHtml(opt.label)}
+                </button>
+            </li>`).join('');
+        return `
+            <div class="dropdown files-share-mode-picker">
+                <button type="button" class="btn files-share-mode-btn" data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="true" aria-expanded="false">
+                    <span class="files-share-mode-label">${escapeHtml(first.label)}</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <ul class="dropdown-menu files-dropdown-menu files-share-mode-menu">${items}</ul>
+                <input type="hidden" name="mode" value="${escapeHtml(first.value)}" required>
+            </div>`;
+    }
+
     function renderShareMgmt(type, id, item, flags) {
         const L = shareLabels();
         const links = item.links || [];
         const formAction = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
-        const createAction = type === 'file' ? `/files/file/${id}/share` : `/files/folder/${id}/share`;
 
         const modeOptions = [];
         if (flags.sharing) {
@@ -326,60 +392,22 @@
         const rows = links.map(link => {
             const url = link.share_url || '';
             const status = !link.enabled ? 'aus' : (link.is_expired ? 'abgelaufen' : 'aktiv');
-            const toggleAction = link.enabled
-                ? `<form method="POST" action="${formAction}" class="d-inline">
-                        <input type="hidden" name="share_id" value="${link.id}">
-                        <input type="hidden" name="action" value="disable">
-                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Deaktivieren">Deaktivieren</button>
-                   </form>`
-                : `<form method="POST" action="${formAction}" class="d-inline">
-                        <input type="hidden" name="share_id" value="${link.id}">
-                        <input type="hidden" name="action" value="enable">
-                        <button type="submit" class="btn btn-sm btn-outline-success" title="Aktivieren">Aktivieren</button>
-                   </form>`;
             return `
                 <tr data-share-id="${link.id}">
                     <td><span class="badge text-bg-secondary">${escapeHtml(modeLabel(link.mode))}</span></td>
                     <td>${escapeHtml(link.label || '–')}</td>
                     <td>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" value="${escapeHtml(url)}" readonly>
-                            <button type="button" class="btn btn-outline-secondary" data-copy-url="${escapeHtml(url)}"><i class="bi bi-clipboard"></i></button>
-                        </div>
+                        <input type="text" class="form-control form-control-sm files-share-link-input" value="${escapeHtml(url)}" readonly title="${escapeHtml(url)}">
                     </td>
                     <td>${link.has_password ? 'Ja' : 'Nein'}</td>
                     <td>${escapeHtml(formatExpires(link.expires_at))}</td>
                     <td>${status}</td>
-                    <td class="text-nowrap">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-edit-share='${escapeHtml(JSON.stringify(link))}'>Bearbeiten</button>
-                        <form method="POST" action="${formAction}" class="d-inline">
-                            <input type="hidden" name="share_id" value="${link.id}">
-                            <input type="hidden" name="action" value="regenerate">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Token neu">↺</button>
-                        </form>
-                        ${toggleAction}
-                        <form method="POST" action="${formAction}" class="d-inline">
-                            <input type="hidden" name="share_id" value="${link.id}">
-                            <input type="hidden" name="action" value="delete">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">×</button>
-                        </form>
-                    </td>
+                    <td>${shareIconActionsHtml(formAction, link)}</td>
                 </tr>`;
         }).join('');
 
         const cards = links.map(link => {
             const url = link.share_url || '';
-            const toggleAction = link.enabled
-                ? `<form method="POST" action="${formAction}" class="d-inline">
-                        <input type="hidden" name="share_id" value="${link.id}">
-                        <input type="hidden" name="action" value="disable">
-                        <button type="submit" class="btn btn-sm btn-outline-warning">Deaktivieren</button>
-                   </form>`
-                : `<form method="POST" action="${formAction}" class="d-inline">
-                        <input type="hidden" name="share_id" value="${link.id}">
-                        <input type="hidden" name="action" value="enable">
-                        <button type="submit" class="btn btn-sm btn-outline-success">Aktivieren</button>
-                   </form>`;
             return `
                 <div class="files-share-card">
                     <div class="d-flex justify-content-between align-items-start gap-2">
@@ -389,61 +417,45 @@
                         </div>
                         <small class="text-muted">${!link.enabled ? 'aus' : (link.is_expired ? 'abgelaufen' : 'aktiv')}</small>
                     </div>
-                    <div class="input-group input-group-sm mt-2">
-                        <input type="text" class="form-control" value="${escapeHtml(url)}" readonly>
-                        <button type="button" class="btn btn-outline-secondary" data-copy-url="${escapeHtml(url)}"><i class="bi bi-clipboard"></i></button>
-                    </div>
+                    <input type="text" class="form-control form-control-sm files-share-link-input mt-2" value="${escapeHtml(url)}" readonly title="${escapeHtml(url)}">
                     <div class="small text-muted mt-2">Passwort: ${link.has_password ? 'Ja' : 'Nein'} · Ablauf: ${escapeHtml(formatExpires(link.expires_at))}</div>
-                    <div class="share-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-edit-share='${escapeHtml(JSON.stringify(link))}'>Bearbeiten</button>
-                        <form method="POST" action="${formAction}" class="d-inline">
-                            <input type="hidden" name="share_id" value="${link.id}">
-                            <input type="hidden" name="action" value="regenerate">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary">Token neu</button>
-                        </form>
-                        ${toggleAction}
-                        <form method="POST" action="${formAction}" class="d-inline">
-                            <input type="hidden" name="share_id" value="${link.id}">
-                            <input type="hidden" name="action" value="delete">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
-                        </form>
-                    </div>
+                    <div class="share-actions">${shareIconActionsHtml(formAction, link)}</div>
                 </div>`;
         }).join('');
 
         const addForm = modeOptions.length ? `
             <hr>
             <h6 class="mb-2">${L.add_link || 'Neuen Link anlegen'}</h6>
-            <form method="POST" action="${formAction}" class="row g-2 align-items-end" id="shareAddLinkForm">
+            <form method="POST" action="${formAction}" class="row g-2 align-items-end files-share-add-form" id="shareAddLinkForm">
                 <div class="col-md-3">
                     <label class="form-label">Art</label>
-                    <select name="mode" class="form-select" required>${modeOptions.join('')}</select>
+                    ${renderModePicker(modeOptions)}
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Label</label>
-                    <input type="text" name="label" class="form-control" placeholder="optional">
+                    <input type="text" name="label" class="form-control files-pill-input" placeholder="optional">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Passwort</label>
-                    <input type="password" name="password" class="form-control" autocomplete="new-password">
+                    <input type="password" name="password" class="form-control files-pill-input" autocomplete="new-password">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Ablauf</label>
-                    <input type="datetime-local" name="expires_at" class="form-control">
+                    <input type="datetime-local" name="expires_at" class="form-control files-pill-input">
                 </div>
-                <div class="col-12">
-                    <button type="submit" name="action" value="add_link" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Link erstellen</button>
-                    <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger ms-1" formnovalidate>Alle deaktivieren</button>
+                <div class="col-12 d-flex flex-wrap gap-2">
+                    <button type="submit" name="action" value="add_link" class="btn btn-accent files-pill-btn"><i class="bi bi-plus-lg"></i> Link erstellen</button>
+                    <button type="submit" name="action" value="disable_all" class="btn btn-outline-danger files-pill-btn" formnovalidate>Alle deaktivieren</button>
                 </div>
             </form>` : `<p class="text-muted">Keine Link-Typen aktiviert.</p>`;
 
         return `
             <div class="files-share-mgmt">
-                <p class="text-muted small mb-3">${escapeHtml(item.name || '')}</p>
+                <p class="fw-semibold mb-3">${escapeHtml(item.name || '')}</p>
                 <div class="files-share-table-wrap table-responsive">
-                    <table class="table table-sm align-middle">
+                    <table class="table table-sm align-middle mb-0">
                         <thead><tr>
-                            <th>Art</th><th>Label</th><th>Link</th><th>PW</th><th>Ablauf</th><th>Status</th><th></th>
+                            <th>Art</th><th>Label</th><th>Link</th><th>PW</th><th>Ablauf</th><th>Status</th><th class="text-end">Aktionen</th>
                         </tr></thead>
                         <tbody>${rows || '<tr><td colspan="7" class="text-muted">Noch keine Links.</td></tr>'}</tbody>
                     </table>
@@ -458,9 +470,35 @@
         modal.querySelectorAll('[data-copy-url]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const url = btn.getAttribute('data-copy-url') || '';
-                if (url) navigator.clipboard.writeText(url);
+                if (url) {
+                    navigator.clipboard.writeText(url).then(() => {
+                        const icon = btn.querySelector('i');
+                        if (icon) {
+                            const prev = icon.className;
+                            icon.className = 'bi bi-check-lg';
+                            setTimeout(() => { icon.className = prev; }, 1200);
+                        }
+                    }).catch(() => {});
+                }
             });
         });
+
+        modal.querySelectorAll('[data-share-mode-value]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const picker = item.closest('.files-share-mode-picker');
+                if (!picker) return;
+                const value = item.getAttribute('data-share-mode-value');
+                const label = item.textContent.trim();
+                const hidden = picker.querySelector('input[name="mode"]');
+                const labelEl = picker.querySelector('.files-share-mode-label');
+                if (hidden) hidden.value = value;
+                if (labelEl) labelEl.textContent = label;
+                picker.querySelectorAll('[data-share-mode-value]').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
         modal.querySelectorAll('[data-edit-share]').forEach(btn => {
             btn.addEventListener('click', () => {
                 let link;
@@ -470,18 +508,18 @@
                 const exp = link.expires_at ? String(link.expires_at).substring(0, 16) : '';
                 panel.style.display = 'block';
                 panel.innerHTML = `
-                    <div class="border rounded p-3">
+                    <div class="files-share-card">
                         <h6>Link bearbeiten (#${link.id})</h6>
                         <form method="POST" action="${formAction}">
                             <input type="hidden" name="action" value="update">
                             <input type="hidden" name="share_id" value="${link.id}">
                             <div class="mb-2">
                                 <label class="form-label">Label</label>
-                                <input type="text" class="form-control" name="label" value="${escapeHtml(link.label || '')}">
+                                <input type="text" class="form-control files-pill-input" name="label" value="${escapeHtml(link.label || '')}">
                             </div>
                             <div class="mb-2">
                                 <label class="form-label">Neues Passwort (leer = behalten)</label>
-                                <input type="password" class="form-control" name="password" autocomplete="new-password">
+                                <input type="password" class="form-control files-pill-input" name="password" autocomplete="new-password">
                             </div>
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" name="clear_password" value="1" id="clearPw${link.id}">
@@ -489,13 +527,13 @@
                             </div>
                             <div class="mb-2">
                                 <label class="form-label">Ablauf</label>
-                                <input type="datetime-local" class="form-control" name="expires_at" value="${escapeHtml(exp)}">
+                                <input type="datetime-local" class="form-control files-pill-input" name="expires_at" value="${escapeHtml(exp)}">
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="enabled" value="1" id="en${link.id}" ${link.enabled ? 'checked' : ''}>
                                 <label class="form-check-label" for="en${link.id}">Aktiv</label>
                             </div>
-                            <button type="submit" class="btn btn-primary">Speichern</button>
+                            <button type="submit" class="btn btn-accent files-pill-btn">Speichern</button>
                         </form>
                     </div>`;
             });

@@ -133,10 +133,10 @@ window.ptConfirm = function ptConfirm(message, options) {
 };
 
 /**
- * In-page info/error banner (top of main content). Prefer this over window.alert().
+ * In-page info/error banner (centered pill). Prefer this over window.alert().
  * @param {string} message
- * @param {string} [category='info'] - bootstrap alert: success|info|warning|danger
- * @param {{ timeout?: number|null, clear?: boolean }} [options]
+ * @param {string} [category='info'] - success|info|warning|danger|error
+ * @param {{ timeout?: number|null, clear?: boolean, title?: string }} [options]
  */
 window.showAppBanner = function showAppBanner(message, category, options) {
     const opts = options || {};
@@ -159,22 +159,67 @@ window.showAppBanner = function showAppBanner(message, category, options) {
         // Only remove previous JS banners; keep portal_alerts / server flashes
         host.querySelectorAll('[data-app-banner]').forEach((node) => node.remove());
     }
-    const cat = (category === 'error' ? 'danger' : (category || 'info'));
+
+    const raw = String(category || 'info').toLowerCase();
+    const cat = raw === 'error' ? 'danger' : (raw === 'message' ? 'info' : raw);
+    const iconMap = {
+        success: 'bi-check-circle-fill',
+        info: 'bi-info-circle-fill',
+        warning: 'bi-exclamation-triangle-fill',
+        danger: 'bi-exclamation-circle-fill'
+    };
+    const iconClass = iconMap[cat] || iconMap.info;
+    const closeLabel = (window.ptI18n && window.ptI18n.common && window.ptI18n.common.close) || 'Schließen';
+
     const el = document.createElement('div');
-    el.className = `alert alert-${cat} alert-dismissible fade show`;
+    el.className = `alert portal-msg portal-msg--${cat} fade show`;
     el.setAttribute('role', 'alert');
     el.setAttribute('data-app-banner', '1');
-    el.innerHTML = '';
-    const text = document.createElement('span');
+
+    const body = document.createElement('div');
+    body.className = 'portal-msg__body';
+
+    const icon = document.createElement('div');
+    icon.className = 'portal-msg__icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = `<i class="bi ${iconClass}"></i>`;
+
+    const content = document.createElement('div');
+    content.className = 'portal-msg__content';
+    if (opts.title) {
+        const title = document.createElement('h6');
+        title.className = 'portal-msg__title';
+        title.textContent = String(opts.title);
+        content.appendChild(title);
+    }
+    const text = document.createElement('p');
+    text.className = 'portal-msg__text';
     text.textContent = String(message || '');
-    el.appendChild(text);
+    content.appendChild(text);
+
+    const actions = document.createElement('div');
+    actions.className = 'portal-msg__actions';
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'btn-close';
-    closeBtn.setAttribute('data-bs-dismiss', 'alert');
-    closeBtn.setAttribute('aria-label', 'Close');
-    el.appendChild(closeBtn);
+    closeBtn.className = 'btn btn-sm portal-msg__btn portal-msg__close';
+    closeBtn.textContent = closeLabel;
+    closeBtn.addEventListener('click', function() {
+        try {
+            const inst = window.bootstrap && bootstrap.Alert.getOrCreateInstance(el);
+            if (inst) inst.close();
+            else el.remove();
+        } catch (e) {
+            el.remove();
+        }
+    });
+    actions.appendChild(closeBtn);
+    content.appendChild(actions);
+
+    body.appendChild(icon);
+    body.appendChild(content);
+    el.appendChild(body);
     host.appendChild(el);
+
     if (timeout && timeout > 0) {
         setTimeout(() => {
             try {
@@ -202,11 +247,6 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js')
             .then(function(registration) {
-                // Starte Benachrichtigungen im Service Worker
-                if (registration.active) {
-                    registration.active.postMessage({ type: 'START_NOTIFICATIONS' });
-                }
-                
                 // Prüfe auf Updates
                 registration.addEventListener('updatefound', function() {
                     const newWorker = registration.installing;
@@ -231,158 +271,182 @@ if ('serviceWorker' in navigator) {
 // Verwende window.deferredPrompt für globale Verfügbarkeit (auch in settings/notifications.html)
 window.deferredPrompt = null;
 let promptShown = false;
-let installButtonHideTimeout = null;
-let lastUserActivity = Date.now();
+
+const PWA_INSTALL_DISMISS_KEY = 'pwaInstallNeverShow';
+const PWA_INSTALL_LATER_KEY = 'pwaInstallLater';
+const PWA_INSTALL_PROMPT_ID = 'pwa-install-prompt';
+
+function ptI18nPwa(key, fallback) {
+    const pwa = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.pwa_install) || {};
+    return pwa[key] || fallback;
+}
+
+function isPwaInstallDismissed() {
+    try {
+        return localStorage.getItem(PWA_INSTALL_DISMISS_KEY) === '1';
+    } catch (e) {
+        return false;
+    }
+}
+
+function isPwaInstallLaterThisSession() {
+    try {
+        return sessionStorage.getItem(PWA_INSTALL_LATER_KEY) === '1';
+    } catch (e) {
+        return false;
+    }
+}
+
+function isRunningAsInstalledPwa() {
+    return window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+}
+
+function hidePwaInstallPrompt() {
+    const prompt = document.getElementById(PWA_INSTALL_PROMPT_ID);
+    if (prompt) {
+        prompt.remove();
+    }
+    layoutPortalPrompts();
+}
+
+/** Stack Push + PWA prompts top→bottom; after dismiss, remaining slides up. */
+function layoutPortalPrompts() {
+    const gap = 12;
+    let nextTop = null;
+    ['push-activation-prompt', PWA_INSTALL_PROMPT_ID].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (nextTop === null) {
+            const fromTop = el.getBoundingClientRect().top;
+            el.style.top = '';
+            const toTop = el.getBoundingClientRect().top;
+            if (Math.abs(fromTop - toTop) > 1) {
+                el.style.top = fromTop + 'px';
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () {
+                        if (!document.getElementById(id)) return;
+                        el.style.top = Math.round(toTop) + 'px';
+                    });
+                });
+            }
+            nextTop = toTop + el.offsetHeight + gap;
+        } else {
+            el.style.top = Math.round(nextTop) + 'px';
+            nextTop = el.getBoundingClientRect().bottom + gap;
+        }
+    });
+}
 
 window.addEventListener('beforeinstallprompt', function(e) {
-    if (disablePublicPrompts) {
+    if (disablePublicPrompts || isRunningAsInstalledPwa()) {
         e.preventDefault();
         return;
     }
-    // Verhindere Standard-Browser-Prompt, da wir unseren eigenen Install-Button zeigen
     e.preventDefault();
     window.deferredPrompt = e;
-    
-    // Zeige Install-Button (nur Button, KEIN automatischer Prompt!)
-    showInstallButton();
-    
-    // Starte Activity-Tracker für Auto-Hide nach 1 Minute
-    startActivityTracking();
-    
-    // KEIN automatischer Prompt mehr - nur beim Klick auf den Install-Button
-    // Bereinige beim Verlassen der Seite, um Ressourcen freizugeben
+
+    if (!isPwaInstallDismissed() && !isPwaInstallLaterThisSession()) {
+        setTimeout(showInstallPrompt, 2800);
+    }
+
     window.addEventListener('pagehide', function() {
-        stopActivityTracking();
         if (window.deferredPrompt && !promptShown) {
             window.deferredPrompt = null;
         }
     }, { once: true });
 });
 
-function showInstallButton() {
-    if (disablePublicPrompts) {
+function showInstallPrompt() {
+    if (disablePublicPrompts || isPwaInstallDismissed() || isPwaInstallLaterThisSession()) {
         return;
     }
-    // Erstelle Install-Button falls noch nicht vorhanden
-    if (!document.getElementById('pwa-install-btn')) {
-        const installBtn = document.createElement('button');
-        installBtn.id = 'pwa-install-btn';
-        installBtn.className = 'btn btn-primary position-fixed';
-        installBtn.style.cssText = 'bottom: 100px; right: 20px; z-index: 1050; display: none;';
-        installBtn.innerHTML = '<i class="bi bi-download me-2"></i>App installieren';
-        installBtn.onclick = installPWA;
-        document.body.appendChild(installBtn);
-        
-        // Zeige Button nach kurzer Verzögerung
-        setTimeout(() => {
-            installBtn.style.display = 'block';
-            lastUserActivity = Date.now();
-            scheduleButtonHide();
-        }, 3000);
+    if (!window.deferredPrompt) {
+        return;
     }
-}
+    if (document.getElementById(PWA_INSTALL_PROMPT_ID)) {
+        return;
+    }
 
-function startActivityTracking() {
-    // Tracke Benutzeraktivität: Scroll, Mausbewegung, Klicks, Touch-Events
-    const activityEvents = ['scroll', 'mousemove', 'click', 'touchstart', 'keydown'];
-    const activityHandler = function() {
-        const installBtn = document.getElementById('pwa-install-btn');
-        if (installBtn && installBtn.style.display !== 'none') {
-            lastUserActivity = Date.now();
-            scheduleButtonHide(); // Timer zurücksetzen
-        }
-    };
-    
-    // Füge Event-Listener hinzu
-    activityEvents.forEach(eventType => {
-        document.addEventListener(eventType, activityHandler, { passive: true });
+    const prompt = document.createElement('div');
+    prompt.id = PWA_INSTALL_PROMPT_ID;
+    prompt.className = 'pwa-install-prompt';
+    prompt.setAttribute('role', 'dialog');
+    prompt.setAttribute('aria-modal', 'false');
+    prompt.setAttribute('aria-labelledby', 'pwaInstallTitle');
+    prompt.setAttribute('aria-describedby', 'pwaInstallDesc');
+    prompt.innerHTML = `
+        <div class="pwa-install-prompt__body">
+            <div class="pwa-install-prompt__icon" aria-hidden="true">
+                <i class="bi bi-download"></i>
+            </div>
+            <div class="pwa-install-prompt__content">
+                <h6 class="pwa-install-prompt__title" id="pwaInstallTitle">${ptI18nPwa('title', 'App installieren')}</h6>
+                <p class="pwa-install-prompt__text" id="pwaInstallDesc">${ptI18nPwa('description', 'Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.')}</p>
+                <div class="pwa-install-prompt__actions">
+                    <button type="button" class="btn btn-sm pwa-install-prompt__btn pwa-install-prompt__btn--install" data-pwa-action="install">
+                        ${ptI18nPwa('install', 'Installieren')}
+                    </button>
+                    <button type="button" class="btn btn-sm pwa-install-prompt__btn pwa-install-prompt__btn--later" data-pwa-action="later">
+                        ${ptI18nPwa('later', 'Später')}
+                    </button>
+                    <button type="button" class="btn btn-sm pwa-install-prompt__btn pwa-install-prompt__btn--never" data-pwa-action="never">
+                        ${ptI18nPwa('never', 'Nicht mehr anzeigen')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(prompt);
+    layoutPortalPrompts();
+
+    prompt.querySelector('[data-pwa-action="install"]')?.addEventListener('click', function() {
+        installPWA();
     });
-    
-    // Speichere Handler für Cleanup
-    window._pwaActivityHandler = activityHandler;
-    window._pwaActivityEvents = activityEvents;
+    prompt.querySelector('[data-pwa-action="later"]')?.addEventListener('click', function() {
+        try {
+            sessionStorage.setItem(PWA_INSTALL_LATER_KEY, '1');
+        } catch (e) { /* ignore */ }
+        hidePwaInstallPrompt();
+    });
+    prompt.querySelector('[data-pwa-action="never"]')?.addEventListener('click', function() {
+        try {
+            localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
+            localStorage.removeItem('pwaInstallLaterUntil');
+        } catch (e) { /* ignore */ }
+        hidePwaInstallPrompt();
+    });
 }
 
-function stopActivityTracking() {
-    // Entferne Event-Listener
-    if (window._pwaActivityHandler && window._pwaActivityEvents) {
-        window._pwaActivityEvents.forEach(eventType => {
-            document.removeEventListener(eventType, window._pwaActivityHandler);
-        });
-    }
-    if (installButtonHideTimeout) {
-        clearTimeout(installButtonHideTimeout);
-        installButtonHideTimeout = null;
-    }
-}
-
-function scheduleButtonHide() {
-    // Lösche bestehenden Timeout
-    if (installButtonHideTimeout) {
-        clearTimeout(installButtonHideTimeout);
-    }
-    
-    // Plane Ausblenden nach 1 Minute (60000ms) ab letzter Aktivität
-    installButtonHideTimeout = setTimeout(function() {
-        const installBtn = document.getElementById('pwa-install-btn');
-        if (installBtn && installBtn.style.display !== 'none') {
-            // Prüfe, ob seit letzter Aktivität wirklich 1 Minute vergangen sind
-            const timeSinceActivity = Date.now() - lastUserActivity;
-            if (timeSinceActivity >= 60000) {
-                // Sanft ausblenden mit Fade-Out
-                installBtn.style.transition = 'opacity 0.5s ease-out';
-                installBtn.style.opacity = '0';
-                setTimeout(function() {
-                    installBtn.style.display = 'none';
-                    installBtn.style.opacity = '1'; // Zurücksetzen für nächstes Mal
-                    installBtn.style.transition = '';
-                }, 500);
-            } else {
-                // Wenn noch nicht 1 Minute vergangen, neu planen
-                scheduleButtonHide();
-            }
-        }
-    }, 60000); // 1 Minute
+/** @deprecated Alias für ältere Aufrufe / Settings-Seite */
+function showInstallButton() {
+    showInstallPrompt();
 }
 
 function installPWA() {
     if (window.deferredPrompt && !promptShown) {
         promptShown = true;
-        
-        // Stoppe Auto-Hide Timer, da Benutzer interagiert
-        if (installButtonHideTimeout) {
-            clearTimeout(installButtonHideTimeout);
-            installButtonHideTimeout = null;
-        }
-        
+
         try {
-            // Prompt() kann nur innerhalb einer Benutzeraktion aufgerufen werden
-            // Diese Funktion wird nur bei Button-Klick aufgerufen, daher ist das sicher
             window.deferredPrompt.prompt().then(function() {
                 return window.deferredPrompt.userChoice;
             }).then(function(choiceResult) {
-                // Ergebnis verarbeiten
                 if (choiceResult.outcome === 'accepted') {
                     console.debug('Benutzer hat PWA-Installation akzeptiert');
                 } else {
                     console.debug('Benutzer hat PWA-Installation abgelehnt');
                 }
-                
+
                 window.deferredPrompt = null;
                 promptShown = false;
-                
-                // Verstecke Install-Button
-                const installBtn = document.getElementById('pwa-install-btn');
-                if (installBtn) {
-                    installBtn.style.display = 'none';
-                }
+                hidePwaInstallPrompt();
             }).catch(function(error) {
                 console.debug('Fehler beim Anzeigen des PWA-Install-Prompts:', error);
                 window.deferredPrompt = null;
                 promptShown = false;
             });
         } catch (error) {
-            // Fallback für Browser, die prompt() nicht direkt unterstützen
             console.debug('prompt() konnte nicht aufgerufen werden:', error);
             window.deferredPrompt = null;
             promptShown = false;
@@ -390,13 +454,9 @@ function installPWA() {
     }
 }
 
-// PWA Install Event
-window.addEventListener('appinstalled', function(evt) {
-    // Verstecke Install-Button
-    const installBtn = document.getElementById('pwa-install-btn');
-    if (installBtn) {
-        installBtn.style.display = 'none';
-    }
+window.addEventListener('appinstalled', function() {
+    hidePwaInstallPrompt();
+    window.deferredPrompt = null;
 });
 
 // Push Notifications
@@ -571,6 +631,8 @@ class ServerPushManager {
         this.registerDebounceTimer = null;
         this.pushActivationPromptId = 'push-activation-prompt';
         this.pushActivationPromptSessionKey = 'pushActivationPromptHandled';
+        this.pushActivationPromptDismissKey = 'pushActivationPromptDismissed';
+        this.pushPromptAllowedPrefixes = ['/chat', '/files', '/calendar', '/email'];
         this.init();
     }
     
@@ -590,7 +652,7 @@ class ServerPushManager {
                 this.debouncedRegister();
             }
 
-            // Berechtigung noch offen -> immer eigenes Portal-Prompt anbieten
+            // Berechtigung noch offen -> Prompt nur auf Push-relevanten Modulen
             if (status.permission === 'default') {
                 this.schedulePushActivationPrompt();
             }
@@ -638,11 +700,42 @@ class ServerPushManager {
         return !!(document.getElementById('desktopSidebar') || document.getElementById('mobileNav'));
     }
 
+    isPushPromptContextPage() {
+        const path = window.location.pathname || '';
+        return this.pushPromptAllowedPrefixes.some((prefix) => (
+            path === prefix || path.startsWith(`${prefix}/`)
+        ));
+    }
+
+    isPushPromptDismissedForever() {
+        try {
+            return localStorage.getItem(this.pushActivationPromptDismissKey) === '1';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    dismissPushPromptForever() {
+        try {
+            localStorage.setItem(this.pushActivationPromptDismissKey, '1');
+        } catch (error) {
+            // localStorage kann blockiert sein – Session reicht als Fallback
+        }
+        sessionStorage.setItem(this.pushActivationPromptSessionKey, '1');
+        this.hidePushActivationPrompt();
+    }
+
     showPushActivationPrompt() {
         if (!document.body) {
             return;
         }
+        if (!this.isPushPromptContextPage()) {
+            return;
+        }
         if (!('Notification' in window) || Notification.permission !== 'default') {
+            return;
+        }
+        if (this.isPushPromptDismissedForever()) {
             return;
         }
         if (sessionStorage.getItem(this.pushActivationPromptSessionKey) === '1') {
@@ -654,28 +747,32 @@ class ServerPushManager {
 
         const prompt = document.createElement('div');
         prompt.id = this.pushActivationPromptId;
-        prompt.className = 'card shadow-sm border-0';
-        prompt.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1080; max-width: 360px;';
+        prompt.className = 'push-activation-prompt';
+        prompt.setAttribute('role', 'dialog');
+        prompt.setAttribute('aria-labelledby', 'push-activation-prompt-title');
         prompt.innerHTML = `
-            <div class="card-body p-3">
-                <div class="d-flex align-items-start gap-2">
-                    <i class="bi bi-bell fs-5 text-primary mt-1"></i>
-                    <div class="flex-grow-1">
-                        <h6 class="mb-2">Push-Benachrichtigungen auf dem Gerät aktivieren?</h6>
-                        <p class="text-muted small mb-3">Sie erhalten dann neue Nachrichten direkt als Benachrichtigung.</p>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-primary" data-push-activate="yes">Ja</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" data-push-activate="later">Später</button>
-                        </div>
+            <div class="push-activation-prompt__body">
+                <div class="push-activation-prompt__icon" aria-hidden="true">
+                    <i class="bi bi-bell"></i>
+                </div>
+                <div class="push-activation-prompt__content">
+                    <h6 id="push-activation-prompt-title" class="push-activation-prompt__title">Push-Benachrichtigungen auf dem Gerät aktivieren?</h6>
+                    <p class="push-activation-prompt__text">Sie erhalten dann neue Nachrichten direkt als Benachrichtigung.</p>
+                    <div class="push-activation-prompt__actions">
+                        <button type="button" class="btn btn-sm push-activation-prompt__btn push-activation-prompt__btn--yes" data-push-activate="yes">Ja</button>
+                        <button type="button" class="btn btn-sm push-activation-prompt__btn push-activation-prompt__btn--later" data-push-activate="later">Später</button>
+                        <button type="button" class="btn btn-sm push-activation-prompt__btn push-activation-prompt__btn--never" data-push-activate="never">Nicht mehr anzeigen</button>
                     </div>
                 </div>
             </div>
         `;
 
         document.body.appendChild(prompt);
+        layoutPortalPrompts();
 
         const yesButton = prompt.querySelector('[data-push-activate="yes"]');
         const laterButton = prompt.querySelector('[data-push-activate="later"]');
+        const neverButton = prompt.querySelector('[data-push-activate="never"]');
 
         yesButton?.addEventListener('click', async () => {
             sessionStorage.setItem(this.pushActivationPromptSessionKey, '1');
@@ -687,9 +784,17 @@ class ServerPushManager {
             sessionStorage.setItem(this.pushActivationPromptSessionKey, '1');
             this.hidePushActivationPrompt();
         });
+
+        neverButton?.addEventListener('click', () => {
+            this.dismissPushPromptForever();
+        });
     }
 
     schedulePushActivationPrompt() {
+        if (!this.isPushPromptContextPage() || this.isPushPromptDismissedForever()) {
+            return;
+        }
+
         // Kurz verzögert anzeigen, damit Layout/DOM sicher da sind
         setTimeout(() => {
             this.showPushActivationPrompt();
@@ -706,6 +811,7 @@ class ServerPushManager {
         if (prompt) {
             prompt.remove();
         }
+        layoutPortalPrompts();
     }
     
     debouncedRegister() {
@@ -879,6 +985,21 @@ class ServerPushManager {
                 statusElement.innerHTML = '<span class="badge bg-success">Aktiv</span>';
             } else {
                 statusElement.innerHTML = '<span class="badge bg-secondary">Nicht registriert</span>';
+            }
+        }
+
+        const supportStatus = document.getElementById('push-support-status');
+        if (supportStatus) {
+            const okText = supportStatus.dataset.ok || 'Dieser Browser unterstützt Push-Benachrichtigungen mit dieser Seite';
+            const noText = supportStatus.dataset.no || 'Dieser Browser unterstützt Push-Benachrichtigungen nicht';
+            if (status.supported) {
+                supportStatus.textContent = okText;
+                supportStatus.classList.add('is-ok');
+                supportStatus.classList.remove('is-no');
+            } else {
+                supportStatus.textContent = noText;
+                supportStatus.classList.add('is-no');
+                supportStatus.classList.remove('is-ok');
             }
         }
         
@@ -1270,10 +1391,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Password visibility toggle
     const passwordToggles = document.querySelectorAll('.password-toggle');
     passwordToggles.forEach(toggle => {
-        toggle.addEventListener('click', function() {
-            const input = this.previousElementSibling;
+        toggle.addEventListener('click', function () {
+            const group = this.closest('.input-group');
+            const input = (group && group.querySelector('input')) || this.previousElementSibling;
             const icon = this.querySelector('i');
-            
+            if (!input || !icon) return;
+
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.classList.remove('bi-eye');

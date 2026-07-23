@@ -77,6 +77,92 @@ files_bp = Blueprint('files', __name__)
 MAX_FILE_VERSIONS = 3
 MAX_FILE_PREVIEW_CHARS = 240
 
+IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'}
+VIDEO_EXTS = {'.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv'}
+AUDIO_EXTS = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus'}
+BROWSER_MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS | AUDIO_EXTS
+TEXT_VIEWABLE_EXTS = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
+
+_MEDIA_MIME_TYPES = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.m4v': 'video/x-m4v',
+    '.ogv': 'video/ogg',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.flac': 'audio/flac',
+    '.ogg': 'audio/ogg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/aac',
+    '.oga': 'audio/ogg',
+    '.opus': 'audio/opus',
+}
+
+
+def media_kind(ext):
+    """Return 'image', 'video', 'audio', or None for a file extension."""
+    file_ext = (ext or '').lower()
+    if file_ext and not file_ext.startswith('.'):
+        file_ext = f'.{file_ext}'
+    if file_ext in IMAGE_EXTS:
+        return 'image'
+    if file_ext in VIDEO_EXTS:
+        return 'video'
+    if file_ext in AUDIO_EXTS:
+        return 'audio'
+    return None
+
+
+def media_mimetype(ext):
+    """MIME type for browser-previewable media extensions."""
+    file_ext = (ext or '').lower()
+    if file_ext and not file_ext.startswith('.'):
+        file_ext = f'.{file_ext}'
+    return _MEDIA_MIME_TYPES.get(file_ext, 'application/octet-stream')
+
+
+def _file_extension(filename):
+    return os.path.splitext(filename or '')[1].lower()
+
+
+def _mimetype_for_extension(ext):
+    """MIME type for downloads and inline serving."""
+    file_ext = (ext or '').lower()
+    if file_ext in {'.md', '.markdown'}:
+        return 'text/markdown'
+    if file_ext == '.txt':
+        return 'text/plain'
+    if file_ext == '.pdf':
+        return 'application/pdf'
+    if file_ext in _MEDIA_MIME_TYPES:
+        return _MEDIA_MIME_TYPES[file_ext]
+    return 'application/octet-stream'
+
+
+def _send_inline_media(file_obj):
+    """Send media file inline for browser preview (supports Range requests)."""
+    file_ext = _file_extension(file_obj.original_name)
+    kind = media_kind(file_ext)
+    if not kind:
+        abort(404)
+    file_path = _resolve_absolute_file_path(file_obj.file_path)
+    if not file_path or not os.path.exists(file_path):
+        abort(404)
+    return send_file(
+        file_path,
+        mimetype=media_mimetype(file_ext),
+        as_attachment=False,
+        conditional=True,
+    )
+
 
 def _split_filename_parts(filename):
     """Split filename into base and extension."""
@@ -281,6 +367,33 @@ def _validate_share_edit_bot(token):
     return ok
 
 
+def _mailbox_bot_session_key(token):
+    return f'mailbox_bot_verified_{token}'
+
+
+def _mailbox_bot_template_context(token=None):
+    from app.utils.bot_protection import get_template_context as get_bot_template_context
+
+    bot_ctx = get_bot_template_context()
+    bot_ctx['bot_context'] = 'mailbox'
+    already = bool(token and session.get(_mailbox_bot_session_key(token)))
+    bot_ctx['show_bot'] = bot_ctx.get('bot_enabled_mailbox', False) and not already
+    return bot_ctx
+
+
+def _validate_mailbox_bot(token):
+    from app.utils.bot_protection import is_enabled_for, validate_bot_protection
+
+    if not is_enabled_for('mailbox'):
+        return True
+    if session.get(_mailbox_bot_session_key(token)):
+        return True
+    ok, _err = validate_bot_protection(request, 'mailbox')
+    if ok:
+        session[_mailbox_bot_session_key(token)] = True
+    return ok
+
+
 def _get_public_share_context(token):
     """Return (share, item) for an enabled, non-expired public share."""
     share = get_share_by_token(token)
@@ -327,24 +440,83 @@ def _get_guest_accessible_folder_ids():
     return {folder.id for folder in accessible_folders}
 
 
-def _get_safe_folder_url(folder_id, accessible_folder_ids=None):
+def _get_safe_folder_url(folder_id, accessible_folder_ids=None, view=None):
     """Resolve safe folder redirect target for user/guest context."""
+    folder = None
+    if folder_id:
+        folder = Folder.query.get(folder_id)
+    view_kwargs = _files_view_kwargs(view, folder=folder)
     if not folder_id:
-        return url_for('files.index')
+        return url_for('files.index', **view_kwargs)
+
+    # Persönlicher Stamm = virtuelle Ablage-Root → Index
+    if folder is not None and getattr(folder, 'is_personal_root', False):
+        return url_for('files.index', **view_kwargs)
 
     if _is_guest_user():
         accessible_ids = accessible_folder_ids
         if accessible_ids is None:
             accessible_ids = _get_guest_accessible_folder_ids()
         if folder_id not in accessible_ids:
-            return url_for('files.index')
+            return url_for('files.index', **view_kwargs)
 
-    return url_for('files.browse_folder', folder_id=folder_id)
+    return url_for('files.browse_folder', folder_id=folder_id, **view_kwargs)
 
 
-def _get_safe_file_back_url(file_obj, accessible_folder_ids=None):
+def _files_view_kwargs(view=None, folder=None):
+    """Preserve ?view= for redirects after file/folder mutations."""
+    if _is_guest_user():
+        return {}
+    private_enabled = is_private_folders_enabled()
+    raw = view if view is not None else (request.form.get('view') or request.args.get('view'))
+    if not raw:
+        raw = session.get('files_last_view')
+    if not raw and folder is not None:
+        space = (getattr(folder, 'space', None) or 'public').lower()
+        raw = 'ablage' if space == 'personal' else 'public'
+    files_view = normalize_view(raw, private_enabled=private_enabled)
+    return {'view': files_view} if files_view else {}
+
+
+def _files_context_url(folder_id=None, folder=None):
+    """Build URL back to the folder the user was browsing (with correct ?view=)."""
+    target_id = folder_id
+    target_folder = folder
+
+    raw_return = (request.form.get('return_folder_id') or '').strip()
+    if raw_return:
+        try:
+            target_id = int(raw_return)
+            target_folder = Folder.query.get(target_id)
+        except (TypeError, ValueError):
+            pass
+
+    if target_folder is None and target_id:
+        target_folder = Folder.query.get(target_id)
+
+    view_kwargs = _files_view_kwargs(folder=target_folder)
+
+    # Ablage-Root: persönlicher Stammordner ist virtuell → /files?view=ablage
+    if target_folder is not None and getattr(target_folder, 'is_personal_root', False):
+        return url_for('files.index', **view_kwargs)
+
+    if target_id:
+        return url_for('files.browse_folder', folder_id=target_id, **view_kwargs)
+    return url_for('files.index', **view_kwargs)
+
+
+def _redirect_to_files_context(folder_id=None, folder=None):
+    """Redirect back to the folder the user was browsing (with correct ?view=)."""
+    return redirect(_files_context_url(folder_id=folder_id, folder=folder))
+
+
+def _get_safe_file_back_url(file_obj, accessible_folder_ids=None, view=None):
     """Resolve safe return URL from file views/editors."""
-    return _get_safe_folder_url(file_obj.folder_id, accessible_folder_ids=accessible_folder_ids)
+    return _get_safe_folder_url(
+        file_obj.folder_id if file_obj else None,
+        accessible_folder_ids=accessible_folder_ids,
+        view=view,
+    )
 
 
 @files_bp.route('/')
@@ -368,6 +540,10 @@ def browse_folder(folder_id):
         files_view = None
     else:
         files_view = normalize_view(request.args.get('view'), private_enabled=private_enabled)
+
+    if not is_guest and files_view:
+        session['files_last_view'] = files_view
+        session['files_last_folder_id'] = folder_id
 
     # Gast-Accounts: Nur Freigabelinks anzeigen
     if is_guest:
@@ -652,10 +828,7 @@ def rename_file(file_id):
     file.name = new_name
     db.session.commit()
     flash('Datei wurde umbenannt.', 'success')
-    
-    if file.folder_id:
-        return redirect(url_for('files.browse_folder', folder_id=file.folder_id))
-    return redirect(url_for('files.index'))
+    return _redirect_to_files_context(folder_id=file.folder_id)
 
 
 @files_bp.route('/folder/<int:folder_id>/rename', methods=['POST'])
@@ -682,10 +855,9 @@ def rename_folder(folder_id):
     folder.name = new_name
     db.session.commit()
     flash('Ordner wurde umbenannt.', 'success')
-    
-    if folder.parent_id:
-        return redirect(url_for('files.browse_folder', folder_id=folder.parent_id))
-    return redirect(url_for('files.index'))
+
+    # Zurück in den Ordner, in dem der umbenannte Ordner angezeigt wird (Parent bzw. Root)
+    return _redirect_to_files_context(folder_id=folder.parent_id)
 
 
 @files_bp.route('/folder/<int:folder_id>/color', methods=['POST'])
@@ -1192,8 +1364,8 @@ def upload_file():
                 flash('Kein Upload möglich. Dateien ggf. zu groß (max. 100MB) oder fehlerhaft.', 'danger')
             
             if folder_id:
-                return _finish(url_for('files.browse_folder', folder_id=folder_id))
-            return _finish(url_for('files.index'))
+                return _finish(_files_context_url(folder_id=folder_id))
+            return _finish(_files_context_url())
     
     # Single/multi file upload
     if 'file' not in request.files:
@@ -1432,9 +1604,7 @@ def upload_file():
 
             flash(f'Datei "{original_name}" wurde hochgeladen.', 'success')
     
-    if folder_id:
-        return _finish(url_for('files.browse_folder', folder_id=folder_id))
-    return _finish(url_for('files.index'))
+    return _finish(_files_context_url(folder_id=folder_id))
 
 
 @files_bp.route('/upload-conflicts', methods=['POST'])
@@ -1532,6 +1702,19 @@ def serve_pdf(file_id):
     return send_file(file_path, mimetype='application/pdf')
 
 
+@files_bp.route('/serve-media/<int:file_id>')
+@login_required
+@check_module_access('module_files')
+def serve_media(file_id):
+    """Serve image/video/audio inline for browser preview."""
+    file = File.query.get_or_404(file_id)
+    if _is_guest_user():
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
+            abort(403)
+    return _send_inline_media(file)
+
+
 @files_bp.route('/download/<int:file_id>')
 @login_required
 @check_module_access('module_files')
@@ -1549,26 +1732,10 @@ def download_file(file_id):
     if not os.path.exists(file_path):
         flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
         return redirect(url_for('files.index'))
-    
-    # Determine MIME type based on file extension
-    file_ext = os.path.splitext(file.original_name)[1].lower()
-    if file_ext == '.md':
-        mimetype = 'text/markdown'
-    elif file_ext == '.txt':
-        mimetype = 'text/plain'
-    elif file_ext == '.pdf':
-        mimetype = 'application/pdf'
-    elif file_ext in ['.jpg', '.jpeg']:
-        mimetype = 'image/jpeg'
-    elif file_ext == '.png':
-        mimetype = 'image/png'
-    elif file_ext == '.gif':
-        mimetype = 'image/gif'
-    elif file_ext == '.webp':
-        mimetype = 'image/webp'
-    else:
-        mimetype = 'application/octet-stream'
-    
+
+    file_ext = _file_extension(file.original_name)
+    mimetype = _mimetype_for_extension(file_ext)
+
     return send_file(
         file_path, 
         as_attachment=True, 
@@ -1595,29 +1762,12 @@ def download_version(version_id):
     if not os.path.exists(file_path):
         flash(f'Datei-Version "{file.original_name} v{version.version_number}" wurde nicht gefunden.', 'danger')
         return redirect(url_for('files.index'))
-    
-    # Determine MIME type based on file extension
-    file_ext = os.path.splitext(file.original_name)[1].lower()
-    if file_ext == '.md':
-        mimetype = 'text/markdown'
-    elif file_ext == '.txt':
-        mimetype = 'text/plain'
-    elif file_ext == '.pdf':
-        mimetype = 'application/pdf'
-    elif file_ext in ['.jpg', '.jpeg']:
-        mimetype = 'image/jpeg'
-    elif file_ext == '.png':
-        mimetype = 'image/png'
-    elif file_ext == '.gif':
-        mimetype = 'image/gif'
-    elif file_ext == '.webp':
-        mimetype = 'image/webp'
-    else:
-        mimetype = 'application/octet-stream'
-    
+
+    file_ext = _file_extension(file.original_name)
+    mimetype = _mimetype_for_extension(file_ext)
+
     # Create versioned filename
     name_without_ext = os.path.splitext(file.original_name)[0]
-    file_ext = os.path.splitext(file.original_name)[1]
     versioned_filename = f"{name_without_ext}_v{version.version_number}{file_ext}"
     
     return send_file(
@@ -1754,7 +1904,21 @@ def view_file(file_id):
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
     
-    file_ext = os.path.splitext(file.original_name)[1].lower()
+    # Merke View/Ordner für „Schließen“ zurück in denselben Kontext
+    view_arg = request.args.get('view')
+    if not _is_guest_user():
+        private_enabled = is_private_folders_enabled()
+        files_view = normalize_view(view_arg or session.get('files_last_view'), private_enabled=private_enabled)
+        if files_view:
+            session['files_last_view'] = files_view
+        if file.folder_id:
+            session['files_last_folder_id'] = file.folder_id
+    else:
+        files_view = None
+
+    back_url = _get_safe_file_back_url(file, guest_accessible_folder_ids, view=files_view if not _is_guest_user() else None)
+
+    file_ext = _file_extension(file.original_name)
     
     # Handle PDF files - display in browser
     if file_ext == '.pdf':
@@ -1767,22 +1931,37 @@ def view_file(file_id):
         # Check if file exists
         if not os.path.exists(file_path):
             flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
-            return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
+            return redirect(back_url)
         
         # Return PDF for inline viewing (similar to manuals)
         return render_template(
             'files/view.html',
             file=file,
             is_pdf=True,
-            back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids)
+            back_url=back_url
+        )
+
+    kind = media_kind(file_ext)
+    if kind:
+        file_path = _resolve_absolute_file_path(file.file_path)
+        if not file_path or not os.path.exists(file_path):
+            flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+            return redirect(back_url)
+        return render_template(
+            'files/view.html',
+            file=file,
+            is_pdf=False,
+            is_image=kind == 'image',
+            is_video=kind == 'video',
+            is_audio=kind == 'audio',
+            media_kind=kind,
+            back_url=back_url,
         )
     
     # Handle text/markdown files (existing logic)
-    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
-    
-    if file_ext not in viewable_extensions:
+    if file_ext not in TEXT_VIEWABLE_EXTS:
         flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
-        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
+        return redirect(back_url)
     
     # Read file content
     try:
@@ -1796,7 +1975,7 @@ def view_file(file_id):
             content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
-        return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
+        return redirect(back_url)
     
     is_markdown = _is_markdown_extension(file_ext)
     processed_content = _render_view_content(content, file_ext)
@@ -1810,7 +1989,7 @@ def view_file(file_id):
         processed_content=processed_content,
         is_markdown=is_markdown,
         is_pdf=False,
-        back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids)
+        back_url=back_url
     )
 
 
@@ -2243,9 +2422,18 @@ def dropbox_upload(token):
     if not folder:
         abort(404)
 
+    bot_ctx = _mailbox_bot_template_context(token)
     password_hash = _dropbox_password_hash(share, folder)
     if password_hash:
         if request.method == 'POST' and 'password' in request.form:
+            if not _validate_mailbox_bot(token):
+                flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+                return render_template(
+                    'files/dropbox_auth.html',
+                    token=token,
+                    folder_name=folder.name,
+                    **bot_ctx,
+                )
             password = request.form.get('password', '')
             if check_password_hash(password_hash, password):
                 session[f'dropbox_auth_{token}'] = True
@@ -2255,11 +2443,27 @@ def dropbox_upload(token):
                 return redirect(url_for('files.dropbox_upload', token=token))
             flash('Ungültiges Passwort.', 'danger')
         elif not session.get(f'dropbox_auth_{token}'):
-            return render_template('files/dropbox_auth.html', token=token, folder_name=folder.name)
+            return render_template(
+                'files/dropbox_auth.html',
+                token=token,
+                folder_name=folder.name,
+                **bot_ctx,
+            )
 
     name_session_key = _dropbox_name_session_key(token)
     guest_name = session.get(name_session_key)
     if request.method == 'POST' and 'guest_name' in request.form:
+        if not _validate_mailbox_bot(token):
+            flash('Bot-Schutz-Prüfung fehlgeschlagen. Bitte erneut versuchen.', 'danger')
+            return render_template(
+                'files/dropbox_upload.html',
+                token=token,
+                folder=folder,
+                guest_name=None,
+                require_name_overlay=True,
+                session_uploads=[],
+                **bot_ctx,
+            )
         submitted_name = request.form.get('guest_name', '').strip()
         if not submitted_name:
             flash('Bitte geben Sie einen Namen ein.', 'danger')
@@ -2280,6 +2484,7 @@ def dropbox_upload(token):
         guest_name=guest_name,
         require_name_overlay=not bool(guest_name),
         session_uploads=session_uploads,
+        **bot_ctx,
     )
 
 
@@ -2289,6 +2494,9 @@ def dropbox_upload_file(token):
     share, folder = resolve_dropbox_folder(token)
     if not folder:
         abort(404)
+
+    if not _validate_mailbox_bot(token):
+        return jsonify({'success': False, 'error': 'Bot-Schutz-Prüfung fehlgeschlagen.'}), 403
 
     password_hash = _dropbox_password_hash(share, folder)
     if password_hash:
@@ -2442,6 +2650,20 @@ def _is_descendant_folder(candidate_folder, root_folder):
             break
         current = Folder.query.get(current.parent_id)
     return False
+
+
+def _resolve_shared_file(item, file_id):
+    """Datei unter Freigabe auflösen (direkt oder in Ordner inkl. Unterordner)."""
+    file = File.query.filter_by(id=file_id, is_current=True).first()
+    if not file:
+        return None
+    if isinstance(item, File):
+        return file if item.id == file.id else None
+    if isinstance(item, Folder):
+        if not file.folder or not _is_descendant_folder(file.folder, item):
+            return None
+        return file
+    return None
 
 
 def _build_public_share_breadcrumb(root_folder, current_folder, token):
@@ -2860,7 +3082,9 @@ def public_share_view(token):
         return redirect(url_for('files.public_share', token=token))
 
     file = item
-    file_ext = os.path.splitext(file.original_name)[1].lower()
+    file_ext = _file_extension(file.original_name)
+    back_url = url_for('files.public_share', token=token)
+    download_url = url_for('files.public_share_download', token=token)
     if file_ext == '.pdf':
         log_share_access(share, 'view_pdf', request, guest_name=guest_name)
         db.session.commit()
@@ -2868,13 +3092,37 @@ def public_share_view(token):
             'files/view.html',
             file=file,
             is_pdf=True,
-            back_url=url_for('files.public_share', token=token)
+            back_url=back_url,
+            pdf_src=url_for('files.public_share_pdf', token=token),
+            download_url=download_url,
+            public_share=True,
         )
 
-    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
-    if file_ext not in viewable_extensions:
+    kind = media_kind(file_ext)
+    if kind:
+        file_path = _resolve_absolute_file_path(file.file_path)
+        if not file_path or not os.path.exists(file_path):
+            flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+            return redirect(back_url)
+        log_share_access(share, 'view_media', request, guest_name=guest_name)
+        db.session.commit()
+        return render_template(
+            'files/view.html',
+            file=file,
+            is_pdf=False,
+            is_image=kind == 'image',
+            is_video=kind == 'video',
+            is_audio=kind == 'audio',
+            media_kind=kind,
+            back_url=back_url,
+            media_src=url_for('files.public_share_media', token=token),
+            download_url=download_url,
+            public_share=True,
+        )
+
+    if file_ext not in TEXT_VIEWABLE_EXTS:
         flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
-        return redirect(url_for('files.public_share', token=token))
+        return redirect(back_url)
 
     try:
         file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
@@ -2882,7 +3130,7 @@ def public_share_view(token):
             content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
-        return redirect(url_for('files.public_share', token=token))
+        return redirect(back_url)
 
     processed_content = _render_view_content(content, file_ext)
     log_share_access(share, 'view_file', request, guest_name=guest_name)
@@ -2894,7 +3142,9 @@ def public_share_view(token):
         processed_content=processed_content,
         is_markdown=_is_markdown_extension(file_ext),
         is_pdf=False,
-        back_url=url_for('files.public_share', token=token)
+        back_url=back_url,
+        download_url=download_url,
+        public_share=True,
     )
 
 
@@ -2917,14 +3167,31 @@ def public_share_pdf(token):
     return send_file(file_path, mimetype='application/pdf')
 
 
+@files_bp.route('/share/<token>/media', methods=['GET'])
+def public_share_media(token):
+    """Media-Stream für direkt freigegebene Datei."""
+    share = get_share_by_token(token) or abort(404)
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item or share.resource_type != 'file':
+        abort(404)
+    file = item
+    if not media_kind(_file_extension(file.original_name)):
+        abort(404)
+    log_share_access(share, 'view_media', request, guest_name=guest_name)
+    db.session.commit()
+    return _send_inline_media(file)
+
+
 @files_bp.route('/share/<token>/file/<int:file_id>/download', methods=['GET'])
 def public_share_folder_file_download(token, file_id):
-    """Download für Datei in freigegebenem Ordner."""
+    """Download für Datei in freigegebenem Ordner (auch Unterordner)."""
     share = get_share_by_token(token) or abort(404)
     if share.resource_type != 'folder':
         abort(404)
-    shared_folder = resolve_resource(share) or abort(404)
-    file = File.query.filter_by(id=file_id, folder_id=shared_folder.id, is_current=True).first_or_404()
+    shared_root = resolve_resource(share) or abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
 
     item, guest_name, _access_share = _check_share_access(token)
     if not item:
@@ -2953,15 +3220,45 @@ def public_share_folder_file_view(token, file_id):
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
 
-    file_ext = os.path.splitext(file.original_name)[1].lower()
+    file_ext = _file_extension(file.original_name)
     back_url = url_for('files.public_share', token=token, folder_id=file.folder_id)
+    download_url = url_for('files.public_share_folder_file_download', token=token, file_id=file.id)
     if file_ext == '.pdf':
         log_share_access(share, 'view_pdf', request, guest_name=guest_name)
         db.session.commit()
-        return render_template('files/view.html', file=file, is_pdf=True, back_url=back_url)
+        return render_template(
+            'files/view.html',
+            file=file,
+            is_pdf=True,
+            back_url=back_url,
+            pdf_src=url_for('files.public_share_folder_file_pdf', token=token, file_id=file.id),
+            download_url=download_url,
+            public_share=True,
+        )
 
-    viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
-    if file_ext not in viewable_extensions:
+    kind = media_kind(file_ext)
+    if kind:
+        file_path = _resolve_absolute_file_path(file.file_path)
+        if not file_path or not os.path.exists(file_path):
+            flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+            return redirect(back_url)
+        log_share_access(share, 'view_media', request, guest_name=guest_name)
+        db.session.commit()
+        return render_template(
+            'files/view.html',
+            file=file,
+            is_pdf=False,
+            is_image=kind == 'image',
+            is_video=kind == 'video',
+            is_audio=kind == 'audio',
+            media_kind=kind,
+            back_url=back_url,
+            media_src=url_for('files.public_share_folder_file_media', token=token, file_id=file.id),
+            download_url=download_url,
+            public_share=True,
+        )
+
+    if file_ext not in TEXT_VIEWABLE_EXTS:
         flash('Dieser Dateityp kann nicht angezeigt werden.', 'warning')
         return redirect(back_url)
 
@@ -2983,7 +3280,9 @@ def public_share_folder_file_view(token, file_id):
         processed_content=processed_content,
         is_markdown=_is_markdown_extension(file_ext),
         is_pdf=False,
-        back_url=back_url
+        back_url=back_url,
+        download_url=download_url,
+        public_share=True,
     )
 
 
@@ -2997,7 +3296,7 @@ def public_share_folder_file_pdf(token, file_id):
     file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
     if not _is_descendant_folder(file.folder, shared_root):
         abort(404)
-    file_ext = os.path.splitext(file.original_name)[1].lower()
+    file_ext = _file_extension(file.original_name)
     if file_ext != '.pdf':
         abort(404)
     item, guest_name, _access_share = _check_share_access(token)
@@ -3009,6 +3308,26 @@ def public_share_folder_file_pdf(token, file_id):
     log_share_access(share, 'view_pdf', request, guest_name=guest_name)
     db.session.commit()
     return send_file(file_path, mimetype='application/pdf')
+
+
+@files_bp.route('/share/<token>/file/<int:file_id>/media', methods=['GET'])
+def public_share_folder_file_media(token, file_id):
+    """Media-Stream für Datei in freigegebenem Ordner."""
+    share = get_share_by_token(token) or abort(404)
+    if share.resource_type != 'folder':
+        abort(404)
+    shared_root = resolve_resource(share) or abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
+    if not media_kind(_file_extension(file.original_name)):
+        abort(404)
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item:
+        abort(404)
+    log_share_access(share, 'view_media', request, guest_name=guest_name)
+    db.session.commit()
+    return _send_inline_media(file)
 
 
 @files_bp.route('/share/<token>/upload', methods=['POST'])
@@ -3563,12 +3882,9 @@ def share_edit_onlyoffice(token):
     if file_id:
         try:
             file_id = int(file_id)
-            # Prüfe ob es ein freigegebener Ordner ist
-            if isinstance(item, Folder):
-                file = File.query.filter_by(id=file_id, folder_id=item.id, is_current=True).first_or_404()
-            else:
-                # Direkt freigegebene Datei
-                file = item
+            file = _resolve_shared_file(item, file_id)
+            if not file:
+                abort(404)
         except (ValueError, TypeError):
             flash('Ungültige Datei-ID.', 'danger')
             return redirect(url_for('files.public_share', token=token))
@@ -3873,7 +4189,9 @@ def share_onlyoffice_document(token, file_id):
         return jsonify({'error': 'Invalid share token'}), 403
 
     if share.resource_type == 'folder':
-        file = File.query.filter_by(id=file_id, folder_id=item.id, is_current=True).first_or_404()
+        file = _resolve_shared_file(item, file_id)
+        if not file:
+            return jsonify({'error': 'File not found in share'}), 404
     else:
         # Direkt freigegebene Datei
         if item.id != file_id:
@@ -4019,13 +4337,15 @@ def share_onlyoffice_save(token, file_id):
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
     
-    item, guest_name = _check_share_access(token)
+    item, guest_name, _share = _check_share_access(token)
     if not item or not guest_name:
         return jsonify({'error': 'Access denied'}), 403
     
     # Prüfe ob es eine Datei aus einem Ordner ist oder direkt freigegebene Datei
     if isinstance(item, Folder):
-        file = File.query.filter_by(id=file_id, folder_id=item.id, is_current=True).first_or_404()
+        file = _resolve_shared_file(item, file_id)
+        if not file:
+            return jsonify({'error': 'File not found in share'}), 404
     else:
         # Direkt freigegebene Datei
         if item.id != file_id:
@@ -4330,7 +4650,9 @@ def share_onlyoffice_callback(token):
     
     # Prüfe ob es eine Datei aus einem Ordner ist oder direkt freigegebene Datei
     if isinstance(item, Folder):
-        file = File.query.filter_by(id=file_id, folder_id=item.id, is_current=True).first_or_404()
+        file = _resolve_shared_file(item, file_id)
+        if not file:
+            return jsonify({'error': 'File not found in share'}), 404
     else:
         # Direkt freigegebene Datei
         if item.id != file_id:

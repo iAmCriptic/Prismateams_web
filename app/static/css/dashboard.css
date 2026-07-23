@@ -11,7 +11,8 @@
 .dashboard-shell > .mod-sidebar {
     width: 240px;
     flex-shrink: 0;
-    overflow: hidden;
+    /* visible: Neuigkeiten-Badge (!) darf über den Rand */
+    overflow: visible;
     padding: 0 0.35rem 0.5rem;
     z-index: 40;
     display: none;
@@ -93,6 +94,11 @@
 }
 
 /* Dezent, aber sichtbar — keine Accent-Pille */
+.dashboard-shell .mod-sidebar-footer {
+    overflow: visible;
+    padding-inline-end: 0.35rem;
+}
+
 .dashboard-sidebar-whats-new {
     display: flex;
     align-items: center;
@@ -108,6 +114,7 @@
     font-size: 0.95rem;
     opacity: 0.88;
     transition: background 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+    overflow: visible;
 }
 
 .dashboard-sidebar-whats-new .bi {
@@ -502,6 +509,11 @@
     font-size: 0.65rem;
     min-width: 1rem;
     padding: 0.2em 0.4em;
+    /* weniger weit nach rechts als translate-middle, sonst Clip am Sidebar-Rand */
+    top: 0 !important;
+    right: 0.15rem !important;
+    left: auto !important;
+    transform: translateY(-35%) !important;
 }
 
 /* Bootstrap sets opacity on .modal-backdrop — that kills backdrop-filter. Force opacity:1. */

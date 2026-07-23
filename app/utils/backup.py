@@ -12,21 +12,87 @@ from flask import current_app
 from app import db
 from app.models import (
     User,
-    File, FileVersion, Folder,
-    CalendarEvent, EventParticipant,
+    File, FileVersion, Folder, ResourceACL, FolderFavorite,
+    Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource,
     EmailMessage, EmailPermission, EmailAttachment,
     Credential, SystemSettings, WhitelistEntry,
     NotificationSettings, WikiPage, WikiPageVersion, WikiCategory, WikiTag,
     Comment, CommentMention,
     Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem,
     ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem,
-    Manual, Chat, ChatMessage, ChatMember
+    Manual, Chat, ChatMessage, ChatMember, ChatPin,
+    Contact, ShortLink,
+    Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem,
+    MusicProviderToken, MusicWish, MusicQueue, MusicSettings,
+    MediaDownloadJob,
+    AssessmentUser, AssessmentRole, AssessmentUserRole, AssessmentStandType,
+    AssessmentList, AssessmentListSubject, AssessmentRoom, AssessmentStand,
+    AssessmentCriterion, AssessmentEvaluation, AssessmentEvaluationScore,
+    AssessmentVisitorEvaluation, AssessmentVisitorEvaluationScore,
+    AssessmentWarning, AssessmentRoomInspection, AssessmentAppSetting,
+)
+from app.models.role import UserModuleRole
+from app.models.public_share import PublicShare
+from app.models.booking import (
+    BookingForm, BookingFormField, BookingFormImage, BookingRequest, BookingRequestField,
+    BookingRequestFile, BookingFormRole, BookingFormRoleUser, BookingRequestApproval,
 )
 from app.blueprints.credentials import get_encryption_key
 from app.utils.lengths import normalize_length_input, parse_length_to_meters, format_length_from_meters
+from app.utils.backup_extensions import (
+    export_user_module_roles, import_user_module_roles,
+    export_chat_pins, import_chat_pins,
+    export_calendars, import_calendars,
+    export_calendar_sync_sources, import_calendar_sync_sources,
+    export_public_calendar_feeds, import_public_calendar_feeds,
+    export_resource_acls, import_resource_acls,
+    export_folder_favorites, import_folder_favorites,
+    export_contacts, import_contacts,
+    export_portal_events, import_portal_events,
+    export_event_appointments, import_event_appointments,
+    export_event_assignments, import_event_assignments,
+    export_event_inventory_needs, import_event_inventory_needs,
+    export_event_contacts, import_event_contacts,
+    export_event_timeline_items, import_event_timeline_items,
+    export_booking_forms, export_booking_form_fields, export_booking_form_images,
+    export_booking_form_roles, export_booking_form_role_users,
+    export_booking_requests, export_booking_request_fields, export_booking_request_approvals,
+    import_booking_bundle,
+    export_music_settings, import_music_settings,
+    export_music_wishes, import_music_wishes,
+    export_music_queue, import_music_queue,
+    export_media_download_jobs, import_media_download_jobs,
+    export_assessment_bundle, import_assessment_bundle,
+    export_short_links, import_short_links,
+)
 
 
-BACKUP_VERSION = "1.0"
+BACKUP_VERSION = "1.1"
+SUPPORTED_BACKUP_VERSIONS = {"1.0", "1.1"}
+
+# Strukturierte Kategorien für UI + Orchestration (key, icon, i18n keys)
+CATEGORY_DEFINITIONS = [
+    {'key': 'settings', 'icon': 'bi-gear', 'label_key': 'settings.admin.backup.categories.settings', 'help_key': 'settings.admin.backup.helps.settings'},
+    {'key': 'users', 'icon': 'bi-people', 'label_key': 'settings.admin.backup.categories.users', 'help_key': 'settings.admin.backup.helps.users'},
+    {'key': 'emails', 'icon': 'bi-envelope', 'label_key': 'settings.admin.backup.categories.emails', 'help_key': 'settings.admin.backup.helps.emails'},
+    {'key': 'appointments', 'icon': 'bi-calendar-event', 'label_key': 'settings.admin.backup.categories.appointments', 'help_key': 'settings.admin.backup.helps.appointments'},
+    {'key': 'credentials', 'icon': 'bi-key', 'label_key': 'settings.admin.backup.categories.credentials', 'help_key': 'settings.admin.backup.helps.credentials'},
+    {'key': 'files', 'icon': 'bi-folder', 'label_key': 'settings.admin.backup.categories.files', 'help_key': 'settings.admin.backup.helps.files'},
+    {'key': 'wiki', 'icon': 'bi-journal-text', 'label_key': 'settings.admin.backup.categories.wiki', 'help_key': 'settings.admin.backup.helps.wiki'},
+    {'key': 'comments', 'icon': 'bi-chat-left-text', 'label_key': 'settings.admin.backup.categories.comments', 'help_key': 'settings.admin.backup.helps.comments'},
+    {'key': 'inventory', 'icon': 'bi-box-seam', 'label_key': 'settings.admin.backup.categories.inventory', 'help_key': 'settings.admin.backup.helps.inventory'},
+    {'key': 'manuals', 'icon': 'bi-book', 'label_key': 'settings.admin.backup.categories.manuals', 'help_key': 'settings.admin.backup.helps.manuals'},
+    {'key': 'chats', 'icon': 'bi-chat-dots', 'label_key': 'settings.admin.backup.categories.chats', 'help_key': 'settings.admin.backup.helps.chats'},
+    {'key': 'contacts', 'icon': 'bi-person-lines-fill', 'label_key': 'settings.admin.backup.categories.contacts', 'help_key': 'settings.admin.backup.helps.contacts'},
+    {'key': 'events', 'icon': 'bi-calendar2-week', 'label_key': 'settings.admin.backup.categories.events', 'help_key': 'settings.admin.backup.helps.events'},
+    {'key': 'booking', 'icon': 'bi-calendar-check', 'label_key': 'settings.admin.backup.categories.booking', 'help_key': 'settings.admin.backup.helps.booking'},
+    {'key': 'music', 'icon': 'bi-music-note-beamed', 'label_key': 'settings.admin.backup.categories.music', 'help_key': 'settings.admin.backup.helps.music'},
+    {'key': 'media_downloader', 'icon': 'bi-download', 'label_key': 'settings.admin.backup.categories.media_downloader', 'help_key': 'settings.admin.backup.helps.media_downloader'},
+    {'key': 'assessment', 'icon': 'bi-clipboard2-check', 'label_key': 'settings.admin.backup.categories.assessment', 'help_key': 'settings.admin.backup.helps.assessment'},
+    {'key': 'shortlinks', 'icon': 'bi-link-45deg', 'label_key': 'settings.admin.backup.categories.shortlinks', 'help_key': 'settings.admin.backup.helps.shortlinks'},
+]
+
+# Rückwärtskompatibel: key -> DE-Label (Fallback wenn i18n fehlt)
 SUPPORTED_CATEGORIES = {
     'settings': 'Einstellungen',
     'users': 'Benutzer',
@@ -38,8 +104,52 @@ SUPPORTED_CATEGORIES = {
     'comments': 'Kommentare',
     'inventory': 'Inventar',
     'manuals': 'Handbücher',
-    'chats': 'Chats'
+    'chats': 'Chats',
+    'contacts': 'Kontakte',
+    'events': 'Veranstaltungen',
+    'booking': 'Buchungen',
+    'music': 'Musik',
+    'media_downloader': 'Media Downloader',
+    'assessment': 'Bewertung',
+    'shortlinks': 'Kurzlinks',
 }
+
+
+def _category_selected(categories: List[str], key: str) -> bool:
+    return key in categories or 'all' in categories
+
+
+def _ensure_local_main_chat(current_user_id: Optional[int] = None) -> Chat:
+    """Liefert den lokalen Hauptchat; legt ihn bei Bedarf an."""
+    main = Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
+    if main:
+        return main
+    creator_id = current_user_id
+    if not creator_id:
+        admin = User.query.filter_by(is_admin=True).order_by(User.id.asc()).first()
+        creator_id = admin.id if admin else None
+    if not creator_id:
+        first_user = User.query.order_by(User.id.asc()).first()
+        creator_id = first_user.id if first_user else None
+    if not creator_id:
+        raise RuntimeError('Kein Benutzer für Hauptchat vorhanden')
+    main = Chat(
+        name='Haupt-Chat',
+        description='Hauptchat für alle Benutzer',
+        is_main_chat=True,
+        is_direct_message=False,
+        created_by=creator_id,
+    )
+    db.session.add(main)
+    db.session.flush()
+    return main
+
+
+def _message_fingerprint(sender_id: int, content: Optional[str], created_at, media_name: Optional[str] = None) -> str:
+    import hashlib
+    created = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at or '')
+    raw = f"{sender_id}|{created}|{(content or '')}|{(media_name or '')}"
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
 
 def export_backup(categories: List[str], output_path: str) -> Dict:
@@ -61,61 +171,68 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
     }
     
     # Einstellungen exportieren
-    if 'settings' in categories or 'all' in categories:
+    if _category_selected(categories, 'settings'):
         backup_data['data']['settings'] = export_settings()
         backup_data['data']['whitelist'] = export_whitelist()
     
     # Benutzer exportieren
-    if 'users' in categories or 'all' in categories:
+    if _category_selected(categories, 'users'):
         backup_data['data']['users'] = export_users()
         backup_data['data']['notification_settings'] = export_notification_settings()
+        backup_data['data']['user_module_roles'] = export_user_module_roles()
     
     # E-Mails exportieren
-    if 'emails' in categories or 'all' in categories:
+    if _category_selected(categories, 'emails'):
         backup_data['data']['emails'] = export_emails()
         backup_data['data']['email_permissions'] = export_email_permissions()
         backup_data['data']['email_attachments'] = export_email_attachments()
     
     # Termine exportieren
-    if 'appointments' in categories or 'all' in categories:
+    if _category_selected(categories, 'appointments'):
+        backup_data['data']['calendars'] = export_calendars()
+        backup_data['data']['calendar_sync_sources'] = export_calendar_sync_sources()
+        backup_data['data']['public_calendar_feeds'] = export_public_calendar_feeds()
         backup_data['data']['calendar_events'] = export_calendar_events()
         backup_data['data']['event_participants'] = export_event_participants()
     
     # Zugangsdaten exportieren (entschlüsselt)
-    if 'credentials' in categories or 'all' in categories:
+    if _category_selected(categories, 'credentials'):
         backup_data['data']['credentials'] = export_credentials()
     
     # Handbücher exportieren
-    if 'manuals' in categories or 'all' in categories:
+    if _category_selected(categories, 'manuals'):
         backup_data['data']['manuals'] = export_manuals()
     
     # Chats exportieren
-    if 'chats' in categories or 'all' in categories:
+    if _category_selected(categories, 'chats'):
         backup_data['data']['chats'] = export_chats()
         backup_data['data']['chat_members'] = export_chat_members()
         backup_data['data']['chat_messages'] = export_chat_messages()
+        backup_data['data']['chat_pins'] = export_chat_pins()
     
     # Dateien exportieren
-    if 'files' in categories or 'all' in categories:
+    if _category_selected(categories, 'files'):
         backup_data['data']['folders'] = export_folders()
         backup_data['data']['files'] = export_files()
         backup_data['data']['file_versions'] = export_file_versions()
         backup_data['data']['public_shares'] = export_public_shares()
+        backup_data['data']['resource_acls'] = export_resource_acls()
+        backup_data['data']['folder_favorites'] = export_folder_favorites()
     
     # Wiki exportieren
-    if 'wiki' in categories or 'all' in categories:
+    if _category_selected(categories, 'wiki'):
         backup_data['data']['wiki_categories'] = export_wiki_categories()
         backup_data['data']['wiki_tags'] = export_wiki_tags()
         backup_data['data']['wiki_pages'] = export_wiki_pages()
         backup_data['data']['wiki_page_versions'] = export_wiki_page_versions()
     
     # Kommentare exportieren
-    if 'comments' in categories or 'all' in categories:
+    if _category_selected(categories, 'comments'):
         backup_data['data']['comments'] = export_comments()
         backup_data['data']['comment_mentions'] = export_comment_mentions()
     
     # Inventar exportieren
-    if 'inventory' in categories or 'all' in categories:
+    if _category_selected(categories, 'inventory'):
         backup_data['data']['product_folders'] = export_product_folders()
         backup_data['data']['products'] = export_products()
         backup_data['data']['borrow_transactions'] = export_borrow_transactions()
@@ -126,6 +243,36 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['product_favorites'] = export_product_favorites()
         backup_data['data']['inventories'] = export_inventories()
         backup_data['data']['inventory_items'] = export_inventory_items()
+
+    # Neue Module
+    if _category_selected(categories, 'contacts'):
+        backup_data['data']['contacts'] = export_contacts()
+    if _category_selected(categories, 'events'):
+        backup_data['data']['portal_events'] = export_portal_events()
+        backup_data['data']['event_appointments'] = export_event_appointments()
+        backup_data['data']['event_assignments'] = export_event_assignments()
+        backup_data['data']['event_inventory_needs'] = export_event_inventory_needs()
+        backup_data['data']['event_contacts'] = export_event_contacts()
+        backup_data['data']['event_timeline_items'] = export_event_timeline_items()
+    if _category_selected(categories, 'booking'):
+        backup_data['data']['booking_forms'] = export_booking_forms()
+        backup_data['data']['booking_form_fields'] = export_booking_form_fields()
+        backup_data['data']['booking_form_images'] = export_booking_form_images()
+        backup_data['data']['booking_form_roles'] = export_booking_form_roles()
+        backup_data['data']['booking_form_role_users'] = export_booking_form_role_users()
+        backup_data['data']['booking_requests'] = export_booking_requests()
+        backup_data['data']['booking_request_fields'] = export_booking_request_fields()
+        backup_data['data']['booking_request_approvals'] = export_booking_request_approvals()
+    if _category_selected(categories, 'music'):
+        backup_data['data']['music_settings'] = export_music_settings()
+        backup_data['data']['music_wishes'] = export_music_wishes()
+        backup_data['data']['music_queue'] = export_music_queue()
+    if _category_selected(categories, 'media_downloader'):
+        backup_data['data']['media_download_jobs'] = export_media_download_jobs()
+    if _category_selected(categories, 'assessment'):
+        backup_data['data'].update(export_assessment_bundle())
+    if _category_selected(categories, 'shortlinks'):
+        backup_data['data']['short_links'] = export_short_links()
     
     # Backup-Datei schreiben
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -206,6 +353,16 @@ def export_users() -> List[Dict]:
             'chat_notifications': u.chat_notifications,
             'email_notifications': u.email_notifications,
             'can_borrow': u.can_borrow,
+            'is_super_admin': getattr(u, 'is_super_admin', False),
+            'is_guest': getattr(u, 'is_guest', False),
+            'guest_expires_at': u.guest_expires_at.isoformat() if getattr(u, 'guest_expires_at', None) else None,
+            'guest_username': getattr(u, 'guest_username', None),
+            'has_full_access': getattr(u, 'has_full_access', False),
+            'oled_mode': getattr(u, 'oled_mode', False),
+            'language': getattr(u, 'language', 'de'),
+            'preferred_layout': getattr(u, 'preferred_layout', 'auto'),
+            'must_change_password': getattr(u, 'must_change_password', False),
+            'totp_enabled': getattr(u, 'totp_enabled', False),
             'created_at': u.created_at.isoformat() if u.created_at else None,
             'last_login': u.last_login.isoformat() if u.last_login else None
         }
@@ -244,6 +401,7 @@ def export_notification_settings() -> List[Dict]:
         'calendar_participating_only': s.calendar_participating_only,
         'calendar_not_participating': s.calendar_not_participating,
         'calendar_no_response': s.calendar_no_response,
+        'booking_notifications_enabled': getattr(s, 'booking_notifications_enabled', True),
         'reminder_times': s.reminder_times
     } for s in settings]
 
@@ -319,6 +477,13 @@ def export_calendar_events() -> List[Dict]:
         'start_time': e.start_time.isoformat() if e.start_time else None,
         'end_time': e.end_time.isoformat() if e.end_time else None,
         'location': e.location,
+        'event_color': getattr(e, 'event_color', None),
+        'calendar_export_id': getattr(e, 'calendar_id', None),
+        'recurrence_type': getattr(e, 'recurrence_type', 'none'),
+        'recurrence_end_date': e.recurrence_end_date.isoformat() if getattr(e, 'recurrence_end_date', None) else None,
+        'recurrence_interval': getattr(e, 'recurrence_interval', 1),
+        'recurrence_days': getattr(e, 'recurrence_days', None),
+        'is_public': getattr(e, 'is_public', False),
         'created_by_email': User.query.get(e.created_by).email if User.query.get(e.created_by) else None,
         'created_at': e.created_at.isoformat() if e.created_at else None,
         'updated_at': e.updated_at.isoformat() if e.updated_at else None
@@ -510,6 +675,9 @@ def export_folders() -> List[Dict]:
         'share_enabled': f.share_enabled,
         'share_name': f.share_name,
         'share_expires_at': f.share_expires_at.isoformat() if f.share_expires_at else None,
+        'space': getattr(f, 'space', 'public'),
+        'is_personal_root': getattr(f, 'is_personal_root', False),
+        'color': getattr(f, 'color', None),
         'created_at': f.created_at.isoformat() if f.created_at else None,
         'updated_at': f.updated_at.isoformat() if f.updated_at else None
     } for f in folders]
@@ -945,7 +1113,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
         return {'success': False, 'error': f'Fehler beim Lesen der Backup-Datei: {str(e)}'}
     
     # Version prüfen
-    if backup_data.get('version') != BACKUP_VERSION:
+    if backup_data.get('version') not in SUPPORTED_BACKUP_VERSIONS:
         return {'success': False, 'error': f'Unsupported backup version: {backup_data.get("version")}'}
     
     try:
@@ -969,17 +1137,21 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
         backup_data_dict = backup_data.get('data', {})
         
         # Warnung wenn Module importiert werden, die Benutzer benötigen, aber keine Benutzer vorhanden sind
-        user_dependent_modules = ['emails', 'appointments', 'credentials', 'files', 'wiki', 'comments', 'inventory']
-        needs_users = any(cat in categories or 'all' in categories for cat in user_dependent_modules)
+        user_dependent_modules = [
+            'emails', 'appointments', 'credentials', 'files', 'wiki', 'comments',
+            'inventory', 'chats', 'contacts', 'events', 'booking', 'music',
+            'media_downloader', 'assessment', 'shortlinks', 'manuals',
+        ]
+        needs_users = any(_category_selected(categories, cat) for cat in user_dependent_modules)
         
-        if needs_users and 'users' not in categories and 'all' not in categories:
+        if needs_users and not _category_selected(categories, 'users'):
             # Prüfe ob Benutzer in der DB existieren
             existing_users = User.query.all()
             if not existing_users and not backup_data_dict.get('users'):
                 current_app.logger.warning("Module importiert, die Benutzer benötigen, aber keine Benutzer gefunden. Verwende current_user als Fallback.")
         
         # Benutzer importieren (muss zuerst sein wegen Foreign Keys)
-        if 'users' in categories or 'all' in categories:
+        if _category_selected(categories, 'users'):
             if 'users' in backup_data_dict:
                 user_map = import_users(backup_data['data']['users'])
                 results['imported'].append('users')
@@ -995,7 +1167,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 user_map[user.email] = user.id
         
         # Einstellungen importieren
-        if 'settings' in categories or 'all' in categories:
+        if _category_selected(categories, 'settings'):
             if 'settings' in backup_data.get('data', {}):
                 import_settings(backup_data['data']['settings'])
                 results['imported'].append('settings')
@@ -1004,13 +1176,16 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 results['imported'].append('whitelist')
         
         # Notification Settings importieren (benötigt user_map)
-        if 'users' in categories or 'all' in categories:
+        if _category_selected(categories, 'users'):
             if 'notification_settings' in backup_data.get('data', {}):
                 import_notification_settings(backup_data['data']['notification_settings'], user_map, current_user_id)
                 results['imported'].append('notification_settings')
+            if 'user_module_roles' in backup_data.get('data', {}):
+                import_user_module_roles(backup_data['data']['user_module_roles'], user_map, current_user_id)
+                results['imported'].append('user_module_roles')
         
         # E-Mails importieren
-        if 'emails' in categories or 'all' in categories:
+        if _category_selected(categories, 'emails'):
             if 'emails' in backup_data.get('data', {}):
                 email_map = import_emails(backup_data['data']['emails'], user_map, current_user_id)
                 results['imported'].append('emails')
@@ -1026,9 +1201,19 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 results['imported'].append('email_attachments')
         
         # Termine importieren
-        if 'appointments' in categories or 'all' in categories:
+        if _category_selected(categories, 'appointments'):
+            calendar_map = {}
+            if 'calendars' in backup_data.get('data', {}):
+                calendar_map = import_calendars(backup_data['data']['calendars'], user_map, current_user_id)
+                results['imported'].append('calendars')
+            if 'calendar_sync_sources' in backup_data.get('data', {}):
+                import_calendar_sync_sources(backup_data['data']['calendar_sync_sources'], user_map, current_user_id)
+                results['imported'].append('calendar_sync_sources')
+            if 'public_calendar_feeds' in backup_data.get('data', {}):
+                import_public_calendar_feeds(backup_data['data']['public_calendar_feeds'], user_map, current_user_id)
+                results['imported'].append('public_calendar_feeds')
             if 'calendar_events' in backup_data.get('data', {}):
-                event_map = import_calendar_events(backup_data['data']['calendar_events'], user_map, current_user_id)
+                event_map = import_calendar_events(backup_data['data']['calendar_events'], user_map, current_user_id, calendar_map)
                 results['imported'].append('calendar_events')
             else:
                 event_map = {}
@@ -1038,19 +1223,19 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 results['imported'].append('event_participants')
         
         # Zugangsdaten importieren
-        if 'credentials' in categories or 'all' in categories:
+        if _category_selected(categories, 'credentials'):
             if 'credentials' in backup_data.get('data', {}):
                 import_credentials(backup_data['data']['credentials'], user_map, current_user_id)
                 results['imported'].append('credentials')
         
         # Handbücher importieren
-        if 'manuals' in categories or 'all' in categories:
+        if _category_selected(categories, 'manuals'):
             if 'manuals' in backup_data.get('data', {}):
                 import_manuals(backup_data['data']['manuals'], user_map, current_user_id)
                 results['imported'].append('manuals')
         
         # Chats importieren
-        if 'chats' in categories or 'all' in categories:
+        if _category_selected(categories, 'chats'):
             if 'chats' in backup_data.get('data', {}):
                 chat_map = import_chats(backup_data['data']['chats'], user_map, current_user_id)
                 results['imported'].append('chats')
@@ -1064,9 +1249,13 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'chat_messages' in backup_data.get('data', {}):
                 import_chat_messages(backup_data['data']['chat_messages'], chat_map, user_map, current_user_id)
                 results['imported'].append('chat_messages')
+
+            if 'chat_pins' in backup_data.get('data', {}):
+                import_chat_pins(backup_data['data']['chat_pins'], chat_map, user_map, current_user_id)
+                results['imported'].append('chat_pins')
         
         # Dateien importieren
-        if 'files' in categories or 'all' in categories:
+        if _category_selected(categories, 'files'):
             if 'folders' in backup_data.get('data', {}):
                 folder_map = import_folders(backup_data['data']['folders'], user_map, current_user_id)
                 results['imported'].append('folders')
@@ -1084,9 +1273,17 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'public_shares' in backup_data.get('data', {}):
                 import_public_shares(backup_data['data']['public_shares'], user_map, current_user_id)
                 results['imported'].append('public_shares')
+
+            if 'resource_acls' in backup_data.get('data', {}):
+                import_resource_acls(backup_data['data']['resource_acls'], folder_map, user_map, current_user_id)
+                results['imported'].append('resource_acls')
+
+            if 'folder_favorites' in backup_data.get('data', {}):
+                import_folder_favorites(backup_data['data']['folder_favorites'], folder_map, user_map, current_user_id)
+                results['imported'].append('folder_favorites')
         
         # Wiki importieren
-        if 'wiki' in categories or 'all' in categories:
+        if _category_selected(categories, 'wiki'):
             if 'wiki_categories' in backup_data.get('data', {}):
                 category_map = import_wiki_categories(backup_data['data']['wiki_categories'])
                 results['imported'].append('wiki_categories')
@@ -1110,7 +1307,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 results['imported'].append('wiki_page_versions')
         
         # Kommentare importieren
-        if 'comments' in categories or 'all' in categories:
+        if _category_selected(categories, 'comments'):
             if 'comments' in backup_data.get('data', {}):
                 comment_map = import_comments(backup_data['data']['comments'], user_map, current_user_id)
                 results['imported'].append('comments')
@@ -1122,7 +1319,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 results['imported'].append('comment_mentions')
         
         # Inventar importieren
-        if 'inventory' in categories or 'all' in categories:
+        if _category_selected(categories, 'inventory'):
             if 'product_folders' in backup_data.get('data', {}):
                 folder_map = import_product_folders(backup_data['data']['product_folders'], user_map, current_user_id)
                 results['imported'].append('product_folders')
@@ -1170,8 +1367,68 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'inventory_items' in backup_data.get('data', {}):
                 import_inventory_items(backup_data['data']['inventory_items'], inventory_map, product_map, user_map, current_user_id)
                 results['imported'].append('inventory_items')
+
+        # Neue Module
+        if _category_selected(categories, 'contacts') and 'contacts' in backup_data_dict:
+            import_contacts(backup_data_dict['contacts'], user_map, current_user_id)
+            results['imported'].append('contacts')
+
+        if _category_selected(categories, 'events'):
+            event_id_map = {}
+            if 'portal_events' in backup_data_dict:
+                event_id_map = import_portal_events(backup_data_dict['portal_events'], user_map, current_user_id)
+                results['imported'].append('portal_events')
+            if 'event_appointments' in backup_data_dict:
+                import_event_appointments(backup_data_dict['event_appointments'], event_id_map)
+                results['imported'].append('event_appointments')
+            if 'event_assignments' in backup_data_dict:
+                import_event_assignments(backup_data_dict['event_assignments'], event_id_map, user_map, current_user_id)
+                results['imported'].append('event_assignments')
+            if 'event_inventory_needs' in backup_data_dict:
+                import_event_inventory_needs(backup_data_dict['event_inventory_needs'], event_id_map)
+                results['imported'].append('event_inventory_needs')
+            if 'event_contacts' in backup_data_dict:
+                import_event_contacts(backup_data_dict['event_contacts'], event_id_map)
+                results['imported'].append('event_contacts')
+            if 'event_timeline_items' in backup_data_dict:
+                import_event_timeline_items(backup_data_dict['event_timeline_items'], event_id_map)
+                results['imported'].append('event_timeline_items')
+
+        if _category_selected(categories, 'booking'):
+            import_booking_bundle(backup_data_dict, user_map, current_user_id, results)
+
+        if _category_selected(categories, 'music'):
+            if 'music_settings' in backup_data_dict:
+                import_music_settings(backup_data_dict['music_settings'])
+                results['imported'].append('music_settings')
+            if 'music_wishes' in backup_data_dict:
+                import_music_wishes(backup_data_dict['music_wishes'], user_map, current_user_id)
+                results['imported'].append('music_wishes')
+            if 'music_queue' in backup_data_dict:
+                import_music_queue(backup_data_dict['music_queue'], user_map, current_user_id)
+                results['imported'].append('music_queue')
+
+        if _category_selected(categories, 'media_downloader') and 'media_download_jobs' in backup_data_dict:
+            import_media_download_jobs(backup_data_dict['media_download_jobs'], user_map, current_user_id)
+            results['imported'].append('media_download_jobs')
+
+        if _category_selected(categories, 'assessment'):
+            import_assessment_bundle(backup_data_dict, results)
+
+        if _category_selected(categories, 'shortlinks') and 'short_links' in backup_data_dict:
+            import_short_links(backup_data_dict['short_links'], user_map, current_user_id)
+            results['imported'].append('shortlinks')
         
         db.session.commit()
+
+        # Hauptchat absichern (nach Commit, dedupe_main_chats committed selbst)
+        if _category_selected(categories, 'chats'):
+            try:
+                from app.utils.chat_nav import dedupe_main_chats
+                dedupe_main_chats()
+            except Exception as dedupe_err:
+                current_app.logger.warning(f'Hauptchat-Dedupe nach Import: {dedupe_err}')
+
         return results
         
     except Exception as e:
@@ -1356,6 +1613,24 @@ def import_users(users_data: List[Dict]) -> Dict[str, int]:
             existing.chat_notifications = u_data.get('chat_notifications', True)
             existing.email_notifications = u_data.get('email_notifications', True)
             existing.can_borrow = u_data.get('can_borrow', True)
+            if hasattr(existing, 'is_super_admin'):
+                existing.is_super_admin = u_data.get('is_super_admin', existing.is_super_admin)
+            if hasattr(existing, 'is_guest'):
+                existing.is_guest = u_data.get('is_guest', False)
+            if hasattr(existing, 'guest_username'):
+                existing.guest_username = u_data.get('guest_username')
+            if hasattr(existing, 'has_full_access'):
+                existing.has_full_access = u_data.get('has_full_access', False)
+            if hasattr(existing, 'oled_mode'):
+                existing.oled_mode = u_data.get('oled_mode', False)
+            if hasattr(existing, 'language'):
+                existing.language = u_data.get('language', existing.language or 'de')
+            if hasattr(existing, 'preferred_layout'):
+                existing.preferred_layout = u_data.get('preferred_layout', existing.preferred_layout or 'auto')
+            if hasattr(existing, 'must_change_password'):
+                existing.must_change_password = u_data.get('must_change_password', False)
+            if u_data.get('guest_expires_at') and hasattr(existing, 'guest_expires_at'):
+                existing.guest_expires_at = datetime.fromisoformat(u_data['guest_expires_at'])
             # Passwort-Hash aktualisieren falls vorhanden
             if u_data.get('password_hash'):
                 existing.password_hash = u_data['password_hash']
@@ -1379,6 +1654,24 @@ def import_users(users_data: List[Dict]) -> Dict[str, int]:
                 email_notifications=u_data.get('email_notifications', True),
                 can_borrow=u_data.get('can_borrow', True)
             )
+            if hasattr(user, 'is_super_admin'):
+                user.is_super_admin = u_data.get('is_super_admin', False)
+            if hasattr(user, 'is_guest'):
+                user.is_guest = u_data.get('is_guest', False)
+            if hasattr(user, 'guest_username'):
+                user.guest_username = u_data.get('guest_username')
+            if hasattr(user, 'has_full_access'):
+                user.has_full_access = u_data.get('has_full_access', False)
+            if hasattr(user, 'oled_mode'):
+                user.oled_mode = u_data.get('oled_mode', False)
+            if hasattr(user, 'language'):
+                user.language = u_data.get('language', 'de')
+            if hasattr(user, 'preferred_layout'):
+                user.preferred_layout = u_data.get('preferred_layout', 'auto')
+            if hasattr(user, 'must_change_password'):
+                user.must_change_password = u_data.get('must_change_password', False)
+            if u_data.get('guest_expires_at') and hasattr(user, 'guest_expires_at'):
+                user.guest_expires_at = datetime.fromisoformat(u_data['guest_expires_at'])
             # Falls kein Passwort-Hash vorhanden, temporäres Passwort setzen
             if not user.password_hash:
                 user.set_password('TEMPORARY_PASSWORD_RESET_REQUIRED')
@@ -1458,6 +1751,7 @@ def import_notification_settings(settings_data: List[Dict], user_map: Dict[str, 
             existing.calendar_participating_only = s_data.get('calendar_participating_only', True)
             existing.calendar_not_participating = s_data.get('calendar_not_participating', False)
             existing.calendar_no_response = s_data.get('calendar_no_response', False)
+            existing.booking_notifications_enabled = s_data.get('booking_notifications_enabled', True)
             existing.reminder_times = s_data.get('reminder_times')
         else:
             setting = NotificationSettings(
@@ -1472,6 +1766,7 @@ def import_notification_settings(settings_data: List[Dict], user_map: Dict[str, 
                 calendar_participating_only=s_data.get('calendar_participating_only', True),
                 calendar_not_participating=s_data.get('calendar_not_participating', False),
                 calendar_no_response=s_data.get('calendar_no_response', False),
+                booking_notifications_enabled=s_data.get('booking_notifications_enabled', True),
                 reminder_times=s_data.get('reminder_times')
             )
             db.session.add(setting)
@@ -1617,9 +1912,10 @@ def import_email_attachments(attachments_data: List[Dict], email_map: Dict[str, 
         db.session.add(attachment)
 
 
-def import_calendar_events(events_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
+def import_calendar_events(events_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None, calendar_map: Optional[Dict[int, int]] = None) -> Dict[str, int]:
     """Importiert Kalender-Termine und gibt ein Mapping von Titel zu neuer ID zurück."""
     event_map = {}  # event_title -> neue_id
+    calendar_map = calendar_map or {}
     
     for e_data in events_data:
         created_by_email = e_data.get('created_by_email')
@@ -1646,6 +1942,8 @@ def import_calendar_events(events_data: List[Dict], user_map: Dict[str, int], cu
         
         if existing:
             event_map[e_data['title']] = existing.id
+            if e_data.get('calendar_export_id') is not None and calendar_map.get(e_data['calendar_export_id']):
+                existing.calendar_id = calendar_map[e_data['calendar_export_id']]
         else:
             event = CalendarEvent(
                 title=e_data['title'],
@@ -1655,6 +1953,20 @@ def import_calendar_events(events_data: List[Dict], user_map: Dict[str, int], cu
                 location=e_data.get('location'),
                 created_by=created_by_id
             )
+            if e_data.get('event_color'):
+                event.event_color = e_data['event_color']
+            if e_data.get('recurrence_type'):
+                event.recurrence_type = e_data['recurrence_type']
+            if e_data.get('recurrence_interval') is not None:
+                event.recurrence_interval = e_data['recurrence_interval']
+            if e_data.get('recurrence_days'):
+                event.recurrence_days = e_data['recurrence_days']
+            if e_data.get('recurrence_end_date'):
+                event.recurrence_end_date = datetime.fromisoformat(e_data['recurrence_end_date'])
+            if e_data.get('is_public') is not None:
+                event.is_public = bool(e_data['is_public'])
+            if e_data.get('calendar_export_id') is not None and calendar_map.get(e_data['calendar_export_id']):
+                event.calendar_id = calendar_map[e_data['calendar_export_id']]
             db.session.add(event)
             db.session.flush()
             event_map[e_data['title']] = event.id
@@ -1787,10 +2099,47 @@ def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_u
 
 
 def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
-    """Importiert Chats und gibt ein Mapping von Chat-Name zu neuer ID zurück."""
-    chat_map = {}  # chat_name -> neue_id
+    """Importiert Chats. Hauptchat aus Backup wird IMMER auf den lokalen Hauptchat gemappt."""
+    chat_map = {}  # chat_name (backup) -> lokale id
+    local_main = _ensure_local_main_chat(current_user_id)
     
     for c_data in chats_data:
+        name = c_data.get('name')
+        if not name:
+            continue
+
+        # Kritisch: jeder Main-Chat aus dem Backup landet im bestehenden Hauptchat
+        if c_data.get('is_main_chat'):
+            chat_map[name] = local_main.id
+            if c_data.get('description') and not local_main.description:
+                local_main.description = c_data.get('description')
+            continue
+
+        # DMs / Gruppen: nicht mit dem Hauptchat-Namen kollidieren
+        if name == local_main.name or name in {'Haupt-Chat', 'Team Chat', 'Team-Chat'}:
+            # Namenskollision ohne Main-Flag → unter anderem Namen anlegen
+            name_key = name
+            existing = Chat.query.filter_by(name=name, is_direct_message=bool(c_data.get('is_direct_message', False))).first()
+            if existing and existing.id != local_main.id:
+                chat_map[name_key] = existing.id
+                continue
+            # Fallback: Unique-Suffix
+            created_by_email = c_data.get('created_by_email')
+            created_by_id = user_map.get(created_by_email, current_user_id) if created_by_email else current_user_id
+            if not created_by_id:
+                continue
+            chat = Chat(
+                name=f"{name} (Import)",
+                description=c_data.get('description'),
+                is_main_chat=False,
+                is_direct_message=c_data.get('is_direct_message', False),
+                created_by=created_by_id,
+            )
+            db.session.add(chat)
+            db.session.flush()
+            chat_map[name_key] = chat.id
+            continue
+
         created_by_email = c_data.get('created_by_email')
         if not created_by_email:
             created_by_id = current_user_id
@@ -1802,20 +2151,34 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
         else:
             created_by_id = user_map[created_by_email]
         
-        # Prüfe ob Chat bereits existiert (nach Name)
-        existing = Chat.query.filter_by(name=c_data.get('name')).first()
+        existing = Chat.query.filter_by(name=name).first()
         if existing:
-            chat_map[c_data['name']] = existing.id
+            # Nie auf den Hauptchat mappen, wenn Backup-Chat kein Main ist
+            if existing.is_main_chat and not c_data.get('is_main_chat'):
+                created_by_id = created_by_id or current_user_id
+                if not created_by_id:
+                    continue
+                chat = Chat(
+                    name=f"{name} (Import)",
+                    description=c_data.get('description'),
+                    is_main_chat=False,
+                    is_direct_message=c_data.get('is_direct_message', False),
+                    created_by=created_by_id,
+                )
+                db.session.add(chat)
+                db.session.flush()
+                chat_map[name] = chat.id
+            else:
+                chat_map[name] = existing.id
         else:
             chat = Chat(
-                name=c_data['name'],
+                name=name,
                 description=c_data.get('description'),
-                is_main_chat=c_data.get('is_main_chat', False),
+                is_main_chat=False,
                 is_direct_message=c_data.get('is_direct_message', False),
                 created_by=created_by_id
             )
             
-            # Importiere Gruppenbild wenn vorhanden
             if c_data.get('group_avatar_content_base64'):
                 try:
                     import base64
@@ -1824,7 +2187,6 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
                     file_content = base64.b64decode(c_data['group_avatar_content_base64'])
                     original_name = c_data.get('group_avatar_original_name', 'avatar.png')
                     
-                    # Erstelle Dateiname mit Timestamp
                     if '.' in original_name:
                         ext = os.path.splitext(original_name)[1]
                         base_name = os.path.splitext(original_name)[0]
@@ -1835,7 +2197,6 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                     filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
                     
-                    # Speichere Datei
                     project_root = os.path.dirname(current_app.root_path)
                     upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_avatars')
                     os.makedirs(upload_dir, exist_ok=True)
@@ -1855,7 +2216,7 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
             
             db.session.add(chat)
             db.session.flush()
-            chat_map[c_data['name']] = chat.id
+            chat_map[name] = chat.id
     
     return chat_map
 
@@ -1897,7 +2258,10 @@ def import_chat_members(members_data: List[Dict], chat_map: Dict[str, int], user
 
 
 def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None):
-    """Importiert Chat-Nachrichten (inkl. Media-Dateien)."""
+    """Importiert Chat-Nachrichten (inkl. Media); skippt Duplikate per Fingerprint."""
+    # Vorhandene Fingerprints pro Chat vorladen
+    existing_fps: Dict[int, Set[str]] = {}
+
     for msg_data in messages_data:
         chat_name = msg_data.get('chat_name')
         sender_email = msg_data.get('sender_email')
@@ -1909,7 +2273,6 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
         
         chat_id = chat_map[chat_name]
         
-        # Fallback: Wenn Benutzer nicht gefunden wird, verwende current_user
         if sender_email not in user_map:
             if current_user_id:
                 sender_id = current_user_id
@@ -1917,6 +2280,30 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
                 continue
         else:
             sender_id = user_map[sender_email]
+
+        created_at = None
+        if msg_data.get('created_at'):
+            try:
+                created_at = datetime.fromisoformat(msg_data['created_at'])
+            except ValueError:
+                created_at = None
+
+        media_name = msg_data.get('media_original_name') or msg_data.get('media_url')
+        fp = _message_fingerprint(sender_id, msg_data.get('content'), created_at, media_name)
+
+        if chat_id not in existing_fps:
+            fps = set()
+            for existing_msg in ChatMessage.query.filter_by(chat_id=chat_id).all():
+                fps.add(_message_fingerprint(
+                    existing_msg.sender_id,
+                    existing_msg.content,
+                    existing_msg.created_at,
+                    existing_msg.media_url,
+                ))
+            existing_fps[chat_id] = fps
+
+        if fp in existing_fps[chat_id]:
+            continue
         
         message = ChatMessage(
             chat_id=chat_id,
@@ -1926,7 +2313,6 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
             is_deleted=msg_data.get('is_deleted', False)
         )
         
-        # Importiere Media-Datei wenn vorhanden
         if msg_data.get('media_content_base64'):
             try:
                 import base64
@@ -1935,7 +2321,6 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
                 file_content = base64.b64decode(msg_data['media_content_base64'])
                 original_name = msg_data.get('media_original_name', 'media')
                 
-                # Erstelle Dateiname mit Timestamp
                 if '.' in original_name:
                     ext = os.path.splitext(original_name)[1]
                     base_name = os.path.splitext(original_name)[0]
@@ -1946,7 +2331,6 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
                 
-                # Speichere Datei
                 project_root = os.path.dirname(current_app.root_path)
                 upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_media')
                 os.makedirs(upload_dir, exist_ok=True)
@@ -1962,12 +2346,13 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
         else:
             message.media_url = msg_data.get('media_url')
         
-        if msg_data.get('created_at'):
-            message.created_at = datetime.fromisoformat(msg_data['created_at'])
+        if created_at:
+            message.created_at = created_at
         if msg_data.get('edited_at'):
             message.edited_at = datetime.fromisoformat(msg_data['edited_at'])
         
         db.session.add(message)
+        existing_fps[chat_id].add(fp)
 
 
 def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
@@ -2064,9 +2449,20 @@ def import_folders(folders_data: List[Dict], user_map: Dict[str, int], current_u
             )
             if f_data.get('share_expires_at'):
                 folder.share_expires_at = datetime.fromisoformat(f_data['share_expires_at'])
+            if hasattr(folder, 'space'):
+                folder.space = f_data.get('space') or 'public'
+            if hasattr(folder, 'is_personal_root'):
+                folder.is_personal_root = bool(f_data.get('is_personal_root'))
+            if hasattr(folder, 'color') and f_data.get('color'):
+                folder.color = f_data['color']
             db.session.add(folder)
             db.session.flush()
             folder_map[f_data['name']] = folder.id
+        if existing:
+            if hasattr(existing, 'space') and f_data.get('space'):
+                existing.space = f_data['space']
+            if hasattr(existing, 'is_personal_root') and f_data.get('is_personal_root') is not None:
+                existing.is_personal_root = bool(f_data.get('is_personal_root'))
     
     return folder_map
 

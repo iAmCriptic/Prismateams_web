@@ -1,50 +1,69 @@
 {% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.admin.file_settings.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.cards.file_settings.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('settings.admin.file_settings.heading') }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <h5 class="mb-3">{{ _('settings.admin.file_settings.section_title') }}</h5>
-                    
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_dropbox_enabled">
-                            <strong>{{ _('settings.admin.file_settings.dropbox_label') }}</strong>
-                            <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.dropbox_help') }}</p>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_sharing_enabled">
-                            <strong>{{ _('settings.admin.file_settings.sharing_label') }}</strong>
-                            <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.sharing_help') }}</p>
-                        </label>
-                    </div>
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="files_private_folders_enabled" name="files_private_folders_enabled" {% if files_private_folders_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="files_private_folders_enabled">
-                            <strong>{{ _('settings.admin.file_settings.private_folders_label') }}</strong>
-                            <p class="text-muted small mb-0">{{ _('settings.admin.file_settings.private_folders_help') }}</p>
-                        </label>
-                    </div>
-                    
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-accent">{{ _('settings.admin.file_settings.save_button') }}</button>
-                        <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="settings-admin-files">
+    <div class="settings-admin-files-header">
+        <h1 class="settings-admin-files-title">{{ _('settings.admin.file_settings.heading') }}</h1>
+        <p class="settings-admin-files-subtitle">{{ _('settings.admin.file_settings.subtitle') }}</p>
     </div>
+
+    <form method="POST" class="settings-admin-files-form">
+        <section class="settings-admin-files-card" aria-labelledby="files-features-title">
+            <div class="settings-admin-files-card-head">
+                <h2 id="files-features-title" class="settings-admin-files-section-title mb-0">
+                    <i class="bi bi-folder" aria-hidden="true"></i>
+                    {{ _('settings.admin.file_settings.section_title') }}
+                </h2>
+            </div>
+
+            <div class="settings-admin-files-list">
+                <div class="settings-admin-files-row">
+                    <div class="settings-admin-files-row-main">
+                        <div class="form-check form-switch settings-admin-files-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="files_dropbox_enabled" name="files_dropbox_enabled" {% if files_dropbox_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="files_dropbox_enabled">
+                                <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.dropbox_label') }}</span>
+                            </label>
+                        </div>
+                        <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.dropbox_help') }}</p>
+                    </div>
+                </div>
+
+                <div class="settings-admin-files-row">
+                    <div class="settings-admin-files-row-main">
+                        <div class="form-check form-switch settings-admin-files-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="files_sharing_enabled" name="files_sharing_enabled" {% if files_sharing_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="files_sharing_enabled">
+                                <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.sharing_label') }}</span>
+                            </label>
+                        </div>
+                        <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.sharing_help') }}</p>
+                    </div>
+                </div>
+
+                <div class="settings-admin-files-row">
+                    <div class="settings-admin-files-row-main">
+                        <div class="form-check form-switch settings-admin-files-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="files_private_folders_enabled" name="files_private_folders_enabled" {% if files_private_folders_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="files_private_folders_enabled">
+                                <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.private_folders_label') }}</span>
+                            </label>
+                        </div>
+                        <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.private_folders_help') }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="settings-admin-files-actions">
+            <button type="submit" class="btn btn-accent settings-admin-files-submit">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                {{ _('settings.admin.file_settings.save_button') }}
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %}
-

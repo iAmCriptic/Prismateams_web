@@ -49,6 +49,13 @@
       "category_functional_desc": "Speichert lokale Einstellungen und ermöglicht PWA-Funktionen.",
       "category_analytics_title": "Statistik",
       "category_analytics_desc": "Anonyme Nutzungsstatistiken zur Verbesserung des Portals (derzeit nicht aktiv)."
+    },
+    "pwa_install": {
+      "title": "App installieren",
+      "description": "Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.",
+      "install": "Installieren",
+      "later": "Später",
+      "never": "Nicht mehr anzeigen"
     }
   },
   "common": {
@@ -99,6 +106,9 @@
       "forgot_password": "Passwort vergessen?",
       "register_link_prefix": "Neu bei Prismateams?",
       "register_link_cta": "Jetzt registrieren",
+      "switch_title": "Neu hier?",
+      "switch_text": "Noch kein Konto? Registriere dich und starte direkt mit Prismateams.",
+      "switch_cta": "Registrieren",
       "2fa_code": "2FA-Code",
       "2fa_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein."
     },
@@ -116,7 +126,10 @@
       "dark_mode_help": "Du kannst diese Einstellung jederzeit in deinem Profil ändern.",
       "submit": "Konto erstellen",
       "login_link_prefix": "Schon registriert?",
-      "login_link_cta": "Hier anmelden"
+      "login_link_cta": "Hier anmelden",
+      "switch_title": "Schon dabei?",
+      "switch_text": "Du hast bereits ein Konto? Melde dich an und weiter geht’s.",
+      "switch_cta": "Anmelden"
     },
     "confirm_email": {
       "title": "E-Mail bestätigen",
@@ -225,7 +238,8 @@
         "enter_portal_name": "Bitte geben Sie einen Portalsnamen ein.",
         "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
         "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
-        "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
+        "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt.",
+        "completed_summary": "Setup abgeschlossen. Ihr Admin-Account ist bereit — Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
       },
       "success_title": "🎉 Setup erfolgreich abgeschlossen!",
       "success_body": "Willkommen in Ihrem Team-Portal! Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
@@ -551,6 +565,11 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_appearance": "Darstellung",
       "heading": "Darstellung anpassen",
+      "subtitle": "Sprache, Farbe, Design-Modus und Layout",
+      "section_language": "Sprache",
+      "section_color": "Farbe",
+      "section_theme": "Design-Modus",
+      "section_layout": "Layout und Navigation",
       "language_label": "Sprache",
       "language_help": "Wähle die Sprache für Oberfläche und Systemmeldungen.",
       "accent_section_title": "Akzentfarbe & Farbverlauf",
@@ -604,7 +623,7 @@
       "cards": {
         "profile": {
           "title": "Profil",
-          "description": "Persönliche Daten und Passwort ändern",
+          "description": "Persönliche Daten und Profilbild",
           "button": "Bearbeiten"
         },
         "appearance": {
@@ -640,7 +659,11 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_profile": "Profil",
       "heading": "Profil bearbeiten",
+      "subtitle": "Persönliche Daten und Profilbild verwalten",
+      "exists_since": "Benutzer existiert seit {date}",
       "picture": {
+        "heading": "Profilbild",
+        "help": "JPG, PNG oder GIF · max. 5 MB",
         "alt": "Profilbild",
         "alt_preview": "Profilbild Vorschau",
         "change_button": "Profilbild ändern",
@@ -651,6 +674,7 @@
         "error_size": "Die Datei ist zu groß. Maximale Größe: 5MB."
       },
       "fields": {
+        "section_title": "Persönliche Daten",
         "first_name": "Vorname",
         "last_name": "Nachname",
         "email": "E-Mail",
@@ -670,7 +694,7 @@
         "label": "Neues Passwort (optional)",
         "help": "Leer lassen, um Passwort nicht zu ändern"
       },
-      "save_button": "Änderungen speichern",
+      "save_button": "Speichern",
       "flash_password_length": "Das Passwort muss mindestens 8 Zeichen lang sein.",
       "flash_picture_too_large": "Profilbild ist zu groß. Maximale Größe: 5MB. Ihre Datei: {size:.1f}MB",
       "flash_picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF Dateien sind erlaubt.",
@@ -683,7 +707,8 @@
       "page_title": "Sicherheit - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_security": "Sicherheit",
-      "heading": "Sicherheitseinstellungen",
+      "heading": "Sicherheit",
+      "subtitle": "Passwort, 2FA und angemeldete Geräte",
       "flash_guests_cannot_edit": "Gast-Accounts können Sicherheitseinstellungen nicht ändern.",
       "tabs": {
         "passwords": "Passwörter & 2FA",
@@ -705,13 +730,20 @@
       },
       "2fa": {
         "heading": "Zwei-Faktor-Authentifizierung (2FA)",
+        "heading_short": "Zwei-Faktor (2FA)",
+        "help": "Zusätzlicher Schutz beim Login mit Authenticator-App",
+        "status_on": "Aktiv",
+        "status_off": "Nicht aktiviert",
         "enabled": "2FA ist aktiviert.",
         "not_enabled": "2FA ist nicht aktiviert. Aktivieren Sie 2FA für zusätzliche Sicherheit.",
+        "not_enabled_short": "Noch nicht eingerichtet.",
         "setup_button": "2FA aktivieren",
-        "start_setup_button": "2FA-Einrichtung starten",
+        "start_setup_button": "2FA einrichten",
         "start_setup_description": "Klicken Sie auf den Button, um die 2FA-Einrichtung zu starten. Sie erhalten dann einen QR-Code zum Scannen.",
-        "setup_instructions": "Scannen Sie den QR-Code mit Ihrer Authenticator-App (z.B. Google Authenticator, Microsoft Authenticator) und geben Sie dann den 6-stelligen Code ein.",
-        "setup_warning": "Wichtig: Speichern Sie den Secret-Code an einem sicheren Ort. Falls Sie Ihr Gerät verlieren, benötigen Sie diesen Code, um 2FA wiederherzustellen.",
+        "step1_title": "Schritt 1: QR-Code scannen",
+        "step2_title": "Schritt 2: Code eingeben",
+        "setup_instructions": "Scannen Sie den QR-Code mit Ihrer Authenticator-App und geben Sie den 6-stelligen Code ein.",
+        "setup_warning": "Secret-Code sicher aufbewahren – bei Geräteverlust zur Wiederherstellung nötig.",
         "enter_code_label": "2FA-Code",
         "enter_code_help": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
         "secret_label": "Secret-Code",
@@ -733,14 +765,14 @@
       },
       "devices": {
         "heading": "Angemeldete Geräte",
-        "description": "Verwalten Sie Ihre aktiven Sitzungen und melden Sie sich von anderen Geräten ab.",
+        "description": "Aktive Sitzungen verwalten und andere Geräte abmelden.",
         "table": {
           "device": "Gerät",
           "ip_address": "IP-Adresse",
           "last_activity": "Letzte Aktivität",
           "status": "Status"
         },
-        "current_session": "Aktuelle Sitzung",
+        "current_session": "Dieses Gerät",
         "active": "Aktiv",
         "inactive": "Inaktiv",
         "unknown_device": "Unbekanntes Gerät",
@@ -761,6 +793,15 @@
       "page_title": "Benachrichtigungen - Einstellungen",
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_notifications": "Benachrichtigungen",
+      "heading": "Benachrichtigungen",
+      "subtitle": "Push, Module und Erinnerungen verwalten",
+      "save_button": "Änderungen speichern",
+      "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert.",
+      "push_status": {
+        "checking": "Status wird geprüft…",
+        "supported": "Dieser Browser unterstützt Push-Benachrichtigungen mit dieser Seite",
+        "unsupported": "Dieser Browser unterstützt Push-Benachrichtigungen nicht"
+      },
       "permissions": {
         "title": "Browser-Berechtigungen",
         "description": "Diese Berechtigungen sind erforderlich, damit die Anwendung alle Funktionen nutzen kann.",
@@ -803,6 +844,7 @@
         "toggle": "Chat-Benachrichtigungen aktivieren",
         "help": "Erhalten Sie Benachrichtigungen für neue Chat-Nachrichten",
         "table_title": "Chat-spezifische Einstellungen",
+        "empty": "Keine Chats vorhanden.",
         "table": {
           "chat": "Chat",
           "notifications": "Benachrichtigungen"
@@ -816,6 +858,11 @@
         "new_help": "Benachrichtigungen für neu hochgeladene Dateien",
         "modified": "Geänderte Dateien",
         "modified_help": "Benachrichtigungen für geänderte Dateien"
+      },
+      "booking": {
+        "title": "Buchungsanfragen",
+        "toggle": "Benachrichtigungen für neue Buchungsanfragen",
+        "help": "Push, wenn eine neue Anfrage für ein Formular eintrifft, bei dem Sie eine Rolle haben"
       },
       "email": {
         "title": "E-Mail-Benachrichtigungen",
@@ -842,7 +889,6 @@
         "reminder_1d": "1 Tag vorher",
         "reminder_2d": "2 Tage vorher"
       },
-      "save_button": "Einstellungen speichern",
       "js": {
         "checking": "Prüfe...",
         "permission_granted": "Erteilt",
@@ -867,26 +913,32 @@
       "breadcrumb_settings": "Einstellungen",
       "breadcrumb_about": "Über PrismaTeams",
       "heading": "Über PrismaTeams",
+      "subtitle": "Produkt, System und Open Source",
       "logo_alt": "PrismaTeams Logo",
       "section_product_title": "PrismaTeams",
-      "section_product_description": "PrismaTeams ist eine umfassende Team-Kollaborationsplattform, die Ihnen hilft, effizient mit Ihrem Team zu kommunizieren, zu organisieren und zusammenzuarbeiten. Die Plattform bietet Funktionen für Chat, Dateiverwaltung, Kalender, E-Mail-Verwaltung und vieles mehr.",
+      "section_product_description": "Team-Portal für Chat, Dateien, Kalender, E-Mail und weitere Module – alles an einem Ort.",
       "author_label": "Autor:",
       "copyright": "Copyright © Enrico R. Matzke 2025. Alle Rechte vorbehalten.",
-      "section_repository_title": "GitHub Repository",
-      "section_repository_description": "Das Quellcode-Repository finden Sie auf GitHub:",
-      "section_repository_button": "GitHub Repository öffnen",
-      "section_repository_improvement_note": "Die Software wird kontinuierlich weiterentwickelt und verbessert. Sollten Sie einen Fehler entdecken, melden Sie diesen bitte gerne mit einem Screenshot und/oder einer ausführlichen Beschreibung über die Issues-Seite auf GitHub.",
+      "section_repository_title": "Open Source",
+      "section_repository_description": "Quellcode und Issues auf GitHub.",
+      "section_repository_button": "Repository öffnen",
+      "section_repository_improvement_note": "Die Software wird kontinuierlich weiterentwickelt. Fehler gerne mit Screenshot oder Beschreibung über GitHub Issues melden.",
       "section_repository_issues_button": "Fehler melden",
-      "section_system_title": "Über Dieses System",
+      "section_system_title": "Dieses System",
       "version_label": "Version:",
       "version_value": "",
-      "creator_label": "Ersteller:",
-      "onlyoffice_label": "OnlyOffice Integration:",
+      "release_label": "Release",
+      "build_label": "Build",
+      "portal_label": "Portalname",
+      "portal_unset": "Nicht gesetzt",
+      "creator_label": "Verwaltet von",
+      "creator_unknown": "Unbekannt",
+      "onlyoffice_label": "OnlyOffice",
       "onlyoffice_active": "Aktiv",
       "onlyoffice_inactive": "Nicht aktiv",
-      "media_downloader_label": "Media Downloader (Systemkompatibilität):",
-      "media_downloader_compatible": "Kompatibel (FFmpeg verfügbar)",
-      "media_downloader_not_compatible": "Nicht kompatibel (FFmpeg fehlt)",
+      "media_downloader_label": "Media Downloader",
+      "media_downloader_compatible": "FFmpeg ok",
+      "media_downloader_not_compatible": "FFmpeg fehlt",
       "excalidraw_label": "Excalidraw Integration:",
       "excalidraw_active": "Aktiv",
       "excalidraw_inactive": "Nicht aktiv",
@@ -903,11 +955,25 @@
         "breadcrumb_settings": "Einstellungen",
         "breadcrumb_admin": "Administration",
         "breadcrumb_modules": "Module",
-        "heading": "Module verwalten",
+        "heading": "Module",
+        "subtitle": "Module für alle Benutzer ein- oder ausschalten. Aus = in Navigation ausgeblendet.",
+        "section_modules": "Verfügbare Module",
         "description": "Aktivieren oder deaktivieren Sie Module für alle Benutzer. Deaktivierte Module werden in der Navigation ausgeblendet.",
+        "module_chat": "Chat",
+        "module_files": "Dateien",
+        "module_calendar": "Kalender",
+        "module_events": "Veranstaltungen",
+        "module_email": "E-Mail",
+        "module_contacts": "Kontakte",
+        "module_credentials": "Zugangsdaten",
+        "module_manuals": "Anleitungen",
+        "module_inventory": "Lagerverwaltung",
+        "module_wiki": "Wiki",
         "module_booking": "Buchungen",
         "module_music": "Musik",
         "module_media_downloader": "Media Downloader",
+        "module_assessment": "Bewertung",
+        "module_shortlinks": "Kurzlinks",
         "save": "Änderungen speichern",
         "cancel": "Zurück",
         "flash_updated": "Module-Einstellungen wurden aktualisiert."
@@ -918,11 +984,58 @@
         "breadcrumb_admin": "Administration",
         "breadcrumb_users": "Benutzerverwaltung",
         "heading": "Benutzerverwaltung",
-        "configure_default_roles": "Standardrollen konfigurieren",
-        "create_user": "Neuen Benutzer erstellen",
+        "subtitle": "Benutzer, Gäste und ausstehende Bestätigungscodes",
+        "configure_default_roles": "Standardrollen",
+        "create_user": "Neuen Benutzer",
         "guest_account": "Gast-Account",
         "guest_expires_at": "Läuft ab",
         "guest_no_expiry": "Kein Ablaufdatum",
+        "pending_title": "Ausstehende Registrierungen",
+        "codes_title": "Bestätigungscodes",
+        "codes_help": "Codes für Nutzer, die ihre E-Mail noch nicht bestätigt haben.",
+        "active_title": "Aktive Benutzer",
+        "guests_title": "Gast-Accounts",
+        "registered": "Registriert",
+        "code_expires": "Gültig bis",
+        "code_unlimited": "Unbegrenzt",
+        "copy_code": "Code kopieren",
+        "last_login": "Login",
+        "never": "Nie",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren",
+        "reject": "Ablehnen",
+        "reject_confirm": "Registrierung ablehnen und löschen?",
+        "delete": "Löschen",
+        "delete_confirm": "Benutzer wirklich löschen?",
+        "delete_guest_confirm": "Gast-Account wirklich löschen?",
+        "edit": "Bearbeiten",
+        "manage_roles": "Rollen verwalten",
+        "make_admin": "Zum Admin machen",
+        "remove_admin": "Admin-Rechte entziehen",
+        "badge_super_admin": "Hauptadmin",
+        "badge_admin": "Admin",
+        "badge_user": "Benutzer",
+        "badge_full_admin": "Vollzugriff (Admin)",
+        "badge_full": "Vollzugriff",
+        "badge_modules": "Module",
+        "badge_guest": "Gast",
+        "badge_active": "Aktiv",
+        "badge_inactive": "Inaktiv",
+        "badge_expired": "Abgelaufen",
+        "shares_count": "{count} Freigabe(n)",
+        "expires": "Bis",
+        "no_active": "Keine aktiven Benutzer.",
+        "no_guests": "Keine Gast-Accounts.",
+        "full_access_help": "Bei Vollzugriff greifen modulspezifische Rollen nicht.",
+        "module_roles_title": "Modulspezifische Rollen",
+        "module_roles_help": "Module auswählen, auf die dieser Benutzer Zugriff haben soll.",
+        "email_perms_title": "E-Mail-Berechtigungen",
+        "email_read": "E-Mails lesen",
+        "email_send": "E-Mails senden",
+        "borrow_title": "Leihrechte",
+        "borrow_toggle": "Artikel ausleihen können",
+        "booking_roles_title": "Buchungsrollen",
+        "booking_roles_help": "Rollen zuweisen, damit der Benutzer Anfragen freigeben oder ablehnen kann.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_user_created": "Account für {name} wurde erstellt und E-Mail mit Zugangsdaten wurde gesendet.",
         "flash_guest_created": "Gast-Account für {name} wurde erstellt. Zugangsdaten: Benutzername: {email}, Passwort: {password}",
@@ -940,6 +1053,45 @@
         "flash_cannot_delete_self": "Sie können sich nicht selbst löschen.",
         "flash_cannot_delete_super_admin": "Der Hauptadministrator kann nicht gelöscht werden."
       },
+      "create_user": {
+        "page_title": "Benutzer erstellen - Administration",
+        "heading": "Neuen Benutzer anlegen",
+        "subtitle": "Vollwertiger Account oder Gast",
+        "account_type": "Account-Typ",
+        "tab_full": "Vollwertig",
+        "tab_guest": "Gast",
+        "section_details": "Stammdaten",
+        "first_name": "Vorname",
+        "last_name": "Nachname",
+        "email": "E-Mail-Adresse",
+        "email_help": "Der Benutzer erhält eine E-Mail mit Zugangsdaten.",
+        "phone": "Telefonnummer (optional)",
+        "full_hint": "Erhält automatisch die Standardrollen und ein zufälliges 8-stelliges Passwort per E-Mail.",
+        "submit_full": "Account erstellen und E-Mail senden",
+        "guest_username": "Gast-Benutzername",
+        "guest_username_help": "Anmeldung als Benutzername@gast.system.local",
+        "expires": "Ablaufzeit (optional)",
+        "expires_help": "Account wird danach automatisch gelöscht.",
+        "shares_title": "Freigabelinks",
+        "shares_help": "Bei Freigabeordnern wird das Dateien-Modul freigeschaltet.",
+        "shares_empty": "Keine Freigabelinks verfügbar.",
+        "chats_title": "Chats",
+        "chats_help": "Bei Chat-Zuweisung wird das Chat-Modul freigeschaltet.",
+        "chats_empty": "Keine Chats verfügbar.",
+        "main_chat": "Haupt-Chat",
+        "modules_title": "Weitere Module",
+        "modules_help": "Zusätzliche Module für den Gast.",
+        "guest_hint": "Kein E-Mail-/Passwort-Modul. Inventar nur Ansicht.",
+        "submit_guest": "Gast-Account erstellen",
+        "validation_error": "Bitte Pflichtfelder korrekt ausfüllen.",
+        "guest_modal_title": "Gast-Account erstellt",
+        "guest_modal_note": "Zugangsdaten jetzt notieren — später nicht mehr abrufbar.",
+        "guest_modal_username": "Benutzername / E-Mail",
+        "guest_modal_password": "Passwort",
+        "guest_modal_done": "Zur Benutzerverwaltung",
+        "guest_login_hint": "Login mit {username}@gast.system.local",
+        "copy": "Kopieren"
+      },
       "email_footer": {
         "flash_saved": "E-Mail-Footer wurde erfolgreich gespeichert."
       },
@@ -952,15 +1104,22 @@
         "page_title": "System-Einstellungen - Administration",
         "breadcrumb_system": "System-Einstellungen",
         "heading": "System-Einstellungen",
+        "subtitle": "Globale Portal-Defaults für Name, Logo, Branding und Zeitzone.",
         "section_title": "Portal-Einstellungen",
+        "section_portal": "Portal",
+        "section_branding": "Branding",
+        "section_timezone": "Zeitzone",
         "portal_name_label": "Portalsname",
         "portal_name_placeholder": "z.B. Prismateams",
         "portal_name_help": "Der Name des Portals, der an verschiedenen Stellen angezeigt wird.",
         "portal_logo_label": "Portalslogo",
         "current_logo": "Aktuelles Logo",
+        "remove_logo": "Logo entfernen",
+        "remove_logo_confirm": "Portalslogo wirklich entfernen?",
         "portal_logo_help": "Logo für das Portal (PNG, JPG, JPEG, GIF oder SVG, max. 5MB)",
         "default_accent_color_label": "Standard-Akzentfarbe",
         "default_accent_color_help": "Standard-Akzentfarbe für neue Benutzer. Benutzer können diese später in ihren Einstellungen ändern.",
+        "preview": "Vorschau",
         "color_gradient_label": "Farbverlauf für Login/Register",
         "color_gradient_help": "Wählen Sie einen Farbverlauf für die Login- und Registrierungsseiten.",
         "color_gradient_default": "Standard (Blau-Violett)",
@@ -976,21 +1135,116 @@
         "timezone_help": "Globale Zeitzone für Uhrzeiten im Portal und in E-Mails.",
         "save_button": "Änderungen speichern",
         "back_button": "Zurück",
-        "flash_updated": "System-Einstellungen wurden aktualisiert."
+        "flash_updated": "System-Einstellungen wurden aktualisiert.",
+        "flash_logo_uploaded": "Portalslogo wurde hochgeladen.",
+        "flash_logo_removed": "Portalslogo wurde entfernt.",
+        "flash_logo_too_large": "Logo zu groß ({size:.1f} MB). Maximal 5 MB erlaubt.",
+        "flash_logo_invalid_type": "Ungültiger Dateityp. Erlaubt: PNG, JPG, JPEG, GIF, SVG."
       },
       "music": {
         "flash_saved": "Musikmodul-Einstellungen wurden gespeichert."
       },
       "roles": {
+        "page_title": "Standardrollen - Administration",
+        "heading": "Standardrollen",
+        "subtitle": "Zugriffe für neu angelegte Benutzer",
+        "full_access_title": "Vollzugriff",
+        "full_access_toggle": "Vollzugriff als Standard",
+        "full_access_help": "Neue Benutzer erhalten automatisch Zugriff auf alle Module.",
+        "modules_title": "Modulspezifische Standardrollen",
+        "modules_help": "Nur relevant, wenn Vollzugriff aus ist. Module als Pillen auswählen.",
+        "full_access_active_hint": "Vollzugriff aktiv — alle Module sind freigeschaltet.",
         "flash_default_saved": "Standardrollen wurden erfolgreich gespeichert."
       },
       "inventory": {
-        "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert."
+        "flash_saved": "Lagerverwaltung-Einstellungen wurden gespeichert.",
+        "page_title": "Lagerverwaltung-Einstellungen - Administration",
+        "heading": "Lagerverwaltung-Einstellungen",
+        "subtitle": "Texte für öffentliche Produktseiten und QR-Code-Scans.",
+        "public_title": "Öffentliche Produktseiten",
+        "public_lead": "Wird bei QR-Scans auf der öffentlichen Produktseite angezeigt.",
+        "ownership_label": "Eigentumstext",
+        "ownership_placeholder": "z.B. Eigentum der Technik",
+        "ownership_help": "Dieser Text erscheint prominent auf öffentlichen Produktseiten.",
+        "save": "Speichern"
       },
       "email_settings": {
         "flash_saved": "E-Mail-Einstellungen wurden gespeichert."
       },
+      "email_module": {
+        "page_title": "E-Mail-Moduleinstellungen - Administration",
+        "heading": "E-Mail-Moduleinstellungen",
+        "subtitle": "Verbindungen testen, Speicherung steuern und Footer festlegen.",
+        "save": "Speichern",
+        "test": {
+          "title": "Verbindungstest",
+          "hint": "SMTP sendet eine Test-E-Mail. IMAP prüft nur die eingehende Verbindung.",
+          "lead": "SMTP-Test geht an {email}. Ergebnis erscheint direkt mit Haken oder X.",
+          "smtp_label": "SMTP (Ausgehend)",
+          "smtp_help": "Test-E-Mail senden",
+          "imap_label": "IMAP (Eingehend)",
+          "imap_help": "Posteingang-Verbindung prüfen",
+          "run": "Testen",
+          "run_both": "Beide testen",
+          "status_idle": "Noch nicht getestet",
+          "status_running": "Test läuft…",
+          "status_ok": "Erfolgreich",
+          "status_fail": "Fehlgeschlagen",
+          "error_generic": "Test fehlgeschlagen. Bitte erneut versuchen.",
+          "smtp_subject": "Test-E-Mail - Prismateams",
+          "smtp_body": "Dies ist eine Test-E-Mail von Prismateams.",
+          "smtp_incomplete": "SMTP-Konfiguration unvollständig (Server, Benutzer oder Passwort fehlen).",
+          "smtp_ok": "SMTP ok — Test-E-Mail an {email} gesendet.",
+          "smtp_fail": "SMTP fehlgeschlagen: {error}",
+          "imap_incomplete": "IMAP-Konfiguration unvollständig (Server, Benutzer oder Passwort fehlen).",
+          "imap_placeholder": "IMAP enthält noch Platzhalterwerte (z. B. example.com).",
+          "imap_inbox_fail": "Anmeldung ok, aber INBOX konnte nicht geöffnet werden.",
+          "imap_ok": "IMAP ok — Verbindung zu {server}:{port} erfolgreich.",
+          "imap_fail": "IMAP fehlgeschlagen: {error}"
+        },
+        "system": {
+          "title": "System",
+          "storage_label": "Speicherdauer (Tage)",
+          "storage_help": "0 = unbegrenzt. Ältere E-Mails werden automatisch gelöscht.",
+          "sync_label": "Sync-Intervall",
+          "sync_help": "Automatische IMAP-Synchronisation.",
+          "sync_15": "15 Minuten",
+          "sync_30": "30 Minuten",
+          "sync_60": "60 Minuten"
+        },
+        "footer": {
+          "title": "E-Mail-Footer",
+          "vars_label": "Variablen",
+          "vars_help": "Platzhalter werden beim Senden ersetzt. Klick auf einen Chip fügt ihn ein.",
+          "ph_user": "Nutzername",
+          "ph_email": "E-Mail-Adresse",
+          "ph_app_name": "App-Name",
+          "ph_date": "Datum",
+          "ph_time": "Uhrzeit",
+          "template_label": "Footer-Template",
+          "template_placeholder": "Footer-Text mit optionalen Variablen…",
+          "preview_label": "Vorschau"
+        }
+      },
       "backup": {
+        "page_title": "Import/Export - Administration",
+        "heading": "Import / Export",
+        "subtitle": "Backups als .prismateams erstellen und wiederherstellen. Merge/Upsert — bestehende Daten werden ergänzt oder aktualisiert.",
+        "export_title": "Export",
+        "export_lead": "Kategorien wählen und Backup herunterladen.",
+        "import_title": "Import",
+        "import_lead": "Backup-Datei hochladen und Kategorien wählen.",
+        "categories_label": "Kategorien",
+        "select_all": "Alle",
+        "select_none": "Keine",
+        "file_label": "Backup-Datei",
+        "file_help": "Nur .prismateams-Dateien.",
+        "export_hint": "Format .prismateams (JSON). Benutzer-Passwörter als Hashes. Version 1.1 (1.0 wird beim Import akzeptiert).",
+        "credentials_warn": "Zugangsdaten werden im Klartext in der Backup-Datei gespeichert. Datei sicher aufbewahren.",
+        "import_warn": "Import ergänzt oder aktualisiert Daten. IDs werden neu gemappt. Vorher aktuelles Backup anlegen.",
+        "import_confirm": "Backup wirklich importieren? Bestehende Daten können überschrieben oder ergänzt werden.",
+        "export_submit": "Backup erstellen",
+        "import_submit": "Backup importieren",
         "flash_no_export_categories": "Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.",
         "flash_export_error": "Fehler beim Erstellen des Backups.",
         "flash_export_error_detail": "Fehler beim Erstellen des Backups: {error}",
@@ -998,9 +1252,73 @@
         "flash_invalid_extension": "Ungültige Dateiendung. Bitte wählen Sie eine .prismateams-Datei aus.",
         "flash_no_import_categories": "Bitte wählen Sie mindestens eine Kategorie zum Importieren aus.",
         "flash_import_success": "Backup erfolgreich importiert! Importierte Kategorien: {categories}",
-        "flash_import_error": "Fehler beim Importieren des Backups: {error}"
+        "flash_import_error": "Fehler beim Importieren des Backups: {error}",
+        "categories": {
+          "settings": "Einstellungen",
+          "users": "Benutzer",
+          "emails": "E-Mails",
+          "appointments": "Termine",
+          "credentials": "Zugangsdaten",
+          "files": "Dateien",
+          "wiki": "Wiki",
+          "comments": "Kommentare",
+          "inventory": "Inventar",
+          "manuals": "Handbücher",
+          "chats": "Chats",
+          "contacts": "Kontakte",
+          "events": "Veranstaltungen",
+          "booking": "Buchungen",
+          "music": "Musik",
+          "media_downloader": "Media Downloader",
+          "assessment": "Bewertung",
+          "shortlinks": "Kurzlinks"
+        },
+        "helps": {
+          "settings": "Systemeinstellungen, Modul-Flags und Whitelist.",
+          "users": "Benutzer inkl. Gäste, Modulrollen, Layout/Sprache. Passwort-Hashes. Keine 2FA-Secrets.",
+          "emails": "Nachrichten, Anhänge und E-Mail-Berechtigungen.",
+          "appointments": "Kalender, Termine, Teilnehmer, Sync-Quellen und öffentliche Feeds.",
+          "credentials": "Website-Zugangsdaten — Passwörter im Klartext im Backup.",
+          "files": "Ordner, Dateien, Versionen, Freigaben, ACL und Favoriten.",
+          "wiki": "Seiten, Kategorien, Tags und Versionen.",
+          "comments": "Kommentare, Mentions und Threads.",
+          "inventory": "Produkte, Ordner, Sets, Ausleihen und Inventuren.",
+          "manuals": "Handbücher und zugehörige Dateien.",
+          "chats": "Chats, Mitglieder, Nachrichten und Pins. Hauptchat wird gemerged.",
+          "contacts": "Kontakte.",
+          "events": "Veranstaltungen inkl. Termine, Zuweisungen, Bedarfe und Timeline.",
+          "booking": "Buchungsformulare, Felder, Rollen und Anfragen.",
+          "music": "Musik-Einstellungen, Wünsche und Queue (ohne Provider-Secrets wo möglich).",
+          "media_downloader": "Download-Job-Metadaten.",
+          "assessment": "Bewertung: Listen, Kriterien, Evaluationen und zugehörige Daten.",
+          "shortlinks": "Kurzlinks."
+        }
       },
       "whitelist": {
+        "page_title": "Whitelist - Administration",
+        "heading": "Whitelist",
+        "subtitle": "E-Mail-Adressen und Domains auf der Whitelist werden bei der Registrierung automatisch aktiviert.",
+        "list_title": "Einträge",
+        "add_title": "Hinzufügen",
+        "type_label": "Typ",
+        "type_email": "E-Mail",
+        "type_domain": "Domain",
+        "entry_label": "Eintrag",
+        "entry_placeholder": "z.B. user@example.com oder @example.com",
+        "description_label": "Beschreibung (optional)",
+        "description_placeholder": "z.B. Lehrer der Schule",
+        "add_submit": "Hinzufügen",
+        "badge_email": "E-Mail",
+        "badge_domain": "Domain",
+        "badge_active": "Aktiv",
+        "badge_inactive": "Inaktiv",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren",
+        "delete": "Löschen",
+        "delete_confirm": "Whitelist-Eintrag wirklich löschen?",
+        "empty": "Keine Whitelist-Einträge vorhanden.",
+        "tooltip_system": "Whitelist-Einträge werden bei der Registrierung automatisch freigeschaltet.",
+        "tooltip_entry": "E-Mail: exakte Adresse. Domain: mit @, z.B. @merian.schule — alle Adressen dieser Domain.",
         "flash_invalid_entry": "Bitte geben Sie einen gültigen Eintrag und Typ an.",
         "flash_invalid_email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
         "flash_entry_added": "Whitelist-Eintrag \"{entry}\" wurde hinzugefügt.",
@@ -1012,12 +1330,98 @@
         "flash_entry_delete_error": "Fehler beim Löschen des Whitelist-Eintrags."
       },
       "booking_forms": {
+        "page_title": "Buchungsformulare - Administration",
+        "heading": "Buchungsformulare",
+        "subtitle": "Formulare erstellen, Felder und Zustimmungsrollen verwalten, PDF-Antragstext konfigurieren.",
+        "list_title": "Formulare",
+        "create": "Neues Formular",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "delete_confirm": "Dieses Formular wirklich löschen? Alle zugehörigen Anfragen werden entfernt.",
+        "empty": "Noch keine Buchungsformulare erstellt.",
+        "status_active": "Aktiv",
+        "status_inactive": "Inaktiv",
+        "requests_count": "{count} Anfragen",
+        "created": "Erstellt",
+        "create_heading": "Neues Formular",
+        "create_subtitle": "Titel, PDF-Text, Felder und Rollen auf einer Seite.",
+        "edit_heading": "Formular bearbeiten",
+        "edit_subtitle": "Grunddaten, PDF, Integration, Felder und Zustimmungsrollen.",
+        "draft_title": "Neues Formular",
+        "section_basics": "Grunddaten",
+        "section_pdf": "PDF",
+        "section_integration": "Integration",
+        "section_logo": "Optionales 2. Logo",
+        "section_fields": "Zusätzliche Felder",
+        "section_roles": "Zustimmungsrollen",
+        "title_label": "Titel",
+        "description_label": "Beschreibung",
+        "archive_days_label": "Archivierung (Tage)",
+        "archive_days_help": "Nach wie vielen Tagen vergangene Events archiviert werden.",
+        "enable_mailbox": "Briefkasten aktivieren",
+        "enable_shared_folder": "Geteilter Ordner aktivieren",
+        "is_active": "Formular ist aktiv",
+        "pdf_text_label": "PDF-Antragstext",
+        "pdf_footer_label": "PDF-Zusatztext (optional)",
+        "pdf_footer_help": "Erscheint vor der Standard-Fußzeile des Portals.",
+        "pdf_placeholders_hint": "Klicken zum Einfügen. Zeilenumbrüche bleiben erhalten.",
+        "pdf_ph_name": "Name",
+        "pdf_ph_email": "E-Mail",
+        "pdf_ph_applicant": "Antragsteller (Name)",
+        "pdf_ph_event": "Event-Name",
+        "pdf_ph_time": "Zeitraum",
+        "pdf_ph_status": "Status",
+        "pdf_ph_role": "Rolle {n}",
+        "logo_upload": "Logo hochladen",
+        "logo_delete": "Logo löschen",
+        "logo_delete_confirm": "Optionales 2. Logo wirklich löschen?",
+        "fields_empty": "Noch keine zusätzlichen Felder.",
+        "field_add": "Feld hinzufügen",
+        "field_edit": "Feld bearbeiten",
+        "field_type": "Feldtyp",
+        "field_label": "Bezeichnung",
+        "field_name": "Interner Name",
+        "field_name_help": "Leer = automatisch aus Bezeichnung",
+        "field_placeholder": "Platzhalter",
+        "field_options": "Optionen (eine pro Zeile)",
+        "field_required": "Pflichtfeld",
+        "field_required_badge": "Pflicht",
+        "field_delete_confirm": "Feld wirklich löschen?",
+        "field_type_text": "Text",
+        "field_type_textarea": "Mehrzeiliger Text",
+        "field_type_date": "Datum",
+        "field_type_number": "Zahl",
+        "field_type_select": "Auswahl (Dropdown)",
+        "field_type_checkbox": "Checkbox",
+        "roles_empty": "Noch keine Zustimmungsrollen.",
+        "role_add": "Rolle hinzufügen",
+        "role_edit": "Rolle bearbeiten",
+        "role_name": "Rollenname",
+        "role_required": "Zustimmung erforderlich",
+        "role_required_badge": "Erforderlich",
+        "role_optional_badge": "Optional",
+        "role_users_badge": "{count} Benutzer",
+        "role_users": "Benutzer für Rolle",
+        "role_users_select": "Benutzer auswählen",
+        "role_users_help": "Mehrfachauswahl mit Strg/Cmd",
+        "role_delete_confirm": "Rolle wirklich löschen?",
+        "save": "Speichern",
+        "add": "Hinzufügen",
+        "cancel": "Abbrechen",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
         "flash_title_required": "Bitte geben Sie einen Titel ein.",
         "flash_form_created": "Formular \"{title}\" wurde erstellt.",
         "flash_form_updated": "Formular \"{title}\" wurde aktualisiert.",
         "flash_form_deleted": "Formular \"{title}\" wurde gelöscht.",
-        "flash_status_updated": "Status wurde aktualisiert."
+        "flash_status_updated": "Status wurde aktualisiert.",
+        "flash_field_label_required": "Bezeichnung ist erforderlich.",
+        "flash_field_added": "Feld \"{label}\" wurde hinzugefügt.",
+        "flash_field_updated": "Feld \"{label}\" wurde aktualisiert.",
+        "flash_field_deleted": "Feld \"{label}\" wurde gelöscht.",
+        "flash_role_name_required": "Rollenname ist erforderlich.",
+        "flash_role_added": "Rolle \"{name}\" wurde hinzugefügt.",
+        "flash_role_updated": "Rolle wurde aktualisiert.",
+        "flash_role_deleted": "Rolle wurde gelöscht."
       },
       "sections": {
         "users": {
@@ -1037,9 +1441,13 @@
         "page_title": "Web-Push-Abonnements - Administration",
         "breadcrumb": "Web-Push",
         "heading": "Web-Push-Abonnements",
+        "subtitle": "Browser-Push-Endpoints aller Nutzer verwalten.",
+        "list_title": "Abonnements",
         "description": "Alle registrierten Browser-Push-Endpoints mit zugehörigen Nutzern.",
         "stats": "{active} aktiv von {total} Einträgen gesamt.",
         "empty": "Keine Push-Abonnements vorhanden.",
+        "badge_active": "Aktiv",
+        "badge_inactive": "Inaktiv",
         "confirm_delete": "Dieses Abonnement wirklich löschen?",
         "confirm_deactivate_user": "Alle aktiven Abonnements dieses Nutzers deaktivieren?",
         "flash_deactivated": "Abonnement deaktiviert.",
@@ -1064,7 +1472,7 @@
         "configure_button": "Konfigurieren",
         "user_management": {
           "title": "Benutzerverwaltung",
-          "description": "Benutzer aktivieren, bearbeiten und verwalten"
+          "description": "Benutzer, Gäste und Bestätigungscodes verwalten"
         },
         "confirmation_codes": {
           "title": "Bestätigungscodes",
@@ -1116,25 +1524,28 @@
         },
         "registration_options": {
           "title": "Bot-Schutz-Funktionen",
-          "description": "Bot-Schutz für Registrierung, Login und Freigabe-Bearbeitung konfigurieren"
+          "description": "Bot-Schutz für Login, Registrierung, Briefkästen und Freigaben"
         }
       },
       "registration": {
         "page_title": "Bot-Schutz-Funktionen - Administration",
         "breadcrumb": "Bot-Schutz-Funktionen",
-        "heading": "Bot-Schutz-Funktionen",
-        "recommendation_alert": "Wir empfehlen ein Bot-Filter-System (Google reCAPTCHA oder Cloudflare Turnstile), um automatisierte Registrierungen, Login-Angriffe und Missbrauch von Bearbeiten-Links zu reduzieren.",
+        "heading": "Bot-Schutz",
+        "subtitle": "Schutzmethode wählen und festlegen, wo sie greift: Login, Registrierung, Briefkästen und Freigaben.",
+        "recommendation_alert": "Wir empfehlen Google reCAPTCHA oder Cloudflare Turnstile gegen automatisierte Zugriffe.",
         "provider_label": "Schutzmethode",
-        "provider_help": "Wählen Sie die Methode zum Schutz vor automatisierten Zugriffen.",
+        "provider_help": "Methode zum Schutz vor automatisierten Zugriffen.",
         "provider_none": "Keine menschliche Verifizierung",
-        "provider_honeypot": "Honeypot (einfach, für Eigenentwicklungen)",
+        "provider_honeypot": "Honeypot (einfach)",
         "provider_recaptcha": "Google reCAPTCHA (empfohlen)",
         "provider_turnstile": "Cloudflare Turnstile (empfohlen)",
         "scope_label": "Anwenden auf",
-        "scope_register": "Bei Registrierung verwenden",
-        "scope_login": "Bei Login verwenden",
-        "scope_share_edit": "Bei Freigabe (Bearbeiten) verwenden",
-        "scope_login_help": "Für Login und Bearbeiten-Links werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist möglich, aber weniger verbreitet.",
+        "scope_help": "Nur aktivierte Bereiche verlangen den Bot-Schutz.",
+        "scope_register": "Registrierung",
+        "scope_login": "Login",
+        "scope_mailbox": "Briefkästen",
+        "scope_share_edit": "Freigaben (Bearbeiten)",
+        "scope_login_help": "Für Login, Freigaben und Briefkästen werden reCAPTCHA oder Turnstile empfohlen. Honeypot ist schwächer.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA-Version",
         "recaptcha_v2": "v2 (Checkbox „Ich bin kein Roboter“)",
@@ -1156,6 +1567,7 @@
         "page_title": "Datei-Einstellungen - Administration",
         "breadcrumb_file_settings": "Datei-Einstellungen",
         "heading": "Datei-Einstellungen",
+        "subtitle": "Briefkästen, Freigaben und private Ordner für das Datei-Modul steuern.",
         "section_title": "Datei-Funktionen",
         "dropbox_label": "Briefkästen aktivieren",
         "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
@@ -1163,7 +1575,7 @@
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
         "private_folders_label": "Private Ordner aktivieren",
         "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
-        "save_button": "Änderungen speichern",
+        "save_button": "Speichern",
         "flash_updated": "Datei-Einstellungen wurden aktualisiert.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
       },
@@ -1171,6 +1583,7 @@
         "page_title": "Kalender-Einstellungen - Administration",
         "breadcrumb": "Kalender-Einstellungen",
         "heading": "Kalender-Einstellungen",
+        "subtitle": "Multi-Kalender, Import und Export für das Kalender-Modul steuern.",
         "section_title": "Kalender-Funktionen",
         "multi_label": "Mehrere Kalender nutzen",
         "multi_help": "Jeder Benutzer erhält einen eigenen Kalender. Es gibt einen Public-Kalender für alle. Andere Kalender können angesehen, aber Termine nur im eigenen und im Public-Kalender erstellt werden.",
@@ -1178,7 +1591,7 @@
         "export_help": "Wenn deaktiviert, können Kalender weder als ICS exportiert noch in externe Apps eingebunden werden.",
         "import_label": "Kalender-Import erlauben",
         "import_help": "Wenn deaktiviert, können keine ICS-Dateien importiert und keine Sync-Links angelegt werden.",
-        "save_button": "Änderungen speichern",
+        "save_button": "Speichern",
         "flash_updated": "Kalender-Einstellungen wurden aktualisiert.",
         "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
       }
@@ -1307,7 +1720,18 @@
         "index": "Chats",
         "current": "Neuer Chat"
       },
-      "heading": "Neuen Chat erstellen",
+      "heading": "Neuer Chat",
+      "pick_member_hint": "Tippe auf eine Person, um direkt zu schreiben.",
+      "new_group": "Neue Gruppe",
+      "members_heading": "Portalmitglieder",
+      "members_empty": "Keine weiteren Mitglieder verfügbar.",
+      "back_to_members": "Zurück",
+      "group_step_heading": "Neue Gruppe",
+      "group_step_hint": "Mitglieder links wählen, Infos rechts festlegen.",
+      "avatar": {
+        "label": "Gruppenbild",
+        "help": "Optional — kannst du auch später setzen."
+      },
       "form": {
         "chat_type": {
           "label": "Chat-Typ",
@@ -1315,24 +1739,34 @@
           "private": "Privater Chat"
         },
         "chat_name": {
-          "label": "Chat-Name",
+          "label": "Gruppenname",
           "placeholder": "z.B. Projekt Team"
         },
         "members": {
           "label": "Mitglieder hinzufügen",
           "single_label": "Person auswählen",
-          "help": "Wählen Sie mindestens ein Mitglied aus",
+          "help": "Wähle mindestens ein Mitglied aus",
           "help_private": "Wählen Sie eine Person für den privaten Chat aus"
         },
         "buttons": {
           "submit": "Chat erstellen",
+          "create_group": "Gruppe erstellen",
           "cancel": "Abbrechen"
         },
         "alerts": {
           "select_private": "Bitte wählen Sie eine Person für den privaten Chat aus.",
           "enter_name": "Bitte geben Sie einen Chat-Namen ein.",
           "select_members": "Bitte wählen Sie mindestens ein Mitglied aus."
+        },
+        "description": {
+          "label": "Beschreibung",
+          "placeholder": "Optional: Worum geht es in der Gruppe?",
+          "help": "Optional"
         }
+      },
+      "search": {
+        "placeholder": "Personen suchen...",
+        "empty": "Keine Personen gefunden."
       }
     }
   },
@@ -1523,6 +1957,9 @@
           "choose_modes": "Wählen Sie mindestens einen Link-Typ.",
           "mode_view": "Betrachten-Link",
           "mode_edit": "Bearbeiten-Link",
+          "mode_dropbox": "Briefkasten",
+          "manage_title": "Freigaben",
+          "dropbox_hint": "Als Art „Briefkasten“ kannst du einen Upload-Link für diesen Ordner anlegen.",
           "link_inactive": "inaktiv",
           "create_link_button": "Link anlegen",
           "disable_link_button": "Link deaktivieren",
@@ -1581,6 +2018,16 @@
         "move_success": "Element wurde verschoben.",
         "move_error": "Element konnte nicht verschoben werden."
       }
+    },
+    "view": {
+      "download": "Herunterladen",
+      "close": "Schließen",
+      "edit": "Bearbeiten",
+      "media_unsupported": "Dieser Browser kann das Format nicht abspielen. Bitte Datei herunterladen.",
+      "image_preview_alt": "Bildvorschau",
+      "image_fullscreen_hint": "Klicken für Vollbild",
+      "video_label": "Video",
+      "audio_label": "Audio"
     },
     "onlyoffice": {
       "back_button_label": "Zurück"
@@ -2576,6 +3023,15 @@
       "buttons": {
         "submit": "Termin erstellen",
         "cancel": "Abbrechen"
+      },
+      "subtitle": "Titel, Zeit und Details festlegen.",
+      "sections": {
+        "basics": "Details",
+        "time": "Zeit",
+        "appearance": "Darstellung",
+        "recurrence": "Wiederholung",
+        "calendar": "Kalender & Einladungen",
+        "invitees": "Einladungen"
       }
     },
     "view": {
@@ -2636,8 +3092,10 @@
       "buttons": {
         "submit": "Änderungen speichern",
         "cancel": "Abbrechen"
-      }
-    }
+      },
+      "subtitle": "Termin bearbeiten und speichern."
+    },
+    "back_to_calendar": "Zurück zum Kalender"
   },
   "manuals": {
     "flash": {
@@ -3270,6 +3728,8 @@
       "breadcrumb_admin": "Administration",
       "breadcrumb_music": "Musikmodul-Einstellungen",
       "heading": "Musikmodul-Einstellungen",
+      "subtitle": "Provider aktivieren, Reihenfolge festlegen und Zugangsdaten verwalten.",
+      "copy_uri": "URI kopieren",
       "provider_activation": {
         "title": "Provider-Aktivierung und Reihenfolge",
         "description": "Aktivieren Sie die gewünschten Musik-Provider und legen Sie die Suchreihenfolge fest.",
@@ -3565,7 +4025,15 @@
       "enter_portal_name": "Bitte geben Sie einen Portalsnamen ein.",
       "completed_emoji": "🎉 Setup erfolgreich abgeschlossen! Willkommen in Ihrem Team-Portal.",
       "add_users_info": "Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen.",
-      "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt."
+      "admin_account_created": "Ihr Administrator-Account wurde erstellt und Sie sind automatisch eingeloggt.",
+      "completed_summary": "Setup abgeschlossen. Ihr Admin-Account ist bereit — Sie können jetzt weitere Benutzer über die Einstellungen hinzufügen."
+    },
+    "import_backup": {
+      "page_title": "Backup importieren - Setup",
+      "heading": "Backup importieren",
+      "hint": "Falls Sie bereits ein Backup haben, können Sie es jetzt importieren. Fehlende Daten legen Sie im Setup neu an. Sie können diesen Schritt auch überspringen.",
+      "skip": "Überspringen",
+      "back": "Zurück zum Setup"
     }
   },
   "assessment": {
@@ -3669,6 +4137,42 @@
       "invalid_batch_item": "Ungültiger Eintrag in der Download-Liste.",
       "cancelled": "Download wurde abgebrochen.",
       "cancelling": "Download wird abgebrochen…"
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Team-Chat",
+      "body_one": "1 neue Nachricht",
+      "body_many": "{count} neue Nachrichten"
+    },
+    "file": {
+      "new_title": "Neue Datei",
+      "new_body": "{name} wurde hochgeladen",
+      "modified_title": "Datei geändert",
+      "modified_body": "{name} wurde aktualisiert"
+    },
+    "email": {
+      "title": "Neue E-Mail",
+      "body_one": "1 ungelesene E-Mail",
+      "body_many": "{count} ungelesene E-Mails"
+    },
+    "calendar": {
+      "reminder_title": "Termin-Erinnerung",
+      "reminder_body": "{title} beginnt {time_text} ({date} um {time})",
+      "in_minutes": "in {count} Minuten",
+      "in_hour_one": "in 1 Stunde",
+      "in_hours": "in {count} Stunden",
+      "in_day_one": "in 1 Tag",
+      "in_days": "in {count} Tagen"
+    },
+    "booking": {
+      "request_title": "Neue Buchungsanfrage",
+      "request_body": "{event} – {applicant}"
+    },
+    "push": {
+      "test_title": "Test-Benachrichtigung",
+      "test_body": "Test vom {portal_name}. Push funktioniert."
     }
   }
 }

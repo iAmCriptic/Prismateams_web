@@ -3,6 +3,11 @@
 {% block content %}
 {% from 'settings/_sidebar.html' import settings_sidebar_chrome with context %}
 
+{% set embed_mode = request.args.get('embed') or request.form.get('embed') %}
+
+{% if embed_mode %}
+<div class="settings-embed-shell">
+{% else %}
 <div class="settings-shell mod-shell--nav">
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
@@ -37,8 +42,49 @@
             </h1>
         </div>
     </div>
+{% endif %}
 
-    {% block settings_content %}{% endblock %}
+{% block settings_content %}{% endblock %}
+
+{% if embed_mode %}
+</div>
+<script>
+document.querySelectorAll('form').forEach(function (form) {
+    if (!form.querySelector('input[name="embed"]')) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'embed';
+        input.value = '1';
+        form.appendChild(input);
+    }
+    // In embed/modal: Cancel should just stay in frame or go back to same page with embed
+    form.querySelectorAll('a.btn-outline-secondary, a[href*="admin"]').forEach(function (link) {
+        if (/Abbrechen|Cancel|abbrechen/i.test(link.textContent || '')) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'setup-settings-close' }, '*');
+                }
+            });
+        }
+    });
+});
+</script>
+{% else %}
 </div>
 </div>
+<script>
+(function () {
+    /* Bootstrap data-bs-dismiss on <a> calls preventDefault — links would never navigate. */
+    document.querySelectorAll('[data-settings-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('settingsMobileNav');
+            if (!offcanvasEl || !window.bootstrap || !bootstrap.Offcanvas) return;
+            var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+            if (instance) instance.hide();
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -17,13 +17,13 @@
         </div>
 
         <div class="cookie-consent-actions">
-            <button type="button" class="btn btn-primary btn-sm" id="cookieConsentAcceptAll">
+            <button type="button" class="btn cookie-consent-btn cookie-consent-btn--primary" id="cookieConsentAcceptAll">
                 {{ _('layout.cookie_consent.accept_all') }}
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="cookieConsentEssential">
+            <button type="button" class="btn cookie-consent-btn cookie-consent-btn--secondary" id="cookieConsentEssential">
                 {{ _('layout.cookie_consent.essential_only') }}
             </button>
-            <button type="button" class="btn btn-link btn-sm cookie-consent-settings-toggle" id="cookieConsentSettingsToggle">
+            <button type="button" class="btn cookie-consent-btn cookie-consent-btn--ghost" id="cookieConsentSettingsToggle">
                 {{ _('layout.cookie_consent.settings') }}
             </button>
         </div>
@@ -35,7 +35,7 @@
                         <strong>{{ _('layout.cookie_consent.category_necessary_title') }}</strong>
                         <p class="text-muted small mb-0">{{ _('layout.cookie_consent.category_necessary_desc') }}</p>
                     </div>
-                    <span class="badge bg-secondary">{{ _('layout.cookie_consent.always_active') }}</span>
+                    <span class="cookie-consent-badge">{{ _('layout.cookie_consent.always_active') }}</span>
                 </div>
             </div>
             <div class="cookie-consent-category">
@@ -61,7 +61,7 @@
                 </div>
             </div>
             <div class="cookie-consent-details-actions">
-                <button type="button" class="btn btn-primary btn-sm" id="cookieConsentSave">
+                <button type="button" class="btn cookie-consent-btn cookie-consent-btn--primary" id="cookieConsentSave">
                     {{ _('layout.cookie_consent.save_preferences') }}
                 </button>
             </div>

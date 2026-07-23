@@ -57,6 +57,7 @@ def register_meta_routes(api_bp, require_api_auth):
             "module_chat",
             "module_files",
             "module_calendar",
+            "module_events",
             "module_email",
             "module_contacts",
             "module_credentials",
@@ -65,7 +66,9 @@ def register_meta_routes(api_bp, require_api_auth):
             "module_wiki",
             "module_booking",
             "module_music",
+            "module_media_downloader",
             "module_assessment",
+            "module_shortlinks",
         ]
 
         global_active, user_accessible, module_details = [], [], []

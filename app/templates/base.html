@@ -54,6 +54,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/cookie-consent.css') }}">
     
     <!-- Page-specific CSS -->
+    {% if request.args.get('embed') or request.form.get('embed') %}
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+    {% endif %}
     {% if request.endpoint %}
         {% if request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
@@ -80,6 +83,8 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
         {% elif 'auth' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+        {% elif 'setup' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
         {% elif 'errors' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
         {% elif 'inventory' in request.endpoint %}
@@ -98,7 +103,7 @@
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
         {% endif %}
     {% endif %}
-    {% if current_user.is_authenticated %}
+    {% if current_user.is_authenticated and not (request.endpoint and request.endpoint.startswith('setup.')) and not (request.args.get('embed') or request.form.get('embed')) %}
     <style>
         :root {
             --accent-color: {{ current_user.accent_highlight_color }};
@@ -264,8 +269,10 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body{% if _assess_scope %} class="assessment-scope-solo"{% endif %}>
-    {% if current_user.is_authenticated and not _assess_scope %}
+<body{% if _assess_scope %} class="assessment-scope-solo"{% elif request.endpoint and request.endpoint.startswith('setup.') %} class="setup-scope"{% elif request.args.get('embed') or request.form.get('embed') %} class="embed-scope"{% endif %}>
+    {% set _is_setup = request.endpoint and request.endpoint.startswith('setup.') %}
+    {% set _is_embed = request.args.get('embed') or request.form.get('embed') %}
+    {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
     <!-- Mobile Bottom Navigation -->
     <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
         <div class="mobile-nav-grid" id="mobileNavRow">
@@ -673,16 +680,16 @@
     </div>
     {% endif %}
 
-    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' %}
+    {% if current_user.is_authenticated and session.get('user_scope') != 'assessment' and not _is_setup and not _is_embed %}
     {% include 'partials/notification_center.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notification-center.css') }}">
     {% endif %}
 
     <!-- Main Content -->
-    <main class="{% if current_user.is_authenticated %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}">
-        <div class="container-fluid py-3">
+    <main class="{% if current_user.is_authenticated and not _is_setup and not _is_embed %}main-content{% endif %}{% if _assess_scope %} assessment-solo-main{% endif %}{% if _is_embed %} embed-main{% endif %}">
+        <div class="container-fluid{% if not _is_setup and not _is_embed %} py-3{% endif %}">
             <!-- Zurück-Button (nur auf Unterseiten, nicht auf Index-Seiten / Inventar-Shell) -->
-            {% if current_user.is_authenticated and not _assess_scope %}
+            {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
                 {% set index_endpoints = [
                     'dashboard.index', 'chat.index', 'chat.view_chat', 'files.index', 'files.browse_folder', 'calendar.index',
                     'events.index', 'events.overview', 'events.my_events', 'events.archive', 'events.people_overview',
@@ -691,7 +698,7 @@
                     'shortlinks.index', 'booking.requests', 'music.index', 'settings.index',
                     'assessment.general.home'
                 ] %}
-                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes')) %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint == 'auth.show_confirmation_codes' or request.endpoint == 'chat.create_chat')) %}
                 {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">
@@ -707,9 +714,34 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        {% set cat_raw = (category or 'info')|lower %}
+                        {% if cat_raw in ['error', 'danger'] %}
+                            {% set cat = 'danger' %}
+                            {% set icon = 'bi-exclamation-circle-fill' %}
+                        {% elif cat_raw == 'success' %}
+                            {% set cat = 'success' %}
+                            {% set icon = 'bi-check-circle-fill' %}
+                        {% elif cat_raw == 'warning' %}
+                            {% set cat = 'warning' %}
+                            {% set icon = 'bi-exclamation-triangle-fill' %}
+                        {% else %}
+                            {% set cat = 'info' %}
+                            {% set icon = 'bi-info-circle-fill' %}
+                        {% endif %}
+                        <div class="alert portal-msg portal-msg--{{ cat }} fade show" role="alert">
+                            <div class="portal-msg__body">
+                                <div class="portal-msg__icon" aria-hidden="true">
+                                    <i class="bi {{ icon }}"></i>
+                                </div>
+                                <div class="portal-msg__content">
+                                    <p class="portal-msg__text">{{ message }}</p>
+                                    <div class="portal-msg__actions">
+                                        <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close" data-bs-dismiss="alert">
+                                            {{ _('common.close') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         {% endfor %}
                     {% endif %}
@@ -756,7 +788,8 @@
     window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS = {{ (
         request.endpoint and (
             request.endpoint.startswith('files.public_share') or
-            request.endpoint.startswith('files.dropbox_')
+            request.endpoint.startswith('files.dropbox_') or
+            request.endpoint.startswith('auth.')
         )
     ) | tojson }};
     window.PRISMATEAMS_I18N.common = {{ {
@@ -766,6 +799,13 @@
         'close': _('common.close'),
         'confirm_delete_title': _('common.confirm_delete_title'),
         'confirm_delete_default': _('common.confirm_delete_default')
+    } | tojson }};
+    window.PRISMATEAMS_I18N.pwa_install = {{ {
+        'title': _('layout.pwa_install.title'),
+        'description': _('layout.pwa_install.description'),
+        'install': _('layout.pwa_install.install'),
+        'later': _('layout.pwa_install.later'),
+        'never': _('layout.pwa_install.never')
     } | tojson }};
     window.PRISMATEAMS_I18N.context_menu = {{ {
         'copy_info': _('context_menu.copy_info'),
@@ -786,8 +826,10 @@
     <script src="{{ url_for('static', filename='js/notification-center.js') }}"></script>
     {% endif %}
 
+    {% if not (request.args.get('embed') or request.form.get('embed')) %}
     {% include 'partials/cookie_consent.html' %}
     <script src="{{ url_for('static', filename='js/cookie-consent.js') }}"></script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

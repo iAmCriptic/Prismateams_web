@@ -1,12 +1,29 @@
 {% extends "base.html" %}
+{% from "events/_shell.html" import events_shell_open, events_shell_close %}
 
 {% block title %}Veranstaltung bearbeiten{% endblock %}
 
 {% block content %}
-<h1 class="mb-3"><i class="bi bi-pencil"></i> Veranstaltung bearbeiten</h1>
-<form method="POST">
-    {% include "events/_form.html" %}
-    <button class="btn btn-primary" type="submit">Aktualisieren</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('events.view_event', event_id=event.id) }}">Zurück</a>
-</form>
+{{ events_shell_open('overview', 'Veranstaltung bearbeiten', 'bi-pencil', false) }}
+<div class="events-form">
+    <div class="events-form-header d-none d-lg-block">
+        <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="events-form-back">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>Zurück</span>
+        </a>
+        <h1 class="events-form-title">Veranstaltung bearbeiten</h1>
+        <p class="events-form-subtitle">{{ event.name }}</p>
+    </div>
+
+    <form method="POST" class="events-form-body">
+        {% include "events/_form.html" %}
+        <div class="events-form-actions">
+            <button class="btn btn-accent events-form-submit" type="submit">
+                <i class="bi bi-save" aria-hidden="true"></i> Aktualisieren
+            </button>
+            <a class="btn btn-outline-secondary events-form-cancel" href="{{ url_for('events.view_event', event_id=event.id) }}">Abbrechen</a>
+        </div>
+    </form>
+</div>
+{{ events_shell_close('overview') }}
 {% endblock %}

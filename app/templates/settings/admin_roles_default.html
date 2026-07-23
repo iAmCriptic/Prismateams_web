@@ -1,100 +1,93 @@
 {% extends "settings/base_settings.html" %}
 
-{% block title %}Standardrollen konfigurieren{% endblock %}
+{% block title %}{{ _('settings.admin.roles.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.roles.heading') }}{% endblock %}
 
 {% block settings_content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="bi bi-gear"></i> Standardrollen konfigurieren</h4>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-4">
-                    Legen Sie fest, welche Rollen neue Benutzer standardmäßig erhalten sollen. Diese Einstellungen werden bei der Registrierung oder Erstellung neuer Benutzer angewendet.
-                </p>
-                
-                <form method="POST" id="defaultRolesForm">
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access" 
-                                   {% if default_roles.get('full_access', False) %}checked{% endif %}
-                                   onchange="toggleDefaultModuleRoles()">
-                            <label class="form-check-label" for="default_full_access">
-                                <strong>Vollzugriff als Standard</strong>
-                            </label>
-                        </div>
-                        <small class="text-muted d-block mt-2">
-                            Wenn aktiviert, erhalten neue Benutzer automatisch Vollzugriff auf alle Module.
-                        </small>
-                    </div>
-                    
-                    <div id="defaultModuleRolesSection">
-                        <h5 class="mb-3">Modulspezifische Standardrollen</h5>
-                        <p class="text-muted mb-3">Wählen Sie die Module aus, auf die neue Benutzer standardmäßig Zugriff haben sollen:</p>
-                        
-                        <div class="row g-3">
-                            {% for module_key, module_name in all_modules %}
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input default-module-checkbox" type="checkbox" 
-                                           id="default_{{ module_key }}" name="default_{{ module_key }}"
-                                           {% if default_roles.get(module_key, False) %}checked{% endif %}>
-                                    <label class="form-check-label" for="default_{{ module_key }}">
-                                        {{ module_name }}
-                                    </label>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Speichern
-                        </button>
-                        <a href="{{ url_for('settings.admin_users') }}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Zurück
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="settings-admin-roles">
+    <a href="{{ url_for('settings.admin_users') }}" class="settings-subpage-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+    <div class="settings-admin-roles-header">
+        <h1 class="settings-admin-roles-title">{{ _('settings.admin.roles.heading') }}</h1>
+        <p class="settings-admin-roles-subtitle">{{ _('settings.admin.roles.subtitle') }}</p>
     </div>
+
+    <form method="POST" id="defaultRolesForm" class="settings-admin-roles-form">
+        <section class="settings-admin-roles-card" aria-labelledby="roles-full-heading">
+            <div class="settings-admin-roles-card-head">
+                <h2 id="roles-full-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.roles.full_access_title') }}</h2>
+                <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.full_access_help') }}" aria-label="{{ _('settings.admin.roles.full_access_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="form-check form-switch settings-admin-roles-switch">
+                <input class="form-check-input" type="checkbox" id="default_full_access" name="default_full_access" value="on"
+                       {% if default_roles.get('full_access', False) %}checked{% endif %}>
+                <label class="form-check-label" for="default_full_access">{{ _('settings.admin.roles.full_access_toggle') }}</label>
+            </div>
+        </section>
+
+        <section id="defaultModuleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modules-heading">
+            <div class="settings-admin-roles-card-head">
+                <h2 id="roles-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.roles.modules_title') }}</h2>
+                <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.roles.modules_help') }}" aria-label="{{ _('settings.admin.roles.modules_help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <p id="roles-full-hint" class="settings-admin-roles-hint" hidden>{{ _('settings.admin.roles.full_access_active_hint') }}</p>
+
+            <div class="settings-admin-roles-chips" id="rolesChips" role="group" aria-label="{{ _('settings.admin.roles.modules_title') }}">
+                {% for module_key, module_name in all_modules %}
+                <input type="checkbox"
+                       class="btn-check default-module-checkbox"
+                       id="default_{{ module_key }}"
+                       name="default_{{ module_key }}"
+                       value="on"
+                       autocomplete="off"
+                       {% if default_roles.get(module_key, False) %}checked{% endif %}>
+                <label class="settings-admin-roles-chip" for="default_{{ module_key }}">{{ module_name }}</label>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="settings-admin-roles-actions">
+            <button type="submit" class="btn btn-accent settings-admin-roles-btn">
+                <i class="bi bi-check-lg" aria-hidden="true"></i>
+                {{ _('common.save') }}
+            </button>
+        </div>
+    </form>
 </div>
 
 <script>
 function toggleDefaultModuleRoles() {
-    const fullAccess = document.getElementById('default_full_access').checked;
-    const moduleSection = document.getElementById('defaultModuleRolesSection');
-    const moduleCheckboxes = document.querySelectorAll('.default-module-checkbox');
-    
-    if (fullAccess) {
-        moduleSection.style.opacity = '0.5';
-        moduleCheckboxes.forEach(cb => {
-            cb.disabled = true;
-        });
-    } else {
-        moduleSection.style.opacity = '1';
-        moduleCheckboxes.forEach(cb => {
-            cb.disabled = false;
-        });
-    }
+    var fullAccess = document.getElementById('default_full_access').checked;
+    var chips = document.getElementById('rolesChips');
+    var hint = document.getElementById('roles-full-hint');
+    var boxes = document.querySelectorAll('.default-module-checkbox');
+
+    if (hint) hint.hidden = !fullAccess;
+    if (chips) chips.hidden = fullAccess;
+
+    boxes.forEach(function (cb) {
+        cb.disabled = fullAccess;
+    });
 }
 
-// Initial aufrufen
-toggleDefaultModuleRoles();
+document.addEventListener('DOMContentLoaded', function () {
+    var full = document.getElementById('default_full_access');
+    if (full) {
+        full.addEventListener('change', toggleDefaultModuleRoles);
+    }
+    document.querySelectorAll('.settings-admin-roles [data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+    toggleDefaultModuleRoles();
+});
 </script>
 {% endblock %}
-
-
-
-
-
-
-
-
-
-
-
-

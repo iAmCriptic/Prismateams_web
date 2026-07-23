@@ -86,9 +86,10 @@ body.files-dnd-dragging .folder-item {
     display: none !important;
 }
 
-/* List View für Dateien - Standard: versteckt (legacy list-group; jetzt Container) */
-#listViewContainer {
-    display: none;
+/* List View für Dateien - Standard: versteckt (legacy list-group; jetzt Container).
+   Sichtbarkeit steuern über .d-none / JS — nicht permanent display:none am ID. */
+#listViewContainer.d-none {
+    display: none !important;
 }
 
 .file-item:hover, .folder-item:hover {
@@ -136,15 +137,27 @@ body.files-dnd-dragging .folder-item {
 
 .pdf-mini-preview {
     height: 120px;
-    border: 1px solid var(--bs-border-color);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
     background: var(--bs-body-bg);
+    overflow: hidden !important;
+    position: relative;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.pdf-mini-preview::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
 }
 
 .pdf-mini-preview iframe {
-    width: 100%;
-    height: 100%;
+    /* innere PDF-Scrollbar aus dem Clip schieben */
+    width: calc(100% + 18px);
+    height: calc(100% + 8px);
     border: 0;
     pointer-events: none;
+    display: block;
 }
 
 [data-bs-theme="dark"] .file-item:hover,
@@ -291,9 +304,10 @@ body.files-dnd-dragging .folder-item {
         will-change: auto !important;
     }
     
-    /* Mobile Dropdown Positionierung - muss über allem liegen */
-    .dropdown-menu:not(.files-sidebar-new-menu),
-    .dropdown .dropdown-menu:not(.files-sidebar-new-menu),
+    /* Mobile Dropdown Positionierung - muss über allem liegen.
+       Share-Art-Picker im Modal ausnehmen (sonst volle Viewport-Breite). */
+    .dropdown-menu:not(.files-sidebar-new-menu):not(.files-share-mode-menu),
+    .dropdown .dropdown-menu:not(.files-sidebar-new-menu):not(.files-share-mode-menu),
     .card .dropdown-menu,
     .file-item .dropdown-menu,
     .folder-item .dropdown-menu {
@@ -318,10 +332,17 @@ body.files-dnd-dragging .folder-item {
         padding: 6px 0 !important;
         isolation: auto !important;
     }
+
+    .files-share-mode-picker .files-share-mode-btn {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 2.5rem !important;
+        padding: 0.45rem 0.9rem !important;
+    }
     
     /* Wenn Dropdown geöffnet ist, sicherstellen dass es sichtbar ist */
-    .dropdown-menu.show,
-    .dropdown.show .dropdown-menu {
+    .dropdown-menu.show:not(.files-share-mode-menu),
+    .dropdown.show .dropdown-menu:not(.files-share-mode-menu) {
         position: fixed !important;
         z-index: 99999 !important;
         display: block !important;
@@ -667,49 +688,67 @@ body.files-dnd-dragging .folder-item {
 
 .files-upload-toast {
     pointer-events: auto;
-    background: var(--bs-body-bg, #fff);
-    border: 1px solid var(--bs-border-color, #dee2e6);
-    border-radius: 0.5rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    padding: 0.75rem 1rem;
+    --files-toast-accent: var(--accent-color, #0d6efd);
+    background: #fff;
+    color: var(--bs-body-color, #212529);
+    border: 1px solid color-mix(in srgb, var(--files-toast-accent) 22%, transparent);
+    border-radius: 1.35rem;
+    box-shadow:
+        0 0.35rem 1.15rem color-mix(in srgb, var(--files-toast-accent) 42%, transparent),
+        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06);
+    padding: 1rem 1.15rem;
     min-width: 0;
+    overflow: hidden;
 }
 
 .files-upload-toast .files-upload-toast-title {
-    font-weight: 600;
-    font-size: 0.875rem;
-    margin-bottom: 0.25rem;
+    font-weight: 650;
+    font-size: 0.95rem;
+    letter-spacing: -0.015em;
+    margin-bottom: 0.2rem;
 }
 
 .files-upload-toast .files-upload-toast-meta {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--bs-secondary-color, #6c757d);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.65rem;
     word-break: break-word;
 }
 
 .files-upload-toast .progress {
-    height: 0.5rem;
-    background: var(--bs-secondary-bg, #e9ecef);
+    height: 0.55rem;
+    background: color-mix(in srgb, var(--files-toast-accent) 12%, transparent);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.files-upload-toast .progress-bar {
+    border-radius: 999px;
+    background: var(--files-toast-accent) !important;
 }
 
 .files-upload-toast .files-upload-toast-pct {
     font-size: 0.75rem;
-    margin-top: 0.35rem;
+    margin-top: 0.4rem;
     color: var(--bs-secondary-color, #6c757d);
     text-align: right;
 }
 
 .files-upload-toast.is-warning {
-    border-color: var(--bs-warning, #ffc107);
+    --files-toast-accent: #e6a800;
 }
 
 .files-upload-toast.is-success {
-    border-color: var(--bs-success, #198754);
+    --files-toast-accent: #198754;
 }
 
 .files-upload-toast.is-error {
-    border-color: var(--bs-danger, #dc3545);
+    --files-toast-accent: #dc3545;
+}
+
+[data-bs-theme="dark"] .files-upload-toast,
+[data-oled-mode="true"] .files-upload-toast {
+    background: var(--bs-body-bg, #1a1a1a);
 }
 
 /* Presence avatars on file rows */
@@ -835,7 +874,8 @@ body.files-dnd-dragging .folder-item {
         min-height: 0;
         width: 100%;
         align-items: stretch;
-        overflow: hidden;
+        /* visible: NEU-Dropdown darf über Sidebar/Favoriten rausragen */
+        overflow: visible;
     }
 
     .files-shell--private .mod-sidebar {
@@ -844,8 +884,9 @@ body.files-dnd-dragging .folder-item {
         align-self: stretch;
         height: auto;
         max-height: 100%;
-        overflow-x: visible;
-        overflow-y: auto;
+        /* visible: sonst schneidet overflow das NEU-Menü an Favoriten ab */
+        overflow: visible;
+        z-index: 60;
     }
 
     .files-shell--private .mod-main {
@@ -855,17 +896,24 @@ body.files-dnd-dragging .folder-item {
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
+        position: relative;
+        z-index: 1;
     }
 }
 
 .files-shell--private .mod-sidebar-new-wrap {
+    position: relative;
     margin-bottom: 1.75rem;
-    z-index: 50;
+    z-index: 1080;
+    overflow: visible;
 }
 
-/* Favoriten direkt unter Public/Papierkorb — nicht ans untere Ende */
+/* Favoriten direkt unter Public/Papierkorb — nicht ans untere Ende;
+   niedriger z-index, damit NEU-Menü darüber liegt */
 .files-shell--private .mod-sidebar-nav {
     flex: 0 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 .files-favorites-nav {
@@ -873,6 +921,8 @@ body.files-dnd-dragging .folder-item {
     padding-top: 0.75rem;
     border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
     flex: 0 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 .files-sidebar-new-menu {
@@ -887,7 +937,7 @@ body.files-dnd-dragging .folder-item {
     max-width: min(22rem, 90vw);
     max-height: none !important;
     overflow: visible !important;
-    z-index: 1080 !important;
+    z-index: 1100 !important;
     transform: none !important;
     box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.18);
 }
@@ -1037,7 +1087,11 @@ body.files-dnd-dragging .folder-item {
 }
 
 .files-shell--private .mod-list-table th:nth-child(1),
-.files-shell--private .mod-list-table td:nth-child(1) { width: 36%; }
+.files-shell--private .mod-list-table td:nth-child(1) {
+    width: 36%;
+    max-width: 0;
+    overflow: hidden;
+}
 .files-shell--private .mod-list-table th:nth-child(2),
 .files-shell--private .mod-list-table td:nth-child(2) { width: 14%; }
 .files-shell--private .mod-list-table th:nth-child(3),
@@ -1047,10 +1101,15 @@ body.files-dnd-dragging .folder-item {
 .files-shell--private .mod-list-table th:nth-child(5),
 .files-shell--private .mod-list-table td:nth-child(5) { width: 10%; }
 .files-shell--private .mod-list-table th:nth-child(6),
-.files-shell--private .mod-list-table td:nth-child(6) { width: 14%; }
+.files-shell--private .mod-list-table td:nth-child(6) {
+    width: 3.75rem;
+    min-width: 3.75rem;
+    overflow: visible;
+    white-space: nowrap;
+}
 
 .files-shell--private .mod-list-actions {
-    min-width: 9.5rem;
+    min-width: 2.5rem;
 }
 
 @media (max-width: 991.98px) {
@@ -1058,3 +1117,1044 @@ body.files-dnd-dragging .folder-item {
         min-width: 2.5rem;
     }
 }
+
+/* ===== Files Pill Design Language ===== */
+.files-pill,
+.files-pill-btn,
+.btn.files-pill-btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.files-pill-input,
+.form-control.files-pill-input,
+.form-select.files-pill-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.files-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg);
+}
+
+.files-view-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: transparent;
+    color: var(--bs-secondary-color);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.files-view-toggle__btn:hover {
+    color: var(--accent-color, var(--bs-primary));
+    background: rgba(13, 110, 253, 0.08);
+}
+
+.files-view-toggle__btn.active,
+.files-view-toggle__btn.is-active {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    color: #fff;
+}
+
+#newButton.files-pill-new,
+.btn.files-pill-new {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: none;
+    font-weight: 600;
+    padding: 0.45rem 1.15rem;
+    box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.14);
+}
+
+.files-dropdown-menu,
+#newDropdownMenu,
+.files-sidebar-new-menu,
+.files-mobile-new-menu,
+.folder-item .dropdown-menu,
+.file-item .dropdown-menu,
+.mod-list-actions .dropdown-menu,
+#files-browser-context-menu .dropdown-menu {
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14);
+    overflow: visible;
+}
+
+.files-dropdown-menu .dropdown-item,
+#newDropdownMenu .dropdown-item,
+.files-sidebar-new-menu .dropdown-item,
+.files-mobile-new-menu .dropdown-item,
+.folder-item .dropdown-menu .dropdown-item,
+.file-item .dropdown-menu .dropdown-item,
+.mod-list-actions .dropdown-menu .dropdown-item,
+#files-browser-context-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.files-dropdown-menu .dropdown-item:hover,
+.files-dropdown-menu .dropdown-item:focus,
+#newDropdownMenu .dropdown-item:hover,
+#newDropdownMenu .dropdown-item:focus,
+.files-sidebar-new-menu .dropdown-item:hover,
+.files-mobile-new-menu .dropdown-item:hover,
+.folder-item .dropdown-menu .dropdown-item:hover,
+.file-item .dropdown-menu .dropdown-item:hover,
+.mod-list-actions .dropdown-menu .dropdown-item:hover {
+    background: rgba(13, 110, 253, 0.1);
+}
+
+.files-dropdown-menu .dropdown-divider,
+#newDropdownMenu .dropdown-divider,
+.files-sidebar-new-menu .dropdown-divider,
+.files-mobile-new-menu .dropdown-divider {
+    margin: 0.35rem 0.5rem;
+}
+
+.card.folder-item,
+.card.file-item {
+    border-radius: var(--mod-radius-card, 0.9rem);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    overflow: visible;
+    position: relative;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.card.folder-item .card-body,
+.card.file-item .card-body {
+    min-width: 0;
+    overflow: visible; /* Dropdowns dürfen nicht abgeschnitten werden */
+}
+
+.card.folder-item .card-body > .d-flex,
+.card.file-item .card-body > .d-flex {
+    min-width: 0;
+}
+
+.card.folder-item .card-body > .d-flex > div:first-child,
+.card.file-item .card-body .flex-grow-1 {
+    min-width: 0;
+    overflow: hidden; /* nur Namen kürzen, nicht das Menü */
+}
+
+/* Grid-Spalten dürfen Dropdowns nicht clippen */
+#gridViewContainer,
+#foldersGridView,
+#gridView,
+#gridView > [class*="col-"],
+#foldersGridView > [class*="col-"] {
+    overflow: visible;
+}
+
+.card.folder-item .dropdown,
+.card.file-item .dropdown,
+.mod-list-actions .dropdown {
+    position: relative;
+    z-index: 5;
+}
+
+/* Offenes Menü deckt 3-Punkte der nächsten Zeilen/Karten ab */
+.card.folder-item:has(.dropdown.show),
+.card.file-item:has(.dropdown.show),
+.card.folder-item .dropdown.show,
+.card.file-item .dropdown.show,
+.mod-list-actions .dropdown.show {
+    z-index: 40;
+}
+
+.card.folder-item .dropdown-menu.show,
+.card.file-item .dropdown-menu.show,
+.mod-list-actions .dropdown-menu.show,
+.files-dropdown-menu.show {
+    z-index: 1080;
+    background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
+}
+
+.card.folder-item:hover,
+.card.file-item:hover {
+    box-shadow: 0 0.45rem 1.1rem rgba(0, 0, 0, 0.08);
+    border-color: rgba(13, 110, 253, 0.28);
+}
+
+.files-inline-create-card {
+    border-radius: var(--mod-radius-card, 0.9rem) !important;
+    background: var(--bs-tertiary-bg);
+    border: 1px dashed var(--bs-border-color);
+}
+
+.files-inline-create-card .form-control,
+.inline-create-form .form-control {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.files-inline-create-card .btn,
+.inline-create-form .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+/* Grid-Hover-Shortcuts: nur große Screens (lg+) */
+.files-grid-hover-actions {
+    display: none !important;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+@media (min-width: 992px) {
+    .card.folder-item:hover .files-grid-hover-actions,
+    .card.file-item:hover .files-grid-hover-actions,
+    .card.folder-item:focus-within .files-grid-hover-actions,
+    .card.file-item:focus-within .files-grid-hover-actions {
+        display: inline-flex !important;
+    }
+}
+
+.files-grid-hover-actions .btn-link {
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.files-grid-hover-actions .btn-link:hover {
+    color: var(--accent-color, var(--bs-primary));
+    background: rgba(13, 110, 253, 0.1);
+}
+
+/* Lange Namen: max. 2 Zeilen, dann abschneiden */
+.card.folder-item .files-item-name,
+.card.file-item .files-item-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.mod-list-name.files-item-name {
+    display: flex;
+    align-items: flex-start;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.mod-list-name.files-item-name > i {
+    flex-shrink: 0;
+    margin-top: 0.15em;
+}
+
+.mod-list-name .files-item-name-text,
+.files-item-name-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.files-inline-rename {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    width: 100%;
+}
+
+.files-inline-rename .form-control {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.files-inline-rename .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    flex-shrink: 0;
+}
+
+.side-menu {
+    border-radius: 1.25rem 0 0 1.25rem;
+    box-shadow: -0.35rem 0 1.5rem rgba(0, 0, 0, 0.12);
+}
+
+.side-menu-backdrop {
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.side-menu .files-details-card {
+    border-radius: 1rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    background: var(--bs-tertiary-bg);
+    padding: 1rem;
+}
+
+.side-menu .files-details-card p {
+    margin-bottom: 0.45rem;
+}
+
+.side-menu .files-details-card p:last-child {
+    margin-bottom: 0;
+}
+
+.side-menu .alert {
+    border-radius: 1rem;
+}
+
+.side-menu .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.side-menu .list-group-item {
+    border-radius: 0.85rem !important;
+    margin-bottom: 0.35rem;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+}
+
+#simpleModal .modal-content,
+#dropboxSettingsModal .modal-content {
+    border-radius: 1.25rem;
+    overflow: visible;
+}
+
+#simpleModal .modal-body {
+    overflow: visible;
+}
+
+#simpleModal .modal-dialog {
+    overflow: visible;
+}
+
+#simpleModal .modal-body .form-control,
+#simpleModal .modal-body .form-select,
+#dropboxSettingsModal .form-control,
+#dropboxSettingsModal .form-select {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+#simpleModal .modal-body .btn,
+#dropboxSettingsModal .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.files-share-mgmt .form-control,
+.files-share-mgmt .form-select {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.files-share-mgmt .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.files-share-mgmt .badge {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.35em 0.75em;
+}
+
+.files-share-icon-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+}
+
+.files-share-icon-btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50% !important;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    line-height: 1;
+}
+
+.files-share-icon-btn:hover {
+    border-color: var(--accent-color, var(--bs-primary));
+    color: var(--accent-color, var(--bs-primary));
+    background: rgba(13, 110, 253, 0.08);
+}
+
+.files-share-icon-btn.btn-outline-danger,
+.files-share-icon-btn.text-danger {
+    color: var(--bs-danger);
+    border-color: rgba(var(--bs-danger-rgb), 0.45);
+}
+
+.files-share-icon-btn.btn-outline-danger:hover {
+    background: rgba(var(--bs-danger-rgb), 0.1);
+}
+
+.files-share-icon-btn.btn-outline-warning {
+    color: #b78103;
+    border-color: rgba(183, 129, 3, 0.4);
+}
+
+.files-share-icon-btn.btn-outline-success {
+    color: var(--bs-success);
+    border-color: rgba(var(--bs-success-rgb), 0.45);
+}
+
+.files-share-link-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-size: 0.8rem;
+    min-width: 8rem;
+}
+
+.files-share-mode-picker {
+    position: relative;
+    width: 100%;
+}
+
+.files-share-mode-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    padding: 0.45rem 0.9rem;
+    text-align: left;
+    font-weight: 500;
+}
+
+.files-share-mode-btn:hover,
+.files-share-mode-btn:focus,
+.files-share-mode-btn.show {
+    border-color: var(--accent-color, var(--bs-primary));
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* Static display inside modal — no Popper full-width bug */
+.files-share-mode-menu,
+#simpleModal .files-share-mode-menu,
+.modal .files-share-mode-menu {
+    position: absolute !important;
+    inset: auto !important;
+    top: calc(100% + 0.25rem) !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    max-width: min(22rem, 90vw) !important;
+    transform: none !important;
+    z-index: 1090 !important;
+}
+
+.files-share-mode-menu .dropdown-item.active,
+.files-share-mode-menu .dropdown-item:active {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    color: #fff;
+}
+
+.files-share-card {
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: 1rem;
+    padding: 0.9rem;
+    margin-bottom: 0.75rem;
+    background: var(--bs-body-bg);
+    overflow: visible;
+}
+
+.files-share-card .share-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+    justify-content: flex-end;
+}
+
+.files-share-mgmt {
+    border: none;
+    box-shadow: none;
+    outline: none;
+}
+
+.files-share-table-wrap,
+.files-share-table-wrap.table-responsive {
+    border-radius: 0;
+    overflow: visible;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent;
+    margin-bottom: 1rem;
+    padding: 0;
+}
+
+.files-share-table-wrap .table {
+    margin-bottom: 0;
+    border: none !important;
+    --bs-table-bg: transparent;
+}
+
+.files-share-table-wrap td:last-child {
+    text-align: right;
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    .files-share-table-wrap { display: none; }
+}
+
+@media (min-width: 768px) {
+    .files-share-cards { display: none; }
+}
+
+
+.file-viewer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.file-viewer-actions .btn,
+.file-viewer-header .btn-group .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.file-viewer-header .btn-group {
+    gap: 0.45rem;
+}
+
+.file-viewer-header .btn-group > .btn {
+    margin: 0;
+}
+
+.share-public-pill .form-control,
+.share-public-pill .form-select,
+.share-public-pill .btn,
+.dropbox-shell .form-control,
+.dropbox-shell .form-select,
+.dropbox-shell .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.share-gate-modal,
+.dropbox-gate-modal {
+    border-radius: 1.35rem !important;
+    overflow: hidden;
+}
+
+.share-gate-overlay,
+.dropbox-gate-overlay {
+    background: rgba(0, 0, 0, 0.28);
+}
+
+/* ===== Externe Freigabe / Briefkasten ===== */
+body:has(.share-shell) #desktopSidebar,
+body:has(.share-shell) #mobileNav,
+body:has(.share-shell) .mobile-menu-toggle,
+body:has(.dropbox-shell) #desktopSidebar,
+body:has(.dropbox-shell) #mobileNav,
+body:has(.dropbox-shell) .mobile-menu-toggle {
+    display: none !important;
+}
+
+body:has(.share-shell) main.main-content,
+body:has(.dropbox-shell) main.main-content,
+body:has(.share-shell) main,
+body:has(.dropbox-shell) main {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+body:has(.share-shell) .main-content,
+body:has(.dropbox-shell) .main-content,
+body:has(.share-shell) .container-fluid,
+body:has(.dropbox-shell) .container-fluid {
+    background: var(--portal-bg, #f0f2f5) !important;
+}
+
+.files-ext-shell {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 0.25rem 0 1.5rem;
+}
+
+.files-ext-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 1.35rem;
+    padding: 0.15rem 0;
+}
+
+.files-ext-brand-logo {
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 999px;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0.2rem 0.65rem rgba(13, 110, 253, 0.22);
+}
+
+.files-ext-brand-mark {
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    box-shadow: 0 0.2rem 0.65rem rgba(13, 110, 253, 0.22);
+}
+
+.files-ext-brand-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.files-ext-brand-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--bs-body-color, #212529);
+}
+
+.files-ext-brand-kind {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--bs-secondary-color, #6c757d);
+    letter-spacing: 0.01em;
+}
+
+/* Kein weißer Karten-Rahmen — Inhalt fließt auf Portal-Hintergrund */
+.files-ext-panel,
+.share-browser-card,
+.dropbox-upload-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+.files-ext-panel > .card-body,
+.share-browser-card > .card-body,
+.dropbox-upload-card > .card-body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.files-ext-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+}
+
+.files-ext-toolbar .files-pill-new {
+    order: 0;
+}
+
+.files-ext-toolbar .files-view-toggle {
+    order: 1;
+}
+
+.files-ext-title {
+    margin: 0 0 0.2rem;
+    font-size: 1.45rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+
+.files-ext-meta {
+    margin: 0 0 1rem;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.92rem;
+}
+
+/* Gate-Overlay: vollflächig, kein Rahmen um die Seite */
+.share-gate-overlay,
+.dropbox-gate-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1040;
+    background: color-mix(in srgb, var(--portal-bg, #f0f2f5) 55%, rgba(0, 0, 0, 0.45)) !important;
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.share-gate-modal,
+.dropbox-gate-modal {
+    border: none !important;
+    box-shadow:
+        0 0.5rem 1.5rem rgba(0, 0, 0, 0.14),
+        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06) !important;
+}
+
+.share-browser-card .file-item,
+.share-browser-card .folder-item {
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    border-radius: var(--mod-radius-card, 0.9rem);
+    background: var(--bs-body-bg, #fff);
+}
+
+/* PDF-Vorschau in Grid: Scrollbar abschneiden */
+.share-browser-card .pdf-mini-preview,
+.files-ext-shell .pdf-mini-preview {
+    height: 150px;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: 0.75rem;
+    overflow: hidden !important;
+    position: relative;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.share-browser-card .pdf-mini-preview::-webkit-scrollbar,
+.files-ext-shell .pdf-mini-preview::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.share-browser-card .pdf-mini-preview iframe,
+.files-ext-shell .pdf-mini-preview iframe {
+    /* etwas breiter → innere PDF-Scrollbar fällt aus dem Clip */
+    width: calc(100% + 18px);
+    height: calc(100% + 8px);
+    border: 0;
+    pointer-events: none;
+    display: block;
+    margin: 0;
+    transform: translateZ(0);
+}
+
+#dropboxListViewContainer.d-none {
+    display: none !important;
+}
+
+/* Zurück — wie Chat create (grauer Text-Link, kein Pill-Button) */
+.files-back-row {
+    margin-top: 0.15rem;
+}
+
+.files-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 999px;
+    padding: 0.25rem 0.15rem;
+    line-height: 1.2;
+}
+
+.files-back-link:hover,
+.files-back-link:focus {
+    color: var(--accent-color, #0d6efd);
+    text-decoration: none;
+}
+
+.files-back-link i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Hinweise — gleiche Sprache wie Portal-Flash (.portal-msg) */
+.files-hint {
+    --files-hint-accent: var(--accent-color, #0d6efd);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0 0 0.85rem;
+    padding: 0.95rem 1.05rem;
+    background: #fff;
+    color: var(--bs-body-color, #212529);
+    border: 1px solid color-mix(in srgb, var(--files-hint-accent) 22%, transparent);
+    border-radius: 1.35rem;
+    box-shadow:
+        0 0.35rem 1.15rem color-mix(in srgb, var(--files-hint-accent) 32%, transparent),
+        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06);
+}
+
+.files-hint--info { --files-hint-accent: #0d6efd; }
+.files-hint--success { --files-hint-accent: #198754; }
+.files-hint--warning { --files-hint-accent: #e6a800; }
+.files-hint--danger { --files-hint-accent: #dc3545; }
+
+.files-hint__icon {
+    flex-shrink: 0;
+    width: 2.15rem;
+    height: 2.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--files-hint-accent) 14%, transparent);
+    color: var(--files-hint-accent);
+    font-size: 1.05rem;
+}
+
+.files-hint__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.4;
+    padding-top: 0.25rem;
+}
+
+[data-bs-theme="dark"] .files-hint,
+[data-oled-mode="true"] .files-hint {
+    background: var(--bs-body-bg, #1a1a1a);
+}
+
+/* Side-Menu: Bootstrap-Alerts auch auf Hint-Look ziehen */
+.side-menu .alert,
+#simpleModal .alert,
+#dropboxSettingsModal .alert {
+    --files-hint-accent: var(--accent-color, #0d6efd);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--files-hint-accent) 22%, transparent) !important;
+    border-radius: 1.35rem !important;
+    background: #fff !important;
+    color: var(--bs-body-color, #212529) !important;
+    box-shadow:
+        0 0.35rem 1.15rem color-mix(in srgb, var(--files-hint-accent) 32%, transparent),
+        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06);
+    padding: 0.95rem 1.05rem !important;
+}
+
+.side-menu .alert-info,
+#simpleModal .alert-info,
+#dropboxSettingsModal .alert-info { --files-hint-accent: #0d6efd; }
+
+.side-menu .alert-success,
+#simpleModal .alert-success,
+#dropboxSettingsModal .alert-success { --files-hint-accent: #198754; }
+
+.side-menu .alert-warning,
+#simpleModal .alert-warning,
+#dropboxSettingsModal .alert-warning { --files-hint-accent: #e6a800; }
+
+.side-menu .alert-danger,
+#simpleModal .alert-danger,
+#dropboxSettingsModal .alert-danger { --files-hint-accent: #dc3545; }
+
+.side-menu .alert > i:first-child,
+#simpleModal .alert > i:first-child,
+#dropboxSettingsModal .alert > i:first-child {
+    flex-shrink: 0;
+    width: 2.15rem;
+    height: 2.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--files-hint-accent) 14%, transparent);
+    color: var(--files-hint-accent);
+    font-size: 1.05rem;
+    margin-right: 0;
+}
+
+/* ===== Media viewer (image / video / audio) ===== */
+.file-viewer--media .file-viewer-content--media {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0;
+    max-width: none;
+    margin: 0;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+}
+
+.file-viewer-media-stage {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1c1e;
+    padding: 1rem;
+}
+
+.file-viewer-media-image {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    cursor: zoom-in;
+    border-radius: 0.25rem;
+}
+
+.file-viewer-media-video {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    background: #000;
+    border-radius: 0.25rem;
+}
+
+.file-viewer-audio-card {
+    width: min(420px, 100%);
+    background: var(--bs-body-bg, #fff);
+    border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.12));
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.25);
+}
+
+.file-viewer-audio-icon {
+    font-size: 2.5rem;
+    color: var(--accent-color, #0d6efd);
+    margin-bottom: 0.75rem;
+}
+
+.file-viewer-audio-meta {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--bs-body-color);
+}
+
+.file-viewer-media-audio {
+    width: 100%;
+}
+
+.file-viewer-media-fallback {
+    max-width: 360px;
+    text-align: center;
+    color: #f8f9fa;
+    padding: 1.5rem;
+}
+
+.file-viewer-media-fallback .btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.file-viewer-close-fab {
+    display: none;
+}
+
+.image-mini-preview {
+    max-height: 120px;
+    max-width: 100%;
+    object-fit: cover;
+    border-radius: 0.5rem;
+}
+
+.media-mini-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 100px;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--bs-secondary-bg, #f8f9fa) 80%, transparent);
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 1rem 0.75rem;
+}
+
+.media-mini-preview i {
+    font-size: 2rem;
+}
+
+.file-icon-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    height: 120px;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--bs-secondary-bg, #f8f9fa) 85%, transparent);
+}
+
+.file-type-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.file-type-icon-wrap--sm,
+.file-type-bi.me-2 {
+    margin-right: 0.5rem;
+}
+
+.file-type-icon--sm {
+    width: 1.2rem;
+    height: 1.2rem;
+    object-fit: contain;
+}
+
+.file-type-icon--lg {
+    max-height: 80px;
+    max-width: 80px;
+    object-fit: contain;
+}
+
+.mod-list-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.mod-list-name .files-item-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.share-browser-card .image-mini-preview {
+    max-height: 150px;
+    width: 100%;
+    object-fit: cover;
+}
+

@@ -55,6 +55,7 @@ class Config:
     
     VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY')
     VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY')
+    VAPID_CLAIM_EMAIL = os.environ.get('VAPID_CLAIM_EMAIL') or os.environ.get('MAIL_DEFAULT_SENDER', 'admin@localhost')
     
     EMAIL_HTML_MAX_LENGTH = int(os.environ.get('EMAIL_HTML_MAX_LENGTH', 0))
     EMAIL_TEXT_MAX_LENGTH = int(os.environ.get('EMAIL_TEXT_MAX_LENGTH', 10000))

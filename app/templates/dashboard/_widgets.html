@@ -65,7 +65,7 @@
                 <a href="tel:{{ contact.phone }}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.call') }}"><i class="bi bi-telephone"></i></a>
                 {% endif %}
                 {% if contact.email %}
-                <a href="mailto:{{ contact.email }}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
+                <a href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}" onclick="event.stopPropagation();" title="{{ _('dashboard.widgets.contacts.mail') }}"><i class="bi bi-envelope"></i></a>
                 {% endif %}
             </div>
         </div>

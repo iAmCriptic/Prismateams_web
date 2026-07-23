@@ -17,8 +17,23 @@ def wants_desktop_chat_layout(user, request):
         return True
     if preferred == 'mobile':
         return False
+
+    # Chromium Client Hints are more reliable than UA when DevTools spoofs size
+    ch_mobile = (request.headers.get('Sec-CH-UA-Mobile') or '').strip()
+    if ch_mobile == '?0':
+        return True
+    if ch_mobile == '?1':
+        return False
+
     ua = (request.headers.get('User-Agent') or '').lower()
-    return not any(x in ua for x in ('iphone', 'ipod', 'android', 'mobile', 'ipad'))
+    # Phones only — keep large tablets / desktop UA on the shell layout
+    phone_markers = ('iphone', 'ipod', 'android', 'mobile')
+    if any(x in ua for x in phone_markers) and 'ipad' not in ua:
+        # Android tablets often include "android" without "mobile"
+        if 'android' in ua and 'mobile' not in ua:
+            return True
+        return False
+    return True
 
 
 def get_main_chat():

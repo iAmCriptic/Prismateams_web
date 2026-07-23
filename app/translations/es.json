@@ -41,6 +41,13 @@
       "category_functional_desc": "Guarda preferencias locales y habilita funciones PWA.",
       "category_analytics_title": "Estadísticas",
       "category_analytics_desc": "Estadísticas de uso anónimas para mejorar el portal (actualmente inactivas)."
+    },
+    "pwa_install": {
+      "title": "Instalar app",
+      "description": "Instala el portal como app para un acceso más rápido y uso sin conexión.",
+      "install": "Instalar",
+      "later": "Más tarde",
+      "never": "No mostrar de nuevo"
     }
   },
   "common": {
@@ -74,7 +81,10 @@
       "remember_me": "Mantener la sesión iniciada",
       "submit": "Iniciar sesión",
       "register_link_prefix": "¿Nuevo en Prismateams?",
-      "register_link_cta": "Crear una cuenta"
+      "register_link_cta": "Crear una cuenta",
+      "switch_title": "¿Nuevo aquí?",
+      "switch_text": "¿Aún no tienes cuenta? Regístrate y empieza con Prismateams.",
+      "switch_cta": "Registrarse"
     },
     "register": {
       "title": "Registrarse",
@@ -90,7 +100,10 @@
       "dark_mode_help": "Puedes cambiar esta configuración en tu perfil en cualquier momento.",
       "submit": "Crear cuenta",
       "login_link_prefix": "¿Ya tienes cuenta?",
-      "login_link_cta": "Inicia sesión aquí"
+      "login_link_cta": "Inicia sesión aquí",
+      "switch_title": "¿Ya estás dentro?",
+      "switch_text": "¿Ya tienes una cuenta? Inicia sesión y continúa.",
+      "switch_cta": "Iniciar sesión"
     },
     "confirm_email": {
       "title": "Confirmar correo electrónico",
@@ -360,6 +373,99 @@
         "title": "Favoritos",
         "empty": "Sin favoritos"
       }
+    }
+  },
+  "chat": {
+    "create": {
+      "page_title": "Nuevo chat - Team Portal",
+      "breadcrumb": {
+        "index": "Chats",
+        "current": "Nuevo chat"
+      },
+      "heading": "Nuevo chat",
+      "pick_member_hint": "Toca a una persona para empezar a escribir de inmediato.",
+      "new_group": "Nuevo grupo",
+      "members_heading": "Miembros del portal",
+      "members_empty": "No hay más miembros disponibles.",
+      "back_to_members": "Volver",
+      "group_step_heading": "Nuevo grupo",
+      "group_step_hint": "Elige miembros a la izquierda y detalles a la derecha.",
+      "avatar": {
+        "label": "Foto del grupo",
+        "help": "Opcional: también puedes configurarla más tarde."
+      },
+      "form": {
+        "chat_type": {
+          "label": "Tipo de chat",
+          "group": "Chat de grupo",
+          "private": "Chat privado"
+        },
+        "chat_name": {
+          "label": "Nombre del grupo",
+          "placeholder": "p. ej. Equipo del proyecto"
+        },
+        "members": {
+          "label": "Añadir miembros",
+          "single_label": "Seleccionar persona",
+          "help": "Selecciona al menos un miembro",
+          "help_private": "Selecciona una persona para el chat privado"
+        },
+        "buttons": {
+          "submit": "Crear chat",
+          "create_group": "Crear grupo",
+          "cancel": "Cancelar"
+        },
+        "alerts": {
+          "select_private": "Selecciona una persona para el chat privado.",
+          "enter_name": "Introduce un nombre de chat.",
+          "select_members": "Selecciona al menos un miembro."
+        },
+        "description": {
+          "label": "Descripción",
+          "placeholder": "Opcional: ¿De qué trata el grupo?",
+          "help": "Opcional"
+        }
+      },
+      "search": {
+        "placeholder": "Buscar personas...",
+        "empty": "No se encontraron personas."
+      }
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Chat del equipo",
+      "body_one": "1 mensaje nuevo",
+      "body_many": "{count} mensajes nuevos"
+    },
+    "file": {
+      "new_title": "Archivo nuevo",
+      "new_body": "{name} se ha subido",
+      "modified_title": "Archivo actualizado",
+      "modified_body": "{name} se ha actualizado"
+    },
+    "email": {
+      "title": "Correo nuevo",
+      "body_one": "1 correo sin leer",
+      "body_many": "{count} correos sin leer"
+    },
+    "calendar": {
+      "reminder_title": "Recordatorio de evento",
+      "reminder_body": "{title} empieza {time_text} ({date} a las {time})",
+      "in_minutes": "en {count} minutos",
+      "in_hour_one": "en 1 hora",
+      "in_hours": "en {count} horas",
+      "in_day_one": "en 1 día",
+      "in_days": "en {count} días"
+    },
+    "booking": {
+      "request_title": "Nueva solicitud de reserva",
+      "request_body": "{event} – {applicant}"
+    },
+    "push": {
+      "test_title": "Notificación de prueba",
+      "test_body": "Prueba de {portal_name}. Push funciona."
     }
   }
 }

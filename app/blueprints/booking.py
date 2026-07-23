@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, current_app, session
 from flask_login import login_required, current_user
 from app import db
 from app.models.booking import (
@@ -330,6 +330,13 @@ def public_form(form_id):
         
         db.session.commit()
         
+        # Push an Rollen-User der Formular-Zustimmungen
+        try:
+            from app.utils.notifications import send_booking_request_notification
+            send_booking_request_notification(booking_request)
+        except Exception as e:
+            current_app.logger.error(f"Fehler beim Senden der Buchungs-Push: {e}")
+
         # Sende Bestätigungs-E-Mail
         try:
             send_booking_confirmation_email(booking_request)
@@ -393,6 +400,17 @@ def mailbox_upload(token):
     folder = booking_request.folder
     
     if request.method == 'POST':
+        from app.utils.bot_protection import is_enabled_for, validate_bot_protection
+
+        mailbox_bot_key = f'mailbox_bot_verified_{token}'
+        if is_enabled_for('mailbox'):
+            if not session.get(mailbox_bot_key):
+                bot_ok, _ = validate_bot_protection(request, 'mailbox')
+                if not bot_ok:
+                    flash(translate('auth.flash.bot_protection_failed'), 'danger')
+                    return redirect(url_for('booking.mailbox_upload', token=token))
+                session[mailbox_bot_key] = True
+
         if 'file' not in request.files:
             flash(translate('booking.flash.no_file_selected'), 'danger')
             return redirect(url_for('booking.mailbox_upload', token=token))
@@ -457,13 +475,19 @@ def mailbox_upload(token):
     # GET: Zeige Upload-Formular
     # Lade bereits hochgeladene Dateien
     from app.models.file import File
+    from app.utils.bot_protection import get_template_context as get_bot_template_context
+
     uploaded_files = File.query.filter_by(folder_id=folder.id, is_current=True).order_by(File.created_at.desc()).all()
-    
+    bot_ctx = get_bot_template_context()
+    bot_ctx['bot_context'] = 'mailbox'
+    bot_ctx['show_bot'] = bot_ctx.get('bot_enabled_mailbox', False) and not session.get(f'mailbox_bot_verified_{token}')
+
     return render_template('booking/mailbox_upload.html',
                          request=booking_request,
                          token=token,
                          folder=folder,
-                         uploaded_files=uploaded_files)
+                         uploaded_files=uploaded_files,
+                         **bot_ctx)
 
 
 # Admin-Routen wurden nach settings.py verschoben

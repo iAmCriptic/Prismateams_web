@@ -140,8 +140,12 @@ def register_push_routes(api_bp, require_api_auth):
 
             success = send_push_notification(
                 user_id=current_user.id,
-                title="Test-Benachrichtigung",
-                body=f"Dies ist eine Test-Push-Benachrichtigung vom {portal_name}.",
+                title=translate("notifications.push.test_title", language=current_user.language),
+                body=translate(
+                    "notifications.push.test_body",
+                    language=current_user.language,
+                    portal_name=portal_name,
+                ),
                 url="/dashboard/",
                 data={"type": "test", "timestamp": datetime.utcnow().isoformat()},
                 dedup_key=f"test:{datetime.utcnow().timestamp()}",

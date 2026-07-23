@@ -1,0 +1,155 @@
+{# Shared calendar sidebar / chrome macros #}
+
+{% macro calendar_more_menu(align_end=false) %}
+{% if calendar_export_enabled or calendar_import_enabled %}
+<div class="dropdown {% if not align_end %}dropend{% endif %}">
+    <button type="button" class="btn {% if align_end %}calendar-mobile-more-btn{% else %}calendar-sidebar-more{% endif %}" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('calendar.index.dropdown.toggle') }}">
+        <i class="bi bi-three-dots-vertical"></i>
+    </button>
+    <ul class="dropdown-menu calendar-more-dropdown{% if align_end %} dropdown-menu-end{% endif %}">
+        {% if calendar_export_enabled %}
+        <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
+        {% endif %}
+        {% if calendar_import_enabled %}
+        <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
+        {% endif %}
+        {% if calendar_export_enabled %}
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
+        {% endif %}
+    </ul>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro calendar_view_pills(variant='toolbar', with_ids=false) %}
+<div class="calendar-view-pills calendar-view-pills--{{ variant }}" role="group" aria-label="{{ _('calendar.index.heading') }}">
+    <button type="button" class="calendar-view-pill active"{% if with_ids %} id="monthViewBtn"{% endif %} data-calendar-view="month">
+        <i class="bi bi-calendar-month" aria-hidden="true"></i>
+        <span>{{ _('calendar.index.view_buttons.month') }}</span>
+    </button>
+    <button type="button" class="calendar-view-pill"{% if with_ids %} id="weekViewBtn"{% endif %} data-calendar-view="week">
+        <i class="bi bi-calendar-week" aria-hidden="true"></i>
+        <span>{{ _('calendar.index.view_buttons.week') }}</span>
+    </button>
+    <button type="button" class="calendar-view-pill"{% if with_ids %} id="dayViewBtn"{% endif %} data-calendar-view="day">
+        <i class="bi bi-calendar-day" aria-hidden="true"></i>
+        <span>{{ _('calendar.index.view_buttons.day') }}</span>
+    </button>
+    <button type="button" class="calendar-view-pill"{% if with_ids %} id="listViewBtn"{% endif %} data-calendar-view="list">
+        <i class="bi bi-list-ul" aria-hidden="true"></i>
+        <span>{{ _('calendar.index.view_buttons.list') }}</span>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro calendar_sidebar(show_view_pills=false, interactive=true) %}
+{% set sc = sidebar_calendars|default(none) %}
+{% if calendar_multi_enabled and sc %}
+<aside class="calendar-sidebar d-none d-lg-flex flex-column">
+    <div class="calendar-sidebar-brand">
+        <i class="bi bi-calendar-event" aria-hidden="true"></i>
+        <span>{{ _('calendar.sidebar.brand') }}</span>
+    </div>
+    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}">
+        <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
+    </a>
+    {% if interactive or calendar_export_enabled or calendar_import_enabled %}
+    <div class="calendar-sidebar-actions d-flex align-items-center gap-1 mb-3">
+        {% if interactive %}
+        <button type="button" class="btn calendar-sidebar-reset flex-grow-1" id="calendarResetBtnDesktop">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
+        </button>
+        {% endif %}
+        {{ calendar_more_menu() }}
+    </div>
+    {% endif %}
+    {% if show_view_pills %}
+    <div class="mb-3 flex-shrink-0">
+        {{ calendar_view_pills(variant='sidebar', with_ids=true) }}
+    </div>
+    {% endif %}
+    <nav class="calendar-sidebar-nav nav flex-column gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
+        {% macro cal_nav_item(cal, label=none) %}
+        <div class="calendar-nav-item d-flex align-items-center gap-2" data-calendar-id="{{ cal.id }}" data-calendar-name="{{ label or cal.name }}" data-calendar-type="{{ cal.calendar_type }}">
+            {% if interactive %}
+            <input class="form-check-input calendar-visibility-check flex-shrink-0" type="checkbox" value="{{ cal.id }}" id="calCheck{{ cal.id }}" {% if cal.id in selected_calendar_ids %}checked{% endif %}>
+            <label class="nav-link calendar-nav-link flex-grow-1 mb-0 {% if focus_calendar_id == cal.id %}active{% endif %}" for="calCheck{{ cal.id }}">
+                <span class="calendar-color-dot" style="background:{{ cal.color }}"></span>
+                {{ label or cal.name }}
+            </label>
+            {% else %}
+            <a class="nav-link calendar-nav-link flex-grow-1 mb-0 {% if focus_calendar_id == cal.id %}active{% endif %}" href="{{ url_for('calendar.index') }}">
+                <span class="calendar-color-dot" style="background:{{ cal.color }}"></span>
+                {{ label or cal.name }}
+            </a>
+            {% endif %}
+            {% if interactive and cal.can_delete_calendar %}
+            <div class="dropdown">
+                <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <form method="POST" action="{{ url_for('calendar.delete_imported_calendar', calendar_id=cal.id) }}" onsubmit="return confirm({{ _('calendar.sidebar.delete_confirm')|tojson }});">
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>{{ _('calendar.sidebar.delete_import') }}</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endmacro %}
+        {{ cal_nav_item(sc.personal, _('calendar.sidebar.my_calendar')) }}
+        {{ cal_nav_item(sc.public, _('calendar.sidebar.public')) }}
+        <hr class="my-2">
+        {% if interactive %}
+        <div class="px-1 mb-2">
+            <input type="search" class="form-control form-control-sm" id="calendarPeopleSearch" placeholder="{{ _('calendar.sidebar.search') }}" autocomplete="off">
+        </div>
+        {% endif %}
+        <div id="calendarOthersList">
+            {% for cal in sc.others %}
+            {{ cal_nav_item(cal) }}
+            {% endfor %}
+        </div>
+    </nav>
+</aside>
+
+{% if interactive %}
+<div class="offcanvas offcanvas-start calendar-mobile-offcanvas" tabindex="-1" id="calendarMobileNav" aria-labelledby="calendarMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="calendarMobileNavLabel">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span>{{ _('calendar.sidebar.brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        <button type="button" class="btn calendar-sidebar-reset w-100 mb-3" id="calendarResetBtnMobile">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
+        </button>
+        <div id="calendarMobileNavBody" class="calendar-sidebar-nav nav flex-column gap-1"></div>
+    </div>
+</div>
+{% endif %}
+{% else %}
+<aside class="calendar-sidebar calendar-sidebar--simple d-none d-lg-flex flex-column">
+    <div class="calendar-sidebar-brand">
+        <i class="bi bi-calendar-event" aria-hidden="true"></i>
+        <span>{{ _('calendar.sidebar.brand') }}</span>
+    </div>
+    {% if can_create_focus|default(true) %}
+    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event') }}">
+        <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
+    </a>
+    {% endif %}
+    {% if calendar_export_enabled or calendar_import_enabled %}
+    <div class="calendar-sidebar-actions d-flex align-items-center gap-1 mb-3">
+        {{ calendar_more_menu() }}
+    </div>
+    {% endif %}
+    {% if show_view_pills %}
+    {{ calendar_view_pills(variant='sidebar', with_ids=true) }}
+    {% endif %}
+</aside>
+{% endif %}
+{% endmacro %}

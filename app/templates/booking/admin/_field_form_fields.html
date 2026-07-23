@@ -1,0 +1,32 @@
+<div class="mb-3">
+    <label for="field_type" class="form-label">{{ _('settings.admin.booking_forms.field_type') }}</label>
+    <select class="form-select settings-admin-booking-input" id="field_type" name="field_type" required>
+        <option value="text">{{ _('settings.admin.booking_forms.field_type_text') }}</option>
+        <option value="textarea">{{ _('settings.admin.booking_forms.field_type_textarea') }}</option>
+        <option value="date">{{ _('settings.admin.booking_forms.field_type_date') }}</option>
+        <option value="number">{{ _('settings.admin.booking_forms.field_type_number') }}</option>
+        <option value="select">{{ _('settings.admin.booking_forms.field_type_select') }}</option>
+        <option value="checkbox">{{ _('settings.admin.booking_forms.field_type_checkbox') }}</option>
+    </select>
+</div>
+<div class="mb-3">
+    <label for="field_label" class="form-label">{{ _('settings.admin.booking_forms.field_label') }}</label>
+    <input type="text" class="form-control settings-admin-booking-input" id="field_label" name="field_label" required>
+</div>
+<div class="mb-3">
+    <label for="field_name" class="form-label">{{ _('settings.admin.booking_forms.field_name') }}</label>
+    <input type="text" class="form-control settings-admin-booking-input" id="field_name" name="field_name">
+    <p class="settings-admin-booking-hint">{{ _('settings.admin.booking_forms.field_name_help') }}</p>
+</div>
+<div class="mb-3">
+    <label for="placeholder" class="form-label">{{ _('settings.admin.booking_forms.field_placeholder') }}</label>
+    <input type="text" class="form-control settings-admin-booking-input" id="placeholder" name="placeholder">
+</div>
+<div class="mb-3" id="options_field" hidden>
+    <label for="field_options" class="form-label">{{ _('settings.admin.booking_forms.field_options') }}</label>
+    <textarea class="form-control settings-admin-booking-input" id="field_options" name="field_options" rows="5"></textarea>
+</div>
+<div class="form-check form-switch">
+    <input class="form-check-input" type="checkbox" id="is_required" name="is_required">
+    <label class="form-check-label" for="is_required">{{ _('settings.admin.booking_forms.field_required') }}</label>
+</div>

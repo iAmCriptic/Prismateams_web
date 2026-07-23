@@ -2,106 +2,71 @@
 
 {% block title %}Setup - Prismateams{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="setup-container">
-    <div class="setup-card">
-        <div class="card">
-            <div class="card-body p-4">
-                <h1 class="text-center mb-4">
-                    {% if portal_logo_filename %}
-                    <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% elif app_logo %}
-                    <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
-                    {% else %}
-                    <i class="bi bi-gear-fill text-primary"></i>
-                    {% endif %}
-                    {{ app_name or 'Prismateams' }}
-                </h1>
-                <h5 class="text-center mb-4">Willkommen zur Ersteinrichtung</h5>
-                <div class="setup-step">
-                    <h5><i class="bi bi-rocket me-2"></i>Setup-Assistent</h5>
-                    <p>Lassen Sie uns Ihr Team-Portal in 4 einfachen Schritten einrichten.</p>
+    <div class="setup-shell">
+        <div class="setup-panel">
+            <div class="setup-brand">
+                {% if portal_logo_filename %}
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="setup-brand__logo">
+                {% elif app_logo %}
+                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="setup-brand__logo">
+                {% else %}
+                <i class="bi bi-hexagon-fill setup-brand__icon" aria-hidden="true"></i>
+                {% endif %}
+                <h1 class="setup-brand__title">{{ app_name or 'Prismateams' }}</h1>
+            </div>
+
+            <div class="setup-intro text-center">
+                <h2><i class="bi bi-rocket"></i> Willkommen zur Ersteinrichtung</h2>
+                <p>Richten Sie Ihr Team-Portal in vier Schritten ein.</p>
+            </div>
+
+            <div class="setup-role-grid mb-4" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+                <div class="setup-section mb-0 text-center">
+                    <i class="bi bi-building text-primary fs-4"></i>
+                    <div class="setup-section__title mt-2">Organisation</div>
+                    <p class="setup-section__hint mb-0">Name und Design</p>
                 </div>
-                
-                <div class="row mb-4">
-                    <div class="col-md-3 col-6">
-                        <div class="text-center p-2">
-                            <div class="setup-step-icon mb-2">
-                                <i class="bi bi-building text-primary" style="font-size: 1.5rem;"></i>
-                            </div>
-                            <h6 class="small">1. Organisation</h6>
-                            <p class="small text-muted">Name und Design</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="text-center p-2">
-                            <div class="setup-step-icon mb-2">
-                                <i class="bi bi-shield-check text-primary" style="font-size: 1.5rem;"></i>
-                            </div>
-                            <h6 class="small">2. Einstellungen</h6>
-                            <p class="small text-muted">Whitelist</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="text-center p-2">
-                            <div class="setup-step-icon mb-2">
-                                <i class="bi bi-grid-3x3-gap text-primary" style="font-size: 1.5rem;"></i>
-                            </div>
-                            <h6 class="small">3. Module</h6>
-                            <p class="small text-muted">Aktivieren</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="text-center p-2">
-                            <div class="setup-step-icon mb-2">
-                                <i class="bi bi-person-plus text-primary" style="font-size: 1.5rem;"></i>
-                            </div>
-                            <h6 class="small">4. Administrator</h6>
-                            <p class="small text-muted">Account erstellen</p>
-                        </div>
-                    </div>
+                <div class="setup-section mb-0 text-center">
+                    <i class="bi bi-person-plus text-primary fs-4"></i>
+                    <div class="setup-section__title mt-2">Admin-Account</div>
+                    <p class="setup-section__hint mb-0">Ihr Profil</p>
                 </div>
-                
-                <div class="setup-info mb-4">
-                    <i class="bi bi-info-circle icon"></i>
-                    <strong>Hinweis:</strong> Der Setup-Prozess dauert nur wenige Minuten.
+                <div class="setup-section mb-0 text-center">
+                    <i class="bi bi-shield-check text-primary fs-4"></i>
+                    <div class="setup-section__title mt-2">Registrierung</div>
+                    <p class="setup-section__hint mb-0">Whitelist & Bot-Schutz</p>
                 </div>
-                
-                <div class="text-center">
-                    <a href="{{ url_for('setup.setup_step1') }}" class="btn btn-accent btn-lg w-100 mb-2">
-                        <i class="bi bi-play-circle me-2"></i>
-                        Setup starten
-                    </a>
-                    <a href="{{ url_for('setup.setup_import_backup') }}" class="btn btn-outline-secondary btn-lg w-100">
-                        <i class="bi bi-archive me-2"></i>
-                        Backup einspielen
-                    </a>
+                <div class="setup-section mb-0 text-center">
+                    <i class="bi bi-grid-3x3-gap text-primary fs-4"></i>
+                    <div class="setup-section__title mt-2">Module</div>
+                    <p class="setup-section__hint mb-0">Aktivieren & Einstellen</p>
                 </div>
+            </div>
+
+            <div class="setup-actions justify-content-center">
+                <a href="{{ url_for('setup.setup_import_backup') }}" class="btn setup-btn setup-btn--ghost">
+                    <i class="bi bi-upload"></i> Backup importieren
+                </a>
+                <a href="{{ url_for('setup.setup_step1') }}" class="btn setup-btn setup-btn--accent">
+                    Setup starten <i class="bi bi-arrow-right"></i>
+                </a>
             </div>
         </div>
     </div>
 </div>
-
 <script>
-// Farbverlauf-Vorschau
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const body = document.body;
-    
-    // Setze den aktuell ausgewählten Farbverlauf beim Laden der Seite
-    {% if color_gradient %}
-    body.style.background = '{{ color_gradient }}';
+    const gradient = {{ (color_gradient or '')|tojson }};
+    body.style.background = gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     body.style.backgroundAttachment = 'fixed';
     body.style.backgroundSize = 'cover';
-    {% else %}
-    // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-    body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    body.style.backgroundAttachment = 'fixed';
-    body.style.backgroundSize = 'cover';
-    {% endif %}
 });
 </script>
 {% endblock %}

@@ -3,10 +3,10 @@
 {% block title %}{{ _('auth.register.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
 
 {% block content %}
-<div class="auth-container">
+<div class="auth-container auth-register">
     <div class="auth-card">
-        <div class="card">
-            <div class="card-body p-4">
+        <div class="auth-panel">
+            <div class="auth-panel-body">
                 <h1 class="text-center mb-4">
                     {% if portal_logo_filename %}
                     <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
@@ -18,8 +18,8 @@
                     {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-2">{{ _('auth.register.title') }}</h5>
-                <p class="text-center text-muted mb-4">{{ _('auth.register.subtitle') }}</p>
-                
+                <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.register.subtitle') }}</p>
+
                 <form method="POST">
                     <div class="row">
                         <div class="col-12 col-md-6 mb-3">
@@ -31,28 +31,28 @@
                             <input type="text" class="form-control" id="last_name" name="last_name" required>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="email" class="form-label">{{ _('auth.register.email') }}</label>
                         <input type="email" class="form-control" id="email" name="email" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="phone" class="form-label">{{ _('auth.register.phone_optional') }}</label>
                         <input type="tel" class="form-control" id="phone" name="phone">
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="password" class="form-label">{{ _('auth.register.password') }}</label>
                         <input type="password" class="form-control" id="password" name="password" required minlength="8">
                         <div class="form-text">{{ _('auth.register.password_help') }}</div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="password_confirm" class="form-label">{{ _('auth.register.confirm_password') }}</label>
                         <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
@@ -66,12 +66,12 @@
 
                     {% set bot_context = 'register' %}
                     {% include 'auth/_bot_protection.html' %}
-                    
+
                     <button type="submit" class="btn btn-accent w-100">{{ _('auth.register.submit') }}</button>
                 </form>
-                
+
                 <hr class="my-4">
-                
+
                 <p class="text-center mb-0">
                     {{ _('auth.register.login_link_prefix') }}
                     <a href="{{ url_for('auth.login') }}">{{ _('auth.register.login_link_cta') }}</a>
@@ -81,43 +81,5 @@
     </div>
 </div>
 
-<script>
-// Farbverlauf-Vorschau für Auth-Seiten
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    const container = document.querySelector('.auth-container');
-    const isMobile = window.innerWidth <= 768;
-    
-    // Auf mobilen Geräten keinen Farbverlauf - einfacher Hintergrund
-    if (isMobile) {
-        // Kein Farbverlauf auf mobilen Geräten - einfacher Hintergrund
-        body.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
-        body.style.backgroundAttachment = 'scroll';
-        container.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
-        container.style.backgroundAttachment = 'scroll';
-        container.style.backgroundSize = 'auto';
-    } else {
-        // Vollständiger Farbverlauf für Desktop
-        {% if color_gradient %}
-        body.style.background = '{{ color_gradient }}';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundSize = 'cover';
-        container.style.background = '{{ color_gradient }}';
-        container.style.backgroundAttachment = 'fixed';
-        container.style.backgroundSize = 'cover';
-        {% else %}
-        // Standard-Farbverlauf anwenden wenn kein Farbverlauf gesetzt ist
-        body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundSize = 'cover';
-        container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        container.style.backgroundAttachment = 'fixed';
-        container.style.backgroundSize = 'cover';
-        {% endif %}
-    }
-});
-</script>
+{% include 'auth/_auth_bg.html' %}
 {% endblock %}
-
-
-

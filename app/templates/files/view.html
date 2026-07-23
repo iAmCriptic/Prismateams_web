@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
 <style>
     .file-viewer {
@@ -50,8 +51,9 @@
         background: #212529;
     }
 
-    /* ===== PDF: volle Fläche, nur Header oben ===== */
-    .file-viewer--pdf {
+    /* ===== PDF / Media: volle Fläche, nur Header oben ===== */
+    .file-viewer--pdf,
+    .file-viewer--media {
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -60,14 +62,16 @@
         overscroll-behavior: none;
     }
 
-    .file-viewer--pdf .file-viewer-header {
+    .file-viewer--pdf .file-viewer-header,
+    .file-viewer--media .file-viewer-header {
         flex: 0 0 auto;
         position: relative;
         padding: 0.65rem 1rem;
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
     }
 
-    .file-viewer--pdf .file-viewer-header-inner {
+    .file-viewer--pdf .file-viewer-header-inner,
+    .file-viewer--media .file-viewer-header-inner {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -75,12 +79,14 @@
         min-width: 0;
     }
 
-    .file-viewer--pdf .file-viewer-meta {
+    .file-viewer--pdf .file-viewer-meta,
+    .file-viewer--media .file-viewer-meta {
         min-width: 0;
         flex: 1 1 auto;
     }
 
-    .file-viewer--pdf .file-viewer-meta h4 {
+    .file-viewer--pdf .file-viewer-meta h4,
+    .file-viewer--media .file-viewer-meta h4 {
         font-size: 1.05rem;
         font-weight: 600;
         margin: 0;
@@ -89,14 +95,16 @@
         text-overflow: ellipsis;
     }
 
-    .file-viewer--pdf .file-viewer-meta small {
+    .file-viewer--pdf .file-viewer-meta small,
+    .file-viewer--media .file-viewer-meta small {
         display: block;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .file-viewer--pdf .file-viewer-actions {
+    .file-viewer--pdf .file-viewer-actions,
+    .file-viewer--media .file-viewer-actions {
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -125,34 +133,46 @@
         background: #525659;
     }
 
-    .file-viewer-close-fab {
-        display: none;
+    .file-viewer-actions .btn,
+    .file-viewer-header .btn {
+        border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    }
+
+    .file-viewer-header .d-flex.justify-content-between {
+        gap: 1rem;
+        flex-wrap: wrap;
     }
 
     @media (max-width: 768px) {
-        .file-viewer--pdf .file-viewer-header {
+        .file-viewer--pdf .file-viewer-header,
+        .file-viewer--media .file-viewer-header {
             padding: 0.55rem 0.65rem;
         }
 
-        .file-viewer--pdf .file-viewer-header-inner {
+        .file-viewer--pdf .file-viewer-header-inner,
+        .file-viewer--media .file-viewer-header-inner {
             flex-direction: row !important;
             align-items: center !important;
             gap: 0.5rem;
         }
 
-        .file-viewer--pdf .file-viewer-meta h4 {
+        .file-viewer--pdf .file-viewer-meta h4,
+        .file-viewer--media .file-viewer-meta h4 {
             font-size: 0.95rem;
         }
 
-        .file-viewer--pdf .file-viewer-meta small {
+        .file-viewer--pdf .file-viewer-meta small,
+        .file-viewer--media .file-viewer-meta small {
             font-size: 0.72rem;
         }
 
-        .file-viewer--pdf .file-viewer-actions .btn-label {
+        .file-viewer--pdf .file-viewer-actions .btn-label,
+        .file-viewer--media .file-viewer-actions .btn-label {
             display: none;
         }
 
-        .file-viewer--pdf .file-viewer-actions .btn {
+        .file-viewer--pdf .file-viewer-actions .btn,
+        .file-viewer--media .file-viewer-actions .btn {
             min-width: 44px;
             min-height: 44px;
             padding: 0.45rem 0.7rem;
@@ -162,7 +182,8 @@
         }
 
         /* Harter Schließen-Button immer sichtbar (über PDF-Plugin) */
-        .file-viewer--pdf .file-viewer-close-fab {
+        .file-viewer--pdf .file-viewer-close-fab,
+        .file-viewer--media .file-viewer-close-fab {
             display: flex;
             position: fixed;
             top: max(0.65rem, env(safe-area-inset-top));
@@ -182,53 +203,55 @@
             touch-action: manipulation;
         }
 
-        .file-viewer--pdf .file-viewer-close-fab:active {
+        .file-viewer--pdf .file-viewer-close-fab:active,
+        .file-viewer--media .file-viewer-close-fab:active {
             filter: brightness(0.92);
         }
 
-        .file-viewer--pdf .file-viewer-actions .file-viewer-close-btn {
+        .file-viewer--pdf .file-viewer-actions .file-viewer-close-btn,
+        .file-viewer--media .file-viewer-actions .file-viewer-close-btn {
             display: none;
         }
     }
 
-    /* Mobile Layout für Header (nicht-PDF) */
+    /* Mobile Layout für Header (nicht-PDF/Media) */
     @media (max-width: 768px) {
-        .file-viewer:not(.file-viewer--pdf) .file-viewer-header {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header {
             padding: 1rem 0.75rem;
         }
 
-        .file-viewer:not(.file-viewer--pdf) .file-viewer-header .d-flex {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header .d-flex {
             flex-direction: column !important;
             align-items: flex-start !important;
             gap: 1rem;
         }
 
-        .file-viewer:not(.file-viewer--pdf) .file-viewer-header .btn-group {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header .file-viewer-actions {
             width: 100%;
             justify-content: center;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
 
-        .file-viewer:not(.file-viewer--pdf) .file-viewer-header .btn-group .btn {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header .file-viewer-actions .btn {
             flex: 1;
             min-width: 120px;
         }
 
-        .file-viewer:not(.file-viewer--pdf) .file-viewer-content {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-content {
             padding: 1rem;
             overflow-x: hidden;
             max-width: 100vw;
         }
 
-        .file-viewer:not(.file-viewer--pdf) .file-viewer-content iframe {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-content iframe {
             height: calc(100vh - 150px);
             min-height: 400px;
         }
     }
 
     @media (max-width: 768px) {
-        .file-viewer:not(.file-viewer--pdf) {
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) {
             overflow-x: hidden;
         }
     }
@@ -249,7 +272,9 @@
     }
 
     html.file-viewer-pdf-open,
-    body.file-viewer-pdf-open {
+    body.file-viewer-pdf-open,
+    html.file-viewer-media-open,
+    body.file-viewer-media-open {
         overflow: hidden !important;
         height: 100%;
     }
@@ -257,11 +282,14 @@
 {% endblock %}
 
 {% block content %}
+{% set is_public_share = public_share|default(False) %}
+{% set is_media = (is_image|default(False) or is_video|default(False) or is_audio|default(False)) %}
 {% set pdf_src = pdf_src|default(url_for('files.serve_pdf', file_id=file.id)) %}
+{% set media_src = media_src|default(url_for('files.serve_media', file_id=file.id)) %}
 {% set download_url = download_url|default(url_for('files.download_file', file_id=file.id)) %}
-<div class="file-viewer {% if is_pdf|default(False) %}file-viewer--pdf{% endif %}">
+<div class="file-viewer {% if is_pdf|default(False) %}file-viewer--pdf{% elif is_media %}file-viewer--media{% endif %}">
     <div class="file-viewer-header">
-        {% if is_pdf|default(False) %}
+        {% if is_pdf|default(False) or is_media %}
         <div class="file-viewer-header-inner">
             <div class="file-viewer-meta">
                 <h4 title="{{ file.name }}">{{ file.name }}</h4>
@@ -275,11 +303,11 @@
                 </small>
             </div>
             <div class="file-viewer-actions">
-                <a href="{{ download_url }}" class="btn btn-outline-primary" title="Herunterladen">
-                    <i class="bi bi-download"></i><span class="btn-label ms-1">Herunterladen</span>
+                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                    <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
-                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn" onclick="closeViewer()" title="Schließen">
-                    <i class="bi bi-x-lg"></i><span class="btn-label ms-1">Schließen</span>
+                <button type="button" class="btn btn-outline-secondary file-viewer-close-btn files-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
+                    <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
                 </button>
             </div>
         </div>
@@ -296,17 +324,17 @@
                     {% endif %}
                 </small>
             </div>
-            <div class="btn-group">
-                {% if file.name.endswith(('.txt', '.md')) %}
-                <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-primary">
-                    <i class="bi bi-pencil"></i> Bearbeiten
+            <div class="file-viewer-actions">
+                {% if not is_public_share and current_user.is_authenticated and file.name.endswith(('.txt', '.md')) %}
+                <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-accent files-pill-btn">
+                    <i class="bi bi-pencil"></i> {{ _('files.view.edit') }}
                 </a>
                 {% endif %}
-                <a href="{{ download_url }}" class="btn btn-outline-primary">
-                    <i class="bi bi-download"></i> Herunterladen
+                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn">
+                    <i class="bi bi-download"></i> {{ _('files.view.download') }}
                 </a>
-                <button type="button" class="btn btn-outline-secondary" onclick="closeViewer()">
-                    <i class="bi bi-x-lg"></i> Schließen
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="closeViewer()">
+                    <i class="bi bi-x-lg"></i> {{ _('files.view.close') }}
                 </button>
             </div>
         </div>
@@ -314,7 +342,7 @@
     </div>
 
     {% if is_pdf|default(False) %}
-    <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="Schließen">
+    <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('files.view.close') }}">
         <i class="bi bi-x-lg"></i>
     </button>
     <div class="file-viewer-content file-viewer-content--pdf">
@@ -322,6 +350,49 @@
                 src="{{ pdf_src }}#view=FitH"
                 title="PDF Viewer"
                 allowfullscreen></iframe>
+    </div>
+    {% elif is_media %}
+    <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('files.view.close') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+    <div class="file-viewer-content file-viewer-content--media">
+        <div class="file-viewer-media-stage" id="fileViewerMediaStage">
+            {% if is_image|default(False) %}
+            <img class="file-viewer-media-image"
+                 src="{{ media_src }}"
+                 alt="{{ file.name }}"
+                 id="fileViewerMediaEl"
+                 title="{{ _('files.view.image_fullscreen_hint') }}">
+            {% elif is_video|default(False) %}
+            <video class="file-viewer-media-video"
+                   controls
+                   playsinline
+                   preload="metadata"
+                   id="fileViewerMediaEl">
+                <source src="{{ media_src }}">
+            </video>
+            {% elif is_audio|default(False) %}
+            <div class="file-viewer-audio-card">
+                <div class="file-viewer-audio-icon" aria-hidden="true">
+                    <i class="bi bi-music-note-beamed"></i>
+                </div>
+                <div class="file-viewer-audio-meta text-break">{{ file.name }}</div>
+                <audio class="file-viewer-media-audio"
+                       controls
+                       preload="metadata"
+                       id="fileViewerMediaEl">
+                    <source src="{{ media_src }}">
+                </audio>
+            </div>
+            {% endif %}
+            <div class="file-viewer-media-fallback d-none" id="fileViewerMediaFallback">
+                <i class="bi bi-exclamation-triangle mb-2 d-block" aria-hidden="true"></i>
+                <p class="mb-3">{{ _('files.view.media_unsupported') }}</p>
+                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn">
+                    <i class="bi bi-download"></i> {{ _('files.view.download') }}
+                </a>
+            </div>
+        </div>
     </div>
     {% else %}
     <div class="file-viewer-content">
@@ -333,7 +404,7 @@
             <div class="text-content">{{ content }}</div>
         {% endif %}
 
-        {% if not is_markdown|default(file.name.endswith('.md')) %}
+        {% if not is_public_share and current_user.is_authenticated and not is_markdown|default(file.name.endswith('.md')) %}
             {% set content_type='file' %}{% set content_id=file.id %}{% include 'comments/_comments.html' %}
         {% endif %}
     </div>
@@ -361,11 +432,49 @@ document.addEventListener('DOMContentLoaded', function() {
     if (mobileNav) mobileNav.classList.add('d-none');
 });
 {% endif %}
+
+{% if is_media %}
+document.documentElement.classList.add('file-viewer-media-open');
+document.body.classList.add('file-viewer-media-open');
+document.addEventListener('DOMContentLoaded', function() {
+    var mobileNav = document.getElementById('mobileNav');
+    if (mobileNav) mobileNav.classList.add('d-none');
+
+    var mediaEl = document.getElementById('fileViewerMediaEl');
+    var fallback = document.getElementById('fileViewerMediaFallback');
+    var stage = document.getElementById('fileViewerMediaStage');
+
+    function showMediaFallback() {
+        if (mediaEl) mediaEl.classList.add('d-none');
+        var audioCard = document.querySelector('.file-viewer-audio-card');
+        if (audioCard) audioCard.classList.add('d-none');
+        if (fallback) fallback.classList.remove('d-none');
+    }
+
+    if (mediaEl) {
+        mediaEl.addEventListener('error', showMediaFallback);
+        if (mediaEl.tagName === 'VIDEO' || mediaEl.tagName === 'AUDIO') {
+            var source = mediaEl.querySelector('source');
+            if (source) source.addEventListener('error', showMediaFallback);
+        }
+        if (mediaEl.tagName === 'IMG' && stage) {
+            mediaEl.addEventListener('click', function() {
+                if (!document.fullscreenElement) {
+                    if (stage.requestFullscreen) stage.requestFullscreen();
+                    else if (stage.webkitRequestFullscreen) stage.webkitRequestFullscreen();
+                } else if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            });
+        }
+    }
+});
+{% endif %}
 </script>
 {% endblock %}
 
 {% block extra_js %}
-{% if not is_pdf|default(False) %}
+{% if not is_pdf|default(False) and not (is_image|default(False) or is_video|default(False) or is_audio|default(False)) and not public_share|default(False) and current_user.is_authenticated %}
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 {% endif %}
 {% if is_markdown|default(file.name.endswith('.md')) %}

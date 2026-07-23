@@ -19,15 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (mode === 'list') {
-            listViewBtn.classList.add('active');
-            gridViewBtn.classList.remove('active');
+            listViewBtn.classList.add('active', 'is-active');
+            gridViewBtn.classList.remove('active', 'is-active');
             listViewContainer.classList.remove('d-none');
             gridViewContainer.classList.add('d-none');
+            listViewContainer.style.display = 'block';
+            gridViewContainer.style.display = 'none';
         } else {
-            gridViewBtn.classList.add('active');
-            listViewBtn.classList.remove('active');
+            gridViewBtn.classList.add('active', 'is-active');
+            listViewBtn.classList.remove('active', 'is-active');
             gridViewContainer.classList.remove('d-none');
             listViewContainer.classList.add('d-none');
+            gridViewContainer.style.display = 'block';
+            listViewContainer.style.display = 'none';
         }
         window.localStorage.setItem(viewStorageKey, mode);
     }

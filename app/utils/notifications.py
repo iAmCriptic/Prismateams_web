@@ -72,8 +72,35 @@ def get_vapid_keys():
     except Exception as e:
         logging.error(f"VAPID Private Key Konvertierung fehlgeschlagen: {e}")
 
-    vapid_claims = {"sub": "mailto:admin@yourdomain.com"}
+    claim_email = (
+        current_app.config.get('VAPID_CLAIM_EMAIL')
+        or current_app.config.get('MAIL_DEFAULT_SENDER')
+        or 'admin@localhost'
+    )
+    if isinstance(claim_email, str) and '<' in claim_email and '>' in claim_email:
+        claim_email = claim_email.split('<', 1)[1].split('>', 1)[0].strip()
+    claim_email = (claim_email or 'admin@localhost').strip()
+    if claim_email.lower().startswith('mailto:'):
+        claim_sub = claim_email
+    else:
+        claim_sub = f"mailto:{claim_email}"
+    vapid_claims = {"sub": claim_sub}
     return converted_private_key, public_key, vapid_claims
+
+
+def _user_translate(user, key: str, **kwargs) -> str:
+    """Übersetzt in der Sprache des Empfängers."""
+    from app.utils.i18n import translate
+    lang = getattr(user, 'language', None) if user else None
+    return translate(key, language=lang, **kwargs)
+
+
+def sync_user_notification_flags(user: User, settings: NotificationSettings) -> None:
+    """Hält Legacy-User-Flags mit NotificationSettings synchron."""
+    if not user or not settings:
+        return
+    user.chat_notifications = bool(settings.chat_notifications_enabled)
+    user.email_notifications = bool(settings.email_notifications_enabled)
 
 
 def _resolve_push_icon(icon: str) -> str:
@@ -338,10 +365,11 @@ def send_chat_notification(
             continue
 
         if unread_count == 1:
-            body = '1 neue Nachricht'
+            body = _user_translate(user, 'notifications.chat.body_one')
         else:
-            body = f'{unread_count} neue Nachrichten'
-        title = f'"{chat_name or "Team Chat"}"'
+            body = _user_translate(user, 'notifications.chat.body_many', count=unread_count)
+        chat_label = chat_name or _user_translate(user, 'notifications.chat.default_name')
+        title = _user_translate(user, 'notifications.chat.title', chat_name=chat_label)
         in_app_key = f"chat:{chat_id}"
         push_key = f"chat:{chat_id}:msg:{message_id}" if message_id else in_app_key
 
@@ -421,8 +449,12 @@ def send_file_notification(file_id: int, notification_type: str = 'new') -> int:
         if user.id == file.uploader_id:
             continue
 
-        title = "Neue Datei" if notification_type == 'new' else "Datei geändert"
-        body = f"{file.name} wurde {'hochgeladen' if notification_type == 'new' else 'geändert'}"
+        if notification_type == 'new':
+            title = _user_translate(user, 'notifications.file.new_title')
+            body = _user_translate(user, 'notifications.file.new_body', name=file.name)
+        else:
+            title = _user_translate(user, 'notifications.file.modified_title')
+            body = _user_translate(user, 'notifications.file.modified_body', name=file.name)
         dedup_key = f"file:{file_id}:{notification_type}"
 
         if notify_user(
@@ -475,10 +507,10 @@ def send_email_notification(email_id: int) -> int:
             continue
 
         if unread_count == 1:
-            body = "1 neue E-Mail"
+            body = _user_translate(user, 'notifications.email.body_one')
         else:
-            body = f"{unread_count} neue E-Mails"
-        title = "E-Mail"
+            body = _user_translate(user, 'notifications.email.body_many', count=unread_count)
+        title = _user_translate(user, 'notifications.email.title')
         in_app_key = "email:unread"
         push_key = f"email:{email_id}"
 
@@ -520,6 +552,18 @@ def send_calendar_notification(event_id: int, reminder_minutes: int = 30) -> int
             continue
 
         settings = get_or_create_notification_settings(user.id)
+        user_reminder_times = set()
+        for t in (settings.get_reminder_times() or []):
+            try:
+                user_reminder_times.add(int(t))
+            except (TypeError, ValueError):
+                continue
+        try:
+            if int(reminder_minutes) not in user_reminder_times:
+                continue
+        except (TypeError, ValueError):
+            continue
+
         participation = EventParticipant.query.filter_by(
             event_id=event_id, user_id=user.id
         ).first()
@@ -543,18 +587,26 @@ def send_calendar_notification(event_id: int, reminder_minutes: int = 30) -> int
 
         time_str = event.start_time.strftime('%H:%M')
         date_str = event.start_time.strftime('%d.%m.%Y')
-        if reminder_minutes >= 60:
+        if reminder_minutes >= 1440:
+            days = reminder_minutes // 1440
+            time_key = 'notifications.calendar.in_day_one' if days == 1 else 'notifications.calendar.in_days'
+            time_text = _user_translate(user, time_key, count=days)
+        elif reminder_minutes >= 60:
             hours = reminder_minutes // 60
-            if hours >= 24:
-                days = hours // 24
-                time_text = f"in {days} Tag{'en' if days > 1 else ''}"
-            else:
-                time_text = f"in {hours} Stunde{'n' if hours > 1 else ''}"
+            time_key = 'notifications.calendar.in_hour_one' if hours == 1 else 'notifications.calendar.in_hours'
+            time_text = _user_translate(user, time_key, count=hours)
         else:
-            time_text = f"in {reminder_minutes} Minuten"
+            time_text = _user_translate(user, 'notifications.calendar.in_minutes', count=reminder_minutes)
 
-        title = "Termin-Erinnerung"
-        body = f"{event.title} {time_text} ({date_str} um {time_str})"
+        title = _user_translate(user, 'notifications.calendar.reminder_title')
+        body = _user_translate(
+            user,
+            'notifications.calendar.reminder_body',
+            title=event.title,
+            time_text=time_text,
+            date=date_str,
+            time=time_str,
+        )
         dedup_key = f"calendar:{event_id}:{reminder_minutes}"
 
         if notify_user(
@@ -570,6 +622,71 @@ def send_calendar_notification(event_id: int, reminder_minutes: int = 30) -> int
                 'event_title': event.title,
                 'type': 'calendar',
                 'reminder_minutes': reminder_minutes,
+            },
+        ):
+            sent_count += 1
+
+    return sent_count
+
+
+def send_booking_request_notification(booking_request) -> int:
+    """Push an Formular-Rollen-User bei neuer Buchungsanfrage."""
+    form = booking_request.form
+    if not form:
+        return 0
+
+    recipient_ids = set()
+    for role in form.roles:
+        for assignment in role.users:
+            if assignment.user_id:
+                recipient_ids.add(assignment.user_id)
+
+    if not recipient_ids:
+        return 0
+
+    from app.utils.access_control import has_module_access
+    from flask import url_for
+
+    event_label = booking_request.event_name or f"#{booking_request.id}"
+    applicant = booking_request.applicant_name or booking_request.email or ""
+    try:
+        url = url_for('booking.request_detail', request_id=booking_request.id)
+    except Exception:
+        url = f"/booking/request/{booking_request.id}"
+
+    sent_count = 0
+    for user_id in recipient_ids:
+        user = User.query.get(user_id)
+        if not user or not user.notifications_enabled:
+            continue
+        if not has_module_access(user, 'module_booking'):
+            continue
+
+        settings = get_or_create_notification_settings(user.id)
+        if not getattr(settings, 'booking_notifications_enabled', True):
+            continue
+
+        title = _user_translate(user, 'notifications.booking.request_title')
+        body = _user_translate(
+            user,
+            'notifications.booking.request_body',
+            event=event_label,
+            applicant=applicant,
+        )
+
+        dedup_key = f"booking_request:{booking_request.id}:{user_id}"
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='booking',
+            dedup_key=dedup_key,
+            source_id=booking_request.id,
+            data={
+                'booking_request_id': booking_request.id,
+                'form_id': form.id,
+                'type': 'booking',
             },
         ):
             sent_count += 1
@@ -665,6 +782,10 @@ def register_push_subscription(user_id: int, subscription_data: Dict) -> bool:
             duplicates.sort(key=lambda s: s.last_used or s.created_at or datetime.min, reverse=True)
             for dup in duplicates[1:]:
                 dup.is_active = False
+
+        user = User.query.get(user_id)
+        if user:
+            user.notifications_enabled = True
 
         db.session.commit()
         return PushSubscription.query.filter_by(user_id=user_id, endpoint=endpoint, is_active=True).first() is not None

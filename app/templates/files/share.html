@@ -3,91 +3,30 @@
 {% block title %}Freigabe{% endblock %}
 
 {% block extra_css %}
-<style>
-.share-shell #desktopSidebar,
-.share-shell #mobileNav,
-.share-shell .mobile-menu-toggle {
-    display: none !important;
-}
-
-.share-shell main.main-content {
-    margin-left: 0 !important;
-    width: 100% !important;
-}
-
-.share-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.share-brand-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    object-fit: cover;
-    border: 1px solid var(--bs-border-color);
-}
-
-.share-browser-card .file-item,
-.share-browser-card .folder-item {
-    border: 1px solid var(--bs-border-color);
-    border-radius: 0.75rem;
-    background: var(--bs-body-bg);
-    transition: border-color 0.2s, background-color 0.2s;
-}
-
-.share-browser-card .file-item:hover,
-.share-browser-card .folder-item:hover {
-    border-color: var(--accent-color);
-    background: var(--bs-tertiary-bg);
-}
-
-.share-browser-card #listView {
-    display: none;
-}
-
-.share-browser-card #listView:not(.d-none) {
-    display: block;
-}
-
-.share-browser-card .pdf-mini-preview {
-    height: 150px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.share-browser-card .pdf-mini-preview iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    pointer-events: none;
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="share-shell">
-<div class="row justify-content-center">
-    <div class="col-xl-11 col-12">
-        <div class="share-brand">
+{% from 'files/_file_icons.html' import file_type_icon %}
+<div class="share-shell files-ext-shell">
+        <div class="files-ext-brand">
             {% if portal_logo_filename %}
-            <img class="share-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+            <img class="files-ext-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
             {% elif app_logo %}
-            <img class="share-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+            <img class="files-ext-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% else %}
+            <span class="files-ext-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
             {% endif %}
-            <div>
-                <div class="fw-semibold">{{ app_name or 'Prismateams' }}</div>
-                <small class="text-muted">Freigabe</small>
+            <div class="files-ext-brand-text">
+                <span class="files-ext-brand-name">{{ app_name or 'Prismateams' }}</span>
+                <span class="files-ext-brand-kind">{% if share_mode == 'edit' %}Bearbeiten-Freigabe{% else %}Betrachten-Freigabe{% endif %}</span>
             </div>
         </div>
-        <div class="card shadow-sm share-browser-card">
+        <div class="card share-browser-card files-ext-panel">
             <div class="card-body">
                 {% if item_type == 'file' %}
                     <div class="d-flex align-items-center mb-3">
-                        <i class="bi bi-file-earmark me-2"></i>
+                        {{ file_type_icon(file.name, 'sm') }}
                         <h4 class="mb-0">{{ file.name }}</h4>
                     </div>
                     {% if share_mode == 'edit' and guest_name %}
@@ -95,19 +34,20 @@
                     {% else %}
                     <p class="text-muted mb-4">Freigabe im Betrachtungsmodus.</p>
                     {% endif %}
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
                         {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
-                        {% if file_ext.lower() in ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'] %}
-                        <a href="{{ url_for('files.public_share_view', token=token) }}" class="btn btn-outline-secondary">
+                        {% set browser_view_exts = ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus'] %}
+                        {% if file_ext.lower() in browser_view_exts %}
+                        <a href="{{ url_for('files.public_share_view', token=token) }}" class="btn btn-outline-secondary files-pill-btn">
                             <i class="bi bi-eye"></i> Im Browser öffnen
                         </a>
                         {% endif %}
-                        <a href="{{ url_for('files.public_share_download', token=token) }}" class="btn btn-primary">
+                        <a href="{{ url_for('files.public_share_download', token=token) }}" class="btn btn-accent files-pill-btn">
                             <i class="bi bi-download"></i> Herunterladen
                         </a>
                         {% if share_mode == 'edit' and onlyoffice_available %}
                             {% if file_ext.lower() in ['.docx', '.doc', '.odt', '.rtf', '.txt', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.pdf', '.md', '.markdown'] %}
-                        <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success">
+                        <a href="{{ url_for('files.share_edit_onlyoffice', token=token) }}" class="btn btn-success files-pill-btn">
                             <i class="bi bi-file-earmark-text"></i> Mit ONLYOFFICE bearbeiten
                         </a>
                             {% endif %}
@@ -124,32 +64,30 @@
                     <p class="text-muted mb-3">Freigabe im Betrachtungsmodus.</p>
                     {% endif %}
 
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-secondary" id="listViewBtn" title="Listenansicht">
+                    <div class="files-ext-toolbar">
+                        {% if can_edit %}
+                        <div class="dropdown" id="newButtonDropdown">
+                            <button class="btn btn-accent files-pill-new" type="button" id="newButton">
+                                <i class="bi bi-plus-lg me-1"></i> Neu
+                            </button>
+                            <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu">
+                                <li><a class="dropdown-item" href="#" id="uploadFileMenuItem"><i class="bi bi-upload me-2"></i>Dateien hochladen</a></li>
+                                <li><a class="dropdown-item" href="#" id="uploadFolderMenuItem"><i class="bi bi-cloud-upload me-2"></i>Ordner hochladen</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" id="createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>Ordner erstellen</a></li>
+                            </ul>
+                        </div>
+                        <input type="file" id="directFileUpload" name="file" form="shareUploadForm" style="display:none;" multiple>
+                        <input type="file" id="directFolderUpload" name="file" form="shareUploadForm" style="display:none;" webkitdirectory directory multiple>
+                        {% endif %}
+                        <div class="files-view-toggle" role="group">
+                            <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="Listenansicht">
                                 <i class="bi bi-list"></i>
                             </button>
-                            <button class="btn btn-outline-secondary active" id="gridViewBtn" title="Rasteransicht">
+                            <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn" title="Rasteransicht">
                                 <i class="bi bi-grid-3x3-gap"></i>
                             </button>
                         </div>
-                        {% if can_edit %}
-                        <div class="btn-group">
-                            <div class="dropdown" id="newButtonDropdown">
-                                <button class="btn btn-accent" type="button" id="newButton">
-                                    <i class="bi bi-plus-circle"></i> Neu
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end" id="newDropdownMenu">
-                                    <li><a class="dropdown-item" href="#" id="uploadFileMenuItem"><i class="bi bi-upload me-2"></i>Dateien hochladen</a></li>
-                                    <li><a class="dropdown-item" href="#" id="uploadFolderMenuItem"><i class="bi bi-folder-upload me-2"></i>Ordner hochladen</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="#" id="createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>Ordner erstellen</a></li>
-                                </ul>
-                            </div>
-                            <input type="file" id="directFileUpload" name="file" form="shareUploadForm" style="display:none;" multiple>
-                            <input type="file" id="directFolderUpload" name="file" form="shareUploadForm" style="display:none;" webkitdirectory directory multiple>
-                        </div>
-                        {% endif %}
                     </div>
 
                     {% if breadcrumb_folders and breadcrumb_folders|length > 1 %}
@@ -190,6 +128,7 @@
                         <div class="row g-3" id="gridView">
                             {% for file in folder_files %}
                             {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                            {% set browser_view_exts = ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus'] %}
                             <div class="col-12 col-md-6 col-xl-4">
                                 <div class="card file-item h-100">
                                     <div class="card-body">
@@ -200,6 +139,27 @@
                                         <div class="pdf-mini-preview mb-2">
                                             <iframe src="{{ url_for('files.public_share_folder_file_pdf', token=token, file_id=file.id) }}#toolbar=0&navpanes=0&scrollbar=0&page=1" title="PDF Vorschau"></iframe>
                                         </div>
+                                        {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')) %}
+                                        <div class="mb-2">
+                                            <img src="{{ url_for('files.public_share_folder_file_media', token=token, file_id=file.id) }}"
+                                                 class="image-mini-preview"
+                                                 alt="{{ file.name }}"
+                                                 onerror="this.style.display='none';">
+                                        </div>
+                                        {% elif file.name.endswith(('.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mkv')) %}
+                                        <div class="media-mini-preview mb-2">
+                                            <i class="bi bi-camera-video"></i>
+                                            <span class="small">Video</span>
+                                        </div>
+                                        {% elif file.name.endswith(('.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus', '.wma')) %}
+                                        <div class="media-mini-preview mb-2">
+                                            <i class="bi bi-music-note-beamed"></i>
+                                            <span class="small">Audio</span>
+                                        </div>
+                                        {% elif file.name.endswith(('.docx', '.doc', '.odt', '.rtf', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.md', '.markdown')) %}
+                                        <div class="mb-2">{{ file_type_icon(file.name, 'lg') }}</div>
+                                        {% elif not file.name.endswith(('.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')) %}
+                                        <div class="mb-2">{{ file_type_icon(file.name, 'lg') }}</div>
                                         {% endif %}
                                         <small class="text-muted d-block mb-2">
                                             {% if file.file_size > 1024*1024 %}
@@ -209,7 +169,7 @@
                                             {% endif %}
                                         </small>
                                         <div class="d-flex flex-wrap gap-2">
-                                            {% if file_ext.lower() in ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'] %}
+                                            {% if file_ext.lower() in browser_view_exts %}
                                             <a href="{{ url_for('files.public_share_folder_file_view', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-secondary">
                                                 <i class="bi bi-eye"></i> Öffnen
                                             </a>
@@ -253,13 +213,14 @@
                         <div class="list-group" id="listView">
                             {% for file in folder_files %}
                             {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
+                            {% set browser_view_exts = ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus'] %}
                             <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
                                 <div class="d-flex align-items-center min-width-0">
-                                    <i class="bi bi-file-earmark me-2"></i>
+                                    {{ file_type_icon(file.name, 'sm') }}
                                     <span class="text-truncate">{{ file.name }}</span>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
-                                    {% if file_ext.lower() in ['.pdf', '.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'] %}
+                                    {% if file_ext.lower() in browser_view_exts %}
                                     <a href="{{ url_for('files.public_share_folder_file_view', token=token, file_id=file.id) }}" class="btn btn-sm btn-outline-secondary">
                                         <i class="bi bi-eye"></i>
                                     </a>
@@ -305,8 +266,6 @@
                 {% endif %}
             </div>
         </div>
-    </div>
-</div>
 </div>
 {% endblock %}
 

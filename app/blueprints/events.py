@@ -126,7 +126,7 @@ def _query_appointments(archived=False, assigned_user_id=None, order_desc=False)
 
 @events_bp.route('/')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def index():
     _refresh_archive_state()
     appointments = _query_appointments(archived=False, order_desc=False)
@@ -139,7 +139,7 @@ def index():
 
 @events_bp.route('/overview')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def overview():
     _refresh_archive_state()
     events = Event.query.filter_by(is_archived=False).order_by(Event.created_at.desc()).all()
@@ -152,7 +152,7 @@ def overview():
 
 @events_bp.route('/mine')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def my_events():
     _refresh_archive_state()
     appointments = _query_appointments(
@@ -169,7 +169,7 @@ def my_events():
 
 @events_bp.route('/archive')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def archive():
     _refresh_archive_state()
     appointments = _query_appointments(archived=True, order_desc=True)
@@ -182,7 +182,7 @@ def archive():
 
 @events_bp.route('/people')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def people_overview():
     _refresh_archive_state()
     counts = defaultdict(int)
@@ -209,7 +209,7 @@ def people_overview():
 
 @events_bp.route('/create', methods=['GET', 'POST'])
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def create_event():
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     contacts = Contact.query.order_by(Contact.name).all()
@@ -375,7 +375,7 @@ def _store_form_data(event_obj, req):
 
 @events_bp.route('/<int:event_id>')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def view_event(event_id):
     _refresh_archive_state()
     event_obj = Event.query.get_or_404(event_id)
@@ -385,7 +385,7 @@ def view_event(event_id):
 
 @events_bp.route('/<int:event_id>/edit', methods=['GET', 'POST'])
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def edit_event(event_id):
     _refresh_archive_state()
     event_obj = Event.query.get_or_404(event_id)
@@ -410,7 +410,7 @@ def edit_event(event_id):
 
 @events_bp.route('/<int:event_id>/pdf')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def event_pdf(event_id):
     event_obj = Event.query.get_or_404(event_id)
     pdf_buffer = generate_single_event_pdf(event_obj)
@@ -424,7 +424,7 @@ def event_pdf(event_id):
 
 @events_bp.route('/pdf-overview')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def overview_pdf():
     """PDF-Übersicht für den aktuellen Reiter (view=standard|overview|mine|archive|people)."""
     _refresh_archive_state()
@@ -480,7 +480,7 @@ def overview_pdf():
 
 @events_bp.route('/<int:event_id>/conflicts')
 @login_required
-@check_module_access('module_calendar')
+@check_module_access('module_events')
 def event_conflicts(event_id):
     event_obj = Event.query.get_or_404(event_id)
     return jsonify(_serialize_conflicts(event_obj))

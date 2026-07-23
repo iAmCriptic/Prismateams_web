@@ -1,171 +1,165 @@
 {% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.profile.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.profile.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{{ _('settings.profile.heading') }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
-                    <div class="text-center mb-4">
-                        <div id="profile-picture-preview">
-                            {% if user.profile_picture %}
-                            <img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" class="avatar-lg rounded-circle mb-2" alt="{{ _('settings.profile.picture.alt') }}" id="current-profile-pic">
-                            {% else %}
-                            <i class="bi bi-person-circle" style="font-size: 5rem;" id="default-profile-icon"></i>
-                            {% endif %}
-                        </div>
-                        <div class="mt-2">
-                            <label for="profile_picture" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-upload"></i> {{ _('settings.profile.picture.change_button') }}
-                            </label>
-                            <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="previewProfilePicture(this)">
-                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeProfilePicture()" id="remove-pic-btn" style="{% if user.profile_picture %}display: inline-block;{% else %}display: none;{% endif %}">
-                                <i class="bi bi-trash"></i> {{ _('settings.profile.picture.remove_button') }}
-                            </button>
-                        </div>
-                        <div id="upload-error" class="text-danger mt-2" style="display: none;"></div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="first_name" class="form-label">{{ _('settings.profile.fields.first_name') }}</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="last_name" class="form-label">{{ _('settings.profile.fields.last_name') }}</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">{{ _('settings.profile.fields.email') }}</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="phone" class="form-label">{{ _('settings.profile.fields.phone') }}</label>
-                        <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone or '' }}">
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <h5 class="mb-3">{{ _('settings.profile.notifications.heading') }}</h5>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="notifications_enabled" name="notifications_enabled" {% if user.notifications_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="notifications_enabled">
-                                {{ _('settings.profile.notifications.master_toggle') }}
-                            </label>
-                            <div class="form-text">{{ _('settings.profile.notifications.master_help') }}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="chat_notifications" name="chat_notifications" {% if user.chat_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="chat_notifications">
-                                {{ _('settings.profile.notifications.chat_toggle') }}
-                            </label>
-                            <div class="form-text">{{ _('settings.profile.notifications.chat_help') }}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="email_notifications" name="email_notifications" {% if user.email_notifications %}checked{% endif %}>
-                            <label class="form-check-label" for="email_notifications">
-                                {{ _('settings.profile.notifications.email_toggle') }}
-                            </label>
-                            <div class="form-text">{{ _('settings.profile.notifications.email_help') }}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-accent">{{ _('settings.profile.save_button') }}</button>
-                        <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">{{ _('common.cancel') }}</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="settings-profile">
+    <div class="settings-profile-header">
+        <h1 class="settings-profile-title">{{ _('settings.profile.heading') }}</h1>
+        <p class="settings-profile-subtitle">{{ _('settings.profile.subtitle') }}</p>
     </div>
+
+    <form method="POST" enctype="multipart/form-data" class="settings-profile-form" id="profileForm">
+        <section class="settings-profile-card" aria-labelledby="profile-avatar-title">
+            <div class="settings-profile-card-head">
+                <h2 id="profile-avatar-title" class="settings-profile-section-title mb-0">
+                    <i class="bi bi-person-circle" aria-hidden="true"></i>
+                    {{ _('settings.profile.picture.heading') }}
+                </h2>
+            </div>
+
+            <div class="settings-profile-avatar-block">
+                <div class="settings-profile-avatar-preview" id="profile-picture-preview">
+                    {% if user.profile_picture %}
+                    <img src="{{ url_for('settings.profile_picture', filename=user.profile_picture) }}" alt="{{ _('settings.profile.picture.alt') }}" id="current-profile-pic">
+                    {% else %}
+                    <i class="bi bi-person-fill" id="default-profile-icon" aria-hidden="true"></i>
+                    {% endif %}
+                </div>
+                <div class="settings-profile-avatar-fields">
+                    <div class="settings-profile-avatar-actions">
+                        <label for="profile_picture" class="btn btn-outline-secondary settings-profile-btn-pill">
+                            <i class="bi bi-upload" aria-hidden="true"></i>
+                            {{ _('settings.profile.picture.change_button') }}
+                        </label>
+                        <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="previewProfilePicture(this)">
+                        <button type="button" class="btn btn-outline-danger settings-profile-btn-pill" onclick="removeProfilePicture()" id="remove-pic-btn" {% if not user.profile_picture %}hidden{% endif %}>
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                            {{ _('settings.profile.picture.remove_button') }}
+                        </button>
+                    </div>
+                    <p class="settings-profile-hint mb-0">{{ _('settings.profile.picture.help') }}</p>
+                    <div id="upload-error" class="settings-profile-error" hidden></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-profile-card" aria-labelledby="profile-data-title">
+            <div class="settings-profile-card-head">
+                <h2 id="profile-data-title" class="settings-profile-section-title mb-0">
+                    <i class="bi bi-card-heading" aria-hidden="true"></i>
+                    {{ _('settings.profile.fields.section_title') }}
+                </h2>
+            </div>
+
+            <div class="settings-profile-fields">
+                <div class="settings-profile-field">
+                    <label for="first_name" class="form-label">{{ _('settings.profile.fields.first_name') }}</label>
+                    <input type="text" class="form-control settings-profile-input" id="first_name" name="first_name" value="{{ user.first_name }}" required autocomplete="given-name">
+                </div>
+                <div class="settings-profile-field">
+                    <label for="last_name" class="form-label">{{ _('settings.profile.fields.last_name') }}</label>
+                    <input type="text" class="form-control settings-profile-input" id="last_name" name="last_name" value="{{ user.last_name }}" required autocomplete="family-name">
+                </div>
+                <div class="settings-profile-field">
+                    <label for="email" class="form-label">{{ _('settings.profile.fields.email') }}</label>
+                    <input type="email" class="form-control settings-profile-input" id="email" name="email" value="{{ user.email }}" required autocomplete="email">
+                </div>
+                <div class="settings-profile-field">
+                    <label for="phone" class="form-label">{{ _('settings.profile.fields.phone') }}</label>
+                    <input type="tel" class="form-control settings-profile-input" id="phone" name="phone" value="{{ user.phone or '' }}" autocomplete="tel">
+                </div>
+            </div>
+
+            {% if user.created_at %}
+            <p class="settings-profile-meta">{{ _('settings.profile.exists_since', date=user.created_at.strftime('%d.%m.%Y')) }}</p>
+            {% endif %}
+        </section>
+
+        <div class="settings-profile-actions">
+            <button type="submit" class="btn btn-accent settings-profile-submit">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                {{ _('settings.profile.save_button') }}
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 function previewProfilePicture(input) {
-    const file = input.files[0];
-    const preview = document.getElementById('profile-picture-preview');
-    const errorDiv = document.getElementById('upload-error');
-    const removeBtn = document.getElementById('remove-pic-btn');
-    
-    errorDiv.style.display = 'none';
-    
-    if (file) {
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-        const maxSize = 5 * 1024 * 1024;
-        
-        if (!allowedTypes.includes(file.type)) {
-            errorDiv.textContent = '{{ _('settings.profile.picture.error_type') }}';
-            errorDiv.style.display = 'block';
-            input.value = '';
-            return;
-        }
-        
-        if (file.size > maxSize) {
-            errorDiv.textContent = '{{ _('settings.profile.picture.error_size') }}';
-            errorDiv.style.display = 'block';
-            input.value = '';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `<img src="${e.target.result}" class="avatar-lg rounded-circle mb-2" alt="{{ _('settings.profile.picture.alt_preview') }}">`;
-            removeBtn.style.display = 'inline-block';
-        };
-        reader.readAsDataURL(file);
+    var file = input.files[0];
+    var preview = document.getElementById('profile-picture-preview');
+    var errorDiv = document.getElementById('upload-error');
+    var removeBtn = document.getElementById('remove-pic-btn');
+    if (!preview || !errorDiv) return;
+
+    errorDiv.hidden = true;
+    errorDiv.textContent = '';
+
+    if (!file) return;
+
+    var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    var maxSize = 5 * 1024 * 1024;
+
+    if (allowedTypes.indexOf(file.type) === -1) {
+        errorDiv.textContent = {{ _('settings.profile.picture.error_type') | tojson }};
+        errorDiv.hidden = false;
+        input.value = '';
+        return;
     }
+
+    if (file.size > maxSize) {
+        errorDiv.textContent = {{ _('settings.profile.picture.error_size') | tojson }};
+        errorDiv.hidden = false;
+        input.value = '';
+        return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        preview.innerHTML = '<img src="' + e.target.result + '" alt="' + {{ _('settings.profile.picture.alt_preview') | tojson }} + '">';
+        if (removeBtn) removeBtn.hidden = false;
+    };
+    reader.readAsDataURL(file);
 }
 
-function removeProfilePicture() {
-    if (confirm('{{ _('settings.profile.picture.remove_confirm') }}')) {
-        fetch('{{ url_for("settings.remove_profile_picture") }}', {
+async function removeProfilePicture() {
+    var message = {{ _('settings.profile.picture.remove_confirm') | tojson }};
+    var ok = true;
+    if (typeof window.ptConfirm === 'function') {
+        ok = await window.ptConfirm(message, { danger: true });
+    } else {
+        ok = window.confirm(message);
+    }
+    if (!ok) return;
+
+    try {
+        var response = await fetch({{ url_for('settings.remove_profile_picture') | tojson }}, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             }
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                alert('{{ _('settings.profile.picture.remove_error') }}');
-            }
-        })
-        .catch(error => {
-            console.error('Fehler:', error);
-            alert('{{ _('settings.profile.picture.remove_error') }}');
         });
+        if (response.ok) {
+            window.location.reload();
+            return;
+        }
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner({{ _('settings.profile.picture.remove_error') | tojson }}, 'danger');
+        } else {
+            window.alert({{ _('settings.profile.picture.remove_error') | tojson }});
+        }
+    } catch (err) {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner({{ _('settings.profile.picture.remove_error') | tojson }}, 'danger');
+        } else {
+            window.alert({{ _('settings.profile.picture.remove_error') | tojson }});
+        }
     }
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const currentPic = document.getElementById('current-profile-pic');
-    const removeBtn = document.getElementById('remove-pic-btn');
-    
-    if (currentPic) {
-        removeBtn.style.display = 'inline-block';
-    }
-});
 </script>
 {% endblock %}
-
-
-

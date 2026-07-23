@@ -89,7 +89,7 @@
     margin-top: 0;
     margin-bottom: 1rem;
     overflow: visible;
-    z-index: 30;
+    z-index: 1080;
 }
 
 .mod-sidebar-new,
@@ -281,6 +281,18 @@ a.mod-nav-link.active,
     max-width: 85vw;
 }
 
+/* Above fixed .mobile-nav (1001); keep panel clickable over backdrop */
+.mod-offcanvas.offcanvas,
+.mod-mobile-offcanvas.offcanvas {
+    z-index: 1045;
+}
+
+.mod-offcanvas.offcanvas.show,
+.mod-mobile-offcanvas.offcanvas.show {
+    visibility: visible;
+    pointer-events: auto;
+}
+
 .mod-offcanvas .mod-sidebar-new-wrap,
 .mod-mobile-offcanvas .mod-sidebar-new-wrap {
     margin-bottom: 1rem;
@@ -360,27 +372,43 @@ a.mod-nav-link.active,
     color: inherit;
     font-weight: 500;
     max-width: 100%;
+    min-width: 0;
+}
+
+.mod-list-table td:first-child {
+    max-width: 0; /* force flex/truncate children to respect column width */
+    overflow: hidden;
 }
 
 .mod-list-actions {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
     gap: 0.15rem;
     min-height: 2rem;
-    min-width: 7.5rem;
+    min-width: 2.5rem;
+    width: 100%;
 }
 
+/* Absolute: sonst schieben unsichtbare Hover-Icons das 3-Punkte-Menü aus dem Viewport */
 .mod-list-hover-actions {
+    position: absolute;
+    right: 2.35rem;
+    top: 50%;
+    transform: translateY(-50%);
     display: inline-flex;
     align-items: center;
     gap: 0.15rem;
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
+    white-space: nowrap;
+    z-index: 1;
 }
 
-.mod-list-row:hover .mod-list-hover-actions {
+.mod-list-row:hover .mod-list-hover-actions,
+.mod-list-row:focus-within .mod-list-hover-actions {
     visibility: visible;
     opacity: 1;
     pointer-events: auto;
@@ -388,10 +416,33 @@ a.mod-nav-link.active,
 
 .mod-list-hover-actions .btn-link,
 .mod-list-actions .dropdown .btn-link {
-    color: inherit;
+    color: var(--bs-secondary-color, #6c757d);
     text-decoration: none;
     padding: 0.2rem 0.35rem;
     line-height: 1;
+}
+
+.mod-list-actions > .dropdown {
+    position: relative;
+    z-index: 2;
+    flex-shrink: 0;
+}
+
+/* Offenes Menü über 3-Punkte der Zeilen darunter */
+.mod-list-row:has(.dropdown.show),
+.mod-list-row:has(.dropdown-menu.show) {
+    position: relative;
+    z-index: 40;
+}
+
+.mod-list-actions:has(.dropdown.show),
+.mod-list-actions > .dropdown.show {
+    z-index: 40;
+}
+
+.mod-list-actions > .dropdown .btn-link {
+    opacity: 1;
+    visibility: visible;
 }
 
 .mod-list-hover-actions .btn-link:hover,
@@ -528,5 +579,12 @@ a.mod-nav-link.active,
 
     .mod-list-actions {
         min-width: 2.5rem;
+    }
+
+    /* 3-Punkte-Menü bleibt immer sichtbar */
+    .mod-list-actions > .dropdown {
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
 }

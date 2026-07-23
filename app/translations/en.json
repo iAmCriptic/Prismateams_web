@@ -49,6 +49,13 @@
       "category_functional_desc": "Stores local preferences and enables PWA features.",
       "category_analytics_title": "Analytics",
       "category_analytics_desc": "Anonymous usage statistics to improve the portal (currently not active)."
+    },
+    "pwa_install": {
+      "title": "Install app",
+      "description": "Install the portal as an app for faster access and offline use.",
+      "install": "Install",
+      "later": "Later",
+      "never": "Don't show again"
     }
   },
   "common": {
@@ -97,7 +104,10 @@
       "remember_me": "Keep me signed in",
       "submit": "Log in",
       "register_link_prefix": "New to Prismateams?",
-      "register_link_cta": "Create an account"
+      "register_link_cta": "Create an account",
+      "switch_title": "New here?",
+      "switch_text": "Don't have an account yet? Register and get started with Prismateams.",
+      "switch_cta": "Register"
     },
     "register": {
       "title": "Register",
@@ -113,7 +123,10 @@
       "dark_mode_help": "You can change this setting anytime in your profile.",
       "submit": "Create account",
       "login_link_prefix": "Already registered?",
-      "login_link_cta": "Log in here"
+      "login_link_cta": "Log in here",
+      "switch_title": "Already with us?",
+      "switch_text": "Already have an account? Sign in and continue.",
+      "switch_cta": "Log in"
     },
     "confirm_email": {
       "title": "Confirm email",
@@ -191,7 +204,8 @@
         "enter_portal_name": "Please enter a portal name.",
         "completed_emoji": "🎉 Setup successfully completed! Welcome to your team portal.",
         "add_users_info": "You can now add more users via the settings.",
-        "admin_account_created": "Your administrator account has been created and you are automatically logged in."
+        "admin_account_created": "Your administrator account has been created and you are automatically logged in.",
+        "completed_summary": "Setup complete. Your admin account is ready — you can add more users in Settings."
       }
     },
     "update": {
@@ -519,6 +533,11 @@
       "breadcrumb_settings": "Settings",
       "breadcrumb_appearance": "Appearance",
       "heading": "Customize appearance",
+      "subtitle": "Language, colour, design mode and layout",
+      "section_language": "Language",
+      "section_color": "Colour",
+      "section_theme": "Design mode",
+      "section_layout": "Layout and navigation",
       "language_label": "Language",
       "language_help": "Choose the language for the interface and system messages.",
       "accent_section_title": "Accent colour & gradient",
@@ -572,7 +591,7 @@
       "cards": {
         "profile": {
           "title": "Profile",
-          "description": "Edit personal data and password",
+          "description": "Personal details and profile picture",
           "button": "Edit"
         },
         "appearance": {
@@ -584,6 +603,11 @@
           "title": "Notifications",
           "description": "Push notifications for chat, files, email and calendar",
           "button": "Edit"
+        },
+        "security": {
+          "title": "Security",
+          "description": "Change password, enable 2FA and manage signed-in devices",
+          "button": "Open"
         },
         "about": {
           "title": "About",
@@ -602,7 +626,11 @@
       "breadcrumb_settings": "Settings",
       "breadcrumb_profile": "Profile",
       "heading": "Edit profile",
+      "subtitle": "Manage personal details and profile picture",
+      "exists_since": "User exists since {date}",
       "picture": {
+        "heading": "Profile picture",
+        "help": "JPG, PNG or GIF · max. 5 MB",
         "alt": "Profile picture",
         "alt_preview": "Profile picture preview",
         "change_button": "Change profile picture",
@@ -613,6 +641,7 @@
         "error_size": "The file is too large. Maximum size: 5MB."
       },
       "fields": {
+        "section_title": "Personal details",
         "first_name": "First name",
         "last_name": "Last name",
         "email": "Email",
@@ -632,7 +661,7 @@
         "label": "New password (optional)",
         "help": "Leave empty to keep the current password"
       },
-      "save_button": "Save changes",
+      "save_button": "Save",
       "flash_password_length": "The password must be at least 8 characters long.",
       "flash_picture_too_large": "Profile picture is too large. Maximum size: 5MB. Your file: {size:.1f}MB",
       "flash_picture_invalid_type": "Invalid file type. Only PNG, JPG, JPEG and GIF files are allowed.",
@@ -691,7 +720,8 @@
         "table": {
           "chat": "Chat",
           "notifications": "Notifications"
-        }
+        },
+        "empty": "No chats available."
       },
       "files": {
         "title": "File notifications",
@@ -745,6 +775,105 @@
         "toast_mic_denied_message": "Microphone access is required for voice messages.",
         "toast_app_installed_title": "App installed",
         "toast_app_installed_message": "The app was installed successfully!"
+      },
+      "heading": "Notifications",
+      "subtitle": "Manage push, modules and reminders",
+      "flash_saved": "Notification settings have been saved.",
+      "push_status": {
+        "checking": "Checking status…",
+        "supported": "This browser supports push notifications with this site",
+        "unsupported": "This browser does not support push notifications"
+      },
+      "booking": {
+        "title": "Booking requests",
+        "toggle": "Notifications for new booking requests",
+        "help": "Push when a new request arrives for a form where you have a role"
+      }
+    },
+    "security": {
+      "page_title": "Security - Settings",
+      "breadcrumb_settings": "Settings",
+      "breadcrumb_security": "Security",
+      "heading": "Security",
+      "subtitle": "Password, 2FA and signed-in devices",
+      "flash_guests_cannot_edit": "Guest accounts cannot change security settings.",
+      "tabs": {
+        "passwords": "Passwords & 2FA",
+        "devices": "Signed-in devices"
+      },
+      "password": {
+        "heading": "Change password",
+        "current_label": "Current password",
+        "new_label": "New password",
+        "confirm_label": "Confirm new password",
+        "help": "At least 8 characters",
+        "change_button": "Change password",
+        "fill_all_fields": "Please fill in all fields.",
+        "current_wrong": "The current password is incorrect.",
+        "passwords_dont_match": "The passwords do not match.",
+        "invalid": "The password does not meet the requirements.",
+        "must_differ": "The new password must differ from the current password.",
+        "changed_success": "Password changed successfully."
+      },
+      "2fa": {
+        "heading": "Two-factor authentication (2FA)",
+        "heading_short": "Two-factor (2FA)",
+        "help": "Extra login protection with an authenticator app",
+        "status_on": "On",
+        "status_off": "Not enabled",
+        "enabled": "2FA is enabled.",
+        "not_enabled": "2FA is not enabled. Enable 2FA for extra security.",
+        "not_enabled_short": "Not set up yet.",
+        "setup_button": "Enable 2FA",
+        "start_setup_button": "Set up 2FA",
+        "start_setup_description": "Click the button to start 2FA setup. You will then get a QR code to scan.",
+        "step1_title": "Step 1: Scan QR code",
+        "step2_title": "Step 2: Enter code",
+        "setup_instructions": "Scan the QR code with your authenticator app and enter the 6-digit code.",
+        "setup_warning": "Keep the secret code safe — you need it if you lose your device.",
+        "enter_code_label": "2FA code",
+        "enter_code_help": "Enter the 6-digit code from your authenticator app.",
+        "secret_label": "Secret code",
+        "secret_help": "If you cannot scan the QR code, enter this secret manually in your authenticator app.",
+        "enable_button": "Enable 2FA",
+        "cancel_button": "Cancel",
+        "disable_button": "Disable 2FA",
+        "disable_confirm": "Do you really want to disable 2FA?",
+        "disable_password_label": "Password for confirmation",
+        "disable_password_help": "Enter your password to disable 2FA.",
+        "enter_code": "Please enter the 2FA code.",
+        "enter_password": "Please enter your password.",
+        "invalid_code": "Invalid 2FA code. Please try again.",
+        "enabled_success": "2FA enabled successfully.",
+        "disabled_success": "2FA disabled successfully.",
+        "wrong_password": "The password is incorrect.",
+        "setup_started": "2FA setup started. Scan the QR code and enter the code.",
+        "setup_cancelled": "2FA setup was cancelled."
+      },
+      "devices": {
+        "heading": "Signed-in devices",
+        "description": "Manage active sessions and sign out other devices.",
+        "table": {
+          "device": "Device",
+          "ip_address": "IP address",
+          "last_activity": "Last activity",
+          "status": "Status"
+        },
+        "current_session": "This device",
+        "active": "Active",
+        "inactive": "Inactive",
+        "unknown_device": "Unknown device",
+        "unknown": "Unknown",
+        "revoke_button": "Sign out",
+        "revoke_confirm": "Do you really want to sign out of this device?",
+        "revoke_all_button": "Sign out all other devices",
+        "revoke_all_confirm": "Do you really want to sign out of all other devices?",
+        "session_revoked": "Session signed out successfully.",
+        "session_not_found": "Session not found.",
+        "all_sessions_revoked": "{count} session(s) signed out successfully.",
+        "no_sessions_to_revoke": "No other sessions to sign out.",
+        "no_sessions": "No active sessions found.",
+        "invalid_session": "Invalid session."
       }
     },
     "about": {
@@ -752,26 +881,32 @@
       "breadcrumb_settings": "Settings",
       "breadcrumb_about": "About Prismateams",
       "heading": "About Prismateams",
+      "subtitle": "Product, system and open source",
       "logo_alt": "Prismateams logo",
       "section_product_title": "Prismateams",
-      "section_product_description": "Prismateams is a comprehensive team collaboration platform that helps you communicate, organise and cooperate efficiently with your team. It offers chat, file management, calendar, email management and much more.",
+      "section_product_description": "Team portal for chat, files, calendar, email and more modules — all in one place.",
       "author_label": "Author:",
       "copyright": "Copyright © Enrico R. Matzke 2025. All rights reserved.",
-      "section_repository_title": "GitHub repository",
-      "section_repository_description": "You can find the source code repository on GitHub:",
-      "section_repository_button": "Open GitHub repository",
-      "section_repository_improvement_note": "The software is continuously being improved and developed. If you discover a bug, please report it with a screenshot and/or detailed description via the Issues page on GitHub.",
+      "section_repository_title": "Open source",
+      "section_repository_description": "Source code and issues on GitHub.",
+      "section_repository_button": "Open repository",
+      "section_repository_improvement_note": "The software is continuously improved. Please report bugs with a screenshot or description via GitHub Issues.",
       "section_repository_issues_button": "Report issue",
-      "section_system_title": "About this system",
+      "section_system_title": "This system",
       "version_label": "Version:",
       "version_value": "V2.1.5 - Stable release",
-      "creator_label": "Creator:",
-      "onlyoffice_label": "OnlyOffice integration:",
+      "release_label": "Release",
+      "build_label": "Build",
+      "portal_label": "Portal name",
+      "portal_unset": "Not set",
+      "creator_label": "Managed by",
+      "creator_unknown": "Unknown",
+      "onlyoffice_label": "OnlyOffice",
       "onlyoffice_active": "Active",
       "onlyoffice_inactive": "Inactive",
-      "media_downloader_label": "Media Downloader (system compatibility):",
-      "media_downloader_compatible": "Compatible (FFmpeg available)",
-      "media_downloader_not_compatible": "Not compatible (FFmpeg missing)",
+      "media_downloader_label": "Media Downloader",
+      "media_downloader_compatible": "FFmpeg ok",
+      "media_downloader_not_compatible": "FFmpeg missing",
       "excalidraw_label": "Excalidraw integration:",
       "excalidraw_active": "Active",
       "excalidraw_inactive": "Inactive",
@@ -788,11 +923,25 @@
         "breadcrumb_settings": "Settings",
         "breadcrumb_admin": "Administration",
         "breadcrumb_modules": "Modules",
-        "heading": "Manage Modules",
+        "heading": "Modules",
+        "subtitle": "Turn modules on or off for all users. Off = hidden from navigation.",
+        "section_modules": "Available modules",
         "description": "Enable or disable modules for all users. Disabled modules will be hidden in the navigation.",
+        "module_chat": "Chat",
+        "module_files": "Files",
+        "module_calendar": "Calendar",
+        "module_events": "Events",
+        "module_email": "Email",
+        "module_contacts": "Contacts",
+        "module_credentials": "Credentials",
+        "module_manuals": "Manuals",
+        "module_inventory": "Inventory",
+        "module_wiki": "Wiki",
         "module_booking": "Bookings",
         "module_music": "Music",
         "module_media_downloader": "Media Downloader",
+        "module_assessment": "Assessment",
+        "module_shortlinks": "Short links",
         "save": "Save changes",
         "cancel": "Back",
         "flash_updated": "Module settings have been updated."
@@ -803,9 +952,9 @@
         "breadcrumb_admin": "Administration",
         "breadcrumb_users": "User Management",
         "heading": "User Management",
-        "configure_default_roles": "Configure Default Roles",
+        "configure_default_roles": "Default roles",
         "flash_unauthorized": "Only administrators have access to this page.",
-        "create_user": "Create new user",
+        "create_user": "New user",
         "guest_account": "Guest Account",
         "guest_expires_at": "Expires at",
         "guest_no_expiry": "No expiry",
@@ -823,7 +972,93 @@
         "flash_guest_cannot_be_admin": "Guest accounts cannot become administrators.",
         "flash_user_deleted": "User {name} has been deleted.",
         "flash_cannot_delete_self": "You cannot delete yourself.",
-        "flash_cannot_delete_super_admin": "The super administrator cannot be deleted."
+        "flash_cannot_delete_super_admin": "The super administrator cannot be deleted.",
+        "subtitle": "Users, guests and pending confirmation codes",
+        "pending_title": "Pending registrations",
+        "codes_title": "Confirmation codes",
+        "codes_help": "Codes for users who have not confirmed their email yet.",
+        "active_title": "Active users",
+        "guests_title": "Guest accounts",
+        "registered": "Registered",
+        "code_expires": "Valid until",
+        "code_unlimited": "Unlimited",
+        "copy_code": "Copy code",
+        "last_login": "Login",
+        "never": "Never",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "reject": "Reject",
+        "reject_confirm": "Reject registration and delete?",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this user?",
+        "delete_guest_confirm": "Really delete this guest account?",
+        "edit": "Edit",
+        "manage_roles": "Manage roles",
+        "make_admin": "Make admin",
+        "remove_admin": "Remove admin rights",
+        "badge_super_admin": "Main admin",
+        "badge_admin": "Admin",
+        "badge_user": "User",
+        "badge_full_admin": "Full access (admin)",
+        "badge_full": "Full access",
+        "badge_modules": "Modules",
+        "badge_guest": "Guest",
+        "badge_active": "Active",
+        "badge_inactive": "Inactive",
+        "badge_expired": "Expired",
+        "shares_count": "{count} share(s)",
+        "expires": "Until",
+        "no_active": "No active users.",
+        "no_guests": "No guest accounts.",
+        "full_access_help": "With full access, module-specific roles are ignored.",
+        "module_roles_title": "Module-specific roles",
+        "module_roles_help": "Select the modules this user should access.",
+        "email_perms_title": "Email permissions",
+        "email_read": "Read emails",
+        "email_send": "Send emails",
+        "borrow_title": "Borrow rights",
+        "borrow_toggle": "Can borrow items",
+        "booking_roles_title": "Booking roles",
+        "booking_roles_help": "Assign roles so the user can approve or reject booking requests."
+      },
+      "create_user": {
+        "page_title": "Create user - Administration",
+        "heading": "Create new user",
+        "subtitle": "Full account or guest",
+        "account_type": "Account type",
+        "tab_full": "Full account",
+        "tab_guest": "Guest",
+        "section_details": "Details",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "email": "Email address",
+        "email_help": "The user receives an email with credentials.",
+        "phone": "Phone (optional)",
+        "full_hint": "Gets default roles and a random 8-character password by email.",
+        "submit_full": "Create account and send email",
+        "guest_username": "Guest username",
+        "guest_username_help": "Login as username@gast.system.local",
+        "expires": "Expiry (optional)",
+        "expires_help": "Account is deleted automatically afterwards.",
+        "shares_title": "Share links",
+        "shares_help": "Assigning share folders enables the files module.",
+        "shares_empty": "No share links available.",
+        "chats_title": "Chats",
+        "chats_help": "Assigning chats enables the chat module.",
+        "chats_empty": "No chats available.",
+        "main_chat": "Main chat",
+        "modules_title": "More modules",
+        "modules_help": "Additional modules for the guest.",
+        "guest_hint": "No email/password module. Inventory view only.",
+        "submit_guest": "Create guest account",
+        "validation_error": "Please fill required fields correctly.",
+        "guest_modal_title": "Guest account created",
+        "guest_modal_note": "Note the credentials now — they cannot be retrieved later.",
+        "guest_modal_username": "Username / email",
+        "guest_modal_password": "Password",
+        "guest_modal_done": "Go to user management",
+        "guest_login_hint": "Login with {username}@gast.system.local",
+        "copy": "Copy"
       },
       "sections": {
         "users": {
@@ -843,9 +1078,13 @@
         "page_title": "Web push subscriptions - Administration",
         "breadcrumb": "Web push",
         "heading": "Web push subscriptions",
+        "subtitle": "Manage browser push endpoints for all users.",
+        "list_title": "Subscriptions",
         "description": "All registered browser push endpoints with their users.",
         "stats": "{active} active of {total} entries total.",
         "empty": "No push subscriptions found.",
+        "badge_active": "Active",
+        "badge_inactive": "Inactive",
         "confirm_delete": "Really delete this subscription?",
         "confirm_deactivate_user": "Deactivate all active subscriptions for this user?",
         "flash_deactivated": "Subscription deactivated.",
@@ -870,7 +1109,7 @@
         "configure_button": "Configure",
         "user_management": {
           "title": "User management",
-          "description": "Activate, edit and manage users"
+          "description": "Manage users, guests and confirmation codes"
         },
         "confirmation_codes": {
           "title": "Confirmation codes",
@@ -922,25 +1161,28 @@
         },
         "registration_options": {
           "title": "Bot protection",
-          "description": "Configure bot protection for registration, login, and edit shares"
+          "description": "Bot protection for login, registration, mailboxes and shares"
         }
       },
       "registration": {
         "page_title": "Bot protection - Administration",
         "breadcrumb": "Bot protection",
         "heading": "Bot protection",
-        "recommendation_alert": "We recommend a bot filter system (Google reCAPTCHA or Cloudflare Turnstile) to reduce automated registrations, login attacks, and abuse of edit share links.",
+        "subtitle": "Choose a protection method and where it applies: login, registration, mailboxes and shares.",
+        "recommendation_alert": "We recommend Google reCAPTCHA or Cloudflare Turnstile against automated access.",
         "provider_label": "Protection method",
-        "provider_help": "Choose how to protect against automated access.",
+        "provider_help": "Method to protect against automated access.",
         "provider_none": "No human verification",
-        "provider_honeypot": "Honeypot (simple, for custom setups)",
+        "provider_honeypot": "Honeypot (simple)",
         "provider_recaptcha": "Google reCAPTCHA (recommended)",
         "provider_turnstile": "Cloudflare Turnstile (recommended)",
         "scope_label": "Apply to",
-        "scope_register": "Use on registration",
-        "scope_login": "Use on login",
-        "scope_share_edit": "Use on share (edit)",
-        "scope_login_help": "reCAPTCHA or Turnstile are recommended for login and edit shares. Honeypot is possible but less common.",
+        "scope_help": "Only enabled areas require bot protection.",
+        "scope_register": "Registration",
+        "scope_login": "Login",
+        "scope_mailbox": "Mailboxes",
+        "scope_share_edit": "Shares (edit)",
+        "scope_login_help": "For login, shares and mailboxes, reCAPTCHA or Turnstile are recommended. Honeypot is weaker.",
         "recaptcha_heading": "Google reCAPTCHA",
         "recaptcha_version_label": "reCAPTCHA version",
         "recaptcha_v2": "v2 (\"I'm not a robot\" checkbox)",
@@ -962,6 +1204,7 @@
         "page_title": "File Settings - Administration",
         "breadcrumb_file_settings": "File Settings",
         "heading": "File Settings",
+        "subtitle": "Control mailboxes, shares and private folders for the files module.",
         "section_title": "File Functions",
         "dropbox_label": "Enable Mailboxes",
         "dropbox_help": "Allows creating mailboxes (upload-only folders) for bookings and other purposes.",
@@ -969,7 +1212,7 @@
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
         "private_folders_label": "Enable private folders",
         "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
-        "save_button": "Save Changes",
+        "save_button": "Save",
         "flash_updated": "File settings have been updated.",
         "flash_unauthorized": "Only administrators have access to this page."
       },
@@ -977,6 +1220,7 @@
         "page_title": "Calendar Settings - Administration",
         "breadcrumb": "Calendar Settings",
         "heading": "Calendar Settings",
+        "subtitle": "Control multi-calendar, import and export for the calendar module.",
         "section_title": "Calendar Features",
         "multi_label": "Use multiple calendars",
         "multi_help": "Each user gets a personal calendar. There is a public calendar for everyone. Others can be viewed, but events can only be created in your own and the public calendar.",
@@ -984,7 +1228,7 @@
         "export_help": "When disabled, calendars cannot be exported as ICS or subscribed in external apps.",
         "import_label": "Allow calendar import",
         "import_help": "When disabled, ICS files cannot be imported and sync links cannot be created.",
-        "save_button": "Save Changes",
+        "save_button": "Save",
         "flash_updated": "Calendar settings have been updated.",
         "flash_unauthorized": "Only administrators have access to this page."
       },
@@ -992,18 +1236,22 @@
         "page_title": "System Settings - Administration",
         "breadcrumb_system": "System Settings",
         "heading": "System Settings",
+        "subtitle": "Global portal defaults for name, logo, branding, and timezone.",
         "section_title": "Portal Settings",
+        "section_portal": "Portal",
+        "section_branding": "Branding",
+        "section_timezone": "Timezone",
         "portal_name_label": "Portal Name",
         "portal_name_placeholder": "e.g. Prismateams",
         "portal_name_help": "The name of the portal that is displayed in various places.",
         "portal_logo_label": "Portal Logo",
         "current_logo": "Current Logo",
+        "remove_logo": "Remove logo",
+        "remove_logo_confirm": "Really remove the portal logo?",
         "portal_logo_help": "Logo for the portal (PNG, JPG, JPEG, GIF or SVG, max. 5MB)",
-        "save_button": "Save Changes",
-        "back_button": "Back",
-        "flash_updated": "System settings have been updated.",
         "default_accent_color_label": "Default accent color",
         "default_accent_color_help": "Default accent color for new users. Users can change this later in their settings.",
+        "preview": "Preview",
         "color_gradient_label": "Gradient for Login/Register",
         "color_gradient_help": "Choose a gradient for the login and registration pages.",
         "color_gradient_default": "Default (Blue-Violet)",
@@ -1016,15 +1264,108 @@
         "color_gradient_rose_pastel": "Rose-Pastel",
         "color_gradient_orange_pastel": "Orange-Pastel",
         "timezone_label": "Timezone",
-        "timezone_help": "Global timezone for timestamps in the portal and emails."
+        "timezone_help": "Global timezone for timestamps in the portal and emails.",
+        "save_button": "Save Changes",
+        "back_button": "Back",
+        "flash_updated": "System settings have been updated.",
+        "flash_logo_uploaded": "Portal logo has been uploaded.",
+        "flash_logo_removed": "Portal logo has been removed.",
+        "flash_logo_too_large": "Logo too large ({size:.1f} MB). Maximum 5 MB allowed.",
+        "flash_logo_invalid_type": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, SVG."
       },
       "booking_forms": {
+        "page_title": "Booking forms - Administration",
+        "heading": "Booking forms",
+        "subtitle": "Create forms, manage fields and approval roles, configure PDF application text.",
+        "list_title": "Forms",
+        "create": "New form",
+        "edit": "Edit",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this form? All related requests will be removed.",
+        "empty": "No booking forms yet.",
+        "status_active": "Active",
+        "status_inactive": "Inactive",
+        "requests_count": "{count} requests",
+        "created": "Created",
+        "create_heading": "New form",
+        "create_subtitle": "Title, PDF text, fields and roles on one page.",
+        "edit_heading": "Edit form",
+        "edit_subtitle": "Basics, PDF, integration, fields and approval roles.",
+        "draft_title": "New form",
+        "section_basics": "Basics",
+        "section_pdf": "PDF",
+        "section_integration": "Integration",
+        "section_logo": "Optional 2nd logo",
+        "section_fields": "Extra fields",
+        "section_roles": "Approval roles",
+        "title_label": "Title",
+        "description_label": "Description",
+        "archive_days_label": "Archive (days)",
+        "archive_days_help": "After how many days past events are archived.",
+        "enable_mailbox": "Enable mailbox",
+        "enable_shared_folder": "Enable shared folder",
+        "is_active": "Form is active",
+        "pdf_text_label": "PDF application text",
+        "pdf_footer_label": "PDF extra text (optional)",
+        "pdf_footer_help": "Appears above the portal standard footer.",
+        "pdf_placeholders_hint": "Click to insert. Line breaks are kept.",
+        "pdf_ph_name": "Name",
+        "pdf_ph_email": "Email",
+        "pdf_ph_applicant": "Applicant (name)",
+        "pdf_ph_event": "Event name",
+        "pdf_ph_time": "Time range",
+        "pdf_ph_status": "Status",
+        "pdf_ph_role": "Role {n}",
+        "logo_upload": "Upload logo",
+        "logo_delete": "Delete logo",
+        "logo_delete_confirm": "Really delete the optional 2nd logo?",
+        "fields_empty": "No extra fields yet.",
+        "field_add": "Add field",
+        "field_edit": "Edit field",
+        "field_type": "Field type",
+        "field_label": "Label",
+        "field_name": "Internal name",
+        "field_name_help": "Empty = generated from label",
+        "field_placeholder": "Placeholder",
+        "field_options": "Options (one per line)",
+        "field_required": "Required",
+        "field_required_badge": "Required",
+        "field_delete_confirm": "Really delete this field?",
+        "field_type_text": "Text",
+        "field_type_textarea": "Multiline text",
+        "field_type_date": "Date",
+        "field_type_number": "Number",
+        "field_type_select": "Select (dropdown)",
+        "field_type_checkbox": "Checkbox",
+        "roles_empty": "No approval roles yet.",
+        "role_add": "Add role",
+        "role_edit": "Edit role",
+        "role_name": "Role name",
+        "role_required": "Approval required",
+        "role_required_badge": "Required",
+        "role_optional_badge": "Optional",
+        "role_users_badge": "{count} users",
+        "role_users": "Users for role",
+        "role_users_select": "Select users",
+        "role_users_help": "Multi-select with Ctrl/Cmd",
+        "role_delete_confirm": "Really delete this role?",
+        "save": "Save",
+        "add": "Add",
+        "cancel": "Cancel",
         "flash_unauthorized": "Only administrators have access to this page.",
         "flash_title_required": "Please enter a title.",
         "flash_form_created": "Form \"{title}\" has been created.",
         "flash_form_updated": "Form \"{title}\" has been updated.",
         "flash_form_deleted": "Form \"{title}\" has been deleted.",
-        "flash_status_updated": "Status has been updated."
+        "flash_status_updated": "Status has been updated.",
+        "flash_field_label_required": "Label is required.",
+        "flash_field_added": "Field \"{label}\" has been added.",
+        "flash_field_updated": "Field \"{label}\" has been updated.",
+        "flash_field_deleted": "Field \"{label}\" has been deleted.",
+        "flash_role_name_required": "Role name is required.",
+        "flash_role_added": "Role \"{name}\" has been added.",
+        "flash_role_updated": "Role has been updated.",
+        "flash_role_deleted": "Role has been deleted."
       },
       "email_footer": {
         "flash_saved": "Email footer has been successfully saved."
@@ -1038,15 +1379,106 @@
         "flash_saved": "Music module settings have been saved."
       },
       "roles": {
+        "page_title": "Default roles - Administration",
+        "heading": "Default roles",
+        "subtitle": "Access for newly created users",
+        "full_access_title": "Full access",
+        "full_access_toggle": "Full access as default",
+        "full_access_help": "New users automatically get access to all modules.",
+        "modules_title": "Module-specific default roles",
+        "modules_help": "Only used when full access is off. Select modules as pills.",
+        "full_access_active_hint": "Full access is on — all modules are enabled.",
         "flash_default_saved": "Default roles have been successfully saved."
       },
       "inventory": {
-        "flash_saved": "Inventory management settings have been saved."
+        "flash_saved": "Inventory management settings have been saved.",
+        "page_title": "Inventory Settings - Administration",
+        "heading": "Inventory Settings",
+        "subtitle": "Texts for public product pages and QR code scans.",
+        "public_title": "Public product pages",
+        "public_lead": "Shown on the public product page when a QR code is scanned.",
+        "ownership_label": "Ownership text",
+        "ownership_placeholder": "e.g. Property of Technical Department",
+        "ownership_help": "This text appears prominently on public product pages.",
+        "save": "Save"
       },
       "email_settings": {
         "flash_saved": "Email settings have been saved."
       },
+      "email_module": {
+        "page_title": "Email Module Settings - Administration",
+        "heading": "Email Module Settings",
+        "subtitle": "Test connections, manage storage, and configure the footer.",
+        "save": "Save",
+        "test": {
+          "title": "Connection test",
+          "hint": "SMTP sends a test email. IMAP only checks the incoming connection.",
+          "lead": "SMTP test goes to {email}. Result shows a check or X.",
+          "smtp_label": "SMTP (Outgoing)",
+          "smtp_help": "Send test email",
+          "imap_label": "IMAP (Incoming)",
+          "imap_help": "Check inbox connection",
+          "run": "Test",
+          "run_both": "Test both",
+          "status_idle": "Not tested yet",
+          "status_running": "Testing…",
+          "status_ok": "Success",
+          "status_fail": "Failed",
+          "error_generic": "Test failed. Please try again.",
+          "smtp_subject": "Test email - Prismateams",
+          "smtp_body": "This is a test email from Prismateams.",
+          "smtp_incomplete": "SMTP configuration incomplete (server, user or password missing).",
+          "smtp_ok": "SMTP ok — test email sent to {email}.",
+          "smtp_fail": "SMTP failed: {error}",
+          "imap_incomplete": "IMAP configuration incomplete (server, user or password missing).",
+          "imap_placeholder": "IMAP still contains placeholder values (e.g. example.com).",
+          "imap_inbox_fail": "Login ok, but INBOX could not be opened.",
+          "imap_ok": "IMAP ok — connected to {server}:{port}.",
+          "imap_fail": "IMAP failed: {error}"
+        },
+        "system": {
+          "title": "System",
+          "storage_label": "Retention (days)",
+          "storage_help": "0 = unlimited. Older emails are deleted automatically.",
+          "sync_label": "Sync interval",
+          "sync_help": "Automatic IMAP sync.",
+          "sync_15": "15 minutes",
+          "sync_30": "30 minutes",
+          "sync_60": "60 minutes"
+        },
+        "footer": {
+          "title": "Email footer",
+          "vars_label": "Variables",
+          "vars_help": "Placeholders are replaced when sending. Click a chip to insert it.",
+          "ph_user": "Username",
+          "ph_email": "Email address",
+          "ph_app_name": "App name",
+          "ph_date": "Date",
+          "ph_time": "Time",
+          "template_label": "Footer template",
+          "template_placeholder": "Footer text with optional variables…",
+          "preview_label": "Preview"
+        }
+      },
       "backup": {
+        "page_title": "Import/Export - Administration",
+        "heading": "Import / Export",
+        "subtitle": "Create and restore .prismateams backups. Merge/upsert — existing data is added or updated.",
+        "export_title": "Export",
+        "export_lead": "Select categories and download a backup.",
+        "import_title": "Import",
+        "import_lead": "Upload a backup file and choose categories.",
+        "categories_label": "Categories",
+        "select_all": "All",
+        "select_none": "None",
+        "file_label": "Backup file",
+        "file_help": "Only .prismateams files.",
+        "export_hint": "Format .prismateams (JSON). User passwords as hashes. Version 1.1 (1.0 accepted on import).",
+        "credentials_warn": "Credentials are stored in plaintext in the backup file. Keep the file secure.",
+        "import_warn": "Import adds or updates data. IDs are remapped. Create a current backup first.",
+        "import_confirm": "Really import this backup? Existing data may be overwritten or merged.",
+        "export_submit": "Create backup",
+        "import_submit": "Import backup",
         "flash_no_export_categories": "Please select at least one category to export.",
         "flash_export_error": "Error creating backup.",
         "flash_export_error_detail": "Error creating backup: {error}",
@@ -1054,9 +1486,73 @@
         "flash_invalid_extension": "Invalid file extension. Please select a .prismateams file.",
         "flash_no_import_categories": "Please select at least one category to import.",
         "flash_import_success": "Backup successfully imported! Imported categories: {categories}",
-        "flash_import_error": "Error importing backup: {error}"
+        "flash_import_error": "Error importing backup: {error}",
+        "categories": {
+          "settings": "Settings",
+          "users": "Users",
+          "emails": "Emails",
+          "appointments": "Appointments",
+          "credentials": "Credentials",
+          "files": "Files",
+          "wiki": "Wiki",
+          "comments": "Comments",
+          "inventory": "Inventory",
+          "manuals": "Manuals",
+          "chats": "Chats",
+          "contacts": "Contacts",
+          "events": "Events",
+          "booking": "Booking",
+          "music": "Music",
+          "media_downloader": "Media Downloader",
+          "assessment": "Assessment",
+          "shortlinks": "Short links"
+        },
+        "helps": {
+          "settings": "System settings, module flags and whitelist.",
+          "users": "Users including guests, module roles, layout/language. Password hashes. No 2FA secrets.",
+          "emails": "Messages, attachments and email permissions.",
+          "appointments": "Calendars, events, participants, sync sources and public feeds.",
+          "credentials": "Website credentials — passwords in plaintext in the backup.",
+          "files": "Folders, files, versions, shares, ACL and favorites.",
+          "wiki": "Pages, categories, tags and versions.",
+          "comments": "Comments, mentions and threads.",
+          "inventory": "Products, folders, sets, loans and stocktakes.",
+          "manuals": "Manuals and related files.",
+          "chats": "Chats, members, messages and pins. Main chat is merged.",
+          "contacts": "Contacts.",
+          "events": "Portal events including appointments, assignments, needs and timeline.",
+          "booking": "Booking forms, fields, roles and requests.",
+          "music": "Music settings, wishes and queue (without provider secrets where possible).",
+          "media_downloader": "Download job metadata.",
+          "assessment": "Assessment: lists, criteria, evaluations and related data.",
+          "shortlinks": "Short links."
+        }
       },
       "whitelist": {
+        "page_title": "Whitelist - Administration",
+        "heading": "Whitelist",
+        "subtitle": "Email addresses and domains on the whitelist are activated automatically on registration.",
+        "list_title": "Entries",
+        "add_title": "Add",
+        "type_label": "Type",
+        "type_email": "Email",
+        "type_domain": "Domain",
+        "entry_label": "Entry",
+        "entry_placeholder": "e.g. user@example.com or @example.com",
+        "description_label": "Description (optional)",
+        "description_placeholder": "e.g. School teachers",
+        "add_submit": "Add",
+        "badge_email": "Email",
+        "badge_domain": "Domain",
+        "badge_active": "Active",
+        "badge_inactive": "Inactive",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this whitelist entry?",
+        "empty": "No whitelist entries yet.",
+        "tooltip_system": "Whitelist entries are approved automatically during registration.",
+        "tooltip_entry": "Email: exact address. Domain: with @, e.g. @school.edu — all addresses on that domain.",
         "flash_invalid_entry": "Please enter a valid entry and type.",
         "flash_invalid_email": "Please enter a valid email address.",
         "flash_entry_added": "Whitelist entry \"{entry}\" has been added.",
@@ -1168,7 +1664,18 @@
         "index": "Chats",
         "current": "New Chat"
       },
-      "heading": "Create New Chat",
+      "heading": "New Chat",
+      "pick_member_hint": "Tap a person to start chatting right away.",
+      "new_group": "New group",
+      "members_heading": "Portal members",
+      "members_empty": "No other members available.",
+      "back_to_members": "Back",
+      "group_step_heading": "New group",
+      "group_step_hint": "Pick members on the left, set details on the right.",
+      "avatar": {
+        "label": "Group photo",
+        "help": "Optional — you can also set this later."
+      },
       "form": {
         "chat_type": {
           "label": "Chat Type",
@@ -1176,7 +1683,7 @@
           "private": "Private Chat"
         },
         "chat_name": {
-          "label": "Chat Name",
+          "label": "Group name",
           "placeholder": "e.g. Project Team"
         },
         "members": {
@@ -1187,13 +1694,23 @@
         },
         "buttons": {
           "submit": "Create chat",
+          "create_group": "Create group",
           "cancel": "Cancel"
         },
         "alerts": {
           "select_private": "Please select a person for the private chat.",
           "enter_name": "Please enter a chat name.",
           "select_members": "Please select at least one member."
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Optional: What is this group about?",
+          "help": "Optional"
         }
+      },
+      "search": {
+        "placeholder": "Search people...",
+        "empty": "No people found."
       }
     },
     "flash": {
@@ -1405,6 +1922,9 @@
           "choose_modes": "Select at least one link type.",
           "mode_view": "View link",
           "mode_edit": "Edit link",
+          "mode_dropbox": "Mailbox",
+          "manage_title": "Shares",
+          "dropbox_hint": "Choose type “Mailbox” to create an upload link for this folder.",
           "link_inactive": "inactive",
           "create_link_button": "Create link",
           "disable_link_button": "Disable link",
@@ -1452,6 +1972,16 @@
       "errors": {
         "file_type_not_supported": "File type not supported"
       }
+    },
+    "view": {
+      "download": "Download",
+      "close": "Close",
+      "edit": "Edit",
+      "media_unsupported": "This browser cannot play this format. Please download the file.",
+      "image_preview_alt": "Image preview",
+      "image_fullscreen_hint": "Click for fullscreen",
+      "video_label": "Video",
+      "audio_label": "Audio"
     },
     "onlyoffice": {
       "back_button_label": "Back"
@@ -1939,6 +2469,15 @@
       "buttons": {
         "submit": "Create event",
         "cancel": "Cancel"
+      },
+      "subtitle": "Set title, time and details.",
+      "sections": {
+        "basics": "Details",
+        "time": "Time",
+        "appearance": "Appearance",
+        "recurrence": "Recurrence",
+        "calendar": "Calendar & invites",
+        "invitees": "Invites"
       }
     },
     "view": {
@@ -1999,7 +2538,8 @@
       "buttons": {
         "submit": "Save changes",
         "cancel": "Cancel"
-      }
+      },
+      "subtitle": "Edit and save this event."
     },
     "flash": {
       "fill_all_fields": "Please fill in all required fields.",
@@ -2100,7 +2640,8 @@
       "sync_delete": "Delete",
       "sync_delete_confirm": "Really delete this sync and all related events?",
       "sync_empty": "No sync links yet. Any user can add one — visible to everyone."
-    }
+    },
+    "back_to_calendar": "Back to calendar"
   },
   "email": {
     "index": {
@@ -3140,6 +3681,8 @@
       "breadcrumb_admin": "Administration",
       "breadcrumb_music": "Music Module Settings",
       "heading": "Music Module Settings",
+      "subtitle": "Enable providers, set search order, and manage credentials.",
+      "copy_uri": "Copy URI",
       "spotify": {
         "title": "Spotify OAuth Configuration",
         "client_id": "Spotify Client ID",
@@ -3195,6 +3738,11 @@
       "musicbrainz": {
         "title": "MusicBrainz",
         "description": "MusicBrainz requires no configuration. It is a public API without authentication."
+      },
+      "display_settings": {
+        "title": "Display settings",
+        "show_provider_badges": "Show provider badges and tags",
+        "show_provider_badges_help": "When enabled, search results show badges (e.g. Spotify, Deezer) and tags. When disabled, they are hidden."
       }
     },
     "flash": {
@@ -3430,7 +3978,15 @@
       "enter_portal_name": "Please enter a portal name.",
       "completed_emoji": "🎉 Setup successfully completed! Welcome to your team portal.",
       "add_users_info": "You can now add more users via the settings.",
-      "admin_account_created": "Your administrator account has been created and you are automatically logged in."
+      "admin_account_created": "Your administrator account has been created and you are automatically logged in.",
+      "completed_summary": "Setup complete. Your admin account is ready — you can add more users in Settings."
+    },
+    "import_backup": {
+      "page_title": "Import backup - Setup",
+      "heading": "Import backup",
+      "hint": "If you already have a backup, you can import it now. Missing data can be created in setup. You can also skip this step.",
+      "skip": "Skip",
+      "back": "Back to setup"
     }
   },
   "media_downloader": {
@@ -3519,6 +4075,42 @@
       "invalid_batch_item": "Invalid item in the download list.",
       "cancelled": "Download was cancelled.",
       "cancelling": "Download is being cancelled…"
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Team chat",
+      "body_one": "1 new message",
+      "body_many": "{count} new messages"
+    },
+    "file": {
+      "new_title": "New file",
+      "new_body": "{name} was uploaded",
+      "modified_title": "File updated",
+      "modified_body": "{name} was updated"
+    },
+    "email": {
+      "title": "New email",
+      "body_one": "1 unread email",
+      "body_many": "{count} unread emails"
+    },
+    "calendar": {
+      "reminder_title": "Event reminder",
+      "reminder_body": "{title} starts {time_text} ({date} at {time})",
+      "in_minutes": "in {count} minutes",
+      "in_hour_one": "in 1 hour",
+      "in_hours": "in {count} hours",
+      "in_day_one": "in 1 day",
+      "in_days": "in {count} days"
+    },
+    "booking": {
+      "request_title": "New booking request",
+      "request_body": "{event} – {applicant}"
+    },
+    "push": {
+      "test_title": "Test notification",
+      "test_body": "Test from {portal_name}. Push works."
     }
   }
 }

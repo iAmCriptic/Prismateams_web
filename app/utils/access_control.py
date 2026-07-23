@@ -100,12 +100,8 @@ def get_accessible_modules(user):
     """
     # Hauptadministrator und Administrator haben Zugriff auf alle aktivierten Module
     if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
-        all_modules = [
-            'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_media_downloader', 'module_assessment', 'module_shortlinks',
-        ]
-        return [m for m in all_modules if is_module_enabled(m)]
+        from app.utils.common import AVAILABLE_MODULES
+        return [m for m in AVAILABLE_MODULES if is_module_enabled(m)]
     
     # Gast-Accounts haben nie Vollzugriff und keinen Zugriff auf E-Mail und Credentials
     is_guest = hasattr(user, 'is_guest') and user.is_guest
@@ -118,27 +114,21 @@ def get_accessible_modules(user):
         has_full_access = True
     
     if has_full_access and not is_guest:
-        all_modules = [
-            'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_media_downloader', 'module_assessment', 'module_shortlinks',
-        ]
-        return [m for m in all_modules if is_module_enabled(m)]
+        from app.utils.common import AVAILABLE_MODULES
+        return [m for m in AVAILABLE_MODULES if is_module_enabled(m)]
     
     # Prüfe modulspezifische Rollen
     accessible_modules = []
     # Gast-Accounts haben keinen Zugriff auf E-Mail und Credentials
     if is_guest:
         all_modules = [
-            'module_chat', 'module_files', 'module_calendar',
-            'module_manuals', 'module_inventory', 'module_wiki', 'module_music', 'module_media_downloader', 'module_assessment', 'module_shortlinks'
+            'module_chat', 'module_files', 'module_calendar', 'module_events',
+            'module_manuals', 'module_inventory', 'module_wiki', 'module_music',
+            'module_media_downloader', 'module_assessment', 'module_shortlinks',
         ]
     else:
-        all_modules = [
-            'module_chat', 'module_files', 'module_calendar', 'module_email',
-            'module_contacts', 'module_credentials', 'module_manuals',
-            'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_media_downloader', 'module_assessment', 'module_shortlinks',
-        ]
+        from app.utils.common import AVAILABLE_MODULES
+        all_modules = list(AVAILABLE_MODULES)
     
     for module_key in all_modules:
         if is_module_enabled(module_key):

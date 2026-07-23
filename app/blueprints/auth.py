@@ -86,6 +86,12 @@ def _finalize_portal_login(user, remember=False, next_page=None):
     if remember:
         session.permanent = True
 
+    from app.blueprints.setup import is_setup_needed
+    if is_setup_needed():
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for('setup.setup'))
+
     # Redirect to next page or dashboard
     if next_page:
         return redirect(next_page)
@@ -263,12 +269,18 @@ def register():
 @limiter.limit("5 per 15 minutes")
 def login():
     """User login mit Rate Limiting."""
-    # Prüfe ob Setup nötig ist
+    # Prüfe ob Setup nötig ist (ohne bestehenden Admin → Setup; mit Admin → Login erlauben)
     from app.blueprints.setup import is_setup_needed
-    if is_setup_needed():
+    from app.models.user import User
+    if is_setup_needed() and User.query.count() == 0:
         return redirect(url_for('setup.setup'))
     
     if current_user.is_authenticated:
+        if is_setup_needed():
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('setup.setup'))
         return redirect(url_for('dashboard.index'))
     
     # Alte 2FA-Pending-Session bereinigen, wenn der Login neu gestartet wird
@@ -471,27 +483,11 @@ def resend_confirmation():
 @auth_bp.route('/admin/show-confirmation-codes')
 @login_required
 def show_confirmation_codes():
-    """Zeigt alle ausstehenden Bestätigungscodes an (Admin only)."""
+    """Legacy: Bestätigungscodes sind in der Benutzerverwaltung."""
     if not current_user.is_admin:
         flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
-    
-    from app.models.user import User
-    
-    # Hole alle Benutzer mit ausstehenden Bestätigungen
-    pending_users = User.query.filter(
-        User.is_email_confirmed == False,
-        User.confirmation_code.isnot(None)
-    ).all()
-    
-    # Filtere abgelaufene Codes
-    current_time = datetime.utcnow()
-    valid_users = []
-    for user in pending_users:
-        if user.confirmation_code_expires and user.confirmation_code_expires > current_time:
-            valid_users.append(user)
-    
-    return render_template('auth/admin_confirmation_codes.html', users=valid_users)
+    return redirect(url_for('settings.admin_users') + '#confirmation-codes')
 
 
 @auth_bp.route('/admin/test-email', methods=['GET', 'POST'])

@@ -123,20 +123,28 @@ def _build_calendar_message_metadata(event, current_user_status='pending'):
 def index():
     """List chats (mobile) or redirect to main chat (desktop shell)."""
     # Fresh installs: Haupt-Chat may exist before admin — self-heal membership
-    ensure_user_in_main_chat(current_user)
+    membership = ensure_user_in_main_chat(current_user)
+    main_chat = get_main_chat()
 
     # ?list=1 forces the list view and breaks desktop redirect loops
     force_list = request.args.get('list') == '1'
-    if not force_list and wants_desktop_chat_layout(current_user, request):
-        main_chat = get_main_chat()
-        if main_chat and user_is_chat_member(current_user, main_chat.id):
+    if not force_list and wants_desktop_chat_layout(current_user, request) and main_chat:
+        is_member = bool(membership) or user_is_chat_member(current_user, main_chat.id)
+        if is_member:
             return redirect(url_for('chat.view_chat', chat_id=1))
 
     nav_items = build_chat_nav_items(current_user)
+    preferred = (getattr(current_user, 'preferred_layout', None) or 'auto').strip().lower()
+    # Client fallback only when layout is auto/desktop — never override explicit mobile preference
+    desktop_main_chat_url = None
+    if main_chat and preferred != 'mobile':
+        desktop_main_chat_url = url_for('chat.view_chat', chat_id=1)
+
     return render_template(
         'chat/index.html',
         nav_items=nav_items,
         active_chat_id=None,
+        desktop_main_chat_url=desktop_main_chat_url,
     )
 
 
@@ -531,25 +539,41 @@ def create_chat():
         else:
             # Gruppen-Chat
             name = request.form.get('name', '').strip()
+            description = request.form.get('description', '').strip() or None
             member_ids = request.form.getlist('members')
             
             if not name:
                 flash(translate('chat.flash.enter_name'), 'danger')
-                return redirect(url_for('chat.create_chat'))
+                return redirect(url_for('chat.create_chat', step='group'))
             
             if not member_ids:
                 flash(translate('chat.flash.select_member'), 'danger')
-                return redirect(url_for('chat.create_chat'))
+                return redirect(url_for('chat.create_chat', step='group'))
             
             # Create new group chat
             new_chat = Chat(
                 name=name,
+                description=description,
                 is_main_chat=False,
                 is_direct_message=False,
                 created_by=current_user.id
             )
             db.session.add(new_chat)
             db.session.flush()
+
+            # Optional group avatar (same pattern as update_chat)
+            if 'avatar' in request.files:
+                avatar_file = request.files['avatar']
+                if avatar_file and avatar_file.filename and allowed_file(avatar_file.filename):
+                    filename = secure_filename(avatar_file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{filename}"
+                    project_root = os.path.dirname(current_app.root_path)
+                    avatar_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'chat', 'avatars')
+                    os.makedirs(avatar_dir, exist_ok=True)
+                    filepath = os.path.join(avatar_dir, filename)
+                    avatar_file.save(filepath)
+                    new_chat.group_avatar = filename
             
             # Add creator as member
             creator_member = ChatMember(
@@ -578,8 +602,15 @@ def create_chat():
             return redirect(url_for('chat.view_chat', chat_id=new_chat.id))
     
     # Get all selectable users for chat creation, including guests.
-    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).all()
-    return render_template('chat/create.html', users=users)
+    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).order_by(User.first_name, User.last_name).all()
+    group_step = request.args.get('step') == 'group'
+    return render_template(
+        'chat/create.html',
+        users=users,
+        group_step=group_step,
+        nav_items=build_chat_nav_items(current_user),
+        active_chat_id=None,
+    )
 
 
 @chat_bp.route('/direct/<int:user_id>')

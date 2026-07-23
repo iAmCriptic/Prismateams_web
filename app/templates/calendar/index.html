@@ -3,6 +3,8 @@
 {% block title %}{{ _('calendar.index.page_title') }}{% endblock %}
 
 {% block content %}
+{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu, calendar_view_pills with context %}
+
 {% set calendar_multi_enabled = calendar_multi_enabled|default(false) %}
 {% set calendar_export_enabled = calendar_export_enabled|default(true) %}
 {% set calendar_import_enabled = calendar_import_enabled|default(true) %}
@@ -11,92 +13,8 @@
 {% set can_create_focus = can_create_focus|default(true) %}
 {% set sc = sidebar_calendars|default(none) %}
 
-<div class="calendar-shell {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
-{% if calendar_multi_enabled and sc %}
-<aside class="calendar-sidebar d-none d-lg-flex flex-column">
-    <div class="calendar-sidebar-brand">
-        <i class="bi bi-calendar-event" aria-hidden="true"></i>
-        <span>{{ _('calendar.sidebar.brand') }}</span>
-    </div>
-    <a class="btn calendar-sidebar-new w-100 text-start mb-2" href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}">
-        <i class="bi bi-plus-lg me-2"></i>{{ _('calendar.sidebar.new_event') }}
-    </a>
-    <div class="calendar-sidebar-actions d-flex align-items-center gap-1 mb-3">
-        <button type="button" class="btn calendar-sidebar-reset flex-grow-1" id="calendarResetBtnDesktop">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
-        </button>
-        {% if calendar_export_enabled or calendar_import_enabled %}
-        <div class="dropdown">
-            <button type="button" class="btn calendar-sidebar-more" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('calendar.index.dropdown.toggle') }}">
-                <i class="bi bi-three-dots-vertical"></i>
-            </button>
-            <ul class="dropdown-menu">
-                {% if calendar_export_enabled %}
-                <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
-                {% endif %}
-                {% if calendar_import_enabled %}
-                <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
-                {% endif %}
-                {% if calendar_export_enabled %}
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
-                {% endif %}
-            </ul>
-        </div>
-        {% endif %}
-    </div>
-    <nav class="calendar-sidebar-nav nav flex-column gap-1" id="calendarSidebarNav">
-        {% macro cal_nav_item(cal, label=none) %}
-        <div class="calendar-nav-item d-flex align-items-center gap-2" data-calendar-id="{{ cal.id }}" data-calendar-name="{{ label or cal.name }}" data-calendar-type="{{ cal.calendar_type }}">
-            <input class="form-check-input calendar-visibility-check flex-shrink-0" type="checkbox" value="{{ cal.id }}" id="calCheck{{ cal.id }}" {% if cal.id in selected_calendar_ids %}checked{% endif %}>
-            <label class="nav-link calendar-nav-link flex-grow-1 mb-0 {% if focus_calendar_id == cal.id %}active{% endif %}" for="calCheck{{ cal.id }}">
-                <span class="calendar-color-dot" style="background:{{ cal.color }}"></span>
-                {{ label or cal.name }}
-            </label>
-            {% if cal.can_delete_calendar %}
-            <div class="dropdown">
-                <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-three-dots-vertical"></i></button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                        <form method="POST" action="{{ url_for('calendar.delete_imported_calendar', calendar_id=cal.id) }}" onsubmit="return confirm({{ _('calendar.sidebar.delete_confirm')|tojson }});">
-                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>{{ _('calendar.sidebar.delete_import') }}</button>
-                        </form>
-                    </li>
-                </ul>
-            </div>
-            {% endif %}
-        </div>
-        {% endmacro %}
-        {{ cal_nav_item(sc.personal, _('calendar.sidebar.my_calendar')) }}
-        {{ cal_nav_item(sc.public, _('calendar.sidebar.public')) }}
-        <hr class="my-2">
-        <div class="px-1 mb-2">
-            <input type="search" class="form-control form-control-sm" id="calendarPeopleSearch" placeholder="{{ _('calendar.sidebar.search') }}" autocomplete="off">
-        </div>
-        <div id="calendarOthersList">
-            {% for cal in sc.others %}
-            {{ cal_nav_item(cal) }}
-            {% endfor %}
-        </div>
-    </nav>
-</aside>
-
-<div class="offcanvas offcanvas-start calendar-mobile-offcanvas" tabindex="-1" id="calendarMobileNav" aria-labelledby="calendarMobileNavLabel">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="calendarMobileNavLabel">
-            <i class="bi bi-calendar-event" aria-hidden="true"></i>
-            <span>{{ _('calendar.sidebar.brand') }}</span>
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
-    </div>
-    <div class="offcanvas-body pt-0">
-        <button type="button" class="btn calendar-sidebar-reset w-100 mb-3" id="calendarResetBtnMobile">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
-        </button>
-        <div id="calendarMobileNavBody" class="calendar-sidebar-nav nav flex-column gap-1"></div>
-    </div>
-</div>
-{% endif %}
+<div class="calendar-shell calendar-shell--fill {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
+{{ calendar_sidebar(show_view_pills=true, interactive=true) }}
 
 <div class="calendar-main flex-grow-1 min-width-0">
 {% if calendar_multi_enabled and sc %}
@@ -112,25 +30,7 @@
             </h1>
         </div>
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
-            {% if calendar_export_enabled or calendar_import_enabled %}
-            <div class="dropdown">
-                <button type="button" class="btn calendar-mobile-more-btn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('calendar.index.dropdown.toggle') }}">
-                    <i class="bi bi-three-dots-vertical"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    {% if calendar_export_enabled %}
-                    <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
-                    {% endif %}
-                    {% if calendar_import_enabled %}
-                    <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
-                    {% endif %}
-                    {% if calendar_export_enabled %}
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
-                    {% endif %}
-                </ul>
-            </div>
-            {% endif %}
+            {{ calendar_more_menu(align_end=true) }}
             {% if sc %}
             <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn calendar-mobile-new-btn btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
@@ -139,65 +39,37 @@
         </div>
     </div>
 </div>
-{% endif %}
-<div class="row mb-3 page-toolbar-row align-items-start g-2">
-    {% if not calendar_multi_enabled %}
-    <div class="col min-width-0">
-        <h1 class="text-break"><i class="bi bi-calendar-event"></i> {{ _('calendar.index.heading') }}</h1>
-    </div>
-    {% endif %}
-    <div class="col-12 {% if not calendar_multi_enabled %}col-lg-auto ms-lg-auto{% endif %}">
-        <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
-        <div class="btn-group mb-0" role="group">
-            <button type="button" class="btn btn-accent active" id="monthViewBtn">
-                <i class="bi bi-calendar-month"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.month') }}</span>
-            </button>
-            <button type="button" class="btn btn-outline-accent" id="weekViewBtn">
-                <i class="bi bi-calendar-week"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.week') }}</span>
-            </button>
-            <button type="button" class="btn btn-outline-accent" id="dayViewBtn">
-                <i class="bi bi-calendar-day"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.day') }}</span>
-            </button>
-            <button type="button" class="btn btn-outline-accent" id="listViewBtn">
-                <i class="bi bi-list-ul"></i> <span class="d-none d-md-inline">{{ _('calendar.index.view_buttons.list') }}</span>
-            </button>
-        </div>
-        {% if not calendar_multi_enabled %}
-        <div class="btn-group" role="group">
+{% elif not calendar_multi_enabled %}
+<div class="calendar-mobile-topbar d-lg-none mb-2">
+    <div class="d-flex justify-content-between align-items-center gap-2">
+        <h1 class="h5 mb-0 text-truncate calendar-mobile-title">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span>{{ _('calendar.index.heading') }}</span>
+        </h1>
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+            {{ calendar_more_menu(align_end=true) }}
             {% if can_create_focus %}
-            <a href="{{ url_for('calendar.create_event') }}" class="btn btn-accent">
-                <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">{{ _('calendar.index.new_event') }}</span>
+            <a href="{{ url_for('calendar.create_event') }}" class="btn calendar-mobile-new-btn btn-sm">
+                <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
             </a>
             {% endif %}
-            {% if calendar_export_enabled or calendar_import_enabled %}
-            <button type="button" class="btn btn-accent dropdown-toggle {% if can_create_focus %}dropdown-toggle-split{% endif %}" data-bs-toggle="dropdown" aria-expanded="false">
-                <span class="visually-hidden">{{ _('calendar.index.dropdown.toggle') }}</span>
-                {% if not can_create_focus %}<i class="bi bi-three-dots"></i>{% endif %}
-            </button>
-            <ul class="dropdown-menu">
-                {% if calendar_export_enabled %}
-                <li><a class="dropdown-item" href="{{ url_for('calendar.export_calendar') }}"><i class="bi bi-download"></i> {{ _('calendar.index.dropdown.export') }}</a></li>
-                {% endif %}
-                {% if calendar_import_enabled %}
-                <li><a class="dropdown-item" href="{{ url_for('calendar.import_calendar') }}"><i class="bi bi-upload"></i> {{ _('calendar.index.dropdown.import') }}</a></li>
-                {% endif %}
-                {% if calendar_export_enabled %}
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('calendar.manage_feeds') }}"><i class="bi bi-calendar2-plus"></i> {{ _('calendar.index.dropdown.feeds') }}</a></li>
-                {% endif %}
-            </ul>
-            {% endif %}
         </div>
-        {% endif %}
+    </div>
+</div>
+{% endif %}
+<div class="row mb-3 page-toolbar-row align-items-start g-2 d-lg-none">
+    <div class="col-12">
+        <div class="d-flex flex-wrap align-items-center gap-2 w-100">
+            {{ calendar_view_pills(variant='toolbar', with_ids=false) }}
         </div>
     </div>
 </div>
 
 <!-- Monatsansicht -->
 <div id="monthView" class="calendar-view" style="display: flex;">
-    <div class="row mb-2 calendar-view-nav flex-shrink-0">
+    <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
         <div class="col-auto">
-            <button class="btn btn-outline-secondary" id="prevMonth">
+            <button type="button" class="btn calendar-nav-arrow" id="prevMonth" aria-label="{{ _('calendar.index.view_buttons.month') }}">
                 <i class="bi bi-chevron-left"></i>
             </button>
         </div>
@@ -205,7 +77,7 @@
             <h3 id="currentMonth" class="mb-0"></h3>
         </div>
         <div class="col-auto">
-            <button class="btn btn-outline-secondary" id="nextMonth">
+            <button type="button" class="btn calendar-nav-arrow" id="nextMonth" aria-label="{{ _('calendar.index.view_buttons.month') }}">
                 <i class="bi bi-chevron-right"></i>
             </button>
         </div>
@@ -279,17 +151,17 @@
 
 <!-- Wochenansicht -->
 <div id="weekView" class="calendar-view" style="display: none;">
-    <div class="row mb-2 calendar-view-nav flex-shrink-0">
-        <div class="col">
-            <h4 id="weekTitle" class="mb-0">{{ _('calendar.index.week.title_prefix') }}</h4>
+    <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
+        <div class="col min-width-0">
+            <h4 id="weekTitle" class="mb-0 text-truncate">{{ _('calendar.index.week.title_prefix') }}</h4>
         </div>
         <div class="col-auto">
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-outline-primary" id="prevWeekBtn">
+            <div class="calendar-nav-arrows" role="group">
+                <button type="button" class="btn calendar-nav-arrow" id="prevWeekBtn" aria-label="prev">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <button type="button" class="btn btn-outline-primary" id="todayWeekBtn">{{ _('calendar.index.week.today') }}</button>
-                <button type="button" class="btn btn-outline-primary" id="nextWeekBtn">
+                <button type="button" class="btn calendar-nav-today" id="todayWeekBtn">{{ _('calendar.index.week.today') }}</button>
+                <button type="button" class="btn calendar-nav-arrow" id="nextWeekBtn" aria-label="next">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -300,17 +172,17 @@
 
 <!-- Tagesansicht -->
 <div id="dayView" class="calendar-view" style="display: none;">
-    <div class="row mb-2 calendar-view-nav flex-shrink-0">
-        <div class="col">
-            <h4 id="dayTitle" class="mb-0">{{ _('calendar.index.day.title') }}</h4>
+    <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
+        <div class="col min-width-0">
+            <h4 id="dayTitle" class="mb-0 text-truncate">{{ _('calendar.index.day.title') }}</h4>
         </div>
         <div class="col-auto">
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-outline-primary" id="prevDayBtn">
+            <div class="calendar-nav-arrows" role="group">
+                <button type="button" class="btn calendar-nav-arrow" id="prevDayBtn" aria-label="prev">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <button type="button" class="btn btn-outline-primary" id="todayDayBtn">{{ _('calendar.index.day.today') }}</button>
-                <button type="button" class="btn btn-outline-primary" id="nextDayBtn">
+                <button type="button" class="btn calendar-nav-today" id="todayDayBtn">{{ _('calendar.index.day.today') }}</button>
+                <button type="button" class="btn calendar-nav-arrow" id="nextDayBtn" aria-label="next">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -331,6 +203,28 @@ const CAL_SELECTED_IDS = {{ selected_calendar_ids|tojson }};
 const CAL_STORAGE_KEY = 'pt_calendar_selected_ids';
 const CURRENT_LANG = "{{ current_language }}";
 const LOCALE_MAP = { "de": "de-DE", "en": "en-US", "es": "es-ES", "pt": "pt-PT", "ru": "ru-RU" };
+
+function formatLocalDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function isBannerEvent(event) {
+    if (event.is_all_day) return true;
+    if (event.duration_days && event.duration_days > 1) return true;
+    if (!event.time || event.time === 'Ganztägig') return true;
+    return false;
+}
+
+function getEventHour(event) {
+    if (!event.start_time) return 0;
+    const m = String(event.start_time).match(/T(\d{2}):/);
+    if (m) return parseInt(m[1], 10);
+    const d = new Date(event.start_time);
+    return isNaN(d.getTime()) ? 0 : d.getHours();
+}
 
 function getSelectedCalendarIds() {
     if (!CAL_MULTI) return [];
@@ -581,10 +475,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // View Toggle
-    const monthViewBtn = document.getElementById('monthViewBtn');
-    const weekViewBtn = document.getElementById('weekViewBtn');
-    const dayViewBtn = document.getElementById('dayViewBtn');
-    const listViewBtn = document.getElementById('listViewBtn');
     const monthView = document.getElementById('monthView');
     const weekView = document.getElementById('weekView');
     const dayView = document.getElementById('dayView');
@@ -594,6 +484,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const dayTitleElement = document.getElementById('dayTitle');
     const todayWeekBtn = document.getElementById('todayWeekBtn');
     const todayDayBtn = document.getElementById('todayDayBtn');
+    const viewMap = {
+        month: monthView,
+        week: weekView,
+        day: dayView,
+        list: listView
+    };
 
     if (todayWeekBtn) {
         todayWeekBtn.textContent = CAL_I18N.week?.today || todayWeekBtn.textContent;
@@ -601,44 +497,34 @@ document.addEventListener('DOMContentLoaded', function() {
     if (todayDayBtn) {
         todayDayBtn.textContent = CAL_I18N.day?.today || todayDayBtn.textContent;
     }
-    
-    function switchView(activeView, activeBtn) {
-        // Hide all views
-        monthView.style.display = 'none';
-        weekView.style.display = 'none';
-        dayView.style.display = 'none';
-        listView.style.display = 'none';
-        
-        // Remove active class from all buttons
-        [monthViewBtn, weekViewBtn, dayViewBtn, listViewBtn].forEach(btn => {
-            btn.classList.remove('active', 'btn-accent');
-            btn.classList.add('btn-outline-accent');
+
+    function setViewPillsActive(viewKey) {
+        document.querySelectorAll('[data-calendar-view]').forEach(function(btn) {
+            btn.classList.toggle('active', btn.getAttribute('data-calendar-view') === viewKey);
         });
-        
-        // Show active view and button (flex for fill-height layouts)
-        const useFlex = activeView === monthView || activeView === weekView || activeView === dayView;
-        activeView.style.display = useFlex ? 'flex' : 'block';
-        activeBtn.classList.add('active', 'btn-accent');
-        activeBtn.classList.remove('btn-outline-accent');
     }
-    
-    monthViewBtn.addEventListener('click', function() {
-        switchView(monthView, monthViewBtn);
-        updateCalendar(); // Regenerate calendar when switching back
-    });
-    
-    weekViewBtn.addEventListener('click', function() {
-        switchView(weekView, weekViewBtn);
-        generateWeekView();
-    });
-    
-    dayViewBtn.addEventListener('click', function() {
-        switchView(dayView, dayViewBtn);
-        generateDayView();
-    });
-    
-    listViewBtn.addEventListener('click', function() {
-        switchView(listView, listViewBtn);
+
+    function switchView(viewKey) {
+        const activeView = viewMap[viewKey];
+        if (!activeView) return;
+
+        Object.keys(viewMap).forEach(function(key) {
+            viewMap[key].style.display = 'none';
+        });
+
+        const useFlex = viewKey === 'month' || viewKey === 'week' || viewKey === 'day' || viewKey === 'list';
+        activeView.style.display = useFlex ? 'flex' : 'block';
+        setViewPillsActive(viewKey);
+    }
+
+    document.querySelectorAll('[data-calendar-view]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const viewKey = btn.getAttribute('data-calendar-view');
+            switchView(viewKey);
+            if (viewKey === 'month') updateCalendar();
+            else if (viewKey === 'week') generateWeekView();
+            else if (viewKey === 'day') generateDayView();
+        });
     });
     
     // Calendar Navigation
@@ -990,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let day = 0; day < daysToShow; day++) {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + day);
-            html += `<div class="week-multi-day-slot" data-date="${date.toISOString().split('T')[0]}"></div>`;
+            html += `<div class="week-multi-day-slot" data-date="${formatLocalDate(date)}"></div>`;
         }
         html += '</div>';
         
@@ -1002,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
             for (let day = 0; day < daysToShow; day++) {
                 const date = new Date(startDate);
                 date.setDate(startDate.getDate() + day);
-                html += `<div class="time-slot" data-date="${date.toISOString().split('T')[0]}" data-hour="${hour}"></div>`;
+                html += `<div class="time-slot" data-date="${formatLocalDate(date)}" data-hour="${hour}"></div>`;
             }
             html += '</div>';
         }
@@ -1016,26 +902,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function loadWeekEvents(startDate, endDate) {
         try {
-            const response = await fetch(`/calendar/api/events/range/${startDate.toISOString().split('T')[0]}/${endDate.toISOString().split('T')[0]}` + calendarQuerySuffix());
+            const response = await fetch(`/calendar/api/events/range/${formatLocalDate(startDate)}/${formatLocalDate(endDate)}` + calendarQuerySuffix());
             if (response.ok) {
                 const events = await response.json();
                 
-                // Separate single-day and multi-day events
-                const singleDayEvents = [];
-                const multiDayEvents = [];
+                // Separate timed vs banner (all-day / multi-day) events
+                const timedEvents = [];
+                const bannerEvents = [];
                 
                 events.forEach(event => {
-                    if (event.duration_days && event.duration_days > 1) {
-                        multiDayEvents.push(event);
+                    if (isBannerEvent(event)) {
+                        bannerEvents.push(event);
                     } else {
-                        singleDayEvents.push(event);
+                        timedEvents.push(event);
                     }
                 });
                 
-                // Handle single-day events - only in time slots
-                singleDayEvents.forEach(event => {
-                    const eventDate = new Date(event.start_time).toISOString().split('T')[0];
-                    const eventHour = new Date(event.start_time).getHours();
+                timedEvents.forEach(event => {
+                    const eventDate = event.start_date || formatLocalDate(new Date(event.start_time));
+                    const eventHour = getEventHour(event);
                     const timeSlot = document.querySelector(`.time-slot[data-date="${eventDate}"][data-hour="${eventHour}"]`);
                     
                     if (timeSlot) {
@@ -1055,29 +940,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                // Handle multi-day events - show in multi-day slot above 0:00
-                multiDayEvents.forEach(event => {
+                bannerEvents.forEach(event => {
                     const eventStartDate = new Date(event.start_date + 'T00:00:00');
                     const eventEndDate = new Date(event.end_date + 'T23:59:59');
                     const daysToShow = getDaysToShow();
                     
-                    // Show event on each day it spans within the visible period
                     for (let day = 0; day < daysToShow; day++) {
                         const currentDate = new Date(startDate);
                         currentDate.setDate(startDate.getDate() + day);
-                        const currentDateStr = currentDate.toISOString().split('T')[0];
+                        const currentDateStr = formatLocalDate(currentDate);
                         
-                        // Check if event spans this day
                         if (currentDate >= eventStartDate && currentDate <= eventEndDate) {
                             const multiDaySlot = document.querySelector(`.week-multi-day-slot[data-date="${currentDateStr}"]`);
                             
                             if (multiDaySlot) {
                                 const eventElement = document.createElement('div');
                                 eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
-                                const titleText = formatMultiDayTitle(event, currentDateStr);
+                                const titleText = (event.duration_days && event.duration_days > 1)
+                                    ? formatMultiDayTitle(event, currentDateStr)
+                                    : event.title;
                                 eventElement.textContent = titleText;
-                                eventElement.title = `${event.title} - ${event.start_date} bis ${event.end_date}${event.location ? ' - ' + event.location : ''}`;
-                                applyEventColors(eventElement, event.event_color, true);
+                                eventElement.title = formatTooltip(event);
+                                applyEventColors(eventElement, event.event_color, !!(event.duration_days && event.duration_days > 1));
                                 eventElement.onclick = () => window.location.href = event.url;
                                 multiDaySlot.appendChild(eventElement);
                             }
@@ -1128,49 +1012,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadDayEvents(date) {
         try {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = formatLocalDate(date);
             const response = await fetch(`/calendar/api/events/range/${dateStr}/${dateStr}` + calendarQuerySuffix());
             if (response.ok) {
                 const events = await response.json();
                 const multiDaySlot = document.getElementById('dayMultiDaySlot');
                 
-                // Separate single-day and multi-day events
-                const singleDayEvents = [];
-                const multiDayEvents = [];
+                const timedEvents = [];
+                const bannerEvents = [];
                 
                 events.forEach(event => {
                     const eventStartDate = new Date(event.start_date + 'T00:00:00');
                     const eventEndDate = new Date(event.end_date + 'T23:59:59');
                     const currentDate = new Date(dateStr + 'T00:00:00');
                     
-                    // Check if event spans this day
                     if (currentDate >= eventStartDate && currentDate <= eventEndDate) {
-                        if (event.duration_days && event.duration_days > 1) {
-                            multiDayEvents.push(event);
+                        if (isBannerEvent(event)) {
+                            bannerEvents.push(event);
                         } else {
-                            singleDayEvents.push(event);
+                            timedEvents.push(event);
                         }
                     }
                 });
                 
-                // Handle multi-day events - display above 0:00
-                multiDayEvents.forEach(event => {
-                    const titleText = formatMultiDayTitle(event, dateStr);
+                bannerEvents.forEach(event => {
+                    const titleText = (event.duration_days && event.duration_days > 1)
+                        ? formatMultiDayTitle(event, dateStr)
+                        : event.title;
                     
                     const eventElement = document.createElement('div');
                     eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
                     eventElement.textContent = titleText;
-                    eventElement.title = `${event.title} - ${event.start_date} bis ${event.end_date}${event.location ? ' - ' + event.location : ''}`;
-                    applyEventColors(eventElement, event.event_color, true);
+                    eventElement.title = formatTooltip(event);
+                    applyEventColors(eventElement, event.event_color, !!(event.duration_days && event.duration_days > 1));
                     eventElement.onclick = () => window.location.href = event.url;
                     if (multiDaySlot) {
                         multiDaySlot.appendChild(eventElement);
                     }
                 });
                 
-                // Handle single-day events with time - display in time slots
-                singleDayEvents.forEach(event => {
-                    const eventHour = new Date(event.start_time).getHours();
+                timedEvents.forEach(event => {
+                    const eventHour = getEventHour(event);
                     const timeSlot = document.querySelector(`.day-time-slot[data-hour="${eventHour}"]`);
 
                     if (timeSlot) {
@@ -1291,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.PrismateamsContextMenu.registerMatcher(
             (target) => target.closest('.day-time-slot'),
             (e, el) => {
-                const dateStr = currentDayDate.toISOString().split('T')[0];
+                const dateStr = formatLocalDate(currentDayDate);
                 return [
                     {
                         label: createEventLabel,

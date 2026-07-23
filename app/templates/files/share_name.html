@@ -3,6 +3,7 @@
 {% block title %}Freigabe - Name eingeben{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
 <style>
 .share-gate-page {
     position: relative;
@@ -16,7 +17,7 @@
 }
 
 .share-gate-preview .card {
-    border-radius: 0.75rem;
+    border-radius: 1.1rem;
 }
 
 .share-gate-preview .preview-grid {
@@ -27,7 +28,7 @@
 
 .share-gate-preview .preview-item {
     border: 1px solid var(--bs-border-color);
-    border-radius: 0.75rem;
+    border-radius: 1rem;
     padding: 0.75rem;
     background: var(--bs-body-bg);
     min-height: 96px;
@@ -36,7 +37,7 @@
 .share-gate-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0.28);
     backdrop-filter: blur(1px);
     display: flex;
     align-items: center;
@@ -47,16 +48,31 @@
 .share-gate-modal {
     width: 100%;
     max-width: 460px;
-    border-radius: 1rem;
+    border-radius: 1.35rem;
+    overflow: hidden;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="share-gate-page">
+<div class="share-shell files-ext-shell share-gate-page">
+    <div class="files-ext-brand">
+        {% if portal_logo_filename %}
+        <img class="files-ext-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+        {% elif app_logo %}
+        <img class="files-ext-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+        {% else %}
+        <span class="files-ext-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+        {% endif %}
+        <div class="files-ext-brand-text">
+            <span class="files-ext-brand-name">{{ app_name or 'Prismateams' }}</span>
+            <span class="files-ext-brand-kind">Freigabe</span>
+        </div>
+    </div>
+
     <div class="share-gate-preview">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
+        <div class="card border-0 bg-transparent shadow-none">
+            <div class="card-body px-0">
                 {% if preview_item_type == 'folder' %}
                 <div class="d-flex align-items-center mb-3">
                     <i class="bi bi-folder2-open me-2"></i>
@@ -106,7 +122,7 @@
     </div>
 
     <div class="share-gate-overlay">
-        <div class="card shadow share-gate-modal">
+        <div class="card share-gate-modal border-0">
             <div class="card-body p-4">
                 <div class="text-center mb-4">
                     <i class="bi bi-person-circle fs-1 text-primary mb-3"></i>
@@ -132,10 +148,10 @@
                     {% endif %}
                     <div class="mb-3">
                         <label for="guest_name" class="form-label">Ihr Name</label>
-                        <input type="text" class="form-control" id="guest_name" name="guest_name" required autofocus placeholder="Max Mustermann">
+                        <input type="text" class="form-control files-pill-input" id="guest_name" name="guest_name" required autofocus placeholder="Max Mustermann">
                         <div class="form-text">Dieser Name wird für die Bearbeitung verwendet.</div>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">
+                    <button type="submit" class="btn btn-accent w-100 files-pill-btn">
                         <i class="bi bi-check-circle"></i> Weiter
                     </button>
                 </form>

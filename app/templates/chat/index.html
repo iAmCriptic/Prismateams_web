@@ -34,6 +34,14 @@
             deleteConfirm: {{ _('chat.settings.delete.confirm')|tojson }}
         }
     };
+    {% if desktop_main_chat_url and request.args.get('list') != '1' %}
+    (function () {
+        // Server thought this was mobile, but viewport is desktop → open Haupt-Chat shell
+        if (window.matchMedia('(min-width: 992px)').matches) {
+            window.location.replace({{ desktop_main_chat_url|tojson }});
+        }
+    })();
+    {% endif %}
 </script>
 <script src="{{ url_for('static', filename='js/chat-nav.js') }}"></script>
 {% endblock %}

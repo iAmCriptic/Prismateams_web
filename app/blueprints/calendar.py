@@ -96,16 +96,31 @@ def _sidebar_context(user, selected_ids=None):
     }
 
 
+def _page_shell_context(user=None):
+    """Sidebar context for create/edit/view pages (non-interactive list)."""
+    return _sidebar_context(user or current_user)
+
+
 def _notify_event_invites(event, invitee_ids):
-    from app.utils.notifications import notify_user
+    from app.models.user import User
+    from app.utils.access_control import has_module_access
+    from app.utils.notifications import get_or_create_notification_settings, notify_user
     for uid in invitee_ids:
         if uid == event.created_by:
             continue
         try:
+            user = User.query.get(uid)
+            if not user:
+                continue
+            if not has_module_access(user, 'module_calendar'):
+                continue
+            settings = get_or_create_notification_settings(uid)
+            if not settings.calendar_notifications_enabled:
+                continue
             notify_user(
                 uid,
-                title=translate('calendar.notifications.invite_title'),
-                body=translate('calendar.notifications.invite_body', title=event.title),
+                title=translate('calendar.notifications.invite_title', language=user.language),
+                body=translate('calendar.notifications.invite_body', language=user.language, title=event.title),
                 url=url_for('calendar.view_event', event_id=event.id, _external=False),
                 notification_type='calendar_invite',
                 dedup_key=f'calendar_invite:{event.id}:{uid}',
@@ -164,6 +179,10 @@ def _add_participants_for_event(event, multi_mode, invitee_ids=None):
 
 def event_to_api_dict(event, participation_status=None, extra=None):
     duration = (event.end_time.date() - event.start_time.date()).days + 1
+    is_all_day = (
+        event.start_time.strftime('%H:%M') == '00:00'
+        and event.end_time.strftime('%H:%M') == '23:59'
+    )
     data = {
         'id': event.id,
         'title': event.title,
@@ -172,11 +191,12 @@ def event_to_api_dict(event, participation_status=None, extra=None):
         'start_date': event.start_time.date().isoformat(),
         'end_date': event.end_time.date().isoformat(),
         'duration_days': duration,
+        'is_all_day': is_all_day,
         'location': event.location,
         'event_color': event.event_color or DEFAULT_EVENT_COLOR,
         'description': event.description,
         'day': event.start_time.day,
-        'time': event.start_time.strftime('%H:%M'),
+        'time': None if is_all_day else event.start_time.strftime('%H:%M'),
         'participation_status': participation_status,
         'is_recurring': False,
         'calendar_id': event.calendar_id,
@@ -354,7 +374,7 @@ def view_event(event_id):
         booking_request=booking_request,
         can_edit=can_edit_event(current_user, event),
         can_delete=can_delete_event(current_user, event),
-        calendar_multi_enabled=is_calendar_multi_enabled(),
+        **_page_shell_context(),
     )
 
 
@@ -390,13 +410,13 @@ def create_event():
         ]
         return render_template(
             'calendar/create.html',
-            calendar_multi_enabled=multi,
             invite_users=invite_users,
             invite_users_json=invite_payload,
             writable_calendars=[calendar_to_dict(c, current_user) for c in writable],
             default_calendar_id=default_calendar_id,
             personal_calendar_id=personal_calendar_id,
             public_calendar_id=public_calendar_id,
+            **_page_shell_context(),
             **extra,
         )
 
@@ -527,6 +547,27 @@ def edit_event(event_id):
     multi = is_calendar_multi_enabled()
     invite_users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all() if multi else []
 
+    def _edit_template(**extra):
+        return render_template(
+            'calendar/edit.html',
+            event=event,
+            invite_users=invite_users,
+            invite_users_json=[
+                {'id': u.id, 'name': u.full_name}
+                for u in invite_users
+                if u.id != current_user.id
+            ],
+            existing_invitee_ids=[
+                p.user_id for p in EventParticipant.query.filter_by(event_id=event.id).all()
+                if p.user_id != current_user.id and p.status in ('pending', 'accepted')
+            ],
+            show_invitees=bool(
+                multi and event.calendar and event.calendar.calendar_type == 'personal'
+            ),
+            **_page_shell_context(),
+            **extra,
+        )
+
     if request.method == 'POST':
         event.title = request.form.get('title', '').strip()
         event.description = request.form.get('description', '').strip()
@@ -546,7 +587,7 @@ def edit_event(event_id):
 
         if not all([start_date, end_date]):
             flash(translate('calendar.flash.fill_all_fields'), 'danger')
-            return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+            return _edit_template()
 
         try:
             if not start_time:
@@ -559,7 +600,7 @@ def edit_event(event_id):
 
             if event.end_time <= event.start_time:
                 flash(translate('calendar.flash.end_after_start'), 'danger')
-                return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+                return _edit_template()
 
             recurrence_end_date = None
             if is_recurring and recurrence_type != 'none' and recurrence_end_date_str:
@@ -567,13 +608,13 @@ def edit_event(event_id):
                     recurrence_end_date = datetime.fromisoformat(recurrence_end_date_str)
                     if recurrence_end_date < event.start_time:
                         flash(translate('calendar.flash.recurrence_end_after_start'), 'danger')
-                        return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+                        return _edit_template()
                 except ValueError:
                     flash(translate('calendar.flash.invalid_recurrence_end'), 'danger')
-                    return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+                    return _edit_template()
         except ValueError:
             flash(translate('calendar.flash.invalid_datetime_format'), 'danger')
-            return render_template('calendar/edit.html', event=event, calendar_multi_enabled=multi, invite_users=invite_users)
+            return _edit_template()
 
         event.recurrence_type = recurrence_type if is_recurring else 'none'
         event.recurrence_end_date = recurrence_end_date
@@ -614,24 +655,7 @@ def edit_event(event_id):
         flash(translate('calendar.flash.updated'), 'success')
         return redirect(url_for('calendar.view_event', event_id=event_id))
 
-    return render_template(
-        'calendar/edit.html',
-        event=event,
-        calendar_multi_enabled=multi,
-        invite_users=invite_users,
-        invite_users_json=[
-            {'id': u.id, 'name': u.full_name}
-            for u in invite_users
-            if u.id != current_user.id
-        ],
-        existing_invitee_ids=[
-            p.user_id for p in EventParticipant.query.filter_by(event_id=event.id).all()
-            if p.user_id != current_user.id and p.status in ('pending', 'accepted')
-        ],
-        show_invitees=bool(
-            multi and event.calendar and event.calendar.calendar_type == 'personal'
-        ),
-    )
+    return _edit_template()
 
 
 @calendar_bp.route('/delete/<int:event_id>', methods=['POST'])
@@ -823,6 +847,10 @@ def get_events_for_month(year, month):
                 user_id=current_user.id
             ).first()
             duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
+            is_all_day = (
+                instance['start_time'].strftime('%H:%M') == '00:00'
+                and instance['end_time'].strftime('%H:%M') == '23:59'
+            )
             events_data.append({
                 'id': master_event.id,
                 'title': instance['title'],
@@ -831,11 +859,12 @@ def get_events_for_month(year, month):
                 'start_date': instance['start_time'].date().isoformat(),
                 'end_date': instance['end_time'].date().isoformat(),
                 'duration_days': duration,
+                'is_all_day': is_all_day,
                 'location': instance['location'],
                 'event_color': instance['event_color'],
                 'description': instance['description'],
                 'day': instance['start_time'].day,
-                'time': instance['start_time'].strftime('%H:%M'),
+                'time': None if is_all_day else instance['start_time'].strftime('%H:%M'),
                 'participation_status': participation.status if participation else None,
                 'is_recurring': True,
                 'parent_event_id': master_event.id,
@@ -912,6 +941,10 @@ def get_events_for_range(start_date, end_date):
                     user_id=current_user.id
                 ).first()
                 duration = (instance['end_time'].date() - instance['start_time'].date()).days + 1
+                is_all_day = (
+                    instance['start_time'].strftime('%H:%M') == '00:00'
+                    and instance['end_time'].strftime('%H:%M') == '23:59'
+                )
                 events_data.append({
                     'id': master_event.id,
                     'title': instance['title'],
@@ -920,11 +953,12 @@ def get_events_for_range(start_date, end_date):
                     'start_date': instance['start_time'].date().isoformat(),
                     'end_date': instance['end_time'].date().isoformat(),
                     'duration_days': duration,
+                    'is_all_day': is_all_day,
                     'location': instance['location'],
                     'event_color': instance['event_color'],
                     'description': instance['description'],
                     'day': instance['start_time'].day,
-                    'time': instance['start_time'].strftime('%H:%M'),
+                    'time': None if is_all_day else instance['start_time'].strftime('%H:%M'),
                     'participation_status': participation.status if participation else None,
                     'is_recurring': True,
                     'parent_event_id': master_event.id,

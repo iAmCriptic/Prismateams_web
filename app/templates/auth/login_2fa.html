@@ -5,8 +5,8 @@
 {% block content %}
 <div class="auth-container auth-login">
     <div class="auth-card">
-        <div class="card">
-            <div class="card-body p-4">
+        <div class="auth-panel">
+            <div class="auth-panel-body">
                 <h1 class="text-center mb-4">
                     {% if portal_logo_filename %}
                     <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" height="48" class="mb-2 d-block mx-auto">
@@ -18,7 +18,7 @@
                     {{ app_name or 'Prismateams' }}
                 </h1>
                 <h5 class="text-center mb-2">{{ _('auth.login.2fa_code') }}</h5>
-                <p class="text-center text-muted mb-4">{{ _('auth.login.2fa_code_help') }}</p>
+                <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.login.2fa_code_help') }}</p>
 
                 <form method="POST">
                     <div class="mb-3">
@@ -37,35 +37,5 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const body = document.body;
-    const container = document.querySelector('.auth-container');
-    const isMobile = window.innerWidth <= 768;
-
-    if (isMobile) {
-        body.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
-        body.style.backgroundAttachment = 'scroll';
-        container.style.background = 'var(--bs-body-bg, #ffffff)' || '#ffffff';
-        container.style.backgroundAttachment = 'scroll';
-        container.style.backgroundSize = 'auto';
-    } else {
-        {% if color_gradient %}
-        body.style.background = '{{ color_gradient }}';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundSize = 'cover';
-        container.style.background = '{{ color_gradient }}';
-        container.style.backgroundAttachment = 'fixed';
-        container.style.backgroundSize = 'cover';
-        {% else %}
-        body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.backgroundSize = 'cover';
-        container.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        container.style.backgroundAttachment = 'fixed';
-        container.style.backgroundSize = 'cover';
-        {% endif %}
-    }
-});
-</script>
+{% include 'auth/_auth_bg.html' %}
 {% endblock %}

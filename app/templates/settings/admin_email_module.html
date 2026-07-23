@@ -1,210 +1,292 @@
 {% extends "settings/base_settings.html" %}
 
-{% block title %}E-Mail-Moduleinstellungen - Administration{% endblock %}
+{% block title %}{{ _('settings.admin.email_module.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.sidebar.email_module') }}{% endblock %}
 
 {% block settings_content %}
-<h2 class="mb-4"><i class="bi bi-envelope-gear"></i> E-Mail-Moduleinstellungen</h2>
-
-<!-- Tabs -->
-<ul class="nav nav-tabs mb-4" id="emailSettingsTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="test-tab" data-bs-toggle="tab" data-bs-target="#test" type="button" role="tab" aria-controls="test" aria-selected="true">
-            <i class="bi bi-envelope"></i> E-Mail-Test
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="footer-tab" data-bs-toggle="tab" data-bs-target="#footer" type="button" role="tab" aria-controls="footer" aria-selected="false">
-            <i class="bi bi-envelope-paper"></i> E-Mail-Footer
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab" aria-controls="system" aria-selected="false">
-            <i class="bi bi-gear"></i> System-Einstellungen
-        </button>
-    </li>
-</ul>
-
-<!-- Tab Content -->
-<div class="tab-content" id="emailSettingsTabsContent">
-    <!-- E-Mail-Test Tab -->
-    <div class="tab-pane fade show active" id="test" role="tabpanel" aria-labelledby="test-tab">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-envelope"></i> E-Mail-Konfiguration testen</h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-4">
-                    Testen Sie die E-Mail-Konfiguration, indem Sie eine Test-E-Mail an Ihre E-Mail-Adresse senden.
-                </p>
-                
-                <form method="POST" action="{{ url_for('auth.test_email') }}">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>Hinweis:</strong> Die Test-E-Mail wird an Ihre E-Mail-Adresse <strong>{{ current_user.email }}</strong> gesendet. Nach dem Klicken auf "Test-E-Mail senden" werden Sie zur Ergebnis-Seite weitergeleitet.
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-send"></i> Test-E-Mail senden
-                    </button>
-                </form>
-            </div>
-        </div>
+<div class="settings-admin-email"
+     data-test-smtp-url="{{ url_for('settings.admin_email_test_smtp') }}"
+     data-test-imap-url="{{ url_for('settings.admin_email_test_imap') }}"
+     data-i18n-idle="{{ _('settings.admin.email_module.test.status_idle') }}"
+     data-i18n-running="{{ _('settings.admin.email_module.test.status_running') }}"
+     data-i18n-ok="{{ _('settings.admin.email_module.test.status_ok') }}"
+     data-i18n-fail="{{ _('settings.admin.email_module.test.status_fail') }}"
+     data-i18n-error="{{ _('settings.admin.email_module.test.error_generic') }}">
+    <div class="settings-admin-email-header">
+        <h1 class="settings-admin-email-title">{{ _('settings.admin.email_module.heading') }}</h1>
+        <p class="settings-admin-email-subtitle">{{ _('settings.admin.email_module.subtitle') }}</p>
     </div>
-    
-    <!-- E-Mail-Footer Tab -->
-    <div class="tab-pane fade" id="footer" role="tabpanel" aria-labelledby="footer-tab">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-envelope-paper"></i> E-Mail-Footer konfigurieren</h5>
+
+    <div class="settings-admin-email-grid settings-admin-email-grid--main">
+        <section class="settings-admin-email-card" aria-labelledby="email-test-title">
+            <div class="settings-admin-email-card-head">
+                <h2 id="email-test-title" class="settings-admin-email-section-title mb-0">
+                    <i class="bi bi-plug" aria-hidden="true"></i>
+                    {{ _('settings.admin.email_module.test.title') }}
+                </h2>
+                <button type="button" class="settings-admin-email-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.email_module.test.hint') }}" aria-label="{{ _('settings.admin.email_module.test.hint') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
             </div>
-            <div class="card-body">
-                <div class="border rounded p-3 mb-4" style="background-color: #d1ecf1; border-color: #bee5eb !important;">
-                    <div class="d-flex align-items-start">
-                        <i class="bi bi-info-circle me-2" style="color: #0c5460; font-size: 1.2em; margin-top: 0.1em;"></i>
-                        <div>
-                            <strong style="color: #0c5460;">Verfügbare Variablen:</strong>
-                            <ul class="mb-0 mt-2" style="color: #0c5460;">
-                                <li><code>&lt;user&gt;</code> - Vollständiger Name des Benutzers</li>
-                                <li><code>&lt;email&gt;</code> - E-Mail-Adresse des Benutzers</li>
-                                <li><code>&lt;app_name&gt;</code> - Name der Anwendung</li>
-                                <li><code>&lt;date&gt;</code> - Aktuelles Datum (DD.MM.YYYY)</li>
-                                <li><code>&lt;time&gt;</code> - Aktuelle Uhrzeit (HH:MM)</li>
-                            </ul>
+            <p class="settings-admin-email-hint">{{ _('settings.admin.email_module.test.lead', email=current_user.email) }}</p>
+
+            <div class="settings-admin-email-test-list">
+                <div class="settings-admin-email-test-row" data-test="smtp">
+                    <div class="settings-admin-email-test-main">
+                        <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite" title="{{ _('settings.admin.email_module.test.status_idle') }}">
+                            <i class="bi bi-circle" aria-hidden="true"></i>
+                        </span>
+                        <div class="settings-admin-email-test-text">
+                            <div class="settings-admin-email-test-name">
+                                <i class="bi bi-send" aria-hidden="true"></i>
+                                {{ _('settings.admin.email_module.test.smtp_label') }}
+                            </div>
+                            <div class="settings-admin-email-test-meta" data-test-meta>{{ _('settings.admin.email_module.test.smtp_help') }}</div>
                         </div>
                     </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-email-btn" data-test-run="smtp">
+                        <i class="bi bi-play-fill" aria-hidden="true"></i>
+                        {{ _('settings.admin.email_module.test.run') }}
+                    </button>
                 </div>
 
-                <form method="POST" action="{{ url_for('settings.admin_email_footer') }}">
-                    <div class="mb-3">
-                        <label for="footer_template" class="form-label">
-                            <strong>Footer-Template</strong>
-                        </label>
-                        <textarea 
-                            class="form-control" 
-                            id="footer_template" 
-                            name="footer_template" 
-                            rows="8" 
-                            placeholder="Geben Sie hier Ihren E-Mail-Footer ein. Verwenden Sie die Variablen oben für dynamische Inhalte."
-                        >{{ footer_template }}</textarea>
-                        <div class="form-text">
-                            Der Footer wird automatisch an jede gesendete E-Mail angehängt. Verwenden Sie Zeilenumbrüche für mehrzeilige Footer.
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <h6>Vorschau:</h6>
-                        <div class="border rounded p-3 bg-light">
-                            <pre id="footerPreview" style="white-space: pre-wrap; font-family: inherit; margin: 0;" data-preview-date="{{ footer_preview_date }}" data-preview-time="{{ footer_preview_time }}">{{ footer_template.replace('<user>', 'Max Mustermann').replace('<email>', 'max@example.com').replace('<app_name>', 'Prismateams').replace('<date>', footer_preview_date).replace('<time>', footer_preview_time) }}</pre>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Speichern
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- System-Einstellungen Tab -->
-    <div class="tab-pane fade" id="system" role="tabpanel" aria-labelledby="system-tab">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-gear"></i> E-Mail-System-Einstellungen</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('settings.admin_email_settings') }}">
-                    <div class="mb-4">
-                        <h6 class="mb-3"><i class="bi bi-database"></i> Speicherverwaltung</h6>
-                        
-                        <div class="mb-3">
-                            <label for="storage_days" class="form-label">
-                                <strong>Speicherdauer für E-Mails (in Tagen)</strong>
-                            </label>
-                            <input 
-                                type="number" 
-                                class="form-control" 
-                                id="storage_days" 
-                                name="storage_days" 
-                                value="{{ storage_days }}" 
-                                min="0" 
-                                step="1"
-                                placeholder="0 für unbegrenzt"
-                            >
-                            <div class="form-text">
-                                Legen Sie fest, wie lange E-Mails im System gespeichert werden sollen. 
-                                E-Mails, die älter als die angegebene Anzahl von Tagen sind, werden automatisch gelöscht. 
-                                Setzen Sie <strong>0</strong> für unbegrenzte Speicherung.
+                <div class="settings-admin-email-test-row" data-test="imap">
+                    <div class="settings-admin-email-test-main">
+                        <span class="settings-admin-email-test-status is-idle" data-test-status aria-live="polite" title="{{ _('settings.admin.email_module.test.status_idle') }}">
+                            <i class="bi bi-circle" aria-hidden="true"></i>
+                        </span>
+                        <div class="settings-admin-email-test-text">
+                            <div class="settings-admin-email-test-name">
+                                <i class="bi bi-inbox" aria-hidden="true"></i>
+                                {{ _('settings.admin.email_module.test.imap_label') }}
                             </div>
+                            <div class="settings-admin-email-test-meta" data-test-meta>{{ _('settings.admin.email_module.test.imap_help') }}</div>
                         </div>
                     </div>
-
-                    <div class="mb-4">
-                        <h6 class="mb-3"><i class="bi bi-arrow-repeat"></i> Synchronisation</h6>
-                        
-                        <div class="mb-3">
-                            <label for="sync_interval" class="form-label">
-                                <strong>Synchronisationsintervall (in Minuten)</strong>
-                            </label>
-                            <select class="form-select" id="sync_interval" name="sync_interval">
-                                <option value="15" {% if sync_interval == 15 %}selected{% endif %}>15 Minuten</option>
-                                <option value="30" {% if sync_interval == 30 %}selected{% endif %}>30 Minuten</option>
-                                <option value="60" {% if sync_interval == 60 %}selected{% endif %}>60 Minuten (1 Stunde)</option>
-                            </select>
-                            <div class="form-text">
-                                Legen Sie fest, wie oft das System automatisch E-Mails vom IMAP-Server synchronisieren soll. 
-                                Die manuelle Synchronisation bleibt weiterhin möglich.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> 
-                        <strong>Hinweis:</strong> Änderungen an diesen Einstellungen werden sofort wirksam. 
-                        Die automatische Synchronisation startet beim nächsten Neustart der Anwendung.
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Speichern
-                        </button>
-                    </div>
-                </form>
+                    <button type="button" class="btn btn-sm btn-outline-primary settings-admin-email-btn" data-test-run="imap">
+                        <i class="bi bi-play-fill" aria-hidden="true"></i>
+                        {{ _('settings.admin.email_module.test.run') }}
+                    </button>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="mt-4">
-    <a href="{{ url_for('settings.admin') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Zurück zur Administration
-    </a>
+            <div class="settings-admin-email-test-actions">
+                <button type="button" class="btn btn-accent settings-admin-email-submit" data-test-run-all>
+                    <i class="bi bi-lightning-charge" aria-hidden="true"></i>
+                    {{ _('settings.admin.email_module.test.run_both') }}
+                </button>
+            </div>
+        </section>
+
+        <section class="settings-admin-email-card" aria-labelledby="email-system-title">
+            <div class="settings-admin-email-card-head">
+                <h2 id="email-system-title" class="settings-admin-email-section-title mb-0">
+                    <i class="bi bi-gear" aria-hidden="true"></i>
+                    {{ _('settings.admin.email_module.system.title') }}
+                </h2>
+            </div>
+
+            <form method="POST" action="{{ url_for('settings.admin_email_settings') }}" class="settings-admin-email-form">
+                <input type="hidden" name="return_to" value="module">
+                <div class="settings-admin-email-fields">
+                    <div class="settings-admin-email-field mb-0">
+                        <label for="storage_days" class="form-label">{{ _('settings.admin.email_module.system.storage_label') }}</label>
+                        <input type="number" class="form-control settings-admin-email-input" id="storage_days" name="storage_days"
+                               value="{{ storage_days }}" min="0" step="1" placeholder="0">
+                        <div class="form-text">{{ _('settings.admin.email_module.system.storage_help') }}</div>
+                    </div>
+                    <div class="settings-admin-email-field mb-0">
+                        <label for="sync_interval" class="form-label">{{ _('settings.admin.email_module.system.sync_label') }}</label>
+                        <select class="form-select settings-admin-email-input" id="sync_interval" name="sync_interval">
+                            <option value="15" {% if sync_interval == 15 %}selected{% endif %}>{{ _('settings.admin.email_module.system.sync_15') }}</option>
+                            <option value="30" {% if sync_interval == 30 %}selected{% endif %}>{{ _('settings.admin.email_module.system.sync_30') }}</option>
+                            <option value="60" {% if sync_interval == 60 %}selected{% endif %}>{{ _('settings.admin.email_module.system.sync_60') }}</option>
+                        </select>
+                        <div class="form-text">{{ _('settings.admin.email_module.system.sync_help') }}</div>
+                    </div>
+                </div>
+                <div class="settings-admin-email-actions">
+                    <button type="submit" class="btn btn-accent settings-admin-email-submit">
+                        <i class="bi bi-save" aria-hidden="true"></i>
+                        {{ _('settings.admin.email_module.save') }}
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <section class="settings-admin-email-card" aria-labelledby="email-footer-title">
+        <div class="settings-admin-email-card-head">
+            <h2 id="email-footer-title" class="settings-admin-email-section-title mb-0">
+                <i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                {{ _('settings.admin.email_module.footer.title') }}
+            </h2>
+            <button type="button" class="settings-admin-email-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.email_module.footer.vars_help') }}" aria-label="{{ _('settings.admin.email_module.footer.vars_help') }}">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="settings-admin-email-chips" role="group" aria-label="{{ _('settings.admin.email_module.footer.vars_label') }}">
+            <button type="button" class="settings-admin-email-chip" data-ph="&lt;user&gt;">{{ _('settings.admin.email_module.footer.ph_user') }}</button>
+            <button type="button" class="settings-admin-email-chip" data-ph="&lt;email&gt;">{{ _('settings.admin.email_module.footer.ph_email') }}</button>
+            <button type="button" class="settings-admin-email-chip" data-ph="&lt;app_name&gt;">{{ _('settings.admin.email_module.footer.ph_app_name') }}</button>
+            <button type="button" class="settings-admin-email-chip" data-ph="&lt;date&gt;">{{ _('settings.admin.email_module.footer.ph_date') }}</button>
+            <button type="button" class="settings-admin-email-chip" data-ph="&lt;time&gt;">{{ _('settings.admin.email_module.footer.ph_time') }}</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('settings.admin_email_footer') }}" class="settings-admin-email-form">
+            <input type="hidden" name="return_to" value="module">
+            <div class="settings-admin-email-fields settings-admin-email-fields--footer">
+                <div class="settings-admin-email-field mb-0">
+                    <label for="footer_template" class="form-label">{{ _('settings.admin.email_module.footer.template_label') }}</label>
+                    <textarea class="form-control settings-admin-email-textarea" id="footer_template" name="footer_template" rows="7"
+                              placeholder="{{ _('settings.admin.email_module.footer.template_placeholder') }}">{{ footer_template }}</textarea>
+                </div>
+                <div class="settings-admin-email-field mb-0">
+                    <label class="form-label">{{ _('settings.admin.email_module.footer.preview_label') }}</label>
+                    <div class="settings-admin-email-preview"
+                         id="footerPreview"
+                         data-preview-date="{{ footer_preview_date }}"
+                         data-preview-time="{{ footer_preview_time }}"></div>
+                </div>
+            </div>
+            <div class="settings-admin-email-actions">
+                <button type="submit" class="btn btn-accent settings-admin-email-submit">
+                    <i class="bi bi-save" aria-hidden="true"></i>
+                    {{ _('settings.admin.email_module.save') }}
+                </button>
+            </div>
+        </form>
+    </section>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Footer Preview Update
-    const footerTextarea = document.getElementById('footer_template');
-    const footerPreview = document.getElementById('footerPreview');
-    
-    if (footerTextarea && footerPreview) {
-        const previewDate = footerPreview.dataset.previewDate || '';
-        const previewTime = footerPreview.dataset.previewTime || '';
+document.addEventListener('DOMContentLoaded', function () {
+    var root = document.querySelector('.settings-admin-email');
+    if (!root) return;
 
-        function updateFooterPreview() {
-            let content = footerTextarea.value;
+    root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+
+    var footerTextarea = document.getElementById('footer_template');
+    var footerPreview = document.getElementById('footerPreview');
+    var updateFooterPreview = null;
+    if (footerTextarea && footerPreview) {
+        var previewDate = footerPreview.dataset.previewDate || '';
+        var previewTime = footerPreview.dataset.previewTime || '';
+        updateFooterPreview = function () {
+            var content = footerTextarea.value || '';
             content = content.replace(/<user>/g, 'Max Mustermann');
             content = content.replace(/<email>/g, 'max@example.com');
             content = content.replace(/<app_name>/g, 'Prismateams');
             content = content.replace(/<date>/g, previewDate);
             content = content.replace(/<time>/g, previewTime);
             footerPreview.textContent = content;
-        }
-        
+        };
         footerTextarea.addEventListener('input', updateFooterPreview);
-        updateFooterPreview(); // Initial preview
+        updateFooterPreview();
+    }
+
+    root.querySelectorAll('.settings-admin-email-chip[data-ph]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            if (!footerTextarea) return;
+            var ph = chip.getAttribute('data-ph') || '';
+            var start = footerTextarea.selectionStart || 0;
+            var end = footerTextarea.selectionEnd || 0;
+            var val = footerTextarea.value || '';
+            footerTextarea.value = val.slice(0, start) + ph + val.slice(end);
+            footerTextarea.focus();
+            var pos = start + ph.length;
+            footerTextarea.setSelectionRange(pos, pos);
+            if (updateFooterPreview) updateFooterPreview();
+        });
+    });
+
+    var i18n = {
+        idle: root.dataset.i18nIdle || '',
+        running: root.dataset.i18nRunning || '',
+        ok: root.dataset.i18nOk || '',
+        fail: root.dataset.i18nFail || '',
+        error: root.dataset.i18nError || ''
+    };
+    var urls = {
+        smtp: root.dataset.testSmtpUrl,
+        imap: root.dataset.testImapUrl
+    };
+
+    function setStatus(kind, state, message) {
+        var row = root.querySelector('[data-test="' + kind + '"]');
+        if (!row) return;
+        var badge = row.querySelector('[data-test-status]');
+        var meta = row.querySelector('[data-test-meta]');
+        var btn = row.querySelector('[data-test-run]');
+        if (!badge) return;
+
+        badge.classList.remove('is-idle', 'is-running', 'is-ok', 'is-fail');
+        badge.classList.add('is-' + state);
+        var icon = 'bi-circle';
+        var title = i18n.idle;
+        if (state === 'running') {
+            icon = 'bi-arrow-repeat';
+            title = i18n.running;
+        } else if (state === 'ok') {
+            icon = 'bi-check-lg';
+            title = i18n.ok;
+        } else if (state === 'fail') {
+            icon = 'bi-x-lg';
+            title = i18n.fail;
+        }
+        badge.innerHTML = '<i class="bi ' + icon + '" aria-hidden="true"></i>';
+        badge.setAttribute('title', title);
+        badge.setAttribute('aria-label', title);
+        if (meta && message) meta.textContent = message;
+        if (btn) btn.disabled = state === 'running';
+    }
+
+    function runTest(kind) {
+        var url = urls[kind];
+        if (!url) return Promise.resolve();
+        setStatus(kind, 'running', i18n.running);
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: '{}'
+        })
+            .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+            .then(function (result) {
+                var data = result.data || {};
+                if (data.success) {
+                    setStatus(kind, 'ok', data.message || i18n.ok);
+                } else {
+                    setStatus(kind, 'fail', data.message || i18n.fail);
+                }
+            })
+            .catch(function () {
+                setStatus(kind, 'fail', i18n.error);
+            });
+    }
+
+    root.querySelectorAll('[data-test-run]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            runTest(btn.getAttribute('data-test-run'));
+        });
+    });
+
+    var runAll = root.querySelector('[data-test-run-all]');
+    if (runAll) {
+        runAll.addEventListener('click', function () {
+            runAll.disabled = true;
+            Promise.all([runTest('smtp'), runTest('imap')]).finally(function () {
+                runAll.disabled = false;
+            });
+        });
     }
 });
 </script>

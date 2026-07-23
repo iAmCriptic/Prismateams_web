@@ -114,7 +114,7 @@
             <button type="button" class="btn btn-sm chat-header-menu-btn" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}" aria-label="{{ _('chat.view.dropdown.menu') }}">
                 <i class="bi bi-three-dots-vertical"></i>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end" data-bs-popper-config='{"strategy":"fixed"}'>
+            <ul class="dropdown-menu dropdown-menu-end chat-menu-dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                 <li><a class="dropdown-item" href="#" onclick="toggleNotifications(); return false;">
                     <i class="bi bi-bell me-2" id="notification-icon"></i>
                     <span id="notification-text">{{ _('chat.view.dropdown.mute') }}</span>
@@ -164,14 +164,12 @@
                  style="width: 32px; height: 32px; object-fit: cover;" 
                  alt="{{ get_chat_display_name(chat) }}">
             {% elif other_user %}
-            <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
-                 style="width: 32px; height: 32px;">
-                <span class="text-white fw-bold">{{ other_user.full_name[0].upper() }}</span>
+            <div class="chat-header-avatar-fallback me-2">
+                <span>{{ other_user.full_name[0].upper() }}</span>
             </div>
             {% else %}
-            <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
-                 style="width: 32px; height: 32px;">
-                <i class="bi bi-person-circle text-white fs-6"></i>
+            <div class="chat-header-avatar-fallback me-2">
+                <i class="bi bi-person-circle"></i>
             </div>
             {% endif %}
         {% else %}
@@ -181,9 +179,8 @@
                  style="width: 32px; height: 32px; object-fit: cover;" 
                  alt="{{ chat.name }}">
             {% else %}
-            <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center me-2" 
-                 style="width: 32px; height: 32px;">
-                <i class="bi bi-people-fill text-white fs-6"></i>
+            <div class="chat-header-avatar-fallback me-2">
+                <i class="bi bi-people-fill"></i>
             </div>
             {% endif %}
         {% endif %}
@@ -199,7 +196,7 @@
         <button type="button" class="btn chat-header-menu-btn p-1" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('chat.view.dropdown.menu') }}" aria-label="{{ _('chat.view.dropdown.menu') }}">
             <i class="bi bi-three-dots-vertical fs-5"></i>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" data-bs-popper-config='{"strategy":"fixed"}'>
+        <ul class="dropdown-menu dropdown-menu-end chat-menu-dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
             <li><a class="dropdown-item" href="#" onclick="toggleNotifications(); return false;">
                 <i class="bi bi-bell me-2" id="notification-icon-mobile"></i>
                 <span id="notification-text-mobile">{{ _('chat.view.dropdown.mute') }}</span>
@@ -499,22 +496,22 @@
 <!-- Desktop Message Input - only under messages column -->
 <div class="chat-input-container chat-input-desktop d-none d-md-block">
     <form id="message-form-desktop" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
-        <div class="input-group">
-            <button class="btn btn-outline-secondary" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
+        <div class="chat-composer">
+            <button class="btn chat-composer-btn" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
                 <i class="bi bi-paperclip"></i>
             </button>
-            <button class="btn btn-outline-secondary" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
+            <button class="btn chat-composer-btn" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
                 <i class="bi bi-mic" id="mic-icon-desktop"></i>
             </button>
             <input type="file" id="file-upload-desktop" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
             <input type="text" id="message-input-desktop" class="form-control" name="content" placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
-            <button class="btn btn-accent" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
+            <button class="btn btn-accent chat-composer-send" type="submit" id="send-button-desktop" title="{{ _('chat.view.input.send') }}">
                 <i class="bi bi-send"></i>
             </button>
         </div>
         <small class="text-muted" id="file-name-desktop"></small>
     </form>
-    <div class="attachment-popup shadow-sm">
+    <div class="attachment-popup">
         <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>
         <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
         <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
@@ -528,16 +525,16 @@
 <div class="chat-input-container d-md-none">
     <form id="message-form" method="POST" action="{{ url_for('chat.send_message', chat_id=1 if chat.is_main_chat else chat.id) }}" enctype="multipart/form-data">
         <div class="mobile-input-group">
-            <button class="btn" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
+            <button class="btn chat-composer-btn" type="button" data-attachment-trigger title="{{ _('chat.view.input.attach') }}">
                 <i class="bi bi-paperclip"></i>
             </button>
-            <button class="btn" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
+            <button class="btn chat-composer-btn" type="button" data-request-microphone onclick="startVoiceRecording()" title="{{ _('chat.view.input.voice') }}">
                 <i class="bi bi-mic" id="mic-icon"></i>
             </button>
             <input type="file" id="file-upload" name="file" class="d-none" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.7z,.rar,.txt,.csv,.json">
             <input type="text" id="message-input" class="form-control" name="content" 
                    placeholder="{{ _('chat.view.input.placeholder') }}" autocomplete="off">
-            <button class="btn" type="submit" id="send-button" title="{{ _('chat.view.input.send') }}">
+            <button class="btn chat-composer-send" type="submit" id="send-button" title="{{ _('chat.view.input.send') }}">
                 <i class="bi bi-send-fill"></i>
             </button>
         </div>
@@ -545,7 +542,7 @@
             <small class="text-muted" id="file-name"></small>
         </div>
     </form>
-    <div class="attachment-popup shadow-sm">
+    <div class="attachment-popup">
         <button type="button" class="btn attachment-action" data-attachment-action="file"><i class="bi bi-file-earmark-plus me-2"></i>Datei/Bild/Video</button>
         <button type="button" class="btn attachment-action" data-attachment-action="folder"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</button>
         <button type="button" class="btn attachment-action" data-attachment-action="calendar"><i class="bi bi-calendar-event me-2"></i>Kalendertermin</button>
@@ -593,7 +590,7 @@
 <!-- Member Profile Modal -->
 <div class="modal fade" id="memberModal" tabindex="-1" aria-labelledby="memberModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content chat-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="memberModalLabel">{{ _('chat.view.modals.member_profile.title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('chat.view.modals.member_profile.close') }}"></button>
@@ -620,7 +617,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('chat.view.modals.member_profile.close') }}</button>
+                <button type="button" class="btn btn-accent" data-bs-dismiss="modal">{{ _('chat.view.modals.member_profile.close') }}</button>
             </div>
         </div>
     </div>
@@ -629,7 +626,7 @@
 <!-- All Members Modal -->
 <div class="modal fade" id="allMembersModal" tabindex="-1" aria-labelledby="allMembersModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content chat-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="allMembersModalLabel">
                     <i class="bi bi-people me-2"></i>
@@ -677,7 +674,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('chat.view.modals.all_members.close') }}</button>
+                <button type="button" class="btn btn-accent" data-bs-dismiss="modal">{{ _('chat.view.modals.all_members.close') }}</button>
             </div>
         </div>
     </div>
@@ -687,7 +684,7 @@
 <!-- Chat Info Modal -->
 <div class="modal fade" id="chatInfoModal" tabindex="-1" aria-labelledby="chatInfoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content chat-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="chatInfoModalLabel">
                     <i class="bi bi-info-circle me-2"></i>
@@ -761,7 +758,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-accent" data-bs-dismiss="modal">Schließen</button>
             </div>
         </div>
     </div>
@@ -769,7 +766,7 @@
 
 <div class="modal fade" id="pollCreateModal" tabindex="-1" aria-labelledby="pollCreateModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content chat-modal">
             <form id="poll-create-form">
                 <div class="modal-header">
                     <h5 class="modal-title" id="pollCreateModalLabel"><i class="bi bi-bar-chart me-2"></i>Abstimmung erstellen</h5>
@@ -806,7 +803,7 @@
 
 <div class="modal fade" id="folderPickerModal" tabindex="-1" aria-labelledby="folderPickerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content chat-modal">
             <form id="folder-picker-form">
                 <div class="modal-header">
                     <h5 class="modal-title" id="folderPickerModalLabel"><i class="bi bi-folder2-open me-2"></i>Ordner auswählen</h5>
@@ -838,7 +835,7 @@
 
 <div class="modal fade" id="calendarPickerModal" tabindex="-1" aria-labelledby="calendarPickerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content chat-modal">
             <form id="calendar-picker-form">
                 <div class="modal-header">
                     <h5 class="modal-title" id="calendarPickerModalLabel"><i class="bi bi-calendar-event me-2"></i>Termin auswählen</h5>

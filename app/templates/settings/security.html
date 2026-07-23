@@ -1,38 +1,219 @@
 {% extends "settings/base_settings.html" %}
 
 {% block title %}{{ _('settings.security.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.index.cards.security.title') }}{% endblock %}
 
 {% block settings_content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="bi bi-shield-lock"></i> {{ _('settings.security.heading') }}</h4>
+<div class="settings-security">
+    <div class="settings-security-header">
+        <h1 class="settings-security-title">{{ _('settings.security.heading') }}</h1>
+        <p class="settings-security-subtitle">{{ _('settings.security.subtitle') }}</p>
+    </div>
+
+    <div class="settings-security-top">
+        {# —— Passwort —— #}
+        <section class="settings-security-card" aria-labelledby="security-password-heading">
+            <div class="settings-security-card-head">
+                <h2 id="security-password-heading" class="settings-security-section-title mb-0">{{ _('settings.security.password.heading') }}</h2>
+                <button type="button" class="settings-security-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.security.password.help') }}" aria-label="{{ _('settings.security.password.help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
             </div>
-            <div class="card-body">
-                <ul class="nav nav-tabs mb-4" id="securityTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if active_tab != 'devices' %}active{% endif %}" id="passwords-tab" data-bs-toggle="tab" data-bs-target="#passwords" type="button" role="tab">
-                            <i class="bi bi-key"></i> {{ _('settings.security.tabs.passwords') }}
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if active_tab == 'devices' %}active{% endif %}" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices" type="button" role="tab">
-                            <i class="bi bi-device-hdd"></i> {{ _('settings.security.tabs.devices') }}
-                        </button>
-                    </li>
-                </ul>
-                
-                <div class="tab-content" id="securityTabsContent">
-                    <div class="tab-pane fade {% if active_tab != 'devices' %}show active{% endif %}" id="passwords" role="tabpanel">
-                        {% include 'settings/security_passwords.html' %}
+
+            <form method="POST" action="{{ url_for('settings.security_passwords') }}" class="settings-security-form">
+                <input type="hidden" name="action" value="change_password">
+
+                <div class="settings-security-field">
+                    <label for="current_password" class="form-label">{{ _('settings.security.password.current_label') }}</label>
+                    <input type="password" class="form-control settings-security-input" id="current_password" name="current_password" required autocomplete="current-password">
+                </div>
+
+                <div class="settings-security-field">
+                    <label for="new_password" class="form-label">{{ _('settings.security.password.new_label') }}</label>
+                    <input type="password" class="form-control settings-security-input" id="new_password" name="new_password" minlength="8" required autocomplete="new-password">
+                </div>
+
+                <div class="settings-security-field">
+                    <label for="confirm_password" class="form-label">{{ _('settings.security.password.confirm_label') }}</label>
+                    <input type="password" class="form-control settings-security-input" id="confirm_password" name="confirm_password" minlength="8" required autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn btn-accent settings-security-btn">{{ _('settings.security.password.change_button') }}</button>
+            </form>
+        </section>
+
+        {# —— 2FA —— #}
+        <section class="settings-security-card" aria-labelledby="security-2fa-heading">
+            <div class="settings-security-card-head">
+                <h2 id="security-2fa-heading" class="settings-security-section-title mb-0">{{ _('settings.security.2fa.heading_short') }}</h2>
+                <button type="button" class="settings-security-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.security.2fa.help') }}" aria-label="{{ _('settings.security.2fa.help') }}">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            {% if user.totp_enabled %}
+            <div class="settings-security-status-row">
+                <span class="badge rounded-pill text-bg-success">{{ _('settings.security.2fa.status_on') }}</span>
+            </div>
+
+            <form method="POST" action="{{ url_for('settings.disable_2fa') }}" class="settings-security-form" onsubmit="return confirm('{{ _('settings.security.2fa.disable_confirm') }}');">
+                <div class="settings-security-field">
+                    <label for="disable_password" class="form-label">{{ _('settings.security.2fa.disable_password_label') }}</label>
+                    <input type="password" class="form-control settings-security-input" id="disable_password" name="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-outline-danger settings-security-btn">{{ _('settings.security.2fa.disable_button') }}</button>
+            </form>
+
+            {% elif not show_setup %}
+            <div class="settings-security-status-row">
+                <span class="badge rounded-pill text-bg-secondary">{{ _('settings.security.2fa.status_off') }}</span>
+            </div>
+            <p class="settings-security-hint">{{ _('settings.security.2fa.not_enabled_short') }}</p>
+            <form method="POST" action="{{ url_for('settings.security_passwords') }}">
+                <input type="hidden" name="action" value="start_2fa_setup">
+                <button type="submit" class="btn btn-accent settings-security-btn">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                    {{ _('settings.security.2fa.start_setup_button') }}
+                </button>
+            </form>
+
+            {% else %}
+            <div class="settings-security-2fa-setup">
+                <p class="settings-security-hint settings-security-hint--warn">{{ _('settings.security.2fa.setup_warning') }}</p>
+
+                <div class="settings-security-setup-block">
+                    <h3 class="settings-security-setup-title">{{ _('settings.security.2fa.step1_title') }}</h3>
+                    <p class="settings-security-hint">{{ _('settings.security.2fa.setup_instructions') }}</p>
+
+                    {% if qr_code_data and totp_secret %}
+                    <div class="settings-security-qr">
+                        <img src="{{ qr_code_data }}" alt="2FA QR Code" width="200" height="200">
                     </div>
-                    <div class="tab-pane fade {% if active_tab == 'devices' %}show active{% endif %}" id="devices" role="tabpanel">
-                        {% include 'settings/security_devices.html' %}
+                    <div class="settings-security-secret">
+                        <div class="settings-security-card-head mb-1">
+                            <span class="settings-security-nested-label mb-0">{{ _('settings.security.2fa.secret_label') }}</span>
+                            <button type="button" class="settings-security-info" data-bs-toggle="tooltip" title="{{ _('settings.security.2fa.secret_help') }}" aria-label="{{ _('settings.security.2fa.secret_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <code class="settings-security-secret-code">{{ totp_secret }}</code>
                     </div>
+                    {% endif %}
+                </div>
+
+                <div class="settings-security-setup-block">
+                    <h3 class="settings-security-setup-title">{{ _('settings.security.2fa.step2_title') }}</h3>
+                    <form method="POST" action="{{ url_for('settings.enable_2fa') }}" id="enable-2fa-form" class="settings-security-form">
+                        <div class="settings-security-field">
+                            <label for="totp_code" class="form-label">{{ _('settings.security.2fa.enter_code_label') }}</label>
+                            <input type="text"
+                                   class="form-control settings-security-input settings-security-totp"
+                                   id="totp_code"
+                                   name="totp_code"
+                                   pattern="[0-9]{6}"
+                                   maxlength="6"
+                                   inputmode="numeric"
+                                   autocomplete="one-time-code"
+                                   required
+                                   placeholder="000000">
+                        </div>
+                        <div class="settings-security-actions">
+                            <button type="submit" class="btn btn-accent settings-security-btn">
+                                {{ _('settings.security.2fa.enable_button') }}
+                            </button>
+                            <button type="submit"
+                                    class="btn btn-outline-secondary settings-security-btn"
+                                    formaction="{{ url_for('settings.security_passwords') }}"
+                                    formmethod="POST"
+                                    formnovalidate
+                                    name="action"
+                                    value="cancel_2fa_setup">
+                                {{ _('settings.security.2fa.cancel_button') }}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        </div>
+            {% endif %}
+        </section>
     </div>
+
+    {# —— Geräte —— #}
+    <section id="security-devices" class="settings-security-card settings-security-devices" aria-labelledby="security-devices-heading">
+        <div class="settings-security-card-head">
+            <h2 id="security-devices-heading" class="settings-security-section-title mb-0">{{ _('settings.security.devices.heading') }}</h2>
+            <button type="button" class="settings-security-info" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ _('settings.security.devices.description') }}" aria-label="{{ _('settings.security.devices.description') }}">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        {% if sessions %}
+        <div class="settings-security-device-list">
+            {% for sess in sessions %}
+            <div class="settings-security-device-row{% if sess.is_current %} is-current{% endif %}">
+                <div class="settings-security-device-main">
+                    <div class="settings-security-device-name">
+                        {{ sess.device_label if sess.device_label else _('settings.security.devices.unknown_device') }}
+                        {% if sess.is_current %}
+                        <span class="badge rounded-pill text-bg-primary">{{ _('settings.security.devices.current_session') }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="settings-security-device-meta">
+                        <span>{{ sess.ip_address or _('settings.security.devices.unknown') }}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>
+                            {% if sess.last_activity %}
+                                {{ sess.last_activity.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                                {{ sess.created_at.strftime('%d.%m.%Y %H:%M') }}
+                            {% endif %}
+                        </span>
+                        {% if sess.is_active %}
+                        <span class="badge rounded-pill text-bg-success">{{ _('settings.security.devices.active') }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-secondary">{{ _('settings.security.devices.inactive') }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="settings-security-device-actions">
+                    {% if not sess.is_current %}
+                    <form method="POST" action="{{ url_for('settings.revoke_session_route') }}" onsubmit="return confirm('{{ _('settings.security.devices.revoke_confirm') }}');">
+                        <input type="hidden" name="session_id" value="{{ sess.session_id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger settings-security-btn">
+                            {{ _('settings.security.devices.revoke_button') }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ url_for('settings.revoke_all_sessions_route') }}" class="settings-security-revoke-all" onsubmit="return confirm('{{ _('settings.security.devices.revoke_all_confirm') }}');">
+            <button type="submit" class="btn btn-outline-danger settings-security-btn">
+                <i class="bi bi-x-octagon" aria-hidden="true"></i>
+                {{ _('settings.security.devices.revoke_all_button') }}
+            </button>
+        </form>
+        {% else %}
+        <p class="settings-security-hint">{{ _('settings.security.devices.no_sessions') }}</p>
+        {% endif %}
+    </section>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.settings-security [data-bs-toggle="tooltip"]').forEach(function (el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+    {% if scroll_to_devices %}
+    var devices = document.getElementById('security-devices');
+    if (devices) {
+        devices.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    {% endif %}
+});
+</script>
 {% endblock %}

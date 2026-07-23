@@ -41,6 +41,13 @@
       "category_functional_desc": "Сохраняет локальные настройки и включает функции PWA.",
       "category_analytics_title": "Статистика",
       "category_analytics_desc": "Анонимная статистика использования для улучшения портала (сейчас не активна)."
+    },
+    "pwa_install": {
+      "title": "Установить приложение",
+      "description": "Установите портал как приложение для быстрого доступа и офлайн-работы.",
+      "install": "Установить",
+      "later": "Позже",
+      "never": "Больше не показывать"
     }
   },
   "common": {
@@ -74,7 +81,10 @@
       "remember_me": "Оставаться в системе",
       "submit": "Войти",
       "register_link_prefix": "Впервые в Prismateams?",
-      "register_link_cta": "Создать аккаунт"
+      "register_link_cta": "Создать аккаунт",
+      "switch_title": "Впервые здесь?",
+      "switch_text": "Ещё нет аккаунта? Зарегистрируйтесь и начните с Prismateams.",
+      "switch_cta": "Регистрация"
     },
     "register": {
       "title": "Регистрация",
@@ -90,7 +100,10 @@
       "dark_mode_help": "Вы можете изменить эту настройку позже в профиле.",
       "submit": "Создать аккаунт",
       "login_link_prefix": "Уже зарегистрированы?",
-      "login_link_cta": "Войти здесь"
+      "login_link_cta": "Войти здесь",
+      "switch_title": "Уже с нами?",
+      "switch_text": "Уже есть аккаунт? Войдите и продолжайте.",
+      "switch_cta": "Войти"
     },
     "confirm_email": {
       "title": "Подтвердите e-mail",
@@ -360,6 +373,99 @@
         "title": "Избранное",
         "empty": "Нет избранного"
       }
+    }
+  },
+  "chat": {
+    "create": {
+      "page_title": "Новый чат - Team Portal",
+      "breadcrumb": {
+        "index": "Чаты",
+        "current": "Новый чат"
+      },
+      "heading": "Новый чат",
+      "pick_member_hint": "Нажмите на человека, чтобы сразу начать переписку.",
+      "new_group": "Новая группа",
+      "members_heading": "Участники портала",
+      "members_empty": "Других участников нет.",
+      "back_to_members": "Назад",
+      "group_step_heading": "Новая группа",
+      "group_step_hint": "Слева участники, справа данные группы.",
+      "avatar": {
+        "label": "Фото группы",
+        "help": "Необязательно — можно задать позже."
+      },
+      "form": {
+        "chat_type": {
+          "label": "Тип чата",
+          "group": "Групповой чат",
+          "private": "Личный чат"
+        },
+        "chat_name": {
+          "label": "Название группы",
+          "placeholder": "напр. Команда проекта"
+        },
+        "members": {
+          "label": "Добавить участников",
+          "single_label": "Выбрать человека",
+          "help": "Выберите хотя бы одного участника",
+          "help_private": "Выберите человека для личного чата"
+        },
+        "buttons": {
+          "submit": "Создать чат",
+          "create_group": "Создать группу",
+          "cancel": "Отмена"
+        },
+        "alerts": {
+          "select_private": "Выберите человека для личного чата.",
+          "enter_name": "Введите название чата.",
+          "select_members": "Выберите хотя бы одного участника."
+        },
+        "description": {
+          "label": "Описание",
+          "placeholder": "Необязательно: о чём эта группа?",
+          "help": "Необязательно"
+        }
+      },
+      "search": {
+        "placeholder": "Искать людей...",
+        "empty": "Никого не найдено."
+      }
+    }
+  },
+  "notifications": {
+    "chat": {
+      "title": "\"{chat_name}\"",
+      "default_name": "Командный чат",
+      "body_one": "1 новое сообщение",
+      "body_many": "{count} новых сообщений"
+    },
+    "file": {
+      "new_title": "Новый файл",
+      "new_body": "{name} загружен",
+      "modified_title": "Файл изменён",
+      "modified_body": "{name} обновлён"
+    },
+    "email": {
+      "title": "Новое письмо",
+      "body_one": "1 непрочитанное письмо",
+      "body_many": "{count} непрочитанных писем"
+    },
+    "calendar": {
+      "reminder_title": "Напоминание о событии",
+      "reminder_body": "{title} начинается {time_text} ({date} в {time})",
+      "in_minutes": "через {count} мин.",
+      "in_hour_one": "через 1 час",
+      "in_hours": "через {count} ч.",
+      "in_day_one": "через 1 день",
+      "in_days": "через {count} дн."
+    },
+    "booking": {
+      "request_title": "Новая заявка на бронирование",
+      "request_body": "{event} – {applicant}"
+    },
+    "push": {
+      "test_title": "Тестовое уведомление",
+      "test_body": "Тест от {portal_name}. Push работает."
     }
   }
 }

@@ -12,6 +12,7 @@ AVAILABLE_MODULES = [
     'module_chat',
     'module_files',
     'module_calendar',
+    'module_events',
     'module_email',
     'module_contacts',
     'module_credentials',

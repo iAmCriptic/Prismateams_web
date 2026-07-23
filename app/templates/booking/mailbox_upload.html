@@ -36,6 +36,8 @@
                         {% endwith %}
                         
                         <form method="POST" enctype="multipart/form-data" class="mb-4">
+                            {% set bot_context = 'mailbox' %}
+                            {% include 'auth/_bot_protection.html' %}
                             <div class="mb-3">
                                 <label for="file" class="form-label">Dateien auswählen</label>
                                 <input type="file" class="form-control" id="file" name="file" multiple required>
