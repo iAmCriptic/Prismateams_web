@@ -43,6 +43,8 @@ def create_checkout(
     contact_email: Optional[str] = None,
     require_event: bool = True,
     require_end_date: bool = True,
+    event_id: Optional[int] = None,
+    event_appointment_id: Optional[int] = None,
 ) -> Checkout:
     event_name = (event_name or "").strip()
     borrower_name = (borrower_name or "").strip()
@@ -103,6 +105,8 @@ def create_checkout(
         status="active",
         created_by=created_by_id,
         qr_code_data=generate_borrow_qr_code(checkout_number),
+        event_id=event_id,
+        event_appointment_id=event_appointment_id,
     )
     db.session.add(checkout)
     db.session.flush()

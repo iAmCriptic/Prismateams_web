@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from io import BytesIO
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
@@ -490,6 +490,67 @@ def event_conflicts(event_id):
 @login_required
 @check_module_access('module_inventory')
 def appointment_scanner(appointment_id):
-    appointment = EventAppointment.query.get_or_404(appointment_id)
-    flash(f'QR-Scanner für Termin "{appointment.label}" geöffnet.', 'info')
-    return redirect(url_for('inventory.borrow_scanner'))
+    """Öffnet Inventar-Ausleihe mit vorausgefülltem Projekt/Verantwortlichem."""
+    appointment = EventAppointment.query.options(
+        joinedload(EventAppointment.event).joinedload(Event.assignments).joinedload(EventAssignment.user),
+        joinedload(EventAppointment.inventory_needs),
+    ).get_or_404(appointment_id)
+    event_obj = appointment.event
+    if not event_obj:
+        flash('Veranstaltung zum Termin nicht gefunden.', 'danger')
+        return redirect(url_for('events.index'))
+
+    project_name = f'{event_obj.name} - {appointment.label}'.strip(' -')
+
+    borrower_id = None
+    borrower_name = ''
+    contact_email = ''
+
+    assignments = list(event_obj.assignments or [])
+    portal_assignments = [a for a in assignments if a.user_id and a.user]
+    # Bevorzugt aktuelle Person, falls zugeteilt
+    preferred = next((a for a in portal_assignments if a.user_id == current_user.id), None)
+    chosen = preferred or (portal_assignments[0] if portal_assignments else None)
+    if chosen and chosen.user:
+        borrower_id = chosen.user.id
+        borrower_name = chosen.user.full_name
+        contact_email = chosen.user.email or ''
+    else:
+        guest = next((a for a in assignments if (a.display_name or '').strip()), None)
+        if guest:
+            borrower_name = guest.display_name.strip()
+        elif event_obj.owner:
+            borrower_id = event_obj.owner.id
+            borrower_name = event_obj.owner.full_name
+            contact_email = event_obj.owner.email or ''
+        else:
+            borrower_id = current_user.id
+            borrower_name = current_user.full_name
+            contact_email = current_user.email or ''
+
+    # Materialbedarf in den Warenkorb legen (nur verfügbare Artikel)
+    cart = list(session.get('borrow_cart', []) or [])
+    added = 0
+    for need in appointment.inventory_needs or []:
+        product = Product.query.get(need.product_id)
+        if not product or product.status != 'available':
+            continue
+        if product.id not in cart:
+            cart.append(product.id)
+            added += 1
+    session['borrow_cart'] = cart
+    session.modified = True
+
+    if added:
+        flash(f'{added} Artikel aus dem Materialbedarf in den Warenkorb gelegt.', 'info')
+    flash(f'Ausleihe für „{project_name}“ vorbereitet – bitte Von/Bis setzen und Artikel scannen.', 'success')
+
+    return redirect(url_for(
+        'inventory.inventory_checkout',
+        event_name=project_name,
+        borrower_name=borrower_name,
+        borrower_id=borrower_id or '',
+        contact_email=contact_email,
+        event_id=event_obj.id,
+        event_appointment_id=appointment.id,
+    ))

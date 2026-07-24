@@ -467,5 +467,19 @@
       "test_title": "Тестовое уведомление",
       "test_body": "Тест от {portal_name}. Push работает."
     }
+  },
+  "email": {
+    "compose": {
+      "buttons": {
+        "save_draft": "Сохранить черновик",
+        "send": "Отправить",
+        "cancel": "Отмена"
+      },
+      "messages": {
+        "draft_saved": "Черновик сохранён.",
+        "draft_empty": "Нечего сохранять.",
+        "draft_error": "Не удалось сохранить черновик."
+      }
+    }
   }
 }

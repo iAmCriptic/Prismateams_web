@@ -1272,20 +1272,23 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    background: transparent;
+    width: 2.35rem;
+    height: 2.35rem;
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
     box-shadow: none;
-    padding: 0.35rem 0.4rem;
+    padding: 0;
     line-height: 1;
+    border-radius: var(--mod-radius-pill, 1.5rem);
     color: var(--accent-color, #0d6efd) !important;
 }
 .calendar-mobile-more-btn:hover,
 .calendar-mobile-more-btn:focus,
 .calendar-mobile-more-btn:active,
 .calendar-mobile-more-btn.show {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
     color: var(--accent-color, #0d6efd) !important;
-    border: none;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, transparent);
     box-shadow: none;
 }
 .calendar-mobile-more-btn .bi-three-dots-vertical {
@@ -1422,12 +1425,15 @@
     --calendar-form-text: var(--bs-body-color, #212529);
     --calendar-form-muted: var(--bs-secondary-color, #6c757d);
     width: 100%;
-    max-width: 48rem;
+    max-width: none;
     margin-inline: 0;
     padding: 0 0.15rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
+}
+.calendar-event-view {
+    max-width: none;
 }
 .calendar-form-row {
     display: grid;
@@ -1445,7 +1451,7 @@
     grid-template-columns: 1fr;
     gap: 0.65rem;
     width: 100%;
-    max-width: 56rem;
+    max-width: none;
 }
 @media (min-width: 992px) {
     .calendar-event-view-layout {

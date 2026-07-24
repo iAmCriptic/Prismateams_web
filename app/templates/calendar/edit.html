@@ -1,7 +1,6 @@
 {% extends "calendar/base_calendar.html" %}
 
 {% set calendar_back_url = url_for('calendar.view_event', event_id=event.id) %}
-{% set calendar_back_label = event.title %}
 
 {% block title %}{{ event.title }} - {{ _('calendar.edit.page_title_suffix') }}{% endblock %}
 {% block calendar_mobile_title %}{{ _('calendar.edit.breadcrumb.current') }}{% endblock %}

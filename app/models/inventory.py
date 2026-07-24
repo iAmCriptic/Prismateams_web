@@ -185,12 +185,16 @@ class Checkout(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     qr_code_data = db.Column(db.String(255), nullable=True)
     legacy_borrow_group_id = db.Column(db.String(50), nullable=True, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=True, index=True)
+    event_appointment_id = db.Column(db.Integer, db.ForeignKey('event_appointments.id'), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     borrower = db.relationship('User', foreign_keys=[borrower_id])
     creator = db.relationship('User', foreign_keys=[created_by])
     items = db.relationship('CheckoutItem', back_populates='checkout', cascade='all, delete-orphan')
+    event = db.relationship('Event', foreign_keys=[event_id])
+    event_appointment = db.relationship('EventAppointment', foreign_keys=[event_appointment_id])
 
     def __repr__(self):
         return f'<Checkout {self.checkout_number}>'

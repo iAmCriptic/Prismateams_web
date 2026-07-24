@@ -11,7 +11,7 @@
 {% set can_create_focus = can_create_focus|default(true) %}
 {% set sc = sidebar_calendars|default(none) %}
 {% set calendar_back_url = calendar_back_url|default(url_for('calendar.index')) %}
-{% set calendar_back_label = calendar_back_label|default(_('calendar.back_to_calendar')) %}
+{% set calendar_back_label = calendar_back_label|default(_('layout.nav.back')) %}
 
 <div class="calendar-shell calendar-shell--fill calendar-shell--page {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
 {{ calendar_sidebar(show_view_pills=false, interactive=false) }}
@@ -44,6 +44,12 @@
     </div>
 
     <div class="calendar-page-scroll">
+        <div class="calendar-page-header">
+            <a href="{{ calendar_back_url }}" class="calendar-page-back">
+                <i class="bi bi-arrow-left"></i>
+                <span>{{ calendar_back_label }}</span>
+            </a>
+        </div>
         {% block calendar_content %}{% endblock %}
     </div>
 </div>

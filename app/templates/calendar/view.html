@@ -18,167 +18,171 @@
         {% endif %}
     </div>
 
-    <div class="calendar-form-body">
-        <section class="calendar-form-card" aria-labelledby="cal-view-when">
-            <div class="calendar-form-card-head">
-                <h2 id="cal-view-when" class="calendar-form-section-title">
-                    <i class="bi bi-clock" aria-hidden="true"></i>
-                    {{ _('calendar.create.sections.time') }}
-                </h2>
-            </div>
-            {% if is_multi_day %}
-            <div class="mb-2">
-                <span class="badge bg-info"><i class="bi bi-calendar-range"></i> Mehrtägiger Termin</span>
-            </div>
-            {% endif %}
-            <div class="calendar-form-fields calendar-form-fields--2">
-                <div class="calendar-form-field">
-                    <div class="form-label">{{ _('calendar.view.date_label') }}</div>
-                    {% if is_multi_day %}
-                    <p class="mb-0">Vom {{ event.start_time.strftime('%d.%m.%Y') }} bis {{ event.end_time.strftime('%d.%m.%Y') }}</p>
-                    {% set duration_days = (event.end_time.date() - event.start_time.date()).days + 1 %}
-                    <small class="form-text">({{ duration_days }} Tag{% if duration_days > 1 %}e{% endif %})</small>
-                    {% else %}
-                    <p class="mb-0">{{ event.start_time.strftime('%d.%m.%Y') }}</p>
-                    {% endif %}
+    <div class="calendar-event-view-layout">
+        <aside class="calendar-event-view-side">
+            <section class="calendar-form-card" aria-labelledby="cal-view-participants">
+                <div class="calendar-form-card-head">
+                    <h2 id="cal-view-participants" class="calendar-form-section-title">
+                        <i class="bi bi-people" aria-hidden="true"></i>
+                        {{ _('calendar.view.participants_title') }}
+                    </h2>
                 </div>
-                <div class="calendar-form-field">
-                    <div class="form-label">{{ _('calendar.view.time_label') }}</div>
-                    {% if is_all_day %}
-                    <span class="badge bg-secondary">Ganztägig</span>
-                    {% else %}
-                    <p class="mb-0">{{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}{% set time_suffix = _('calendar.view.time_suffix') %}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </section>
-
-        <section class="calendar-form-card" aria-labelledby="cal-view-details">
-            <div class="calendar-form-card-head">
-                <h2 id="cal-view-details" class="calendar-form-section-title">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    {{ _('calendar.create.sections.basics') }}
-                </h2>
-            </div>
-            <div class="calendar-form-fields calendar-form-fields--2">
-                {% if event.location %}
-                <div class="calendar-form-field">
-                    <div class="form-label">{{ _('calendar.view.location_label') }}</div>
-                    <p class="mb-0">{{ event.location }}</p>
-                </div>
-                {% endif %}
-                <div class="calendar-form-field">
-                    <div class="form-label">Farbe</div>
-                    <span class="calendar-event-color-dot calendar-event-color-dot--lg" style="background: {{ event.event_color or '#0d6efd' }};"></span>
-                </div>
-                <div class="calendar-form-field">
-                    <div class="form-label">{{ _('calendar.view.created_by') }}</div>
-                    <p class="mb-0">{{ event.creator.full_name }}</p>
-                </div>
-                {% if booking_request %}
-                <div class="calendar-form-field">
-                    <div class="form-label">Zur Buchung</div>
-                    <a href="{{ url_for('booking.request_detail', request_id=booking_request.id) }}" class="btn btn-sm btn-outline-primary calendar-form-cancel">
-                        <i class="bi bi-link-45deg"></i> Buchungsdetails anzeigen
-                    </a>
-                </div>
-                {% endif %}
-                {% if event.is_master_event %}
-                <div class="calendar-form-field">
-                    <div class="form-label">{{ _('calendar.view.recurrence_label') }}</div>
-                    <p class="mb-1">
-                        {% set recurrence_type_key = 'calendar.view.recurrence_types.' ~ event.recurrence_type %}
-                        {{ _(recurrence_type_key) }}
-                        {% if event.recurrence_interval > 1 %}
-                            ({{ _('calendar.view.recurrence_interval.' ~ event.recurrence_type, count=event.recurrence_interval) }})
+                <div class="calendar-event-participants">
+                    {% for participant in participants %}
+                    <div class="calendar-event-participant">
+                        <div class="calendar-event-participant-name">
+                            {{ participant.user.full_name }}
+                            {% if participant.status == 'accepted' %}
+                            <span class="badge bg-success">{{ _('calendar.view.statuses.accepted') }}</span>
+                            {% elif participant.status == 'declined' %}
+                            <span class="badge bg-danger">{{ _('calendar.view.statuses.declined') }}</span>
+                            {% elif participant.status == 'removed' %}
+                            <span class="badge bg-secondary">{{ _('calendar.view.statuses.removed') }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ _('calendar.view.statuses.pending') }}</span>
+                            {% endif %}
+                        </div>
+                        {% if current_user.is_admin and participant.status != 'removed' and not participant.user.is_admin %}
+                        <form method="POST" action="{{ url_for('calendar.remove_participant', event_id=event.id, user_id=participant.user_id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('calendar.view.confirm.remove_participant') }}">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </form>
                         {% endif %}
-                    </p>
-                    {% if event.recurrence_end_date %}
-                    <small class="form-text">{{ _('calendar.view.recurrence_end', date=event.recurrence_end_date.strftime('%d.%m.%Y')) }}</small>
+                    </div>
+                    {% else %}
+                    <p class="form-text mb-0">—</p>
+                    {% endfor %}
+                </div>
+            </section>
+        </aside>
+
+        <div class="calendar-event-view-main">
+            <section class="calendar-form-card" aria-labelledby="cal-view-when">
+                <div class="calendar-form-card-head">
+                    <h2 id="cal-view-when" class="calendar-form-section-title">
+                        <i class="bi bi-clock" aria-hidden="true"></i>
+                        {{ _('calendar.create.sections.time') }}
+                    </h2>
+                </div>
+                {% if is_multi_day %}
+                <div class="mb-2">
+                    <span class="badge bg-info"><i class="bi bi-calendar-range"></i> Mehrtägiger Termin</span>
+                </div>
+                {% endif %}
+                <div class="calendar-form-fields calendar-form-fields--2">
+                    <div class="calendar-form-field">
+                        <div class="form-label">{{ _('calendar.view.date_label') }}</div>
+                        {% if is_multi_day %}
+                        <p class="mb-0">Vom {{ event.start_time.strftime('%d.%m.%Y') }} bis {{ event.end_time.strftime('%d.%m.%Y') }}</p>
+                        {% set duration_days = (event.end_time.date() - event.start_time.date()).days + 1 %}
+                        <small class="form-text">({{ duration_days }} Tag{% if duration_days > 1 %}e{% endif %})</small>
+                        {% else %}
+                        <p class="mb-0">{{ event.start_time.strftime('%d.%m.%Y') }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="calendar-form-field">
+                        <div class="form-label">{{ _('calendar.view.time_label') }}</div>
+                        {% if is_all_day %}
+                        <span class="badge bg-secondary">Ganztägig</span>
+                        {% else %}
+                        <p class="mb-0">{{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}{% set time_suffix = _('calendar.view.time_suffix') %}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="calendar-form-card" aria-labelledby="cal-view-details">
+                <div class="calendar-form-card-head">
+                    <h2 id="cal-view-details" class="calendar-form-section-title">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        {{ _('calendar.create.sections.basics') }}
+                    </h2>
+                </div>
+                <div class="calendar-form-fields calendar-form-fields--2">
+                    {% if event.location %}
+                    <div class="calendar-form-field">
+                        <div class="form-label">{{ _('calendar.view.location_label') }}</div>
+                        <p class="mb-0">{{ event.location }}</p>
+                    </div>
                     {% endif %}
-                    <div class="mt-2">
-                        <a href="{{ url_for('calendar.view_recurring_instances', event_id=event.id) }}" class="btn btn-sm btn-outline-primary calendar-form-cancel">
-                            {{ _('calendar.view.recurrence_button') }}
+                    <div class="calendar-form-field">
+                        <div class="form-label">Farbe</div>
+                        <span class="calendar-event-color-dot calendar-event-color-dot--lg" style="background: {{ event.event_color or '#0d6efd' }};"></span>
+                    </div>
+                    <div class="calendar-form-field">
+                        <div class="form-label">{{ _('calendar.view.created_by') }}</div>
+                        <p class="mb-0">{{ event.creator.full_name }}</p>
+                    </div>
+                    {% if booking_request %}
+                    <div class="calendar-form-field">
+                        <div class="form-label">Zur Buchung</div>
+                        <a href="{{ url_for('booking.request_detail', request_id=booking_request.id) }}" class="btn btn-sm btn-outline-primary calendar-form-cancel">
+                            <i class="bi bi-link-45deg"></i> Buchungsdetails anzeigen
                         </a>
                     </div>
+                    {% endif %}
+                    {% if event.is_master_event %}
+                    <div class="calendar-form-field">
+                        <div class="form-label">{{ _('calendar.view.recurrence_label') }}</div>
+                        <p class="mb-1">
+                            {% set recurrence_type_key = 'calendar.view.recurrence_types.' ~ event.recurrence_type %}
+                            {{ _(recurrence_type_key) }}
+                            {% if event.recurrence_interval > 1 %}
+                                ({{ _('calendar.view.recurrence_interval.' ~ event.recurrence_type, count=event.recurrence_interval) }})
+                            {% endif %}
+                        </p>
+                        {% if event.recurrence_end_date %}
+                        <small class="form-text">{{ _('calendar.view.recurrence_end', date=event.recurrence_end_date.strftime('%d.%m.%Y')) }}</small>
+                        {% endif %}
+                        <div class="mt-2">
+                            <a href="{{ url_for('calendar.view_recurring_instances', event_id=event.id) }}" class="btn btn-sm btn-outline-primary calendar-form-cancel">
+                                {{ _('calendar.view.recurrence_button') }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <div class="calendar-form-actions">
+                {% if user_participation and user_participation.status != 'removed' %}
+                <form method="POST" action="{{ url_for('calendar.set_participation', event_id=event.id, status='accepted') }}" class="d-inline">
+                    <button type="submit" class="btn btn-accent calendar-form-submit">
+                        <i class="bi bi-check-circle"></i> {{ _('calendar.view.buttons.accept') }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('calendar.set_participation', event_id=event.id, status='declined') }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger calendar-form-submit">
+                        <i class="bi bi-x-circle"></i> {{ _('calendar.view.buttons.decline') }}
+                    </button>
+                </form>
+                {% if can_edit %}
+                <a href="{{ url_for('calendar.edit_event', event_id=event.id) }}" class="btn btn-outline-primary calendar-form-cancel">
+                    <i class="bi bi-pencil"></i> {{ _('calendar.view.buttons.edit') }}
+                </a>
+                {% endif %}
+                {% if can_delete %}
+                {% if event.is_master_event %}
+                <form method="POST" action="{{ url_for('calendar.delete_recurring_event_all', event_id=event.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-outline-danger calendar-form-cancel" data-confirm-delete="{{ _('calendar.view.confirm.delete_recurring') }}">
+                        <i class="bi bi-trash"></i> {{ _('calendar.view.buttons.delete_all') }}
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('calendar.delete_event', event_id=event.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-outline-danger calendar-form-cancel" data-confirm-delete="{{ _('calendar.view.confirm.delete_single') }}">
+                        <i class="bi bi-trash"></i> {{ _('calendar.view.buttons.delete') }}
+                    </button>
+                </form>
+                {% endif %}
+                {% endif %}
+                {% elif user_participation and user_participation.status == 'removed' %}
+                <div class="alert alert-warning mb-0">
+                    {{ _('calendar.view.alerts.removed') }}
                 </div>
                 {% endif %}
             </div>
-        </section>
-
-        <section class="calendar-form-card" aria-labelledby="cal-view-participants">
-            <div class="calendar-form-card-head">
-                <h2 id="cal-view-participants" class="calendar-form-section-title">
-                    <i class="bi bi-people" aria-hidden="true"></i>
-                    {{ _('calendar.view.participants_title') }}
-                </h2>
-            </div>
-            <div class="calendar-event-participants">
-                {% for participant in participants %}
-                <div class="calendar-event-participant">
-                    <div class="calendar-event-participant-name">
-                        {{ participant.user.full_name }}
-                        {% if participant.status == 'accepted' %}
-                        <span class="badge bg-success">{{ _('calendar.view.statuses.accepted') }}</span>
-                        {% elif participant.status == 'declined' %}
-                        <span class="badge bg-danger">{{ _('calendar.view.statuses.declined') }}</span>
-                        {% elif participant.status == 'removed' %}
-                        <span class="badge bg-secondary">{{ _('calendar.view.statuses.removed') }}</span>
-                        {% else %}
-                        <span class="badge bg-warning">{{ _('calendar.view.statuses.pending') }}</span>
-                        {% endif %}
-                    </div>
-                    {% if current_user.is_admin and participant.status != 'removed' and not participant.user.is_admin %}
-                    <form method="POST" action="{{ url_for('calendar.remove_participant', event_id=event.id, user_id=participant.user_id) }}" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('calendar.view.confirm.remove_participant') }}">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-                {% else %}
-                <p class="form-text mb-0">—</p>
-                {% endfor %}
-            </div>
-        </section>
-
-        <div class="calendar-form-actions">
-            {% if user_participation and user_participation.status != 'removed' %}
-            <form method="POST" action="{{ url_for('calendar.set_participation', event_id=event.id, status='accepted') }}" class="d-inline">
-                <button type="submit" class="btn btn-accent calendar-form-submit">
-                    <i class="bi bi-check-circle"></i> {{ _('calendar.view.buttons.accept') }}
-                </button>
-            </form>
-            <form method="POST" action="{{ url_for('calendar.set_participation', event_id=event.id, status='declined') }}" class="d-inline">
-                <button type="submit" class="btn btn-danger calendar-form-submit">
-                    <i class="bi bi-x-circle"></i> {{ _('calendar.view.buttons.decline') }}
-                </button>
-            </form>
-            {% if can_edit %}
-            <a href="{{ url_for('calendar.edit_event', event_id=event.id) }}" class="btn btn-outline-primary calendar-form-cancel">
-                <i class="bi bi-pencil"></i> {{ _('calendar.view.buttons.edit') }}
-            </a>
-            {% endif %}
-            {% if can_delete %}
-            {% if event.is_master_event %}
-            <form method="POST" action="{{ url_for('calendar.delete_recurring_event_all', event_id=event.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-outline-danger calendar-form-cancel" data-confirm-delete="{{ _('calendar.view.confirm.delete_recurring') }}">
-                    <i class="bi bi-trash"></i> {{ _('calendar.view.buttons.delete_all') }}
-                </button>
-            </form>
-            {% else %}
-            <form method="POST" action="{{ url_for('calendar.delete_event', event_id=event.id) }}" class="d-inline">
-                <button type="submit" class="btn btn-outline-danger calendar-form-cancel" data-confirm-delete="{{ _('calendar.view.confirm.delete_single') }}">
-                    <i class="bi bi-trash"></i> {{ _('calendar.view.buttons.delete') }}
-                </button>
-            </form>
-            {% endif %}
-            {% endif %}
-            {% elif user_participation and user_participation.status == 'removed' %}
-            <div class="alert alert-warning mb-0">
-                {{ _('calendar.view.alerts.removed') }}
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>

@@ -56,12 +56,6 @@
                             <p class="mb-0 text-muted">—</p>
                             {% endif %}
                         </div>
-                        {% if event.description %}
-                        <div class="events-form-field events-form-field--span-2">
-                            <div class="form-label">Beschreibung</div>
-                            <p class="mb-0">{{ event.description }}</p>
-                        </div>
-                        {% endif %}
                     </div>
                 </section>
 
@@ -84,7 +78,7 @@
                                 </div>
                             </div>
                             <a class="btn btn-sm btn-outline-secondary events-form-btn-pill" href="{{ url_for('events.appointment_scanner', appointment_id=a.id) }}">
-                                <i class="bi bi-qr-code-scan" aria-hidden="true"></i> QR
+                                <i class="bi bi-qr-code-scan" aria-hidden="true"></i> Ausleihe
                             </a>
                         </div>
                         {% endfor %}

@@ -7,11 +7,11 @@
 {% set create_url = url_for('contacts.create') %}
 
 {% macro contacts_view_toggle(suffix='', extra_class='') %}
-<div class="btn-group contacts-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('contacts.index.views.label') }}">
-    <button type="button" class="btn btn-outline-secondary" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
+<div class="contacts-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('contacts.index.views.label') }}">
+    <button type="button" class="contacts-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('contacts.index.views.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="btn btn-outline-secondary" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
+    <button type="button" class="contacts-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('contacts.index.views.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
@@ -164,50 +164,53 @@
 
 {% macro contact_context_menu(contact, suffix='') %}
 <div class="context-menu-source d-none" id="context-menu-contact-{{ contact.id }}{{ suffix }}">
-    <ul class="dropdown-menu">
+    <ul class="dropdown-menu contacts-actions-menu">
         {{ contact_menu_items(contact) }}
     </ul>
 </div>
 {% endmacro %}
 
 {% macro render_contact_card(contact) %}
+{% set can_write_mail = contact.email and is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}
 <div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-contact-{{ contact.id }}-grid">
-    <div class="card h-100">
+    <div class="card h-100 contacts-card">
         {{ contact_context_menu(contact, '-grid') }}
-        <div class="card-body">
-            <h5 class="card-title mb-1">{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}</h5>
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                <div class="contacts-card-avatar contacts-avatar-main flex-shrink-0" aria-hidden="true">
+                    {{ (contact.name or '?')[0]|upper }}
+                </div>
+                <div class="dropdown contacts-card-menu">
+                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('contacts.index.actions.column') }}">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end contacts-actions-menu">
+                        {{ contact_menu_items(contact) }}
+                    </ul>
+                </div>
+            </div>
+            <h5 class="card-title text-truncate mb-1" title="{{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}">
+                {{ (contact.salutation ~ ' ') if contact.salutation else '' }}{{ contact.name }}
+            </h5>
             <a
-                href="{% if is_module_enabled('module_email') and has_module_access(current_user, 'module_email') %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}"
-                class="small text-muted text-decoration-none d-inline-block mb-3"
+                href="{% if can_write_mail %}{{ url_for('email.compose', to=contact.email) }}{% else %}mailto:{{ contact.email }}{% endif %}"
+                class="contacts-card-meta text-decoration-none d-inline-flex align-items-center gap-1 mb-2 text-truncate"
+                title="{{ contact.email }}"
             >
-                {{ contact.email }}
-                <i class="bi bi-envelope"></i>
+                <i class="bi bi-envelope flex-shrink-0"></i>
+                <span class="text-truncate">{{ contact.email }}</span>
             </a>
 
             {% if contact.phone %}
-            <div class="mb-2">
-                <small class="text-muted">{{ _('contacts.index.labels.phone') }}</small>
-                <div><a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a></div>
-            </div>
+            <p class="contacts-card-meta mb-2">
+                <i class="bi bi-telephone"></i>
+                <a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a>
+            </p>
             {% endif %}
 
             {% if contact.notes %}
-            <div class="mb-3">
-                <small class="text-muted">{{ _('contacts.index.labels.notes') }}</small>
-                <p class="small mb-0">{{ contact.notes }}</p>
-            </div>
+            <p class="contacts-card-notes mb-0 mt-auto">{{ contact.notes }}</p>
             {% endif %}
-
-            <div class="d-flex gap-2 mt-3">
-                <a href="{{ url_for('contacts.edit', contact_id=contact.id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-pencil"></i> {{ _('contacts.index.actions.edit') }}
-                </a>
-                <form method="POST" action="{{ url_for('contacts.delete', contact_id=contact.id) }}" class="d-inline">
-                    <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm-delete="{{ _('contacts.index.actions.delete_confirm') }}">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </form>
-            </div>
         </div>
     </div>
 </div>
@@ -265,7 +268,7 @@
                 <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('contacts.index.actions.column') }}">
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
+                <ul class="dropdown-menu dropdown-menu-end contacts-actions-menu">
                     {{ contact_menu_items(contact) }}
                 </ul>
             </div>
@@ -401,8 +404,14 @@ function setContactsViewMode(mode) {
     if (grid) grid.style.display = isList ? 'none' : '';
     if (list) list.style.display = isList ? '' : 'none';
 
-    listBtns.forEach((btn) => btn.classList.toggle('active', isList));
-    gridBtns.forEach((btn) => btn.classList.toggle('active', !isList));
+    listBtns.forEach((btn) => {
+        btn.classList.toggle('active', isList);
+        btn.classList.toggle('is-active', isList);
+    });
+    gridBtns.forEach((btn) => {
+        btn.classList.toggle('active', !isList);
+        btn.classList.toggle('is-active', !isList);
+    });
     localStorage.setItem('contactsViewMode', isList ? 'list' : 'grid');
 }
 

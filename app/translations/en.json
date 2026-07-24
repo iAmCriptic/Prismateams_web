@@ -2641,7 +2641,7 @@
       "sync_delete_confirm": "Really delete this sync and all related events?",
       "sync_empty": "No sync links yet. Any user can add one — visible to everyone."
     },
-    "back_to_calendar": "Back to calendar"
+    "back_to_calendar": "Back"
   },
   "email": {
     "index": {
@@ -2750,11 +2750,15 @@
       },
       "buttons": {
         "send": "Send",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "save_draft": "Save draft"
       },
       "messages": {
         "server_error": "Server error {status}",
-        "validation_error": "Please enter a message."
+        "validation_error": "Please enter a message.",
+        "draft_saved": "Draft saved.",
+        "draft_empty": "Nothing to save.",
+        "draft_error": "Could not save draft."
       },
       "original_email": {
         "title": "Original email"
@@ -3013,6 +3017,10 @@
       "empty_message": "No contacts available."
     },
     "form": {
+      "back": "Back",
+      "sections": {
+        "basics": "Contact details"
+      },
       "fields": {
         "salutation": "Salutation",
         "name": "Name",
@@ -3034,6 +3042,7 @@
       },
       "buttons": {
         "save": "Save",
+        "update": "Update",
         "cancel": "Cancel"
       },
       "create": {
@@ -3042,7 +3051,8 @@
           "index": "Contacts",
           "current": "New Contact"
         },
-        "card_title": "Create New Contact"
+        "card_title": "Create New Contact",
+        "subtitle": "Name, reachability and notes in one go."
       },
       "edit": {
         "page_title": "Edit Contact - Team Portal",

@@ -467,5 +467,19 @@
       "test_title": "Notificação de teste",
       "test_body": "Teste de {portal_name}. Push funciona."
     }
+  },
+  "email": {
+    "compose": {
+      "buttons": {
+        "save_draft": "Guardar rascunho",
+        "send": "Enviar",
+        "cancel": "Cancelar"
+      },
+      "messages": {
+        "draft_saved": "Rascunho guardado.",
+        "draft_empty": "Nada para guardar.",
+        "draft_error": "Nao foi possivel guardar o rascunho."
+      }
+    }
   }
 }

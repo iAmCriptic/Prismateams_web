@@ -50,64 +50,70 @@
     </div>
 </section>
 
-<section class="events-form-card" aria-labelledby="events-form-people">
-    <div class="events-form-card-head">
-        <h2 id="events-form-people" class="events-form-section-title">
-            <i class="bi bi-people" aria-hidden="true"></i>
-            Personen
-        </h2>
-    </div>
-    <div class="events-form-fields events-form-fields--2">
-        <div class="events-form-field">
-            <label class="form-label" for="participantSearch">Portal-Personen</label>
-            <input class="form-control mb-2" id="participantSearch" type="text" placeholder="Person suchen…">
-            <div class="events-form-checklist">
-                {% for user in users %}
-                <div class="form-check participant-item" data-search="{{ user.full_name|lower }}">
-                    <input class="form-check-input" type="checkbox" name="participant_user_ids" value="{{ user.id }}" id="participant_{{ user.id }}" {% if user.id in selected_users %}checked{% endif %}>
-                    <label class="form-check-label" for="participant_{{ user.id }}">{{ user.full_name }}</label>
+<div class="events-form-card-row">
+    <section class="events-form-card" aria-labelledby="events-form-people">
+        <div class="events-form-card-head">
+            <h2 id="events-form-people" class="events-form-section-title">
+                <i class="bi bi-people" aria-hidden="true"></i>
+                Personen
+            </h2>
+        </div>
+        <div class="events-form-fields events-form-fields--2">
+            <div class="events-form-field">
+                <label class="form-label" for="participantSearch">Portal-Personen</label>
+                <input class="form-control mb-2" id="participantSearch" type="text" placeholder="Person suchen…">
+                <div class="events-form-checklist">
+                    {% for user in users %}
+                    <div class="form-check participant-item" data-search="{{ user.full_name|lower }}">
+                        <input class="form-check-input" type="checkbox" name="participant_user_ids" value="{{ user.id }}" id="participant_{{ user.id }}" {% if user.id in selected_users %}checked{% endif %}>
+                        <label class="form-check-label" for="participant_{{ user.id }}">{{ user.full_name }}</label>
+                    </div>
+                    {% else %}
+                    <div class="form-text mb-0 py-1">Keine Portal-Personen.</div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                <div class="form-text">Mehrfachauswahl per Checkmark.</div>
             </div>
-            <div class="form-text">Mehrfachauswahl per Checkmark.</div>
-        </div>
-        <div class="events-form-field">
-            <label class="form-label" for="guest_names">Freie Namen</label>
-            <textarea class="form-control" id="guest_names" rows="8" name="guest_names" placeholder="Eine Zeile = ein Name">{% if event %}{% for a in event.assignments if not a.user_id and a.display_name %}{{ a.display_name }}
+            <div class="events-form-field">
+                <label class="form-label" for="guest_names">Freie Namen</label>
+                <textarea class="form-control" id="guest_names" rows="8" name="guest_names" placeholder="Eine Zeile = ein Name">{% if event %}{% for a in event.assignments if not a.user_id and a.display_name %}{{ a.display_name }}
 {% endfor %}{% endif %}</textarea>
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 
-<section class="events-form-card" aria-labelledby="events-form-contacts">
-    <div class="events-form-card-head">
-        <h2 id="events-form-contacts" class="events-form-section-title">
-            <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
-            Ansprechpartner
-        </h2>
-    </div>
-    <div class="events-form-fields events-form-fields--2">
-        <div class="events-form-field">
-            <label class="form-label" for="contactSearch">Aus Kontakten</label>
-            <input class="form-control mb-2" id="contactSearch" type="text" placeholder="Kontakt suchen…">
-            <div class="events-form-checklist">
-                {% for contact in contacts %}
-                <div class="form-check contact-item" data-search="{{ (contact.name ~ ' ' ~ (contact.email or '') ~ ' ' ~ (contact.phone or ''))|lower }}">
-                    <input class="form-check-input" type="checkbox" name="contact_ids" value="{{ contact.id }}" id="contact_{{ contact.id }}" {% if contact.email and contact.email|lower in selected_contact_keys %}checked{% endif %}>
-                    <label class="form-check-label" for="contact_{{ contact.id }}">
-                        {{ contact.name }}{% if contact.email %} – {{ contact.email }}{% endif %}
-                    </label>
+    <section class="events-form-card" aria-labelledby="events-form-contacts">
+        <div class="events-form-card-head">
+            <h2 id="events-form-contacts" class="events-form-section-title">
+                <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                Ansprechpartner
+            </h2>
+        </div>
+        <div class="events-form-fields events-form-fields--2">
+            <div class="events-form-field">
+                <label class="form-label" for="contactSearch">Aus Kontakten</label>
+                <input class="form-control mb-2" id="contactSearch" type="text" placeholder="Kontakt suchen…">
+                <div class="events-form-checklist">
+                    {% for contact in contacts %}
+                    <div class="form-check contact-item" data-search="{{ (contact.name ~ ' ' ~ (contact.email or '') ~ ' ' ~ (contact.phone or ''))|lower }}">
+                        <input class="form-check-input" type="checkbox" name="contact_ids" value="{{ contact.id }}" id="contact_{{ contact.id }}" {% if contact.email and contact.email|lower in selected_contact_keys %}checked{% endif %}>
+                        <label class="form-check-label" for="contact_{{ contact.id }}">
+                            {{ contact.name }}{% if contact.email %} – {{ contact.email }}{% endif %}
+                        </label>
+                    </div>
+                    {% else %}
+                    <div class="form-text mb-0 py-1">Keine Kontakte.</div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+            </div>
+            <div class="events-form-field">
+                <label class="form-label" for="contacts_text">Zusätzliche Ansprechpartner</label>
+                <textarea class="form-control" id="contacts_text" rows="8" name="contacts_text" placeholder="Name|Rolle|Telefon|E-Mail pro Zeile">{% if event %}{% for c in event.contacts %}{{ c.name }}|{{ c.role or '' }}|{{ c.phone or '' }}|{{ c.email or '' }}
+{% endfor %}{% endif %}</textarea>
             </div>
         </div>
-        <div class="events-form-field">
-            <label class="form-label" for="contacts_text">Zusätzliche Ansprechpartner</label>
-            <textarea class="form-control" id="contacts_text" rows="8" name="contacts_text" placeholder="Name|Rolle|Telefon|E-Mail pro Zeile">{% if event %}{% for c in event.contacts %}{{ c.name }}|{{ c.role or '' }}|{{ c.phone or '' }}|{{ c.email or '' }}
-{% endfor %}{% endif %}</textarea>
-        </div>
-    </div>
-</section>
+    </section>
+</div>
 
 <section class="events-form-card" aria-labelledby="events-form-appointments">
     <div class="events-form-card-head">

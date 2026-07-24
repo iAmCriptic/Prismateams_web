@@ -2171,11 +2171,15 @@
       },
       "buttons": {
         "send": "Senden",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "save_draft": "Entwurf speichern"
       },
       "messages": {
         "server_error": "Serverfehler {status}",
-        "validation_error": "Bitte geben Sie eine Nachricht ein."
+        "validation_error": "Bitte geben Sie eine Nachricht ein.",
+        "draft_saved": "Entwurf gespeichert.",
+        "draft_empty": "Nichts zum Speichern.",
+        "draft_error": "Entwurf konnte nicht gespeichert werden."
       }
     },
     "view": {
@@ -2403,6 +2407,10 @@
       "empty_message": "Keine Kontakte vorhanden."
     },
     "form": {
+      "back": "Zurück",
+      "sections": {
+        "basics": "Kontaktdaten"
+      },
       "fields": {
         "salutation": "Anrede",
         "name": "Name",
@@ -2424,6 +2432,7 @@
       },
       "buttons": {
         "save": "Speichern",
+        "update": "Aktualisieren",
         "cancel": "Abbrechen"
       },
       "create": {
@@ -2432,7 +2441,8 @@
           "index": "Kontakte",
           "current": "Neuer Kontakt"
         },
-        "card_title": "Neuen Kontakt erstellen"
+        "card_title": "Neuen Kontakt erstellen",
+        "subtitle": "Name, Erreichbarkeit und Notizen in einem Durchgang."
       },
       "edit": {
         "page_title": "Kontakt bearbeiten - Team Portal",
@@ -3095,7 +3105,7 @@
       },
       "subtitle": "Termin bearbeiten und speichern."
     },
-    "back_to_calendar": "Zurück zum Kalender"
+    "back_to_calendar": "Zurück"
   },
   "manuals": {
     "flash": {

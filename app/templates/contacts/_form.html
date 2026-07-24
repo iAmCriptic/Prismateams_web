@@ -1,0 +1,40 @@
+{# Shared contact create/edit fields — pill form language #}
+<section class="contacts-form-card" aria-labelledby="contacts-form-basics">
+    <div class="contacts-form-card-head">
+        <h2 id="contacts-form-basics" class="contacts-form-section-title">
+            <i class="bi bi-person-vcard" aria-hidden="true"></i>
+            {{ _('contacts.form.sections.basics') }}
+        </h2>
+    </div>
+    <div class="contacts-form-fields contacts-form-fields--2">
+        <div class="contacts-form-field">
+            <label class="form-label" for="salutation">{{ _('contacts.form.fields.salutation') }}</label>
+            <input type="text" class="form-control" id="salutation" name="salutation"
+                   placeholder="{{ _('contacts.form.placeholders.salutation') }}"
+                   value="{{ contact.salutation if contact else salutation|default('') }}">
+        </div>
+        <div class="contacts-form-field">
+            <label class="form-label" for="name">{{ _('contacts.form.fields.name') }} <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="name" name="name"
+                   placeholder="{{ _('contacts.form.placeholders.name') }}"
+                   value="{{ contact.name if contact else name|default('') }}" required>
+        </div>
+        <div class="contacts-form-field">
+            <label class="form-label" for="email">{{ _('contacts.form.fields.email') }} <span class="text-danger">*</span></label>
+            <input type="email" class="form-control" id="email" name="email"
+                   placeholder="{{ _('contacts.form.placeholders.email') }}"
+                   value="{{ contact.email if contact else email|default('') }}" required>
+        </div>
+        <div class="contacts-form-field">
+            <label class="form-label" for="phone">{{ _('contacts.form.fields.phone') }}</label>
+            <input type="tel" class="form-control" id="phone" name="phone"
+                   placeholder="{{ _('contacts.form.placeholders.phone') }}"
+                   value="{{ contact.phone if contact else phone|default('') }}">
+        </div>
+        <div class="contacts-form-field contacts-form-field--span-2">
+            <label class="form-label" for="notes">{{ _('contacts.form.fields.notes') }}</label>
+            <textarea class="form-control" id="notes" name="notes" rows="4"
+                      placeholder="{{ _('contacts.form.placeholders.notes') }}">{% if contact %}{{ contact.notes or '' }}{% else %}{{ notes|default('') }}{% endif %}</textarea>
+        </div>
+    </div>
+</section>

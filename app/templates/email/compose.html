@@ -3,593 +3,171 @@
 {% block title %}{{ _('email.compose.page_title') }}{% endblock %}
 
 {% block extra_css %}
-<!-- Contacts CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
-<!-- Quill Editor CSS -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-<style>
-    /* Avatar-Kreise für Kontakte verwenden Akzentfarbe */
-    .chip-avatar,
-    .autocomplete-avatar {
-        background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-        color: white !important;
-    }
-</style>
-<style>
-    /* Mobile Full-Screen Mode */
-    @media (max-width: 767.98px) {
-        .email-composer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: auto;
-            z-index: 1050;
-            border-radius: 0;
-            margin: 0;
-            height: 100vh;
-            height: 100dvh;
-            max-height: 100vh;
-            max-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-
-        .email-composer-header {
-            border-radius: 0;
-            flex-shrink: 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        .email-composer > .card-body {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            padding: 0 !important;
-        }
-
-        #emailComposeForm {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .email-composer-scroll {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-        }
-
-        .email-composer-toolbar {
-            flex-shrink: 0;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-            z-index: 1;
-        }
-
-        .email-composer-toolbar .ql-toolbar {
-            min-width: max-content;
-            white-space: nowrap;
-        }
-
-        .email-composer-body {
-            display: flex;
-            min-height: 0;
-            overflow: visible;
-        }
-
-        .quill-editor-container {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            width: 100%;
-        }
-
-        #editor {
-            min-height: 180px;
-            overflow: visible;
-        }
-
-        #editor .ql-editor {
-            min-height: 180px;
-        }
-
-        .email-composer-footer {
-            flex-shrink: 0;
-            border-radius: 0;
-            position: relative;
-            background: var(--bs-secondary-bg);
-            z-index: 10;
-            padding: 0.75rem 1rem !important;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .email-composer-attachments {
-            background: var(--bs-body-bg);
-        }
-
-        [data-bs-theme="dark"] .email-composer-footer {
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Ensure inputs don't zoom on focus (iOS) */
-        .email-composer input[type="text"],
-        .email-composer input[type="email"],
-        .email-composer .contact-chip-input {
-            font-size: 16px;
-        }
-
-        /* Full-screen wrapper */
-        .email-compose-wrapper {
-            position: relative;
-        }
-
-        /* Ensure buttons are always visible and accessible */
-        .email-composer-footer-actions {
-            gap: 0.5rem;
-        }
-
-        .email-composer-send-btn {
-            flex: 1 1 auto;
-            min-width: min(100%, 8rem);
-            min-height: 44px;
-            border-radius: 1.5rem;
-            border: none;
-            font-weight: 600;
-            padding: 0.625rem 1.25rem;
-            font-size: 1rem;
-            color: #fff !important;
-            background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-            box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
-        }
-
-        .email-composer-send-btn:hover,
-        .email-composer-send-btn:focus {
-            filter: brightness(1.08);
-            color: #fff !important;
-        }
-
-        .email-composer-text-btn {
-            flex: 0 0 auto;
-            min-height: 44px;
-            border: none !important;
-            box-shadow: none !important;
-            background: transparent !important;
-            color: var(--accent-color, #0d6efd) !important;
-            font-weight: 600;
-            padding: 0.5rem 0.65rem;
-            text-decoration: none !important;
-        }
-
-        .email-composer-text-btn:hover,
-        .email-composer-text-btn:focus {
-            border: none !important;
-            background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
-            color: var(--accent-color, #0d6efd) !important;
-            text-decoration: none !important;
-        }
-    }
-    
-    /* Desktop styles */
-    .email-composer {
-        background: var(--bs-body-bg);
-        border-radius: 0.375rem;
-    }
-    
-    .email-composer-header {
-        background: var(--bs-secondary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem 0.375rem 0 0;
-    }
-    
-    .email-composer-toolbar {
-        background: var(--bs-secondary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-        padding: 0.5rem;
-    }
-    
-    .email-composer-body {
-        background: #ffffff;
-        min-height: 400px;
-    }
-    
-    [data-bs-theme="dark"] .email-composer-body {
-        background: #1a202c;
-    }
-    
-    .quill-editor-container {
-        position: relative;
-    }
-    
-    #editor {
-        min-height: 350px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        font-size: 14px;
-        color: #333333;
-    }
-    
-    [data-bs-theme="dark"] #editor {
-        color: #e2e8f0;
-    }
-    
-    .ql-container {
-        font-family: inherit;
-        font-size: inherit;
-    }
-    
-    [data-bs-theme="dark"] .ql-editor {
-        color: #e2e8f0;
-    }
-    
-    [data-bs-theme="dark"] .ql-snow {
-        border-color: #4a5568;
-        background: #2d3748;
-    }
-    
-    [data-bs-theme="dark"] .ql-toolbar {
-        background: #2d3748;
-        border-color: #4a5568;
-    }
-    
-    [data-bs-theme="dark"] .ql-stroke {
-        stroke: #e2e8f0;
-    }
-    
-    [data-bs-theme="dark"] .ql-fill {
-        fill: #e2e8f0;
-    }
-    
-    [data-bs-theme="dark"] .ql-picker-label {
-        color: #e2e8f0;
-    }
-    
-    .email-preview-wrapper {
-        background: var(--bs-body-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-    
-    .email-preview-wrapper.collapsed .email-preview-body {
-        display: none;
-    }
-    
-    .email-preview-header {
-        padding: 0.75rem 1rem;
-        background: var(--bs-secondary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-    }
-    
-    .email-preview-toggle {
-        border: none;
-        background: none;
-        color: var(--bs-link-color);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-weight: 600;
-        cursor: pointer;
-        padding: 0;
-    }
-    
-    .email-preview-toggle .chevron {
-        transition: transform 0.2s ease;
-    }
-    
-    .email-preview-wrapper:not(.collapsed) .email-preview-toggle .chevron {
-        transform: rotate(90deg);
-    }
-    
-    .email-preview-body {
-        padding: 1.5rem;
-        background: var(--bs-body-bg);
-    }
-    
-    .email-preview-content {
-        background: #f4f6f8;
-        border-radius: 0.75rem;
-        border: 1px solid #e2e8f0;
-        overflow: hidden;
-        min-height: 260px;
-        position: relative;
-    }
-    
-    [data-bs-theme="dark"] .email-preview-content {
-        background: #111827;
-        border-color: #1f2937;
-    }
-    
-    .email-preview-placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 3rem 1rem;
-        color: #64748b;
-        font-size: 0.95rem;
-        text-align: center;
-    }
-    
-    [data-bs-theme="dark"] .email-preview-placeholder {
-        color: #94a3b8;
-    }
-    
-    .email-preview-spinner {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.7);
-    }
-    
-    [data-bs-theme="dark"] .email-preview-spinner {
-        background: rgba(15, 23, 42, 0.7);
-    }
-    
-    .email-composer-footer {
-        background: var(--bs-secondary-bg);
-        border-top: 1px solid var(--bs-border-color);
-        padding: 1rem;
-        border-radius: 0 0 0.375rem 0.375rem;
-    }
-
-    .email-composer-footer-actions {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-
-    .email-composer-send-btn {
-        border-radius: 1.5rem;
-        border: none;
-        font-weight: 600;
-        padding: 0.65rem 1.35rem;
-        color: #fff !important;
-        background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-        box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
-    }
-
-    .email-composer-send-btn:hover,
-    .email-composer-send-btn:focus {
-        filter: brightness(1.08);
-        color: #fff !important;
-    }
-
-    .email-composer-text-btn {
-        border: none !important;
-        box-shadow: none !important;
-        background: transparent !important;
-        color: var(--accent-color, #0d6efd) !important;
-        font-weight: 600;
-        text-decoration: none !important;
-        padding: 0.5rem 0.75rem;
-    }
-
-    .email-composer-text-btn:hover,
-    .email-composer-text-btn:focus {
-        border: none !important;
-        background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
-        color: var(--accent-color, #0d6efd) !important;
-        text-decoration: none !important;
-    }
-
-    /* Button Loading State */
-    #sendEmailButton {
-        transition: opacity 0.3s ease, background-color 0.3s ease;
-    }
-    
-    #sendEmailButton:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        pointer-events: none;
-        /* Helle, deaktivierte Version - behält die Button-Farbe bei, aber heller */
-        filter: brightness(0.85);
-    }
-    
-    #sendEmailButton .button-text {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    /* Reply context banner – visible indicator of the email being replied to.
-       Looks subtle in both light and dark mode. */
-    .reply-context-banner {
-        background: var(--bs-tertiary-bg, var(--bs-secondary-bg));
-        border-left: 3px solid var(--accent-color, var(--bs-primary));
-        font-size: 0.875rem;
-    }
-
-    [data-bs-theme="dark"] .reply-context-banner {
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .reply-context-banner .bi-reply-fill {
-        color: var(--accent-color, var(--bs-primary)) !important;
-    }
-    
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-10 mx-auto">
-        <nav aria-label="breadcrumb" class="d-none d-md-block">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('email.index') }}">{{ _('email.compose.breadcrumb.index') }}</a></li>
-                <li class="breadcrumb-item active">{{ _('email.compose.breadcrumb.current') }}</li>
-            </ol>
-        </nav>
-        
-        <div class="email-compose-wrapper">
-        <div class="card email-composer">
+{% set compose_back_url = url_for('email.index') %}
+{% set compose_title = _('email.compose.card_title') %}
+<div class="email-compose-page">
+    <div class="email-compose-wrapper">
+        <div class="email-composer">
             <div class="email-composer-header">
-                <h4 class="mb-0"><i class="bi bi-pencil-square me-2"></i>{{ _('email.compose.card_title') }}</h4>
+                <a href="{{ compose_back_url }}" class="email-compose-back-icon d-md-none" aria-label="{{ _('layout.nav.back') }}">
+                    <i class="bi bi-arrow-left fs-4" aria-hidden="true"></i>
+                </a>
+                <div class="email-composer-header-main">
+                    <a href="{{ compose_back_url }}" class="email-compose-back d-none d-md-inline-flex">
+                        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                        <span>{{ _('layout.nav.back') }}</span>
+                    </a>
+                    <h1 class="email-compose-title">
+                        <i class="bi bi-pencil-square d-none d-md-inline" aria-hidden="true"></i>
+                        <span>{{ compose_title }}</span>
+                    </h1>
+                </div>
             </div>
-            <div class="card-body p-0">
+
+            <div class="email-composer-body-shell">
                 <form method="POST" action="{{ url_for('email.compose') }}" enctype="multipart/form-data" id="emailComposeForm">
-                    <!-- Hidden fields for reply/forward metadata -->
                     <input type="hidden" name="in_reply_to" value="{{ in_reply_to|default('') }}">
                     <input type="hidden" name="references" value="{{ references|default('') }}">
                     <input type="hidden" name="forward_attachment_ids" value="{{ forward_attachment_ids|default('') }}">
                     <input type="hidden" name="original_attachment_ids" id="originalAttachmentIds" value="{{ original_attachment_ids|default('') }}">
-                    <!-- Tells the server this is a reply; the quoted original is appended on send. -->
                     <input type="hidden" name="reply_to_email_id" value="{{ reply_to_email_id|default('') }}">
                     <input type="hidden" name="forward_from_email_id" id="forwardFromEmailId" value="{{ forward_from_email_id|default('', true) }}">
-                    {# Nach Versand wird dieser Entwurf serverseitig gelöscht (DB + IMAP) #}
                     <input type="hidden" name="draft_id" id="composeDraftId" value="{{ draft_id|default('', true) }}">
                     <input type="hidden" name="body" id="bodyHtml" value="">
 
                     <div class="email-composer-scroll">
-                    <div class="p-3 border-bottom">
-                        <div class="mb-3">
-                            <label for="toChipContainer" class="form-label fw-bold">{{ _('email.compose.form.to') }}</label>
-                            <div id="toChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.to_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
-                            <input type="hidden" id="toHidden" name="to" value="{{ to|default('') }}" required>
-                            <div class="form-text">{{ _('email.compose.form.to_help') }}</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="ccChipContainer" class="form-label fw-bold">{{ _('email.compose.form.cc') }}</label>
-                            <div id="ccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.cc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
-                            <input type="hidden" id="ccHidden" name="cc" value="{{ cc|default('') }}">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="bccChipContainer" class="form-label fw-bold">{{ _('email.compose.form.bcc') }}</label>
-                            <div id="bccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.bcc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
-                            <input type="hidden" id="bccHidden" name="bcc" value="{{ bcc|default('') }}">
-                            <div class="form-text">{{ _('email.compose.form.bcc_help') }}</div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="subject" class="form-label fw-bold">{{ _('email.compose.form.subject') }}</label>
-                            <input type="text" class="form-control" id="subject" name="subject" value="{{ subject|default('') }}" required>
-                        </div>
-                    </div>
-                    
-                    {% if is_reply and original_email %}
-                    <!-- Reply context banner: shows which email we are replying to.
-                         The quoted original is appended automatically on send. -->
-                    <div class="reply-context-banner px-3 py-2 border-bottom">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi bi-reply-fill text-muted mt-1"></i>
-                            <div class="flex-grow-1 small">
-                                <div class="text-muted">
-                                    {{ _('email.compose.reply_context.prefix') }}
-                                    <strong>{{ original_email.sender|decode_email_header }}</strong>
-                                    <span class="text-muted">·</span>
-                                    <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
-                                </div>
-                                {% if original_first_line %}
-                                <div class="text-body-secondary text-truncate" style="max-width: 100%;">
-                                    {{ original_first_line }}
-                                </div>
-                                {% endif %}
-                                <div class="text-muted fst-italic mt-1">
-                                    <i class="bi bi-info-circle me-1"></i>{{ _('email.compose.reply_context.hint') }}
-                                </div>
+                        <div class="email-composer-fields">
+                            <div class="email-composer-field">
+                                <label for="toChipContainer" class="form-label">{{ _('email.compose.form.to') }}</label>
+                                <div id="toChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.to_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                                <input type="hidden" id="toHidden" name="to" value="{{ to|default('') }}" required>
+                                <div class="form-text">{{ _('email.compose.form.to_help') }}</div>
                             </div>
-                        </div>
-                    </div>
-                    {% endif %}
 
-                    {% if is_forward and original_email %}
-                    <div class="reply-context-banner px-3 py-2 border-bottom">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi bi-forward-fill text-muted mt-1"></i>
-                            <div class="flex-grow-1 small">
-                                <div class="text-muted">
-                                    {{ _('email.compose.forward_context.prefix') }}
-                                    <strong>{{ original_email.sender|decode_email_header }}</strong>
-                                    <span class="text-muted">·</span>
-                                    <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
-                                </div>
-                                {% if original_first_line %}
-                                <div class="text-body-secondary text-truncate" style="max-width: 100%;">
-                                    {{ original_first_line }}
-                                </div>
-                                {% endif %}
-                                <div class="text-muted fst-italic mt-1">
-                                    <i class="bi bi-info-circle me-1"></i>{{ _('email.compose.forward_context.hint') }}
-                                </div>
+                            <div class="email-composer-field">
+                                <label for="ccChipContainer" class="form-label">{{ _('email.compose.form.cc') }}</label>
+                                <div id="ccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.cc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                                <input type="hidden" id="ccHidden" name="cc" value="{{ cc|default('') }}">
                             </div>
-                        </div>
-                    </div>
-                    {% endif %}
 
-                    <!-- Rich Text Editor -->
-                    <div class="email-composer-toolbar">
-                        <div id="toolbar-container"></div>
-                    </div>
-                    <div class="email-composer-body">
-                        <div class="quill-editor-container" data-context-zone data-context-menu="quill">
-                            <div id="editor"></div>
+                            <div class="email-composer-field">
+                                <label for="bccChipContainer" class="form-label">{{ _('email.compose.form.bcc') }}</label>
+                                <div id="bccChipContainer" class="contact-chip-wrapper" data-placeholder="{{ _('email.compose.form.bcc_placeholder') }}" data-search-url="{{ url_for('contacts.search') }}"></div>
+                                <input type="hidden" id="bccHidden" name="bcc" value="{{ bcc|default('') }}">
+                                <div class="form-text">{{ _('email.compose.form.bcc_help') }}</div>
+                            </div>
+
+                            <div class="email-composer-field email-composer-field--subject">
+                                <label for="subject" class="form-label">{{ _('email.compose.form.subject') }}</label>
+                                <input type="text" class="form-control email-compose-input" id="subject" name="subject" value="{{ subject|default('') }}" required>
+                            </div>
                         </div>
-                    </div>
-                    <div class="email-preview-wrapper collapsed" id="emailPreviewWrapper">
-                        <div class="email-preview-header">
-                            <button type="button" class="email-preview-toggle" id="emailPreviewToggle" aria-expanded="false">
-                                <span class="chevron"><i class="bi bi-chevron-right"></i></span>
-                                <span>{{ _('email.compose.preview.toggle') }}</span>
-                            </button>
-                            <span class="text-muted small" id="emailPreviewStatus">{{ _('email.compose.preview.status_hidden') }}</span>
-                        </div>
-                        <div class="email-preview-body">
-                            <div class="email-preview-content" id="emailPreviewContent">
-                                <div class="email-preview-placeholder">
-                                    <i class="bi bi-envelope-paper"></i>
-                                    <span>{{ _('email.compose.preview.placeholder') }}</span>
+
+                        {% if is_reply and original_email %}
+                        <div class="reply-context-banner">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-reply-fill mt-1" aria-hidden="true"></i>
+                                <div class="flex-grow-1 small">
+                                    <div class="text-muted">
+                                        {{ _('email.compose.reply_context.prefix') }}
+                                        <strong>{{ original_email.sender|decode_email_header }}</strong>
+                                        <span class="text-muted">·</span>
+                                        <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
+                                    </div>
+                                    {% if original_first_line %}
+                                    <div class="text-body-secondary text-truncate">{{ original_first_line }}</div>
+                                    {% endif %}
+                                    <div class="text-muted fst-italic mt-1">
+                                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>{{ _('email.compose.reply_context.hint') }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="email-composer-attachments p-3 border-top">
-                        <div class="mb-2">
-                            <label for="attachments" class="form-label fw-bold">
-                                <i class="bi bi-paperclip me-1"></i>{{ _('email.compose.attachments.label') }}
-                            </label>
-                            <input type="file" class="form-control" id="attachments" name="attachments" multiple>
-                            <div class="form-text">{{ _('email.compose.attachments.help') }}</div>
+                        {% endif %}
+
+                        {% if is_forward and original_email %}
+                        <div class="reply-context-banner">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-forward-fill mt-1" aria-hidden="true"></i>
+                                <div class="flex-grow-1 small">
+                                    <div class="text-muted">
+                                        {{ _('email.compose.forward_context.prefix') }}
+                                        <strong>{{ original_email.sender|decode_email_header }}</strong>
+                                        <span class="text-muted">·</span>
+                                        <span>{{ (original_email.received_at or original_email.sent_at)|localdatetime }}</span>
+                                    </div>
+                                    {% if original_first_line %}
+                                    <div class="text-body-secondary text-truncate">{{ original_first_line }}</div>
+                                    {% endif %}
+                                    <div class="text-muted fst-italic mt-1">
+                                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>{{ _('email.compose.forward_context.hint') }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-text mb-0">{{ _('email.compose.attachments.footer_note') }}</div>
-                    </div>
+                        {% endif %}
+
+                        <div class="email-composer-toolbar">
+                            <div id="toolbar-container"></div>
+                        </div>
+                        <div class="email-composer-body">
+                            <div class="quill-editor-container" data-context-zone data-context-menu="quill">
+                                <div id="editor"></div>
+                            </div>
+                        </div>
+
+                        <div class="email-preview-wrapper collapsed" id="emailPreviewWrapper">
+                            <div class="email-preview-header">
+                                <button type="button" class="email-preview-toggle" id="emailPreviewToggle" aria-expanded="false">
+                                    <span class="chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                                    <span>{{ _('email.compose.preview.toggle') }}</span>
+                                </button>
+                                <span class="text-muted small" id="emailPreviewStatus">{{ _('email.compose.preview.status_hidden') }}</span>
+                            </div>
+                            <div class="email-preview-body">
+                                <div class="email-preview-content" id="emailPreviewContent">
+                                    <div class="email-preview-placeholder">
+                                        <i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                                        <span>{{ _('email.compose.preview.placeholder') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="email-composer-attachments">
+                            <div class="email-composer-field mb-2">
+                                <label for="attachments" class="form-label">
+                                    <i class="bi bi-paperclip me-1" aria-hidden="true"></i>{{ _('email.compose.attachments.label') }}
+                                </label>
+                                <input type="file" class="form-control email-compose-input email-compose-input--file" id="attachments" name="attachments" multiple>
+                                <div class="form-text">{{ _('email.compose.attachments.help') }}</div>
+                            </div>
+                            <div class="form-text mb-0">{{ _('email.compose.attachments.footer_note') }}</div>
+                        </div>
                     </div>
 
                     <div class="email-composer-footer">
-                        <div class="email-composer-footer-actions d-flex align-items-center gap-2 flex-wrap">
+                        <div class="email-composer-footer-actions">
                             <button type="submit" id="sendEmailButton" class="btn email-composer-send-btn">
                                 <span class="button-text">
-                                    <i class="bi bi-send me-1"></i> {{ _('email.compose.buttons.send') }}
+                                    <i class="bi bi-send me-1" aria-hidden="true"></i> {{ _('email.compose.buttons.send') }}
                                 </span>
                             </button>
                             <button type="button" id="saveDraftButton" class="btn email-composer-text-btn">
-                                <i class="bi bi-file-earmark me-1"></i>{{ _('email.compose.buttons.save_draft') }}
+                                <i class="bi bi-file-earmark me-1" aria-hidden="true"></i>{{ _('email.compose.buttons.save_draft') }}
                             </button>
-                            <a href="{{ url_for('email.index') }}" class="btn email-composer-text-btn" id="cancelComposeButton">
-                                <i class="bi bi-x me-1"></i>{{ _('email.compose.buttons.cancel') }}
+                            <a href="{{ compose_back_url }}" class="btn email-composer-text-btn" id="cancelComposeButton">
+                                <i class="bi bi-x me-1" aria-hidden="true"></i>{{ _('email.compose.buttons.cancel') }}
                             </a>
                         </div>
                     </div>
                 </form>
             </div>
-        </div>
         </div>
     </div>
 </div>
@@ -610,7 +188,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if mobile
     var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
     var previewUrl = "{{ url_for('email.preview_custom_email') }}";
-    
+
+    function composeAlert(message, category) {
+        if (!message) return;
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(message, category || 'info');
+            return;
+        }
+        window.alert(message);
+    }    
     // Mobile-optimized toolbar (fewer options, horizontal scroll)
     var mobileToolbarOptions = [
         ['bold', 'italic', 'underline'],
@@ -888,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // If only whitespace, show error
         if (!textContent.trim()) {
-            alert(COMPOSE_MESSAGES.validation_error || 'Bitte geben Sie eine Nachricht ein.');
+            composeAlert(COMPOSE_MESSAGES.validation_error || 'Bitte geben Sie eine Nachricht ein.', 'warning');
             return false;
         }
         
@@ -939,8 +525,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isSubmitting = false;
             sendButton.disabled = false;
             
-            // Show error message
-            alert(error.message || 'Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.');
+            composeAlert(error.message || 'Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.', 'danger');
             console.error('E-Mail-Versand Fehler:', error);
         });
         
@@ -1065,14 +650,14 @@ document.addEventListener('DOMContentLoaded', function() {
             saveDraft().then(function(result) {
                 saveDraftButton.disabled = false;
                 if (result && result.success) {
-                    alert(COMPOSE_MESSAGES.draft_saved || 'Entwurf gespeichert.');
+                    composeAlert(COMPOSE_MESSAGES.draft_saved || 'Entwurf gespeichert.', 'success');
                     return;
                 }
                 if (result && result.reason === 'empty') {
-                    alert(COMPOSE_MESSAGES.draft_empty || 'Nichts zum Speichern.');
+                    composeAlert(COMPOSE_MESSAGES.draft_empty || 'Nichts zum Speichern.', 'info');
                     return;
                 }
-                alert(COMPOSE_MESSAGES.draft_error || 'Entwurf konnte nicht gespeichert werden.');
+                composeAlert(COMPOSE_MESSAGES.draft_error || 'Entwurf konnte nicht gespeichert werden.', 'danger');
             });
         });
     }
@@ -1121,14 +706,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Speichere Entwurf beim Klick auf Zurück-Button
-    var cancelButton = document.querySelector('a[href="{{ url_for("email.index") }}"]');
-    if (cancelButton) {
-        cancelButton.addEventListener('click', function(e) {
+    // Speichere Entwurf beim Klick auf Zurück / Abbrechen
+    var leaveComposeLinks = document.querySelectorAll(
+        '#cancelComposeButton, .email-compose-back, .email-compose-back-icon'
+    );
+    leaveComposeLinks.forEach(function(leaveLink) {
+        leaveLink.addEventListener('click', function(e) {
             if (isSubmittingForm) {
                 return;
             }
-            
             if (hasDraftContent()) {
                 e.preventDefault();
                 saveDraft().then(function() {
@@ -1136,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
-    }
+    });
     
     // Markiere Formular als absendend, wenn es gesendet wird
     form.addEventListener('submit', function() {

@@ -1000,6 +1000,12 @@ def inventory_checkout():
         users=users,
         users_json=users_payload,
         preset_ref=request.args.get('transaction_number') or request.args.get('checkout_number') or '',
+        preset_event_name=request.args.get('event_name', ''),
+        preset_borrower_name=request.args.get('borrower_name', ''),
+        preset_borrower_id=request.args.get('borrower_id', ''),
+        preset_contact_email=request.args.get('contact_email', ''),
+        preset_event_id=request.args.get('event_id', ''),
+        preset_event_appointment_id=request.args.get('event_appointment_id', ''),
     )
 
 
@@ -1024,6 +1030,8 @@ def inventory_checkout_confirm():
     contact_email = request.form.get('contact_email', '').strip()
     start_date_str = request.form.get('start_date', '').strip()
     end_date_str = request.form.get('end_date', '').strip()
+    event_id_raw = request.form.get('event_id', '').strip()
+    event_appointment_id_raw = request.form.get('event_appointment_id', '').strip()
 
     if not event_name:
         flash(_('inventory.flash.event_name_required'), 'danger')
@@ -1041,6 +1049,20 @@ def inventory_checkout_confirm():
             linked_borrower_id = int(borrower_id_raw)
         except ValueError:
             linked_borrower_id = None
+
+    linked_event_id = None
+    if event_id_raw:
+        try:
+            linked_event_id = int(event_id_raw)
+        except ValueError:
+            linked_event_id = None
+
+    linked_appointment_id = None
+    if event_appointment_id_raw:
+        try:
+            linked_appointment_id = int(event_appointment_id_raw)
+        except ValueError:
+            linked_appointment_id = None
 
     if not linked_borrower_id and not contact_email:
         flash(_('inventory.flash.contact_email_required'), 'danger')
@@ -1071,6 +1093,8 @@ def inventory_checkout_confirm():
             contact_email=contact_email,
             require_event=True,
             require_end_date=True,
+            event_id=linked_event_id,
+            event_appointment_id=linked_appointment_id,
         )
     except ValueError as exc:
         code = str(exc)

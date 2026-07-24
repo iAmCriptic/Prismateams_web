@@ -3,213 +3,225 @@
 {% block title %}{{ email.subject|decode_email_header }} - {{ _('email.view.page_title_suffix') }}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ url_for('email.index') }}">{{ _('email.view.breadcrumb.index') }}</a></li>
-        <li class="breadcrumb-item active">{{ email.subject|decode_email_header }}</li>
-    </ol>
-</nav>
-
-<!-- Mobile: Top Action Bar -->
-<div class="d-md-none mb-3">
-    <div class="d-flex justify-content-end align-items-center">
-        <!-- Zurück-Button wird jetzt global von base.html bereitgestellt -->
-        <div class="btn-group" role="group">
-            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.reply', email_id=email.id) }}" title="{{ _('email.index.actions.reply') }}">
-                <i class="bi bi-reply"></i>
+{% set view_back_url = url_for('email.index') %}
+{% set view_subject = email.subject|decode_email_header %}
+<div class="email-view-page">
+    <div class="email-view-mobile-top d-md-none">
+        <a href="{{ view_back_url }}" class="email-view-back-icon" aria-label="{{ _('layout.nav.back') }}">
+            <i class="bi bi-arrow-left fs-4" aria-hidden="true"></i>
+        </a>
+        <div class="email-view-actions">
+            <a class="email-view-action-btn" href="{{ url_for('email.reply', email_id=email.id) }}" title="{{ _('email.index.actions.reply') }}">
+                <i class="bi bi-reply" aria-hidden="true"></i>
             </a>
-            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.reply_all', email_id=email.id) }}" title="{{ _('email.index.actions.reply_all') }}">
-                <i class="bi bi-reply-all"></i>
+            <a class="email-view-action-btn" href="{{ url_for('email.reply_all', email_id=email.id) }}" title="{{ _('email.index.actions.reply_all') }}">
+                <i class="bi bi-reply-all" aria-hidden="true"></i>
             </a>
-            <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('email.forward', email_id=email.id) }}" title="{{ _('email.index.actions.forward') }}">
-                <i class="bi bi-forward"></i>
+            <a class="email-view-action-btn" href="{{ url_for('email.forward', email_id=email.id) }}" title="{{ _('email.index.actions.forward') }}">
+                <i class="bi bi-forward" aria-hidden="true"></i>
             </a>
         </div>
     </div>
-</div>
 
-<div class="card email-view-card">
-    <div class="card-header d-none d-md-flex justify-content-between align-items-start gap-2">
-        <h4 class="mb-0">{{ email.subject|decode_email_header }}</h4>
-        <div class="d-flex align-items-center gap-2">
-            <div class="btn-group" role="group">
-                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('email.reply', email_id=email.id) }}" title="{{ _('email.index.actions.reply') }}">
-                    <i class="bi bi-reply"></i>
+    <div class="email-view-header">
+        <a href="{{ view_back_url }}" class="email-view-back d-none d-md-inline-flex">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
+        <div class="email-view-title-row">
+            <h1 class="email-view-title">{{ view_subject }}</h1>
+            <div class="email-view-actions d-none d-md-inline-flex">
+                <a class="email-view-action-btn" href="{{ url_for('email.reply', email_id=email.id) }}" title="{{ _('email.index.actions.reply') }}">
+                    <i class="bi bi-reply" aria-hidden="true"></i>
                 </a>
-                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('email.reply_all', email_id=email.id) }}" title="{{ _('email.index.actions.reply_all') }}">
-                    <i class="bi bi-reply-all"></i>
+                <a class="email-view-action-btn" href="{{ url_for('email.reply_all', email_id=email.id) }}" title="{{ _('email.index.actions.reply_all') }}">
+                    <i class="bi bi-reply-all" aria-hidden="true"></i>
                 </a>
-                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('email.forward', email_id=email.id) }}" title="{{ _('email.index.actions.forward') }}">
-                    <i class="bi bi-forward"></i>
+                <a class="email-view-action-btn" href="{{ url_for('email.forward', email_id=email.id) }}" title="{{ _('email.index.actions.forward') }}">
+                    <i class="bi bi-forward" aria-hidden="true"></i>
                 </a>
             </div>
         </div>
     </div>
-    <!-- Mobile: Subject Header -->
-    <div class="card-header d-md-none">
-        <h5 class="mb-0">{{ email.subject|decode_email_header }}</h5>
-    </div>
-    <div class="px-3 pt-2 text-muted small">
-            <strong>{{ _('email.view.header.from') }}</strong> {{ email.sender|decode_email_header }}<br>
-            <strong>{{ _('email.view.header.to') }}</strong> {{ email.recipients|decode_email_header }}<br>
+
+    <div class="email-view-shell">
+        <div class="email-view-meta">
+            <div class="email-view-meta-row">
+                <span class="email-view-meta-label">{{ _('email.view.header.from') }}</span>
+                <span class="email-view-meta-value">{{ email.sender|decode_email_header }}</span>
+            </div>
+            <div class="email-view-meta-row">
+                <span class="email-view-meta-label">{{ _('email.view.header.to') }}</span>
+                <span class="email-view-meta-value">{{ email.recipients|decode_email_header }}</span>
+            </div>
             {% if email.cc %}
-            <strong>{{ _('email.view.header.cc') }}</strong> {{ email.cc|decode_email_header }}<br>
-            {% endif %}
-            <strong>{{ _('email.view.header.date') }}</strong> {{ (email.received_at or email.sent_at)|localdatetime }}
-    </div>
-    <div class="card-body">
-        {% if email.attachments %}
-        <div class="attachments-section mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">
-                    <i class="bi bi-paperclip"></i> {{ _('email.view.attachments.title', count=email.attachments|length) }}
-                </h6>
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#attachmentsList" aria-expanded="true" title="{{ _('email.view.attachments.collapse_close') }}">
-                    <i class="bi bi-chevron-down" id="attachmentsToggleIcon"></i>
-                </button>
+            <div class="email-view-meta-row">
+                <span class="email-view-meta-label">{{ _('email.view.header.cc') }}</span>
+                <span class="email-view-meta-value">{{ email.cc|decode_email_header }}</span>
             </div>
-            <div class="collapse show" id="attachmentsList">
-                <div class="list-group">
-                    {% for attachment in email.attachments %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            {% if attachment.content_type.startswith('image/') %}
-                            <i class="bi bi-image me-2 text-success"></i>
-                            {% elif attachment.content_type.startswith('application/pdf') %}
-                            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>
-                            {% elif attachment.content_type.startswith('text/') %}
-                            <i class="bi bi-file-earmark-text me-2 text-info"></i>
-                            {% elif attachment.content_type.startswith('application/') %}
-                            <i class="bi bi-file-earmark-binary me-2 text-warning"></i>
-                            {% else %}
-                            <i class="bi bi-file-earmark me-2 text-secondary"></i>
-                            {% endif %}
-                            <div>
-                                <strong>{{ attachment.filename }}</strong>
-                                <br>
-                                <small class="text-muted">
-                                    {% if attachment.size > 1024*1024 %}
-                                        {{ (attachment.size / (1024*1024))|round(1) }} MB
-                                    {% else %}
-                                        {{ (attachment.size / 1024)|round(1) }} KB
-                                    {% endif %}
-                                    • {{ attachment.content_type }}
-                                    {% if attachment.is_inline %}
-                                    • <span class="badge bg-info">{{ _('email.view.attachments.inline_badge') }}</span>
-                                    {% endif %}
-                                </small>
+            {% endif %}
+            <div class="email-view-meta-row">
+                <span class="email-view-meta-label">{{ _('email.view.header.date') }}</span>
+                <span class="email-view-meta-value">{{ (email.received_at or email.sent_at)|localdatetime }}</span>
+            </div>
+        </div>
+
+        <div class="email-view-body">
+            {% if email.attachments %}
+            <div class="email-view-attachments attachments-section">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">
+                        <i class="bi bi-paperclip" aria-hidden="true"></i> {{ _('email.view.attachments.title', count=email.attachments|length) }}
+                    </h6>
+                    <button class="btn btn-sm email-view-action-btn" type="button" data-bs-toggle="collapse" data-bs-target="#attachmentsList" aria-expanded="true" title="{{ _('email.view.attachments.collapse_close') }}">
+                        <i class="bi bi-chevron-down" id="attachmentsToggleIcon" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="collapse show" id="attachmentsList">
+                    <div class="list-group list-group-flush">
+                        {% for attachment in email.attachments %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                            <div class="d-flex align-items-center min-width-0">
+                                {% if attachment.content_type.startswith('image/') %}
+                                <i class="bi bi-image me-2 text-success" aria-hidden="true"></i>
+                                {% elif attachment.content_type.startswith('application/pdf') %}
+                                <i class="bi bi-file-earmark-pdf me-2 text-danger" aria-hidden="true"></i>
+                                {% elif attachment.content_type.startswith('text/') %}
+                                <i class="bi bi-file-earmark-text me-2 text-info" aria-hidden="true"></i>
+                                {% elif attachment.content_type.startswith('application/') %}
+                                <i class="bi bi-file-earmark-binary me-2 text-warning" aria-hidden="true"></i>
+                                {% else %}
+                                <i class="bi bi-file-earmark me-2 text-secondary" aria-hidden="true"></i>
+                                {% endif %}
+                                <div class="min-width-0">
+                                    <strong class="text-truncate d-block">{{ attachment.filename }}</strong>
+                                    <small class="text-muted">
+                                        {% if attachment.size > 1024*1024 %}
+                                            {{ (attachment.size / (1024*1024))|round(1) }} MB
+                                        {% else %}
+                                            {{ (attachment.size / 1024)|round(1) }} KB
+                                        {% endif %}
+                                        • {{ attachment.content_type }}
+                                        {% if attachment.is_inline %}
+                                        • <span class="badge bg-info">{{ _('email.view.attachments.inline_badge') }}</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="email-view-actions">
+                                {% if attachment.content_type.startswith('image/') and not attachment.is_inline %}
+                                <button class="email-view-action-btn" type="button" onclick="previewAttachment({{ attachment.id }}, {{ attachment.filename|tojson }})" title="{{ _('email.view.attachments.preview') }}">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                                {% endif %}
+                                <a href="{{ url_for('email.download_attachment', attachment_id=attachment.id) }}"
+                                   class="email-view-action-btn" title="{{ _('email.view.attachments.download') }}">
+                                    <i class="bi bi-download" aria-hidden="true"></i>
+                                </a>
                             </div>
                         </div>
-                        <div class="btn-group">
-                            {% if attachment.content_type.startswith('image/') and not attachment.is_inline %}
-                            <button class="btn btn-sm btn-outline-info" onclick="previewAttachment({{ attachment.id }}, '{{ attachment.filename }}')" title="{{ _('email.view.attachments.preview') }}">
-                                <i class="bi bi-eye"></i>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if html_iframe_html %}
+            <div class="email-mobile-zoom-host">
+            <div class="email-content-wrapper">
+                <div class="email-content-header mb-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <div class="btn-group btn-group-sm email-view-pill-toggle" role="group" aria-label="{{ _('email.view.content.toggle_label') }}">
+                            <button type="button" class="btn btn-outline-secondary active" id="htmlViewBtn" aria-pressed="true">
+                                <i class="bi bi-code-square me-1" aria-hidden="true"></i>{{ _('email.view.content.tabs.html') }}
+                            </button>
+                            {% if email.body_text %}
+                            <button type="button" class="btn btn-outline-secondary" id="textViewBtn" aria-pressed="false">
+                                <i class="bi bi-file-text me-1" aria-hidden="true"></i>{{ _('email.view.content.tabs.plain') }}
                             </button>
                             {% endif %}
-                            <a href="{{ url_for('email.download_attachment', attachment_id=attachment.id) }}" 
-                               class="btn btn-sm btn-outline-accent" title="{{ _('email.view.attachments.download') }}">
-                                <i class="bi bi-download"></i>
-                            </a>
+                        </div>
+                        <div class="d-md-none btn-group btn-group-sm email-zoom-controls email-view-pill-toggle" role="group" aria-label="{{ _('email.view.zoom.label') }}">
+                            <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn" title="{{ _('email.view.zoom.out') }}">
+                                <i class="bi bi-dash" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="zoomResetBtn" title="{{ _('email.view.zoom.reset') }}">
+                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="zoomInBtn" title="{{ _('email.view.zoom.in') }}">
+                                <i class="bi bi-plus" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if html_iframe_html %}
-        <div class="email-mobile-zoom-host">
-        <div class="email-content-wrapper">
-            <div class="email-content-header mb-3">
-                <div class="d-flex justify-content-between align-items-center gap-2">
-                    <div class="btn-group btn-group-sm" role="group" aria-label="{{ _('email.view.content.toggle_label') }}">
-                        <button type="button" class="btn btn-outline-secondary active" id="htmlViewBtn" aria-pressed="true">
-                            <i class="bi bi-code-square me-1"></i>{{ _('email.view.content.tabs.html') }}
-                        </button>
-                        {% if email.body_text %}
-                        <button type="button" class="btn btn-outline-secondary" id="textViewBtn" aria-pressed="false">
-                            <i class="bi bi-file-text me-1"></i>{{ _('email.view.content.tabs.plain') }}
-                        </button>
-                        {% endif %}
-                    </div>
-                    <div class="d-md-none btn-group btn-group-sm email-zoom-controls" role="group" aria-label="{{ _('email.view.zoom.label') }}">
-                        <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn" title="{{ _('email.view.zoom.out') }}">
-                            <i class="bi bi-dash"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="zoomResetBtn" title="{{ _('email.view.zoom.reset') }}">
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="zoomInBtn" title="{{ _('email.view.zoom.in') }}">
-                            <i class="bi bi-plus"></i>
-                        </button>
+                <div id="htmlContent" class="email-html-iframe-zoom-wrap email-content-isolated">
+                    <div class="email-html-frame-wrapper">
+                        <iframe class="email-html-iframe"
+                                title="{{ _('email.view.iframe.title') }}"
+                                sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
+                                srcdoc="{{ html_iframe_html|e }}"></iframe>
                     </div>
                 </div>
-            </div>
-            <div id="htmlContent" class="email-html-iframe-zoom-wrap email-content-isolated">
-                <div class="email-html-frame-wrapper">
-                    <iframe class="email-html-iframe"
-                            title="{{ _('email.view.iframe.title') }}"
-                            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                            loading="lazy"
-                            referrerpolicy="no-referrer"
-                            srcdoc="{{ html_iframe_html|e }}"></iframe>
+                {% if email.body_text %}
+                <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
+                    <div class="email-plain-text">{{ email.body_text }}</div>
                 </div>
+                {% endif %}
             </div>
-            {% if email.body_text %}
-            <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
+            </div>
+            {% elif html_content %}
+            <div class="email-mobile-zoom-host">
+            <div class="email-content-wrapper">
+                <div class="email-content-header mb-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <div class="btn-group btn-group-sm email-view-pill-toggle" role="group" aria-label="{{ _('email.view.content.toggle_label') }}">
+                            <button type="button" class="btn btn-outline-secondary active" id="htmlViewBtn" aria-pressed="true">
+                                <i class="bi bi-code-square me-1" aria-hidden="true"></i>{{ _('email.view.content.tabs.html') }}
+                            </button>
+                            {% if email.body_text %}
+                            <button type="button" class="btn btn-outline-secondary" id="textViewBtn" aria-pressed="false">
+                                <i class="bi bi-file-text me-1" aria-hidden="true"></i>{{ _('email.view.content.tabs.plain') }}
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="d-md-none btn-group btn-group-sm email-zoom-controls email-view-pill-toggle" role="group" aria-label="{{ _('email.view.zoom.label') }}">
+                            <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn2" title="{{ _('email.view.zoom.out') }}">
+                                <i class="bi bi-dash" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="zoomResetBtn2" title="{{ _('email.view.zoom.reset') }}">
+                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="zoomInBtn2" title="{{ _('email.view.zoom.in') }}">
+                                <i class="bi bi-plus" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="htmlContent" class="email-html-content email-content-isolated{% if is_simple_html %} email-html-content--simple{% endif %}" style="width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
+                {% if email.body_text %}
+                <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
+                    <div class="email-plain-text">{{ email.body_text }}</div>
+                </div>
+                {% endif %}
+            </div>
+            </div>
+            {% elif email.body_text %}
+            <div class="email-text-content email-content-isolated">
                 <div class="email-plain-text">{{ email.body_text }}</div>
+            </div>
+            {% else %}
+            <div class="alert portal-msg portal-msg--warning" role="alert">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">{{ _('email.view.content.alert_no_content') }}</p>
+                    </div>
+                </div>
             </div>
             {% endif %}
         </div>
-        </div>
-        {% elif html_content %}
-        <div class="email-mobile-zoom-host">
-        <div class="email-content-wrapper">
-            <div class="email-content-header mb-3">
-                <div class="d-flex justify-content-between align-items-center gap-2">
-                    <div class="btn-group btn-group-sm" role="group" aria-label="{{ _('email.view.content.toggle_label') }}">
-                        <button type="button" class="btn btn-outline-secondary active" id="htmlViewBtn" aria-pressed="true">
-                            <i class="bi bi-code-square me-1"></i>{{ _('email.view.content.tabs.html') }}
-                        </button>
-                        {% if email.body_text %}
-                        <button type="button" class="btn btn-outline-secondary" id="textViewBtn" aria-pressed="false">
-                            <i class="bi bi-file-text me-1"></i>{{ _('email.view.content.tabs.plain') }}
-                        </button>
-                        {% endif %}
-                    </div>
-                    <!-- Mobile Zoom Controls -->
-                    <div class="d-md-none btn-group btn-group-sm email-zoom-controls" role="group" aria-label="{{ _('email.view.zoom.label') }}">
-                        <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn2" title="{{ _('email.view.zoom.out') }}">
-                            <i class="bi bi-dash"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="zoomResetBtn2" title="{{ _('email.view.zoom.reset') }}">
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="zoomInBtn2" title="{{ _('email.view.zoom.in') }}">
-                            <i class="bi bi-plus"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div id="htmlContent" class="email-html-content email-content-isolated{% if is_simple_html %} email-html-content--simple{% endif %}" style="width: 100%; max-width: 100%; box-sizing: border-box;">{{ html_content|safe }}</div>
-            {% if email.body_text %}
-            <div id="textContent" class="email-text-content email-content-isolated" style="display: none;">
-                <div class="email-plain-text">{{ email.body_text }}</div>
-            </div>
-            {% endif %}
-        </div>
-        </div>
-        {% elif email.body_text %}
-        <div class="email-text-content email-content-isolated">
-            <div class="email-plain-text">{{ email.body_text }}</div>
-        </div>
-        {% else %}
-        <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i>
-            {{ _('email.view.content.alert_no_content') }}
-        </div>
-        {% endif %}
     </div>
 </div>
 

@@ -12,18 +12,26 @@
 
 <div class="card mb-3" id="checkoutHeaderCard">
     <div class="card-body">
+        {% if preset_event_appointment_id %}
+        <div class="alert alert-info py-2 mb-3">
+            <i class="bi bi-link-45deg"></i>
+            Verknüpft mit Veranstaltungstermin – bitte nur noch <strong>Von</strong> und <strong>Bis</strong> setzen, Artikel scannen und bestätigen.
+        </div>
+        {% endif %}
         <div class="row g-3">
             <div class="col-md-4">
                 <label for="event_name" class="form-label">Projekt / Veranstaltung <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="event_name" name="event_name" form="checkoutForm" required
+                       value="{{ preset_event_name or '' }}"
                        placeholder="z.B. Stadtfest 2026" autocomplete="off">
             </div>
             <div class="col-md-4">
                 <label for="borrower_name" class="form-label">Verantwortlicher <span class="text-danger">*</span></label>
                 <div class="position-relative">
                     <input type="text" class="form-control" id="borrower_name" name="borrower_name" form="checkoutForm" required
-                           value="{{ current_user.full_name }}" placeholder="Name suchen oder frei eingeben" autocomplete="off">
-                    <input type="hidden" id="borrower_id" name="borrower_id" form="checkoutForm" value="{{ current_user.id }}">
+                           value="{% if preset_borrower_name %}{{ preset_borrower_name }}{% else %}{{ current_user.full_name }}{% endif %}" placeholder="Name suchen oder frei eingeben" autocomplete="off">
+                    <input type="hidden" id="borrower_id" name="borrower_id" form="checkoutForm"
+                           value="{% if preset_borrower_id %}{{ preset_borrower_id }}{% elif not preset_event_appointment_id %}{{ current_user.id }}{% endif %}">
                     <div id="borrowerSuggest" class="list-group position-absolute w-100 shadow-sm" style="z-index: 20; display: none; max-height: 220px; overflow: auto;"></div>
                 </div>
                 <small class="form-text text-muted">Portal-User wählen oder Freitext eingeben.</small>
@@ -31,7 +39,7 @@
             <div class="col-md-4" id="contactEmailWrap">
                 <label for="contact_email" class="form-label">Kontakt-E-Mail <span class="text-danger" id="emailRequiredMark" style="display:none;">*</span></label>
                 <input type="email" class="form-control bg-light" id="contact_email" name="contact_email" form="checkoutForm"
-                       value="{{ current_user.email or '' }}" placeholder="name@example.com" autocomplete="off" disabled
+                       value="{{ preset_contact_email or current_user.email or '' }}" placeholder="name@example.com" autocomplete="off" disabled
                        title="E-Mail des Portal-Users">
                 <small class="form-text text-muted" id="contactEmailHint">E-Mail des verknüpften Portal-Users (nicht änderbar).</small>
             </div>
@@ -44,6 +52,8 @@
                 <input type="datetime-local" class="form-control" id="end_date" name="end_date" form="checkoutForm" required>
             </div>
         </div>
+        <input type="hidden" id="event_id" name="event_id" form="checkoutForm" value="{{ preset_event_id or '' }}">
+        <input type="hidden" id="event_appointment_id" name="event_appointment_id" form="checkoutForm" value="{{ preset_event_appointment_id or '' }}">
     </div>
 </div>
 
@@ -242,14 +252,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     syncEmailRequirement();
 
-    // Dates
+    // Dates — bei Veranstaltungs-Verknüpfung leer lassen (Nutzer setzt Von/Bis bewusst)
     const startInput = document.getElementById('start_date');
     const endInput = document.getElementById('end_date');
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const toLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    if (startInput && !startInput.value) startInput.value = toLocal(now);
-    if (endInput && !endInput.value) endInput.value = toLocal(new Date(now.getTime() + 24*60*60*1000));
+    const linkedFromEvent = !!(document.getElementById('event_appointment_id')?.value);
+    if (!linkedFromEvent) {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const toLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        if (startInput && !startInput.value) startInput.value = toLocal(now);
+        if (endInput && !endInput.value) endInput.value = toLocal(new Date(now.getTime() + 24*60*60*1000));
+    }
 
     if (typeof BorrowScannerManager !== 'undefined') {
         window.borrowScannerManager = new BorrowScannerManager();
@@ -335,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         const formData = new FormData(checkoutForm);
-        ['event_name','borrower_name','borrower_id','contact_email','start_date','end_date'].forEach((name) => {
+        ['event_name','borrower_name','borrower_id','contact_email','start_date','end_date','event_id','event_appointment_id'].forEach((name) => {
             const el = document.getElementById(name);
             if (!el) return;
             // disabled contact_email nicht mitsenden (Portal-User)
