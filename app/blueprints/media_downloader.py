@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+import time
 from collections import defaultdict
 from datetime import datetime
 
@@ -84,6 +85,72 @@ def _is_job_cancelled(job_id):
         return job_id in _cancelled_job_ids
 
 
+def _purge_job(job):
+    """Delete job file + DB row. Caller must commit."""
+    if not job:
+        return
+    try:
+        delete_job_file(job)
+    except Exception:
+        logger.debug('Could not delete media file for job %s', getattr(job, 'id', None), exc_info=True)
+    db.session.delete(job)
+
+
+def _force_purge_cancelled_job(app, job_id, delay_seconds=8):
+    """
+    After a short wait, remove jobs still stuck in cancelling/processing cancel.
+    yt-dlp may ignore cancel for a while; don't leave zombie rows in the list.
+    """
+    def _run():
+        try:
+            time.sleep(max(1, int(delay_seconds)))
+            with app.app_context():
+                job = MediaDownloadJob.query.get(job_id)
+                if not job:
+                    return
+                if job.status in ('cancelling', 'cancelled'):
+                    _purge_job(job)
+                    db.session.commit()
+                    logger.info('Purged cancelled media job %s after timeout', job_id)
+                elif job.status == 'processing' and _is_job_cancelled(job_id):
+                    _purge_job(job)
+                    db.session.commit()
+                    logger.info('Purged stuck processing media job %s after cancel timeout', job_id)
+        except Exception:
+            logger.exception('Failed to purge cancelled media job %s', job_id)
+        finally:
+            _clear_job_cancelled(job_id)
+
+    thread = threading.Thread(
+        target=_run,
+        daemon=True,
+        name=f'media-cancel-purge-{job_id}',
+    )
+    thread.start()
+
+
+def _request_job_cancel(app, job):
+    """Mark job as cancelling and schedule auto-purge. Returns True if already removed."""
+    if job.status == 'pending':
+        _mark_job_cancelled(job.id)
+        _purge_job(job)
+        return True
+
+    if job.status in ('processing', 'cancelling'):
+        _mark_job_cancelled(job.id)
+        job.status = 'cancelling'
+        job.error_message = translate(
+            'media_downloader.flash.cancelling',
+            language=_job_language(job),
+        )
+        _force_purge_cancelled_job(app, job.id, delay_seconds=8)
+        return False
+
+    # completed / failed / cancelled → hard delete
+    _purge_job(job)
+    return True
+
+
 def _job_language(job):
     """User language for background threads (no request context)."""
     try:
@@ -118,37 +185,42 @@ def _unpack_error(message):
 
 
 def _apply_job_result(job, success, error_message):
+    """
+    Apply download outcome to the job.
+
+    Returns:
+        str: 'deleted' when the job row was removed, otherwise 'updated'.
+    """
     lang = _job_language(job)
 
     if success:
         job.status = 'completed'
         job.error_message = None
-        return
+        return 'updated'
 
     if error_message == 'cancelled':
-        job.status = 'cancelled'
+        # Abbruch → Eintrag nicht in der Liste stehen lassen
+        _purge_job(job)
+        return 'deleted'
+
+    job.status = 'failed'
+    key_map = {
+        'err_http_403': 'media_downloader.flash.err_http_403',
+        'err_age_restricted': 'media_downloader.flash.err_age_restricted',
+        'err_video_unavailable': 'media_downloader.flash.err_video_unavailable',
+        'err_download_failed': 'media_downloader.flash.err_download_failed',
+        'output_not_found': 'media_downloader.flash.file_missing',
+    }
+    if error_message in key_map:
         job.error_message = _pack_error(
-            'cancelled',
-            translate('media_downloader.flash.cancelled', language=lang),
+            error_message,
+            translate(key_map[error_message], language=lang),
         )
     else:
-        job.status = 'failed'
-        key_map = {
-            'err_http_403': 'media_downloader.flash.err_http_403',
-            'err_age_restricted': 'media_downloader.flash.err_age_restricted',
-            'err_video_unavailable': 'media_downloader.flash.err_video_unavailable',
-            'err_download_failed': 'media_downloader.flash.err_download_failed',
-            'output_not_found': 'media_downloader.flash.file_missing',
-        }
-        if error_message in key_map:
-            job.error_message = _pack_error(
-                error_message,
-                translate(key_map[error_message], language=lang),
-            )
-        else:
-            job.error_message = error_message
+        job.error_message = error_message
 
     job.expires_at = datetime.utcnow() + get_retention_timedelta()
+    return 'updated'
 
 
 def _dispatch_pending_jobs(app, user_id):
@@ -192,21 +264,36 @@ def _process_download(app, user_id, job_id):
                 return
 
             if _is_job_cancelled(job.id):
-                job.status = 'cancelled'
-                job.error_message = translate(
-                    'media_downloader.flash.cancelled',
-                    language=_job_language(job),
-                )
+                _purge_job(job)
                 db.session.commit()
                 return
 
             job.status = 'processing'
             db.session.commit()
 
+            # Cancel requested while we flipped to processing
+            if _is_job_cancelled(job.id) or job.status == 'cancelling':
+                # re-read in case another request set cancelling
+                db.session.refresh(job)
+                if _is_job_cancelled(job.id) or job.status == 'cancelling':
+                    _purge_job(job)
+                    db.session.commit()
+                    return
+
             success, error_message = run_download(
                 job,
                 should_cancel=lambda: _is_job_cancelled(job.id),
             )
+
+            # Job may have been purged by cancel-timeout thread
+            job = MediaDownloadJob.query.get(job_id)
+            if not job:
+                return
+
+            if job.status == 'cancelling' or _is_job_cancelled(job.id):
+                error_message = 'cancelled'
+                success = False
+
             _apply_job_result(job, success, error_message)
             db.session.commit()
     except Exception:
@@ -214,16 +301,19 @@ def _process_download(app, user_id, job_id):
         try:
             with app.app_context():
                 job = MediaDownloadJob.query.get(job_id)
-                if job and job.status in ('pending', 'processing'):
-                    job.status = 'failed'
-                    job.error_message = _pack_error(
-                        'err_download_failed',
-                        translate(
-                            'media_downloader.flash.err_download_failed',
-                            language=_job_language(job),
-                        ),
-                    )
-                    job.expires_at = datetime.utcnow() + get_retention_timedelta()
+                if job and job.status in ('pending', 'processing', 'cancelling'):
+                    if _is_job_cancelled(job.id) or job.status == 'cancelling':
+                        _purge_job(job)
+                    else:
+                        job.status = 'failed'
+                        job.error_message = _pack_error(
+                            'err_download_failed',
+                            translate(
+                                'media_downloader.flash.err_download_failed',
+                                language=_job_language(job),
+                            ),
+                        )
+                        job.expires_at = datetime.utcnow() + get_retention_timedelta()
                     db.session.commit()
         except Exception:
             logger.exception('Could not mark media job %s as failed after crash', job_id)
@@ -282,6 +372,16 @@ def _serialize_job_status(job):
 def index():
     if not _require_downloader():
         return redirect(url_for('dashboard.index'))
+
+    # Alte Abbruch-Zombies sofort entfernen (blieben sonst ewig in der Liste)
+    stuck = MediaDownloadJob.query.filter(
+        MediaDownloadJob.user_id == current_user.id,
+        MediaDownloadJob.status.in_(('cancelling', 'cancelled')),
+    ).all()
+    if stuck:
+        for job in stuck:
+            _purge_job(job)
+        db.session.commit()
 
     jobs = MediaDownloadJob.query.filter_by(user_id=current_user.id).order_by(
         MediaDownloadJob.created_at.desc()
@@ -526,19 +626,17 @@ def clear_all():
     jobs = MediaDownloadJob.query.filter_by(user_id=current_user.id).all()
     removed_count = 0
     cancelling_count = 0
+    app = current_app._get_current_object()
 
     for job in jobs:
-        if job.status in ('pending', 'processing'):
-            _mark_job_cancelled(job.id)
-            if job.status == 'pending':
-                db.session.delete(job)
+        if job.status in ('pending', 'processing', 'cancelling'):
+            removed = _request_job_cancel(app, job)
+            if removed:
                 removed_count += 1
             else:
                 cancelling_count += 1
-                job.error_message = translate('media_downloader.flash.cancelling')
         else:
-            delete_job_file(job)
-            db.session.delete(job)
+            _purge_job(job)
             removed_count += 1
 
     db.session.commit()
@@ -555,23 +653,25 @@ def clear_all():
 @limiter.limit('30 per hour')
 def delete_job(job_id):
     job = MediaDownloadJob.query.filter_by(id=job_id, user_id=current_user.id).first_or_404()
+    app = current_app._get_current_object()
+    force = str(
+        request.args.get('force')
+        or (request.get_json(silent=True) or {}).get('force')
+        or ''
+    ).lower() in ('1', 'true', 'yes')
 
-    if job.status in ('pending', 'processing'):
+    # Already done / stuck cancel → immer hart löschen
+    if force or job.status in ('cancelled', 'cancelling', 'failed', 'completed'):
         _mark_job_cancelled(job.id)
-        if job.status == 'pending':
-            delete_job_file(job)
-            db.session.delete(job)
-            db.session.commit()
-            return jsonify({'success': True, 'removed': True, 'cancelling': False})
-
-        job.error_message = translate('media_downloader.flash.cancelling')
+        _purge_job(job)
         db.session.commit()
-        return jsonify({'success': True, 'removed': False, 'cancelling': True})
+        _clear_job_cancelled(job_id)
+        return jsonify({'success': True, 'removed': True, 'cancelling': False})
 
-    delete_job_file(job)
-    db.session.delete(job)
+    # pending / processing → Abbruch anstoßen (processing wird nach kurzer Zeit gepurged)
+    removed = _request_job_cancel(app, job)
     db.session.commit()
-    return jsonify({'success': True, 'removed': True, 'cancelling': False})
+    return jsonify({'success': True, 'removed': removed, 'cancelling': not removed})
 
 
 @media_downloader_bp.route('/status/<int:job_id>')

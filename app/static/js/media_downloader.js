@@ -847,6 +847,16 @@
                     setBadgeStatus(jobId, 'cancelling');
                     pollJob(jobId);
                     updateJobsBadge();
+                    // Nach kurzer Zeit endgültig aus Liste nehmen (Backend purged parallel)
+                    setTimeout(() => {
+                        const el = document.querySelector(`.media-job[data-job-id="${jobId}"]`);
+                        if (!el) return;
+                        if (el.dataset.status === 'cancelling' || el.dataset.status === 'cancelled') {
+                            fetch(`${jobDeleteUrl(jobId)}?force=1`, { method: 'POST' }).finally(() => {
+                                removeJobElements(jobId);
+                            });
+                        }
+                    }, 8000);
                     return;
                 }
                 removeJobElements(jobId);
@@ -858,8 +868,15 @@
         function pollJob(jobId) {
             const id = String(jobId);
             fetch(cfg.statusUrlTemplate.replace('/0', `/${id}`))
-                .then((response) => response.json())
+                .then((response) => {
+                    if (response.status === 404) {
+                        removeJobElements(id);
+                        return null;
+                    }
+                    return response.json();
+                })
                 .then((data) => {
+                    if (!data) return;
                     const els = jobElements(id);
                     if (!els.length) return;
 
@@ -894,7 +911,11 @@
                                 title: cfg.statusLabels.failed || '',
                             });
                         }
-                    } else if (data.status === 'cancelled' || data.status === 'cancelling') {
+                    } else if (data.status === 'cancelled') {
+                        // Abgebrochen → sofort aus der Liste
+                        removeJobElements(id);
+                        return;
+                    } else if (data.status === 'cancelling') {
                         setBadgeStatus(id, data.status, data.error_message);
                     } else if (previousStatus !== data.status && data.status === 'processing') {
                         const state = progressState.get(id) || { percent: 5 };
