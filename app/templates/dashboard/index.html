@@ -170,6 +170,9 @@ class DashboardUpdater {
             this.eventSource.addEventListener('dashboard:email_update', (e) => {
                 const data = JSON.parse(e.data);
                 this.updateBadge('.email-badge', data.count);
+                if (typeof window.updateEmailNavBadge === 'function') {
+                    window.updateEmailNavBadge(data.count);
+                }
             });
             
             this.eventSource.addEventListener('dashboard:calendar_update', (e) => {

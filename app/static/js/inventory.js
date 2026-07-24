@@ -76,9 +76,57 @@ class StockManager {
         this.selectedProducts = new Set(); // Verwaltet ausgewählte Produkt-IDs
         this.currentFolderId = null; // Aktueller Ordner (aus URL)
         this.viewMode = localStorage.getItem('inventoryViewMode') || 'list'; // 'grid' oder 'list'
-        this.activeQuickFilter = null; // Aktiver Schnellfilter
         this.sortField = localStorage.getItem('inventorySortField') || 'name';
         this.sortDirection = localStorage.getItem('inventorySortDirection') || 'asc';
+        this.overdueProductIds = new Set();
+        this.favoriteProductIds = new Set();
+        this.editingFolderId = null;
+    }
+
+    getFilterEls(key) {
+        return Array.from(document.querySelectorAll(`[data-inv-filter="${key}"]`));
+    }
+
+    getFilterValue(key) {
+        const els = this.getFilterEls(key);
+        const filled = els.find((el) => (el.value || '').trim() !== '');
+        return (filled || els[0])?.value || '';
+    }
+
+    setFilterValue(key, value) {
+        this.getFilterEls(key).forEach((el) => {
+            el.value = value;
+        });
+    }
+
+    fillSelectOptions(key, placeholder, values, { sortFn = null, restore = true } = {}) {
+        const selects = this.getFilterEls(key);
+        if (!selects.length) return;
+        const currentValue = restore ? this.getFilterValue(key) : '';
+        let items = Array.from(values).filter((v) => v !== null && v !== undefined && String(v).trim() !== '');
+        items = sortFn ? items.sort(sortFn) : items.sort((a, b) => String(a).localeCompare(String(b), 'de'));
+        selects.forEach((select) => {
+            select.innerHTML = '';
+            const empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = placeholder;
+            select.appendChild(empty);
+            items.forEach((val) => {
+                const option = document.createElement('option');
+                option.value = String(val);
+                option.textContent = String(val);
+                select.appendChild(option);
+            });
+            if (currentValue && items.map(String).includes(String(currentValue))) {
+                select.value = String(currentValue);
+            } else {
+                select.value = '';
+            }
+            if (window.InventoryPillSelect) {
+                window.InventoryPillSelect.enhance(select);
+                window.InventoryPillSelect.sync(select);
+            }
+        });
     }
     
     async init() {
@@ -99,12 +147,14 @@ class StockManager {
         await this.loadCategories(); // Lade alle Kategorien
         await this.loadFilterOptions(); // Lade alle Filter-Optionen vom Server
         await this.loadProducts();
-        this.renderFolders(); // Rendere Ordner-Struktur
         // Initiale UI-Aktualisierung
         this.updateSelectionUI();
         this.applyViewMode(); // Wende gespeicherten View-Mode an
         // Wende Filter an nach dem Laden
         this.applyFilters();
+        if (window.InventoryPillSelect) {
+            window.InventoryPillSelect.enhanceAll(document);
+        }
     }
     
     async loadFolders() {
@@ -363,187 +413,66 @@ class StockManager {
     }
     
     updateCategories() {
-        const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter) {
-            console.warn('categoryFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = categoryFilter.value || '';
-        categoryFilter.innerHTML = '<option value="">Alle Kategorien</option>';
-        
-        // Füge alle Kategorien hinzu (auch wenn Set leer ist)
-        const categoriesArray = Array.from(this.categories).filter(cat => cat && cat.trim() !== '');
-        categoriesArray.sort().forEach(cat => {
-            if (cat && cat.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                categoryFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && categoriesArray.includes(currentValue)) {
-            categoryFilter.value = currentValue;
-        } else {
-            categoryFilter.value = '';
-        }
+        this.fillSelectOptions('categoryFilter', 'Alle Kategorien', this.categories);
     }
     
     updateFolders() {
-        // Ordner-Filter wurde entfernt, daher diese Funktion ist nicht mehr nötig
-        // Wird nur noch für interne Zwecke verwendet (falls benötigt)
-        // Keine UI-Aktualisierung mehr
+        // Ordner-Filter entfernt — Navigation über Ordner-Tiles
     }
     
     updateConditions() {
-        const conditionFilter = document.getElementById('conditionFilter');
-        if (!conditionFilter) {
-            console.warn('conditionFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = conditionFilter.value || '';
-        conditionFilter.innerHTML = '<option value="">Alle Zustände</option>';
-        
-        // Füge alle Zustände hinzu (auch wenn Set leer ist)
-        const conditionsArray = Array.from(this.conditions).filter(cond => cond && cond.trim() !== '');
-        conditionsArray.sort().forEach(cond => {
-            if (cond && cond.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = cond;
-                option.textContent = cond;
-                conditionFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && conditionsArray.includes(currentValue)) {
-            conditionFilter.value = currentValue;
-        } else {
-            conditionFilter.value = '';
-        }
+        this.fillSelectOptions('conditionFilter', 'Alle Zustände', this.conditions);
     }
     
     updateLocations() {
-        const locationFilter = document.getElementById('locationFilter');
-        if (!locationFilter) {
-            console.warn('locationFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = locationFilter.value || '';
-        locationFilter.innerHTML = '<option value="">Alle Lagerorte</option>';
-        
-        // Füge alle Lagerorte hinzu (auch wenn Set leer ist)
-        const locationsArray = Array.from(this.locations).filter(loc => loc && loc.trim() !== '');
-        locationsArray.sort().forEach(loc => {
-            if (loc && loc.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = loc;
-                option.textContent = loc;
-                locationFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && locationsArray.includes(currentValue)) {
-            locationFilter.value = currentValue;
-        } else {
-            locationFilter.value = '';
-        }
+        this.fillSelectOptions('locationFilter', 'Alle Lagerorte', this.locations);
     }
     
     updateLengths() {
-        const lengthFilter = document.getElementById('lengthFilter');
-        if (!lengthFilter) {
-            console.warn('lengthFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = lengthFilter.value || '';
-        lengthFilter.innerHTML = '<option value="">Alle Längen</option>';
-        
-        // Füge alle Längen hinzu (auch wenn Set leer ist)
-        const lengthsArray = Array.from(this.lengths).filter(len => len && len.trim() !== '');
-        
-        // Sortiere Längen intelligent (zuerst nach Zahl, dann alphabetisch)
-        const sortedLengths = lengthsArray.sort((a, b) => {
-            // Versuche zuerst numerischen Vergleich mit length_meters (falls verfügbar)
-            // Extrahiere Zahlen aus Strings (z.B. "5m" -> 5)
-            const numA = parseFloat(String(a).replace(/[^0-9.]/g, '')) || 0;
-            const numB = parseFloat(String(b).replace(/[^0-9.]/g, '')) || 0;
-            if (numA !== numB) {
-                return numA - numB;
-            }
-            // Fallback: alphabetisch
-            return String(a).localeCompare(String(b));
+        this.fillSelectOptions('lengthFilter', 'Alle Längen', this.lengths, {
+            sortFn: (a, b) => {
+                const numA = parseFloat(String(a).replace(/[^0-9.]/g, '')) || 0;
+                const numB = parseFloat(String(b).replace(/[^0-9.]/g, '')) || 0;
+                if (numA !== numB) return numA - numB;
+                return String(a).localeCompare(String(b), 'de');
+            },
         });
-        
-        sortedLengths.forEach(len => {
-            if (len && String(len).trim() !== '') {
-                const option = document.createElement('option');
-                option.value = String(len);
-                option.textContent = String(len);
-                lengthFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && sortedLengths.includes(currentValue)) {
-            lengthFilter.value = currentValue;
-        } else {
-            lengthFilter.value = '';
-        }
     }
     
     updatePurchaseYears() {
-        const purchaseYearFilter = document.getElementById('purchaseYearFilter');
-        if (!purchaseYearFilter) {
-            console.warn('purchaseYearFilter Element nicht gefunden');
-            return;
-        }
-        
-        const currentValue = purchaseYearFilter.value || '';
-        purchaseYearFilter.innerHTML = '<option value="">Alle Jahre</option>';
-        
-        // Füge alle Jahre hinzu (auch wenn Set leer ist)
-        const yearsArray = Array.from(this.purchaseYears).filter(year => year && String(year).trim() !== '');
-        
-        // Sortiere Jahre absteigend (neueste zuerst)
-        const sortedYears = yearsArray.sort((a, b) => {
-            const yearA = parseInt(String(a)) || 0;
-            const yearB = parseInt(String(b)) || 0;
-            return yearB - yearA; // Absteigend
+        this.fillSelectOptions('purchaseYearFilter', 'Alle Jahre', this.purchaseYears, {
+            sortFn: (a, b) => (parseInt(String(b), 10) || 0) - (parseInt(String(a), 10) || 0),
         });
-        
-        sortedYears.forEach(year => {
-            if (year && String(year).trim() !== '') {
-                const option = document.createElement('option');
-                option.value = String(year);
-                option.textContent = String(year);
-                purchaseYearFilter.appendChild(option);
-            }
-        });
-        
-        // Stelle vorherigen Wert wieder her, falls er noch existiert
-        if (currentValue && sortedYears.includes(currentValue)) {
-            purchaseYearFilter.value = currentValue;
-        } else {
-            purchaseYearFilter.value = '';
-        }
     }
     
     setupEventListeners() {
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const statusFilter = document.getElementById('statusFilter');
-        const conditionFilter = document.getElementById('conditionFilter');
-        const locationFilter = document.getElementById('locationFilter');
-        const lengthFilter = document.getElementById('lengthFilter');
-        const purchaseYearFilter = document.getElementById('purchaseYearFilter');
-        const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+        const filterKeys = [
+            'searchInput', 'categoryFilter', 'statusFilter', 'favoritesFilter',
+            'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
+            'serialPresenceFilter', 'dguvFilter',
+        ];
+
+        filterKeys.forEach((key) => {
+            this.getFilterEls(key).forEach((el) => {
+                const eventName = key === 'searchInput' ? 'input' : 'change';
+                el.addEventListener(eventName, () => {
+                    this.getFilterEls(key).forEach((other) => {
+                        if (other !== el) other.value = el.value;
+                    });
+                    if (key === 'searchInput') {
+                        clearTimeout(this.searchTimeout);
+                        this.searchTimeout = setTimeout(() => this.applyFilters(), 300);
+                        return;
+                    }
+                    this.applyFilters();
+                });
+            });
+        });
+
+        document.querySelectorAll('.inventory-reset-filters-btn').forEach((btn) => {
+            btn.addEventListener('click', () => this.resetFilters());
+        });
+
         const bulkSelectAllBtn = document.getElementById('bulkSelectAllBtn');
         const bulkDeselectAllBtn = document.getElementById('bulkDeselectAllBtn');
         const bulkEditBtn = document.getElementById('bulkEditBtn');
@@ -551,162 +480,121 @@ class StockManager {
         const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
         const bulkQrBtn = document.getElementById('bulkQrBtn');
         const bulkRepairBtn = document.getElementById('bulkRepairBtn');
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                clearTimeout(this.searchTimeout);
-                this.searchTimeout = setTimeout(() => {
-                    // Entferne active-Klasse von Schnellfilter-Buttons bei Suche
-                    document.querySelectorAll('.quick-filter').forEach(b => {
-                        b.classList.remove('active');
-                    });
-                    this.activeQuickFilter = null;
-                    this.applyFilters();
-                }, 300);
-            });
-        }
-        
-        // Alle Filter mit Event-Listenern versehen
-        [categoryFilter, statusFilter, conditionFilter, locationFilter, lengthFilter, purchaseYearFilter].forEach(filter => {
-            if (filter) {
-                filter.addEventListener('change', () => this.applyFilters());
-            }
-        });
-        
-        if (resetFiltersBtn) {
-            resetFiltersBtn.addEventListener('click', () => this.resetFilters());
-        }
-        
-        if (bulkSelectAllBtn) {
-            bulkSelectAllBtn.addEventListener('click', () => this.selectAllAvailable());
-        }
-        
-        if (bulkDeselectAllBtn) {
-            bulkDeselectAllBtn.addEventListener('click', () => this.deselectAll());
-        }
-        
-        if (bulkEditBtn) {
-            bulkEditBtn.addEventListener('click', () => this.openBulkEditModal());
-        }
-        
-        if (bulkBorrowBtn) {
-            bulkBorrowBtn.addEventListener('click', () => this.borrowSelected());
-        }
-
-        if (bulkQrBtn) {
-            bulkQrBtn.addEventListener('click', () => this.printSelectedQr());
-        }
-
-        if (bulkRepairBtn) {
-            bulkRepairBtn.addEventListener('click', () => this.markSelectedInRepair());
-        }
-
         const bulkAvailableBtn = document.getElementById('bulkAvailableBtn');
-        if (bulkAvailableBtn) {
-            bulkAvailableBtn.addEventListener('click', () => this.markSelectedAvailable());
-        }
-        
-        if (bulkDeleteBtn) {
-            bulkDeleteBtn.addEventListener('click', () => this.openBulkDeleteModal());
-        }
-        
-        // Checkbox-Events werden direkt in attachCheckboxHandlers() behandelt
+
+        if (bulkSelectAllBtn) bulkSelectAllBtn.addEventListener('click', () => this.selectAllAvailable());
+        if (bulkDeselectAllBtn) bulkDeselectAllBtn.addEventListener('click', () => this.deselectAll());
+        if (bulkEditBtn) bulkEditBtn.addEventListener('click', () => this.openBulkEditModal());
+        if (bulkBorrowBtn) bulkBorrowBtn.addEventListener('click', () => this.borrowSelected());
+        if (bulkQrBtn) bulkQrBtn.addEventListener('click', () => this.printSelectedQr());
+        if (bulkRepairBtn) bulkRepairBtn.addEventListener('click', () => this.markSelectedInRepair());
+        if (bulkAvailableBtn) bulkAvailableBtn.addEventListener('click', () => this.markSelectedAvailable());
+        if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', () => this.openBulkDeleteModal());
     }
     
     setupSortControls() {
-        const validFields = ['name', 'category', 'condition', 'length'];
+        const validFields = [
+            'name', 'category', 'condition', 'length',
+            'location', 'status', 'purchase_date', 'serial_number',
+        ];
         if (!validFields.includes(this.sortField)) {
             this.sortField = 'name';
         }
         if (!['asc', 'desc'].includes(this.sortDirection)) {
             this.sortDirection = 'asc';
         }
-        
-        const sortFieldSelect = document.getElementById('sortField');
-        const sortDirectionSelect = document.getElementById('sortDirection');
-        const resetSortBtn = document.getElementById('resetSortBtn');
-        
-        if (sortFieldSelect) {
-            sortFieldSelect.value = this.sortField;
+
+        this.setFilterValue('sortField', this.sortField);
+        this.setFilterValue('sortDirection', this.sortDirection);
+
+        this.getFilterEls('sortField').forEach((sortFieldSelect) => {
             sortFieldSelect.addEventListener('change', () => {
                 const selectedValue = sortFieldSelect.value;
                 this.sortField = validFields.includes(selectedValue) ? selectedValue : 'name';
+                this.setFilterValue('sortField', this.sortField);
                 localStorage.setItem('inventorySortField', this.sortField);
                 this.applyFilters();
             });
-        }
-        
-        if (sortDirectionSelect) {
-            sortDirectionSelect.value = this.sortDirection;
+        });
+
+        this.getFilterEls('sortDirection').forEach((sortDirectionSelect) => {
             sortDirectionSelect.addEventListener('change', () => {
                 const selectedValue = sortDirectionSelect.value === 'desc' ? 'desc' : 'asc';
                 this.sortDirection = selectedValue;
+                this.setFilterValue('sortDirection', this.sortDirection);
                 localStorage.setItem('inventorySortDirection', this.sortDirection);
                 this.applyFilters();
             });
-        }
-        
-        if (resetSortBtn) {
-            resetSortBtn.addEventListener('click', () => {
+        });
+
+        document.querySelectorAll('.inventory-reset-sort-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
                 this.sortField = 'name';
                 this.sortDirection = 'asc';
                 localStorage.removeItem('inventorySortField');
                 localStorage.removeItem('inventorySortDirection');
-                if (sortFieldSelect) sortFieldSelect.value = 'name';
-                if (sortDirectionSelect) sortDirectionSelect.value = 'asc';
+                this.setFilterValue('sortField', 'name');
+                this.setFilterValue('sortDirection', 'asc');
                 this.applyFilters();
             });
-        }
+        });
     }
     
     applyFilters() {
-        const search = document.getElementById('searchInput')?.value.trim() || '';
+        const search = (this.getFilterValue('searchInput') || '').trim();
         const searchLower = search.toLowerCase();
-        const category = document.getElementById('categoryFilter')?.value || '';
-        const status = document.getElementById('statusFilter')?.value || '';
-        const condition = document.getElementById('conditionFilter')?.value || '';
-        const location = document.getElementById('locationFilter')?.value || '';
-        const length = document.getElementById('lengthFilter')?.value || '';
-        const purchaseYear = document.getElementById('purchaseYearFilter')?.value || '';
+        const category = this.getFilterValue('categoryFilter') || '';
+        const status = this.getFilterValue('statusFilter') || '';
+        const condition = this.getFilterValue('conditionFilter') || '';
+        const location = this.getFilterValue('locationFilter') || '';
+        const length = this.getFilterValue('lengthFilter') || '';
+        const purchaseYear = this.getFilterValue('purchaseYearFilter') || '';
+        const serialPresence = this.getFilterValue('serialPresenceFilter') || '';
+        const dguv = this.getFilterValue('dguvFilter') || '';
+        const favoritesOnly = this.getFilterValue('favoritesFilter') === 'favorites';
+        const today = new Date().toISOString().slice(0, 10);
         
         this.filteredProducts = this.products.filter(p => {
-            // Erweiterte Suche - durchsucht alle Attribute
             const matchesSearch = !search || this.matchesSearch(p, searchLower);
             
-            // Ordner-Filter:
-            // - Wenn eine Suche aktiv ist: IGNORIERE Ordner-Filterung (durchsuche alle Ordner)
-            // - Wenn keine Suche aktiv ist:
-            //   - Wenn currentFolderId gesetzt ist: zeige nur Produkte aus diesem Ordner
-            //   - Wenn kein currentFolderId (Root): zeige alle Produkte
             let matchesFolder = true;
-            if (!search) {
-                // Nur Ordner-Filterung anwenden, wenn keine Suche aktiv ist
-                if (this.currentFolderId !== null && this.currentFolderId !== undefined) {
-                    // Wir sind in einem Ordner: zeige nur Produkte aus diesem Ordner
-                    matchesFolder = p.folder_id === this.currentFolderId;
-                } else {
-                    // Wir sind im Root: keine Ordner-Einschränkung
-                    matchesFolder = true;
-                }
+            if (this.currentFolderId !== null && this.currentFolderId !== undefined) {
+                matchesFolder = Number(p.folder_id) === Number(this.currentFolderId);
+            } else if (!search) {
+                // Root: nur Produkte ohne Ordner — Ordnerprodukte nur im jeweiligen Ordner
+                matchesFolder = !p.folder_id;
             }
-            // Wenn search aktiv ist, bleibt matchesFolder = true (alle Ordner durchsuchen)
             
-            // Andere Filter - behandeln null/undefined korrekt
             const matchesCategory = !category || (p.category !== null && p.category !== undefined && p.category === category);
-            const matchesStatus = !status || (p.status !== null && p.status !== undefined && p.status === status);
+            let matchesStatus = true;
+            if (status === 'overdue') {
+                matchesStatus = this.overdueProductIds.has(Number(p.id));
+            } else if (status) {
+                matchesStatus = p.status !== null && p.status !== undefined && p.status === status;
+            }
+            const matchesFavorites = !favoritesOnly || this.favoriteProductIds.has(Number(p.id));
             const matchesCondition = !condition || (p.condition !== null && p.condition !== undefined && p.condition === condition);
             const matchesLocation = !location || (p.location !== null && p.location !== undefined && p.location === location);
             const matchesLength = !length || this.matchesLength(p, length);
             const matchesPurchaseYear = !purchaseYear || this.matchesPurchaseYear(p, purchaseYear);
+
+            const hasSerial = !!(p.serial_number && String(p.serial_number).trim());
+            const matchesSerial = !serialPresence
+                || (serialPresence === 'with' && hasSerial)
+                || (serialPresence === 'without' && !hasSerial);
+
+            const dguvDate = p.dguv_next_check ? String(p.dguv_next_check).slice(0, 10) : '';
+            const matchesDguv = !dguv
+                || (dguv === 'due' && dguvDate && dguvDate <= today)
+                || (dguv === 'ok' && dguvDate && dguvDate > today)
+                || (dguv === 'none' && !dguvDate);
             
-            return matchesSearch && matchesFolder && matchesCategory && matchesStatus && 
-                   matchesCondition && matchesLocation && matchesLength && matchesPurchaseYear;
+            return matchesSearch && matchesFolder && matchesCategory && matchesStatus &&
+                   matchesFavorites && matchesCondition && matchesLocation && matchesLength &&
+                   matchesPurchaseYear && matchesSerial && matchesDguv;
         });
         
         this.sortFilteredProducts();
-        
-        // Rendere Ordner neu (werden bei Suche ausgeblendet)
-        this.renderFolders();
         this.renderProducts();
     }
     
@@ -807,13 +695,11 @@ class StockManager {
     }
     
     resetFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('categoryFilter').value = '';
-        document.getElementById('statusFilter').value = '';
-        document.getElementById('conditionFilter').value = '';
-        document.getElementById('locationFilter').value = '';
-        document.getElementById('lengthFilter').value = '';
-        document.getElementById('purchaseYearFilter').value = '';
+        [
+            'searchInput', 'categoryFilter', 'statusFilter', 'favoritesFilter',
+            'conditionFilter', 'locationFilter', 'lengthFilter', 'purchaseYearFilter',
+            'serialPresenceFilter', 'dguvFilter',
+        ].forEach((key) => this.setFilterValue(key, ''));
         this.applyFilters();
     }
     
@@ -847,32 +733,42 @@ class StockManager {
             this.renderProductsList();
         }
     }
+
+    getVisibleFolders() {
+        const hasSearch = (this.getFilterValue('searchInput') || '').trim() !== '';
+        if (hasSearch) return [];
+        // Flat folders: nur im Root anzeigen
+        if (this.currentFolderId !== null && this.currentFolderId !== undefined) return [];
+        return Array.isArray(this.folders) ? this.folders.slice() : [];
+    }
     
     renderProductsGrid() {
         const container = document.getElementById('productsContainer');
         if (!container) return;
-        
-        if (this.filteredProducts.length === 0) {
+
+        const folders = this.getVisibleFolders();
+        if (folders.length === 0 && this.filteredProducts.length === 0) {
             container.innerHTML = `
                 <div class="col-12">
-                    <div class="inventory-empty text-center py-5">
-                        <i class="bi bi-inbox fs-1 mb-3 text-muted"></i>
-                        <p class="text-muted">Keine Produkte gefunden</p>
+                    <div class="mod-empty-state">
+                        <div>
+                            <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+                            Keine Produkte gefunden
+                        </div>
                     </div>
                 </div>
             `;
             return;
         }
-        
-        const html = this.filteredProducts.map(product => 
-            `<div class="col-12 col-md-6 col-lg-4 col-xl-3">${this.renderProductCard(product)}</div>`
+
+        const folderHtml = folders.map((folder) => this.renderFolderCard(folder)).join('');
+        const productHtml = this.filteredProducts.map((product) =>
+            `<div class="col-12 col-md-6 col-lg-4">${this.renderProductCard(product)}</div>`
         ).join('');
-        container.innerHTML = html;
+        container.innerHTML = folderHtml + productHtml;
         
-        // Nach dem Rendern Event-Handler für Checkboxen setzen
         this.attachCheckboxHandlers();
         
-        // Favoriten-Buttons aktualisieren, falls Favoriten geladen wurden
         if (typeof updateFavoriteButtons === 'function') {
             setTimeout(() => updateFavoriteButtons(), 100);
         }
@@ -881,21 +777,27 @@ class StockManager {
     renderProductsList() {
         const container = document.getElementById('productsList');
         if (!container) return;
-        
-        if (this.filteredProducts.length === 0) {
+
+        const folders = this.getVisibleFolders();
+        if (folders.length === 0 && this.filteredProducts.length === 0) {
             container.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
-                        Keine Produkte gefunden
+                    <td colspan="7">
+                        <div class="mod-empty-state">
+                            <div>
+                                <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+                                Keine Produkte gefunden
+                            </div>
+                        </div>
                     </td>
                 </tr>
             `;
             return;
         }
-        
-        const html = this.filteredProducts.map(product => this.renderProductListItem(product)).join('');
-        container.innerHTML = html;
+
+        const folderHtml = folders.map((folder) => this.renderFolderListItem(folder)).join('');
+        const productHtml = this.filteredProducts.map((product) => this.renderProductListItem(product)).join('');
+        container.innerHTML = folderHtml + productHtml;
         
         this.attachCheckboxHandlers();
         
@@ -942,12 +844,6 @@ class StockManager {
         const category = this.isValidValue(product.category) ? this.escapeHtml(product.category) : '—';
         const location = this.isValidValue(product.location) ? this.escapeHtml(product.location) : '—';
         const serial = this.isValidValue(product.serial_number) ? this.escapeHtml(product.serial_number) : '—';
-        const folderHint = product.folder_name
-            ? `<div class="small text-muted"><i class="bi bi-folder"></i> ${this.escapeHtml(product.folder_name)}</div>`
-            : '';
-        const lengthHint = this.isValidValue(product.length)
-            ? `<div class="small text-muted d-lg-none"><i class="bi bi-arrows-expand"></i> ${this.escapeHtml(product.length)}</div>`
-            : '';
 
         const hoverBorrow = isBorrowable
             ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
@@ -955,19 +851,18 @@ class StockManager {
 
         return `
             <tr class="mod-list-row ${selectionModeClass}" data-product-id="${product.id}" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
-                <td>
+                <td class="inventory-list-check-col">
                     <input type="checkbox" class="form-check-input product-checkbox"
                            value="${product.id}" data-product-id="${product.id}"
-                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}>
+                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
+                           onclick="event.stopPropagation()">
                     ${this.buildProductContextMenuHtml(product)}
                 </td>
                 <td>
-                    <button type="button" class="mod-list-name btn btn-link text-decoration-none text-start p-0"
+                    <button type="button" class="mod-list-name inventory-item-name text-decoration-none text-start border-0 bg-transparent p-0"
                             onclick="if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
-                        <i class="bi bi-box-seam me-2 text-muted"></i>${this.escapeHtml(product.name)}
+                        <i class="bi bi-box-seam me-2 text-muted"></i><span class="inventory-item-name-text" title="${this.escapeHtml(product.name)}">${this.escapeHtml(product.name)}</span>
                     </button>
-                    ${folderHint}
-                    ${lengthHint}
                     <div class="d-md-none mt-1">${statusBadge}</div>
                 </td>
                 <td class="d-none d-md-table-cell">${statusBadge}</td>
@@ -991,10 +886,10 @@ class StockManager {
                             </button>
                         </div>
                         <div class="dropdown d-inline-block">
-                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" onclick="event.stopPropagation()">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
+                            <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
                                 <li>
                                     <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
                                         <i class="bi bi-eye me-2"></i>Ansehen
@@ -1024,15 +919,16 @@ class StockManager {
         }
         items += `<li><a class="dropdown-item" href="/inventory/products/${id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>`;
         items += `<li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${id})"><i class="bi bi-star me-2"></i>Favorit</button></li>`;
-        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu">${items}</ul></div>`;
+        return `<div class="context-menu-source d-none" id="context-menu-product-${id}"><ul class="dropdown-menu inventory-actions-menu">${items}</ul></div>`;
     }
 
     buildFolderContextMenuHtml(folder) {
         const id = folder.id;
         const name = this.escapeHtml(folder.name);
         return `<div class="context-menu-source d-none" id="context-menu-folder-${id}">
-            <ul class="dropdown-menu">
+            <ul class="dropdown-menu inventory-actions-menu">
                 <li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${id});}"><i class="bi bi-folder2-open me-2"></i>Öffnen</button></li>
+                <li><button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${id});}"><i class="bi bi-pencil me-2"></i>Umbenennen / Farbe</button></li>
                 <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
@@ -1132,89 +1028,80 @@ class StockManager {
     }
     
     renderProductCard(product) {
-        let statusBadge = '';
-        if (product.status === 'available') {
-            statusBadge = '<span class="badge bg-success">Verfügbar</span>';
-        } else if (product.status === 'borrowed') {
-            statusBadge = '<span class="badge bg-warning">Ausgeliehen</span>';
-        } else if (product.status === 'missing') {
-            statusBadge = '<span class="badge bg-danger">Fehlend</span>';
-        } else if (product.status === 'defective' || product.status === 'in_repair') {
-            statusBadge = '<span class="badge bg-danger">Defekt</span>';
-        }
-        
-        const imageHtml = product.image_path 
-            ? `<img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}" class="product-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
-            : '';
-        const imageContainer = product.image_path
-            ? `<div class="position-relative" style="width: 100%; height: 200px; overflow: hidden;">${imageHtml}<div class="product-image-placeholder" style="display: none;"><i class="bi bi-box-seam fs-1 text-muted"></i></div></div>`
-            : '<div class="product-image-placeholder"><i class="bi bi-box-seam fs-1 text-muted"></i></div>';
-        
+        const statusBadge = this.statusBadgeHtml(product);
         const isSelected = this.selectedProducts.has(product.id);
         const isSelectable = this.isProductSelectable(product);
         const isBorrowable = this.isProductBorrowable(product);
         const checkboxTitle = isSelectable ? '' : ' title="Ausgemusterte Produkte lassen sich nicht auswählen"';
-        const checkbox = `
-            <div class="position-absolute top-0 start-0 m-2" style="z-index: 10;">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input product-checkbox"
-                           value="${product.id}" data-product-id="${product.id}"
-                           ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}
-                           style="width: 1.2rem; height: 1.2rem; background-color: white; cursor: pointer;">
-                </div>
-            </div>
-        `;
-        
-        // Click-Handler: Wenn Auswahl aktiv, toggle Auswahl; sonst Details anzeigen
-        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
-        
-        // selection-mode Klasse nur hinzufügen, wenn das Produkt tatsächlich ausgewählt ist
         const selectionModeClass = isSelected ? 'selection-mode' : '';
-        
+        const cardClickHandler = `onclick="if(window.stockManager){window.stockManager.handleCardClick(${product.id}, ${isSelectable});}"`;
+
+        const preview = product.image_path
+            ? `<img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}" class="inventory-product-preview-img image-mini-preview img-fluid rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <div class="inventory-product-preview-fallback" style="display: none;"><i class="bi bi-box-seam"></i></div>`
+            : `<div class="inventory-product-preview-fallback"><i class="bi bi-box-seam"></i></div>`;
+
+        const hoverBorrow = isBorrowable
+            ? `<a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/borrow" title="Ausleihen" onclick="event.stopPropagation()"><i class="bi bi-cart-check"></i></a>`
+            : '';
+
         return `
-            <div class="card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
+            <div class="card h-100 inventory-product-card product-card ${selectionModeClass}" ${cardClickHandler} style="cursor: pointer;" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-product-${product.id}">
                 ${this.buildProductContextMenuHtml(product)}
-                <div class="position-relative">
-                    ${imageContainer}
-                    ${checkbox}
-                    ${statusBadge ? `<div class="position-absolute top-0 end-0 m-2" style="z-index: 5;">${statusBadge}</div>` : ''}
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">${product.name}</h5>
-                        ${product.folder_name 
-                        ? `<p class="mb-1">
-                            <span class="badge bg-info cursor-pointer" 
-                                  onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.filterByFolder(${product.folder_id});}" 
-                                  title="Klicken um nach diesem Ordner zu filtern">
-                                <i class="bi bi-folder"></i> ${product.folder_name}
-                            </span>
-                          </p>`
-                        : ''}
-                    ${product.category ? `<p class="text-muted mb-1"><small>${product.category}</small></p>` : ''}
-                    <div class="product-details mb-2">
-                        ${this.isValidValue(product.serial_number) 
-                            ? `<p class="text-muted mb-1"><small><i class="bi bi-upc"></i> SN: ${product.serial_number}</small></p>` 
-                            : ''}
-                        ${this.isValidValue(product.location) 
-                            ? `<p class="text-muted mb-1"><small><i class="bi bi-geo-alt"></i> ${product.location}</small></p>` 
-                            : ''}
-                        ${this.isValidValue(product.length) 
-                            ? `<p class="text-muted mb-0"><small><i class="bi bi-arrows-expand"></i> ${product.length}</small></p>` 
-                            : ''}
-                    </div>
-                    <div class="mt-2 d-flex justify-content-between align-items-center">
-                        <div>
-                            ${isBorrowable 
-                                ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">Ausleihen</a>`
-                                : ''}
-                            <a href="/inventory/products/${product.id}/edit" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">Bearbeiten</a>
+                <div class="card-body d-flex flex-column">
+                    <div class="inventory-product-preview text-center mb-3">
+                        ${preview}
+                        <div class="inventory-product-preview-check" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="form-check-input product-checkbox"
+                                   value="${product.id}" data-product-id="${product.id}"
+                                   ${isSelected ? 'checked' : ''} ${isSelectable ? '' : 'disabled'}${checkboxTitle}>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-warning favorite-btn" 
-                                data-product-id="${product.id}" 
-                                onclick="event.stopPropagation(); toggleFavorite(${product.id});"
-                                title="Zu Favoriten hinzufügen">
-                            <i class="bi bi-star"></i>
-                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="d-flex align-items-center gap-2 mb-1 min-width-0">
+                                <h6 class="card-title text-truncate mb-0" title="${this.escapeHtml(product.name)}">${this.escapeHtml(product.name)}</h6>
+                                ${statusBadge}
+                            </div>
+                            ${product.category ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-tag"></i> ${this.escapeHtml(product.category)}</p>` : ''}
+                            ${this.isValidValue(product.serial_number) ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-upc"></i> ${this.escapeHtml(product.serial_number)}</p>` : ''}
+                            ${this.isValidValue(product.location) ? `<p class="inventory-card-meta mb-0 text-truncate"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(product.location)}</p>` : ''}
+                        </div>
+                        <div class="d-flex align-items-start gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                            <div class="inventory-grid-hover-actions">
+                                <button type="button" class="btn btn-sm btn-link favorite-btn" data-product-id="${product.id}"
+                                        title="Favorit" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                    <i class="bi bi-star"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-link" title="Ansehen"
+                                        onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                ${hoverBorrow}
+                                <a class="btn btn-sm btn-link" href="/inventory/products/${product.id}/edit" title="Bearbeiten" onclick="event.stopPropagation()">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                            <div class="dropdown inventory-card-menu">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                    <li>
+                                        <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.showProductDetail(${product.id});}">
+                                            <i class="bi bi-eye me-2"></i>Ansehen
+                                        </button>
+                                    </li>
+                                    ${isBorrowable ? `<li><a class="dropdown-item" href="/inventory/products/${product.id}/borrow"><i class="bi bi-cart-check me-2"></i>Ausleihen</a></li>` : ''}
+                                    <li><a class="dropdown-item" href="/inventory/products/${product.id}/edit"><i class="bi bi-pencil me-2"></i>Bearbeiten</a></li>
+                                    <li>
+                                        <button type="button" class="dropdown-item" onclick="event.stopPropagation(); toggleFavorite(${product.id});">
+                                            <i class="bi bi-star me-2"></i>Favorit
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1256,7 +1143,6 @@ class StockManager {
                 ${product.weight_kg != null ? `<tr><th>Gewicht:</th><td>${product.weight_kg} kg</td></tr>` : ''}
                 ${(product.width_cm || product.height_cm || product.depth_cm) ? `<tr><th>Abmessungen:</th><td>${product.width_cm || '—'} × ${product.height_cm || '—'} × ${product.depth_cm || '—'} cm</td></tr>` : ''}
                 ${product.dguv_next_check ? `<tr><th>DGUV nächste Prüfung:</th><td>${product.dguv_next_check}</td></tr>` : ''}
-                ${product.external_barcode ? `<tr><th>Externer Barcode:</th><td>${product.external_barcode}</td></tr>` : ''}
                 <tr><th>Status:</th><td>${
                     product.status === 'available' ? 'Verfügbar' : 
                     product.status === 'borrowed' ? 'Ausgeliehen' : 
@@ -2118,13 +2004,21 @@ class StockManager {
         if (this.viewMode === 'list') {
             if (listViewContainer) listViewContainer.style.display = 'block';
             if (gridViewContainer) gridViewContainer.style.display = 'none';
-            listBtns.forEach((btn) => btn.classList.add('active'));
-            gridBtns.forEach((btn) => btn.classList.remove('active'));
+            listBtns.forEach((btn) => {
+                btn.classList.add('active', 'is-active');
+            });
+            gridBtns.forEach((btn) => {
+                btn.classList.remove('active', 'is-active');
+            });
         } else {
             if (gridViewContainer) gridViewContainer.style.display = 'block';
             if (listViewContainer) listViewContainer.style.display = 'none';
-            gridBtns.forEach((btn) => btn.classList.add('active'));
-            listBtns.forEach((btn) => btn.classList.remove('active'));
+            gridBtns.forEach((btn) => {
+                btn.classList.add('active', 'is-active');
+            });
+            listBtns.forEach((btn) => {
+                btn.classList.remove('active', 'is-active');
+            });
         }
         
         // Rendere Produkte neu mit aktuellem View-Mode
@@ -2133,64 +2027,71 @@ class StockManager {
     
     // Ordner-Funktionen
     renderFolders() {
-        // Zeige Ordner nur wenn keine Suche aktiv ist
-        const searchInput = document.getElementById('searchInput');
-        const hasSearch = searchInput && searchInput.value.trim() !== '';
-        
-        if (hasSearch) {
-            // Verstecke Ordner bei Suche
-            const foldersGrid = document.getElementById('foldersGridView');
-            const foldersList = document.getElementById('foldersListView');
-            if (foldersGrid) foldersGrid.style.display = 'none';
-            if (foldersList) foldersList.style.display = 'none';
-            return;
-        }
-        
-        // Zeige Ordner nur im Root (nicht wenn wir in einem Ordner sind)
-        // Im Root: zeige alle Ordner
-        // In einem Ordner: zeige keine Ordner (da Unterordner noch nicht implementiert sind)
-        let foldersToShow = [];
-        if (this.currentFolderId === null) {
-            // Wir sind im Root: zeige alle Ordner
-            foldersToShow = this.folders;
-        }
-        // Wenn wir in einem Ordner sind: zeige keine Ordner (Unterordner-Funktion noch nicht implementiert)
-        
-        if (foldersToShow.length === 0) {
-            const foldersGrid = document.getElementById('foldersGridView');
-            const foldersList = document.getElementById('foldersListView');
-            if (foldersGrid) foldersGrid.style.display = 'none';
-            if (foldersList) foldersList.style.display = 'none';
-            return;
-        }
-        
-        // Rendere Ordner in Grid-View
-        const foldersGrid = document.getElementById('foldersGridView');
-        if (foldersGrid) {
-            const html = foldersToShow.map(folder => this.renderFolderCard(folder)).join('');
-            foldersGrid.innerHTML = html;
-            foldersGrid.style.display = 'flex';
-        }
-        
-        // Rendere Ordner in List-View
-        const foldersList = document.getElementById('foldersListView');
-        if (foldersList) {
-            const html = foldersToShow.map(folder => this.renderFolderListItem(folder)).join('');
-            foldersList.innerHTML = html;
-            foldersList.style.display = 'block';
-        }
+        // Ordner werden zusammen mit Produkten in renderProducts* gerendert
+        this.renderProducts();
     }
     
     renderFolderCard(folder) {
         const productCount = folder.product_count || 0;
+        const colorValue = folder.color || '#ffc107';
+        const colorStyle = folder.color ? `style="color: ${this.escapeHtml(folder.color)};"` : '';
+        const colorClass = folder.color ? '' : 'text-warning';
+        const isEditing = Number(this.editingFolderId) === Number(folder.id);
+
+        if (isEditing) {
+            return `
+                <div class="col-12 col-md-6 col-lg-3" data-folder-edit-wrap="${folder.id}">
+                    <div class="card folder-item inventory-folder-card h-100 inventory-folder-card--editing" onclick="event.stopPropagation()">
+                        <div class="card-body">
+                            ${this.renderFolderInlineEditForm(folder, colorValue)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         return `
-            <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-                <div class="card folder-item h-100" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+            <div class="col-12 col-md-6 col-lg-3" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}">
+                <div class="card folder-item inventory-folder-card h-100" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
                     ${this.buildFolderContextMenuHtml(folder)}
-                    <div class="card-body text-center">
-                        <i class="bi bi-folder-fill text-warning fs-1 mb-2"></i>
-                        <h6 class="mb-1">${this.escapeHtml(folder.name)}</h6>
-                        <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="min-width-0">
+                                <i class="bi bi-folder-fill fs-1 folder-color-icon ${colorClass}" ${colorStyle}></i>
+                                <h6 class="mt-2 mb-0 text-truncate" title="${this.escapeHtml(folder.name)}">${this.escapeHtml(folder.name)}</h6>
+                                <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
+                            </div>
+                            <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
+                                <div class="inventory-grid-hover-actions">
+                                    <button type="button" class="btn btn-sm btn-link" title="Umbenennen / Farbe"
+                                            onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" title="Öffnen"
+                                            onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                        <i class="bi bi-folder2-open"></i>
+                                    </button>
+                                </div>
+                                <div class="dropdown inventory-card-menu">
+                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                        <li>
+                                            <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                                <i class="bi bi-folder2-open me-2"></i>Öffnen
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                                <i class="bi bi-pencil me-2"></i>Umbenennen / Farbe
+                                            </button>
+                                        </li>
+                                        <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2199,21 +2100,145 @@ class StockManager {
     
     renderFolderListItem(folder) {
         const productCount = folder.product_count || 0;
+        const colorValue = folder.color || '#ffc107';
+        const colorStyle = folder.color ? `style="color: ${this.escapeHtml(folder.color)};"` : '';
+        const colorClass = folder.color ? '' : 'text-warning';
+        const isEditing = Number(this.editingFolderId) === Number(folder.id);
+
+        if (isEditing) {
+            return `
+                <tr class="mod-list-row inventory-folder-row inventory-folder-row--editing" data-folder-edit-wrap="${folder.id}" onclick="event.stopPropagation()">
+                    <td colspan="7">
+                        ${this.renderFolderInlineEditForm(folder, colorValue)}
+                    </td>
+                </tr>
+            `;
+        }
+
         return `
-            <div class="inventory-folder-list-item d-flex align-items-center gap-2 py-2 px-1 border-bottom" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}" style="cursor: pointer;">
-                ${this.buildFolderContextMenuHtml(folder)}
-                <i class="bi bi-folder-fill text-warning fs-5"></i>
-                <div class="flex-grow-1 min-width-0">
-                    <div class="fw-medium text-truncate">${this.escapeHtml(folder.name)}</div>
-                    <small class="text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</small>
-                </div>
-                <i class="bi bi-chevron-right text-muted"></i>
-            </div>
+            <tr class="mod-list-row inventory-folder-row" data-context-zone data-context-menu="template" data-context-menu-id="context-menu-folder-${folder.id}" role="button" tabindex="0" onclick="if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                <td class="inventory-list-check-col">
+                    ${this.buildFolderContextMenuHtml(folder)}
+                </td>
+                <td>
+                    <span class="mod-list-name inventory-item-name">
+                        <i class="bi bi-folder-fill me-2 folder-color-icon ${colorClass}" ${colorStyle}></i>
+                        <span class="inventory-item-name-text" title="${this.escapeHtml(folder.name)}">${this.escapeHtml(folder.name)}</span>
+                    </span>
+                </td>
+                <td class="d-none d-md-table-cell text-muted">${productCount} Produkt${productCount !== 1 ? 'e' : ''}</td>
+                <td class="d-none d-md-table-cell text-muted">—</td>
+                <td class="d-none d-lg-table-cell text-muted">—</td>
+                <td class="d-none d-xl-table-cell text-muted">—</td>
+                <td class="text-end">
+                    <div class="mod-list-actions">
+                        <div class="mod-list-hover-actions">
+                            <button type="button" class="btn btn-sm btn-link" title="Umbenennen / Farbe"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link" title="Öffnen"
+                                    onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                <i class="bi bi-folder2-open"></i>
+                            </button>
+                        </div>
+                        <div class="dropdown d-inline-block" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.navigateToFolder(${folder.id});}">
+                                        <i class="bi bi-folder2-open me-2"></i>Öffnen
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item" onclick="event.stopPropagation(); if(window.stockManager){window.stockManager.startFolderInlineEdit(${folder.id});}">
+                                        <i class="bi bi-pencil me-2"></i>Umbenennen / Farbe
+                                    </button>
+                                </li>
+                                <li><a class="dropdown-item" href="/inventory/folders"><i class="bi bi-gear me-2"></i>Ordner verwalten</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </td>
+            </tr>
         `;
+    }
+
+    renderFolderInlineEditForm(folder, colorValue) {
+        return `
+            <form class="inventory-folder-inline" onsubmit="event.preventDefault(); if(window.stockManager){window.stockManager.saveFolderInlineEdit(${folder.id});}">
+                <label class="form-label" for="inventoryFolderEditName${folder.id}">Name</label>
+                <input type="text" class="form-control form-control-sm inventory-folder-inline-input" id="inventoryFolderEditName${folder.id}"
+                       value="${this.escapeHtml(folder.name)}" maxlength="100" required autocomplete="off">
+                <label class="form-label mt-2" for="inventoryFolderEditColor${folder.id}">Farbe</label>
+                <input type="color" class="form-control form-control-color inventory-folder-inline-color" id="inventoryFolderEditColor${folder.id}"
+                       value="${this.escapeHtml(colorValue)}" title="Ordnerfarbe">
+                <div class="inventory-folder-inline-actions">
+                    <button type="submit" class="btn btn-sm btn-accent inventory-folder-inline-submit">
+                        <i class="bi bi-check2 me-1"></i>Speichern
+                    </button>
+                    <button type="button" class="btn btn-sm inventory-folder-inline-cancel"
+                            onclick="event.preventDefault(); if(window.stockManager){window.stockManager.cancelFolderInlineEdit();}">
+                        Abbrechen
+                    </button>
+                </div>
+            </form>
+        `;
+    }
+
+    startFolderInlineEdit(folderId) {
+        this.editingFolderId = Number(folderId);
+        this.renderProducts();
+        const nameInput = document.getElementById(`inventoryFolderEditName${folderId}`);
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.select();
+        }
+    }
+
+    cancelFolderInlineEdit() {
+        this.editingFolderId = null;
+        this.renderProducts();
+    }
+
+    async saveFolderInlineEdit(folderId) {
+        const nameInput = document.getElementById(`inventoryFolderEditName${folderId}`);
+        const colorInput = document.getElementById(`inventoryFolderEditColor${folderId}`);
+        const name = (nameInput?.value || '').trim();
+        const color = (colorInput?.value || '').trim() || null;
+        if (!name) {
+            inventoryNotify('Ordnername ist erforderlich.', 'warning');
+            nameInput?.focus();
+            return;
+        }
+
+        try {
+            const response = await fetchInventoryApi(`/folders/${folderId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color }),
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || 'Ordner konnte nicht gespeichert werden.');
+            }
+            const updated = await response.json();
+            const idx = this.folders.findIndex((f) => Number(f.id) === Number(folderId));
+            if (idx >= 0) {
+                this.folders[idx] = { ...this.folders[idx], ...updated };
+            }
+            this.editingFolderId = null;
+            this.renderProducts();
+            inventoryNotify('Ordner gespeichert.', 'success');
+        } catch (error) {
+            console.error(error);
+            inventoryNotify(error.message || 'Ordner konnte nicht gespeichert werden.', 'danger');
+        }
     }
     
     navigateToFolder(folderId) {
-        // Navigiere zu Ordner-Ansicht
         window.location.href = `/inventory/stock/${folderId}`;
     }
     
@@ -2281,8 +2306,15 @@ class StockManager {
             switch (field) {
                 case 'category':
                 case 'condition':
+                case 'location':
+                case 'status':
+                case 'serial_number':
                     valueA = getString(a[field]);
                     valueB = getString(b[field]);
+                    break;
+                case 'purchase_date':
+                    valueA = getString(a.purchase_date);
+                    valueB = getString(b.purchase_date);
                     break;
                 case 'name':
                 default:

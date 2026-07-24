@@ -4,7 +4,7 @@
 {% block title %}Veranstaltung erstellen{% endblock %}
 
 {% block content %}
-{{ events_shell_open('standard', 'Veranstaltung erstellen', 'bi-plus-circle', false) }}
+{{ events_shell_open('standard', 'Veranstaltung erstellen', 'bi-plus-circle', false, true) }}
 <div class="events-form">
     <div class="events-form-header d-none d-lg-block">
         <a href="{{ url_for('events.index') }}" class="events-form-back">
@@ -25,5 +25,5 @@
         </div>
     </form>
 </div>
-{{ events_shell_close('standard') }}
+{{ events_shell_close('standard', true) }}
 {% endblock %}

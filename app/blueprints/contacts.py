@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models.contact import Contact
+from app.models.contact import Contact, ContactFavorite
 from app.models.email import EmailMessage
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
@@ -31,11 +31,26 @@ def extract_email_addresses(text):
     return [email.lower() for email in emails if email]
 
 
+def get_user_favorite_ids(user_id):
+    """Return set of contact ids favorited by user."""
+    rows = ContactFavorite.query.filter_by(user_id=user_id).with_entities(ContactFavorite.contact_id).all()
+    return {row[0] for row in rows}
+
+
+def contacts_sidebar_context():
+    """Shared sidebar flags for contacts pages."""
+    favorite_ids = get_user_favorite_ids(current_user.id)
+    return {
+        'favorite_ids': favorite_ids,
+        'show_favorites_nav': bool(favorite_ids),
+    }
+
+
 @contacts_bp.route('/')
 @login_required
 @check_module_access('module_contacts')
 def index():
-    """Liste aller Kontakte."""
+    """Liste aller Kontakte oder persönlicher Favoriten."""
     sort_field = request.args.get('sort', 'name')
     if sort_field not in CONTACT_SORT_FIELDS:
         sort_field = 'name'
@@ -50,8 +65,17 @@ def index():
     filter_notes = request.args.get('notes', '').strip()
     filter_salutation = request.args.get('salutation', '').strip()
     search_query = request.args.get('q', '').strip()
+    active_favorites = request.args.get('view', '').strip() == 'favorites'
+    favorite_ids = get_user_favorite_ids(current_user.id)
+    show_favorites_nav = bool(favorite_ids)
+
+    if active_favorites and not favorite_ids:
+        return redirect(url_for('contacts.index'))
 
     contacts_query = Contact.query
+
+    if active_favorites:
+        contacts_query = contacts_query.filter(Contact.id.in_(favorite_ids))
 
     if search_query:
         contacts_query = contacts_query.filter(
@@ -92,6 +116,9 @@ def index():
             'phone': filter_phone,
             'notes': filter_notes,
         },
+        active_favorites=active_favorites,
+        favorite_ids=favorite_ids,
+        show_favorites_nav=show_favorites_nav,
     )
 
 
@@ -116,7 +143,8 @@ def create():
                 name=name,
                 email=email,
                 phone=phone,
-                notes=notes
+                notes=notes,
+                **contacts_sidebar_context(),
             )
         
         if not email:
@@ -127,7 +155,8 @@ def create():
                 name=name,
                 email=email,
                 phone=phone,
-                notes=notes
+                notes=notes,
+                **contacts_sidebar_context(),
             )
         
         if not Contact.is_valid_email(email):
@@ -138,7 +167,8 @@ def create():
                 name=name,
                 email=email,
                 phone=phone,
-                notes=notes
+                notes=notes,
+                **contacts_sidebar_context(),
             )
         
         # Prüfe auf Duplikat (optional, nur Warnung)
@@ -172,10 +202,11 @@ def create():
                 name=name,
                 email=email,
                 phone=phone,
-                notes=notes
+                notes=notes,
+                **contacts_sidebar_context(),
             )
     
-    return render_template('contacts/create.html')
+    return render_template('contacts/create.html', **contacts_sidebar_context())
 
 
 @contacts_bp.route('/<int:contact_id>/edit', methods=['GET', 'POST'])
@@ -201,7 +232,7 @@ def edit(contact_id):
             contact.email = email
             contact.phone = phone
             contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact)
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
         
         if not email:
             flash(translate('contacts.flash.email_required'), 'danger')
@@ -211,7 +242,7 @@ def edit(contact_id):
             contact.email = email
             contact.phone = phone
             contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact)
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
         
         if not Contact.is_valid_email(email):
             flash(translate('contacts.flash.invalid_email'), 'danger')
@@ -221,7 +252,7 @@ def edit(contact_id):
             contact.email = email
             contact.phone = phone
             contact.notes = notes
-            return render_template('contacts/edit.html', contact=contact)
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
         
         # Prüfe auf Duplikat (wenn E-Mail geändert wurde)
         if email != contact.email:
@@ -245,9 +276,9 @@ def edit(contact_id):
             db.session.rollback()
             logging.error(f"Fehler beim Aktualisieren des Kontakts: {e}")
             flash(translate('contacts.flash.update_error'), 'danger')
-            return render_template('contacts/edit.html', contact=contact)
+            return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
     
-    return render_template('contacts/edit.html', contact=contact)
+    return render_template('contacts/edit.html', contact=contact, **contacts_sidebar_context())
 
 
 @contacts_bp.route('/<int:contact_id>/delete', methods=['POST'])
@@ -258,6 +289,7 @@ def delete(contact_id):
     contact = Contact.query.get_or_404(contact_id)
     
     try:
+        ContactFavorite.query.filter_by(contact_id=contact.id).delete()
         db.session.delete(contact)
         db.session.commit()
         flash(translate('contacts.flash.deleted'), 'success')
@@ -267,6 +299,33 @@ def delete(contact_id):
         flash(translate('contacts.flash.delete_error'), 'danger')
     
     return redirect(url_for('contacts.index'))
+
+
+@contacts_bp.route('/favorite/<int:contact_id>', methods=['POST'])
+@login_required
+@check_module_access('module_contacts')
+def toggle_favorite(contact_id):
+    """Toggle per-user contact favorite status."""
+    contact = Contact.query.get_or_404(contact_id)
+    existing = ContactFavorite.query.filter_by(
+        user_id=current_user.id,
+        contact_id=contact.id,
+    ).first()
+
+    if existing:
+        db.session.delete(existing)
+        is_favorite = False
+    else:
+        db.session.add(ContactFavorite(user_id=current_user.id, contact_id=contact.id))
+        is_favorite = True
+
+    db.session.commit()
+    favorites_count = ContactFavorite.query.filter_by(user_id=current_user.id).count()
+    return jsonify({
+        'success': True,
+        'is_favorite': is_favorite,
+        'favorites_count': favorites_count,
+    })
 
 
 @contacts_bp.route('/api/search')

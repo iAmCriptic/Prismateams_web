@@ -93,6 +93,16 @@
 </ul>
 {% endmacro %}
 
+{% macro folder_unread_count(folder_name) %}
+    {% set count = (folder_unread_counts or {}).get(folder_name, 0) %}
+    <span class="email-folder-unread{% if not count %} is-empty{% endif %}"
+          data-email-folder-unread="{{ folder_name }}"
+          data-count="{{ count }}"
+          {% if count %}aria-label="{{ count }} neu"{% else %}aria-hidden="true"{% endif %}>
+        {% if count > 99 %}99+{% elif count %}{{ count }}{% endif %}
+    </span>
+{% endmacro %}
+
 {% macro folder_tree_links(folder_tree, current_folder, mode='sidebar') %}
     {% for entry in folder_tree %}
         {% set folder = entry.folder %}
@@ -107,6 +117,7 @@
                 <span class="email-folder-drop-indicator" aria-hidden="true"></span>
                 {{ folder_icon(folder) }}
                 <span class="email-folder-name ms-2">{{ entry.short_name }}</span>
+                {{ folder_unread_count(folder.name) }}
                 {% if folder.folder_type == 'custom' and not folder.is_system %}
                 <button type="button" class="btn btn-sm btn-link text-danger email-folder-delete" data-folder="{{ folder.name }}" title="{{ _('email.index.actions.delete_folder') }}">
                     <i class="bi bi-x-lg"></i>
@@ -125,6 +136,7 @@
             <span class="email-folder-drop-indicator" aria-hidden="true"></span>
             {{ folder_icon(folder) }}
             <span class="email-folder-name ms-2">{{ entry.short_name }}</span>
+            {{ folder_unread_count(folder.name) }}
         </a>
         {% elif mode == 'dropdown' %}
         <li>
@@ -133,6 +145,7 @@
                data-folder="{{ folder.name }}"
                style="padding-left: {{ 1 + (entry.depth * 1.1) }}rem;">
                 {{ folder_icon(folder) }} <span class="ms-2">{{ entry.short_name }}</span>
+                {{ folder_unread_count(folder.name) }}
             </a>
         </li>
         {% endif %}
@@ -161,7 +174,7 @@
                         <i class="bi bi-paperclip text-muted" title="{{ _('email.index.labels.has_attachments') }}"></i>
                         {% endif %}
                         {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
-                        <span class="badge bg-accent email-unread-badge d-inline-block d-md-none">{{ _('email.index.labels.new_badge') }}</span>
+                        <span class="email-unread-badge d-inline-block d-md-none">{{ _('email.index.labels.new_badge') }}</span>
                         {% endif %}
                     </div>
                     <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
@@ -173,7 +186,7 @@
         </a>
         <div class="email-item-aside flex-shrink-0">
             {% if not email.is_read and current_folder not in ['Sent', 'Sent Messages'] %}
-            <span class="badge bg-accent email-unread-badge d-none d-md-inline-block">{{ _('email.index.labels.new_badge') }}</span>
+            <span class="email-unread-badge d-none d-md-inline-block">{{ _('email.index.labels.new_badge') }}</span>
             {% endif %}
             <small class="text-muted email-item-time">{{ email.received_at|localdatetime if email.received_at else '' }}</small>
             <div class="email-item-actions">
@@ -207,21 +220,42 @@
 {% endmacro %}
 
 {% macro email_folder_create_inline(form_id) %}
+{% set parent_none_label = _('email.index.folder_create.parent_none') %}
 <div class="email-folder-inline" id="{{ form_id }}Wrap" hidden>
     <form id="{{ form_id }}" class="email-folder-form email-folder-inline-form">
         <label class="form-label" for="{{ form_id }}Name">{{ _('email.index.folder_create.name_label') }}</label>
         <input type="text" class="form-control email-folder-inline-input" id="{{ form_id }}Name" name="name" required maxlength="100" autocomplete="off" placeholder="{{ _('email.index.folder_create.name_label') }}">
-        <label class="form-label mt-2" for="{{ form_id }}Parent">{{ _('email.index.folder_create.parent_label') }}</label>
-        <select class="form-select email-folder-inline-input" id="{{ form_id }}Parent" name="parent">
-            <option value="">{{ _('email.index.folder_create.parent_none') }}</option>
-            {% for entry in folder_tree %}
-                {% if entry.folder.folder_type == 'custom' or entry.folder.name == 'INBOX' %}
-                <option value="{{ entry.folder.name }}">
-                    {{ ('&nbsp;' * (entry.depth * 2)) | safe }}{{ entry.short_name }}
-                </option>
-                {% endif %}
-            {% endfor %}
-        </select>
+        <label class="form-label mt-2" id="{{ form_id }}ParentLabel">{{ _('email.index.folder_create.parent_label') }}</label>
+        <input type="hidden" name="parent" id="{{ form_id }}Parent" value="">
+        <div class="dropdown email-folder-parent-dropdown w-100">
+            <button class="btn email-folder-parent-toggle w-100 text-start" type="button"
+                    id="{{ form_id }}ParentBtn"
+                    data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false"
+                    aria-labelledby="{{ form_id }}ParentLabel">
+                <span class="email-folder-parent-label text-truncate">{{ parent_none_label }}</span>
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu email-folder-parent-menu" aria-labelledby="{{ form_id }}ParentBtn">
+                <li>
+                    <button type="button" class="dropdown-item email-folder-parent-option is-active"
+                            data-value="" data-label="{{ parent_none_label }}">
+                        {{ parent_none_label }}
+                    </button>
+                </li>
+                {% for entry in folder_tree %}
+                    {% if entry.folder.folder_type == 'custom' or entry.folder.name == 'INBOX' %}
+                    <li>
+                        <button type="button" class="dropdown-item email-folder-parent-option"
+                                data-value="{{ entry.folder.name }}"
+                                data-label="{{ entry.short_name }}"
+                                style="padding-left: {{ 0.9 + (entry.depth * 0.85) }}rem;">
+                            {{ entry.short_name }}
+                        </button>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
         <div class="form-text">{{ _('email.index.folder_create.hint') }}</div>
         <div class="email-folder-form-error text-danger small mb-2" role="alert" hidden></div>
         <div class="email-folder-inline-actions">
@@ -507,8 +541,9 @@ function updateEmailItemState(emailId, { isRead, colorDot, removed, movedToFolde
         if (isRead !== undefined) {
             item.dataset.isRead = isRead ? 'true' : 'false';
             item.classList.toggle('fw-bold', !isRead);
-            const badge = item.querySelector('.email-unread-badge');
-            if (badge) badge.style.display = isRead ? 'none' : '';
+            item.querySelectorAll('.email-unread-badge').forEach((badge) => {
+                badge.style.display = isRead ? 'none' : '';
+            });
             const openEnv = item.querySelector('[data-action="toggle-read"] i');
             const btn = item.querySelector('[data-action="toggle-read"]');
             if (btn) btn.dataset.state = isRead ? 'unread' : 'read';
@@ -556,16 +591,82 @@ async function handleMoveEmail(emailId, folder) {
         const data = await emailApi(`${EMAIL_FOLDER_URLS.move}/${emailId}`, { body: { folder } });
         emailAlert(data.message || (EMAIL_I18N.messages?.move_success || 'E-Mail verschoben'), 'success');
         updateEmailItemState(emailId, { movedToFolder: folder });
+        applyUnreadUpdate(data);
         if (data.imap_warning) emailAlert(data.imap_warning, 'warning');
     } catch (e) {
         emailAlert(e.message || (EMAIL_I18N.messages?.move_error || 'Verschieben fehlgeschlagen'), 'danger');
     }
 }
 
+function updateFolderUnreadCounts(byFolder) {
+    const map = byFolder && typeof byFolder === 'object' ? byFolder : {};
+    const seen = new Set();
+    document.querySelectorAll('[data-email-folder-unread]').forEach((el) => {
+        const folder = el.getAttribute('data-email-folder-unread');
+        seen.add(folder);
+        const n = Math.max(0, parseInt(map[folder], 10) || 0);
+        el.dataset.count = String(n);
+        el.textContent = n > 99 ? '99+' : (n > 0 ? String(n) : '');
+        el.classList.toggle('is-empty', n <= 0);
+        if (n > 0) {
+            el.setAttribute('aria-label', n + ' neu');
+            el.removeAttribute('aria-hidden');
+        } else {
+            el.removeAttribute('aria-label');
+            el.setAttribute('aria-hidden', 'true');
+        }
+    });
+    // Ordner ohne Eintrag in der Map auf 0 setzen (bereits oben mit || 0)
+    Object.keys(map).forEach((folder) => {
+        if (seen.has(folder)) return;
+    });
+}
+
+function applyUnreadUpdate(data) {
+    if (!data) return;
+    if (data.by_folder) {
+        updateFolderUnreadCounts(data.by_folder);
+    }
+    if (typeof window.updateEmailNavBadge === 'function' && typeof data.unread_count !== 'undefined') {
+        window.updateEmailNavBadge(data.unread_count);
+    }
+}
+
+function refreshFolderUnreadCounts() {
+    fetch('/api/email/unread-count', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => applyUnreadUpdate(data))
+        .catch(() => {});
+}
+
+(function initFolderUnreadLiveUpdates() {
+    window.addEventListener('prismateams:email-unread', (e) => {
+        if (e && e.detail && e.detail.by_folder) {
+            applyUnreadUpdate(e.detail);
+        } else {
+            refreshFolderUnreadCounts();
+        }
+    });
+    try {
+        const es = new EventSource('/sse/events/dashboard');
+        es.addEventListener('dashboard:email_update', (evt) => {
+            try {
+                applyUnreadUpdate(JSON.parse(evt.data || '{}'));
+            } catch (_) { /* ignore */ }
+        });
+    } catch (_) { /* ignore */ }
+    setInterval(refreshFolderUnreadCounts, 90000);
+})();
+
 async function handleToggleRead(emailId, state) {
     try {
         const data = await emailApi(EMAIL_FOLDER_URLS.readState.replace('EMAIL_ID', emailId), { body: { state } });
         updateEmailItemState(emailId, { isRead: data.is_read });
+        applyUnreadUpdate(data);
         if (data.imap_warning) emailAlert(data.imap_warning, 'warning');
     } catch (e) {
         emailAlert(e.message, 'danger');
@@ -582,13 +683,28 @@ async function handleSetColor(emailId, color) {
     }
 }
 
+async function emailConfirm(message, options) {
+    const opts = Object.assign({
+        title: EMAIL_I18N.confirm?.title || 'Löschen bestätigen',
+        confirmLabel: EMAIL_I18N.confirm?.ok || 'Löschen',
+        cancelLabel: EMAIL_I18N.buttons?.cancel || 'Abbrechen',
+        danger: true
+    }, options || {});
+    if (typeof window.ptConfirm === 'function') {
+        return window.ptConfirm(String(message || ''), opts);
+    }
+    return Promise.resolve(window.confirm(String(message || '')));
+}
+
 async function handleDeleteEmail(emailId) {
     const confirmMsg = EMAIL_I18N.confirm?.delete_email || 'E-Mail wirklich löschen?';
-    if (!window.confirm(confirmMsg)) return;
+    const ok = await emailConfirm(confirmMsg);
+    if (!ok) return;
     try {
         const data = await emailApi(`${EMAIL_FOLDER_URLS.delete}/${emailId}`);
         emailAlert(data.message || 'E-Mail gelöscht', 'success');
         updateEmailItemState(emailId, { removed: true });
+        applyUnreadUpdate(data);
     } catch (e) {
         emailAlert(e.message, 'danger');
     }
@@ -616,8 +732,9 @@ async function handleCreateFolder(form) {
 }
 
 async function handleDeleteFolder(folderName) {
-    const confirmMsg = EMAIL_I18N.confirm?.delete_folder || `Ordner '${folderName}' wirklich löschen?`;
-    if (!window.confirm(confirmMsg.replace('{folder}', folderName))) return;
+    const confirmMsg = (EMAIL_I18N.confirm?.delete_folder || `Ordner '{folder}' wirklich löschen?`).replace('{folder}', folderName);
+    const ok = await emailConfirm(confirmMsg);
+    if (!ok) return;
     const url = EMAIL_FOLDER_URLS.folderDelete;
     try {
         await emailApi(url, { method: 'POST', body: { name: folderName } });
@@ -625,7 +742,11 @@ async function handleDeleteFolder(folderName) {
         setTimeout(() => window.location.reload(), 500);
     } catch (e) {
         if (e.data && e.data.requires_confirmation) {
-            const force = window.confirm(e.message + '\n\n' + (EMAIL_I18N.confirm?.delete_folder_force || 'Trotzdem mit allen Inhalten löschen?'));
+            const forceMsg = (e.message || '') + '\n\n' + (EMAIL_I18N.confirm?.delete_folder_force || 'Trotzdem mit allen Inhalten löschen?');
+            const force = await emailConfirm(forceMsg, {
+                title: EMAIL_I18N.confirm?.force_title || 'Ordner nicht leer',
+                confirmLabel: EMAIL_I18N.confirm?.force_ok || 'Trotzdem löschen'
+            });
             if (force) {
                 try {
                     await emailApi(url, { method: 'POST', body: { name: folderName, force: true } });
@@ -678,6 +799,25 @@ document.addEventListener('click', (e) => {
             el.hidden = true;
         });
     }
+});
+
+// Parent-folder pill dropdown
+document.addEventListener('click', (e) => {
+    const option = e.target.closest('.email-folder-parent-option');
+    if (!option) return;
+    e.preventDefault();
+    const dropdown = option.closest('.email-folder-parent-dropdown');
+    const form = option.closest('form');
+    if (!dropdown || !form) return;
+    const hidden = form.querySelector('input[name="parent"]');
+    const label = dropdown.querySelector('.email-folder-parent-label');
+    const value = option.dataset.value || '';
+    const text = option.dataset.label || option.textContent.trim();
+    if (hidden) hidden.value = value;
+    if (label) label.textContent = text;
+    dropdown.querySelectorAll('.email-folder-parent-option').forEach((el) => {
+        el.classList.toggle('is-active', el === option);
+    });
 });
 
 // Folder create form submit

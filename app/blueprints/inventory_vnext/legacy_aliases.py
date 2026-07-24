@@ -19,6 +19,11 @@ def folders_alias():
     return legacy_inventory.api_folders()
 
 
+@legacy_aliases_bp.route("/folders/<int:folder_id>", methods=["PUT", "DELETE"])
+@login_required
+def folder_update_delete_alias(folder_id):
+    return legacy_inventory.api_folder_update_delete(folder_id)
+
 @legacy_aliases_bp.route("/categories", methods=["GET", "POST"])
 @login_required
 def categories_alias():

@@ -19,6 +19,7 @@
 } %}
 {% set show_new = not (current_user.is_authenticated and current_user.is_guest) %}
 {% set show_view_toggle = inventory_show_view_toggle|default(false) %}
+{% set show_stock_tools = inventory_show_stock_tools|default(false) %}
 
 {% macro inventory_new_menu(menu_id) %}
 <ul class="dropdown-menu inventory-sidebar-new-menu inventory-new-menu" id="{{ menu_id }}" style="display: none;">
@@ -86,18 +87,18 @@
 {% endmacro %}
 
 {% macro inventory_view_toggle(suffix='', extra_class='') %}
-<div class="btn-group inventory-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
-    <button type="button" class="btn btn-outline-secondary active" id="listViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.list') }}">
+<div class="inventory-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
+    <button type="button" class="inventory-view-toggle__btn active" id="listViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.list') }}">
         <i class="bi bi-list"></i>
     </button>
-    <button type="button" class="btn btn-outline-secondary" id="gridViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.grid') }}">
+    <button type="button" class="inventory-view-toggle__btn" id="gridViewBtn{{ suffix }}" title="{{ _('inventory.shell.view_toggle.grid') }}">
         <i class="bi bi-grid-3x3-gap"></i>
     </button>
 </div>
 {% endmacro %}
 
 {% block content %}
-<div class="inventory-shell mod-shell--nav">
+<div class="inventory-shell mod-shell--nav {% if show_stock_tools %}inventory-shell--filters{% endif %}">
     <aside class="mod-sidebar d-none d-lg-flex flex-column">
         <div class="mod-sidebar-brand">
             <i class="bi bi-box-seam" aria-hidden="true"></i>
@@ -113,6 +114,16 @@
         {% endif %}
         {{ inventory_nav_links(false) }}
     </aside>
+
+    {% if show_stock_tools %}
+    <aside class="inventory-filter-nav d-none d-lg-flex flex-column" aria-label="{{ _('inventory.stock.filters_sort_button') }}">
+        <div class="inventory-filter-nav-brand">
+            <i class="bi bi-funnel" aria-hidden="true"></i>
+            <span>{{ _('inventory.stock.filters_sort_button') }}</span>
+        </div>
+        {% block inventory_filter_nav %}{% endblock %}
+    </aside>
+    {% endif %}
 
     <div class="mod-main">
         <div class="mod-mobile-topbar d-lg-none mb-3">
@@ -130,6 +141,14 @@
                     </h1>
                 </div>
                 <div class="flex-shrink-0 inventory-mobile-actions">
+                    {% if show_stock_tools %}
+                    <button type="button" class="btn btn-outline-secondary inventory-filter-mobile-btn"
+                            data-bs-toggle="offcanvas" data-bs-target="#inventoryStockFiltersNav"
+                            aria-controls="inventoryStockFiltersNav">
+                        <i class="bi bi-funnel"></i>
+                        <span class="d-none d-sm-inline">{{ _('inventory.stock.filters_sort_button') }}</span>
+                    </button>
+                    {% endif %}
                     {% block inventory_mobile_actions %}{% endblock %}
                 </div>
             </div>
@@ -169,6 +188,21 @@
         {{ inventory_nav_links(true) }}
     </div>
 </div>
+
+{% if show_stock_tools %}
+<div class="offcanvas offcanvas-end mod-offcanvas" tabindex="-1" id="inventoryStockFiltersNav" aria-labelledby="inventoryStockFiltersNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="inventoryStockFiltersNavLabel">
+            <i class="bi bi-funnel" aria-hidden="true"></i>
+            <span>{{ _('inventory.stock.filters_sort_button') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {% block inventory_mobile_stock_tools %}{% endblock %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -197,7 +231,6 @@ document.addEventListener('click', (event) => {
     });
 });
 
-// Mobile-Hamburger: Navigation erlauben (data-bs-dismiss blockiert <a href>)
 document.querySelectorAll('#inventoryMobileNav a[data-inventory-dismiss-offcanvas]').forEach((link) => {
     link.addEventListener('click', () => {
         setTimeout(() => {

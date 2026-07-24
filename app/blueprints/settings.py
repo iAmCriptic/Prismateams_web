@@ -1319,6 +1319,10 @@ def delete_user(user_id):
     # Delete wiki favorites before deleting user
     from app.models.wiki import WikiFavorite
     WikiFavorite.query.filter_by(user_id=user_id).delete()
+
+    # Delete credential favorites before deleting user
+    from app.models.credential import CredentialFavorite
+    CredentialFavorite.query.filter_by(user_id=user_id).delete()
     
     # Delete comment mentions before deleting user
     from app.models.comment import CommentMention

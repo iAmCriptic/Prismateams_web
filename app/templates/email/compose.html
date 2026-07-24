@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
             window.showAppBanner(message, category || 'info');
             return;
         }
-        window.alert(message);
+        console.warn('[email compose]', category || 'info', message);
     }    
     // Mobile-optimized toolbar (fewer options, horizontal scroll)
     var mobileToolbarOptions = [

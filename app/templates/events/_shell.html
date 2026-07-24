@@ -41,7 +41,7 @@
 </div>
 {% endmacro %}
 
-{% macro events_shell_open(active_nav, page_title, page_icon='bi-calendar2-week', show_toggle=true) %}
+{% macro events_shell_open(active_nav, page_title, page_icon='bi-calendar2-week', show_toggle=true, minimal_sidebar=false) %}
 {% set _active = active_nav|default('standard') %}
 {% set pdf_url = url_for('events.overview_pdf', view=_active) %}
 <div class="events-shell events-shell--nav">
@@ -53,6 +53,7 @@
     <a class="btn events-sidebar-new w-100 text-start" href="{{ url_for('events.create_event') }}">
         <i class="bi bi-plus-lg me-2"></i>Neu
     </a>
+    {% if not minimal_sidebar %}
     <div class="events-sidebar-actions">
         <a class="btn events-sidebar-action w-100" href="{{ pdf_url }}" title="PDF Übersicht">
             <i class="bi bi-file-earmark-pdf"></i>
@@ -60,6 +61,7 @@
         </a>
     </div>
     {{ events_nav_links(_active, false) }}
+    {% endif %}
 </aside>
 
 <div class="events-main flex-grow-1 min-width-0">
@@ -74,6 +76,7 @@
                     <span>{{ page_title }}</span>
                 </h1>
             </div>
+            {% if not minimal_sidebar %}
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
                 <a class="btn btn-link btn-sm events-mobile-pdf-btn" href="{{ pdf_url }}" title="PDF Übersicht">
                     <i class="bi bi-file-earmark-pdf"></i>
@@ -82,6 +85,7 @@
                     <i class="bi bi-plus-lg"></i> Neu
                 </a>
             </div>
+            {% endif %}
         </div>
         {% if show_toggle %}
         <div class="events-mobile-view-toggle mt-2">
@@ -97,7 +101,7 @@
     {% endif %}
 {% endmacro %}
 
-{% macro events_shell_close(active_nav='standard') %}
+{% macro events_shell_close(active_nav='standard', minimal_sidebar=false) %}
 </div>
 </div>
 
@@ -111,7 +115,12 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
     </div>
     <div class="offcanvas-body pt-0">
+        <a class="btn events-sidebar-new w-100 text-start mb-3" href="{{ url_for('events.create_event') }}" data-events-dismiss-offcanvas="1">
+            <i class="bi bi-plus-lg me-2"></i>Neu
+        </a>
+        {% if not minimal_sidebar %}
         {{ events_nav_links(active_nav|default('standard'), true) }}
+        {% endif %}
     </div>
 </div>
 <script>

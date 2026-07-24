@@ -331,6 +331,27 @@ def move_folder_up(folder_id):
     return redirect_to_folder(folder_id)
 
 
+@manuals_bp.route('/folders/<int:folder_id>/move-down', methods=['POST'])
+@login_required
+@check_module_access('module_manuals')
+def move_folder_down(folder_id):
+    """Move folder one position down (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('manuals.flash.folder_admin_only'), 'danger')
+        return redirect(url_for('manuals.index'))
+
+    folder = ManualFolder.query.get_or_404(folder_id)
+    next_folder = ManualFolder.query.filter(
+        ManualFolder.position > folder.position
+    ).order_by(ManualFolder.position.asc()).first()
+
+    if next_folder:
+        folder.position, next_folder.position = next_folder.position, folder.position
+        db.session.commit()
+
+    return redirect_to_folder(folder_id)
+
+
 @manuals_bp.route('/move/<int:manual_id>', methods=['POST'])
 @login_required
 @check_module_access('module_manuals')

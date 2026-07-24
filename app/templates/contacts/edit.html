@@ -15,6 +15,16 @@
             <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
         </a>
     </div>
+    {% if show_favorites_nav|default(false) %}
+    <nav class="mod-sidebar-nav nav flex-column gap-1">
+        <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
+            <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
+        </a>
+        <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index', view='favorites') }}">
+            <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
+        </a>
+    </nav>
+    {% endif %}
 </aside>
 
 <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="contactsMobileNav" aria-labelledby="contactsMobileNavLabel">
@@ -31,6 +41,16 @@
                 <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
             </a>
         </div>
+        {% if show_favorites_nav|default(false) %}
+        <nav class="mod-sidebar-nav nav flex-column gap-1">
+            <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index') }}">
+                <i class="bi bi-people me-2"></i>{{ _('contacts.index.folders.all') }}
+            </a>
+            <a class="nav-link mod-nav-link" href="{{ url_for('contacts.index', view='favorites') }}">
+                <i class="bi bi-star-fill me-2"></i>{{ _('contacts.index.folders.favorites') }}
+            </a>
+        </nav>
+        {% endif %}
     </div>
 </div>
 

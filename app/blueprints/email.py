@@ -2107,28 +2107,14 @@ def sync_emails_from_folder(folder_name):
         except Exception as logout_error:
             logging.debug(f"Fehler beim Logout von IMAP: {logout_error}")
         
-        # Sende Dashboard-Updates an alle Benutzer mit E-Mail-Berechtigungen (nur wenn neue E-Mails)
-        if stats['new_emails'] > 0:
-            try:
-                from app.utils.dashboard_events import emit_dashboard_update
-                from app.models.user import User
-                
-                # Hole alle Benutzer mit E-Mail-Leseberechtigung
-                users_with_email_access = db.session.query(User.id).join(
-                    EmailPermission, User.id == EmailPermission.user_id
-                ).filter(EmailPermission.can_read == True).all()
-                
-                for (user_id,) in users_with_email_access:
-                    # Berechne unread_count für diesen Benutzer
-                    unread_count = EmailMessage.query.filter_by(
-                        is_read=False
-                    ).count()
-                    
-                    # Emittiere Dashboard-Update
-                    emit_dashboard_update(user_id, 'email_update', {'count': unread_count})
-            except Exception as e:
-                logging.error(f"Fehler beim Senden der Dashboard-Updates für E-Mails: {e}")
+        # Navbar-/Dashboard-Badge: immer aktuellen Unread-Stand pushen
+        try:
+            from app.utils.email_counts import emit_email_unread_update
+            emit_email_unread_update()
+        except Exception as e:
+            logging.error(f"Fehler beim Senden der Dashboard-Updates für E-Mails: {e}")
 
+        if stats['new_emails'] > 0:
             try:
                 last_email = EmailMessage.query.filter_by(is_sent=False).order_by(EmailMessage.id.desc()).first()
                 if last_email:
@@ -2512,11 +2498,14 @@ def index():
             email_obj.has_attachments = False
     db.session.commit()
 
+    from app.utils.email_counts import count_unread_emails_by_folder
+
     return render_template(
         'email/index.html',
         emails=emails,
         folders=folders,
         folder_tree=folder_tree,
+        folder_unread_counts=count_unread_emails_by_folder(),
         current_folder=current_folder,
         folder_display_name=folder_display_name,
         color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
@@ -2570,11 +2559,14 @@ def folder_view(folder_name):
     folders, folder_tree = _folder_tree_context()
     folder_display_name = folder_obj.display_name if folder_obj else folder_name
 
+    from app.utils.email_counts import count_unread_emails_by_folder
+
     return render_template(
         'email/index.html',
         emails=emails,
         folders=folders,
         folder_tree=folder_tree,
+        folder_unread_counts=count_unread_emails_by_folder(),
         current_folder=folder_name,
         folder_display_name=folder_display_name,
         color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
@@ -2604,6 +2596,11 @@ def view_email(email_id):
     if not email_msg.is_read:
         email_msg.is_read = True
         db.session.commit()
+        try:
+            from app.utils.email_counts import emit_email_unread_update
+            emit_email_unread_update(current_user.id)
+        except Exception:
+            pass
     
     
     raw_html = None
@@ -3880,12 +3877,23 @@ def delete_email(email_id):
     db.session.delete(email)
     db.session.commit()
 
+    unread_count = 0
+    by_folder = {}
+    try:
+        from app.utils.email_counts import count_unread_emails_by_folder, emit_email_unread_update
+        unread_count = emit_email_unread_update(current_user.id) or 0
+        by_folder = count_unread_emails_by_folder()
+    except Exception:
+        pass
+
     if _wants_json_response():
         payload = {
             'success': True,
             'message': translate('email.flash.deleted'),
             'folder': original_folder,
             'email_id': email_id,
+            'unread_count': unread_count,
+            'by_folder': by_folder,
         }
         if imap_warning:
             payload['imap_warning'] = imap_warning
@@ -3950,6 +3958,15 @@ def move_email(email_id):
     email.last_imap_sync = datetime.utcnow()
     db.session.commit()
 
+    by_folder = {}
+    unread_count = 0
+    try:
+        from app.utils.email_counts import count_unread_emails_by_folder, emit_email_unread_update
+        unread_count = emit_email_unread_update(current_user.id) or 0
+        by_folder = count_unread_emails_by_folder()
+    except Exception:
+        pass
+
     if _wants_json_response():
         return jsonify({
             'success': True,
@@ -3958,6 +3975,8 @@ def move_email(email_id):
             'previous_folder': old_folder,
             'email_id': email.id,
             'imap_warning': imap_warning,
+            'unread_count': unread_count,
+            'by_folder': by_folder,
         })
 
     if imap_warning:
@@ -3990,12 +4009,23 @@ def set_email_read_state(email_id):
     email.is_read = seen
     db.session.commit()
 
+    unread_count = 0
+    by_folder = {}
+    try:
+        from app.utils.email_counts import count_unread_emails_by_folder, emit_email_unread_update
+        unread_count = emit_email_unread_update(current_user.id) or 0
+        by_folder = count_unread_emails_by_folder()
+    except Exception:
+        pass
+
     return jsonify({
         'success': True,
         'state': state,
         'email_id': email.id,
         'is_read': email.is_read,
         'imap_warning': imap_warning,
+        'unread_count': unread_count,
+        'by_folder': by_folder,
     })
 
 

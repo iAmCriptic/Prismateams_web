@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models.credential import Credential, CredentialFolder
+from app.models.credential import Credential, CredentialFolder, CredentialFavorite
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
 from cryptography.fernet import Fernet
@@ -95,17 +95,48 @@ def parse_folder_id(raw_folder_id):
     return folder.id if folder else None
 
 
+def get_user_favorite_ids(user_id):
+    """Return set of credential ids favorited by user."""
+    rows = CredentialFavorite.query.filter_by(user_id=user_id).with_entities(CredentialFavorite.credential_id).all()
+    return {row[0] for row in rows}
+
+
+def set_credential_favorite(user_id, credential_id, should_favorite):
+    """Add or remove a per-user favorite. Returns current is_favorite for user."""
+    existing = CredentialFavorite.query.filter_by(user_id=user_id, credential_id=credential_id).first()
+    if should_favorite and not existing:
+        db.session.add(CredentialFavorite(user_id=user_id, credential_id=credential_id))
+        db.session.flush()
+        return True
+    if not should_favorite and existing:
+        db.session.delete(existing)
+        db.session.flush()
+        return False
+    return bool(existing)
+
+
 @credentials_bp.route('/')
 @login_required
 @check_module_access('module_credentials')
 def index():
-    """List credentials for the active folder (root when folder_id is empty)."""
+    """List credentials for root, folder, or personal favorites view."""
     folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
-    active_folder_id = parse_folder_id(request.args.get('folder_id'))
+    view = (request.args.get('view') or '').strip().lower()
+    active_favorites = view == 'favorites'
+    active_folder_id = None if active_favorites else parse_folder_id(request.args.get('folder_id'))
     active_folder = CredentialFolder.query.get(active_folder_id) if active_folder_id else None
+    favorite_ids = get_user_favorite_ids(current_user.id)
+    show_favorites_nav = bool(favorite_ids)
 
     credentials_query = Credential.query.order_by(Credential.website_name.asc())
-    if active_folder_id is None:
+    if active_favorites:
+        if favorite_ids:
+            credentials = credentials_query.filter(Credential.id.in_(favorite_ids)).all()
+        else:
+            credentials = []
+            # Kein Favorit mehr — zurück zum Root
+            return redirect(url_for('credentials.index'))
+    elif active_folder_id is None:
         credentials = credentials_query.filter(Credential.folder_id.is_(None)).all()
     else:
         credentials = credentials_query.filter(Credential.folder_id == active_folder_id).all()
@@ -116,6 +147,9 @@ def index():
         credentials=credentials,
         active_folder_id=active_folder_id,
         active_folder=active_folder,
+        active_favorites=active_favorites,
+        favorite_ids=favorite_ids,
+        show_favorites_nav=show_favorites_nav,
     )
 
 
@@ -140,6 +174,7 @@ def create():
                 'credentials/create.html',
                 folders=folders,
                 selected_folder_id=folder_id,
+                is_favorite=is_favorite,
             )
 
         # Get favicon
@@ -153,7 +188,7 @@ def create():
             notes=notes,
             favicon_url=favicon_url,
             folder_id=folder_id,
-            is_favorite=is_favorite,
+            is_favorite=False,
             created_by=current_user.id
         )
 
@@ -162,6 +197,9 @@ def create():
         credential.set_password(password, key)
 
         db.session.add(credential)
+        db.session.flush()
+        if is_favorite:
+            set_credential_favorite(current_user.id, credential.id, True)
         db.session.commit()
 
         flash(translate('credentials.flash.saved', website_name=website_name), 'success')
@@ -173,6 +211,7 @@ def create():
         'credentials/create.html',
         folders=folders,
         selected_folder_id=selected_folder_id,
+        is_favorite=False,
     )
 
 
@@ -190,7 +229,7 @@ def edit(credential_id):
         credential.username = request.form.get('username', '').strip()
         credential.notes = request.form.get('notes', '').strip()
         credential.folder_id = parse_folder_id(request.form.get('folder_id'))
-        credential.is_favorite = request.form.get('is_favorite') == 'on'
+        want_favorite = request.form.get('is_favorite') == 'on'
         
         new_password = request.form.get('password', '').strip()
         if new_password:
@@ -198,6 +237,7 @@ def edit(credential_id):
         
         # Update favicon
         credential.favicon_url = get_favicon_url(credential.website_url)
+        set_credential_favorite(current_user.id, credential.id, want_favorite)
         
         db.session.commit()
         
@@ -208,12 +248,17 @@ def edit(credential_id):
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
     folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
+    is_favorite = CredentialFavorite.query.filter_by(
+        user_id=current_user.id,
+        credential_id=credential.id
+    ).first() is not None
 
     return render_template(
         'credentials/edit.html',
         credential=credential,
         password=decrypted_password,
-        folders=folders
+        folders=folders,
+        is_favorite=is_favorite,
     )
 
 
@@ -226,6 +271,7 @@ def delete(credential_id):
     website_name = credential.website_name
     folder_id = credential.folder_id
 
+    CredentialFavorite.query.filter_by(credential_id=credential.id).delete()
     db.session.delete(credential)
     db.session.commit()
 
@@ -279,6 +325,43 @@ def create_folder():
     )
 
 
+@credentials_bp.route('/folders/<int:folder_id>/update', methods=['POST'])
+@login_required
+@check_module_access('module_credentials')
+def update_folder(folder_id):
+    """Rename folder and/or change color."""
+    folder = CredentialFolder.query.get_or_404(folder_id)
+    folder_name = request.form.get('name', '').strip()
+    folder_color = normalize_folder_color(request.form.get('color', folder.color))
+
+    if not folder_name:
+        flash(translate('credentials.flash.folder_name_required'), 'danger')
+        return redirect(url_for('credentials.index', folder_id=folder_id))
+
+    folder.name = folder_name[:120]
+    folder.color = folder_color
+    db.session.commit()
+
+    flash(translate('credentials.flash.folder_updated', folder_name=folder.name), 'success')
+    return redirect(url_for('credentials.index', folder_id=folder.id))
+
+
+@credentials_bp.route('/folders/<int:folder_id>/delete', methods=['POST'])
+@login_required
+@check_module_access('module_credentials')
+def delete_folder(folder_id):
+    """Delete folder; move credentials back to root."""
+    folder = CredentialFolder.query.get_or_404(folder_id)
+    folder_name = folder.name
+
+    Credential.query.filter_by(folder_id=folder.id).update({'folder_id': None})
+    db.session.delete(folder)
+    db.session.commit()
+
+    flash(translate('credentials.flash.folder_deleted', folder_name=folder_name), 'success')
+    return redirect(url_for('credentials.index'))
+
+
 @credentials_bp.route('/folders/<int:folder_id>/move-up', methods=['POST'])
 @login_required
 @check_module_access('module_credentials')
@@ -293,7 +376,24 @@ def move_folder_up(folder_id):
         folder.position, previous_folder.position = previous_folder.position, folder.position
         db.session.commit()
 
-    return redirect(url_for('credentials.index'))
+    return redirect(url_for('credentials.index', folder_id=folder_id))
+
+
+@credentials_bp.route('/folders/<int:folder_id>/move-down', methods=['POST'])
+@login_required
+@check_module_access('module_credentials')
+def move_folder_down(folder_id):
+    """Move folder one position down."""
+    folder = CredentialFolder.query.get_or_404(folder_id)
+    next_folder = CredentialFolder.query.filter(
+        CredentialFolder.position > folder.position
+    ).order_by(CredentialFolder.position.asc()).first()
+
+    if next_folder:
+        folder.position, next_folder.position = next_folder.position, folder.position
+        db.session.commit()
+
+    return redirect(url_for('credentials.index', folder_id=folder_id))
 
 
 @credentials_bp.route('/move/<int:credential_id>', methods=['POST'])
@@ -312,11 +412,27 @@ def move_credential(credential_id):
 @login_required
 @check_module_access('module_credentials')
 def toggle_favorite(credential_id):
-    """Toggle credential favorite status."""
+    """Toggle per-user credential favorite status."""
     credential = Credential.query.get_or_404(credential_id)
-    credential.is_favorite = not credential.is_favorite
+    existing = CredentialFavorite.query.filter_by(
+        user_id=current_user.id,
+        credential_id=credential.id
+    ).first()
+
+    if existing:
+        db.session.delete(existing)
+        is_favorite = False
+    else:
+        db.session.add(CredentialFavorite(user_id=current_user.id, credential_id=credential.id))
+        is_favorite = True
+
     db.session.commit()
-    return jsonify({'success': True, 'is_favorite': credential.is_favorite})
+    favorites_count = CredentialFavorite.query.filter_by(user_id=current_user.id).count()
+    return jsonify({
+        'success': True,
+        'is_favorite': is_favorite,
+        'favorites_count': favorites_count,
+    })
 
 
 

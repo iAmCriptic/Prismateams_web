@@ -341,7 +341,6 @@ def product_new():
                     dguv_last_check=_parse_optional_date(request.form.get('dguv_last_check')),
                     dguv_next_check=_parse_optional_date(request.form.get('dguv_next_check')),
                     dguv_interval_months=_parse_optional_int(request.form.get('dguv_interval_months')),
-                    external_barcode=(request.form.get('external_barcode') or '').strip() or None,
                 )
                 
                 db.session.add(product)
@@ -447,7 +446,6 @@ def product_edit(product_id):
         product.dguv_last_check = _parse_optional_date(request.form.get('dguv_last_check'))
         product.dguv_next_check = _parse_optional_date(request.form.get('dguv_next_check'))
         product.dguv_interval_months = _parse_optional_int(request.form.get('dguv_interval_months'))
-        product.external_barcode = (request.form.get('external_barcode') or '').strip() or None
         
         if request.form.get('remove_image') == '1':
             if product.image_path:

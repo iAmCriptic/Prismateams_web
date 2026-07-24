@@ -5,8 +5,8 @@ from flask_login import current_user
 
 from app.models.calendar import CalendarEvent
 from app.models.chat import ChatMember, ChatMessage
-from app.models.email import EmailMessage
 from app.models.file import File
+from app.utils.email_counts import count_unread_emails
 
 
 def register_dashboard_routes(api_bp, require_api_auth):
@@ -25,7 +25,7 @@ def register_dashboard_routes(api_bp, require_api_auth):
             ).count()
             unread_count += count
 
-        unread_emails = EmailMessage.query.filter_by(is_read=False, is_sent=False).count()
+        unread_emails = count_unread_emails()
         total_files = File.query.filter_by(is_current=True).count()
 
         return jsonify({
@@ -39,8 +39,12 @@ def register_dashboard_routes(api_bp, require_api_auth):
     @require_api_auth
     def get_unread_email_count():
         try:
-            unread_count = EmailMessage.query.filter_by(is_read=False).count()
-            return jsonify({"count": unread_count})
+            from app.utils.email_counts import count_unread_emails_by_folder
+
+            return jsonify({
+                "count": count_unread_emails(),
+                "by_folder": count_unread_emails_by_folder(),
+            })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 

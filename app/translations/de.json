@@ -2081,13 +2081,17 @@
       "confirm": {
         "delete_email": "E-Mail wirklich löschen?",
         "delete_folder": "Ordner '{folder}' wirklich löschen?",
-        "delete_folder_force": "Der Ordner ist nicht leer. Soll er inklusive aller Inhalte gelöscht werden?"
+        "delete_folder_force": "Der Ordner ist nicht leer. Soll er inklusive aller Inhalte gelöscht werden?",
+        "title": "Löschen bestätigen",
+        "ok": "Löschen",
+        "force_title": "Ordner nicht leer",
+        "force_ok": "Trotzdem löschen"
       },
       "folder_create": {
         "title": "Neuen Ordner erstellen",
         "name_label": "Ordnername",
         "parent_label": "Übergeordneter Ordner",
-        "parent_none": "Kein übergeordneter Ordner (oberste Ebene)",
+        "parent_none": "Kein übergeordneter Ordner",
         "submit": "Ordner erstellen",
         "hint": "Unterordner werden über den gewählten übergeordneten Ordner verschachtelt.",
         "error_name_required": "Bitte geben Sie einen Ordnernamen ein."
@@ -2237,7 +2241,9 @@
       "updated": "Zugangsdaten für \"{website_name}\" wurden aktualisiert.",
       "deleted": "Zugangsdaten für \"{website_name}\" wurden gelöscht.",
       "folder_name_required": "Bitte geben Sie einen Ordnernamen ein.",
-      "folder_created": "Ordner \"{folder_name}\" wurde erstellt."
+      "folder_created": "Ordner \"{folder_name}\" wurde erstellt.",
+      "folder_updated": "Ordner \"{folder_name}\" wurde aktualisiert.",
+      "folder_deleted": "Ordner \"{folder_name}\" wurde gelöscht. Einträge liegen wieder im Root."
     },
     "errors": {
       "decrypt_error": "Fehler beim Entschlüsseln des Passworts"
@@ -2289,7 +2295,15 @@
         "drop_hint": "Karten auf Ordner ziehen",
         "root_empty": "Keine Einträge im Root-Bereich.",
         "empty": "Dieser Ordner ist leer.",
-        "move_up": "Ordner nach oben"
+        "move_up": "Ordner nach oben",
+        "hint": "Name und Farbe für den neuen Ordner.",
+        "favorites": "Favoriten",
+        "favorites_empty": "Keine Favoriten gesetzt.",
+        "edit": "Ordner bearbeiten",
+        "menu": "Ordner-Optionen",
+        "save": "Speichern",
+        "delete_confirm": "Ordner wirklich löschen? Einträge landen wieder im Root.",
+        "move_down": "Ordner nach unten"
       }
     },
     "form": {
@@ -2318,7 +2332,8 @@
           "index": "Zugangsdaten",
           "current": "Neu hinzufügen"
         },
-        "card_title": "Neue Zugangsdaten hinzufügen"
+        "card_title": "Neue Zugangsdaten hinzufügen",
+        "subtitle": "Website, Login und Ordner in einem Durchgang."
       },
       "edit": {
         "page_title_suffix": "Zugangsdaten",
@@ -2327,7 +2342,14 @@
           "current": "Bearbeiten"
         },
         "card_title": "Zugangsdaten bearbeiten",
-        "password_help": "Leer lassen, um Passwort nicht zu ändern"
+        "password_help": "Leer lassen, um Passwort nicht zu ändern",
+        "subtitle": "Eintrag aktualisieren oder Ordner wechseln."
+      },
+      "back": "Zurück",
+      "sections": {
+        "site": "Website",
+        "access": "Zugangsdaten",
+        "options": "Optionen"
       }
     }
   },
@@ -2350,6 +2372,11 @@
       "new_button": "Neu",
       "nav": {
         "menu": "Kontakte-Menü"
+      },
+      "folders": {
+        "all": "Alle",
+        "favorites": "Favoriten",
+        "favorites_empty": "Keine Favoriten gesetzt."
       },
       "filters": {
         "menu_button": "Filtern",
@@ -2402,7 +2429,9 @@
         "copy_name": "Name kopieren",
         "copy_email": "Mail kopieren",
         "copy_phone": "Telefonnummer kopieren",
-        "write_mail": "Mail schreiben"
+        "write_mail": "Mail schreiben",
+        "favorite": "Zu Favoriten",
+        "unfavorite": "Aus Favoriten entfernen"
       },
       "empty_message": "Keine Kontakte vorhanden."
     },
@@ -3162,13 +3191,14 @@
         "color": "Farbe",
         "create": "Ordner erstellen",
         "rename": "Umbenennen",
-        "delete": "Ordner löschen",
+        "delete": "Löschen",
         "delete_confirm": "Ordner löschen? Anleitungen werden nach Alle Anleitungen verschoben.",
         "root": "Alle Anleitungen",
         "drop_hint": "Karten auf Ordner ziehen",
         "root_empty": "Keine Anleitungen ohne Ordner.",
         "empty": "Dieser Ordner ist leer.",
-        "move_up": "Ordner nach oben"
+        "move_up": "Ordner nach oben",
+        "move_down": "Ordner nach unten"
       }
     },
     "upload": {
@@ -3178,6 +3208,11 @@
         "current": "Hochladen"
       },
       "card_title": "Anleitung hochladen",
+      "back": "Zurück",
+      "subtitle": "PDF hochladen und einem Ordner zuordnen.",
+      "sections": {
+        "file": "Datei"
+      },
       "form": {
         "title": "Titel",
         "title_placeholder": "z.B. Benutzerhandbuch",
@@ -3380,13 +3415,6 @@
         "placeholder": "Name, Seriennummer, Länge (z.B. 5 m), Beschreibung, Lagerort, Kategorie...",
         "help": "Durchsucht alle Produktattribute"
       },
-      "quick_filters": {
-        "label": "Schnellfilter",
-        "all": "Alle anzeigen",
-        "favorites": "Meine Favoriten",
-        "available": "Verfügbar",
-        "borrowed": "Ausgeliehen"
-      },
       "filters": {
         "title": "Filter",
         "category": "Kategorie",
@@ -3404,7 +3432,23 @@
         "all_lengths": "Alle Längen",
         "purchase_year": "Anschaffungsjahr",
         "all_years": "Alle Jahre",
-        "reset": "Filter zurücksetzen"
+        "reset": "Filter zurücksetzen",
+        "defective": "Defekt",
+        "in_repair": "In Reparatur",
+        "retired": "Ausgemustert",
+        "serial_presence": "Seriennummer",
+        "serial_any": "Alle",
+        "serial_with": "Mit Seriennummer",
+        "serial_without": "Ohne Seriennummer",
+        "dguv": "DGUV",
+        "dguv_any": "Alle",
+        "dguv_due": "Prüfung fällig",
+        "dguv_ok": "Prüfung ok",
+        "dguv_none": "Keine DGUV-Daten",
+        "overdue": "Überfällig",
+        "favorites": "Favoriten",
+        "favorites_any": "Alle",
+        "favorites_only": "Nur Favoriten"
       },
       "sort": {
         "title": "Sortieren",
@@ -3416,7 +3460,11 @@
         "direction": "Richtung",
         "asc": "Aufsteigend (A–Z / kurz → lang)",
         "desc": "Absteigend (Z–A / lang → kurz)",
-        "reset": "Sortierung zurücksetzen"
+        "reset": "Sortierung zurücksetzen",
+        "location": "Lagerort",
+        "status": "Status",
+        "purchase_date": "Anschaffungsdatum",
+        "serial_number": "Seriennummer"
       },
       "bulk_selection": {
         "selected": "Produkt(e) ausgewählt",
@@ -3424,7 +3472,10 @@
         "deselect_all": "Alle abwählen",
         "edit": "Bearbeiten",
         "borrow": "Ausleihen",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "print_qr": "QR drucken",
+        "repair": "Reparatur",
+        "available": "Einsatzbereit"
       },
       "views": {
         "list": "Listenansicht",
@@ -3472,7 +3523,8 @@
         "init_error": "Fehler bei der Initialisierung:",
         "load_products_error": "Fehler beim Laden der Produkte:",
         "critical_error": "Kritischer Fehler:"
-      }
+      },
+      "filters_sort_button": "Filter & Sortierung"
     },
     "product": {
       "form": {
@@ -3506,7 +3558,38 @@
         "image": "Produktbild",
         "image_help": "Nur JPG, PNG und GIF Dateien sind erlaubt. Maximale Größe: 5MB.",
         "save": "Speichern",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "sections": {
+          "basics": "Stammdaten",
+          "classification": "Einordnung",
+          "identity": "Identifikation & Lager",
+          "values": "Kauf & Werte",
+          "dimensions": "Maße & Gewicht",
+          "dguv": "DGUV",
+          "media": "Status & Medien"
+        },
+        "folder_name": "Ordnername",
+        "category_name": "Kategoriename",
+        "create_folder": "Ordner anlegen",
+        "create_category": "Kategorie anlegen",
+        "folders_empty": "Noch keine Ordner vorhanden.",
+        "categories_empty": "Noch keine Kategorien vorhanden.",
+        "folder_delete_confirm": "Soll der Ordner \"{name}\" wirklich gelöscht werden?",
+        "category_delete_confirm": "Soll die Kategorie \"{name}\" wirklich gelöscht werden?",
+        "purchase_price": "Kaufpreis",
+        "replacement_value": "Wiederbeschaffungswert",
+        "weight_kg": "Gewicht (kg)",
+        "width_cm": "Breite (cm)",
+        "height_cm": "Höhe (cm)",
+        "depth_cm": "Tiefe (cm)",
+        "dguv_last_check": "DGUV letzte Prüfung",
+        "dguv_next_check": "DGUV nächste Prüfung",
+        "dguv_interval_months": "DGUV Intervall (Monate)",
+        "external_barcode": "Externer Barcode / QR-ID",
+        "external_barcode_placeholder": "Eigene Barcode-ID",
+        "current_image": "Aktuelles Bild:",
+        "remove_image": "Bild entfernen",
+        "remove_image_confirm": "Möchten Sie das Produktbild wirklich entfernen?"
       },
       "list": {
         "page_title": "Inventurliste - Team Portal",

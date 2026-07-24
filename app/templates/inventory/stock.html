@@ -1,5 +1,6 @@
 {% extends "inventory/layout.html" %}
 {% set inventory_show_view_toggle = true %}
+{% set inventory_show_stock_tools = true %}
 
 {% block title %}{{ _('inventory.stock.page_title') }}{% endblock %}
 {% block inventory_heading_icon %}bi-box-seam{% endblock %}
@@ -7,258 +8,221 @@
 
 {% block inventory_mobile_actions %}
 {% if show_new %}
-<a href="{{ url_for('inventory.product_new') }}" class="btn mod-new-btn btn-sm">
+<a href="{{ url_for('inventory.product_new') }}" class="btn mod-new-btn btn-sm flex-shrink-0">
     <i class="bi bi-plus-lg"></i> {{ _('inventory.shell.new_button') }}
 </a>
 {% endif %}
 {% endblock %}
 
-{% block inventory_toolbar_extra %}
-{% if current_folder %}
-<nav aria-label="breadcrumb" class="mb-0 mt-1">
-    <ol class="breadcrumb mb-0 small">
-        <li class="breadcrumb-item"><a href="{{ url_for('inventory.stock') }}">{{ _('inventory.stock.breadcrumb_root') }}</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{{ current_folder.name }}</li>
-    </ol>
-</nav>
-{% endif %}
+{% block inventory_toolbar_extra %}{% endblock %}
+
+{% macro stock_filter_tools(id_suffix='') %}
+<div class="inventory-filter-tools">
+    <div class="inventory-filter-section">
+        <label class="inventory-filter-label" for="searchInput{{ id_suffix }}">
+            <i class="bi bi-search" aria-hidden="true"></i>{{ _('inventory.stock.search.label') }}
+        </label>
+        <input type="search" class="form-control form-control-sm inventory-filter-control" id="searchInput{{ id_suffix }}" data-inv-filter="searchInput"
+               placeholder="{{ _('inventory.stock.search.placeholder') }}"
+               aria-label="{{ _('inventory.stock.search.label') }}">
+    </div>
+
+    <div class="inventory-filter-section">
+        <div class="inventory-filter-label">
+            <i class="bi bi-funnel" aria-hidden="true"></i>{{ _('inventory.stock.filters.title') }}
+        </div>
+        <div class="inventory-filter-grid">
+            <div>
+                <label for="categoryFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.category') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="categoryFilter{{ id_suffix }}" data-inv-filter="categoryFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_categories') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="statusFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.status') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="statusFilter{{ id_suffix }}" data-inv-filter="statusFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_status') }}</option>
+                    <option value="available">{{ _('inventory.stock.filters.available') }}</option>
+                    <option value="borrowed">{{ _('inventory.stock.filters.borrowed') }}</option>
+                    <option value="missing">{{ _('inventory.stock.filters.missing') }}</option>
+                    <option value="defective">{{ _('inventory.stock.filters.defective') }}</option>
+                    <option value="in_repair">{{ _('inventory.stock.filters.in_repair') }}</option>
+                    <option value="retired">{{ _('inventory.stock.filters.retired') }}</option>
+                    <option value="overdue">{{ _('inventory.stock.filters.overdue') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="favoritesFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.favorites') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="favoritesFilter{{ id_suffix }}" data-inv-filter="favoritesFilter">
+                    <option value="">{{ _('inventory.stock.filters.favorites_any') }}</option>
+                    <option value="favorites">{{ _('inventory.stock.filters.favorites_only') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="conditionFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.condition') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="conditionFilter{{ id_suffix }}" data-inv-filter="conditionFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_conditions') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="locationFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.location') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="locationFilter{{ id_suffix }}" data-inv-filter="locationFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_locations') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="lengthFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.length') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="lengthFilter{{ id_suffix }}" data-inv-filter="lengthFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_lengths') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="purchaseYearFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.purchase_year') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="purchaseYearFilter{{ id_suffix }}" data-inv-filter="purchaseYearFilter">
+                    <option value="">{{ _('inventory.stock.filters.all_years') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="serialPresenceFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.serial_presence') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="serialPresenceFilter{{ id_suffix }}" data-inv-filter="serialPresenceFilter">
+                    <option value="">{{ _('inventory.stock.filters.serial_any') }}</option>
+                    <option value="with">{{ _('inventory.stock.filters.serial_with') }}</option>
+                    <option value="without">{{ _('inventory.stock.filters.serial_without') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="dguvFilter{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.filters.dguv') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="dguvFilter{{ id_suffix }}" data-inv-filter="dguvFilter">
+                    <option value="">{{ _('inventory.stock.filters.dguv_any') }}</option>
+                    <option value="due">{{ _('inventory.stock.filters.dguv_due') }}</option>
+                    <option value="ok">{{ _('inventory.stock.filters.dguv_ok') }}</option>
+                    <option value="none">{{ _('inventory.stock.filters.dguv_none') }}</option>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="btn mod-sidebar-action w-100 inventory-reset-filters-btn mt-2" id="resetFiltersBtn{{ id_suffix }}">
+            <i class="bi bi-x-circle"></i>
+            <span>{{ _('inventory.stock.filters.reset') }}</span>
+        </button>
+    </div>
+
+    <div class="inventory-filter-section">
+        <div class="inventory-filter-label">
+            <i class="bi bi-arrow-down-up" aria-hidden="true"></i>{{ _('inventory.stock.sort.title') }}
+        </div>
+        <div class="inventory-filter-grid inventory-filter-grid--sort">
+            <div>
+                <label for="sortField{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.sort.field') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="sortField{{ id_suffix }}" data-inv-filter="sortField">
+                    <option value="name">{{ _('inventory.stock.sort.name') }}</option>
+                    <option value="category">{{ _('inventory.stock.sort.category') }}</option>
+                    <option value="condition">{{ _('inventory.stock.sort.condition') }}</option>
+                    <option value="length">{{ _('inventory.stock.sort.length') }}</option>
+                    <option value="location">{{ _('inventory.stock.sort.location') }}</option>
+                    <option value="status">{{ _('inventory.stock.sort.status') }}</option>
+                    <option value="purchase_date">{{ _('inventory.stock.sort.purchase_date') }}</option>
+                    <option value="serial_number">{{ _('inventory.stock.sort.serial_number') }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="sortDirection{{ id_suffix }}" class="form-label mb-1">{{ _('inventory.stock.sort.direction') }}</label>
+                <select class="form-select form-select-sm inventory-filter-control" id="sortDirection{{ id_suffix }}" data-inv-filter="sortDirection">
+                    <option value="asc">{{ _('inventory.stock.sort.asc') }}</option>
+                    <option value="desc">{{ _('inventory.stock.sort.desc') }}</option>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="btn mod-sidebar-action--muted w-100 inventory-reset-sort-btn mt-2" id="resetSortBtn{{ id_suffix }}">
+            <i class="bi bi-arrow-counterclockwise"></i>
+            <span>{{ _('inventory.stock.sort.reset') }}</span>
+        </button>
+    </div>
+</div>
+{% endmacro %}
+
+{% block inventory_filter_nav %}
+{{ stock_filter_tools('') }}
+{% endblock %}
+
+{% block inventory_mobile_stock_tools %}
+{{ stock_filter_tools('Mobile') }}
 {% endblock %}
 
 {% block inventory_content %}
-<!-- Such- und Filterleiste -->
-<div class="card mb-4">
-    <div class="card-body">
-        <!-- Erweiterte Suche (immer sichtbar) -->
-        <div class="row g-3 mb-3">
-            <div class="col-12">
-                <label for="searchInput" class="form-label">{{ _('inventory.stock.search.label') }}</label>
-                <input type="text" class="form-control" id="searchInput" 
-                       placeholder="{{ _('inventory.stock.search.placeholder') }}">
-                <small class="form-text text-muted">{{ _('inventory.stock.search.help') }}</small>
-            </div>
+{% if current_folder %}
+<div class="inventory-back-row mb-3">
+    <a href="{{ url_for('inventory.stock') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+</div>
+{% endif %}
+
+<div id="bulkSelectionToolbar" class="inventory-bulk-bar mb-3" style="display: none;">
+    <div class="inventory-bulk-inner">
+        <div>
+            <span class="text-muted">
+                <strong id="bulkSelectionCount">0</strong> {{ _('inventory.stock.bulk_selection.selected') }}
+            </span>
         </div>
-        
-        <!-- Schnellfilter -->
-        <div class="mb-3">
-            <label class="form-label">{{ _('inventory.stock.quick_filters.label') }}</label>
-            <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="all">
-                    <i class="bi bi-list-ul"></i> {{ _('inventory.stock.quick_filters.all') }}
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="favorites">
-                    <i class="bi bi-star-fill"></i> {{ _('inventory.stock.quick_filters.favorites') }}
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="available">
-                    <i class="bi bi-check-circle"></i> {{ _('inventory.stock.quick_filters.available') }}
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-primary quick-filter" data-filter="borrowed">
-                    <i class="bi bi-clock-history"></i> {{ _('inventory.stock.quick_filters.borrowed') }}
-                </button>
-            </div>
+        <div class="inventory-bulk-actions">
+            <button id="bulkSelectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.select_all') }}">
+                <i class="bi bi-check-square"></i> {{ _('inventory.stock.bulk_selection.select_all') }}
+            </button>
+            <button id="bulkDeselectAllBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-muted" title="{{ _('inventory.stock.bulk_selection.deselect_all') }}">
+                <i class="bi bi-square"></i> {{ _('inventory.stock.bulk_selection.deselect_all') }}
+            </button>
+            <button id="bulkQrBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.print_qr') }}">
+                <i class="bi bi-qr-code"></i> {{ _('inventory.stock.bulk_selection.print_qr') }}
+            </button>
+            <button id="bulkEditBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" title="{{ _('inventory.stock.bulk_selection.edit') }}">
+                <i class="bi bi-pencil"></i> {{ _('inventory.stock.bulk_selection.edit') }}
+            </button>
+            <button id="bulkBorrowBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
+                <i class="bi bi-cart-check"></i> {{ _('inventory.stock.bulk_selection.borrow') }}
+            </button>
+            <button id="bulkRepairBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-warning" title="{{ _('inventory.stock.bulk_selection.repair') }}">
+                <i class="bi bi-tools"></i> {{ _('inventory.stock.bulk_selection.repair') }}
+            </button>
+            <button id="bulkAvailableBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" title="{{ _('inventory.stock.bulk_selection.available') }}">
+                <i class="bi bi-check2-circle"></i> {{ _('inventory.stock.bulk_selection.available') }}
+            </button>
+            <button id="bulkDeleteBtn" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
+                <i class="bi bi-trash"></i> {{ _('inventory.stock.bulk_selection.delete') }}
+            </button>
         </div>
-        
-        <!-- Filter & Sortierung -->
-        <div class="row g-3">
-            <div class="col-12 col-xl-6">
-                <div class="accordion" id="filterAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="filterHeading">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                    data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
-                                <i class="bi bi-funnel me-2"></i> {{ _('inventory.stock.filters.title') }}
-                            </button>
-                        </h2>
-                        <div id="filterCollapse" class="accordion-collapse collapse" 
-                             aria-labelledby="filterHeading" data-bs-parent="#filterAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-6">
-                                        <label for="categoryFilter" class="form-label">{{ _('inventory.stock.filters.category') }}</label>
-                                        <select class="form-select" id="categoryFilter">
-                                            <option value="">{{ _('inventory.stock.filters.all_categories') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label for="statusFilter" class="form-label">{{ _('inventory.stock.filters.status') }}</label>
-                                        <select class="form-select" id="statusFilter">
-                                            <option value="">{{ _('inventory.stock.filters.all_status') }}</option>
-                                            <option value="available">{{ _('inventory.stock.filters.available') }}</option>
-                                            <option value="borrowed">{{ _('inventory.stock.filters.borrowed') }}</option>
-                                            <option value="missing">{{ _('inventory.stock.filters.missing') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label for="conditionFilter" class="form-label">{{ _('inventory.stock.filters.condition') }}</label>
-                                        <select class="form-select" id="conditionFilter">
-                                            <option value="">{{ _('inventory.stock.filters.all_conditions') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label for="locationFilter" class="form-label">{{ _('inventory.stock.filters.location') }}</label>
-                                        <select class="form-select" id="locationFilter">
-                                            <option value="">{{ _('inventory.stock.filters.all_locations') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label for="lengthFilter" class="form-label">{{ _('inventory.stock.filters.length') }}</label>
-                                        <select class="form-select" id="lengthFilter">
-                                            <option value="">{{ _('inventory.stock.filters.all_lengths') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="purchaseYearFilter" class="form-label">{{ _('inventory.stock.filters.purchase_year') }}</label>
-                                        <select class="form-select" id="purchaseYearFilter">
-                                            <option value="">{{ _('inventory.stock.filters.all_years') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="resetFiltersBtn">
-                                            <i class="bi bi-x-circle"></i> {{ _('inventory.stock.filters.reset') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-xl-6">
-                <div class="accordion" id="sortAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="sortHeading">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                    data-bs-target="#sortCollapse" aria-expanded="false" aria-controls="sortCollapse">
-                                <i class="bi bi-arrow-down-up me-2"></i> {{ _('inventory.stock.sort.title') }}
-                            </button>
-                        </h2>
-                        <div id="sortCollapse" class="accordion-collapse collapse"
-                             aria-labelledby="sortHeading" data-bs-parent="#sortAccordion">
-                            <div class="accordion-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label for="sortField" class="form-label">{{ _('inventory.stock.sort.field') }}</label>
-                                        <select class="form-select" id="sortField">
-                                            <option value="name">{{ _('inventory.stock.sort.name') }}</option>
-                                            <option value="category">{{ _('inventory.stock.sort.category') }}</option>
-                                            <option value="condition">{{ _('inventory.stock.sort.condition') }}</option>
-                                            <option value="length">{{ _('inventory.stock.sort.length') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="sortDirection" class="form-label">{{ _('inventory.stock.sort.direction') }}</label>
-                                        <select class="form-select" id="sortDirection">
-                                            <option value="asc">{{ _('inventory.stock.sort.asc') }}</option>
-                                            <option value="desc">{{ _('inventory.stock.sort.desc') }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12 d-flex gap-2">
-                                        <button type="button" class="btn btn-outline-secondary flex-fill" id="resetSortBtn">
-                                            <i class="bi bi-arrow-counterclockwise"></i> {{ _('inventory.stock.sort.reset') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    </div>
+</div>
+
+<div id="gridViewContainer" style="display: none;">
+    <div id="productsContainer" class="row g-3">
+        <div class="text-center py-5 col-12">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Lädt...</span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Bulk-Auswahl Toolbar -->
-<div id="bulkSelectionToolbar" class="card mb-3" style="display: none;">
-    <div class="card-body py-2">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="d-flex gap-2 align-items-center">
-                <span class="text-muted me-2">
-                    <strong id="bulkSelectionCount">0</strong> {{ _('inventory.stock.bulk_selection.selected') }}
-                </span>
-            </div>
-            <div class="d-flex gap-2 flex-wrap">
-                <button id="bulkSelectAllBtn" class="btn btn-sm btn-outline-primary" title="{{ _('inventory.stock.bulk_selection.select_all') }}">
-                    <i class="bi bi-check-square"></i> {{ _('inventory.stock.bulk_selection.select_all') }}
-                </button>
-                <button id="bulkDeselectAllBtn" class="btn btn-sm btn-outline-secondary" title="{{ _('inventory.stock.bulk_selection.deselect_all') }}">
-                    <i class="bi bi-square"></i> {{ _('inventory.stock.bulk_selection.deselect_all') }}
-                </button>
-                <div class="vr"></div>
-                <button id="bulkEditBtn" class="btn btn-sm btn-primary" title="{{ _('inventory.stock.bulk_selection.edit') }}">
-                    <i class="bi bi-pencil"></i> {{ _('inventory.stock.bulk_selection.edit') }}
-                </button>
-                <button id="bulkBorrowBtn" class="btn btn-sm btn-success" title="{{ _('inventory.stock.bulk_selection.borrow') }}">
-                    <i class="bi bi-cart-check"></i> {{ _('inventory.stock.bulk_selection.borrow') }}
-                </button>
-                <button id="bulkQrBtn" class="btn btn-sm btn-outline-secondary" title="QR-Codes drucken">
-                    <i class="bi bi-qr-code"></i> QR drucken
-                </button>
-                <button id="bulkRepairBtn" class="btn btn-sm btn-warning" title="Status: In Reparatur">
-                    <i class="bi bi-tools"></i> Reparatur
-                </button>
-                <button id="bulkAvailableBtn" class="btn btn-sm btn-success" title="Status: Einsatzbereit">
-                    <i class="bi bi-check2-circle"></i> Einsatzbereit
-                </button>
-                <button id="bulkDeleteBtn" class="btn btn-sm btn-danger" title="{{ _('inventory.stock.bulk_selection.delete') }}">
-                    <i class="bi bi-trash"></i> {{ _('inventory.stock.bulk_selection.delete') }}
-                </button>
-            </div>
-        </div>
+<div id="listViewContainer" style="display: none;">
+    <div id="productsListContainer" class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col" class="inventory-list-check-col"></th>
+                    <th scope="col">{{ _('inventory.stock.list.name') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.stock.list.status') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.stock.list.category') }}</th>
+                    <th scope="col" class="d-none d-lg-table-cell">{{ _('inventory.stock.list.location') }}</th>
+                    <th scope="col" class="d-none d-xl-table-cell">{{ _('inventory.stock.list.serial') }}</th>
+                    <th scope="col" class="text-end">{{ _('inventory.stock.list.actions') }}</th>
+                </tr>
+            </thead>
+            <tbody id="productsList"></tbody>
+        </table>
     </div>
 </div>
 
-<!-- Produktliste -->
-<div class="card">
-    <div class="card-body">
-        <!-- Grid View Container -->
-        <div id="gridViewContainer" style="display: none;">
-            <!-- Ordner Grid View -->
-            <div id="foldersGridView" class="row g-3 mb-4" style="display: none;">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
-            
-            <!-- Produkte Grid View -->
-            <div id="productsGridContainer">
-                <div id="productsContainer" class="row g-3">
-                    <div class="text-center py-5 col-12">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Lädt...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- List View Container -->
-        <div id="listViewContainer" style="display: none;">
-            <!-- Ordner List View -->
-            <div id="foldersListView" class="mb-3" style="display: none;">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
-            
-            <!-- Produkte List View -->
-            <div id="productsListContainer" class="mod-list-table-wrap">
-                <table class="table mod-list-table align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th scope="col" style="width: 2.5rem;"></th>
-                            <th scope="col">{{ _('inventory.stock.list.name') }}</th>
-                            <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.stock.list.status') }}</th>
-                            <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.stock.list.category') }}</th>
-                            <th scope="col" class="d-none d-lg-table-cell">{{ _('inventory.stock.list.location') }}</th>
-                            <th scope="col" class="d-none d-xl-table-cell">{{ _('inventory.stock.list.serial') }}</th>
-                            <th scope="col" class="text-end">{{ _('inventory.stock.list.actions') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody id="productsList">
-                        <!-- Wird dynamisch gefüllt -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Produkt-Detail-Modal -->
 <div class="modal fade" id="productDetailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -266,9 +230,7 @@
                 <h5 class="modal-title">{{ _('inventory.stock.modals.product_details.title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="productDetailContent">
-                <!-- Wird dynamisch gefüllt -->
-            </div>
+            <div class="modal-body" id="productDetailContent"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.product_details.close') }}</button>
             </div>
@@ -276,7 +238,6 @@
     </div>
 </div>
 
-<!-- Bulk-Delete-Bestätigungs-Modal -->
 <div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -288,7 +249,7 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> 
+                    <i class="bi bi-exclamation-triangle"></i>
                     <strong>{{ _('inventory.stock.modals.bulk_delete.warning') }}</strong>
                 </div>
                 <p>{{ _('inventory.stock.modals.bulk_delete.message', count='<strong id="bulkDeleteProductCount">0</strong>')|safe }}</p>
@@ -304,7 +265,6 @@
     </div>
 </div>
 
-<!-- Bulk-Edit-Modal -->
 <div class="modal fade" id="bulkEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -316,10 +276,9 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> 
+                    <i class="bi bi-info-circle"></i>
                     <strong id="bulkEditProductCount">0</strong> {{ _('inventory.stock.modals.bulk_edit.info', count='0') }}
                 </div>
-                
                 <form id="bulkEditForm">
                     <div class="mb-3">
                         <label for="bulkEditAttribute" class="form-label">{{ _('inventory.stock.modals.bulk_edit.attribute_label') }} <span class="text-danger">*</span></label>
@@ -334,14 +293,9 @@
                             <option value="remove_image">{{ _('inventory.stock.modals.bulk_edit.remove_image') }}</option>
                         </select>
                     </div>
-                    
-                    <!-- Dynamische Eingabefelder -->
-                    <div id="bulkEditFields">
-                        <!-- Wird dynamisch gefüllt -->
-                    </div>
-                    
+                    <div id="bulkEditFields"></div>
                     <div class="alert alert-warning mt-3">
-                        <i class="bi bi-exclamation-triangle"></i> 
+                        <i class="bi bi-exclamation-triangle"></i>
                         {{ _('inventory.stock.modals.bulk_edit.warning') }}
                     </div>
                 </form>
@@ -358,22 +312,22 @@
 {% endblock %}
 
 {% block inventory_extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
-// Bestandsübersicht-Initialisierung
 document.addEventListener('DOMContentLoaded', function() {
     try {
         if (typeof StockManager === 'undefined') {
             console.error('StockManager ist nicht definiert!');
             document.getElementById('productsContainer').innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> 
+                    <i class="bi bi-exclamation-triangle"></i>
                     Fehler beim Laden der Bestandsverwaltung. Bitte Seite neu laden.
                 </div>
             `;
             return;
         }
-        
+
         window.stockManager = new StockManager();
         if (window.stockManager && typeof window.stockManager.init === 'function') {
             window.stockManager.init().catch(error => {
@@ -382,37 +336,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (container) {
                     container.innerHTML = `
                         <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-triangle"></i> 
+                            <i class="bi bi-exclamation-triangle"></i>
                             Fehler beim Laden der Produkte: ${error.message || 'Unbekannter Fehler'}
                         </div>
                     `;
                 }
             });
-        } else {
-            console.error('stockManager oder init() ist nicht verfügbar');
-            const container = document.getElementById('productsContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle"></i> 
-                        Fehler: StockManager konnte nicht initialisiert werden.
-                    </div>
-                `;
-            }
         }
     } catch (error) {
         console.error('Kritischer Fehler:', error);
         document.getElementById('productsContainer').innerHTML = `
             <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> 
+                <i class="bi bi-exclamation-triangle"></i>
                 Kritischer Fehler: ${error.message}
             </div>
         `;
     }
 });
 
-// Favoriten-Funktionen
 let favorites = new Set();
+let overdueProductIds = new Set();
 
 async function loadFavorites() {
     try {
@@ -422,6 +365,9 @@ async function loadFavorites() {
         if (response.ok) {
             const data = await response.json();
             favorites = new Set(data.map(p => p.id));
+            if (window.stockManager) {
+                window.stockManager.favoriteProductIds = favorites;
+            }
             updateFavoriteButtons();
         }
     } catch (error) {
@@ -429,30 +375,47 @@ async function loadFavorites() {
     }
 }
 
+async function loadOverdueProductIds() {
+    try {
+        const response = (typeof fetchInventoryApi === 'function')
+            ? await fetchInventoryApi('/borrows?status=overdue')
+            : await fetch('/inventory/vnext/api/borrows?status=overdue');
+        if (!response.ok) return;
+        const data = await response.json();
+        const ids = new Set();
+        (Array.isArray(data) ? data : []).forEach((row) => {
+            if (row.product_id) ids.add(Number(row.product_id));
+            if (Array.isArray(row.product_ids)) {
+                row.product_ids.forEach((id) => ids.add(Number(id)));
+            }
+        });
+        overdueProductIds = ids;
+        if (window.stockManager) {
+            window.stockManager.overdueProductIds = overdueProductIds;
+            if (window.stockManager.getFilterValue('statusFilter') === 'overdue') {
+                window.stockManager.applyFilters();
+            }
+        }
+    } catch (error) {
+        console.error('Fehler beim Laden überfälliger Ausleihen:', error);
+    }
+}
+
 async function toggleFavorite(productId) {
     try {
         const isFavorite = favorites.has(productId);
         const method = isFavorite ? 'DELETE' : 'POST';
-        
         const response = await (typeof fetchInventoryApi === 'function'
-            ? fetchInventoryApi(`/favorites/${productId}`, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            : fetch(`/inventory/vnext/api/favorites/${productId}`, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-            }));
-        
+            ? fetchInventoryApi(`/favorites/${productId}`, { method, headers: { 'Content-Type': 'application/json' } })
+            : fetch(`/inventory/vnext/api/favorites/${productId}`, { method, headers: { 'Content-Type': 'application/json' } }));
         if (response.ok) {
-            if (isFavorite) {
-                favorites.delete(productId);
-            } else {
-                favorites.add(productId);
+            if (isFavorite) favorites.delete(productId);
+            else favorites.add(productId);
+            if (window.stockManager) {
+                window.stockManager.favoriteProductIds = favorites;
+                if (window.stockManager.getFilterValue('favoritesFilter') === 'favorites') {
+                    window.stockManager.applyFilters();
+                }
             }
             updateFavoriteButtons();
         }
@@ -474,62 +437,16 @@ function updateFavoriteButtons() {
     });
 }
 
-// Schnellfilter
 document.addEventListener('click', function(e) {
-    if (e.target.closest('.quick-filter')) {
-        const btn = e.target.closest('.quick-filter');
-        const filter = btn.dataset.filter;
-        
-        // Entferne active-Klasse von allen Schnellfilter-Buttons
-        document.querySelectorAll('.quick-filter').forEach(b => {
-            b.classList.remove('active');
-        });
-        
-        // Füge active-Klasse zum geklickten Button hinzu
-        btn.classList.add('active');
-        
-        if (filter === 'all') {
-            // Alle anzeigen - Filter zurücksetzen
-            if (window.stockManager) {
-                window.stockManager.activeQuickFilter = null;
-                document.getElementById('statusFilter').value = '';
-                document.getElementById('searchInput').value = '';
-                window.stockManager.applyFilters();
-                window.stockManager.renderFolders(); // Zeige Ordner wieder an
-            }
-        } else if (filter === 'favorites') {
-            // Nur Favoriten anzeigen
-            if (window.stockManager) {
-                window.stockManager.activeQuickFilter = 'favorites';
-                window.stockManager.filteredProducts = window.stockManager.products.filter(p => favorites.has(p.id));
-                window.stockManager.sortFilteredProducts();
-                window.stockManager.renderProducts();
-            }
-        } else if (filter === 'available') {
-            if (window.stockManager) {
-                window.stockManager.activeQuickFilter = 'available';
-                document.getElementById('statusFilter').value = 'available';
-                window.stockManager.applyFilters();
-            }
-        } else if (filter === 'borrowed') {
-            if (window.stockManager) {
-                window.stockManager.activeQuickFilter = 'borrowed';
-                document.getElementById('statusFilter').value = 'borrowed';
-                window.stockManager.applyFilters();
-            }
-        }
-    }
-    
     if (e.target.closest('.favorite-btn')) {
         const productId = parseInt(e.target.closest('.favorite-btn').dataset.productId);
         toggleFavorite(productId);
     }
 });
 
-// Initialisierung
 document.addEventListener('DOMContentLoaded', function() {
     loadFavorites();
+    loadOverdueProductIds();
 });
 </script>
 {% endblock %}
-

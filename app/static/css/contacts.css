@@ -372,6 +372,38 @@
     color: var(--accent-color, #0d6efd);
 }
 
+/* Grid-Hover-Shortcuts: nur große Screens (lg+), wie Dateien */
+.contacts-grid-hover-actions {
+    display: none !important;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+@media (min-width: 992px) {
+    .contacts-card:hover .contacts-grid-hover-actions,
+    .contacts-card:focus-within .contacts-grid-hover-actions {
+        display: inline-flex !important;
+    }
+}
+
+.contacts-grid-hover-actions .btn-link {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.contacts-grid-hover-actions .btn-link:hover,
+.contacts-grid-hover-actions .btn-link:focus {
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+}
+
+.contact-favorite-btn .bi-star-fill {
+    color: var(--accent-color, #0d6efd);
+}
+
 /* ——— Grid-Karten ——— */
 .contacts-card {
     border-radius: var(--mod-radius-card, 0.9rem);

@@ -4,7 +4,7 @@
 {% block title %}Veranstaltung bearbeiten{% endblock %}
 
 {% block content %}
-{{ events_shell_open('overview', 'Veranstaltung bearbeiten', 'bi-pencil', false) }}
+{{ events_shell_open('overview', 'Veranstaltung bearbeiten', 'bi-pencil', false, true) }}
 <div class="events-form">
     <div class="events-form-header d-none d-lg-block">
         <a href="{{ url_for('events.view_event', event_id=event.id) }}" class="events-form-back">
@@ -25,5 +25,5 @@
         </div>
     </form>
 </div>
-{{ events_shell_close('overview') }}
+{{ events_shell_close('overview', true) }}
 {% endblock %}

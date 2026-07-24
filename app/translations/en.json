@@ -2680,13 +2680,17 @@
       "confirm": {
         "delete_email": "Really delete this email?",
         "delete_folder": "Really delete folder '{folder}'?",
-        "delete_folder_force": "The folder is not empty. Delete it including all content?"
+        "delete_folder_force": "The folder is not empty. Delete it including all content?",
+        "title": "Confirm delete",
+        "ok": "Delete",
+        "force_title": "Folder not empty",
+        "force_ok": "Delete anyway"
       },
       "folder_create": {
         "title": "Create new folder",
         "name_label": "Folder name",
         "parent_label": "Parent folder",
-        "parent_none": "No parent (top level)",
+        "parent_none": "No parent folder",
         "submit": "Create folder",
         "hint": "Subfolders are nested under the selected parent folder.",
         "error_name_required": "Please enter a folder name."
@@ -2888,7 +2892,15 @@
         "drop_hint": "Drag cards onto folders",
         "root_empty": "No entries in root.",
         "empty": "This folder is empty.",
-        "move_up": "Move folder up"
+        "move_up": "Move folder up",
+        "hint": "Name and color for the new folder.",
+        "favorites": "Favorites",
+        "favorites_empty": "No favorites yet.",
+        "edit": "Edit folder",
+        "menu": "Folder options",
+        "save": "Save",
+        "delete_confirm": "Really delete this folder? Entries will move back to root.",
+        "move_down": "Move folder down"
       }
     },
     "form": {
@@ -2917,7 +2929,8 @@
           "index": "Credentials",
           "current": "Add new"
         },
-        "card_title": "Add new credentials"
+        "card_title": "Add new credentials",
+        "subtitle": "Website, login details and folder in one go."
       },
       "edit": {
         "page_title_suffix": "Credentials",
@@ -2926,7 +2939,14 @@
           "current": "Edit"
         },
         "card_title": "Edit credentials",
-        "password_help": "Leave empty to keep the current password"
+        "password_help": "Leave empty to keep the current password",
+        "subtitle": "Update the entry or move it to another folder."
+      },
+      "back": "Back",
+      "sections": {
+        "site": "Website",
+        "access": "Login details",
+        "options": "Options"
       }
     },
     "flash": {
@@ -2935,7 +2955,9 @@
       "updated": "Credentials for \"{website_name}\" have been updated.",
       "deleted": "Credentials for \"{website_name}\" have been deleted.",
       "folder_name_required": "Please provide a folder name.",
-      "folder_created": "Folder \"{folder_name}\" has been created."
+      "folder_created": "Folder \"{folder_name}\" has been created.",
+      "folder_updated": "Folder \"{folder_name}\" was updated.",
+      "folder_deleted": "Folder \"{folder_name}\" was deleted. Entries are back in root."
     },
     "errors": {
       "decrypt_error": "Error decrypting password"
@@ -2960,6 +2982,11 @@
       "new_button": "New",
       "nav": {
         "menu": "Contacts menu"
+      },
+      "folders": {
+        "all": "All",
+        "favorites": "Favorites",
+        "favorites_empty": "No favorites set."
       },
       "filters": {
         "menu_button": "Filter",
@@ -3012,7 +3039,9 @@
         "copy_name": "Copy name",
         "copy_email": "Copy email",
         "copy_phone": "Copy phone number",
-        "write_mail": "Write email"
+        "write_mail": "Write email",
+        "favorite": "Add to favorites",
+        "unfavorite": "Remove from favorites"
       },
       "empty_message": "No contacts available."
     },
@@ -3119,13 +3148,14 @@
         "color": "Color",
         "create": "Create folder",
         "rename": "Rename",
-        "delete": "Delete folder",
+        "delete": "Delete",
         "delete_confirm": "Delete folder? Manuals will be moved to All manuals.",
         "root": "All manuals",
         "drop_hint": "Drag cards onto folders",
         "root_empty": "No manuals without a folder.",
         "empty": "This folder is empty.",
-        "move_up": "Move folder up"
+        "move_up": "Move folder up",
+        "move_down": "Move folder down"
       }
     },
     "upload": {
@@ -3135,6 +3165,11 @@
         "current": "Upload"
       },
       "card_title": "Upload manual",
+      "back": "Back",
+      "subtitle": "Upload a PDF and assign it to a folder.",
+      "sections": {
+        "file": "File"
+      },
       "form": {
         "title": "Title",
         "title_placeholder": "e.g. User guide",
@@ -3222,13 +3257,6 @@
         "placeholder": "Name, serial number, length (e.g. 5 m), description, location, category...",
         "help": "Searches all product attributes"
       },
-      "quick_filters": {
-        "label": "Quick filters",
-        "all": "Show all",
-        "favorites": "My favorites",
-        "available": "Available",
-        "borrowed": "Borrowed"
-      },
       "filters": {
         "title": "Filters",
         "category": "Category",
@@ -3246,7 +3274,23 @@
         "all_lengths": "All lengths",
         "purchase_year": "Purchase year",
         "all_years": "All years",
-        "reset": "Reset filters"
+        "reset": "Reset filters",
+        "defective": "Defective",
+        "in_repair": "In repair",
+        "retired": "Retired",
+        "serial_presence": "Serial number",
+        "serial_any": "Any",
+        "serial_with": "With serial number",
+        "serial_without": "Without serial number",
+        "dguv": "DGUV",
+        "dguv_any": "Any",
+        "dguv_due": "Inspection due",
+        "dguv_ok": "Inspection ok",
+        "dguv_none": "No DGUV data",
+        "overdue": "Overdue",
+        "favorites": "Favorites",
+        "favorites_any": "Any",
+        "favorites_only": "Favorites only"
       },
       "sort": {
         "title": "Sort",
@@ -3258,7 +3302,11 @@
         "direction": "Direction",
         "asc": "Ascending (A–Z / short → long)",
         "desc": "Descending (Z–A / long → short)",
-        "reset": "Reset sorting"
+        "reset": "Reset sorting",
+        "location": "Location",
+        "status": "Status",
+        "purchase_date": "Purchase date",
+        "serial_number": "Serial number"
       },
       "bulk_selection": {
         "selected": "product(s) selected",
@@ -3266,7 +3314,10 @@
         "deselect_all": "Deselect all",
         "edit": "Edit",
         "borrow": "Borrow",
-        "delete": "Delete"
+        "delete": "Delete",
+        "print_qr": "Print QR",
+        "repair": "Repair",
+        "available": "Ready for use"
       },
       "views": {
         "list": "List view",
@@ -3314,7 +3365,8 @@
         "init_error": "Initialization error:",
         "load_products_error": "Error loading products:",
         "critical_error": "Critical error:"
-      }
+      },
+      "filters_sort_button": "Filter & Sort"
     },
     "product": {
       "form": {
@@ -3348,7 +3400,38 @@
         "image": "Product image",
         "image_help": "Only JPG, PNG and GIF files are allowed. Maximum size: 5MB.",
         "save": "Save",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "sections": {
+          "basics": "Basic info",
+          "classification": "Classification",
+          "identity": "Identity & storage",
+          "values": "Purchase & values",
+          "dimensions": "Dimensions & weight",
+          "dguv": "DGUV",
+          "media": "Status & media"
+        },
+        "folder_name": "Folder name",
+        "category_name": "Category name",
+        "create_folder": "Create folder",
+        "create_category": "Create category",
+        "folders_empty": "No folders yet.",
+        "categories_empty": "No categories yet.",
+        "folder_delete_confirm": "Really delete folder \"{name}\"?",
+        "category_delete_confirm": "Really delete category \"{name}\"?",
+        "purchase_price": "Purchase price",
+        "replacement_value": "Replacement value",
+        "weight_kg": "Weight (kg)",
+        "width_cm": "Width (cm)",
+        "height_cm": "Height (cm)",
+        "depth_cm": "Depth (cm)",
+        "dguv_last_check": "DGUV last check",
+        "dguv_next_check": "DGUV next check",
+        "dguv_interval_months": "DGUV interval (months)",
+        "external_barcode": "External barcode / QR ID",
+        "external_barcode_placeholder": "Custom barcode ID",
+        "current_image": "Current image:",
+        "remove_image": "Remove image",
+        "remove_image_confirm": "Really remove the product image?"
       },
       "list": {
         "page_title": "Inventory list - Team Portal",

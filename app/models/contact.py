@@ -30,7 +30,7 @@ class Contact(db.Model):
         """Validiert E-Mail-Adresse."""
         if not email:
             return False
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}$'
         return bool(re.match(pattern, email))
     
     def to_dict(self):
@@ -46,3 +46,23 @@ class Contact(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+
+class ContactFavorite(db.Model):
+    """Per-user contact favorites for the Kontakte nav."""
+    __tablename__ = 'contact_favorites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contacts.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='contact_favorites')
+    contact = db.relationship('Contact', backref='favorited_by')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'contact_id', name='unique_user_contact_favorite'),
+    )
+
+    def __repr__(self):
+        return f'<ContactFavorite user={self.user_id} contact={self.contact_id}>'

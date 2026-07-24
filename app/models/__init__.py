@@ -4,8 +4,8 @@ from .chat import Chat, ChatMessage, ChatMember, ChatPin
 from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite
 from .calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
 from .email import EmailMessage, EmailPermission, EmailAttachment
-from .contact import Contact
-from .credential import Credential, CredentialFolder
+from .contact import Contact, ContactFavorite
+from .credential import Credential, CredentialFolder, CredentialFavorite
 from .manual import Manual, ManualFolder
 from .settings import SystemSettings
 from .whitelist import WhitelistEntry
@@ -46,8 +46,8 @@ __all__ = [
     'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite',
     'Calendar', 'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed', 'CalendarSyncSource',
     'EmailMessage', 'EmailPermission', 'EmailAttachment',
-    'Contact',
-    'Credential', 'CredentialFolder',
+    'Contact', 'ContactFavorite',
+    'Credential', 'CredentialFolder', 'CredentialFavorite',
     'Manual', 'ManualFolder',
     'SystemSettings',
     'WhitelistEntry',

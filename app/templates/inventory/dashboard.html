@@ -7,70 +7,65 @@
 {% block inventory_content %}
 <p class="text-muted mb-4">{{ _('inventory.dashboard.subtitle') }}</p>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4 inventory-stats-row">
     <div class="col-6 col-lg">
-        <div class="card inventory-stats-card">
-            <div class="card-body">
-                <div class="stats-value text-primary">{{ stats.total }}</div>
-                <div class="stats-label">{{ _('inventory.dashboard.stats.total') }}</div>
-            </div>
+        <div class="inventory-stats-card">
+            <div class="stats-value text-primary">{{ stats.total }}</div>
+            <div class="stats-label">{{ _('inventory.dashboard.stats.total') }}</div>
         </div>
     </div>
     <div class="col-6 col-lg">
-        <div class="card inventory-stats-card">
-            <div class="card-body">
-                <div class="stats-value text-success">{{ stats.available }}</div>
-                <div class="stats-label">{{ _('inventory.dashboard.stats.available') }}</div>
-            </div>
+        <div class="inventory-stats-card">
+            <div class="stats-value text-success">{{ stats.available }}</div>
+            <div class="stats-label">{{ _('inventory.dashboard.stats.available') }}</div>
         </div>
     </div>
     <div class="col-6 col-lg">
-        <div class="card inventory-stats-card">
-            <div class="card-body">
-                <div class="stats-value text-info">{{ stats.borrowed }}</div>
-                <div class="stats-label">{{ _('inventory.dashboard.stats.borrowed') }}</div>
-            </div>
+        <div class="inventory-stats-card">
+            <div class="stats-value text-info">{{ stats.borrowed }}</div>
+            <div class="stats-label">{{ _('inventory.dashboard.stats.borrowed') }}</div>
         </div>
     </div>
     <div class="col-6 col-lg">
-        <div class="card inventory-stats-card">
-            <div class="card-body">
-                <div class="stats-value text-warning">{{ stats.defective }}</div>
-                <div class="stats-label">{{ _('inventory.dashboard.stats.defective') }}</div>
-            </div>
+        <div class="inventory-stats-card">
+            <div class="stats-value text-warning">{{ stats.defective }}</div>
+            <div class="stats-label">{{ _('inventory.dashboard.stats.defective') }}</div>
         </div>
     </div>
     <div class="col-6 col-lg">
-        <div class="card inventory-stats-card">
-            <div class="card-body">
-                <div class="stats-value text-danger">{{ stats.overdue }}</div>
-                <div class="stats-label">{{ _('inventory.dashboard.stats.overdue') }}</div>
-            </div>
+        <div class="inventory-stats-card">
+            <div class="stats-value text-danger">{{ stats.overdue }}</div>
+            <div class="stats-label">{{ _('inventory.dashboard.stats.overdue') }}</div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-clock-history"></i> {{ _('inventory.dashboard.my_borrows.title') }}</h5>
-        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm btn-outline-primary">{{ _('inventory.dashboard.my_borrows.show_all') }}</a>
+<section class="inventory-panel">
+    <div class="inventory-panel-header">
+        <h2 class="inventory-panel-title">
+            <i class="bi bi-clock-history" aria-hidden="true"></i>
+            {{ _('inventory.dashboard.my_borrows.title') }}
+        </h2>
+        <a href="{{ url_for('inventory.borrows') }}?filter=my" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">
+            {{ _('inventory.dashboard.my_borrows.show_all') }}
+        </a>
     </div>
-    <div class="card-body">
+    <div class="inventory-panel-body">
         {% if my_borrows %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table mod-list-table align-middle mb-0">
                 <thead>
                     <tr>
                         <th>{{ _('inventory.dashboard.my_borrows.table.product') }}</th>
                         <th>{{ _('inventory.dashboard.my_borrows.table.borrow_date') }}</th>
                         <th>{{ _('inventory.dashboard.my_borrows.table.return_date') }}</th>
                         <th>{{ _('inventory.dashboard.my_borrows.table.status') }}</th>
-                        <th>{{ _('inventory.dashboard.my_borrows.table.actions') }}</th>
+                        <th class="text-end">{{ _('inventory.dashboard.my_borrows.table.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for borrow in my_borrows[:5] %}
-                    <tr {% if borrow.is_overdue %}class="table-danger"{% endif %}>
+                    <tr class="mod-list-row {% if borrow.is_overdue %}table-danger{% endif %}">
                         <td>
                             <strong>{{ borrow.product_names }}</strong>
                             {% if borrow.is_group %}
@@ -81,26 +76,27 @@
                         <td>
                             {{ borrow.expected_return_date.strftime('%d.%m.%Y') }}
                             {% if borrow.is_overdue %}
-                            <br><span class="badge bg-danger">{{ _('inventory.dashboard.my_borrows.table.overdue') }}</span>
+                            <br><span class="badge rounded-pill bg-danger">{{ _('inventory.dashboard.my_borrows.table.overdue') }}</span>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge bg-warning">{{ _('inventory.dashboard.my_borrows.table.borrowed') }}</span>
+                            <span class="badge rounded-pill bg-warning text-dark">{{ _('inventory.dashboard.my_borrows.table.borrowed') }}</span>
                         </td>
-                        <td>
-                            <div class="btn-group" role="group">
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-2 flex-wrap justify-content-end">
                                 <form method="post"
                                       action="{{ url_for('inventory.return_complete_borrow') }}"
                                       class="d-inline">
                                     <input type="hidden" name="borrow_ref" value="{{ borrow.return_number }}">
                                     <button type="submit"
-                                            class="btn btn-sm btn-success"
+                                            class="btn btn-sm inventory-pill-btn inventory-pill-btn--success"
                                             title="{{ _('inventory.dashboard.my_borrows.table.return_button') }}">
-                                        <i class="bi bi-arrow-return-left"></i> {{ _('inventory.dashboard.my_borrows.table.return_button') }}
+                                        <i class="bi bi-arrow-return-left"></i>
+                                        <span>{{ _('inventory.dashboard.my_borrows.table.return_button') }}</span>
                                     </button>
                                 </form>
                                 <a href="{{ url_for('inventory.api_borrow_pdf', transaction_id=borrow.ref_id) }}"
-                                   class="btn btn-sm btn-outline-secondary"
+                                   class="btn btn-sm inventory-pill-btn inventory-pill-btn--muted"
                                    title="{{ _('inventory.dashboard.my_borrows.table.download_receipt') }}">
                                     <i class="bi bi-file-pdf"></i>
                                 </a>
@@ -112,8 +108,8 @@
             </table>
         </div>
         {% else %}
-        <p class="text-muted mb-0">{{ _('inventory.dashboard.my_borrows.empty') }}</p>
+        <p class="text-muted mb-0 inventory-empty-hint">{{ _('inventory.dashboard.my_borrows.empty') }}</p>
         {% endif %}
     </div>
-</div>
+</section>
 {% endblock %}

@@ -914,7 +914,7 @@ def create_app(config_name='default'):
                 from app.models.file import File, FileVersion, Folder
                 from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
                 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
-                from app.models.credential import Credential, CredentialFolder
+                from app.models.credential import Credential, CredentialFolder, CredentialFavorite
                 from app.models.manual import Manual
                 from app.models.settings import SystemSettings
                 from app.models.whitelist import WhitelistEntry
@@ -1082,6 +1082,33 @@ def create_app(config_name='default'):
                             with db.engine.begin() as connection:
                                 connection.execute(text("ALTER TABLE credentials ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))
                             print("[OK] credentials.is_favorite hinzugefügt")
+
+                    if 'credential_favorites' not in inspector.get_table_names():
+                        print("[INFO] Erstelle credential_favorites ...")
+                        CredentialFavorite.__table__.create(db.engine, checkfirst=True)
+                        print("[OK] credential_favorites erstellt")
+                        # Legacy-Favoriten auf Ersteller übernehmen
+                        try:
+                            dialect = db.engine.dialect.name
+                            if dialect == "sqlite":
+                                sql = """
+                                    INSERT OR IGNORE INTO credential_favorites (user_id, credential_id, created_at)
+                                    SELECT created_by, id, CURRENT_TIMESTAMP
+                                    FROM credentials
+                                    WHERE is_favorite = 1
+                                """
+                            else:
+                                sql = """
+                                    INSERT IGNORE INTO credential_favorites (user_id, credential_id, created_at)
+                                    SELECT created_by, id, CURRENT_TIMESTAMP
+                                    FROM credentials
+                                    WHERE is_favorite = 1
+                                """
+                            with db.engine.begin() as connection:
+                                connection.execute(text(sql))
+                            print("[OK] Legacy credential favorites migriert")
+                        except Exception as fav_err:
+                            print(f"[WARNUNG] Legacy-Favoriten-Migration: {fav_err}")
 
                     if ('users' in inspector.get_table_names() and
                             'language' not in {col['name'] for col in inspector.get_columns('users')} and

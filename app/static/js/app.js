@@ -1659,17 +1659,30 @@ function manageSidebarNavigation() {
     });
 }
 
-// Initialisiere Sidebar-Navigation beim Laden der Seite
-document.addEventListener('DOMContentLoaded', function() {
-    manageSidebarNavigation();
-});
-
-// Initialisiere auch nach dynamischen Änderungen
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', manageSidebarNavigation);
-} else {
+function initSidebarAndEmailBadge() {
     manageSidebarNavigation();
 }
+
+// Initialisiere Sidebar-Navigation beim Laden der Seite
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebarAndEmailBadge);
+} else {
+    initSidebarAndEmailBadge();
+}
+
+/**
+ * Dashboard-Zahlenindikator für ungelesene E-Mails.
+ */
+window.updateEmailNavBadge = function updateEmailNavBadge(count) {
+    const n = Math.max(0, parseInt(count, 10) || 0);
+    const label = n > 99 ? '99+' : String(n);
+    document.querySelectorAll('.email-badge').forEach((badge) => {
+        badge.textContent = n > 0 ? label : '0';
+        if (badge.style) {
+            badge.style.display = n > 0 ? '' : 'none';
+        }
+    });
+};
 
 
 

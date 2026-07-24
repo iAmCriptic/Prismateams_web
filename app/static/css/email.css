@@ -1811,6 +1811,41 @@ div.avatar-circle-mobile,
     line-height: 1.25;
 }
 
+/* Dezente Unread-Zahl neben Ordnernamen (nur Zahl, kein Badge-Kreis) */
+.email-folder-unread {
+    flex: 0 0 auto;
+    margin-left: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 650;
+    line-height: 1;
+    color: var(--accent-color, #0d6efd);
+    -webkit-text-fill-color: var(--accent-color, #0d6efd);
+    font-variant-numeric: tabular-nums;
+}
+
+.email-folder-unread.is-empty {
+    display: none;
+}
+
+.email-folder-list .email-folder-link.nav-link .email-folder-unread,
+.email-mobile-folder-nav .email-folder-link .email-folder-unread,
+.dropdown-item .email-folder-unread {
+    color: var(--accent-color, #0d6efd) !important;
+    -webkit-text-fill-color: var(--accent-color, #0d6efd) !important;
+    background: none !important;
+}
+
+.email-folder-list .email-folder-link.nav-link.active .email-folder-unread {
+    color: var(--accent-color, #0d6efd) !important;
+    -webkit-text-fill-color: var(--accent-color, #0d6efd) !important;
+    font-weight: 700;
+}
+
+.dropdown-item .email-folder-unread {
+    float: right;
+    margin-top: 0.15rem;
+}
+
 .email-folder-delete {
     opacity: 0;
     transition: opacity 0.15s ease;
@@ -2023,6 +2058,35 @@ div.avatar-circle-mobile,
     padding-top: 0.1rem;
 }
 
+/* „Neu“-Badge im Pill-Style */
+.email-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.22rem 0.7rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+    color: var(--accent-color, #0d6efd);
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+[data-bs-theme="dark"] .email-unread-badge {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 40%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+    color: color-mix(in srgb, var(--accent-color, #0d6efd) 85%, #fff);
+}
+
+[data-oled-mode="true"] .email-unread-badge {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, transparent);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+}
+
 .email-item-time {
     font-size: 0.78rem;
     line-height: 1.2;
@@ -2126,6 +2190,94 @@ div.avatar-circle-mobile,
 .email-folder-inline-input {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     background: var(--bs-body-bg);
+}
+
+.email-folder-parent-dropdown {
+    position: relative;
+}
+
+.email-folder-parent-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: 1px solid var(--bs-border-color, #e9ecef) !important;
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color, #212529) !important;
+    padding: 0.55rem 0.95rem !important;
+    font-weight: 500;
+    box-shadow: none !important;
+}
+
+.email-folder-parent-toggle:hover,
+.email-folder-parent-toggle:focus,
+.email-folder-parent-toggle.show {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color)) !important;
+    background: var(--bs-body-bg) !important;
+    color: var(--bs-body-color, #212529) !important;
+}
+
+.email-folder-parent-toggle .bi-chevron-down {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color, #6c757d);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.email-folder-parent-toggle.show .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+.email-folder-parent-label {
+    min-width: 0;
+}
+
+.email-folder-parent-menu {
+    min-width: 100%;
+    width: max-content;
+    max-width: min(28rem, calc(100vw - 1.5rem));
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14) !important;
+    max-height: min(50vh, 18rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--bs-body-bg, #fff) !important;
+    background-color: var(--bs-body-bg, #fff) !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-bs-theme="dark"] .email-folder-parent-menu {
+    background: var(--bs-body-bg, #212529) !important;
+    background-color: var(--bs-body-bg, #212529) !important;
+}
+
+[data-oled-mode="true"] .email-folder-parent-menu {
+    background: #000 !important;
+    background-color: #000 !important;
+}
+
+.email-folder-parent-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.5rem 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.email-folder-parent-menu .dropdown-item:hover,
+.email-folder-parent-menu .dropdown-item:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    color: var(--bs-body-color, #212529);
+}
+
+.email-folder-parent-menu .dropdown-item.is-active {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+    color: var(--accent-color, #0d6efd);
+    font-weight: 600;
 }
 
 .email-folder-inline-actions {

@@ -14,7 +14,7 @@
 {% set calendar_back_label = calendar_back_label|default(_('layout.nav.back')) %}
 
 <div class="calendar-shell calendar-shell--fill calendar-shell--page {% if calendar_multi_enabled %}calendar-shell--multi{% endif %}">
-{{ calendar_sidebar(show_view_pills=false, interactive=false) }}
+{{ calendar_sidebar(show_view_pills=false, interactive=false, minimal=true) }}
 
 <div class="calendar-main flex-grow-1 min-width-0">
     <div class="calendar-mobile-topbar d-lg-none mb-2">

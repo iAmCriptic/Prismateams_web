@@ -1,10 +1,35 @@
-/* manuals module — domain + overrides (shell in module-ui.css) */
+/* manuals module — pill design (shell in module-ui.css) */
 
 .mod-sidebar-brand .bi {
-    font-size: 1.35rem;
-    flex-shrink: 0;
-    margin-top: 0.1rem;
+    font-size: 1.45rem;
     opacity: 0.95;
+}
+
+.manuals-shell .mod-new-btn,
+.btn.mod-new-btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: none;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.14);
+}
+
+/* ——— Neu-Dropdown (Pillen, wie Zugangsdaten) ——— */
+.manuals-sidebar-new-menu,
+.manuals-mobile-new-menu,
+.manuals-actions-menu,
+.mod-list-actions .manuals-actions-menu,
+.manuals-card-menu .manuals-actions-menu,
+#prismateams-context-menu .manuals-actions-menu {
+    border-radius: 1.1rem !important;
+    padding: 0.45rem !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.14) !important;
+    min-width: 14rem;
+    overflow: visible;
+    background-color: var(--bs-dropdown-bg, var(--bs-body-bg, #fff));
 }
 
 .manuals-sidebar-new-menu {
@@ -23,8 +48,174 @@
     transform: none !important;
 }
 
-.manuals-sidebar-new-menu .dropdown-item {
+.manuals-sidebar-new-menu .dropdown-item,
+.manuals-mobile-new-menu .dropdown-item,
+.manuals-actions-menu .dropdown-item {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.5rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 500;
     white-space: nowrap;
+}
+
+.manuals-sidebar-new-menu .dropdown-item:hover,
+.manuals-sidebar-new-menu .dropdown-item:focus,
+.manuals-mobile-new-menu .dropdown-item:hover,
+.manuals-mobile-new-menu .dropdown-item:focus,
+.manuals-actions-menu .dropdown-item:hover,
+.manuals-actions-menu .dropdown-item:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    color: var(--bs-body-color, #212529);
+}
+
+.manuals-actions-menu .dropdown-item.text-danger:hover,
+.manuals-actions-menu .dropdown-item.text-danger:focus {
+    background: color-mix(in srgb, #dc3545 12%, transparent);
+    color: #dc3545;
+}
+
+.manuals-sidebar-new-menu .dropdown-divider,
+.manuals-mobile-new-menu .dropdown-divider,
+.manuals-actions-menu .dropdown-divider {
+    margin: 0.35rem 0.55rem;
+    opacity: 0.55;
+}
+
+.mod-mobile-topbar .manuals-sidebar-new-menu,
+.mod-mobile-topbar .manuals-mobile-new-menu {
+    inset: auto 0 auto auto !important;
+    left: auto !important;
+    right: 0 !important;
+}
+
+/* ——— List / Grid pill toggle ——— */
+.manuals-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg);
+}
+
+.manuals-view-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: transparent;
+    color: var(--bs-secondary-color);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.manuals-view-toggle__btn:hover {
+    color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, transparent);
+}
+
+.manuals-view-toggle__btn.active,
+.manuals-view-toggle__btn.is-active {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    color: #fff;
+}
+
+.manuals-mobile-view-toggle {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.manuals-mobile-view-toggle .manuals-view-toggle__btn {
+    width: 2.1rem;
+    height: 2.1rem;
+}
+
+/* ——— Inline Ordner erstellen ——— */
+.manuals-folder-inline {
+    margin: 0.35rem 0 0.75rem;
+    padding: 0.85rem 0.9rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #e9ecef);
+}
+
+.manuals-folder-inline-form .form-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
+
+.manuals-folder-inline-input {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    background: var(--bs-body-bg);
+}
+
+.manuals-folder-inline-color {
+    width: 2.35rem !important;
+    height: 2.35rem !important;
+    min-width: 2.35rem;
+    padding: 0 !important;
+    border: 2px solid var(--bs-border-color, #dee2e6) !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    cursor: pointer;
+    overflow: hidden;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: none !important;
+}
+
+.manuals-folder-inline-color::-webkit-color-swatch-wrapper {
+    padding: 0;
+    border-radius: 50%;
+}
+
+.manuals-folder-inline-color::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+.manuals-folder-inline-color::-moz-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+.manuals-folder-inline-color:hover,
+.manuals-folder-inline-color:focus {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color, #dee2e6)) !important;
+    box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
+}
+
+.manuals-folder-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+}
+
+.manuals-folder-inline-submit {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+}
+
+.manuals-folder-inline-cancel {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--bs-secondary-color, #6c757d) !important;
+    font-weight: 600;
+}
+
+.manuals-folder-inline-cancel:hover,
+.manuals-folder-inline-cancel:focus {
+    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
 }
 
 .mod-nav-link.active {
@@ -46,34 +237,186 @@
     margin-right: 0.55rem;
 }
 
-.manuals-new-wrap {
+/* ——— Ordner-Nav: Stift / 3-Punkte + Inline-Edit ——— */
+.manuals-folder-nav-item {
+    width: 100%;
+    min-width: 0;
+}
+
+.manuals-folder-nav-row {
     position: relative;
-    overflow: visible;
-    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 0;
+    width: 100%;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding-right: 0.25rem;
+    transition: background-color 0.15s ease;
 }
 
-.manuals-new-menu {
-    position: absolute !important;
-    inset: auto auto auto 0 !important;
-    top: calc(100% + 0.4rem) !important;
-    left: 0 !important;
-    right: auto !important;
-    bottom: auto !important;
-    min-width: max(100%, 14rem);
-    width: max-content;
-    max-width: min(22rem, 90vw);
-    max-height: none !important;
-    overflow: visible !important;
-    z-index: 1080 !important;
-    transform: none !important;
+.manuals-folder-nav-row:hover {
+    background: rgba(127, 127, 127, 0.12);
 }
 
-.manuals-new-menu .dropdown-item {
-    white-space: nowrap;
+.manuals-folder-nav-item.is-editing .manuals-folder-nav-row,
+.manuals-folder-nav-row:has(.mod-nav-link.active) {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
 }
 
-.manuals-view-toggle .btn {
-    padding: 0.35rem 0.7rem;
+.manuals-folder-nav-row .mod-nav-link,
+.manuals-folder-nav-row a.mod-nav-link,
+.manuals-folder-nav-row .nav-link.mod-nav-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    background: transparent !important;
+    padding-right: 0.35rem;
+}
+
+.manuals-folder-nav-row .mod-nav-link:hover,
+.manuals-folder-nav-row a.mod-nav-link:hover,
+.manuals-folder-nav-row .nav-link.mod-nav-link:hover,
+.manuals-folder-nav-row .mod-nav-link.active,
+.manuals-folder-nav-row a.mod-nav-link.active,
+.manuals-folder-nav-row .nav-link.mod-nav-link.active {
+    background: transparent !important;
+}
+
+.manuals-folder-nav-row .mod-nav-link.active,
+.manuals-folder-nav-row a.mod-nav-link.active {
+    color: var(--accent-color, #0d6efd) !important;
+    font-weight: 600;
+}
+
+.manuals-folder-nav-edit-btn {
+    position: static;
+    transform: none;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    margin-right: 0.2rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: transparent;
+    color: var(--bs-secondary-color, #6c757d);
+    line-height: 1;
+    z-index: 2;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.manuals-folder-nav-edit-btn:hover,
+.manuals-folder-nav-edit-btn:focus {
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+@media (min-width: 992px) {
+    .manuals-folder-nav-edit-btn {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .manuals-folder-nav-item:hover .manuals-folder-nav-edit-btn,
+    .manuals-folder-nav-item:focus-within .manuals-folder-nav-edit-btn,
+    .manuals-folder-nav-item.is-editing .manuals-folder-nav-edit-btn {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .manuals-folder-nav-edit-btn {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+.manuals-folder-edit-inline {
+    margin-top: 0.35rem;
+}
+
+.manuals-folder-edit-secondary {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--bs-border-color, #e9ecef);
+}
+
+.manuals-folder-edit-secondary > form {
+    display: inline-flex;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.manuals-folder-move-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex: 0 0 auto;
+}
+
+.manuals-folder-move-btns > form {
+    display: inline-flex;
+    margin: 0;
+}
+
+.manuals-folder-move-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+    font-weight: 600;
+}
+
+.manuals-folder-move-btn:hover,
+.manuals-folder-move-btn:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+}
+
+.manuals-folder-inline-secondary,
+.manuals-folder-inline-danger {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    border: none !important;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+}
+
+.manuals-folder-inline-secondary {
+    background: transparent !important;
+    color: var(--bs-secondary-color, #6c757d) !important;
+}
+
+.manuals-folder-inline-secondary:hover,
+.manuals-folder-inline-secondary:focus {
+    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+}
+
+.manuals-folder-inline-danger {
+    background: transparent !important;
+    color: #dc3545 !important;
+}
+
+.manuals-folder-inline-danger:hover,
+.manuals-folder-inline-danger:focus {
+    background: color-mix(in srgb, #dc3545 10%, transparent) !important;
+    color: #dc3545 !important;
 }
 
 .mod-view-heading .bi {
@@ -82,30 +425,283 @@
     opacity: 0.95;
 }
 
-.mod-mobile-topbar .manuals-new-menu {
-    inset: auto 0 auto auto !important;
-    left: auto !important;
-    right: 0 !important;
+.mod-list-hover-actions .btn-link {
+    color: inherit;
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
 }
 
-.manuals-mobile-view-toggle {
+.mod-list-hover-actions .btn-link:hover,
+.mod-list-hover-actions .btn-link:focus {
+    color: var(--accent-color, #0d6efd);
+}
+
+.mod-list-actions .dropdown .btn-link {
+    color: inherit;
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+}
+
+/* ——— Grid-Karten ——— */
+.manuals-card {
+    border-radius: var(--mod-radius-card, 0.9rem);
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    overflow: visible;
+    transition: box-shadow 0.2s ease, border-color 0.15s ease;
+    cursor: pointer;
+}
+
+.manuals-list-row {
+    cursor: pointer;
+}
+
+.manuals-card:hover {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, transparent);
+    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+.manuals-card .card-body {
+    overflow: visible;
+}
+
+.manuals-card-icon {
+    width: 40px;
+    height: 40px;
     display: flex;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, #dc3545 12%, transparent);
+    color: #dc3545;
+    flex-shrink: 0;
+    font-size: 1.25rem;
 }
 
-.manuals-mobile-view-toggle .manuals-view-toggle .btn {
-    padding: 0.3rem 0.65rem;
+.manuals-card-title {
+    font-size: 1.05rem;
+    font-weight: 650;
+    margin: 0;
 }
 
-.manual-card-icon {
-    font-size: 3.25rem;
+.manuals-card-meta {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
-@media (max-width: 991.98px) {
-.mod-mobile-topbar .manuals-new-menu,
-    .mod-mobile-topbar .manuals-sidebar-new-menu {
-        inset: auto 0 auto auto !important;
-        left: auto !important;
-        right: 0 !important;
+.manuals-card-meta-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.manuals-card-menu .btn-link {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+}
+
+.manuals-card-menu .btn-link:hover,
+.manuals-card-menu .btn-link:focus {
+    color: var(--accent-color, #0d6efd);
+}
+
+.manuals-grid-hover-actions {
+    display: none !important;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+@media (min-width: 992px) {
+    .manuals-card:hover .manuals-grid-hover-actions,
+    .manuals-card:focus-within .manuals-grid-hover-actions {
+        display: inline-flex !important;
     }
+}
+
+.manuals-grid-hover-actions .btn-link {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+}
+
+.manuals-grid-hover-actions .btn-link:hover,
+.manuals-grid-hover-actions .btn-link:focus {
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+}
+
+.manuals-grid-hover-actions .btn-link.text-danger:hover,
+.manuals-grid-hover-actions .btn-link.text-danger:focus {
+    color: #dc3545;
+    background: color-mix(in srgb, #dc3545 10%, transparent);
+}
+
+#gridViewContainer > .row > [class*="col-"] {
+    overflow: visible;
+}
+
+.manuals-card:has(.dropdown.show),
+.mod-list-row:has(.dropdown.show) {
+    position: relative;
+    z-index: 40;
+}
+
+/* ——— Upload-Formular ——— */
+.manuals-form {
+    --manuals-form-surface: var(--bs-tertiary-bg, #f8f9fa);
+    --manuals-form-elevated: var(--bs-body-bg, #fff);
+    --manuals-form-border: var(--bs-border-color-translucent, #e9ecef);
+    --manuals-form-text: var(--bs-body-color, #212529);
+    --manuals-form-muted: var(--bs-secondary-color, #6c757d);
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding: 0 0.15rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.manuals-form-header {
+    margin-bottom: 0.15rem;
+}
+
+.manuals-form-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 0.65rem;
+    padding: 0.25rem 0.15rem;
+    border-radius: 999px;
+    width: fit-content;
+}
+
+.manuals-form-back:hover,
+.manuals-form-back:focus {
+    color: var(--accent-color, #0d6efd);
+}
+
+.manuals-form-back i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.manuals-form-title {
+    font-size: 1.45rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.25rem;
+    color: var(--manuals-form-text);
+}
+
+.manuals-form-subtitle {
+    margin: 0;
+    color: var(--manuals-form-muted);
+    font-size: 0.9rem;
+}
+
+.manuals-form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.manuals-form-card {
+    padding: 0.85rem 1rem;
+    border-radius: 1.15rem;
+    border: 1px solid var(--manuals-form-border);
+    background: var(--manuals-form-elevated);
+    min-width: 0;
+}
+
+.manuals-form-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.manuals-form-section-title {
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--manuals-form-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+}
+
+.manuals-form-fields {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+@media (min-width: 576px) {
+    .manuals-form-fields--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.manuals-form-field--span-2 {
+    grid-column: 1 / -1;
+}
+
+.manuals-form-field .form-label {
+    font-size: 0.85rem;
+    font-weight: 550;
+}
+
+.manuals-form .form-control,
+.manuals-form .form-select {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding: 0.55rem 0.95rem;
+    border-color: var(--manuals-form-border);
+    background: var(--manuals-form-surface);
+}
+
+.manuals-form .form-control:focus,
+.manuals-form .form-select:focus {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--manuals-form-border));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+}
+
+.manuals-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.manuals-form-submit,
+.manuals-form-cancel {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    padding: 0.5rem 1.05rem;
+    font-weight: 650;
+}
+
+[data-bs-theme="dark"] .manuals-form {
+    --manuals-form-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
+    --manuals-form-elevated: var(--bs-body-bg, #212529);
+    --manuals-form-border: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .manuals-folder-inline {
+    background: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
+    border-color: rgba(255, 255, 255, 0.12);
 }
