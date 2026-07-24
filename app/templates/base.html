@@ -275,7 +275,7 @@
     {% set _is_embed = request.args.get('embed') or request.form.get('embed') %}
     {% if current_user.is_authenticated and not _assess_scope and not _is_setup and not _is_embed %}
     <!-- Mobile Bottom Navigation -->
-    <nav class="navbar navbar-light bg-light fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
+    <nav class="fixed-bottom d-lg-none mobile-nav {% if request.endpoint and 'chat.view_chat' in request.endpoint %}d-none{% endif %}" id="mobileNav">
         <div class="mobile-nav-grid" id="mobileNavRow">
             {# 1: Benachrichtigungen #}
             <div class="mobile-nav-item">
@@ -325,7 +325,7 @@
     </nav>
 
     <!-- Desktop Sidebar -->
-    <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 bg-light sidebar" id="desktopSidebar">
+    <div class="d-none d-lg-flex flex-column flex-shrink-0 p-3 sidebar" id="desktopSidebar">
         <div class="sidebar-header flex-shrink-0">
             <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
                 <a href="{{ url_for('dashboard.index') }}" class="d-flex align-items-center link-dark text-decoration-none flex-grow-1 min-width-0">
