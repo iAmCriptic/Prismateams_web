@@ -6,6 +6,7 @@ from flask_login import current_user
 from app.models.calendar import CalendarEvent
 from app.models.chat import ChatMember, ChatMessage
 from app.models.file import File
+from app.utils.common import portal_now_naive
 from app.utils.email_counts import count_unread_emails
 
 
@@ -13,7 +14,7 @@ def register_dashboard_routes(api_bp, require_api_auth):
     @api_bp.route("/dashboard/stats", methods=["GET"])
     @require_api_auth
     def get_dashboard_stats():
-        upcoming_events = CalendarEvent.query.filter(CalendarEvent.start_time >= datetime.utcnow()).count()
+        upcoming_events = CalendarEvent.query.filter(CalendarEvent.start_time >= portal_now_naive()).count()
 
         user_chats = ChatMember.query.filter_by(user_id=current_user.id).all()
         unread_count = 0

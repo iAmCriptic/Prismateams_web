@@ -1,0 +1,234 @@
+/* Shared portal message / inline notice (elevated card + round icon) */
+
+@keyframes portal-toast-prompt-in {
+    from {
+        opacity: 0;
+        transform: translateY(-0.5rem) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.portal-msg {
+    --portal-msg-accent: var(--accent-color, #0d6efd);
+    position: relative;
+    margin: 0;
+    padding: 0;
+    pointer-events: auto;
+    background: #fff !important;
+    color: var(--bs-body-color, #212529) !important;
+    border: 1px solid color-mix(in srgb, var(--portal-msg-accent) 22%, transparent) !important;
+    border-radius: 1.35rem !important;
+    box-shadow:
+        0 0.35rem 1.15rem color-mix(in srgb, var(--portal-msg-accent) 42%, transparent),
+        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06) !important;
+    overflow: hidden;
+    animation: portal-toast-prompt-in 0.28s ease-out;
+}
+
+.portal-msg.alert {
+    --bs-alert-bg: #fff;
+    --bs-alert-border-color: transparent;
+    --bs-alert-color: var(--bs-body-color, #212529);
+    --bs-alert-padding-x: 0;
+    --bs-alert-padding-y: 0;
+    --bs-alert-border-radius: 1.35rem;
+}
+
+.portal-msg--info { --portal-msg-accent: #0d6efd; }
+.portal-msg--success { --portal-msg-accent: #198754; }
+.portal-msg--warning { --portal-msg-accent: #e6a800; }
+.portal-msg--danger,
+.portal-msg--error { --portal-msg-accent: #dc3545; }
+
+.portal-msg.alert-permanent,
+.portal-msg--inline {
+    animation: none;
+}
+
+.portal-msg.mb-2 { margin-bottom: 0.5rem !important; }
+.portal-msg.mb-3 { margin-bottom: 1rem !important; }
+.portal-msg.mb-4 { margin-bottom: 1.5rem !important; }
+.portal-msg.mt-3 { margin-top: 1rem !important; }
+.portal-msg.mb-0 { margin-bottom: 0 !important; }
+
+.portal-msg__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1.05rem 1.15rem;
+}
+
+.portal-msg__icon {
+    flex-shrink: 0;
+    width: 2.35rem;
+    height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--portal-msg-accent) 14%, transparent);
+    color: var(--portal-msg-accent);
+    font-size: 1.1rem;
+}
+
+.portal-msg__content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.portal-msg__title {
+    margin: 0 0 0.3rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    line-height: 1.35;
+    color: var(--bs-body-color, #212529);
+}
+
+.portal-msg__text {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.portal-msg__text:not(:last-child),
+.portal-msg__content > .portal-msg__text + .portal-msg__actions {
+    margin-bottom: 0;
+}
+
+.portal-msg__text + .portal-msg__actions,
+.portal-msg__title + .portal-msg__actions {
+    margin-top: 0.85rem;
+}
+
+.portal-msg__text code {
+    font-size: 0.78em;
+    color: #d63384;
+    background: color-mix(in srgb, #d63384 8%, transparent);
+    padding: 0.1em 0.35em;
+    border-radius: 0.35rem;
+}
+
+.portal-msg__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    margin-top: 0.85rem;
+}
+
+.portal-msg__btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-weight: 600;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.95rem !important;
+    line-height: 1.2;
+    border: none !important;
+    white-space: nowrap;
+}
+
+.portal-msg__btn--primary {
+    color: #fff !important;
+    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
+    box-shadow: 0 0.15rem 0.45rem rgba(0, 0, 0, 0.12);
+}
+
+.portal-msg__btn--primary:hover,
+.portal-msg__btn--primary:focus {
+    filter: brightness(1.08);
+    color: #fff !important;
+}
+
+.portal-msg__btn--secondary {
+    color: var(--accent-color, #0d6efd) !important;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
+}
+
+.portal-msg__btn--secondary:hover,
+.portal-msg__btn--secondary:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+}
+
+.portal-msg__btn--ghost,
+.portal-msg__close {
+    color: var(--bs-secondary-color, #6c757d) !important;
+    background: transparent !important;
+    padding-left: 0.55rem !important;
+    padding-right: 0.55rem !important;
+    box-shadow: none !important;
+}
+
+.portal-msg__btn--ghost:hover,
+.portal-msg__btn--ghost:focus,
+.portal-msg__close:hover,
+.portal-msg__close:focus {
+    color: var(--bs-body-color, #212529) !important;
+    background: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent) !important;
+}
+
+.portal-msg__close {
+    margin-left: auto;
+}
+
+.portal-msg .btn-close {
+    display: none;
+}
+
+/* Bare Bootstrap alerts → same elevated look (until markup migrated) */
+.alert:not(.portal-msg) {
+    --portal-msg-accent: var(--accent-color, #0d6efd);
+    --bs-alert-bg: #fff;
+    --bs-alert-border-color: transparent;
+    --bs-alert-color: var(--bs-body-color, #212529);
+    background: #fff !important;
+    color: var(--bs-body-color, #212529) !important;
+    border: 1px solid color-mix(in srgb, var(--portal-msg-accent) 22%, transparent) !important;
+    border-radius: 1.35rem !important;
+    box-shadow:
+        0 0.35rem 1.15rem color-mix(in srgb, var(--portal-msg-accent) 42%, transparent),
+        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06) !important;
+    padding: 1.05rem 1.15rem !important;
+}
+
+.alert-primary:not(.portal-msg) { --portal-msg-accent: #0d6efd; }
+.alert-secondary:not(.portal-msg) { --portal-msg-accent: #6c757d; }
+.alert-success:not(.portal-msg) { --portal-msg-accent: #198754; }
+.alert-info:not(.portal-msg) { --portal-msg-accent: #0d6efd; }
+.alert-warning:not(.portal-msg) { --portal-msg-accent: #e6a800; }
+.alert-danger:not(.portal-msg) { --portal-msg-accent: #dc3545; }
+
+.alert:not(.portal-msg) .alert-link {
+    color: var(--portal-msg-accent);
+    font-weight: 600;
+}
+
+[data-bs-theme="dark"] .portal-msg,
+[data-bs-theme="dark"] .alert:not(.portal-msg) {
+    background: color-mix(in srgb, var(--bs-body-bg, #212529) 96%, #000) !important;
+    box-shadow:
+        0 0.4rem 1.25rem color-mix(in srgb, var(--portal-msg-accent) 38%, transparent),
+        0 0.15rem 0.45rem rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-oled-mode="true"] .portal-msg,
+[data-oled-mode="true"] .alert:not(.portal-msg) {
+    background: #000 !important;
+    border-color: #1a1a1a !important;
+}
+
+@media (max-width: 575.98px) {
+    .portal-msg,
+    .alert:not(.portal-msg) {
+        border-radius: 1.25rem !important;
+    }
+
+    .portal-msg__btn {
+        font-size: 0.75rem;
+        padding: 0.32rem 0.75rem !important;
+    }
+}

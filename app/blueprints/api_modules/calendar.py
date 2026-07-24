@@ -4,6 +4,7 @@ from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from app.models.calendar import CalendarEvent, EventParticipant
+from app.utils.common import portal_now_naive
 from app.utils.multi_calendars import (
     events_query_for_calendars,
     get_or_create_personal_calendar,
@@ -72,7 +73,7 @@ def register_calendar_routes(api_bp, require_api_auth):
     @require_api_auth
     def get_upcoming_events_count():
         try:
-            now = datetime.utcnow()
+            now = portal_now_naive()
             week_from_now = now + timedelta(days=7)
             multi = is_calendar_multi_enabled()
             if multi and current_user.is_authenticated:

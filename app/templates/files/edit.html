@@ -113,6 +113,7 @@
         {% endif %}
 
         <div class="markdown-editor-toolbar-end">
+            {% if is_markdown %}
             {% if edit_locked %}
             <span class="markdown-editor-lock-badge" title="Exklusiver Bearbeitungs-Lock">
                 <i class="bi bi-lock-fill"></i>
@@ -123,6 +124,7 @@
                 <i class="bi bi-unlock-fill"></i>
                 Bearbeiten
             </span>
+            {% endif %}
             {% endif %}
             <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="openViewer()" id="previewBtn">
                 <i class="bi bi-eye"></i> Vorschau
@@ -168,10 +170,12 @@ let hasUnsavedChanges = false;
 const EDIT_LOCKED = {{ 'true' if edit_locked else 'false' }};
 const EDIT_FILE_ID = {{ file.id }};
 const EDIT_LOCK_API = '{{ url_for("files.api_file_edit_lock") }}';
+const EDIT_LOCK_ENABLED = {{ 'true' if is_markdown else 'false' }};
 let editSessionKey = {{ (edit_session_key or '')|tojson }};
 let editLockTimer = null;
 
 function editLockSend(action, extra) {
+    if (!EDIT_LOCK_ENABLED) return Promise.resolve(null);
     const body = Object.assign({
         action: action,
         file_id: EDIT_FILE_ID,
@@ -190,7 +194,7 @@ function editLockSend(action, extra) {
 }
 
 function releaseEditLock() {
-    if (!editSessionKey || EDIT_LOCKED) return;
+    if (!EDIT_LOCK_ENABLED || !editSessionKey || EDIT_LOCKED) return;
     try {
         navigator.sendBeacon(EDIT_LOCK_API, new Blob([JSON.stringify({
             action: 'leave',

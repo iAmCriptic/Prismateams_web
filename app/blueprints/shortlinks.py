@@ -11,6 +11,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app import db
 from app.models.shortlink import ShortLink
 from app.utils.access_control import check_module_access
+from app.utils.common import portal_now_naive
 
 shortlinks_bp = Blueprint('shortlinks', __name__)
 
@@ -101,7 +102,7 @@ def index():
     password_filter = _whitelist(request.args.get('password'), PASSWORD_FILTERS)
     clicks_filter = _whitelist(request.args.get('clicks'), CLICKS_FILTERS)
 
-    now = datetime.utcnow()
+    now = portal_now_naive()
     soon = now + timedelta(days=EXPIRING_SOON_DAYS)
 
     query = ShortLink.query.filter_by(created_by=current_user.id)

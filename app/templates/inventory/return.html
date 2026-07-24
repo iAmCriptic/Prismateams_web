@@ -50,7 +50,16 @@
                             <input type="text" class="form-control" id="qr_code" name="qr_code" 
                                    placeholder="{{ _('inventory.return.manual.qr_placeholder') }}" 
                                    autocomplete="off">
-                            <small class="form-text text-muted">{{ _('inventory.return.manual.qr_help') }}</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="productSearchInput" class="form-label">{{ _('inventory.return.manual.search_label') }}</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="productSearchInput"
+                                       placeholder="{{ _('inventory.return.manual.search_placeholder') }}"
+                                       autocomplete="off">
+                                <div id="productSuggest" class="list-group inventory-suggest-dropdown" style="display: none;" role="listbox"></div>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
@@ -125,6 +134,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof ReturnManager !== 'undefined') {
         window.returnManager = new ReturnManager();
         window.returnManager.init();
+    }
+
+    const searchInput = document.getElementById('productSearchInput');
+    const suggestEl = document.getElementById('productSuggest');
+    if (searchInput && suggestEl && typeof InventoryScanLookup !== 'undefined') {
+        new InventoryScanLookup({
+            input: searchInput,
+            dropdown: suggestEl,
+            includeSets: false,
+            onPick: (code) => {
+                const qrInput = document.getElementById('qr_code');
+                if (qrInput) qrInput.value = code;
+                searchInput.value = '';
+            },
+        });
     }
 });
 </script>

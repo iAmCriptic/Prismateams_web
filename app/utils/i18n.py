@@ -354,18 +354,19 @@ def _get_system_language(setting_key: str, default: str) -> str:
 
 
 def determine_language() -> str:
-    """Bestimmt die aktuelle Sprache für den Request."""
-    lang = request.args.get("lang")
-    if lang and lang in BASE_SUPPORTED_LANGUAGES:
-        return lang
+    """Bestimmt die aktuelle Sprache für den Request (oder System-Default ohne Request)."""
+    if has_request_context():
+        lang = request.args.get("lang")
+        if lang and lang in BASE_SUPPORTED_LANGUAGES:
+            return lang
 
-    try:
-        if current_user.is_authenticated:
-            user_lang = getattr(current_user, "language", None)
-            if user_lang in BASE_SUPPORTED_LANGUAGES:
-                return user_lang
-    except Exception:  # pylint: disable=broad-except
-        pass
+        try:
+            if current_user.is_authenticated:
+                user_lang = getattr(current_user, "language", None)
+                if user_lang in BASE_SUPPORTED_LANGUAGES:
+                    return user_lang
+        except Exception:  # pylint: disable=broad-except
+            pass
 
     lang = _get_system_language("default_language", DEFAULT_LANGUAGE)
     if lang in BASE_SUPPORTED_LANGUAGES:
@@ -376,11 +377,12 @@ def determine_language() -> str:
 
 def get_current_language() -> str:
     """Gibt die aktuelle Sprache des Requests zurück (inkl. Caching auf g)."""
-    if hasattr(g, "current_language"):
+    if has_request_context() and hasattr(g, "current_language"):
         return g.current_language  # type: ignore[return-value]
 
     lang = determine_language()
-    g.current_language = lang  # type: ignore[attr-defined]
+    if has_request_context():
+        g.current_language = lang  # type: ignore[attr-defined]
     return lang
 
 

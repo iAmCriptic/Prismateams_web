@@ -5,7 +5,7 @@ from app import db
 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from app.models.user import User
 from app.utils.markdown import process_markdown
-from app.utils.common import is_module_enabled
+from app.utils.common import is_module_enabled, format_datetime
 from app.utils.access_control import check_module_access
 from datetime import datetime
 import os
@@ -454,13 +454,13 @@ def api_history(slug):
             'title': page.title,
             'slug': page.slug,
             'version_number': page.version_number,
-            'updated_at': page.updated_at.strftime('%d.%m.%Y %H:%M') if page.updated_at else '',
+            'updated_at': format_datetime(page.updated_at) if page.updated_at else '',
             'creator': page.creator.full_name if page.creator else '—',
             'view_url': url_for('wiki.view', slug=page.slug),
         },
         'versions': [{
             'version_number': v.version_number,
-            'created_at': v.created_at.strftime('%d.%m.%Y %H:%M') if v.created_at else '',
+            'created_at': format_datetime(v.created_at) if v.created_at else '',
             'creator': v.creator.full_name if v.creator else '—',
             'is_current': False,
             'view_url': url_for('wiki.view_version', slug=page.slug, version_number=v.version_number),

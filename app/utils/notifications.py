@@ -629,22 +629,30 @@ def send_calendar_notification(event_id: int, reminder_minutes: int = 30) -> int
     return sent_count
 
 
+def _iter_booking_notification_recipients(preference_attr: str):
+    """Aktive User mit Booking-Zugang und aktivierter Preference."""
+    from app.utils.access_control import has_module_access
+
+    users = User.query.filter_by(is_active=True).all()
+    for user in users:
+        if getattr(user, 'is_guest', False):
+            continue
+        if not user.notifications_enabled:
+            continue
+        if not has_module_access(user, 'module_booking'):
+            continue
+        settings = get_or_create_notification_settings(user.id)
+        if not getattr(settings, preference_attr, True):
+            continue
+        yield user
+
+
 def send_booking_request_notification(booking_request) -> int:
-    """Push an Formular-Rollen-User bei neuer Buchungsanfrage."""
+    """In-App-Glocke + Push bei neuer Buchungsanfrage (laut Benachrichtigungseinstellung)."""
     form = booking_request.form
     if not form:
         return 0
 
-    recipient_ids = set()
-    for role in form.roles:
-        for assignment in role.users:
-            if assignment.user_id:
-                recipient_ids.add(assignment.user_id)
-
-    if not recipient_ids:
-        return 0
-
-    from app.utils.access_control import has_module_access
     from flask import url_for
 
     event_label = booking_request.event_name or f"#{booking_request.id}"
@@ -655,17 +663,7 @@ def send_booking_request_notification(booking_request) -> int:
         url = f"/booking/request/{booking_request.id}"
 
     sent_count = 0
-    for user_id in recipient_ids:
-        user = User.query.get(user_id)
-        if not user or not user.notifications_enabled:
-            continue
-        if not has_module_access(user, 'module_booking'):
-            continue
-
-        settings = get_or_create_notification_settings(user.id)
-        if not getattr(settings, 'booking_notifications_enabled', True):
-            continue
-
+    for user in _iter_booking_notification_recipients('booking_notifications_enabled'):
         title = _user_translate(user, 'notifications.booking.request_title')
         body = _user_translate(
             user,
@@ -673,8 +671,7 @@ def send_booking_request_notification(booking_request) -> int:
             event=event_label,
             applicant=applicant,
         )
-
-        dedup_key = f"booking_request:{booking_request.id}:{user_id}"
+        dedup_key = f"booking_request:{booking_request.id}:{user.id}"
         if notify_user(
             user.id,
             title=title,
@@ -687,6 +684,69 @@ def send_booking_request_notification(booking_request) -> int:
                 'booking_request_id': booking_request.id,
                 'form_id': form.id,
                 'type': 'booking',
+            },
+        ):
+            sent_count += 1
+
+    return sent_count
+
+
+def send_booking_message_notification(booking_request, message=None) -> int:
+    """In-App-Glocke + Push bei neuer Nachricht des Antragstellers."""
+    if not booking_request:
+        return 0
+
+    from flask import url_for
+
+    event_label = booking_request.event_name or f"#{booking_request.id}"
+    applicant = booking_request.applicant_name or booking_request.email or ""
+    try:
+        url = url_for('booking.request_detail', request_id=booking_request.id)
+    except Exception:
+        url = f"/booking/request/{booking_request.id}"
+
+    preview = ''
+    if message is not None:
+        preview = (getattr(message, 'body_text', None) or getattr(message, 'subject', None) or '').strip()
+        if len(preview) > 120:
+            preview = preview[:117] + '…'
+
+    message_id = getattr(message, 'id', None) if message is not None else None
+    sent_count = 0
+    for user in _iter_booking_notification_recipients('booking_message_notifications_enabled'):
+        title = _user_translate(user, 'notifications.booking.message_title')
+        if preview:
+            body = _user_translate(
+                user,
+                'notifications.booking.message_body_preview',
+                event=event_label,
+                applicant=applicant,
+                preview=preview,
+            )
+        else:
+            body = _user_translate(
+                user,
+                'notifications.booking.message_body',
+                event=event_label,
+                applicant=applicant,
+            )
+        dedup_key = (
+            f"booking_message:{booking_request.id}:{message_id}:{user.id}"
+            if message_id
+            else f"booking_message:{booking_request.id}:{user.id}:{datetime.utcnow().timestamp()}"
+        )
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='booking',
+            dedup_key=dedup_key,
+            source_id=booking_request.id,
+            data={
+                'booking_request_id': booking_request.id,
+                'booking_message_id': message_id,
+                'type': 'booking_message',
             },
         ):
             sent_count += 1

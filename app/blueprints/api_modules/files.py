@@ -9,6 +9,7 @@ from app import db
 from app.models.file import File, FileVersion, Folder
 from app.models.settings import SystemSettings
 from app.utils.access_control import has_module_access
+from app.utils.common import format_datetime
 from werkzeug.security import generate_password_hash
 
 
@@ -160,7 +161,7 @@ def register_files_routes(api_bp, require_api_auth):
                 "size": file_size_str,
                 "type": _file_type_from_extension(file_obj.original_name),
                 "uploader": file_obj.uploader.full_name,
-                "created_at": file_obj.created_at.strftime("%d.%m.%Y %H:%M"),
+                "created_at": format_datetime(file_obj.created_at),
                 "version": file_obj.version_number,
                 "is_editable": is_editable,
                 "is_viewable": is_viewable,

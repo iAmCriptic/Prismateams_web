@@ -2479,6 +2479,10 @@ body .messages-area .chat-message.other .message-content {
     background: var(--chat-surface, #f8f9fa);
 }
 
+.chat-info-details {
+    text-align: center;
+}
+
 .chat-info-details strong {
     display: block;
     margin-bottom: 0.15rem;
@@ -2536,7 +2540,7 @@ body .messages-area .chat-message.other .message-content {
 }
 
 .member-contact-info {
-    text-align: left;
+    text-align: center;
     max-width: 300px;
     margin: 0 auto;
 }
@@ -2544,6 +2548,7 @@ body .messages-area .chat-message.other .message-content {
 .contact-item {
     display: flex;
     align-items: center;
+    justify-content: center;
     padding: 0.75rem 0;
     border-bottom: 1px solid #f8f9fa;
     color: #6c757d;
@@ -2921,7 +2926,7 @@ body .messages-area .chat-message.other .message-content {
     left: 1.05rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--chat-text-muted, #6c757d);
+    color: var(--accent-color, #0d6efd);
     pointer-events: none;
     font-size: 0.95rem;
     line-height: 1;

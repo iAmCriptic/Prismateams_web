@@ -236,12 +236,14 @@ class CheckoutItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     checkout_id = db.Column(db.Integer, db.ForeignKey('checkouts.id'), nullable=False, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    source_set_id = db.Column(db.Integer, db.ForeignKey('product_sets.id'), nullable=True, index=True)
     returned_at = db.Column(db.DateTime, nullable=True)
     legacy_transaction_id = db.Column(db.Integer, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     checkout = db.relationship('Checkout', back_populates='items')
     product = db.relationship('Product', back_populates='checkout_items')
+    source_set = db.relationship('ProductSet', foreign_keys=[source_set_id])
 
     def __repr__(self):
         return f'<CheckoutItem checkout={self.checkout_id} product={self.product_id}>'

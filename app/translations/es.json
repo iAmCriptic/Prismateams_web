@@ -228,17 +228,35 @@
     },
     "form": {
       "title": "Nueva descarga",
+      "link_box_title": "Enlace / Búsqueda",
+      "single_label": "Canción / vídeo individual",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Solo vídeos o canciones individuales — sin listas.",
+      "playlist_label": "Lista de reproducción",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Pegue un enlace de lista. Las opciones aparecen en el cuadro de segmento.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Compatible: YouTube y YouTube Music",
       "format_label": "Formato",
       "format_audio": "Audio (MP3)",
       "format_video": "Video (MP4)",
+      "segment_heading": "Segmento de tiempo",
       "start_label": "Inicio (opcional)",
       "end_label": "Fin (opcional)",
       "time_placeholder": "M:SS",
       "segment_hint": "Opcional: descargar solo un segmento (indique inicio y fin, p. ej. 1:30 y 3:45).",
       "submit": "Iniciar descarga"
+    },
+    "search": {
+      "label": "Búsqueda de YouTube",
+      "placeholder": "Buscar canción o artista…",
+      "hint": "Sugerencias de la API de YouTube — elija un resultado para rellenar la URL.",
+      "loading": "Buscando…",
+      "empty": "No se encontraron resultados.",
+      "error": "Error en la búsqueda.",
+      "unavailable": "La búsqueda de YouTube no está disponible.",
+      "unavailable_hint": "Falta la clave API de YouTube. Añádala en Ajustes → Música."
     },
     "jobs": {
       "title": "Mis descargas",
@@ -250,7 +268,13 @@
       "download": "Descargar",
       "empty": "Aún no hay descargas.",
       "clear_all": "Borrar todo",
-      "clear_all_confirm": "¿Eliminar todas las descargas y cancelar las activas?"
+      "clear_all_confirm": "¿Eliminar todas las descargas y cancelar las activas?",
+      "delete_confirm": "¿Eliminar esta descarga?",
+      "open_source": "Abrir fuente",
+      "actions": "Acciones",
+      "view_toggle": "Cambiar vista",
+      "view_list": "Vista de lista",
+      "view_grid": "Vista de cuadrícula"
     },
     "format": {
       "audio": "MP3",
@@ -260,7 +284,20 @@
       "pending": "Pendiente",
       "processing": "Procesando",
       "completed": "Completado",
-      "failed": "Fallido"
+      "failed": "Cancelado por error",
+      "cancelled": "Cancelado",
+      "cancelling": "Cancelando"
+    },
+    "playlist": {
+      "modal_title": "Descargar lista",
+      "segment_heading": "Ajustes de lista",
+      "inline_hint": "Todas las canciones completas o marcas de tiempo por canción — luego iniciar descarga.",
+      "loading": "Cargando lista…",
+      "song_count": "%(count)s canciones en esta lista",
+      "mode_complete": "Descargar todas las canciones completas",
+      "mode_timestamps": "Indicar marcas de tiempo por canción",
+      "download_all": "Descargar lista",
+      "preview_error": "No se pudo cargar la lista."
     },
     "flash": {
       "unavailable": "El descargador no está disponible.",
@@ -280,7 +317,15 @@
       "err_age_restricted": "Este video tiene restricción de edad y no puede descargarse sin inicio de sesión/cookies.",
       "err_video_unavailable": "Este video no está disponible.",
       "err_download_failed": "La descarga falló. Inténtelo de nuevo.",
-      "file_missing": "Archivo no encontrado."
+      "file_missing": "Archivo no encontrado.",
+      "not_a_playlist": "Esta URL no es una lista de reproducción.",
+      "empty_playlist": "La lista no contiene canciones descargables.",
+      "preview_failed": "Error al cargar la vista previa de la lista.",
+      "playlist_started": "Se iniciaron %(count)s descargas.",
+      "use_playlist_modal": "Use la ventana de lista de reproducción para descargar.",
+      "invalid_batch_item": "Entrada no válida en la lista de descarga.",
+      "cancelled": "Descarga cancelada.",
+      "cancelling": "Cancelando descarga…"
     }
   },
   "booking": {
@@ -461,7 +506,10 @@
     },
     "booking": {
       "request_title": "Nueva solicitud de reserva",
-      "request_body": "{event} – {applicant}"
+      "request_body": "{event} – {applicant}",
+      "message_title": "Nuevo mensaje de reserva",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
     },
     "push": {
       "test_title": "Notificación de prueba",

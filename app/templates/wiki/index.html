@@ -337,6 +337,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {
 const WIKI_INDEX_I18N = {{ current_translations.get('wiki', {}).get('index', {})|tojson }};
@@ -571,5 +572,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document);
+    }
+});
 </script>
 {% endblock %}

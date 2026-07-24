@@ -3,357 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Musikwunschliste</title>
+    <title>{{ _('music.public_wishlist.page_title') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/music.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
     <style>
-        body {
-            {% if color_gradient %}
-            background: {{ color_gradient }};
-            {% else %}
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            {% endif %}
-            background-attachment: fixed;
-            background-size: cover;
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-        }
-        .wishlist-header {
-            {% if color_gradient %}
-            background: {{ color_gradient }};
-            {% else %}
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            {% endif %}
-            background-attachment: fixed;
-            background-size: cover;
-            color: white;
-            padding: 3rem 0;
-            margin-bottom: 2rem;
-        }
-        .wishlist-header img {
-            height: 96px !important;
-        }
-        .search-card {
-            background-color: #000000;
-            color: #ffffff;
-        }
-        .search-card .form-label,
-        .search-card .form-text,
-        .search-card .form-control,
-        .search-card .form-control::placeholder {
-            color: #ffffff;
-        }
-        .search-card .form-control {
-            background-color: #1a1a1a;
-            border-color: #333333;
-        }
-        .search-card .form-control:focus {
-            background-color: #1a1a1a;
-            border-color: #0d6efd;
-            color: #ffffff;
-        }
-        .search-card .btn-primary {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
-        }
-        .search-results {
-            max-height: 400px;
-            overflow-y: auto;
-            background-color: #000000;
-            color: #ffffff;
-            padding: 1rem;
-            border-radius: 0.375rem;
-        }
-        .track-item {
-            cursor: pointer;
-            transition: background-color 0.2s;
-            background-color: #1a1a1a;
-            color: #ffffff;
-            border-color: #333333 !important;
-        }
-        .track-item:hover {
-            background-color: #2a2a2a;
-        }
-        .track-item h6,
-        .track-item p {
-            color: #ffffff;
-        }
-        .track-item .text-muted {
-            color: #aaaaaa !important;
-        }
-        .track-image {
-            width: 64px;
-            height: 64px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-        .provider-badge {
-            font-size: 0.75rem;
-        }
-        .alert-success {
-            background-color: #198754;
-            border-color: #198754;
-            color: #ffffff;
-        }
-        .alert-danger {
-            background-color: #dc3545;
-            border-color: #dc3545;
-            color: #ffffff;
+        :root {
+            --accent-color: {{ accent_color|default('#0d6efd') }};
+            --accent-style: {{ accent_style|default('linear-gradient(45deg, #0d6efd, #0d6efd)') }};
+            --music-public-bg: {% if color_gradient %}{{ color_gradient }}{% else %}linear-gradient(135deg, #667eea 0%, #764ba2 100%){% endif %};
         }
     </style>
 </head>
-<body>
-    <div class="wishlist-header">
-        <div class="container">
-            <div class="text-center mb-3">
+<body class="music-public-page music-public-wishlist-page">
+    <div class="music-public-shell music-public-shell--scroll">
+        <div class="music-public-card music-public-card--wishlist">
+            <div class="music-public-brand text-center">
                 {% if portal_logo_filename %}
-                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3" style="max-height: 96px; height: auto; width: auto;">
+                <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}"
+                     alt="{{ app_name or 'Prismateams' }}"
+                     class="music-public-brand-logo">
                 {% elif app_logo %}
-                <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3" style="max-height: 96px; height: auto; width: auto;">
+                <img src="{{ url_for('static', filename=app_logo) }}"
+                     alt="{{ app_name or 'Prismateams' }}"
+                     class="music-public-brand-logo">
                 {% else %}
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" class="mb-3" style="max-height: 96px; height: auto; width: auto;">
+                <img src="{{ url_for('static', filename='img/logo.png') }}"
+                     alt="{{ app_name or 'Prismateams' }}"
+                     class="music-public-brand-logo">
                 {% endif %}
+                <h1 class="music-public-title">{{ _('music.public_wishlist.title') }}</h1>
+                <p class="music-public-subtitle">{{ _('music.public_wishlist.subtitle') }}</p>
             </div>
-            <h1 class="text-center mb-2"><i class="bi bi-music-note-beamed"></i> {{ _('music.public_wishlist.title') }}</h1>
-            <p class="text-center mb-0">{{ _('music.public_wishlist.subtitle') }}</p>
-        </div>
-    </div>
-    
-    <div class="container mb-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="card search-card">
-                    <div class="card-body">
-                        {% if not has_providers %}
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle"></i> {{ _('music.public_wishlist.no_providers') }}
-                        </div>
-                        {% else %}
-                        <div class="mb-4">
-                            <label for="search-query" class="form-label">{{ _('music.public_wishlist.search_label') }}</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="search-query" placeholder="{{ _('music.public_wishlist.search_placeholder') }}">
-                                <button class="btn btn-primary" type="button" id="search-btn">
-                                    <i class="bi bi-search"></i> {{ _('music.public_wishlist.search_button') }}
-                                </button>
-                            </div>
-                            <div class="form-text">
-                                <strong>{{ _('music.public_wishlist.search_help_format') }}:</strong> {{ _('music.public_wishlist.search_help_text') | safe }}<br>
-                                {{ _('music.public_wishlist.search_help_providers') }}: 
-                                {% set provider_names = {'spotify': 'Spotify', 'youtube': 'YouTube', 'deezer': 'Deezer', 'musicbrainz': 'MusicBrainz'} %}
-                                {% for provider in enabled_providers %}
-                                    {{ provider_names.get(provider, provider) }}{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            </div>
-                            <div class="alert alert-info mt-3 mb-0" style="background-color: #1a1a1a; border-color: #0d6efd; color: #ffffff;">
-                                <i class="bi bi-info-circle"></i> <strong>{{ _('music.public_wishlist.search_hint_title') }}:</strong> {{ _('music.public_wishlist.search_hint') }}
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        <div id="search-results" class="search-results" style="display: none;">
-                            <h5 class="mb-3 text-white">{{ _('music.public_wishlist.search_results') }}</h5>
-                            <div id="results-list"></div>
-                            
-                            <div id="recommendations-section" style="display: none;" class="mt-4">
-                                <hr style="border-color: #333333;">
-                                <h5 class="mb-3 text-white">
-                                    <i class="bi bi-lightbulb"></i> {{ _('music.public_wishlist.recommendations') }}
-                                </h5>
-                                <div id="recommendations-list"></div>
-                            </div>
-                        </div>
-                        
-                        <div id="loading" class="text-center" style="display: none;">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">{{ _('music.public_wishlist.loading') }}</span>
-                            </div>
-                        </div>
-                        
-                        <div id="error-message" class="alert alert-danger" style="display: none;"></div>
-                        
-                        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+            {% if not has_providers %}
+            <div class="alert portal-msg portal-msg--warning alert-permanent mb-3" role="alert">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
                     </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">{{ _('music.public_wishlist.no_providers') }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="music-public-search" role="search">
+                <label class="music-public-search-field" for="search-query">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search"
+                           id="search-query"
+                           class="music-public-search-input"
+                           placeholder="{{ _('music.public_wishlist.search_placeholder') }}"
+                           aria-label="{{ _('music.public_wishlist.search_label') }}"
+                           autocomplete="off"
+                           enterkeyhint="search"
+                           autofocus>
+                </label>
+                <button type="button" class="btn music-public-pill music-public-pill--primary" id="search-btn">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <span>{{ _('music.public_wishlist.search_button') }}</span>
+                </button>
+            </div>
+            {% endif %}
+
+            <div id="loading" class="music-public-loading" hidden>
+                <div class="spinner-border spinner-border-sm text-secondary" role="status">
+                    <span class="visually-hidden">{{ _('music.public_wishlist.loading') }}</span>
+                </div>
+            </div>
+
+            <div id="error-message" class="alert portal-msg portal-msg--danger alert-permanent mb-3" role="alert" hidden>
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text"></p>
+                    </div>
+                </div>
+            </div>
+            <div id="success-message" class="alert portal-msg portal-msg--success alert-permanent mb-3" role="status" hidden>
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="search-results" class="music-public-results" hidden>
+                <div id="results-list" class="music-public-track-list"></div>
+
+                <div id="recommendations-section" class="music-public-recs" hidden>
+                    <h2 class="music-public-section-title">
+                        <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                        {{ _('music.public_wishlist.recommendations') }}
+                    </h2>
+                    <div id="recommendations-list" class="music-public-track-list"></div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
-        // Einstellungen
         const showProviderBadges = {{ 'true' if show_provider_badges else 'false' }};
-        
-        // Übersetzungen für JavaScript
         const translations = {
-            noResults: "{{ _('music.public_wishlist.no_results') }}",
-            unknownArtist: "{{ _('music.public_wishlist.unknown_artist') }}",
-            addButton: "{{ _('music.public_wishlist.add_button') }}",
-            recommendation: "{{ _('music.public_wishlist.recommendation_badge') }}",
-            noRecommendations: "{{ _('music.public_wishlist.no_recommendations') }}",
-            successMessage: "{{ _('music.public_wishlist.success_message') }}",
-            wishCountIncreased: "{{ _('music.public_wishlist.wish_count_increased') }}",
-            searchError: "{{ _('music.public_wishlist.search_error') }}"
+            noResults: {{ _('music.public_wishlist.no_results')|tojson }},
+            unknownArtist: {{ _('music.public_wishlist.unknown_artist')|tojson }},
+            addButton: {{ _('music.public_wishlist.add_button')|tojson }},
+            recommendation: {{ _('music.public_wishlist.recommendation_badge')|tojson }},
+            noRecommendations: {{ _('music.public_wishlist.no_recommendations')|tojson }},
+            successMessage: {{ _('music.public_wishlist.success_message')|tojson }},
+            wishCountIncreased: {{ _('music.public_wishlist.wish_count_increased')|tojson }},
+            searchError: {{ _('music.public_wishlist.search_error')|tojson }}
         };
-        
+
         let searchTimeout;
-        
-        document.getElementById('search-query').addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            const query = this.value.trim();
-            if (query.length >= 2) {
-                searchTimeout = setTimeout(() => performSearch(query), 500);
-            } else {
-                document.getElementById('search-results').style.display = 'none';
-                document.getElementById('recommendations-section').style.display = 'none';
+        const searchInput = document.getElementById('search-query');
+        const searchBtn = document.getElementById('search-btn');
+
+        function providerLabel(provider) {
+            if (provider === 'spotify') return 'Spotify';
+            if (provider === 'youtube') return 'YouTube';
+            if (provider === 'deezer') return 'Deezer';
+            if (provider === 'musicbrainz') return 'MusicBrainz';
+            return provider || '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function coverHtml(imageUrl) {
+            if (imageUrl) {
+                return '<div class="music-public-track-cover"><img src="' + escapeHtml(imageUrl) + '" alt="" loading="lazy" onerror="this.remove()"></div>';
             }
-        });
-        
-        document.getElementById('search-btn').addEventListener('click', function() {
-            const query = document.getElementById('search-query').value.trim();
-            if (query) {
-                performSearch(query);
+            return '<div class="music-public-track-cover"><i class="bi bi-music-note" aria-hidden="true"></i></div>';
+        }
+
+        function trackRow(track, isRecommendation) {
+            const item = document.createElement('div');
+            item.className = 'music-public-track';
+            const badges = [];
+            if (isRecommendation) {
+                badges.push('<span class="music-public-badge music-public-badge--rec"><i class="bi bi-lightbulb"></i> ' + escapeHtml(translations.recommendation) + '</span>');
             }
-        });
-        
+            if (showProviderBadges && track.provider) {
+                badges.push('<span class="music-public-badge">' + escapeHtml(providerLabel(track.provider)) + '</span>');
+            }
+            item.innerHTML =
+                coverHtml(track.image_url) +
+                '<div class="music-public-track-meta">' +
+                    '<div class="music-public-track-title">' + escapeHtml(track.title) + '</div>' +
+                    '<div class="music-public-track-artist">' + escapeHtml(track.artist || translations.unknownArtist) + '</div>' +
+                    (badges.length ? '<div class="music-public-track-badges">' + badges.join('') + '</div>' : '') +
+                '</div>' +
+                '<button type="button" class="btn music-public-pill music-public-pill--add music-public-add-btn">' +
+                    '<i class="bi bi-plus-lg" aria-hidden="true"></i>' +
+                    '<span>' + escapeHtml(translations.addButton) + '</span>' +
+                '</button>';
+            item.querySelector('.music-public-add-btn').addEventListener('click', function () {
+                addToWishlist(track);
+            });
+            return item;
+        }
+
+        function displayResults(results) {
+            const resultsList = document.getElementById('results-list');
+            resultsList.innerHTML = '';
+            results.forEach(function (track) {
+                resultsList.appendChild(trackRow(track, false));
+            });
+        }
+
+        function displayRecommendations(recommendations) {
+            const list = document.getElementById('recommendations-list');
+            list.innerHTML = '';
+            if (!recommendations.length) {
+                list.innerHTML = '<p class="music-public-empty">' + escapeHtml(translations.noRecommendations) + '</p>';
+                return;
+            }
+            recommendations.forEach(function (track) {
+                list.appendChild(trackRow(track, true));
+            });
+        }
+
+        function setPortalMsgText(el, text) {
+            if (!el) return;
+            const p = el.querySelector('.portal-msg__text');
+            if (p) p.textContent = text == null ? '' : String(text);
+            else el.textContent = text == null ? '' : String(text);
+        }
+
         function performSearch(query) {
             const loading = document.getElementById('loading');
             const resultsDiv = document.getElementById('search-results');
             const resultsList = document.getElementById('results-list');
             const errorMsg = document.getElementById('error-message');
-            
-            loading.style.display = 'block';
-            resultsDiv.style.display = 'none';
-            errorMsg.style.display = 'none';
-            
-            fetch(`/music/wishlist/search`, {
+            const successMsg = document.getElementById('success-message');
+            const recSection = document.getElementById('recommendations-section');
+
+            loading.hidden = false;
+            resultsDiv.hidden = true;
+            errorMsg.hidden = true;
+            successMsg.hidden = true;
+
+            fetch('/music/wishlist/search', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    query: query
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
+            .then(function (response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 return response.json();
             })
-            .then(data => {
-                loading.style.display = 'none';
+            .then(function (data) {
+                loading.hidden = true;
                 if (data.error) {
-                    errorMsg.textContent = data.error;
-                    errorMsg.style.display = 'block';
-                    resultsDiv.style.display = 'none';
-                    document.getElementById('recommendations-section').style.display = 'none';
-                } else if (data.results && data.results.length > 0) {
+                    setPortalMsgText(errorMsg, data.error);
+                    errorMsg.hidden = false;
+                    return;
+                }
+                if (data.results && data.results.length > 0) {
                     displayResults(data.results);
-                    resultsDiv.style.display = 'block';
-                    errorMsg.style.display = 'none';
-                    
-                    // Zeige Recommendations wenn vorhanden
+                    resultsDiv.hidden = false;
                     if (data.recommendations && data.recommendations.length > 0) {
                         displayRecommendations(data.recommendations);
-                        document.getElementById('recommendations-section').style.display = 'block';
+                        recSection.hidden = false;
                     } else {
-                        document.getElementById('recommendations-section').style.display = 'none';
+                        recSection.hidden = true;
                     }
                 } else {
-                    resultsList.innerHTML = '<p class="text-white-50">' + translations.noResults + '</p>';
-                    resultsDiv.style.display = 'block';
-                    errorMsg.style.display = 'none';
-                    document.getElementById('recommendations-section').style.display = 'none';
+                    resultsList.innerHTML = '<p class="music-public-empty">' + escapeHtml(translations.noResults) + '</p>';
+                    resultsDiv.hidden = false;
+                    recSection.hidden = true;
                 }
             })
-            .catch(error => {
-                loading.style.display = 'none';
-                errorMsg.textContent = translations.searchError.replace('{error}', error.message);
-                errorMsg.style.display = 'block';
+            .catch(function (error) {
+                loading.hidden = true;
+                setPortalMsgText(errorMsg, translations.searchError.replace('{error}', error.message));
+                errorMsg.hidden = false;
             });
         }
-        
-        function displayResults(results) {
-            const resultsList = document.getElementById('results-list');
-            resultsList.innerHTML = '';
-            
-            results.forEach(track => {
-                const item = document.createElement('div');
-                item.className = 'track-item p-3 border-bottom';
-                item.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <img src="${track.image_url || '/static/img/logo.png'}" alt="Cover" class="track-image me-3">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">${escapeHtml(track.title)}</h6>
-                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || translations.unknownArtist)}</p>
-                            ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
-                            ${showProviderBadges ? `<span class="badge bg-primary provider-badge">
-                                ${track.provider === 'spotify' ? 'Spotify' : 
-                                  track.provider === 'youtube' ? 'YouTube' : 
-                                  track.provider === 'deezer' ? 'Deezer' : 
-                                  track.provider === 'musicbrainz' ? 'MusicBrainz' : track.provider}
-                            </span>` : ''}
-                        </div>
-                        <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
-                            <i class="bi bi-plus-circle"></i> ${translations.addButton}
-                        </button>
-                    </div>
-                `;
-                resultsList.appendChild(item);
-            });
-        }
-        
-        function displayRecommendations(recommendations) {
-            const recommendationsList = document.getElementById('recommendations-list');
-            recommendationsList.innerHTML = '';
-            
-            if (recommendations.length === 0) {
-                recommendationsList.innerHTML = '<p class="text-white-50">' + translations.noRecommendations + '</p>';
-                return;
-            }
-            
-            recommendations.forEach(track => {
-                const item = document.createElement('div');
-                item.className = 'track-item p-3 border-bottom';
-                
-                // Bestimme Provider-Badge
-                let providerBadge = '';
-                if (track.provider === 'spotify') {
-                    providerBadge = '<span class="badge bg-success provider-badge ms-2">Spotify</span>';
-                } else if (track.provider === 'youtube') {
-                    providerBadge = '<span class="badge bg-danger provider-badge ms-2">YouTube</span>';
-                } else if (track.provider === 'deezer') {
-                    providerBadge = '<span class="badge bg-primary provider-badge ms-2">Deezer</span>';
-                } else if (track.provider === 'musicbrainz') {
-                    providerBadge = '<span class="badge bg-info provider-badge ms-2">MusicBrainz</span>';
-                }
-                
-                item.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        ${track.image_url ? 
-                            `<img src="${escapeHtml(track.image_url)}" alt="Cover" class="track-image me-3" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="me-3 d-none" style="width: 64px; height: 64px; background: #1a1a1a; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note text-white"></i></div>` :
-                            `<div class="me-3" style="width: 64px; height: 64px; background: #1a1a1a; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-music-note text-white"></i></div>`
-                        }
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">${escapeHtml(track.title)}</h6>
-                            <p class="text-muted mb-1 small">${escapeHtml(track.artist || translations.unknownArtist)}</p>
-                            ${track.album ? `<p class="text-muted mb-1 small"><em>${escapeHtml(track.album)}</em></p>` : ''}
-                            ${showProviderBadges ? `<span class="badge bg-info provider-badge">
-                                <i class="bi bi-lightbulb"></i> ${translations.recommendation}
-                            </span>
-                            ${providerBadge}` : ''}
-                        </div>
-                        <button class="btn btn-sm btn-success" onclick="addToWishlist(${JSON.stringify(track).replace(/"/g, '&quot;')})">
-                            <i class="bi bi-plus-circle"></i> ${translations.addButton}
-                        </button>
-                    </div>
-                `;
-                recommendationsList.appendChild(item);
-            });
-        }
-        
+
         function addToWishlist(track) {
             const formData = new FormData();
             formData.append('provider', track.provider);
@@ -363,48 +261,61 @@
             formData.append('track_url', track.url || '');
             formData.append('image_url', track.image_url || '');
             formData.append('duration_ms', track.duration_ms || '');
-            
-            fetch(`/music/wishlist`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
+
+            fetch('/music/wishlist', { method: 'POST', body: formData })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
                 const successMsg = document.getElementById('success-message');
                 const errorMsg = document.getElementById('error-message');
-                
                 if (data.error) {
-                    errorMsg.textContent = data.error;
-                    errorMsg.style.display = 'block';
-                    successMsg.style.display = 'none';
-                } else {
-                    if (data.message && data.message.includes('Wunschzähler erhöht')) {
-                        const count = data.message.match(/\d+/)?.[0] || '1';
-                        successMsg.textContent = translations.wishCountIncreased.replace('{count}', count);
-                    } else {
-                        successMsg.textContent = translations.successMessage;
-                    }
-                    successMsg.style.display = 'block';
-                    errorMsg.style.display = 'none';
-                    
-                    // Leere Suchfeld
-                    document.getElementById('search-query').value = '';
-                    document.getElementById('search-results').style.display = 'none';
+                    setPortalMsgText(errorMsg, data.error);
+                    errorMsg.hidden = false;
+                    successMsg.hidden = true;
+                    return;
                 }
+                if (data.message && String(data.message).indexOf('Wunschzähler') !== -1) {
+                    const count = (data.message.match(/\d+/) || ['1'])[0];
+                    setPortalMsgText(successMsg, translations.wishCountIncreased.replace('{count}', count));
+                } else {
+                    setPortalMsgText(successMsg, translations.successMessage);
+                }
+                successMsg.hidden = false;
+                errorMsg.hidden = true;
+                if (searchInput) searchInput.value = '';
+                document.getElementById('search-results').hidden = true;
             })
-            .catch(error => {
+            .catch(function (error) {
                 const errorMsg = document.getElementById('error-message');
-                errorMsg.textContent = translations.searchError.replace('{error}', error.message);
-                errorMsg.style.display = 'block';
+                setPortalMsgText(errorMsg, translations.searchError.replace('{error}', error.message));
+                errorMsg.hidden = false;
             });
         }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+                if (query.length >= 2) {
+                    searchTimeout = setTimeout(function () { performSearch(query); }, 450);
+                } else {
+                    document.getElementById('search-results').hidden = true;
+                    document.getElementById('recommendations-section').hidden = true;
+                }
+            });
+            searchInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const query = this.value.trim();
+                    if (query) performSearch(query);
+                }
+            });
+        }
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function () {
+                const query = searchInput ? searchInput.value.trim() : '';
+                if (query) performSearch(query);
+            });
         }
     </script>
 </body>
 </html>
-

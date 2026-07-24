@@ -80,6 +80,7 @@ def register_notification_routes(api_bp, require_api_auth):
                 "file_modified_notifications": settings.file_modified_notifications,
                 "email_notifications_enabled": settings.email_notifications_enabled,
                 "booking_notifications_enabled": getattr(settings, "booking_notifications_enabled", True),
+                "booking_message_notifications_enabled": getattr(settings, "booking_message_notifications_enabled", True),
                 "calendar_notifications_enabled": settings.calendar_notifications_enabled,
                 "calendar_all_events": settings.calendar_all_events,
                 "calendar_participating_only": settings.calendar_participating_only,
@@ -107,6 +108,9 @@ def register_notification_routes(api_bp, require_api_auth):
             settings.file_modified_notifications = data.get("file_modified_notifications", True)
             settings.email_notifications_enabled = data.get("email_notifications_enabled", True)
             settings.booking_notifications_enabled = data.get("booking_notifications_enabled", True)
+            settings.booking_message_notifications_enabled = data.get(
+                "booking_message_notifications_enabled", True
+            )
             settings.calendar_notifications_enabled = data.get("calendar_notifications_enabled", True)
             settings.calendar_all_events = data.get("calendar_all_events", False)
             settings.calendar_participating_only = data.get("calendar_participating_only", True)

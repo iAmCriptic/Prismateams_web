@@ -30,6 +30,95 @@ inventory_bp = Blueprint('inventory', __name__)
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 DEFAULT_DGUV_INTERVAL_MONTHS = 12
+CART_SET_META_KEY = 'borrow_cart_set_meta'
+
+
+def _serialize_set_members(product_set):
+    """Set-Mitglieder für Badge/Dropdown-UI."""
+    members = []
+    for item in (product_set.items or []):
+        members.append({
+            'id': item.product_id,
+            'name': item.product.name if item.product else '—',
+            'quantity': item.quantity or 1,
+        })
+    return members
+
+
+def _get_cart_set_meta():
+    meta = session.get(CART_SET_META_KEY) or {}
+    return meta if isinstance(meta, dict) else {}
+
+
+def _mark_cart_products_from_set(product_ids, product_set):
+    """Markiert Warenkorb-Produkte als aus einem Set stammend."""
+    if not product_set or not product_ids:
+        return
+    meta = _get_cart_set_meta()
+    payload = {
+        'set_id': product_set.id,
+        'set_name': product_set.name,
+        'members': _serialize_set_members(product_set),
+    }
+    for pid in product_ids:
+        meta[str(pid)] = payload
+    session[CART_SET_META_KEY] = meta
+    session.modified = True
+
+
+def _clear_cart_set_meta_for_product(product_id):
+    meta = _get_cart_set_meta()
+    key = str(product_id)
+    if key in meta:
+        meta.pop(key, None)
+        session[CART_SET_META_KEY] = meta
+        session.modified = True
+
+
+def _clear_all_cart_set_meta():
+    if CART_SET_META_KEY in session:
+        session.pop(CART_SET_META_KEY, None)
+        session.modified = True
+
+
+def _cart_product_source_sets_map():
+    """product_id -> set_id aus Session-Meta."""
+    result = {}
+    for key, info in _get_cart_set_meta().items():
+        if not isinstance(info, dict) or not info.get('set_id'):
+            continue
+        try:
+            result[int(key)] = int(info['set_id'])
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _ordered_cart_products(cart_product_ids):
+    """Produkte in Warenkorb-Reihenfolge inkl. cart_source_set."""
+    if not cart_product_ids:
+        return []
+    products = Product.query.filter(Product.id.in_(cart_product_ids)).all()
+    by_id = {p.id: p for p in products}
+    meta = _get_cart_set_meta()
+    ordered = []
+    for pid in cart_product_ids:
+        product = by_id.get(pid)
+        if not product:
+            continue
+        product.cart_source_set = meta.get(str(pid))
+        ordered.append(product)
+    return ordered
+
+
+def _source_set_api_payload(source_set):
+    if not source_set:
+        return None, None, None
+    return (
+        source_set.id,
+        source_set.name,
+        _serialize_set_members(source_set),
+    )
 
 
 def allowed_file(filename):
@@ -855,6 +944,25 @@ def borrow_scanner():
                         pass  # Keine gültige Produkt-ID
                 if not product and not product_set and qr_code:
                     product = Product.query.filter_by(external_barcode=qr_code).first()
+                # Klartext: Produkt- oder Set-Name (exakt, sonst eindeutiger Teiltreffer)
+                if not product and not product_set and qr_code:
+                    name_q = qr_code.strip()
+                    looks_like_code = bool(
+                        parse_qr_code(name_q)
+                        or looks_like_return_qr(name_q)
+                        or name_q.isdigit()
+                    )
+                    if not looks_like_code:
+                        product = Product.query.filter(Product.name.ilike(name_q)).first()
+                        if not product:
+                            product_set = ProductSet.query.filter(ProductSet.name.ilike(name_q)).first()
+                        if not product and not product_set:
+                            product_hits = Product.query.filter(Product.name.ilike(f'%{name_q}%')).limit(5).all()
+                            set_hits = ProductSet.query.filter(ProductSet.name.ilike(f'%{name_q}%')).limit(5).all()
+                            if len(product_hits) == 1 and not set_hits:
+                                product = product_hits[0]
+                            elif len(set_hits) == 1 and not product_hits:
+                                product_set = set_hits[0]
             elif product_id:
                 try:
                     product = Product.query.get(int(product_id))
@@ -901,19 +1009,29 @@ def borrow_scanner():
                         'category': info['product'].category,
                         'quantity': info['quantity'],  # Gesamtmenge im Set
                         'added': info['added'],  # Anzahl die neu hinzugefügt wurden
-                        'was_in_cart': info['was_in_cart']  # Ob bereits im Warenkorb
+                        'was_in_cart': info['was_in_cart'],  # Ob bereits im Warenkorb
+                        'source_set': {
+                            'id': product_set.id,
+                            'name': product_set.name,
+                            'members': _serialize_set_members(product_set),
+                        },
                     })
-                
+
                 session['borrow_cart'] = cart
                 session.modified = True  # Stelle sicher, dass Session gespeichert wird
-                
+                added_ids = [p['id'] for p in added_products if p.get('added', 0) > 0 or p.get('was_in_cart')]
+                # Alle Set-Produkte im Warenkorb als Set markieren
+                in_cart_ids = [pid for pid in cart if pid in product_quantities]
+                _mark_cart_products_from_set(in_cart_ids, product_set)
+
                 return jsonify({
                     'success': True,
                     'is_set': True,
                     'set': {
                         'id': product_set.id,
                         'name': product_set.name,
-                        'description': product_set.description
+                        'description': product_set.description,
+                        'members': _serialize_set_members(product_set),
                     },
                     'added_products': added_products,
                     'unavailable_products': unavailable_products,
@@ -960,10 +1078,12 @@ def borrow_scanner():
                 cart.remove(product_id)
                 session['borrow_cart'] = cart
                 session.modified = True  # Stelle sicher, dass Session gespeichert wird
+            _clear_cart_set_meta_for_product(product_id)
             return jsonify({'success': True, 'cart_count': len(cart)})
         
         elif action == 'clear_cart':
             session.pop('borrow_cart', None)
+            _clear_all_cart_set_meta()
             session.modified = True
             return jsonify({'success': True})
         else:
@@ -971,7 +1091,7 @@ def borrow_scanner():
             return jsonify({'error': f'Unbekannte Aktion: {action}'}), 400
     
     cart_product_ids = session.get('borrow_cart', [])
-    cart_products = Product.query.filter(Product.id.in_(cart_product_ids)).all() if cart_product_ids else []
+    cart_products = _ordered_cart_products(cart_product_ids)
     
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     
@@ -1018,6 +1138,7 @@ def borrow_scanner_checkout():
             borrower_id=current_user.id,
             require_event=False,
             require_end_date=False,
+            product_source_sets=_cart_product_source_sets_map(),
         )
     except ValueError as exc:
         code = str(exc)
@@ -1025,6 +1146,7 @@ def borrow_scanner_checkout():
         return redirect(url_for('inventory.borrow_scanner'))
 
     session.pop('borrow_cart', None)
+    _clear_all_cart_set_meta()
     flash(_('inventory.flash.borrow_success', count=len(checkout.items)), 'success')
     return redirect(url_for('inventory.borrows'))
 
@@ -1044,7 +1166,7 @@ def inventory_checkout():
         return borrow_scanner()
 
     cart_product_ids = session.get('borrow_cart', [])
-    cart_products = Product.query.filter(Product.id.in_(cart_product_ids)).all() if cart_product_ids else []
+    cart_products = _ordered_cart_products(cart_product_ids)
     users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all()
     users_payload = [
         {
@@ -1155,6 +1277,7 @@ def inventory_checkout_confirm():
             require_end_date=True,
             event_id=linked_event_id,
             event_appointment_id=linked_appointment_id,
+            product_source_sets=_cart_product_source_sets_map(),
         )
     except ValueError as exc:
         code = str(exc)
@@ -1162,6 +1285,7 @@ def inventory_checkout_confirm():
         return redirect(url_for('inventory.inventory_checkout'))
 
     session.pop('borrow_cart', None)
+    _clear_all_cart_set_meta()
     flash(_('inventory.flash.borrow_success', count=len(checkout.items)), 'success')
     return redirect(url_for('inventory.borrows'))
 
@@ -1699,29 +1823,42 @@ def folder_delete(folder_id):
 
 @inventory_bp.route('/print-qr', methods=['GET', 'POST'])
 @login_required
+@check_module_access('module_inventory')
 def print_qr():
-    """QR-Code-Druck."""
+    """QR-Code-Druck mit Ordner-/Grid-/Listenansicht (inkl. Sets)."""
     if request.method == 'POST':
         product_ids = request.form.getlist('product_ids')
+        set_ids = request.form.getlist('set_ids')
         label_type = request.form.get('label_type', 'cable')  # 'cable' oder 'device'
-        
-        if not product_ids:
+
+        if not product_ids and not set_ids:
             flash(_('inventory.flash.select_products'), 'danger')
             return redirect(url_for('inventory.print_qr'))
-        
+
         try:
-            product_ids = [int(pid) for pid in product_ids]
-            products = Product.query.filter(Product.id.in_(product_ids)).all()
-            
-            if not products:
+            products = []
+            if product_ids:
+                product_ids = [int(pid) for pid in product_ids]
+                products = Product.query.filter(Product.id.in_(product_ids)).all()
+
+            sets = []
+            if set_ids:
+                set_ids = [int(sid) for sid in set_ids]
+                sets = ProductSet.query.filter(ProductSet.id.in_(set_ids)).order_by(ProductSet.name).all()
+
+            if not products and not sets:
                 flash(_('inventory.flash.no_valid_products'), 'danger')
                 return redirect(url_for('inventory.print_qr'))
-            
+
             pdf_buffer = BytesIO()
-            generate_qr_code_sheet_pdf(products, pdf_buffer, label_type=label_type)
+            generate_qr_code_sheet_pdf(products, pdf_buffer, label_type=label_type, sets=sets)
             pdf_buffer.seek(0)
-            
+
             label_type_name = "Kabel" if label_type == 'cable' else "Geräte"
+            if sets and not products:
+                label_type_name = "Sets"
+            elif sets and products:
+                label_type_name = f"{label_type_name}_Sets"
             filename = f"QR-Codes_{label_type_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             return send_file(
                 pdf_buffer,
@@ -1733,20 +1870,49 @@ def print_qr():
             current_app.logger.error(f"Fehler beim Generieren des QR-Code-Druckbogens: {e}")
             flash(_('inventory.flash.generate_error'), 'danger')
             return redirect(url_for('inventory.print_qr'))
-    
-    products = Product.query.options(joinedload(Product.folder)).all()
-    
-    def sort_key(product):
-        if product.folder:
-            return (1, product.folder.name, product.name)
-        else:
-            return (0, '', product.name)
-    
-    products = sorted(products, key=sort_key)
-    
+
+    products = Product.query.options(joinedload(Product.folder)).order_by(Product.name).all()
     folders = ProductFolder.query.order_by(ProductFolder.name).all()
-    
-    return render_template('inventory/print_qr.html', products=products, folders=folders)
+    product_sets = ProductSet.query.order_by(ProductSet.name).all()
+
+    folder_counts = {}
+    for product in products:
+        key = product.folder_id if product.folder_id is not None else None
+        folder_counts[key] = folder_counts.get(key, 0) + 1
+
+    products_payload = [{
+        'id': p.id,
+        'name': p.name or '',
+        'serial_number': p.serial_number or '',
+        'category': p.category or '',
+        'length': p.length or '',
+        'location': p.location or '',
+        'status': p.status or 'available',
+        'folder_id': p.folder_id,
+        'image_path': p.image_path or '',
+    } for p in products]
+
+    folders_payload = [{
+        'id': f.id,
+        'name': f.name or '',
+        'color': f.color or '',
+        'product_count': folder_counts.get(f.id, 0),
+    } for f in folders]
+
+    sets_payload = [{
+        'id': s.id,
+        'name': s.name or '',
+        'description': s.description or '',
+        'product_count': len(s.items) if s.items is not None else 0,
+    } for s in product_sets]
+
+    return render_template(
+        'inventory/print_qr.html',
+        products_payload=products_payload,
+        folders_payload=folders_payload,
+        sets_payload=sets_payload,
+        unfiled_count=folder_counts.get(None, 0),
+    )
 
 
 @inventory_bp.route('/print-qr/color-codes', methods=['GET'])
@@ -2683,7 +2849,10 @@ def api_borrows():
     """API: Checkout-Items für Historie-UI (inkl. zurückgegebene)."""
     status = request.args.get('status', 'all')
     mine = request.args.get('mine', '').lower() in ('1', 'true', 'yes')
-    q = Checkout.query
+    q = Checkout.query.options(
+        selectinload(Checkout.items).joinedload(CheckoutItem.product),
+        selectinload(Checkout.items).joinedload(CheckoutItem.source_set).selectinload(ProductSet.items).joinedload(ProductSetItem.product),
+    )
     if status == 'active':
         q = q.filter(Checkout.status.in_(('active', 'partially_returned')))
     elif status == 'completed':
@@ -2705,6 +2874,7 @@ def api_borrows():
             if status == 'overdue' and not is_overdue:
                 continue
             end_date = c.end_date.date().isoformat() if c.end_date else None
+            set_id, set_name, set_members = _source_set_api_payload(item.source_set)
             payload.append({
                 'id': item.id,
                 'checkout_id': c.id,
@@ -2723,6 +2893,9 @@ def api_borrows():
                 'qr_code_data': c.qr_code_data,
                 'status': item_status,
                 'returned_at': item.returned_at.isoformat() if item.returned_at else None,
+                'source_set_id': set_id,
+                'source_set_name': set_name,
+                'source_set_members': set_members,
             })
     return jsonify(payload)
 
@@ -2930,8 +3103,10 @@ def api_print_qr_codes():
 @login_required
 def sets():
     """Produktsets Übersicht."""
-    sets = ProductSet.query.order_by(ProductSet.name).all()
-    return render_template('inventory/sets.html', sets=sets)
+    return render_template(
+        'inventory/sets.html',
+        can_borrow=check_borrow_permission(),
+    )
 
 
 @inventory_bp.route('/sets/new', methods=['GET', 'POST'])
@@ -3000,10 +3175,15 @@ def set_new():
 def set_view(set_id):
     """Produktset Details anzeigen."""
     product_set = ProductSet.query.get_or_404(set_id)
-    if not hasattr(product_set, 'qr_code_data') or not product_set.qr_code_data:
-        qr_data = generate_set_qr_code(product_set.id)
-        product_set.qr_code_data = qr_data
-    return render_template('inventory/set_view.html', product_set=product_set)
+    available_count = sum(
+        1 for item in product_set.items
+        if item.product and item.product.status == 'available'
+    )
+    return render_template(
+        'inventory/set_view.html',
+        product_set=product_set,
+        available_count=available_count,
+    )
 
 
 @inventory_bp.route('/sets/<int:set_id>/qr-code')
@@ -3104,6 +3284,7 @@ def set_borrow(set_id):
     cart = session.get('borrow_cart', [])
     added = 0
     failed = []
+    added_ids = []
     for item in product_set.items:
         product = item.product
         if not product:
@@ -3114,8 +3295,13 @@ def set_borrow(set_id):
         if product.id not in cart:
             cart.append(product.id)
             added += 1
+            added_ids.append(product.id)
+        elif product.id not in added_ids:
+            added_ids.append(product.id)
     session['borrow_cart'] = cart
     session.modified = True
+    in_cart_from_set = [pid for pid in cart if any(i.product_id == pid for i in product_set.items)]
+    _mark_cart_products_from_set(in_cart_from_set, product_set)
     if added:
         flash(_('inventory.flash.set_borrow_success', name=product_set.name, count=added), 'success')
     if failed:
@@ -3133,13 +3319,25 @@ def api_sets():
     sets = ProductSet.query.order_by(ProductSet.name).all()
     result = []
     for s in sets:
+        available_count = sum(
+            1 for item in s.items
+            if item.product and item.product.status == 'available'
+        )
+        can_edit = bool(current_user.is_admin or s.created_by == current_user.id)
+        creator_name = None
+        if s.creator is not None:
+            creator_name = getattr(s.creator, 'full_name', None) or getattr(s.creator, 'username', None)
         result.append({
             'id': s.id,
             'name': s.name,
             'description': s.description,
             'product_count': s.product_count,
-            'created_at': s.created_at.isoformat(),
-            'created_by': s.created_by
+            'available_count': available_count,
+            'created_at': s.created_at.isoformat() if s.created_at else None,
+            'created_by': s.created_by,
+            'creator_name': creator_name,
+            'can_edit': can_edit,
+            'can_delete': can_edit,
         })
     return jsonify(result)
 
@@ -3153,17 +3351,123 @@ def api_set_detail(set_id):
     for item in product_set.items:
         items.append({
             'product_id': item.product_id,
-            'product_name': item.product.name,
-            'quantity': item.quantity
+            'product_name': item.product.name if item.product else None,
+            'quantity': item.quantity,
+            'status': item.product.status if item.product else None,
         })
-    
+
+    can_edit = bool(current_user.is_admin or product_set.created_by == current_user.id)
     return jsonify({
         'id': product_set.id,
         'name': product_set.name,
         'description': product_set.description,
         'items': items,
-        'created_at': product_set.created_at.isoformat(),
-        'created_by': product_set.created_by
+        'product_count': product_set.product_count,
+        'available_count': sum(1 for i in items if i.get('status') == 'available'),
+        'created_at': product_set.created_at.isoformat() if product_set.created_at else None,
+        'created_by': product_set.created_by,
+        'can_edit': can_edit,
+        'can_delete': can_edit,
+    })
+
+
+@inventory_bp.route('/api/sets/bulk-borrow', methods=['POST'])
+@login_required
+def api_sets_bulk_borrow():
+    """API: Mehrere Sets in den Ausleih-Warenkorb legen."""
+    if not check_borrow_permission():
+        return jsonify({'error': translate('inventory.flash.no_borrow_permission')}), 403
+
+    data = request.get_json(silent=True) or {}
+    set_ids = data.get('set_ids', [])
+    if not set_ids or not isinstance(set_ids, list):
+        return jsonify({'error': translate('inventory.errors.invalid_set_ids')}), 400
+
+    try:
+        set_ids_int = [int(sid) for sid in set_ids]
+    except (ValueError, TypeError):
+        return jsonify({'error': translate('inventory.errors.invalid_set_ids')}), 400
+
+    product_sets = ProductSet.query.filter(ProductSet.id.in_(set_ids_int)).all()
+    if not product_sets:
+        return jsonify({'error': translate('inventory.errors.product_or_set_not_found')}), 404
+
+    cart = session.get('borrow_cart', [])
+    added = 0
+    failed = []
+    for product_set in product_sets:
+        set_product_ids = []
+        for item in product_set.items:
+            product = item.product
+            if not product:
+                continue
+            if product.status != 'available':
+                failed.append(product.name)
+                continue
+            if product.id not in cart:
+                cart.append(product.id)
+                added += 1
+            set_product_ids.append(product.id)
+        in_cart_from_set = [pid for pid in cart if pid in set_product_ids]
+        _mark_cart_products_from_set(in_cart_from_set, product_set)
+
+    session['borrow_cart'] = cart
+    session.modified = True
+
+    if not added:
+        return jsonify({
+            'error': translate('inventory.flash.no_available_products'),
+            'failed': failed,
+        }), 400
+
+    return jsonify({
+        'ok': True,
+        'added': added,
+        'failed': failed,
+        'redirect': url_for('inventory.borrow_scanner'),
+        'message': translate('inventory.flash.sets_bulk_borrow_success', count=added),
+    })
+
+
+@inventory_bp.route('/api/sets/bulk-delete', methods=['POST'])
+@login_required
+def api_sets_bulk_delete():
+    """API: Mehrere Produktsets löschen."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'error': translate('inventory.errors.guests_cannot_delete')}), 403
+
+    data = request.get_json(silent=True) or {}
+    set_ids = data.get('set_ids', [])
+    if not set_ids or not isinstance(set_ids, list):
+        return jsonify({'error': translate('inventory.errors.invalid_set_ids')}), 400
+
+    try:
+        set_ids_int = [int(sid) for sid in set_ids]
+    except (ValueError, TypeError):
+        return jsonify({'error': translate('inventory.errors.invalid_set_ids')}), 400
+
+    product_sets = ProductSet.query.filter(ProductSet.id.in_(set_ids_int)).all()
+    if not product_sets:
+        return jsonify({'error': translate('inventory.errors.product_or_set_not_found')}), 404
+
+    deleted = 0
+    skipped = []
+    for product_set in product_sets:
+        if not current_user.is_admin and product_set.created_by != current_user.id:
+            skipped.append(product_set.name)
+            continue
+        db.session.delete(product_set)
+        deleted += 1
+
+    if deleted == 0:
+        return jsonify({'error': translate('inventory.flash.set_no_delete_permission')}), 403
+
+    db.session.commit()
+    return jsonify({
+        'ok': True,
+        'deleted_count': deleted,
+        'skipped': skipped,
+        'message': translate('inventory.flash.sets_bulk_deleted', count=deleted),
     })
 
 
@@ -3295,8 +3599,9 @@ def api_product_documents(product_id):
 @inventory_bp.route('/api/search', methods=['GET'])
 @login_required
 def api_search():
-    """Erweiterte Volltextsuche über alle Produktfelder."""
+    """Erweiterte Volltextsuche über alle Produktfelder (optional inkl. Sets)."""
     search_query = request.args.get('q', '').strip()
+    include_sets = request.args.get('include_sets', '').lower() in ('1', 'true', 'yes')
     
     if not search_query:
         return jsonify({'error': translate('inventory.errors.search_term_required')}), 400
@@ -3312,7 +3617,7 @@ def api_search():
             Product.location.ilike(search_pattern),
             Product.condition.ilike(search_pattern)
         )
-    ).order_by(Product.name).all()
+    ).order_by(Product.name).limit(20).all()
     
     result = []
     for p in products:
@@ -3323,10 +3628,28 @@ def api_search():
             'category': p.category,
             'serial_number': p.serial_number,
             'status': p.status,
-            'location': p.location
+            'location': p.location,
+            'type': 'product',
         })
-    
-    return jsonify(result)
+
+    if not include_sets:
+        return jsonify(result)
+
+    sets = ProductSet.query.filter(
+        or_(
+            ProductSet.name.ilike(search_pattern),
+            ProductSet.description.ilike(search_pattern),
+        )
+    ).order_by(ProductSet.name).limit(10).all()
+    set_results = [{
+        'id': s.id,
+        'name': s.name,
+        'description': s.description,
+        'product_count': len(s.items) if s.items is not None else 0,
+        'type': 'set',
+    } for s in sets]
+
+    return jsonify({'products': result, 'sets': set_results})
 
 
 @inventory_bp.route('/api/filters', methods=['GET'])

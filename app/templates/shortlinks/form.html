@@ -122,7 +122,7 @@
                     <div class="shortlinks-form-field">
                         <label for="expires_at" class="form-label">Ablaufdatum (optional)</label>
                         <input type="datetime-local" class="form-control" id="expires_at" name="expires_at"
-                               value="{% if link and link.expires_at %}{{ link.expires_at|localdatetime('%Y-%m-%dT%H:%M') }}{% else %}{{ request.form.get('expires_at', '') }}{% endif %}">
+                               value="{% if link and link.expires_at %}{{ link.expires_at.strftime('%Y-%m-%dT%H:%M') }}{% else %}{{ request.form.get('expires_at', '') }}{% endif %}">
                     </div>
                     <div class="shortlinks-form-field">
                         <label for="max_clicks" class="form-label">Maximale Aufrufe (optional)</label>

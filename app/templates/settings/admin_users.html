@@ -223,7 +223,7 @@
                         {% endif %}
                         <span aria-hidden="true">·</span>
                         {% if guest.guest_expires_at %}
-                        <span class="{% if is_expired %}text-danger{% endif %}">{{ _('settings.admin.users.expires') }} {{ guest.guest_expires_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
+                        <span class="{% if is_expired %}text-danger{% endif %}">{{ _('settings.admin.users.expires') }} {{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
                         {% else %}
                         <span>{{ _('settings.admin.users.code_unlimited') }}</span>
                         {% endif %}

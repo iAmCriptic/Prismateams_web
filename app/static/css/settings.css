@@ -3975,6 +3975,13 @@ textarea.settings-admin-booking-input {
     color: var(--accent-color, #0d6efd);
 }
 
+.tooltip.settings-admin-music-tooltip .tooltip-inner {
+    max-width: 22rem;
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    line-height: 1.35;
+}
+
 .settings-admin-music-hint {
     margin: 0 0 0.65rem;
     font-size: 0.85rem;

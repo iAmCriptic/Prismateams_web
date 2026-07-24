@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal-msg.css') }}">
     {% include 'auth/_auth_bg.html' %}
     <style>
         :root { --booking-public-bg: var(--auth-page-bg); }
@@ -28,10 +29,18 @@
             <h1 class="booking-public-title">{{ booking_request.event_name }}</h1>
             <p class="booking-public-subtitle">Status Ihrer Buchungsanfrage</p>
 
-            <div class="booking-public-info">
-                <i class="bi bi-info-circle"></i>
-                Auf dieser Seite sehen Sie den Status Ihrer Anfrage. Speichern Sie sich diese Seite vorübergehend ab.
-                Bei Aktualisierung sollten Sie außerdem eine E-Mail erhalten.
+            <div class="alert portal-msg portal-msg--info alert-permanent mb-3" role="note">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-info-circle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">
+                            Auf dieser Seite sehen Sie den Status Ihrer Anfrage. Speichern Sie sich diese Seite vorübergehend ab.
+                            Bei Aktualisierung sollten Sie außerdem eine E-Mail erhalten.
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <div class="booking-public-meta">
@@ -65,16 +74,29 @@
             </div>
 
             {% if booking_request.status == 'accepted' and booking_request.calendar_event %}
-            <div class="alert alert-success" style="border-radius: 1.25rem;">
-                <i class="bi bi-check-circle"></i> Ihre Buchung wurde angenommen!
-                Der Termin wurde in den Kalender eingetragen.
+            <div class="alert portal-msg portal-msg--success alert-permanent mb-3" role="status">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">Ihre Buchung wurde angenommen! Der Termin wurde in den Kalender eingetragen.</p>
+                    </div>
+                </div>
             </div>
             {% endif %}
 
             {% if booking_request.status == 'rejected' and booking_request.rejection_reason %}
-            <div class="alert alert-danger" style="border-radius: 1.25rem;">
-                <i class="bi bi-x-circle"></i> <strong>Buchung abgelehnt</strong><br>
-                {{ booking_request.rejection_reason }}
+            <div class="alert portal-msg portal-msg--danger alert-permanent mb-3" role="alert">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-x-circle-fill"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <h6 class="portal-msg__title">Buchung abgelehnt</h6>
+                        <p class="portal-msg__text">{{ booking_request.rejection_reason }}</p>
+                    </div>
+                </div>
             </div>
             {% endif %}
 

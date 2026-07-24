@@ -25,7 +25,7 @@
                     <i class="bi bi-inbox me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.neu') }}
                     {% set pcount = counts.get(bf.id, 0) %}
                     {% if pcount %}
-                    <span class="badge rounded-pill mod-nav-badge ms-auto">{{ pcount }}</span>
+                    <span class="booking-nav-badge ms-auto">{{ pcount }}</span>
                     {% endif %}
                 </a>
                 <a class="nav-link mod-nav-link {% if active_form_id == bf.id and active_view == 'accepted' %}active{% endif %}"

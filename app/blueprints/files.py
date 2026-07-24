@@ -15,6 +15,7 @@ from app.utils.private_files import (
     can_view_file,
     can_view_folder,
     ensure_personal_root,
+    folder_is_under_personal_root,
     hard_delete_file_disk_and_db,
     hard_delete_folder_recursive,
     is_private_folders_enabled,
@@ -541,6 +542,15 @@ def browse_folder(folder_id):
         files_view = None
     else:
         files_view = normalize_view(request.args.get('view'), private_enabled=private_enabled)
+
+    # Öffentliche Ordner (z.B. Buchung) landen ohne ?view= default in Ablage → kein Zugriff.
+    # Bei Private-Mode auf Public-Ansicht umleiten, wenn Ordner nicht unter persönlicher Ablage liegt.
+    if private_enabled and files_view == 'ablage' and not request.args.get('view'):
+        target = Folder.query.get(folder_id)
+        if target and target.deleted_at is None:
+            personal_root = ensure_personal_root(current_user.id)
+            if not folder_is_under_personal_root(target, personal_root.id):
+                return redirect(url_for('files.browse_folder', folder_id=folder_id, view='public'))
 
     if not is_guest and files_view:
         session['files_last_view'] = files_view
@@ -1809,8 +1819,8 @@ def edit_file(file_id):
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             or 'application/json' in (request.headers.get('Accept') or '')
         )
-        # Exclusive edit lock: only the lock holder may save.
-        if not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
+        # Exclusive lock only for Markdown (OnlyOffice stays collaborative).
+        if is_markdown and not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
             blocker = file_edit_lock_util.get_active_lock(file.id)
             locker_name = None
             if blocker:
@@ -1894,13 +1904,20 @@ def edit_file(file_id):
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
 
-    lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
-    edit_locked = lock is None
-    if lock:
-        lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
-        db.session.commit()
-    else:
-        lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
+    # Exclusive soft-lock only for Markdown files.
+    # OnlyOffice documents (docx/xlsx/pptx/…) stay collaborative.
+    edit_locked = False
+    lock_info = None
+    edit_session_key = None
+    if is_markdown:
+        lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
+        edit_locked = lock is None
+        if lock:
+            lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
+            edit_session_key = lock.session_key
+            db.session.commit()
+        else:
+            lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
     
     return render_template(
         'files/edit.html',
@@ -1910,7 +1927,7 @@ def edit_file(file_id):
         is_markdown=is_markdown,
         edit_locked=edit_locked,
         lock_info=lock_info,
-        edit_session_key=(lock.session_key if lock else None),
+        edit_session_key=edit_session_key,
     )
 
 
@@ -3737,7 +3754,7 @@ def api_onlyoffice_presence():
 @login_required
 @check_module_access('module_files')
 def api_file_edit_lock():
-    """Acquire / heartbeat / release exclusive text-editor locks."""
+    """Acquire / heartbeat / release exclusive Markdown editor locks."""
     payload = request.get_json(silent=True) or {}
     action = (payload.get('action') or 'heartbeat').strip().lower()
     session_key = (payload.get('session_key') or '').strip()
@@ -3779,12 +3796,18 @@ def api_file_edit_lock():
             'lock': file_edit_lock_util.serialize_lock(lock, include_session=held_by_me),
         })
 
-    # Default: acquire / join
+    # Default: acquire / join — Markdown only
     try:
         file_id = int(payload.get('file_id'))
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
     file_obj = File.query.get_or_404(file_id)
+    file_ext = os.path.splitext(file_obj.original_name)[1].lower()
+    if not _is_markdown_extension(file_ext):
+        return jsonify({
+            'success': False,
+            'error': 'Edit-Lock gilt nur für Markdown-Dateien.',
+        }), 400
     if _is_guest_user():
         from app.utils.access_control import guest_has_file_access
         if not guest_has_file_access(current_user, file_obj):

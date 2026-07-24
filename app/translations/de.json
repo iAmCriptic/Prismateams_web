@@ -861,8 +861,9 @@
       },
       "booking": {
         "title": "Buchungsanfragen",
-        "toggle": "Benachrichtigungen für neue Buchungsanfragen",
-        "help": "Push, wenn eine neue Anfrage für ein Formular eintrifft, bei dem Sie eine Rolle haben"
+        "toggle": "Bei neuen Buchungsanfragen",
+        "toggle_messages": "Bei neuen Nachrichten",
+        "help": "Glocke und Push, wenn eine neue Buchungsanfrage eingeht oder der Antragsteller antwortet (je nach Schalter)"
       },
       "email": {
         "title": "E-Mail-Benachrichtigungen",
@@ -3327,6 +3328,7 @@
       "no_borrow_permission": "Sie haben keine Berechtigung, Artikel auszuleihen.",
       "no_action_specified": "Keine Aktion angegeben.",
       "product_or_set_not_found": "Produkt oder Set nicht gefunden.",
+      "invalid_set_ids": "Ungültige Set-IDs.",
       "inventory_not_active": "Inventur ist nicht aktiv.",
       "product_not_in_inventory": "Produkt nicht in dieser Inventur gefunden.",
       "qr_data_required": "QR-Code-Daten erforderlich.",
@@ -3421,6 +3423,8 @@
       "set_deleted": "Produktset \"{name}\" wurde erfolgreich gelöscht.",
       "set_borrow_success": "Set \"{name}\" erfolgreich ausgeliehen. {count} Produkte ausgeliehen.",
       "set_borrow_partial": "Folgende Produkte konnten nicht ausgeliehen werden: {products}",
+      "sets_bulk_borrow_success": "{count} Produkt(e) aus den ausgewählten Sets in den Warenkorb gelegt.",
+      "sets_bulk_deleted": "{count} Produktset(s) wurden gelöscht.",
       "no_file_selected": "Keine Datei ausgewählt.",
       "document_uploaded": "Dokument \"{filename}\" wurde erfolgreich hochgeladen.",
       "invalid_request": "Ungültige Anfrage.",
@@ -3437,6 +3441,13 @@
       "file_not_found": "Die Datei konnte nicht gefunden werden.",
       "fill_all_fields": "Bitte füllen Sie alle Felder aus.",
       "invalid_date": "Ungültiges Datum."
+    },
+    "cart": {
+      "set_badge": "Set",
+      "set_badge_title": "Aus Produktset",
+      "set_contents": "Bestandteile",
+      "set_members_heading": "Set „{name}“",
+      "set_members_empty": "Keine Produkte"
     },
     "dashboard": {
       "page_title": "Lagerverwaltung - Team Portal",
@@ -3727,10 +3738,12 @@
         "success": "QR-Code erkannt"
       },
       "manual": {
-        "title": "QR-Code oder Ausleihvorgangsnummer eingeben",
-        "qr_code": "QR-Code",
-        "qr_placeholder": "QR-Code eingeben (z.B. BORROW-INV-... oder PROD-...)",
-        "qr_help": "Geben Sie den QR-Code des Produkts oder der Ausleihe ein.",
+        "title": "ID oder Ausleihvorgangsnummer eingeben",
+        "qr_code": "ID",
+        "qr_placeholder": "PROD, SET, BORROW",
+        "qr_help": "",
+        "search_label": "Produkt suchen",
+        "search_placeholder": "Name, Seriennummer, Kategorie…",
         "transaction_number": "oder Ausleihvorgangsnummer",
         "transaction_placeholder": "z.B. INV-20251103-123456-ABCD",
         "transaction_help": "Alternativ können Sie die Ausleihvorgangsnummer direkt eingeben.",
@@ -3768,15 +3781,112 @@
     "sets": {
       "page_title": "Produktsets - Team Portal",
       "heading": "Produktsets",
-      "subtitle": "Verwalten Sie Sets von Produkten",
+      "subtitle": "Mehrere Produkte zu einem Set zusammenfassen",
       "new_set": "Neues Set",
+      "loading": "Lädt...",
+      "load_error": "Fehler beim Laden der Produktsets. Bitte Seite neu laden.",
+      "products_count": "{count} Produkte",
+      "available_count": "{available} von {total} verfügbar",
+      "search": {
+        "placeholder": "Sets suchen…",
+        "label": "Produktsets durchsuchen"
+      },
+      "filters": {
+        "title": "Filter",
+        "availability": "Verfügbarkeit",
+        "availability_any": "Alle",
+        "availability_full": "Voll verfügbar",
+        "availability_partial": "Teilweise verfügbar",
+        "availability_none": "Nichts verfügbar",
+        "availability_empty": "Ohne Produkte",
+        "ownership": "Besitz",
+        "ownership_any": "Alle Sets",
+        "ownership_mine": "Nur meine Sets",
+        "ownership_editable": "Von mir bearbeitbar",
+        "description": "Beschreibung",
+        "description_any": "Egal",
+        "description_with": "Mit Beschreibung",
+        "description_without": "Ohne Beschreibung",
+        "reset": "Filter zurücksetzen"
+      },
+      "sort": {
+        "title": "Sortierung",
+        "field": "Sortieren nach",
+        "direction": "Richtung",
+        "name": "Name",
+        "product_count": "Anzahl Produkte",
+        "available_count": "Verfügbare Produkte",
+        "created_at": "Erstelldatum",
+        "creator": "Ersteller",
+        "asc": "Aufsteigend",
+        "desc": "Absteigend",
+        "reset": "Sortierung zurücksetzen"
+      },
+      "list": {
+        "name": "Name",
+        "products": "Produkte",
+        "availability": "Verfügbar",
+        "description": "Beschreibung",
+        "actions": "Aktionen"
+      },
+      "actions": {
+        "view": "Anzeigen",
+        "borrow": "Ausleihen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen"
+      },
+      "bulk_selection": {
+        "selected": "ausgewählt",
+        "select_all": "Alle",
+        "deselect_all": "Keine",
+        "borrow": "Ausleihen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "none_selected": "Bitte mindestens ein Set auswählen.",
+        "edit_single_only": "Zum Bearbeiten bitte genau ein Set auswählen.",
+        "no_edit_permission": "Keine Berechtigung zum Bearbeiten.",
+        "no_delete_permission": "Keine Berechtigung zum Löschen aller ausgewählten Sets.",
+        "no_borrow_permission": "Keine Berechtigung zum Ausleihen.",
+        "borrow_none_available": "In den ausgewählten Sets sind keine verfügbaren Produkte."
+      },
+      "modals": {
+        "bulk_delete": {
+          "title": "Sets löschen",
+          "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+          "message": "Möchten Sie wirklich {count} Set(s) löschen?",
+          "note": "Die Produkte selbst bleiben erhalten.",
+          "cancel": "Abbrechen",
+          "confirm": "Löschen",
+          "deleting": "Löschen..."
+        }
+      },
       "table": {
         "name": "Name",
         "products": "Produkte",
         "actions": "Aktionen"
       },
       "empty": "Keine Sets vorhanden",
-      "create_hint": "Erstellen Sie Ihr erstes Set!"
+      "create_hint": "Erstellen Sie Ihr erstes Set!",
+      "detail": {
+        "borrow": "Set ausleihen",
+        "delete_confirm": "Möchten Sie dieses Set wirklich löschen?",
+        "info_title": "Details",
+        "name": "Name",
+        "products": "Produkte",
+        "availability": "Verfügbarkeit",
+        "created_by": "Erstellt von",
+        "created_at": "Erstellt am",
+        "updated_at": "Aktualisiert am",
+        "description": "Beschreibung",
+        "no_description": "Keine Beschreibung hinterlegt.",
+        "products_title": "Produkte im Set ({count})",
+        "col_product": "Produkt",
+        "col_category": "Kategorie",
+        "col_status": "Status",
+        "col_qty": "Menge",
+        "col_actions": "Aktionen",
+        "no_products": "Dieses Set enthält noch keine Produkte."
+      }
     },
     "folders": {
       "page_title": "Ordner - Team Portal",
@@ -3789,11 +3899,80 @@
     },
     "statistics": {
       "page_title": "Statistiken - Team Portal",
-      "heading": "Statistiken"
+      "heading": "Statistik",
+      "subtitle": "Kennzahlen, Verteilungen und Ausleihtrends",
+      "loading": "Statistiken werden geladen…",
+      "load_error": "Fehler beim Laden der Statistiken",
+      "no_data": "Keine Daten verfügbar",
+      "no_borrows": "Noch keine Ausleihen vorhanden",
+      "no_trends": "Noch keine Trend-Daten verfügbar",
+      "chart_error": "Fehler beim Laden der Daten",
+      "apex_error": "Chart-Bibliothek konnte nicht geladen werden. Bitte Seite neu laden.",
+      "kpi": {
+        "total": "Gesamtbestand",
+        "available": "Verfügbar",
+        "borrowed": "Ausgeliehen",
+        "overdue": "Überfällig",
+        "availability_rate": "Verfügbarkeitsquote"
+      },
+      "charts": {
+        "categories": "Kategorienverteilung",
+        "status": "Status-Verteilung",
+        "top_borrowed": "Meist ausgeliehene Produkte (Top 10)",
+        "trends": "Ausleihtrends (letzte 12 Monate)"
+      },
+      "series": {
+        "count": "Anzahl",
+        "borrows": "Ausleihen"
+      }
     },
     "print_qr": {
-      "page_title": "QR-Codes drucken - Team Portal",
-      "heading": "QR-Codes drucken"
+      "page_title": "QR / Etiketten - Team Portal",
+      "heading": "QR / Etiketten",
+      "hint": "Ordner öffnen oder Produkte auswählen, dann PDF erzeugen.",
+      "empty": "Keine Produkte vorhanden.",
+      "empty_folder": "Dieser Ordner enthält keine Produkte.",
+      "empty_search": "Keine Treffer für die Suche.",
+      "empty_sets": "Keine Sets vorhanden.",
+      "add_product": "Produkt hinzufügen",
+      "set_badge": "Set",
+      "search": {
+        "label": "Produkte suchen",
+        "placeholder": "Name, Seriennummer, Kategorie…"
+      },
+      "selection": {
+        "selected": "Produkt(e) ausgewählt",
+        "select_all": "Alle auswählen",
+        "deselect_all": "Alle abwählen",
+        "select_visible": "Sichtbare auswählen",
+        "deselect_visible": "Sichtbare abwählen"
+      },
+      "actions": {
+        "color_codes": "Farbcodes",
+        "generate_pdf": "PDF generieren"
+      },
+      "label_types": {
+        "cable": "Kabel (Farbstreifen)",
+        "device": "Geräte"
+      },
+      "folder": {
+        "open": "Öffnen",
+        "select": "Ordner auswählen",
+        "unfiled": "Ohne Ordner",
+        "sets": "Sets",
+        "products_count": "{count} Produkte",
+        "sets_count": "{count} Sets"
+      },
+      "list": {
+        "name": "Name",
+        "status": "Status",
+        "category": "Kategorie",
+        "serial": "Seriennummer",
+        "length": "Länge"
+      },
+      "errors": {
+        "no_selection": "Bitte wählen Sie mindestens ein Produkt aus."
+      }
     }
   },
   "music": {
@@ -3871,11 +4050,11 @@
     "public_wishlist": {
       "page_title": "Musikwunschliste",
       "title": "Dein Musikwunsch",
-      "subtitle": "Teile uns hier deinen Musikwunsch mit",
+      "subtitle": "Suche ein Lied und füge es hinzu",
       "no_providers": "Keine Musik-Provider aktiviert. Bitte aktivieren Sie mindestens einen Provider in den Einstellungen.",
       "provider_select": "Musikdienst auswählen",
       "search_label": "Lied suchen",
-      "search_placeholder": "\"Titel\" \"Künstler\" oder frei",
+      "search_placeholder": "Titel oder Künstler…",
       "search_button": "Suchen",
       "search_help_format": "Format",
       "search_help_text": "Mit Anführungszeichen: <code>\"Titel\" \"Künstler\"</code> oder frei: <code>Titel Künstler</code>",
@@ -3895,6 +4074,18 @@
       "unknown_artist": "Unbekannter Künstler",
       "search_error": "Fehler bei der Suche: {error}"
     },
+    "public_url": {
+      "page_title": "Musikwünsche – QR-Code",
+      "heading": "Musikwünsche",
+      "subtitle": "Einfach online einreichen – per QR-Code scannen oder Link öffnen",
+      "link_label": "Öffentlicher Link",
+      "short_link_label": "Kurzlink",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "print": "Drucken",
+      "print_title": "Musikwunsch?",
+      "print_subtitle": "Scanne den QR-Code"
+    },
     "admin": {
       "page_title": "Musikmodul-Einstellungen - Administration",
       "breadcrumb_settings": "Einstellungen",
@@ -3913,7 +4104,7 @@
       "spotify": {
         "title": "Spotify",
         "hint_title": "Hinweis",
-        "hint": "Spotify verwendet einfache OAuth-Anmeldung. Benutzer können sich mit ihrem Spotify-Konto anmelden.",
+        "hint": "Benötigt Client ID und Client Secret aus dem Spotify Developer Dashboard (App anlegen). OAuth-Anmeldung über Spotify-Konto. Redirect URI unten eintragen.",
         "client_id": "Client ID",
         "client_id_placeholder": "Spotify Client ID",
         "client_id_help": "Erhalten Sie Ihre Credentials im <a href=\"{link}\" target=\"_blank\">Spotify Developer Dashboard</a>",
@@ -3929,10 +4120,10 @@
       "youtube": {
         "title": "YouTube",
         "hint_title": "Hinweis",
-        "hint": "YouTube kann jetzt mit einem einfachen API-Key verwendet werden. OAuth ist optional.",
+        "hint": "Benötigt die YouTube Data API v3. In der Google Cloud Console diese API aktivieren, API-Schlüssel erstellen und bei API-Einschränkungen „YouTube Data API v3“ auswählen. OAuth (Client ID/Secret) ist optional.",
         "api_key_label": "API-Key (empfohlen)",
         "api_key_placeholder": "YouTube API-Key",
-        "api_key_help": "Erhalten Sie einen API-Key in der <a href=\"{link}\" target=\"_blank\">Google Cloud Console</a>",
+        "api_key_help": "Google Cloud Console: YouTube Data API v3 aktivieren → API-Schlüssel anlegen → bei Einschränkungen nur „YouTube Data API v3“ erlauben. <a href=\"{link}\" target=\"_blank\">Zur Google Cloud Console</a>",
         "client_id": "OAuth Client ID (optional)",
         "client_id_placeholder": "YouTube OAuth Client ID",
         "client_secret": "OAuth Client Secret (optional)",
@@ -3948,7 +4139,7 @@
       "deezer": {
         "title": "Deezer",
         "hint_title": "Hinweis",
-        "hint": "Deezer verwendet eine öffentliche API. Eine App-ID ist optional, aber empfohlen für höhere Rate Limits.",
+        "hint": "Öffentliche API – App-ID optional (empfohlen für höhere Rate Limits). App im Deezer Developer Portal anlegen und App-ID hier eintragen.",
         "app_id_label": "App-ID (optional)",
         "app_id_placeholder": "Deezer App-ID",
         "app_id_help": "Erhalten Sie eine App-ID im <a href=\"{link}\" target=\"_blank\">Deezer Developer Portal</a> (optional, aber empfohlen für höhere Rate Limits)"
@@ -4110,6 +4301,7 @@
         "send": "Senden"
       },
       "confirm_accept": "Buchung wirklich annehmen? Ein Kalendereintrag wird erstellt.",
+      "confirm_accept_title": "Annahme bestätigen",
       "actions_heading": "Aktionen"
     },
     "public_form": {
@@ -4238,17 +4430,35 @@
     },
     "form": {
       "title": "Neuer Download",
+      "link_box_title": "Link / Suche",
+      "single_label": "Einzelnes Lied / Video",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Nur einzelne Videos oder Songs — keine Playlists.",
+      "playlist_label": "Playlist",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Playlist-Link einfügen. Einstellungen erscheinen im Kasten Zeitabschnitt.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Unterstützt: YouTube, YouTube Music und Playlists",
       "format_label": "Format",
       "format_audio": "Audio (MP3)",
       "format_video": "Video (MP4)",
+      "segment_heading": "Zeitabschnitt",
       "start_label": "Start (optional)",
       "end_label": "Ende (optional)",
       "time_placeholder": "M:SS",
       "segment_hint": "Optional: Nur einen Abschnitt herunterladen (Start und Ende angeben, z. B. 1:30 und 3:45).",
       "submit": "Download starten"
+    },
+    "search": {
+      "label": "YouTube Suche",
+      "placeholder": "Song oder Künstler suchen…",
+      "hint": "Vorschläge von der YouTube Data API — Treffer wählen, URL wird übernommen.",
+      "loading": "Suche…",
+      "empty": "Keine Treffer gefunden.",
+      "error": "Suche fehlgeschlagen.",
+      "unavailable": "YouTube-Suche ist nicht verfügbar.",
+      "unavailable_hint": "YouTube-API-Key fehlt. Unter Einstellungen → Musik den YouTube-API-Key eintragen."
     },
     "jobs": {
       "title": "Meine Downloads",
@@ -4260,7 +4470,13 @@
       "download": "Herunterladen",
       "empty": "Noch keine Downloads vorhanden.",
       "clear_all": "Alles löschen",
-      "clear_all_confirm": "Alle Downloads entfernen und aktive Downloads abbrechen?"
+      "clear_all_confirm": "Alle Downloads entfernen und aktive Downloads abbrechen?",
+      "delete_confirm": "Diesen Download wirklich löschen?",
+      "open_source": "Quelle öffnen",
+      "actions": "Aktionen",
+      "view_toggle": "Ansicht umschalten",
+      "view_list": "Listenansicht",
+      "view_grid": "Kachelansicht"
     },
     "format": {
       "audio": "MP3",
@@ -4270,17 +4486,19 @@
       "pending": "Wartend",
       "processing": "In Bearbeitung",
       "completed": "Fertig",
-      "failed": "Fehlgeschlagen",
+      "failed": "Wegen Fehler abgebrochen",
       "cancelled": "Abgebrochen",
       "cancelling": "Wird abgebrochen"
     },
     "playlist": {
       "modal_title": "Playlist herunterladen",
+      "segment_heading": "Playlist-Einstellungen",
+      "inline_hint": "Alle Songs komplett oder Zeitstempel pro Song — dann Download starten.",
       "loading": "Playlist wird geladen…",
       "song_count": "%(count)s Songs in dieser Playlist",
       "mode_complete": "Alle Songs komplett herunterladen",
       "mode_timestamps": "Zeitstempel pro Song angeben",
-      "download_all": "Alle runterladen",
+      "download_all": "Playlist herunterladen",
       "preview_error": "Playlist konnte nicht geladen werden."
     },
     "flash": {
@@ -4341,7 +4559,10 @@
     },
     "booking": {
       "request_title": "Neue Buchungsanfrage",
-      "request_body": "{event} – {applicant}"
+      "request_body": "{event} – {applicant}",
+      "message_title": "Neue Nachricht zur Buchung",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
     },
     "push": {
       "test_title": "Test-Benachrichtigung",

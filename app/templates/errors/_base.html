@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-card">
+        <div class="error-panel">
+            <div class="error-panel-body">
+                <p class="error-code">{% block error_code %}{% endblock %}</p>
+                {% block error_body %}{% endblock %}
+
+                <div class="error-footer">
+                    <div class="error-actions">
+                        <button type="button" class="btn error-btn error-btn--ghost" onclick="history.back()">
+                            Zurück
+                        </button>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('dashboard.index') }}" class="btn btn-accent error-btn error-btn--primary">
+                            Startseite
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-accent error-btn error-btn--primary">
+                            Login
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% if error_detail %}
+                    <button type="button"
+                            class="error-detail-link"
+                            id="errorDetailToggle"
+                            aria-expanded="false"
+                            aria-controls="errorDetailPanel">
+                        Fehlerdetails
+                    </button>
+                    {% endif %}
+                </div>
+
+                {% if error_detail %}
+                <pre class="error-detail-panel" id="errorDetailPanel" hidden>{{ error_detail }}</pre>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'auth/_auth_bg.html' %}
+
+{% if error_detail %}
+<script>
+(function () {
+    var toggle = document.getElementById('errorDetailToggle');
+    var panel = document.getElementById('errorDetailPanel');
+    if (!toggle || !panel) return;
+    toggle.addEventListener('click', function () {
+        var open = panel.hasAttribute('hidden');
+        if (open) {
+            panel.removeAttribute('hidden');
+            toggle.setAttribute('aria-expanded', 'true');
+        } else {
+            panel.setAttribute('hidden', '');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

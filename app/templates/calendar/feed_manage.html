@@ -1,70 +1,79 @@
-{% extends "base.html" %}
+{% extends "calendar/base_calendar.html" %}
 
-{% block title %}{{ _('calendar.feed.page_title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block title %}{{ _('calendar.feed.page_title') }}{% endblock %}
+{% block calendar_mobile_title %}{{ _('calendar.feed.heading') }}{% endblock %}
 
-{% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('calendar.index') }}">{{ _('calendar.index.heading') }}</a></li>
-                <li class="breadcrumb-item active">{{ _('calendar.feed.heading') }}</li>
-            </ol>
-        </nav>
+{% block calendar_content %}
+<div class="calendar-form">
+    <div class="calendar-form-header">
+        <h1 class="calendar-form-title">
+            <i class="bi bi-phone" aria-hidden="true"></i>
+            {{ _('calendar.feed.heading') }}
+        </h1>
+        <p class="calendar-form-subtitle">{{ _('calendar.feed.intro') }}</p>
+    </div>
 
-        <h1 class="mb-3"><i class="bi bi-phone"></i> {{ _('calendar.feed.heading') }}</h1>
-        <p class="text-muted">{{ _('calendar.feed.intro') }}</p>
-
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('calendar.feed.your_link') }}</h5>
+    <div class="calendar-form-body">
+        <section class="calendar-form-card" aria-labelledby="cal-feed-link">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-feed-link" class="calendar-form-section-title">
+                    <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                    {{ _('calendar.feed.your_link') }}
+                </h2>
             </div>
-            <div class="card-body">
-                <label class="form-label" for="feedUrlInput">{{ _('calendar.feed.link_label') }}</label>
-                <div class="input-group mb-3">
-                    <input type="text" class="form-control" value="{{ feed_url }}" readonly id="feedUrlInput">
-                    <button class="btn btn-outline-secondary" type="button" id="copyFeedBtn">
-                        <i class="bi bi-clipboard"></i> {{ _('calendar.feed.copy') }}
-                    </button>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <label class="form-label" for="feedUrlInput">{{ _('calendar.feed.link_label') }}</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" value="{{ feed_url }}" readonly id="feedUrlInput">
+                        <button class="btn btn-outline-secondary" type="button" id="copyFeedBtn">
+                            <i class="bi bi-clipboard"></i> {{ _('calendar.feed.copy') }}
+                        </button>
+                    </div>
                 </div>
-
-                <div class="d-grid gap-2 d-sm-flex">
-                    <a href="{{ webcal_url }}" class="btn btn-accent">
+                <div class="calendar-form-field">
+                    <a href="{{ webcal_url }}" class="btn btn-accent calendar-form-submit">
                         <i class="bi bi-calendar-plus"></i> {{ _('calendar.feed.open_in_app') }}
                     </a>
                 </div>
-
-                <p class="small text-muted mt-3 mb-0">
+                <p class="small text-muted mb-0">
                     {{ _('calendar.feed.one_link_hint') }}
                 </p>
             </div>
-        </div>
+        </section>
 
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">{{ _('calendar.feed.howto_title') }}</h5>
+        <section class="calendar-form-card" aria-labelledby="cal-feed-howto">
+            <div class="calendar-form-card-head">
+                <h2 id="cal-feed-howto" class="calendar-form-section-title">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    {{ _('calendar.feed.howto_title') }}
+                </h2>
             </div>
-            <div class="card-body">
-                <h6>Google Calendar:</h6>
-                <ol>
-                    <li>{{ _('calendar.feed.howto_google_1') }}</li>
-                    <li>{{ _('calendar.feed.howto_google_2') }}</li>
-                    <li>{{ _('calendar.feed.howto_google_3') }}</li>
-                </ol>
-
-                <h6 class="mt-3">Outlook:</h6>
-                <ol>
-                    <li>{{ _('calendar.feed.howto_outlook_1') }}</li>
-                    <li>{{ _('calendar.feed.howto_outlook_2') }}</li>
-                </ol>
-
-                <h6 class="mt-3">Apple Calendar:</h6>
-                <ol>
-                    <li>{{ _('calendar.feed.howto_apple_1') }}</li>
-                    <li>{{ _('calendar.feed.howto_apple_2') }}</li>
-                </ol>
+            <div class="calendar-form-fields">
+                <div class="calendar-form-field">
+                    <h3 class="h6 mb-2">Google Calendar</h3>
+                    <ol class="mb-0 ps-3">
+                        <li>{{ _('calendar.feed.howto_google_1') }}</li>
+                        <li>{{ _('calendar.feed.howto_google_2') }}</li>
+                        <li>{{ _('calendar.feed.howto_google_3') }}</li>
+                    </ol>
+                </div>
+                <div class="calendar-form-field">
+                    <h3 class="h6 mb-2">Outlook</h3>
+                    <ol class="mb-0 ps-3">
+                        <li>{{ _('calendar.feed.howto_outlook_1') }}</li>
+                        <li>{{ _('calendar.feed.howto_outlook_2') }}</li>
+                    </ol>
+                </div>
+                <div class="calendar-form-field">
+                    <h3 class="h6 mb-2">Apple Calendar</h3>
+                    <ol class="mb-0 ps-3">
+                        <li>{{ _('calendar.feed.howto_apple_1') }}</li>
+                        <li>{{ _('calendar.feed.howto_apple_2') }}</li>
+                    </ol>
+                </div>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 

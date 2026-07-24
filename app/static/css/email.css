@@ -1089,7 +1089,7 @@ body {
     left: 0.95rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--bs-secondary-color, #6c757d);
+    color: var(--accent-color, #0d6efd);
     pointer-events: none;
     font-size: 0.95rem;
 }
@@ -1136,6 +1136,12 @@ body {
 .email-mobile-menu-btn {
     flex-shrink: 0;
     padding: 0.35rem 0.55rem;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .email-mobile-path {
@@ -2838,26 +2844,90 @@ div.avatar-circle-mobile,
 
 [data-bs-theme="dark"] .email-composer-body,
 [data-bs-theme="dark"] #editor,
-[data-bs-theme="dark"] .ql-editor {
+[data-bs-theme="dark"] .ql-editor,
+[data-oled-mode="true"] .email-composer-body,
+[data-oled-mode="true"] #editor,
+[data-oled-mode="true"] .ql-editor {
     color: #e2e8f0;
 }
 
 [data-bs-theme="dark"] .ql-snow,
-[data-bs-theme="dark"] .ql-toolbar {
+[data-bs-theme="dark"] .ql-toolbar,
+[data-oled-mode="true"] .ql-snow,
+[data-oled-mode="true"] .ql-toolbar {
     border-color: #4a5568;
     background: transparent;
 }
 
-[data-bs-theme="dark"] .ql-stroke {
+[data-bs-theme="dark"] .ql-snow .ql-stroke,
+[data-bs-theme="dark"] .ql-toolbar .ql-stroke,
+[data-bs-theme="dark"] .ql-snow .ql-stroke-miter,
+[data-oled-mode="true"] .ql-snow .ql-stroke,
+[data-oled-mode="true"] .ql-toolbar .ql-stroke,
+[data-oled-mode="true"] .ql-snow .ql-stroke-miter {
     stroke: #e2e8f0;
 }
 
-[data-bs-theme="dark"] .ql-fill {
+[data-bs-theme="dark"] .ql-snow .ql-fill,
+[data-bs-theme="dark"] .ql-toolbar .ql-fill,
+[data-bs-theme="dark"] .ql-snow .ql-stroke.ql-fill,
+[data-oled-mode="true"] .ql-snow .ql-fill,
+[data-oled-mode="true"] .ql-toolbar .ql-fill,
+[data-oled-mode="true"] .ql-snow .ql-stroke.ql-fill {
     fill: #e2e8f0;
 }
 
-[data-bs-theme="dark"] .ql-picker-label {
+[data-bs-theme="dark"] .ql-snow .ql-picker,
+[data-bs-theme="dark"] .ql-snow .ql-picker-label,
+[data-oled-mode="true"] .ql-snow .ql-picker,
+[data-oled-mode="true"] .ql-snow .ql-picker-label {
     color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .ql-snow .ql-picker-label::before,
+[data-oled-mode="true"] .ql-snow .ql-picker-label::before {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .ql-snow .ql-picker-options,
+[data-oled-mode="true"] .ql-snow .ql-picker-options {
+    background: #1a1a1a;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+[data-oled-mode="true"] .ql-snow .ql-picker-options {
+    background: #000;
+}
+
+[data-bs-theme="dark"] .ql-snow .ql-picker-item,
+[data-oled-mode="true"] .ql-snow .ql-picker-item {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .ql-editor.ql-blank::before,
+[data-oled-mode="true"] .ql-editor.ql-blank::before {
+    color: rgba(226, 232, 240, 0.45);
+    font-style: normal;
+}
+
+[data-bs-theme="dark"] .email-composer-toolbar,
+[data-oled-mode="true"] .email-composer-toolbar {
+    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, #fff 6%);
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-oled-mode="true"] .email-composer-toolbar {
+    background: #0a0a0a;
+}
+
+[data-bs-theme="dark"] .email-composer-body,
+[data-oled-mode="true"] .email-composer-body {
+    background: var(--bs-body-bg, #1a1a1a);
+}
+
+[data-oled-mode="true"] .email-composer-body {
+    background: #000;
 }
 
 .email-preview-wrapper {

@@ -187,6 +187,7 @@ def notifications():
 
         # Buchungsanfragen
         settings.booking_notifications_enabled = 'booking_notifications_enabled' in request.form
+        settings.booking_message_notifications_enabled = 'booking_message_notifications_enabled' in request.form
         
         # Kalender-Benachrichtigungen
         settings.calendar_notifications_enabled = 'calendar_notifications_enabled' in request.form

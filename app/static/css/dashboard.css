@@ -990,10 +990,14 @@ body:has(.dashboard-edit-page) .back-button:hover {
 }
 
 .dashboard-edit-pill-btn {
-    border-radius: 1.5rem !important;
+    border-radius: 999px !important;
     font-weight: 600;
-    padding: 0.45rem 1rem;
+    padding: 0.45rem 1.1rem;
     border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
 }
 
 .dashboard-edit-pill-btn--accent {
@@ -1006,6 +1010,20 @@ body:has(.dashboard-edit-page) .back-button:hover {
 .dashboard-edit-pill-btn--accent:focus {
     filter: brightness(1.08);
     color: #fff !important;
+}
+
+.dashboard-edit-pill-btn--outline {
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 45%, var(--bs-border-color));
+    color: var(--accent-color, #0d6efd) !important;
+    background: transparent;
+    text-decoration: none;
+}
+
+.dashboard-edit-pill-btn--outline:hover,
+.dashboard-edit-pill-btn--outline:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent);
+    color: var(--accent-color, #0d6efd) !important;
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 65%, var(--bs-border-color));
 }
 
 .dashboard-edit-instance {

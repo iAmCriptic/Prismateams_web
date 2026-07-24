@@ -1464,28 +1464,46 @@ def send_booking_rejected_email(booking_request):
 def send_booking_staff_message(booking_request, subject, body_text, created_by=None):
     """Staff-Nachricht an Antragsteller (Thread)."""
     try:
+        from flask import url_for
         from app.utils.booking_messages import ensure_booking_subject
 
         if not _mail_configured():
+            logging.warning(
+                f"E-Mail-Konfiguration unvollständig. Staff-Nachricht für Buchung {booking_request.id} nicht gesendet."
+            )
             return False
 
         from config import get_formatted_sender
         sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
         subject = ensure_booking_subject(subject, booking_request.id)
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        full_body = (body_text or '').strip()
+        if booking_url and booking_url not in full_body:
+            full_body = f'{full_body}\n\n—\nStatusseite: {booking_url}'
+
         msg = Message(
             subject=subject,
             recipients=[booking_request.email],
             sender=sender,
-            body=body_text,
+            body=full_body,
         )
-        _persist_booking_outbound(
-            booking_request,
-            msg,
-            subject,
-            body_text,
-            created_by=created_by,
-        )
-        return True
+        try:
+            _persist_booking_outbound(
+                booking_request,
+                msg,
+                subject,
+                full_body,
+                created_by=created_by,
+            )
+            logging.info(
+                f"Booking staff message sent to {booking_request.email} for booking {booking_request.id}"
+            )
+            return True
+        except Exception as send_error:
+            logging.error(
+                f"Failed to send booking staff message to {booking_request.email}: {str(send_error)}"
+            )
+            return False
     except Exception as e:
         logging.error(f"Failed to send booking staff message: {str(e)}")
         return False

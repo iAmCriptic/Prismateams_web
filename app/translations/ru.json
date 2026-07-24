@@ -228,17 +228,35 @@
     },
     "form": {
       "title": "Новая загрузка",
+      "link_box_title": "Ссылка / Поиск",
+      "single_label": "Один трек / видео",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Только отдельные видео или треки — без плейлистов.",
+      "playlist_label": "Плейлист",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Вставьте ссылку на плейлист. Настройки появятся в блоке фрагмента.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Поддерживается: YouTube и YouTube Music",
       "format_label": "Формат",
       "format_audio": "Аудио (MP3)",
       "format_video": "Видео (MP4)",
+      "segment_heading": "Временной фрагмент",
       "start_label": "Начало (необяз.)",
       "end_label": "Конец (необяз.)",
       "time_placeholder": "M:SS",
       "segment_hint": "Необязательно: скачать только фрагмент (укажите начало и конец, напр. 1:30 и 3:45).",
       "submit": "Начать загрузку"
+    },
+    "search": {
+      "label": "Поиск YouTube",
+      "placeholder": "Поиск трека или исполнителя…",
+      "hint": "Подсказки YouTube Data API — выберите результат, URL подставится.",
+      "loading": "Поиск…",
+      "empty": "Ничего не найдено.",
+      "error": "Ошибка поиска.",
+      "unavailable": "Поиск YouTube недоступен.",
+      "unavailable_hint": "Нет ключа YouTube API. Добавьте его в Настройки → Музыка."
     },
     "jobs": {
       "title": "Мои загрузки",
@@ -250,7 +268,13 @@
       "download": "Скачать",
       "empty": "Загрузок пока нет.",
       "clear_all": "Удалить всё",
-      "clear_all_confirm": "Удалить все загрузки и отменить активные?"
+      "clear_all_confirm": "Удалить все загрузки и отменить активные?",
+      "delete_confirm": "Удалить эту загрузку?",
+      "open_source": "Открыть источник",
+      "actions": "Действия",
+      "view_toggle": "Переключить вид",
+      "view_list": "Список",
+      "view_grid": "Сетка"
     },
     "format": {
       "audio": "MP3",
@@ -260,7 +284,20 @@
       "pending": "Ожидание",
       "processing": "Обработка",
       "completed": "Готово",
-      "failed": "Ошибка"
+      "failed": "Прервано из-за ошибки",
+      "cancelled": "Отменено",
+      "cancelling": "Отмена…"
+    },
+    "playlist": {
+      "modal_title": "Скачать плейлист",
+      "segment_heading": "Настройки плейлиста",
+      "inline_hint": "Все треки целиком или таймкоды по трекам — затем начать загрузку.",
+      "loading": "Загрузка плейлиста…",
+      "song_count": "%(count)s треков в этом плейлисте",
+      "mode_complete": "Скачать все треки целиком",
+      "mode_timestamps": "Указать таймкоды для каждого трека",
+      "download_all": "Скачать плейлист",
+      "preview_error": "Не удалось загрузить плейлист."
     },
     "flash": {
       "unavailable": "Загрузчик недоступен.",
@@ -280,7 +317,15 @@
       "err_age_restricted": "Видео имеет возрастное ограничение и не может быть загружено без входа/cookies.",
       "err_video_unavailable": "Это видео недоступно.",
       "err_download_failed": "Ошибка загрузки. Попробуйте снова.",
-      "file_missing": "Файл не найден."
+      "file_missing": "Файл не найден.",
+      "not_a_playlist": "Этот URL не является плейлистом.",
+      "empty_playlist": "В плейлисте нет загружаемых треков.",
+      "preview_failed": "Не удалось загрузить предпросмотр плейлиста.",
+      "playlist_started": "Запущено загрузок: %(count)s.",
+      "use_playlist_modal": "Используйте окно плейлиста для загрузки.",
+      "invalid_batch_item": "Неверный элемент в списке загрузки.",
+      "cancelled": "Загрузка отменена.",
+      "cancelling": "Отмена загрузки…"
     }
   },
   "booking": {
@@ -461,7 +506,10 @@
     },
     "booking": {
       "request_title": "Новая заявка на бронирование",
-      "request_body": "{event} – {applicant}"
+      "request_body": "{event} – {applicant}",
+      "message_title": "Новое сообщение по бронированию",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
     },
     "push": {
       "test_title": "Тестовое уведомление",

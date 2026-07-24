@@ -2386,12 +2386,23 @@ class BorrowsManager {
                 ? `<li><a class="dropdown-item" href="${returnPdf}"><i class="bi bi-file-earmark-check me-2"></i>Rückgabeschein</a></li>`
                 : `<li><a class="dropdown-item" href="${returnHref}"><i class="bi bi-arrow-return-left me-2"></i>Zurückgeben</a></li>`;
 
+            const setBadge = borrow.source_set_name
+                ? `<span class="badge inventory-set-badge" title="Aus Produktset"><i class="bi bi-collection" aria-hidden="true"></i> Set</span>`
+                : '';
+            const setDropdown = this.buildBorrowSetDropdown(borrow);
+
             return `
             <tr class="mod-list-row ${borrow.is_overdue ? 'table-danger' : ''}">
                 <td><code>${borrow.transaction_number}</code></td>
                 <td>${borrow.event_name || '—'}</td>
-                <td><strong>${borrow.product_name || ''}</strong></td>
-                <td>${borrow.borrower_name || 'Unbekannt'}</td>
+                <td>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <strong>${this.escapeHtml(borrow.product_name || '')}</strong>
+                        ${setBadge}
+                    </div>
+                    ${setDropdown}
+                </td>
+                <td>${this.escapeHtml(borrow.borrower_name || 'Unbekannt')}</td>
                 <td>${borrow.borrow_date ? new Date(borrow.borrow_date).toLocaleDateString('de-DE') : '—'}</td>
                 <td>${borrow.expected_return_date ? new Date(borrow.expected_return_date).toLocaleDateString('de-DE') : '—'}</td>
                 <td>${statusBadge}</td>
@@ -2416,6 +2427,31 @@ class BorrowsManager {
                 </td>
             </tr>`;
         }).join('');
+    }
+
+    buildBorrowSetDropdown(borrow) {
+        const members = Array.isArray(borrow.source_set_members) ? borrow.source_set_members : [];
+        if (!borrow.source_set_name || !members.length) return '';
+        const setName = this.escapeHtml(borrow.source_set_name);
+        const memberHtml = members.map((member) => {
+            const qty = member.quantity && member.quantity > 1
+                ? ` <span class="badge bg-secondary">×${this.escapeHtml(String(member.quantity))}</span>`
+                : '';
+            return `<li><i class="bi bi-box-seam text-muted" aria-hidden="true"></i><span>${this.escapeHtml(member.name || '—')}</span>${qty}</li>`;
+        }).join('');
+        return `
+            <details class="inventory-set-members mt-1">
+                <summary class="inventory-set-members-summary">${setName} · Bestandteile</summary>
+                <ul class="inventory-set-members-list">${memberHtml}</ul>
+            </details>
+        `;
+    }
+
+    escapeHtml(text) {
+        if (text == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
     }
 }
 // Return Manager - Verwaltet die Rückgabe mit QR-Scanner
@@ -2827,6 +2863,165 @@ class ReturnManager {
 }
 
 // Borrow Scanner Manager - Verwaltet die "Ausleihen geben" Seite mit Scanner und Warenkorb
+class InventoryScanLookup {
+    /**
+     * Klartext-Vorschläge für Produkte/Sets (eigenes Suchfeld).
+     * @param {{input: HTMLInputElement, dropdown: HTMLElement, onPick: (code: string, item: object) => void, includeSets?: boolean}} opts
+     */
+    constructor(opts) {
+        this.input = opts.input;
+        this.dropdown = opts.dropdown;
+        this.onPick = opts.onPick;
+        this.includeSets = opts.includeSets !== false;
+        this.searchUrl = opts.searchUrl || '/inventory/api/search';
+        this.minChars = opts.minChars || 2;
+        this.timer = null;
+        this.activeIndex = -1;
+        this.items = [];
+        if (this.input && this.dropdown) this.bind();
+    }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    bind() {
+        this.input.addEventListener('input', () => {
+            clearTimeout(this.timer);
+            this.timer = setTimeout(() => this.search(this.input.value), 220);
+        });
+        this.input.addEventListener('keydown', (e) => this.onKeydown(e));
+        this.input.addEventListener('blur', () => {
+            setTimeout(() => this.hide(), 180);
+        });
+        this.input.addEventListener('focus', () => {
+            if (this.items.length) this.show();
+        });
+    }
+
+    async search(raw) {
+        const q = String(raw || '').trim();
+        if (q.length < this.minChars) {
+            this.hide();
+            return;
+        }
+        try {
+            const url = `${this.searchUrl}?q=${encodeURIComponent(q)}${this.includeSets ? '&include_sets=1' : ''}`;
+            const res = await fetch(url);
+            if (!res.ok) {
+                this.hide();
+                return;
+            }
+            const data = await res.json();
+            let products = [];
+            let sets = [];
+            if (Array.isArray(data)) {
+                products = data;
+            } else {
+                products = Array.isArray(data.products) ? data.products : [];
+                sets = Array.isArray(data.sets) ? data.sets : [];
+            }
+            this.items = [
+                ...sets.map((s) => ({
+                    type: 'set',
+                    id: s.id,
+                    name: s.name,
+                    meta: s.product_count != null ? `${s.product_count} Produkte` : 'Set',
+                    code: `SET-${s.id}`,
+                })),
+                ...products.slice(0, 8).map((p) => ({
+                    type: 'product',
+                    id: p.id,
+                    name: p.name,
+                    meta: [p.category, p.serial_number, p.status].filter(Boolean).join(' · '),
+                    code: `PROD-${p.id}`,
+                    status: p.status,
+                })),
+            ].slice(0, 10);
+            this.activeIndex = -1;
+            this.render();
+        } catch (err) {
+            console.error('Produkt-Suche fehlgeschlagen:', err);
+            this.hide();
+        }
+    }
+
+    render() {
+        if (!this.items.length) {
+            this.hide();
+            return;
+        }
+        this.dropdown.innerHTML = this.items.map((item, idx) => {
+            const badge = item.type === 'set'
+                ? '<span class="badge bg-primary ms-1">SET</span>'
+                : '<span class="badge bg-secondary ms-1">PROD</span>';
+            const meta = item.meta
+                ? `<small class="text-muted d-block">${this.escapeHtml(item.meta)}</small>`
+                : '';
+            return `<button type="button" class="list-group-item list-group-item-action" role="option" data-idx="${idx}" aria-selected="${idx === this.activeIndex}">
+                <span class="fw-semibold">${this.escapeHtml(item.name)}</span>${badge}
+                ${meta}
+            </button>`;
+        }).join('');
+        this.dropdown.querySelectorAll('button').forEach((btn) => {
+            btn.addEventListener('mousedown', (e) => e.preventDefault());
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.dataset.idx);
+                this.pick(idx);
+            });
+        });
+        this.show();
+    }
+
+    onKeydown(e) {
+        if (!this.items.length || this.dropdown.style.display === 'none') return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.activeIndex = Math.min(this.activeIndex + 1, this.items.length - 1);
+            this.highlight();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.activeIndex = Math.max(this.activeIndex - 1, 0);
+            this.highlight();
+        } else if (e.key === 'Enter' && this.activeIndex >= 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.pick(this.activeIndex);
+        } else if (e.key === 'Escape') {
+            this.hide();
+        }
+    }
+
+    highlight() {
+        this.dropdown.querySelectorAll('button').forEach((btn, idx) => {
+            btn.classList.toggle('active', idx === this.activeIndex);
+            btn.setAttribute('aria-selected', idx === this.activeIndex ? 'true' : 'false');
+        });
+    }
+
+    pick(idx) {
+        const item = this.items[idx];
+        if (!item) return;
+        this.input.value = item.code;
+        this.hide();
+        if (typeof this.onPick === 'function') this.onPick(item.code, item);
+    }
+
+    show() {
+        this.dropdown.style.display = 'block';
+    }
+
+    hide() {
+        this.dropdown.style.display = 'none';
+        this.activeIndex = -1;
+    }
+}
+
 class BorrowScannerManager {
     constructor() {
         this.stream = null;
@@ -2857,6 +3052,22 @@ class BorrowScannerManager {
                 }
             });
         }
+
+        const suggestEl = document.getElementById('productSuggest');
+        const searchInput = document.getElementById('productSearchInput');
+        if (searchInput && suggestEl && !searchInput.dataset.lookupBound) {
+            searchInput.dataset.lookupBound = '1';
+            this.productLookup = new InventoryScanLookup({
+                input: searchInput,
+                dropdown: suggestEl,
+                includeSets: true,
+                onPick: (code) => {
+                    this.addToCart(code).then(() => {
+                        searchInput.value = '';
+                    }).catch(() => {});
+                },
+            });
+        }
         
         // Remove from cart buttons
         document.querySelectorAll('.remove-from-cart').forEach(btn => {
@@ -2867,17 +3078,47 @@ class BorrowScannerManager {
         });
     }
 
+    buildSetMembersDropdownHtml(sourceSet, productId) {
+        if (!sourceSet || !sourceSet.name) return '';
+        const members = Array.isArray(sourceSet.members) ? sourceSet.members : [];
+        const setName = this.escapeHtml(sourceSet.name);
+        const memberHtml = members.length
+            ? members.map((member) => {
+                const qty = member.quantity && member.quantity > 1
+                    ? ` <span class="badge bg-secondary">×${this.escapeHtml(String(member.quantity))}</span>`
+                    : '';
+                return `<li><i class="bi bi-box-seam text-muted" aria-hidden="true"></i><span>${this.escapeHtml(member.name || '—')}</span>${qty}</li>`;
+            }).join('')
+            : '<li class="text-muted">Keine Produkte</li>';
+
+        return `
+            <details class="inventory-set-members">
+                <summary class="inventory-set-members-summary">${setName} · Bestandteile</summary>
+                <ul class="inventory-set-members-list">${memberHtml}</ul>
+            </details>
+        `;
+    }
+
     buildCartItemElement(product) {
         const newItem = document.createElement('div');
-        newItem.className = 'inventory-cart-item cart-item';
+        const sourceSet = product.source_set || null;
+        newItem.className = `inventory-cart-item cart-item${sourceSet ? ' inventory-cart-item--set' : ''}`;
         newItem.setAttribute('data-product-id', product.id);
+        if (sourceSet && sourceSet.id) {
+            newItem.setAttribute('data-set-id', sourceSet.id);
+        }
         const categoryHtml = product.category
             ? `<p class="inventory-cart-item-meta">${this.escapeHtml(product.category)}</p>`
             : '';
+        const setBadge = sourceSet
+            ? `<span class="badge inventory-set-badge" title="Aus Produktset"><i class="bi bi-collection" aria-hidden="true"></i> Set</span>`
+            : '';
+        const setDropdown = sourceSet ? this.buildSetMembersDropdownHtml(sourceSet, product.id) : '';
         newItem.innerHTML = `
             <div class="inventory-cart-item-body">
-                <p class="inventory-cart-item-title">${this.escapeHtml(product.name)}</p>
+                <p class="inventory-cart-item-title">${this.escapeHtml(product.name)} ${setBadge}</p>
                 ${categoryHtml}
+                ${setDropdown}
             </div>
             <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="${product.id}">
                 <i class="bi bi-trash"></i>
@@ -3357,10 +3598,20 @@ class BorrowScannerManager {
             
             // Füge alle Produkte des Sets hinzu
             result.added_products.forEach(product => {
+                if (!product.source_set && result.set) {
+                    product.source_set = {
+                        id: result.set.id,
+                        name: result.set.name,
+                        members: result.set.members || [],
+                    };
+                }
                 // Prüfe ob Produkt bereits vorhanden ist
                 const existingItem = cartItems.querySelector(`[data-product-id="${product.id}"]`);
                 if (existingItem) {
-                    console.log(`⚠ Produkt ${product.id} bereits vorhanden, überspringe`);
+                    // Ersetze durch Version mit Set-Badge
+                    const refreshed = this.buildCartItemElement(product);
+                    existingItem.replaceWith(refreshed);
+                    console.log(`✓ Produkt ${product.id} mit Set-Info aktualisiert`);
                     return;
                 }
                 

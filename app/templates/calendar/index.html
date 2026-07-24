@@ -1255,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return {
             input: root.querySelector('.calendar-search-input'),
             clearBtn: root.querySelector('.calendar-search-clear'),
+            submitBtn: root.querySelector('.calendar-search-submit'),
             results: root.querySelector('.calendar-search-results'),
         };
     }
@@ -1431,6 +1432,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     hideResults();
                 }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(debounceTimer);
+                runSearch(parts.input.value.trim(), root);
             }
         });
 
@@ -1440,6 +1445,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 setClearVisible(root, false);
                 syncInputs('', parts.input);
                 runSearch('', root);
+                parts.input.focus();
+            });
+        }
+
+        if (parts.submitBtn) {
+            parts.submitBtn.addEventListener('click', function () {
+                clearTimeout(debounceTimer);
+                const value = parts.input.value.trim();
+                runSearch(value, root);
                 parts.input.focus();
             });
         }

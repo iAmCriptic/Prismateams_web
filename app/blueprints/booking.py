@@ -13,6 +13,7 @@ from app.models.user import User
 from app.utils.email_sender import send_booking_confirmation_email, send_booking_accepted_email, send_booking_rejected_email
 from app.utils.access_control import check_module_access
 from app.utils.i18n import translate
+from app.utils.common import is_module_enabled
 from app.tasks.booking_archiver import archive_old_booking_requests
 from datetime import datetime, timedelta, date, time
 from werkzeug.utils import secure_filename
@@ -669,14 +670,23 @@ def request_accept(request_id):
         # Default: 1 Stunde später
         end_datetime = start_datetime + timedelta(hours=1)
     
-    # Erstelle Kalendereintrag
+    # Erstelle Kalendereintrag (bei Multi-Kalender im Public-Kalender)
+    calendar_id = None
+    try:
+        from app.utils.multi_calendars import is_calendar_multi_enabled, get_public_calendar
+        if is_calendar_multi_enabled():
+            calendar_id = get_public_calendar().id
+    except Exception as e:
+        current_app.logger.error(f"Multi-Kalender Public-Lookup fehlgeschlagen: {e}")
+
     calendar_event = CalendarEvent(
         title=booking_request.event_name,
         description=f"Buchungsanfrage von {booking_request.email}\n\nLink zur Buchung: {url_for('booking.request_detail', request_id=booking_request.id, _external=True)}",
         start_time=start_datetime,
         end_time=end_datetime,
         created_by=current_user.id,
-        booking_request_id=booking_request.id
+        booking_request_id=booking_request.id,
+        calendar_id=calendar_id,
     )
     db.session.add(calendar_event)
     db.session.flush()
@@ -694,22 +704,26 @@ def request_accept(request_id):
     # Erstelle Ordner/Briefkasten falls aktiviert
     folder = None
     if booking_request.form.enable_mailbox or booking_request.form.enable_shared_folder:
-        # Finde oder erstelle Veranstaltungen-Ordner
+        # Finde oder erstelle Veranstaltungen-Ordner (öffentlich)
         veranstaltungen_folder = Folder.query.filter_by(name='veranstaltungen', parent_id=None).first()
         if not veranstaltungen_folder:
             veranstaltungen_folder = Folder(
                 name='veranstaltungen',
                 parent_id=None,
-                created_by=current_user.id
+                created_by=current_user.id,
+                space='public',
             )
             db.session.add(veranstaltungen_folder)
             db.session.flush()
+        elif getattr(veranstaltungen_folder, 'space', None) != 'public':
+            veranstaltungen_folder.space = 'public'
         
         # Erstelle Ordner für diese Veranstaltung
         event_folder = Folder(
             name=booking_request.event_name,
             parent_id=veranstaltungen_folder.id,
-            created_by=current_user.id
+            created_by=current_user.id,
+            space='public',
         )
         db.session.add(event_folder)
         db.session.flush()
@@ -723,6 +737,35 @@ def request_accept(request_id):
         os.makedirs(upload_dir, exist_ok=True)
         
         folder = event_folder
+
+    # Veranstaltungsmodul: Event + Appointment an denselben Kalendereintrag knüpfen (kein Doppel-Termin)
+    if is_module_enabled('module_events'):
+        try:
+            from app.models.event import Event, EventAppointment
+            event_obj = Event(
+                name=booking_request.event_name,
+                description=(
+                    f"Aus Buchungsanfrage von {booking_request.email}\n"
+                    f"Link: {url_for('booking.request_detail', request_id=booking_request.id, _external=True)}"
+                ),
+                folder_id=folder.id if folder else None,
+                owner_id=current_user.id,
+                created_by=current_user.id,
+            )
+            db.session.add(event_obj)
+            db.session.flush()
+
+            appointment = EventAppointment(
+                event_id=event_obj.id,
+                label='Termin',
+                description=event_obj.description,
+                start_time=start_datetime,
+                end_time=end_datetime,
+                calendar_event_id=calendar_event.id,
+            )
+            db.session.add(appointment)
+        except Exception as e:
+            current_app.logger.error(f"Veranstaltung aus Buchung konnte nicht erstellt werden: {e}")
     
     # Aktualisiere Buchungsanfrage
     booking_request.status = 'accepted'

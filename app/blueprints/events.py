@@ -37,7 +37,8 @@ def _parse_datetime(value):
 
 
 def _refresh_archive_state():
-    now = datetime.utcnow()
+    from app.utils.common import portal_now_naive
+    now = portal_now_naive()
     events = Event.query.all()
     changed = False
     for event_obj in events:
@@ -429,7 +430,8 @@ def overview_pdf():
     """PDF-Übersicht für den aktuellen Reiter (view=standard|overview|mine|archive|people)."""
     _refresh_archive_state()
     view = (request.args.get('view') or 'overview').strip().lower()
-    now = datetime.utcnow()
+    from app.utils.common import portal_now_naive
+    now = portal_now_naive()
 
     if view == 'standard':
         appointments = _query_appointments(archived=False, order_desc=False)

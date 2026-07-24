@@ -1,159 +1,279 @@
-/* Error Pages Styling */
+/* Error Pages — portal pill design (aligned with auth / login) */
+
+:root {
+    --error-radius-pill: var(--mod-radius-pill, 1.5rem);
+    --error-text: #1a1a1a;
+    --error-muted: rgba(26, 26, 26, 0.72);
+    --error-panel-bg: #ffffff;
+}
+
+/* Hide chrome so error reads like login (full-bleed) */
+body:has(.error-page) .sidebar,
+body:has(.error-page) .mobile-nav,
+body:has(.error-page) .pwa-install-prompt,
+body:has(.error-page) .back-button-container,
+body:has(.error-page) #appFlashBanner {
+    display: none !important;
+}
+
+@media (min-width: 769px) {
+    html:has(.error-page),
+    body:has(.error-page),
+    body:has(.error-page) main {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: var(--auth-page-bg, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+        background-attachment: fixed !important;
+        background-size: cover !important;
+    }
+
+    body:has(.error-page),
+    html:has(.error-page) {
+        overflow: hidden !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+    }
+
+    body:has(.error-page) main {
+        min-height: 100vh !important;
+        min-height: 100dvh !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+        display: block !important;
+    }
+
+    body:has(.error-page) main > .container-fluid,
+    body:has(.error-page) .main-content {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    .error-page {
+        min-height: 100vh;
+        min-height: 100dvh;
+        height: 100vh;
+        height: 100dvh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--auth-page-bg, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+        background-attachment: fixed !important;
+        background-size: cover !important;
+        margin: 0 !important;
+        padding: 1.25rem !important;
+        box-sizing: border-box;
+    }
+}
+
 .error-page {
-    min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 2rem 1rem;
+    margin: 0 !important;
+    box-sizing: border-box;
+    padding: 1.25rem;
 }
 
-[data-bs-theme="dark"] .error-page {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 100%);
-}
-
-.error-container {
-    max-width: 600px;
+.error-card {
+    max-width: 480px;
     width: 100%;
+    margin: 0 auto;
+    flex-shrink: 0;
+}
+
+.error-panel {
+    border: none;
+    border-radius: 2rem;
+    box-shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, 0.18);
+    background: var(--error-panel-bg);
+    overflow: hidden;
+}
+
+.error-panel-body {
+    padding: 2.25rem 1.75rem 1.5rem;
     text-align: center;
-    background: var(--bs-body-bg);
-    border-radius: 1rem;
-    padding: 3rem 2rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--bs-border-color);
-}
-
-[data-bs-theme="dark"] .error-container {
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    border-color: #495057;
-}
-
-.error-icon {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
-    display: block;
 }
 
 .error-code {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
+    margin: 0 0 0.75rem;
+    font-size: 3.5rem;
+    font-weight: 750;
+    letter-spacing: -0.04em;
     line-height: 1;
+    color: var(--error-text);
 }
 
 .error-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--bs-body-color);
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: var(--error-text);
 }
 
 .error-description {
-    font-size: 1.1rem;
-    color: var(--bs-secondary);
-    margin-bottom: 2rem;
-    line-height: 1.6;
+    margin: 0 0 1.75rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--error-muted);
+}
+
+.error-description:last-of-type {
+    margin-bottom: 1.75rem;
+}
+
+.error-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+    text-align: left;
 }
 
 .error-actions {
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
     align-items: center;
-}
-
-@media (min-width: 576px) {
-    .error-actions {
-        flex-direction: row;
-        justify-content: center;
-    }
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .error-btn {
-    min-width: 200px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
-}
-
-.error-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.error-help {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--bs-border-color);
-}
-
-.error-help small {
-    color: var(--bs-secondary);
+    border-radius: var(--error-radius-pill) !important;
+    font-weight: 650;
     font-size: 0.9rem;
+    padding: 0.55rem 1.15rem !important;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
 }
 
-/* Mobile optimizations for error pages */
-@media (max-width: 767.98px) {
+.error-btn--ghost {
+    background: transparent !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    color: var(--error-text) !important;
+}
+
+.error-btn--ghost:hover,
+.error-btn--ghost:focus {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(0, 0, 0, 0.18) !important;
+    color: var(--error-text) !important;
+}
+
+.error-btn--primary {
+    border: none !important;
+    box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.16);
+}
+
+.error-btn--primary:hover,
+.error-btn--primary:focus {
+    filter: brightness(1.08);
+}
+
+.error-detail-link {
+    margin-left: auto;
+    padding: 0;
+    border: none;
+    background: none;
+    color: rgba(26, 26, 26, 0.45);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.error-detail-link:hover,
+.error-detail-link:focus {
+    color: rgba(26, 26, 26, 0.7);
+    text-decoration: underline;
+}
+
+.error-detail-panel {
+    margin: 1rem 0 0;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: rgba(26, 26, 26, 0.75);
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 12rem;
+    overflow: auto;
+}
+
+/* Mobile: solid white like auth */
+@media (max-width: 768px) {
+    html:has(.error-page),
+    body:has(.error-page),
+    body:has(.error-page) main {
+        background: #ffffff !important;
+    }
+
+    body:has(.error-page) main > .container-fluid,
+    body:has(.error-page) .main-content {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+        background: transparent !important;
+    }
+
     .error-page {
+        min-height: 100vh;
+        min-height: 100dvh;
         padding: 1rem;
-        min-height: calc(100vh - 60px); /* Account for mobile nav */
+        background: #ffffff !important;
+        align-items: flex-start;
+        padding-top: 2.5rem;
     }
-    
-    .error-container {
-        padding: 2rem 1.5rem;
-        margin: 0;
+
+    .error-panel {
+        border-radius: 0;
+        box-shadow: none;
     }
-    
+
+    .error-panel-body {
+        padding: 1.25rem 0.25rem;
+    }
+
     .error-code {
         font-size: 3rem;
     }
-    
-    .error-icon {
-        font-size: 3rem;
+
+    .error-footer {
+        flex-direction: column;
+        align-items: stretch;
     }
-    
-    .error-title {
-        font-size: 1.25rem;
-    }
-    
-    .error-description {
-        font-size: 1rem;
-    }
-    
-    .error-btn {
+
+    .error-actions {
         width: 100%;
-        min-width: auto;
     }
-}
 
-/* Specific error page animations */
-.error-page .error-icon {
-    animation: pulse 2s infinite;
-}
+    .error-actions .error-btn {
+        flex: 1 1 auto;
+        text-align: center;
+    }
 
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-/* Error page loading states */
-.error-page.loading .error-icon {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
+    .error-detail-link {
+        margin-left: 0;
+        align-self: flex-end;
+        text-align: right;
     }
 }

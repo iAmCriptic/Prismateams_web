@@ -16,12 +16,13 @@
     'inventory.inventory_history', 'inventory.inventory_list',
     'inventory.inventory_complete', 'inventory.inventory_tool_pdf'
   ),
-  'print_qr': ep == 'inventory.print_qr',
+  'print_qr': ep.startswith('inventory.print_qr') or ep == 'inventory.print_color_codes',
   'statistics': ep == 'inventory.statistics'
 } %}
 {% set show_new = not (current_user.is_authenticated and current_user.is_guest) %}
 {% set show_view_toggle = inventory_show_view_toggle|default(false) %}
 {% set show_stock_tools = inventory_show_stock_tools|default(false) %}
+{% set show_toolbar_center = inventory_show_toolbar_center|default(false) or show_stock_tools %}
 {% set show_filter_nav = inventory_show_filter_nav|default(false) or show_stock_tools %}
 
 {% macro inventory_new_menu(menu_id) %}
@@ -170,7 +171,7 @@
                 </h1>
                 {% block inventory_toolbar_extra %}{% endblock %}
             </div>
-            {% if show_stock_tools %}
+            {% if show_toolbar_center %}
             <div class="inventory-toolbar-center flex-grow-1 d-flex justify-content-center min-width-0 px-2">
                 {% block inventory_toolbar_center %}{% endblock %}
             </div>
@@ -182,7 +183,7 @@
             </div>
         </div>
 
-        {% if show_stock_tools %}
+        {% if show_toolbar_center %}
         <div class="d-lg-none mb-3">
             {% block inventory_mobile_toolbar_center %}{% endblock %}
         </div>

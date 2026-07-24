@@ -690,30 +690,38 @@ def create_app(config_name='default'):
             current_app.logger.warning(f"Markdown processing failed: {e}, using plain text fallback")
             return text.replace('\n', '<br>')
 
+    def _error_detail(error):
+        """Human-readable detail for error pages (server log / exception text)."""
+        if error is None:
+            return None
+        detail = getattr(error, 'description', None) or str(error)
+        detail = (detail or '').strip()
+        return detail or None
+
     @app.errorhandler(400)
     def bad_request(error):
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Bad request', 'message': str(error)}), 400
-        return render_template('errors/400.html'), 400
+        return render_template('errors/400.html', error_detail=_error_detail(error)), 400
     
     @app.errorhandler(403)
     def forbidden(error):
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Forbidden', 'message': str(error)}), 403
-        return render_template('errors/403.html'), 403
+        return render_template('errors/403.html', error_detail=_error_detail(error)), 403
     
     @app.errorhandler(404)
     def not_found(error):
         app.logger.warning(f"404 Not Found: {request.url}")
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Not found', 'path': request.path}), 404
-        return render_template('errors/404.html'), 404
+        return render_template('errors/404.html', error_detail=_error_detail(error)), 404
     
     @app.errorhandler(429)
     def too_many_requests(error):
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Too many requests', 'message': str(error)}), 429
-        return render_template('errors/429.html'), 429
+        return render_template('errors/429.html', error_detail=_error_detail(error)), 429
     
     @app.errorhandler(413)
     def request_entity_too_large(error):
@@ -734,7 +742,11 @@ def create_app(config_name='default'):
                 'messages': [{'category': 'danger', 'text': msg}],
             }), 413
         max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 524288000) / (1024 * 1024)
-        return render_template('errors/413.html', max_size_mb=max_size_mb), 413
+        return render_template(
+            'errors/413.html',
+            max_size_mb=max_size_mb,
+            error_detail=_error_detail(error),
+        ), 413
     
     @app.errorhandler(500)
     def internal_error(error):
@@ -742,7 +754,7 @@ def create_app(config_name='default'):
         db.session.rollback()
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Internal server error', 'message': str(error)}), 500
-        return render_template('errors/500.html'), 500
+        return render_template('errors/500.html', error_detail=_error_detail(error)), 500
     
     @app.errorhandler(Exception)
     def handle_exception(e):
@@ -756,7 +768,7 @@ def create_app(config_name='default'):
         
         if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
             return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
-        return render_template('errors/500.html'), 500
+        return render_template('errors/500.html', error_detail=_error_detail(e)), 500
     
     @app.errorhandler(ValueError)
     def handle_value_error(e):
@@ -764,12 +776,13 @@ def create_app(config_name='default'):
         return render_template('errors/generic.html', 
                              error_code='400',
                              error_title='Ungültige Eingabe',
-                             error_message=str(e)), 400
+                             error_message=str(e),
+                             error_detail=_error_detail(e)), 400
     
     @app.errorhandler(PermissionError)
     def handle_permission_error(e):
         app.logger.warning(f"Permission error: {e}")
-        return render_template('errors/403.html'), 403
+        return render_template('errors/403.html', error_detail=_error_detail(e)), 403
 
     from app.blueprints.setup import setup_bp
     from app.blueprints.auth import auth_bp

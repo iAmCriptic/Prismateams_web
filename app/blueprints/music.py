@@ -145,6 +145,9 @@ def public_wishlist():
     
     # Hole Einstellung für Provider-Badge-Anzeige
     show_provider_badges = MusicSettings.get_show_provider_badges()
+
+    accent_color = get_cached_system_setting('default_accent_color') or '#0d6efd'
+    accent_style = f'linear-gradient(45deg, {accent_color}, {accent_color})'
     
     return render_template('music/public_wishlist.html', 
                          has_providers=has_providers,
@@ -153,7 +156,9 @@ def public_wishlist():
                          portal_logo_filename=portal_logo_filename,
                          app_name=app_name,
                          app_logo=app_logo,
-                         show_provider_badges=show_provider_badges)
+                         show_provider_badges=show_provider_badges,
+                         accent_color=accent_color,
+                         accent_style=accent_style)
 
 
 @music_bp.route('/wishlist/search', methods=['POST'])
@@ -805,13 +810,35 @@ def public_url_page():
     """Zeigt eine Seite mit QR-Code und Link für die öffentliche Wunschliste."""
     # Hole Portallogo (mit Cache)
     portal_logo_filename = get_cached_system_setting('portal_logo') or None
+    color_gradient = get_cached_system_setting('color_gradient')
+
+    portal_name = get_cached_system_setting('portal_name')
+    if portal_name and portal_name.strip():
+        app_name = portal_name
+    else:
+        org_name = get_cached_system_setting('organization_name')
+        if org_name and org_name.strip():
+            app_name = org_name
+        else:
+            app_name = current_app.config.get('APP_NAME', 'Prismateams')
+
+    if current_user.is_authenticated:
+        accent_color = current_user.accent_highlight_color
+        accent_style = current_user.accent_style
+    else:
+        accent_color = get_cached_system_setting('default_accent_color') or '#0d6efd'
+        accent_style = f'linear-gradient(45deg, {accent_color}, {accent_color})'
     
     # Generiere Public URL
     public_url = url_for('music.public_wishlist', _external=True)
     
     return render_template('music/public_url.html',
                          portal_logo_filename=portal_logo_filename,
-                         public_url=public_url)
+                         public_url=public_url,
+                         color_gradient=color_gradient,
+                         app_name=app_name,
+                         accent_color=accent_color,
+                         accent_style=accent_style)
 
 
 @music_bp.route('/api/public-link')

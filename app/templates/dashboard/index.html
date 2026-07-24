@@ -119,7 +119,7 @@
 
         {% if not current_user.is_guest %}
         <div class="dashboard-main-edit">
-            <a href="{{ url_for('dashboard.edit') }}" class="btn btn-outline-secondary btn-sm">
+            <a href="{{ url_for('dashboard.edit') }}" class="btn dashboard-edit-pill-btn dashboard-edit-pill-btn--outline">
                 <i class="bi bi-pencil-square me-1"></i>{{ _('dashboard.quick_access.edit_dashboard') }}
             </a>
         </div>

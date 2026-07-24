@@ -40,6 +40,10 @@ body {
 }
 
 /* OLED Mode - echtes Schwarz für OLED-Displays */
+[data-oled-mode="true"] {
+    --bs-body-bg: #000000;
+}
+
 [data-oled-mode="true"] body {
     background-color: #000000 !important;
 }
@@ -1423,8 +1427,39 @@ button, .btn {
     gap: 0.5rem;
 }
 .pt-confirm-modal .btn {
-    border-radius: 0.75rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
     min-width: 6.5rem;
+    font-weight: 600;
+    padding: 0.5rem 1.15rem;
+}
+.pt-confirm-modal .btn.btn-outline-primary,
+.pt-confirm-modal .btn.btn-outline-secondary {
+    background: transparent !important;
+    color: var(--accent-color, #0d6efd) !important;
+    border-color: var(--accent-color, #0d6efd) !important;
+}
+.pt-confirm-modal .btn.btn-outline-primary:hover,
+.pt-confirm-modal .btn.btn-outline-primary:focus,
+.pt-confirm-modal .btn.btn-outline-primary:active,
+.pt-confirm-modal .btn.btn-outline-secondary:hover,
+.pt-confirm-modal .btn.btn-outline-secondary:focus,
+.pt-confirm-modal .btn.btn-outline-secondary:active {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+    border-color: var(--accent-color, #0d6efd) !important;
+    box-shadow: none !important;
+}
+.pt-confirm-modal .btn.btn-danger {
+    background: transparent !important;
+    color: var(--bs-danger) !important;
+    border: 1px solid var(--bs-danger) !important;
+}
+.pt-confirm-modal .btn.btn-danger:hover,
+.pt-confirm-modal .btn.btn-danger:focus,
+.pt-confirm-modal .btn.btn-danger:active {
+    background: color-mix(in srgb, var(--bs-danger) 12%, transparent) !important;
+    color: var(--bs-danger) !important;
+    box-shadow: none !important;
 }
 
 /* OLED Mode - Offcanvas */
@@ -1579,195 +1614,9 @@ button, .btn {
     }
 }
 
-.portal-msg {
-    --portal-msg-accent: var(--accent-color, #0d6efd);
-    position: relative;
-    margin: 0;
-    padding: 0;
-    pointer-events: auto;
-    background: #fff !important;
-    color: var(--bs-body-color, #212529) !important;
-    border: 1px solid color-mix(in srgb, var(--portal-msg-accent) 22%, transparent) !important;
-    border-radius: 1.35rem !important;
-    box-shadow:
-        0 0.35rem 1.15rem color-mix(in srgb, var(--portal-msg-accent) 42%, transparent),
-        0 0.1rem 0.35rem rgba(0, 0, 0, 0.06) !important;
-    overflow: hidden;
-    animation: portal-toast-prompt-in 0.28s ease-out;
-}
-
-.portal-msg.alert {
-    --bs-alert-bg: #fff;
-    --bs-alert-border-color: transparent;
-    --bs-alert-color: var(--bs-body-color, #212529);
-    --bs-alert-padding-x: 0;
-    --bs-alert-padding-y: 0;
-    --bs-alert-border-radius: 1.35rem;
-}
-
-.portal-msg--info {
-    --portal-msg-accent: #0d6efd;
-}
-.portal-msg--success {
-    --portal-msg-accent: #198754;
-}
-.portal-msg--warning {
-    --portal-msg-accent: #e6a800;
-}
-.portal-msg--danger,
-.portal-msg--error {
-    --portal-msg-accent: #dc3545;
-}
-
-.portal-msg__body {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 1.05rem 1.15rem;
-}
-
-.portal-msg__icon {
-    flex-shrink: 0;
-    width: 2.35rem;
-    height: 2.35rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--portal-msg-accent) 14%, transparent);
-    color: var(--portal-msg-accent);
-    font-size: 1.1rem;
-}
-
-.portal-msg__content {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.portal-msg__title {
-    margin: 0 0 0.3rem;
-    font-size: 0.95rem;
-    font-weight: 650;
-    letter-spacing: -0.015em;
-    line-height: 1.35;
-    color: var(--bs-body-color, #212529);
-}
-
-.portal-msg__text {
-    margin: 0;
-    font-size: 0.8rem;
-    line-height: 1.45;
-    color: var(--bs-secondary-color, #6c757d);
-}
-
-.portal-msg__text:not(:last-child),
-.portal-msg__content > .portal-msg__text + .portal-msg__actions {
-    margin-bottom: 0;
-}
-
-.portal-msg__text + .portal-msg__actions,
-.portal-msg__title + .portal-msg__actions {
-    margin-top: 0.85rem;
-}
-
-.portal-msg__text code {
-    font-size: 0.78em;
-    color: #d63384;
-    background: color-mix(in srgb, #d63384 8%, transparent);
-    padding: 0.1em 0.35em;
-    border-radius: 0.35rem;
-}
-
-.portal-msg__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    align-items: center;
-    margin-top: 0.85rem;
-}
-
-.portal-msg__btn {
-    border-radius: var(--mod-radius-pill, 1.5rem) !important;
-    font-weight: 600;
-    font-size: 0.8rem;
-    padding: 0.35rem 0.95rem !important;
-    line-height: 1.2;
-    border: none !important;
-    white-space: nowrap;
-}
-
-.portal-msg__btn--primary {
-    color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-    box-shadow: 0 0.15rem 0.45rem rgba(0, 0, 0, 0.12);
-}
-
-.portal-msg__btn--primary:hover,
-.portal-msg__btn--primary:focus {
-    filter: brightness(1.08);
-    color: #fff !important;
-}
-
-.portal-msg__btn--secondary {
-    color: var(--accent-color, #0d6efd) !important;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, transparent) !important;
-}
-
-.portal-msg__btn--secondary:hover,
-.portal-msg__btn--secondary:focus {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 16%, transparent) !important;
-    color: var(--accent-color, #0d6efd) !important;
-}
-
-.portal-msg__btn--ghost,
-.portal-msg__close {
-    color: var(--bs-secondary-color, #6c757d) !important;
-    background: transparent !important;
-    padding-left: 0.55rem !important;
-    padding-right: 0.55rem !important;
-    box-shadow: none !important;
-}
-
-.portal-msg__btn--ghost:hover,
-.portal-msg__btn--ghost:focus,
-.portal-msg__close:hover,
-.portal-msg__close:focus {
-    color: var(--bs-body-color, #212529) !important;
-    background: color-mix(in srgb, var(--bs-body-color, #212529) 6%, transparent) !important;
-}
-
-.portal-msg__close {
-    margin-left: auto;
-}
-
-.portal-msg .btn-close {
-    display: none;
-}
-
-[data-bs-theme="dark"] .portal-msg {
-    background: color-mix(in srgb, var(--bs-body-bg, #212529) 96%, #000) !important;
-    box-shadow:
-        0 0.4rem 1.25rem color-mix(in srgb, var(--portal-msg-accent) 38%, transparent),
-        0 0.15rem 0.45rem rgba(0, 0, 0, 0.35) !important;
-}
-
-[data-oled-mode="true"] .portal-msg {
-    background: #000 !important;
-    border-color: #1a1a1a !important;
-}
-
 @media (max-width: 575.98px) {
     .app-flash-banner {
         width: calc(100vw - 1.25rem);
         top: 0.65rem;
-    }
-
-    .portal-msg {
-        border-radius: 1.25rem !important;
-    }
-
-    .portal-msg__btn {
-        font-size: 0.75rem;
-        padding: 0.32rem 0.75rem !important;
     }
 }

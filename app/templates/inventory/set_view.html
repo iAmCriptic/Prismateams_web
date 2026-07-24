@@ -1,111 +1,170 @@
 {% extends "inventory/layout.html" %}
 
-{% block title %}{{ product_set.name }} - Produktset{% endblock %}
+{% block title %}{{ product_set.name }} - {{ _('inventory.sets.page_title') }}{% endblock %}
 {% block inventory_heading_icon %}bi-collection{% endblock %}
 {% block inventory_heading %}{{ product_set.name }}{% endblock %}
 
+{% block inventory_mobile_actions %}
+<a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+    <i class="bi bi-cart-check"></i> {{ _('inventory.sets.actions.borrow') }}
+</a>
+{% endblock %}
 
 {% block inventory_content %}
-{% if product_set.description %}
-<p class="text-muted mb-3">{{ product_set.description }}</p>
-{% endif %}
-<div class="d-flex flex-wrap gap-2 mb-4">
-    <a href="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" class="btn btn-outline-info" target="_blank">
-        <i class="bi bi-qr-code"></i> QR-Code
+<div class="inventory-back-row mb-3">
+    <a href="{{ url_for('inventory.sets') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
     </a>
-    <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn btn-success">
-        <i class="bi bi-cart-check"></i> Set ausleihen
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{{ url_for('inventory.set_borrow', set_id=product_set.id) }}" class="btn inventory-pill-btn inventory-pill-btn--outline-success">
+        <i class="bi bi-cart-check"></i> {{ _('inventory.sets.detail.borrow') }}
     </a>
     {% if current_user.is_admin or product_set.created_by == current_user.id %}
-    <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn btn-outline-primary">
-        <i class="bi bi-pencil"></i> Bearbeiten
+    <a href="{{ url_for('inventory.set_edit', set_id=product_set.id) }}" class="btn inventory-pill-btn inventory-pill-btn--outline">
+        <i class="bi bi-pencil"></i> {{ _('inventory.sets.actions.edit') }}
     </a>
-    <form method="POST" action="{{ url_for('inventory.set_delete', set_id=product_set.id) }}"
-          class="d-inline">
-        <button type="submit" class="btn btn-outline-danger"
-                data-confirm-delete="Möchten Sie dieses Set wirklich löschen?">
-            <i class="bi bi-trash"></i> Löschen
+    <form method="POST" action="{{ url_for('inventory.set_delete', set_id=product_set.id) }}" class="d-inline">
+        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--outline-danger"
+                data-confirm-delete="{{ _('inventory.sets.detail.delete_confirm') }}">
+            <i class="bi bi-trash"></i> {{ _('inventory.sets.actions.delete') }}
         </button>
     </form>
     {% endif %}
 </div>
 
-<div class="row mb-4">
-    <div class="col-12 col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-qr-code"></i> QR-Code</h5>
-            </div>
-            <div class="card-body text-center">
-                <img src="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" 
-                     alt="QR-Code für {{ product_set.name }}" 
-                     class="img-fluid mb-2"
-                     style="max-width: 300px;">
-                <p class="text-muted small mb-0">SET-{{ product_set.id }}</p>
-                <a href="{{ url_for('inventory.set_qr_code', set_id=product_set.id) }}" 
-                   class="btn btn-sm btn-outline-primary mt-2" 
-                   download="set-{{ product_set.id }}-qr.png">
-                    <i class="bi bi-download"></i> QR-Code herunterladen
-                </a>
+<section class="inventory-form-card inventory-form-card--wide mb-3" aria-labelledby="set-detail-info">
+    <div class="inventory-form-card-head">
+        <h2 id="set-detail-info" class="inventory-form-section-title">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            {{ _('inventory.sets.detail.info_title') }}
+        </h2>
+    </div>
+    <div class="inventory-form-fields inventory-form-fields--2">
+        <div class="inventory-form-field">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.name') }}</div>
+            <div class="fw-semibold">{{ product_set.name }}</div>
+        </div>
+        <div class="inventory-form-field">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.products') }}</div>
+            <div class="fw-semibold">{{ product_set.product_count }}</div>
+        </div>
+        <div class="inventory-form-field">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.availability') }}</div>
+            <div>
+                {% if product_set.product_count == 0 %}
+                <span class="badge bg-secondary">0</span>
+                {% elif available_count == product_set.product_count %}
+                <span class="badge bg-success">{{ available_count }}/{{ product_set.product_count }}</span>
+                {% elif available_count == 0 %}
+                <span class="badge bg-danger">{{ available_count }}/{{ product_set.product_count }}</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">{{ available_count }}/{{ product_set.product_count }}</span>
+                {% endif %}
             </div>
         </div>
+        {% if product_set.creator %}
+        <div class="inventory-form-field">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.created_by') }}</div>
+            <div>{{ product_set.creator.full_name if product_set.creator.full_name is defined else product_set.creator.username }}</div>
+        </div>
+        {% endif %}
+        {% if product_set.created_at %}
+        <div class="inventory-form-field">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.created_at') }}</div>
+            <div>{{ product_set.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        </div>
+        {% endif %}
+        {% if product_set.updated_at %}
+        <div class="inventory-form-field">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.updated_at') }}</div>
+            <div>{{ product_set.updated_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        </div>
+        {% endif %}
+        <div class="inventory-form-field" style="grid-column: 1 / -1;">
+            <div class="form-label text-muted mb-1">{{ _('inventory.sets.detail.description') }}</div>
+            {% if product_set.description %}
+            <div class="inventory-set-description">{{ product_set.description }}</div>
+            {% else %}
+            <div class="text-muted">{{ _('inventory.sets.detail.no_description') }}</div>
+            {% endif %}
+        </div>
     </div>
-</div>
+</section>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-box"></i> Produkte im Set ({{ product_set.product_count }})
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Produkt</th>
-                                <th>Kategorie</th>
-                                <th>Status</th>
-                                <th>Menge</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in product_set.items %}
-                            <tr>
-                                <td>
-                                    <strong>{{ item.product.name }}</strong>
-                                    {% if item.product.serial_number %}
-                                    <br><small class="text-muted">SN: {{ item.product.serial_number }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>{{ item.product.category or '-' }}</td>
-                                <td>
-                                    {% if item.product.status == 'available' %}
-                                    <span class="badge bg-success">Verfügbar</span>
-                                    {% elif item.product.status == 'borrowed' %}
-                                    <span class="badge bg-warning">Ausgeliehen</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Fehlend</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ item.quantity }}</td>
-                                <td>
-                                    <a href="{{ url_for('inventory.stock') }}?product_id={{ item.product.id }}" 
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> Anzeigen
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+<section class="inventory-form-card inventory-form-card--wide" aria-labelledby="set-detail-products">
+    <div class="inventory-form-card-head">
+        <h2 id="set-detail-products" class="inventory-form-section-title">
+            <i class="bi bi-box-seam" aria-hidden="true"></i>
+            {{ _('inventory.sets.detail.products_title', count=product_set.product_count) }}
+        </h2>
+    </div>
+
+    {% if product_set.items %}
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">{{ _('inventory.sets.detail.col_product') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('inventory.sets.detail.col_category') }}</th>
+                    <th scope="col">{{ _('inventory.sets.detail.col_status') }}</th>
+                    <th scope="col" class="d-none d-sm-table-cell">{{ _('inventory.sets.detail.col_qty') }}</th>
+                    <th scope="col" class="text-end">{{ _('inventory.sets.detail.col_actions') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in product_set.items %}
+                {% set product = item.product %}
+                <tr class="mod-list-row">
+                    <td>
+                        <span class="mod-list-name">
+                            <i class="bi bi-box-seam me-2 text-muted"></i>
+                            <span class="inventory-item-name-text">{{ product.name if product else '—' }}</span>
+                        </span>
+                        {% if product and product.serial_number %}
+                        <div class="text-muted small mt-1">SN: {{ product.serial_number }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">{{ product.category if product and product.category else '—' }}</td>
+                    <td>
+                        {% if not product %}
+                        <span class="badge bg-secondary">—</span>
+                        {% elif product.status == 'available' %}
+                        <span class="badge bg-success">{{ _('inventory.stock.filters.available') }}</span>
+                        {% elif product.status == 'borrowed' %}
+                        <span class="badge bg-warning text-dark">{{ _('inventory.stock.filters.borrowed') }}</span>
+                        {% elif product.status == 'missing' %}
+                        <span class="badge bg-danger">{{ _('inventory.stock.filters.missing') }}</span>
+                        {% elif product.status in ('defective', 'in_repair') %}
+                        <span class="badge bg-danger">{{ _('inventory.stock.filters.defective') }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ product.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-sm-table-cell">{{ item.quantity }}</td>
+                    <td class="text-end">
+                        {% if product %}
+                        <a href="{{ url_for('inventory.stock') }}?product_id={{ product.id }}"
+                           class="btn btn-sm btn-link"
+                           title="{{ _('inventory.sets.actions.view') }}">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="mod-empty-state py-4">
+        <div>
+            <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+            {{ _('inventory.sets.detail.no_products') }}
         </div>
     </div>
-</div>
+    {% endif %}
+</section>
 {% endblock %}
-

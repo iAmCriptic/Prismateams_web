@@ -103,7 +103,7 @@
     left: 0.95rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--bs-secondary-color, #6c757d);
+    color: var(--accent-color, #0d6efd);
     pointer-events: none;
     font-size: 0.95rem;
 }

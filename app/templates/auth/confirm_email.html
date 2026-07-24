@@ -18,9 +18,16 @@
                 <h5 class="text-center mb-2">{{ _('auth.confirm_email.title') }}</h5>
                 <p class="text-center text-muted mb-4">{{ _('auth.confirm_email.subtitle') }}</p>
                 
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>{{ _('auth.confirm_email.info_title') }}:</strong> {{ _('auth.confirm_email.info_message') }}
+                <div class="alert portal-msg portal-msg--info alert-permanent mb-3" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-info-circle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <h6 class="portal-msg__title">{{ _('auth.confirm_email.info_title') }}</h6>
+                            <p class="portal-msg__text">{{ _('auth.confirm_email.info_message') }}</p>
+                        </div>
+                    </div>
                 </div>
                 
                 <form method="POST">
@@ -47,9 +54,16 @@
                 
                 <hr class="my-4">
                 
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>{{ _('auth.confirm_email.warning_title') }}:</strong> {{ _('auth.confirm_email.warning_message') }}
+                <div class="alert portal-msg portal-msg--warning alert-permanent mb-0" role="note">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <h6 class="portal-msg__title">{{ _('auth.confirm_email.warning_title') }}</h6>
+                            <p class="portal-msg__text">{{ _('auth.confirm_email.warning_message') }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

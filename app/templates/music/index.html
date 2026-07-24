@@ -152,8 +152,12 @@
 </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/music.js') }}"></script>
 <script>
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document);
+    }
     const translations = {
         markAsPlayedConfirm: {{ _('music.index.confirmations.mark_as_played') | tojson }},
         removeFromQueueConfirm: {{ _('music.index.confirmations.remove_from_queue') | tojson }},

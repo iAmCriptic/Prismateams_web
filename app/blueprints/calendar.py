@@ -1171,6 +1171,7 @@ def manage_feeds():
         feed=feed,
         feed_url=feed_url,
         webcal_url=webcal_url,
+        **_page_shell_context(),
     )
 
 

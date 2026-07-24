@@ -350,26 +350,9 @@ body:has(.auth-container) .pwa-install-prompt {
     line-height: 1.45;
 }
 
-/* Soft pill alerts */
-.auth-card .alert {
-    border: none;
-    border-radius: 1.15rem !important;
-    background: color-mix(in srgb, #0d6efd 10%, #f5f7fb);
-    box-shadow: none;
-    color: var(--auth-text);
-    padding: 0.9rem 1.1rem;
-    font-size: 0.875rem;
-    line-height: 1.45;
-}
-
-.auth-card .alert-info {
-    background: color-mix(in srgb, #0d6efd 12%, #f0f4fa);
-    color: #0a3d7a;
-}
-
-.auth-card .alert-warning {
-    background: color-mix(in srgb, #e6a800 14%, #fff8e8);
-    color: #7a5a00;
+/* Auth alerts use shared portal-msg look from portal-msg.css */
+.auth-card .alert:not(.portal-msg) {
+    margin-bottom: 1rem;
 }
 
 .auth-card .mb-3 {

@@ -11,7 +11,7 @@ from io import BytesIO
 from datetime import datetime
 import os
 from PIL import Image as PILImage
-from app.utils.qr_code import generate_qr_code_bytes, generate_qr_code_inverted_bytes, generate_product_qr_code, generate_borrow_qr_code
+from app.utils.qr_code import generate_qr_code_bytes, generate_qr_code_inverted_bytes, generate_product_qr_code, generate_borrow_qr_code, generate_set_qr_code
 from app.utils.lengths import format_length_from_meters, parse_length_to_meters
 from app.utils.color_mapping import get_color_for_length, initialize_color_mappings
 
@@ -670,23 +670,103 @@ def generate_borrow_receipt_pdf(borrow_transactions, output=None):
     return build_standard_pdf(story, pagesize=A4, output=output)
 
 
-def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
+def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload, get_name, get_id_label, continuation_title):
+    """Geräte-Raster für Produkte oder Sets anhängen."""
+    from reportlab.platypus import PageBreak
+
+    qr_size = 2.8 * cm
+    items_per_row = 3
+    items_per_col = 4
+    items_per_page = items_per_row * items_per_col
+    name_style = ParagraphStyle(
+        'DeviceQrName', parent=styles['Normal'], fontSize=8,
+        alignment=TA_CENTER, fontName='Helvetica-Bold', textColor=colors.HexColor('#212529'),
+    )
+    id_style = ParagraphStyle(
+        'DeviceQrId', parent=styles['Normal'], fontSize=7,
+        alignment=TA_CENTER, textColor=colors.HexColor('#6c757d'),
+    )
+
+    for page_start in range(0, len(items), items_per_page):
+        if page_start > 0:
+            story.append(PageBreak())
+            story.append(build_standard_header(
+                continuation_title, subtitle=f"Stand: {stand} · Fortsetzung", pagesize=A4, logo_size=1.6 * cm
+            ))
+            story.append(Spacer(1, 0.3 * cm))
+
+        page_items = items[page_start:page_start + items_per_page]
+        qr_data = []
+        for row in range(items_per_col):
+            row_cells = []
+            for col in range(items_per_row):
+                idx = row * items_per_row + col
+                if idx < len(page_items):
+                    item = page_items[idx]
+                    qr_payload = get_qr_payload(item)
+                    qr_bytes = generate_qr_code_bytes(qr_payload, box_size=6, border=2)
+                    qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
+                    item_name = (get_name(item) or '—')[:22]
+                    cell = Table(
+                        [[qr_image], [Paragraph(item_name, name_style)], [Paragraph(get_id_label(item), id_style)]],
+                        colWidths=[5.5 * cm],
+                    )
+                    cell.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor('#dee2e6')),
+                        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                        ('TOPPADDING', (0, 0), (-1, -1), 6),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ]))
+                    row_cells.append(cell)
+                else:
+                    row_cells.append('')
+            qr_data.append(row_cells)
+
+        qr_table = Table(qr_data, colWidths=[5.7 * cm] * items_per_row, rowHeights=[4.6 * cm] * items_per_col)
+        qr_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        story.append(qr_table)
+
+
+def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', sets=None):
     """
-    Generiert einen QR-Code-Druckbogen für Produkte.
+    Generiert einen QR-Code-Druckbogen für Produkte und/oder Sets.
     Mit Standard-Kopf/Fuß; Etiketten darunter.
     """
-    if not products:
-        raise ValueError("Keine Produkte zum Generieren des QR-Code-Druckbogens vorhanden.")
+    products = list(products or [])
+    sets = list(sets or [])
+    if not products and not sets:
+        raise ValueError("Keine Produkte oder Sets zum Generieren des QR-Code-Druckbogens vorhanden.")
 
     styles = getSampleStyleSheet()
     stand = datetime.now().strftime('%d.%m.%Y')
-    title = "QR-Codes (Kabel)" if label_type == 'cable' else "QR-Codes (Geräte)"
+    parts = []
+    if products:
+        parts.append(f"{len(products)} Artikel")
+    if sets:
+        parts.append(f"{len(sets)} Sets")
+    if label_type == 'cable' and products:
+        title = "QR-Codes (Kabel)"
+    elif products and not sets:
+        title = "QR-Codes (Geräte)"
+    elif sets and not products:
+        title = "QR-Codes (Sets)"
+    else:
+        title = "QR-Codes"
     story = [
-        build_standard_header(title, subtitle=f"Stand: {stand} · {len(products)} Artikel", pagesize=A4, logo_size=1.8 * cm),
+        build_standard_header(title, subtitle=f"Stand: {stand} · {' · '.join(parts)}", pagesize=A4, logo_size=1.8 * cm),
         Spacer(1, 0.35 * cm),
     ]
 
-    if label_type == 'cable':
+    if products and label_type == 'cable':
         try:
             initialize_color_mappings()
         except Exception:
@@ -736,69 +816,39 @@ def generate_qr_code_sheet_pdf(products, output=None, label_type='cable'):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
         story.append(table)
-
-    else:  # device
-        from reportlab.platypus import PageBreak
-        qr_size = 2.8 * cm
-        items_per_row = 3
-        items_per_col = 4
-        items_per_page = items_per_row * items_per_col
-        name_style = ParagraphStyle(
-            'DeviceQrName', parent=styles['Normal'], fontSize=8,
-            alignment=TA_CENTER, fontName='Helvetica-Bold', textColor=colors.HexColor('#212529'),
-        )
-        id_style = ParagraphStyle(
-            'DeviceQrId', parent=styles['Normal'], fontSize=7,
-            alignment=TA_CENTER, textColor=colors.HexColor('#6c757d'),
+    elif products:
+        _append_device_style_qr_grid(
+            story,
+            products,
+            stand=stand,
+            styles=styles,
+            get_qr_payload=lambda p: generate_product_qr_code(p.id),
+            get_name=lambda p: p.name or f"ID {p.id}",
+            get_id_label=lambda p: f"ID: {p.id}",
+            continuation_title=title,
         )
 
-        for page_start in range(0, len(products), items_per_page):
-            if page_start > 0:
-                story.append(PageBreak())
-                story.append(build_standard_header(
-                    title, subtitle=f"Stand: {stand} · Fortsetzung", pagesize=A4, logo_size=1.6 * cm
-                ))
-                story.append(Spacer(1, 0.3 * cm))
-
-            page_products = products[page_start:page_start + items_per_page]
-            qr_data = []
-            for row in range(items_per_col):
-                row_cells = []
-                for col in range(items_per_row):
-                    idx = row * items_per_row + col
-                    if idx < len(page_products):
-                        product = page_products[idx]
-                        qr_url = generate_product_qr_code(product.id)
-                        qr_bytes = generate_qr_code_bytes(qr_url, box_size=6, border=2)
-                        qr_image = Image(BytesIO(qr_bytes), width=qr_size, height=qr_size)
-                        product_name = (product.name or f"ID {product.id}")[:22]
-                        cell = Table(
-                            [[qr_image], [Paragraph(product_name, name_style)], [Paragraph(f"ID: {product.id}", id_style)]],
-                            colWidths=[5.5 * cm],
-                        )
-                        cell.setStyle(TableStyle([
-                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                            ('BOX', (0, 0), (-1, -1), 0.6, colors.HexColor('#dee2e6')),
-                            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-                            ('TOPPADDING', (0, 0), (-1, -1), 6),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                        ]))
-                        row_cells.append(cell)
-                    else:
-                        row_cells.append('')
-                qr_data.append(row_cells)
-
-            qr_table = Table(qr_data, colWidths=[5.7 * cm] * items_per_row, rowHeights=[4.6 * cm] * items_per_col)
-            qr_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 4),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ]))
-            story.append(qr_table)
+    if sets:
+        if products:
+            from reportlab.platypus import PageBreak
+            story.append(PageBreak())
+            story.append(build_standard_header(
+                "QR-Codes (Sets)",
+                subtitle=f"Stand: {stand} · {len(sets)} Sets",
+                pagesize=A4,
+                logo_size=1.6 * cm,
+            ))
+            story.append(Spacer(1, 0.3 * cm))
+        _append_device_style_qr_grid(
+            story,
+            sets,
+            stand=stand,
+            styles=styles,
+            get_qr_payload=lambda s: generate_set_qr_code(s.id),
+            get_name=lambda s: s.name or f"Set {s.id}",
+            get_id_label=lambda s: f"SET-{s.id}",
+            continuation_title="QR-Codes (Sets)",
+        )
 
     return build_standard_pdf(
         story,

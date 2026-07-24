@@ -966,12 +966,6 @@ body.embed-scope .mod-main {
     border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
-[data-bs-theme="dark"] .settings-embed-shell .alert {
-    background: #2a2f3a;
-    color: #f3f4f6;
-    border-color: rgba(255, 255, 255, 0.12);
-}
-
 [data-bs-theme="dark"] .settings-embed-shell .table {
     --bs-table-bg: transparent;
     --bs-table-color: #f3f4f6;

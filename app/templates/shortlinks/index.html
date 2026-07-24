@@ -13,6 +13,36 @@
 {% set password_filter = password_filter|default('') %}
 {% set clicks_filter = clicks_filter|default('') %}
 
+{% macro shortlinks_search_form(id_suffix='') %}
+<form method="GET" action="{{ url_for('shortlinks.index') }}" class="shortlinks-search" role="search" id="shortlinksSearchForm{{ id_suffix }}">
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="dir" value="{{ sort_dir }}">
+    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+    {% if expiry_filter %}<input type="hidden" name="expiry" value="{{ expiry_filter }}">{% endif %}
+    {% if password_filter %}<input type="hidden" name="password" value="{{ password_filter }}">{% endif %}
+    {% if clicks_filter %}<input type="hidden" name="clicks" value="{{ clicks_filter }}">{% endif %}
+    <i class="bi bi-search shortlinks-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="shortlinksSearchInput{{ id_suffix }}"
+           value="{{ search_query }}"
+           class="form-control shortlinks-search-input"
+           placeholder="Kürzel oder Ziel-URL…"
+           aria-label="Suche"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('shortlinks.index', sort=sort_by, dir=sort_dir, status=status_filter or None, expiry=expiry_filter or None, password=password_filter or None, clicks=clicks_filter or None) }}"
+       class="btn shortlinks-search-clear"
+       id="shortlinksSearchClear{{ id_suffix }}"
+       aria-label="Suche löschen">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endmacro %}
+
 <div class="shortlinks-shell mod-shell--nav">
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
     <div class="mod-sidebar-brand">
@@ -51,6 +81,21 @@
                 <i class="bi bi-plus-lg"></i> Neu
             </a>
         </div>
+        <div class="shortlinks-mobile-toolbar mt-2">
+            <div class="shortlinks-mobile-search min-width-0 flex-grow-1">
+                {{ shortlinks_search_form('Mobile') }}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col-lg-3 min-width-0">
+            <h1 class="h4 mb-0 text-truncate">Kurzlinks</h1>
+        </div>
+        <div class="col-lg-6">
+            {{ shortlinks_search_form('') }}
+        </div>
+        <div class="col-lg-3"></div>
     </div>
 
     {% if links %}
@@ -90,7 +135,7 @@
                         {% endif %}
                     </td>
                     <td class="d-none d-sm-table-cell">{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
-                    <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at|localdatetime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
+                    <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
                     <td class="text-end">
                         <div class="mod-list-actions">
                             <div class="mod-list-hover-actions">
@@ -123,8 +168,8 @@
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
-                                        <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}" onsubmit="return confirm('Kurzlink wirklich löschen?');">
-                                            <button type="submit" class="dropdown-item text-danger">
+                                        <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}">
+                                            <button type="submit" class="dropdown-item text-danger" data-confirm-delete="Kurzlink wirklich löschen?">
                                                 <i class="bi bi-trash"></i> Löschen
                                             </button>
                                         </form>
@@ -152,6 +197,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 (function () {
     document.querySelectorAll('[data-shortlinks-dismiss-offcanvas]').forEach(function (el) {
@@ -163,6 +209,15 @@
             }
         });
     });
+
+    function notify(message, category) {
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(String(message || ''), category || 'info');
+            return;
+        }
+        // Fallback ohne Banner-API (sollte im Portal nicht greifen)
+        console.warn(message);
+    }
 
     function flashCopyFeedback(btn) {
         var icon = btn.querySelector('i');
@@ -177,22 +232,58 @@
         }, 1200);
     }
 
+    function copyViaExecCommand(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        var ok = false;
+        try {
+            ok = document.execCommand('copy');
+        } catch (_) {
+            ok = false;
+        }
+        document.body.removeChild(ta);
+        return ok;
+    }
+
+    function copyUrl(url, btn) {
+        function onSuccess() {
+            flashCopyFeedback(btn);
+        }
+        function onFail() {
+            if (copyViaExecCommand(url)) {
+                onSuccess();
+                return;
+            }
+            notify('Link konnte nicht kopiert werden.', 'danger');
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(onSuccess).catch(onFail);
+        } else {
+            onFail();
+        }
+    }
+
     document.querySelectorAll('.shortlinks-copy-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
             var url = btn.getAttribute('data-copy-url');
             if (!url) return;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(url).then(function () {
-                    flashCopyFeedback(btn);
-                }).catch(function () {
-                    window.prompt('Link kopieren:', url);
-                });
-            } else {
-                window.prompt('Link kopieren:', url);
-            }
+            copyUrl(url, btn);
         });
     });
 })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document);
+    }
+});
 </script>
 {% endblock %}

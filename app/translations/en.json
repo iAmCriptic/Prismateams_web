@@ -786,8 +786,9 @@
       },
       "booking": {
         "title": "Booking requests",
-        "toggle": "Notifications for new booking requests",
-        "help": "Push when a new request arrives for a form where you have a role"
+        "toggle": "New booking requests",
+        "toggle_messages": "New messages",
+        "help": "Bell and push when a new booking request arrives or the applicant replies (per toggle)"
       }
     },
     "security": {
@@ -3569,10 +3570,12 @@
         "success": "QR code recognized"
       },
       "manual": {
-        "title": "Enter QR code or transaction number",
-        "qr_code": "QR code",
-        "qr_placeholder": "Enter QR code (e.g. BORROW-INV-... or PROD-...)",
-        "qr_help": "Enter the QR code of the product or loan.",
+        "title": "Enter ID or transaction number",
+        "qr_code": "ID",
+        "qr_placeholder": "PROD, SET, BORROW",
+        "qr_help": "",
+        "search_label": "Search product",
+        "search_placeholder": "Name, serial number, category…",
         "transaction_number": "or transaction number",
         "transaction_placeholder": "e.g. INV-20251103-123456-ABCD",
         "transaction_help": "Alternatively, you can enter the transaction number directly.",
@@ -3610,15 +3613,112 @@
     "sets": {
       "page_title": "Product sets - Team Portal",
       "heading": "Product sets",
-      "subtitle": "Manage sets of products",
+      "subtitle": "Group multiple products into a set",
       "new_set": "New set",
+      "loading": "Loading...",
+      "load_error": "Failed to load product sets. Please reload the page.",
+      "products_count": "{count} products",
+      "available_count": "{available} of {total} available",
+      "search": {
+        "placeholder": "Search sets…",
+        "label": "Search product sets"
+      },
+      "filters": {
+        "title": "Filters",
+        "availability": "Availability",
+        "availability_any": "All",
+        "availability_full": "Fully available",
+        "availability_partial": "Partially available",
+        "availability_none": "Nothing available",
+        "availability_empty": "No products",
+        "ownership": "Ownership",
+        "ownership_any": "All sets",
+        "ownership_mine": "Only my sets",
+        "ownership_editable": "Editable by me",
+        "description": "Description",
+        "description_any": "Any",
+        "description_with": "With description",
+        "description_without": "Without description",
+        "reset": "Reset filters"
+      },
+      "sort": {
+        "title": "Sort",
+        "field": "Sort by",
+        "direction": "Direction",
+        "name": "Name",
+        "product_count": "Product count",
+        "available_count": "Available products",
+        "created_at": "Created date",
+        "creator": "Creator",
+        "asc": "Ascending",
+        "desc": "Descending",
+        "reset": "Reset sort"
+      },
+      "list": {
+        "name": "Name",
+        "products": "Products",
+        "availability": "Available",
+        "description": "Description",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View",
+        "borrow": "Borrow",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "bulk_selection": {
+        "selected": "selected",
+        "select_all": "All",
+        "deselect_all": "None",
+        "borrow": "Borrow",
+        "edit": "Edit",
+        "delete": "Delete",
+        "none_selected": "Please select at least one set.",
+        "edit_single_only": "Please select exactly one set to edit.",
+        "no_edit_permission": "You do not have permission to edit.",
+        "no_delete_permission": "You do not have permission to delete all selected sets.",
+        "no_borrow_permission": "You do not have permission to borrow.",
+        "borrow_none_available": "No available products in the selected sets."
+      },
+      "modals": {
+        "bulk_delete": {
+          "title": "Delete sets",
+          "warning": "This action cannot be undone.",
+          "message": "Do you really want to delete {count} set(s)?",
+          "note": "The products themselves will remain.",
+          "cancel": "Cancel",
+          "confirm": "Delete",
+          "deleting": "Deleting..."
+        }
+      },
       "table": {
         "name": "Name",
         "products": "Products",
         "actions": "Actions"
       },
       "empty": "No sets available",
-      "create_hint": "Create your first set!"
+      "create_hint": "Create your first set!",
+      "detail": {
+        "borrow": "Borrow set",
+        "delete_confirm": "Do you really want to delete this set?",
+        "info_title": "Details",
+        "name": "Name",
+        "products": "Products",
+        "availability": "Availability",
+        "created_by": "Created by",
+        "created_at": "Created at",
+        "updated_at": "Updated at",
+        "description": "Description",
+        "no_description": "No description provided.",
+        "products_title": "Products in set ({count})",
+        "col_product": "Product",
+        "col_category": "Category",
+        "col_status": "Status",
+        "col_qty": "Qty",
+        "col_actions": "Actions",
+        "no_products": "This set does not contain any products yet."
+      }
     },
     "folders": {
       "page_title": "Folders - Team Portal",
@@ -3631,11 +3731,80 @@
     },
     "statistics": {
       "page_title": "Statistics - Team Portal",
-      "heading": "Statistics"
+      "heading": "Statistics",
+      "subtitle": "KPIs, distributions and borrow trends",
+      "loading": "Loading statistics…",
+      "load_error": "Failed to load statistics",
+      "no_data": "No data available",
+      "no_borrows": "No borrows yet",
+      "no_trends": "No trend data available yet",
+      "chart_error": "Failed to load chart data",
+      "apex_error": "Chart library could not be loaded. Please reload the page.",
+      "kpi": {
+        "total": "Total stock",
+        "available": "Available",
+        "borrowed": "Borrowed",
+        "overdue": "Overdue",
+        "availability_rate": "Availability rate"
+      },
+      "charts": {
+        "categories": "Category distribution",
+        "status": "Status distribution",
+        "top_borrowed": "Most borrowed products (Top 10)",
+        "trends": "Borrow trends (last 12 months)"
+      },
+      "series": {
+        "count": "Count",
+        "borrows": "Borrows"
+      }
     },
     "print_qr": {
-      "page_title": "Print QR codes - Team Portal",
-      "heading": "Print QR codes"
+      "page_title": "QR / Labels - Team Portal",
+      "heading": "QR / Labels",
+      "hint": "Open a folder or select products, then generate a PDF.",
+      "empty": "No products available.",
+      "empty_folder": "This folder has no products.",
+      "empty_search": "No search results.",
+      "empty_sets": "No sets available.",
+      "add_product": "Add product",
+      "set_badge": "Set",
+      "search": {
+        "label": "Search products",
+        "placeholder": "Name, serial number, category…"
+      },
+      "selection": {
+        "selected": "product(s) selected",
+        "select_all": "Select all",
+        "deselect_all": "Deselect all",
+        "select_visible": "Select visible",
+        "deselect_visible": "Deselect visible"
+      },
+      "actions": {
+        "color_codes": "Color codes",
+        "generate_pdf": "Generate PDF"
+      },
+      "label_types": {
+        "cable": "Cables (color stripe)",
+        "device": "Devices"
+      },
+      "folder": {
+        "open": "Open",
+        "select": "Select folder",
+        "unfiled": "No folder",
+        "sets": "Sets",
+        "products_count": "{count} products",
+        "sets_count": "{count} sets"
+      },
+      "list": {
+        "name": "Name",
+        "status": "Status",
+        "category": "Category",
+        "serial": "Serial number",
+        "length": "Length"
+      },
+      "errors": {
+        "no_selection": "Please select at least one product."
+      }
     },
     "flash": {
       "folder_not_found": "Folder not found.",
@@ -3684,6 +3853,8 @@
       "set_deleted": "Product set \"{name}\" has been deleted successfully.",
       "set_borrow_success": "Set \"{name}\" borrowed successfully. {count} products borrowed.",
       "set_borrow_partial": "The following products could not be borrowed: {products}",
+      "sets_bulk_borrow_success": "{count} product(s) from the selected sets were added to the cart.",
+      "sets_bulk_deleted": "{count} product set(s) were deleted.",
       "no_file_selected": "No file selected.",
       "document_uploaded": "Document \"{filename}\" has been uploaded successfully.",
       "invalid_request": "Invalid request.",
@@ -3701,10 +3872,18 @@
       "fill_all_fields": "Please fill in all fields.",
       "invalid_date": "Invalid date."
     },
+    "cart": {
+      "set_badge": "Set",
+      "set_badge_title": "From product set",
+      "set_contents": "Contents",
+      "set_members_heading": "Set \"{name}\"",
+      "set_members_empty": "No products"
+    },
     "errors": {
       "no_borrow_permission": "You do not have permission to borrow items.",
       "no_action_specified": "No action specified.",
       "product_or_set_not_found": "Product or set not found.",
+      "invalid_set_ids": "Invalid set IDs.",
       "inventory_not_active": "Inventory is not active.",
       "product_not_in_inventory": "Product not found in this inventory.",
       "qr_data_required": "QR code data required.",
@@ -3827,11 +4006,11 @@
     },
     "public_wishlist": {
       "page_title": "Music Wishlist",
-      "title": "Music Wishlist",
-      "subtitle": "Search for songs and add them to the wishlist",
+      "title": "Your music request",
+      "subtitle": "Search for a song and add it",
       "provider_select": "Select music service",
       "search_label": "Search for song",
-      "search_placeholder": "Title, artist, album...",
+      "search_placeholder": "Title or artist…",
       "search_button": "Search",
       "search_results": "Search results",
       "loading": "Loading...",
@@ -3846,7 +4025,21 @@
       "search_help_providers": "The search automatically searches all activated providers",
       "recommendations": "Recommendations",
       "recommendation_badge": "Recommendation",
-      "no_recommendations": "No recommendations available."
+      "no_recommendations": "No recommendations available.",
+      "unknown_artist": "Unknown artist",
+      "search_error": "Search error: {error}"
+    },
+    "public_url": {
+      "page_title": "Music requests – QR code",
+      "heading": "Music requests",
+      "subtitle": "Submit online – scan the QR code or open the link",
+      "link_label": "Public link",
+      "short_link_label": "Short link",
+      "copy": "Copy",
+      "copied": "Copied",
+      "print": "Print",
+      "print_title": "Song request?",
+      "print_subtitle": "Scan the QR code"
     },
     "admin": {
       "page_title": "Music Module Settings - Administration",
@@ -3870,7 +4063,7 @@
         "not_connected": "Spotify is not connected.",
         "connect": "Connect",
         "hint_title": "Note",
-        "hint": "Spotify uses simple OAuth authentication. Users can sign in with their Spotify account."
+        "hint": "Requires Client ID and Client Secret from the Spotify Developer Dashboard (create an app). Users sign in with Spotify. Add the redirect URI below."
       },
       "youtube": {
         "title": "YouTube Music OAuth Configuration",
@@ -3886,10 +4079,10 @@
         "not_connected": "YouTube Music is not connected.",
         "connect": "Connect",
         "hint_title": "Note",
-        "hint": "YouTube can now be used with a simple API key. OAuth is optional.",
+        "hint": "Requires the YouTube Data API v3. Enable that API in Google Cloud Console, create an API key, and under API restrictions select “YouTube Data API v3”. OAuth (Client ID/Secret) is optional.",
         "api_key_label": "API Key (recommended)",
         "api_key_placeholder": "YouTube API Key",
-        "api_key_help": "Get an API key in the <a href=\"{link}\" target=\"_blank\">Google Cloud Console</a>"
+        "api_key_help": "Google Cloud Console: enable YouTube Data API v3 → create an API key → under restrictions allow only “YouTube Data API v3”. <a href=\"{link}\" target=\"_blank\">Open Google Cloud Console</a>"
       },
       "save": "Save settings",
       "cancel": "Cancel",
@@ -3903,7 +4096,7 @@
       "deezer": {
         "title": "Deezer",
         "hint_title": "Note",
-        "hint": "Deezer uses a public API. An App ID is optional but recommended for higher rate limits.",
+        "hint": "Public API – App ID optional (recommended for higher rate limits). Create an app in the Deezer Developer Portal and enter the App ID here.",
         "app_id_label": "App ID (optional)",
         "app_id_placeholder": "Deezer App ID",
         "app_id_help": "Get an App ID in the <a href=\"{link}\" target=\"_blank\">Deezer Developer Portal</a> (optional, but recommended for higher rate limits)"
@@ -4046,6 +4239,7 @@
         "send": "Send"
       },
       "confirm_accept": "Really accept this booking? A calendar event will be created.",
+      "confirm_accept_title": "Confirm acceptance",
       "actions_heading": "Actions"
     },
     "public_form": {
@@ -4176,17 +4370,35 @@
     },
     "form": {
       "title": "New download",
+      "link_box_title": "Link / Search",
+      "single_label": "Single song / video",
+      "single_placeholder": "https://www.youtube.com/watch?v=...",
+      "single_hint": "Single videos or songs only — no playlists.",
+      "playlist_label": "Playlist",
+      "playlist_placeholder": "https://www.youtube.com/playlist?list=...",
+      "playlist_hint": "Paste a playlist link. Options appear in the time segment box.",
       "url_label": "URL",
       "url_placeholder": "https://www.youtube.com/watch?v=...",
       "url_hint": "Supported: YouTube, YouTube Music, and playlists",
       "format_label": "Format",
       "format_audio": "Audio (MP3)",
       "format_video": "Video (MP4)",
+      "segment_heading": "Time segment",
       "start_label": "Start (optional)",
       "end_label": "End (optional)",
       "time_placeholder": "M:SS",
       "segment_hint": "Optional: Download only a segment (provide both start and end, e.g. 1:30 and 3:45).",
       "submit": "Start download"
+    },
+    "search": {
+      "label": "YouTube search",
+      "placeholder": "Search song or artist…",
+      "hint": "Suggestions from the YouTube Data API — pick a result to fill the URL.",
+      "loading": "Searching…",
+      "empty": "No results found.",
+      "error": "Search failed.",
+      "unavailable": "YouTube search is not available.",
+      "unavailable_hint": "YouTube API key missing. Add it under Settings → Music."
     },
     "jobs": {
       "title": "My downloads",
@@ -4198,7 +4410,13 @@
       "download": "Download",
       "empty": "No downloads yet.",
       "clear_all": "Clear all",
-      "clear_all_confirm": "Remove all downloads and abort active downloads?"
+      "clear_all_confirm": "Remove all downloads and abort active downloads?",
+      "delete_confirm": "Really delete this download?",
+      "open_source": "Open source",
+      "actions": "Actions",
+      "view_toggle": "Toggle view",
+      "view_list": "List view",
+      "view_grid": "Grid view"
     },
     "format": {
       "audio": "MP3",
@@ -4208,17 +4426,19 @@
       "pending": "Pending",
       "processing": "Processing",
       "completed": "Completed",
-      "failed": "Failed",
+      "failed": "Aborted due to error",
       "cancelled": "Cancelled",
       "cancelling": "Cancelling"
     },
     "playlist": {
       "modal_title": "Download playlist",
+      "segment_heading": "Playlist settings",
+      "inline_hint": "Download all songs completely or set timestamps per song — then start download.",
       "loading": "Loading playlist…",
       "song_count": "%(count)s songs in this playlist",
       "mode_complete": "Download all songs completely",
       "mode_timestamps": "Specify timestamps per song",
-      "download_all": "Download all",
+      "download_all": "Download playlist",
       "preview_error": "Could not load playlist."
     },
     "flash": {
@@ -4279,7 +4499,10 @@
     },
     "booking": {
       "request_title": "New booking request",
-      "request_body": "{event} – {applicant}"
+      "request_body": "{event} – {applicant}",
+      "message_title": "New booking message",
+      "message_body": "{event} – {applicant}",
+      "message_body_preview": "{event} – {applicant}: {preview}"
     },
     "push": {
       "test_title": "Test notification",

@@ -49,7 +49,7 @@
         </div>
     </div>
 
-    <nav aria-label="breadcrumb" class="mb-2">
+    <nav aria-label="breadcrumb" class="mb-2 d-none d-lg-block">
         <ol class="breadcrumb mb-0">
             <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">{{ _('booking.request_detail.breadcrumb_dashboard') }}</a></li>
             <li class="breadcrumb-item"><a href="{{ list_url }}">{{ form.title }}</a></li>
@@ -57,7 +57,18 @@
         </ol>
     </nav>
 
-    <h2 class="mod-view-heading">
+    <div class="booking-detail-header d-none d-lg-block mb-3">
+        <a href="{{ list_url }}" class="booking-form-back">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
+        <h2 class="mod-view-heading mb-0">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span>{{ booking_request.event_name }}</span>
+        </h2>
+    </div>
+
+    <h2 class="mod-view-heading d-lg-none">
         <i class="bi bi-calendar-event" aria-hidden="true"></i>
         <span>{{ booking_request.event_name }}</span>
     </h2>
@@ -65,247 +76,292 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            {% set cat = 'danger' if category == 'error' else category %}
+            <div class="alert portal-msg portal-msg--{{ cat }} fade show mb-3" role="alert">
+                <div class="portal-msg__body">
+                    <div class="portal-msg__icon" aria-hidden="true">
+                        <i class="bi bi-{% if cat == 'success' %}check-circle-fill{% elif cat == 'warning' %}exclamation-triangle-fill{% elif cat == 'danger' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %}"></i>
+                    </div>
+                    <div class="portal-msg__content">
+                        <p class="portal-msg__text">{{ message }}</p>
+                        <div class="portal-msg__actions">
+                            <button type="button" class="btn btn-sm portal-msg__btn portal-msg__close" data-bs-dismiss="alert">
+                                {{ _('common.close') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
             {% endfor %}
         {% endif %}
     {% endwith %}
 
     <div class="booking-detail-panel">
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ _('booking.request_detail.heading') }}</h5>
+    <div class="booking-detail-layout">
+        <div class="booking-detail-main">
+            <section class="booking-pill-panel">
+                <div class="booking-pill-panel__head">
+                    <h3 class="booking-pill-panel__title">{{ _('booking.request_detail.heading') }}</h3>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <strong>{{ _('booking.request_detail.status_label') }}</strong>
+
+                <div class="booking-detail-meta booking-detail-meta--2">
+                    <div class="booking-detail-meta__item">
+                        <span class="booking-detail-meta__label">{{ _('booking.request_detail.status_label') }}</span>
                         {% if booking_request.status == 'pending' %}
-                        <span class="badge bg-warning text-dark">{{ _('booking.requests.status.pending') }}</span>
+                        <span class="booking-status-pill booking-status-pill--pending">{{ _('booking.requests.status.pending') }}</span>
                         {% elif booking_request.status == 'accepted' %}
-                        <span class="badge bg-success">{{ _('booking.requests.status.accepted') }}</span>
+                        <span class="booking-status-pill booking-status-pill--accepted">{{ _('booking.requests.status.accepted') }}</span>
                         {% elif booking_request.status == 'rejected' %}
-                        <span class="badge bg-danger">{{ _('booking.requests.status.rejected') }}</span>
-                        {% elif booking_request.status == 'archived' %}
-                        <span class="badge bg-secondary">{{ _('booking.requests.status.archived') }}</span>
+                        <span class="booking-status-pill booking-status-pill--rejected">{{ _('booking.requests.status.rejected') }}</span>
+                        {% else %}
+                        <span class="booking-status-pill booking-status-pill--archived">{{ _('booking.requests.status.archived') }}</span>
                         {% endif %}
                     </div>
 
-                    <div class="mb-3">
-                        <strong>{{ _('booking.request_detail.email_label') }}</strong> {{ booking_request.email }}
+                    <div class="booking-detail-meta__item">
+                        <span class="booking-detail-meta__label">{{ _('booking.request_detail.email_label') }}</span>
+                        <span class="booking-detail-meta__value">{{ booking_request.email }}</span>
                     </div>
 
                     {% if booking_request.event_date %}
-                    <div class="mb-3">
-                        <strong>{{ _('booking.request_detail.date_label') }}</strong> {{ booking_request.event_date.strftime('%d.%m.%Y') }}
-                        {% if booking_request.event_start_time %}
-                        {{ _('booking.request_detail.time_at') }} {{ booking_request.event_start_time.strftime('%H:%M') }}{% if _('booking.request_detail.time_suffix') %} {{ _('booking.request_detail.time_suffix') }}{% endif %}
-                        {% endif %}
-                        {% if booking_request.event_end_time %}
-                        {{ _('booking.request_detail.time_separator') }} {{ booking_request.event_end_time.strftime('%H:%M') }}{% if _('booking.request_detail.time_suffix') %} {{ _('booking.request_detail.time_suffix') }}{% endif %}
-                        {% endif %}
-                    </div>
-                    {% endif %}
-
-                    {% if booking_request.status == 'accepted' and booking_request.calendar_event %}
-                    <div class="alert alert-success">
-                        <i class="bi bi-check-circle"></i> {{ _('booking.request_detail.accepted_message') }}
-                        <a href="{{ url_for('calendar.view_event', event_id=booking_request.calendar_event.id) }}" class="alert-link">
-                            {{ _('booking.request_detail.calendar_link') }}
-                        </a>
-                    </div>
-                    {% endif %}
-
-                    {% if booking_request.status == 'rejected' and booking_request.rejection_reason %}
-                    <div class="alert alert-danger">
-                        <strong>{{ _('booking.request_detail.rejection_reason_label') }}</strong><br>
-                        {{ booking_request.rejection_reason }}
-                    </div>
-                    {% endif %}
-
-                    {% if field_values %}
-                    <hr>
-                    <h5>{{ _('booking.request_detail.additional_info') }}</h5>
-                    {% for field in form.fields %}
-                        {% if field.id in field_values %}
-                        <div class="mb-2">
-                            <strong>{{ field.field_label }}:</strong>
-                            {% if field_values[field.id].file_path %}
-                            <a href="#" target="_blank">Datei anzeigen</a>
-                            {% else %}
-                            {{ field_values[field.id].field_value }}
+                    <div class="booking-detail-meta__item booking-detail-meta__item--span">
+                        <span class="booking-detail-meta__label">{{ _('booking.request_detail.date_label') }}</span>
+                        <span class="booking-detail-meta__value">
+                            {{ booking_request.event_date.strftime('%d.%m.%Y') }}
+                            {% if booking_request.event_start_time %}
+                            {{ _('booking.request_detail.time_at') }} {{ booking_request.event_start_time.strftime('%H:%M') }}{% if _('booking.request_detail.time_suffix') %} {{ _('booking.request_detail.time_suffix') }}{% endif %}
                             {% endif %}
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                    {% endif %}
-
-                    {% if booking_request.folder and (form.enable_mailbox or form.enable_shared_folder) %}
-                    <hr>
-                    <h5>{{ _('booking.request_detail.files') }}</h5>
-                    <p>
-                        <a href="{{ url_for('files.browse_folder', folder_id=booking_request.folder.id) }}" class="btn btn-outline-primary">
-                            <i class="bi bi-folder"></i> {{ _('files.index.breadcrumb_root') }}
-                        </a>
-                    </p>
+                            {% if booking_request.event_end_time %}
+                            {{ _('booking.request_detail.time_separator') }} {{ booking_request.event_end_time.strftime('%H:%M') }}{% if _('booking.request_detail.time_suffix') %} {{ _('booking.request_detail.time_suffix') }}{% endif %}
+                            {% endif %}
+                        </span>
+                    </div>
                     {% endif %}
                 </div>
-            </div>
 
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Nachrichten</h5>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#emailModal">
+                {% if booking_request.status == 'accepted' and booking_request.calendar_event %}
+                <div class="alert portal-msg portal-msg--success alert-permanent mb-0 mt-3" role="status">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text">
+                                {{ _('booking.request_detail.accepted_message') }}
+                                <a href="{{ url_for('calendar.view_event', event_id=booking_request.calendar_event.id) }}" class="alert-link">
+                                    {{ _('booking.request_detail.calendar_link') }}
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if booking_request.status == 'rejected' and booking_request.rejection_reason %}
+                <div class="alert portal-msg portal-msg--danger alert-permanent mb-0 mt-3" role="alert">
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </div>
+                        <div class="portal-msg__content">
+                            <h6 class="portal-msg__title">{{ _('booking.request_detail.rejection_reason_label') }}</h6>
+                            <p class="portal-msg__text">{{ booking_request.rejection_reason }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if field_values %}
+                <div class="mt-3 pt-3" style="border-top: 1px solid var(--bs-border-color-translucent, rgba(127,127,127,.2));">
+                    <h4 class="h6 fw-semibold mb-3">{{ _('booking.request_detail.additional_info') }}</h4>
+                    <div class="booking-detail-meta booking-detail-meta--2">
+                        {% for field in form.fields %}
+                            {% if field.id in field_values %}
+                            <div class="booking-detail-meta__item">
+                                <span class="booking-detail-meta__label">{{ field.field_label }}</span>
+                                <span class="booking-detail-meta__value">
+                                    {% if field_values[field.id].file_path %}
+                                    <a href="#" target="_blank">Datei anzeigen</a>
+                                    {% else %}
+                                    {{ field_values[field.id].field_value }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if booking_request.folder and (form.enable_mailbox or form.enable_shared_folder) %}
+                <div class="mt-3 pt-3" style="border-top: 1px solid var(--bs-border-color-translucent, rgba(127,127,127,.2));">
+                    <h4 class="h6 fw-semibold mb-2">{{ _('booking.request_detail.files') }}</h4>
+                    <a href="{{ url_for('files.browse_folder', folder_id=booking_request.folder.id, view='public') }}" class="btn booking-pill-btn booking-pill-btn--outline booking-pill-btn--sm">
+                        <i class="bi bi-folder"></i> {{ _('files.index.breadcrumb_root') }}
+                    </a>
+                </div>
+                {% endif %}
+            </section>
+
+            <section class="booking-pill-panel">
+                <div class="booking-pill-panel__head">
+                    <h3 class="booking-pill-panel__title">Nachrichten</h3>
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline booking-pill-btn--sm" data-bs-toggle="modal" data-bs-target="#emailModal">
                         <i class="bi bi-envelope"></i> {{ _('booking.request_detail.actions.send_email') }}
                     </button>
                 </div>
-                <div class="card-body">
-                    {% if messages %}
-                    <div class="booking-msg-thread">
-                        {% for msg in messages %}
-                        <div class="booking-msg-bubble booking-msg-bubble--{{ msg.direction }}">
-                            <div class="booking-msg-meta">
-                                <span>
-                                    {% if msg.direction == 'outbound' %}
-                                    Team{% if msg.creator %} ({{ msg.creator.full_name }}){% endif %}
-                                    {% else %}
-                                    Antragsteller
-                                    {% if not msg.is_read %}<span class="booking-msg-badge">Neu</span>{% endif %}
-                                    {% endif %}
-                                </span>
-                                <span>{{ msg.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
-                                {% if msg.subject %}<span>{{ msg.subject }}</span>{% endif %}
-                            </div>
-                            <p class="booking-msg-body">{{ msg.body_text or '' }}</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <p class="text-muted mb-0">Noch keine Nachrichten. Antworten auf Buchungs-E-Mails erscheinen hier.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if form.roles %}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ _('booking.request_detail.approvals') }}</h5>
-                </div>
-                <div class="card-body">
-                    {% for role in form.roles|sort(attribute='role_order') %}
-                    <div class="mb-3 p-3 border rounded">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <strong>{{ role.role_name }}</strong>
-                                {% if role.is_required %}<span class="badge bg-danger">{{ _('booking.request_detail.role.required') }}</span>{% else %}<span class="badge bg-secondary">{{ _('booking.request_detail.role.optional') }}</span>{% endif %}
-                            </div>
-                            {% set approval = approvals.get(role.id) %}
-                            {% if approval %}
-                                {% if approval.status == 'approved' %}
-                                <span class="badge bg-success">{{ _('booking.request_detail.role.approved') }}</span>
-                                {% elif approval.status == 'rejected' %}
-                                <span class="badge bg-danger">{{ _('booking.request_detail.role.rejected') }}</span>
+                {% if messages %}
+                <div class="booking-msg-thread">
+                    {% for msg in messages %}
+                    <div class="booking-msg-bubble booking-msg-bubble--{{ msg.direction }}">
+                        <div class="booking-msg-meta">
+                            <span>
+                                {% if msg.direction == 'outbound' %}
+                                Team{% if msg.creator %} ({{ msg.creator.full_name }}){% endif %}
                                 {% else %}
-                                <span class="badge bg-warning text-dark">{{ _('booking.request_detail.role.pending') }}</span>
+                                Antragsteller
+                                {% if not msg.is_read %}<span class="booking-msg-badge">Neu</span>{% endif %}
                                 {% endif %}
-                            {% else %}
-                            <span class="badge bg-warning text-dark">{{ _('booking.request_detail.role.pending') }}</span>
-                            {% endif %}
+                            </span>
+                            <span>{{ msg.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
+                            {% if msg.subject %}<span>{{ msg.subject }}</span>{% endif %}
                         </div>
-
-                        {% if approval %}
-                            {% if approval.status == 'approved' %}
-                            <div class="mb-2">
-                                <small class="text-muted">{{ _('booking.request_detail.role.approved_by') }} <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
-                                <small class="text-muted">{{ _('booking.request_detail.role.date') }} {{ approval.approved_at.strftime('%d.%m.%Y %H:%M') if approval.approved_at else '-' }}</small>
-                            </div>
-                            {% elif approval.status == 'rejected' %}
-                            <div class="mb-2">
-                                <small class="text-muted">{{ _('booking.request_detail.role.rejected_by') }} <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
-                                <small class="text-muted">{{ _('booking.request_detail.role.date') }} {{ approval.rejected_at.strftime('%d.%m.%Y %H:%M') if approval.rejected_at else '-' }}</small>
-                            </div>
-                            {% endif %}
-
-                            {% if approval.comment %}
-                            <div class="alert alert-info mb-2">
-                                <small><strong>{{ _('booking.request_detail.role.comment') }}</strong> {{ approval.comment }}</small>
-                            </div>
-                            {% endif %}
-                        {% endif %}
-
-                        {% if user_role_assignments.get(role.id) and booking_request.status == 'pending' %}
-                            {% if not approval or approval.status == 'pending' %}
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ role.id }}">
-                                    <i class="bi bi-check-circle"></i> {{ _('booking.request_detail.role.approve') }}
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectRoleModal{{ role.id }}">
-                                    <i class="bi bi-x-circle"></i> {{ _('booking.request_detail.actions.reject') }}
-                                </button>
-                            </div>
-                            {% endif %}
-                        {% endif %}
+                        <p class="booking-msg-body">{{ msg.body_text or '' }}</p>
                     </div>
                     {% endfor %}
                 </div>
-            </div>
+                {% else %}
+                <p class="text-muted mb-0">Noch keine Nachrichten. Antworten auf Buchungs-E-Mails erscheinen hier.</p>
+                {% endif %}
+            </section>
+
+            {% if form.roles %}
+            <section class="booking-pill-panel">
+                <div class="booking-pill-panel__head">
+                    <h3 class="booking-pill-panel__title">{{ _('booking.request_detail.approvals') }}</h3>
+                </div>
+                {% for role in form.roles|sort(attribute='role_order') %}
+                <div class="booking-role-pill">
+                    <div class="d-flex justify-content-between align-items-start mb-2 gap-2 flex-wrap">
+                        <div>
+                            <strong>{{ role.role_name }}</strong>
+                            {% if role.is_required %}
+                            <span class="booking-status-pill booking-status-pill--rejected ms-1" style="font-size:0.7rem;padding:0.15rem 0.55rem;">{{ _('booking.request_detail.role.required') }}</span>
+                            {% else %}
+                            <span class="booking-status-pill booking-status-pill--archived ms-1" style="font-size:0.7rem;padding:0.15rem 0.55rem;">{{ _('booking.request_detail.role.optional') }}</span>
+                            {% endif %}
+                        </div>
+                        {% set approval = approvals.get(role.id) %}
+                        {% if approval and approval.status == 'approved' %}
+                        <span class="booking-status-pill booking-status-pill--accepted">{{ _('booking.request_detail.role.approved') }}</span>
+                        {% elif approval and approval.status == 'rejected' %}
+                        <span class="booking-status-pill booking-status-pill--rejected">{{ _('booking.request_detail.role.rejected') }}</span>
+                        {% else %}
+                        <span class="booking-status-pill booking-status-pill--pending">{{ _('booking.request_detail.role.pending') }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if approval %}
+                        {% if approval.status == 'approved' %}
+                        <div class="mb-2">
+                            <small class="text-muted">{{ _('booking.request_detail.role.approved_by') }} <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
+                            <small class="text-muted">{{ _('booking.request_detail.role.date') }} {{ approval.approved_at.strftime('%d.%m.%Y %H:%M') if approval.approved_at else '-' }}</small>
+                        </div>
+                        {% elif approval.status == 'rejected' %}
+                        <div class="mb-2">
+                            <small class="text-muted">{{ _('booking.request_detail.role.rejected_by') }} <strong>{{ approval.approver.full_name if approval.approver else '-' }}</strong></small><br>
+                            <small class="text-muted">{{ _('booking.request_detail.role.date') }} {{ approval.rejected_at.strftime('%d.%m.%Y %H:%M') if approval.rejected_at else '-' }}</small>
+                        </div>
+                        {% endif %}
+                        {% if approval.comment %}
+                        <div class="alert portal-msg portal-msg--info alert-permanent mb-2" role="note">
+                            <div class="portal-msg__body">
+                                <div class="portal-msg__icon" aria-hidden="true">
+                                    <i class="bi bi-chat-left-text-fill"></i>
+                                </div>
+                                <div class="portal-msg__content">
+                                    <p class="portal-msg__text"><strong>{{ _('booking.request_detail.role.comment') }}</strong> {{ approval.comment }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if user_role_assignments.get(role.id) and booking_request.status == 'pending' %}
+                        {% if not approval or approval.status == 'pending' %}
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-success booking-pill-btn--sm" data-bs-toggle="modal" data-bs-target="#approveModal{{ role.id }}">
+                                <i class="bi bi-check-circle"></i> {{ _('booking.request_detail.role.approve') }}
+                            </button>
+                            <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-danger booking-pill-btn--sm" data-bs-toggle="modal" data-bs-target="#rejectRoleModal{{ role.id }}">
+                                <i class="bi bi-x-circle"></i> {{ _('booking.request_detail.actions.reject') }}
+                            </button>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </section>
             {% endif %}
         </div>
 
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ _('booking.request_detail.actions_heading') }}</h5>
+        <aside class="booking-detail-side">
+            <section class="booking-pill-panel">
+                <div class="booking-pill-panel__head">
+                    <h3 class="booking-pill-panel__title">{{ _('booking.request_detail.actions_heading') }}</h3>
                 </div>
-                <div class="card-body booking-detail-actions">
+                <div class="booking-detail-actions">
                     {% if booking_request.status == 'pending' %}
                     <form method="POST" action="{{ url_for('booking.request_accept', request_id=booking_request.id) }}">
-                        <button type="submit" class="btn btn-success w-100" onclick="return confirm('{{ _('booking.request_detail.confirm_accept') }}');">
+                        <button type="submit" class="btn booking-pill-btn booking-pill-btn--outline-success w-100"
+                                data-pt-confirm="{{ _('booking.request_detail.confirm_accept') }}"
+                                data-pt-confirm-title="{{ _('booking.request_detail.confirm_accept_title') }}"
+                                data-pt-confirm-danger="0"
+                                data-pt-confirm-ok="{{ _('booking.request_detail.actions.accept') }}">
                             <i class="bi bi-check-circle"></i> {{ _('booking.request_detail.actions.accept') }}
                         </button>
                     </form>
 
-                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
                         <i class="bi bi-x-circle"></i> {{ _('booking.request_detail.actions.reject') }}
                     </button>
                     {% endif %}
 
-                    <button type="button" class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#emailModal">
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline w-100" data-bs-toggle="modal" data-bs-target="#emailModal">
                         <i class="bi bi-envelope"></i> {{ _('booking.request_detail.actions.send_email') }}
                     </button>
 
-                    <a href="{{ url_for('booking.request_pdf', request_id=booking_request.id) }}" class="btn btn-outline-secondary w-100">
+                    <a href="{{ url_for('booking.request_pdf', request_id=booking_request.id) }}" class="btn booking-pill-btn booking-pill-btn--outline-muted w-100">
                         <i class="bi bi-file-pdf"></i> {{ _('booking.request_detail.actions.download_pdf') }}
                     </a>
                 </div>
-            </div>
-        </div>
+            </section>
+        </aside>
     </div>
     </div>
+</div>
+</div>
+</div>
 
-<!-- Reject Modal -->
 {% if booking_request.status == 'pending' %}
-<div class="modal fade" id="rejectModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade booking-modal" id="rejectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ _('booking.request_detail.modals.reject_title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('booking.request_detail.modals.cancel') }}"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_reject', request_id=booking_request.id) }}">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="rejection_reason" class="form-label">{{ _('booking.request_detail.modals.rejection_reason_label') }} <span class="text-danger">{{ _('booking.request_detail.modals.rejection_reason_required') }}</span></label>
-                        <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="4" required></textarea>
+                        <textarea class="form-control booking-modal-field" id="rejection_reason" name="rejection_reason" rows="4" required></textarea>
                         <small class="form-text text-muted">{{ _('booking.request_detail.modals.rejection_reason_help') }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
-                    <button type="submit" class="btn btn-danger">{{ _('booking.request_detail.modals.reject_button') }}</button>
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn booking-pill-btn booking-pill-btn--outline-danger">{{ _('booking.request_detail.modals.reject_button') }}</button>
                 </div>
             </form>
         </div>
@@ -313,78 +369,80 @@
 </div>
 {% endif %}
 
-<!-- Email Modal -->
-<div class="modal fade" id="emailModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade booking-modal" id="emailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ _('booking.request_detail.modals.email_title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('booking.request_detail.modals.cancel') }}"></button>
             </div>
-            <form method="POST" action="{{ url_for('booking.request_send_email', request_id=booking_request.id) }}">
+            <form method="POST" action="{{ url_for('booking.request_send_email', request_id=booking_request.id) }}" autocomplete="off">
                 <div class="modal-body">
+                    <p class="booking-modal-to text-muted small mb-3">
+                        <i class="bi bi-envelope" aria-hidden="true"></i>
+                        {{ booking_request.email }}
+                    </p>
                     <div class="mb-3">
                         <label for="email_subject" class="form-label">{{ _('booking.request_detail.modals.email_subject') }} <span class="text-danger">{{ _('booking.request_detail.modals.email_subject_required') }}</span></label>
-                        <input type="text" class="form-control" id="email_subject" name="email_subject" required>
+                        <input type="text" class="form-control booking-modal-field" id="email_subject" name="email_subject" required autocomplete="off">
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-0">
                         <label for="email_body" class="form-label">{{ _('booking.request_detail.modals.email_body') }} <span class="text-danger">{{ _('booking.request_detail.modals.email_body_required') }}</span></label>
-                        <textarea class="form-control" id="email_body" name="email_body" rows="6" required></textarea>
+                        <textarea class="form-control booking-modal-field" id="email_body" name="email_body" rows="6" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
-                    <button type="submit" class="btn btn-primary">{{ _('booking.request_detail.modals.send') }}</button>
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn booking-pill-btn booking-pill-btn--outline">{{ _('booking.request_detail.modals.send') }}</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Approve Role Modals -->
 {% if form.roles %}
 {% for role in form.roles %}
 {% if user_role_assignments.get(role.id) and booking_request.status == 'pending' %}
-<div class="modal fade" id="approveModal{{ role.id }}" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade booking-modal" id="approveModal{{ role.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ _('booking.request_detail.role.approve_for', role_name=role.role_name) }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('booking.request_detail.modals.cancel') }}"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_approve', request_id=booking_request.id, role_id=role.id) }}">
                 <div class="modal-body">
-                    <div class="mb-3">
+                    <div class="mb-0">
                         <label for="comment{{ role.id }}" class="form-label">{{ _('booking.request_detail.role.comment_placeholder') }}</label>
-                        <textarea class="form-control" id="comment{{ role.id }}" name="comment" rows="3"></textarea>
+                        <textarea class="form-control booking-modal-field" id="comment{{ role.id }}" name="comment" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
-                    <button type="submit" class="btn btn-success">{{ _('booking.request_detail.role.approve') }}</button>
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn booking-pill-btn booking-pill-btn--outline-success">{{ _('booking.request_detail.role.approve') }}</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="rejectRoleModal{{ role.id }}" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade booking-modal" id="rejectRoleModal{{ role.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ _('booking.request_detail.role.reject_for', role_name=role.role_name) }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('booking.request_detail.modals.cancel') }}"></button>
             </div>
             <form method="POST" action="{{ url_for('booking.request_reject_role', request_id=booking_request.id, role_id=role.id) }}">
                 <div class="modal-body">
-                    <div class="mb-3">
+                    <div class="mb-0">
                         <label for="rejection_reason{{ role.id }}" class="form-label">{{ _('booking.request_detail.role.rejection_reason_placeholder') }}</label>
-                        <textarea class="form-control" id="rejection_reason{{ role.id }}" name="rejection_reason" rows="3"></textarea>
+                        <textarea class="form-control booking-modal-field" id="rejection_reason{{ role.id }}" name="rejection_reason" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
-                    <button type="submit" class="btn btn-danger">{{ _('booking.request_detail.modals.reject_button') }}</button>
+                    <button type="button" class="btn booking-pill-btn booking-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('booking.request_detail.modals.cancel') }}</button>
+                    <button type="submit" class="btn booking-pill-btn booking-pill-btn--outline-danger">{{ _('booking.request_detail.modals.reject_button') }}</button>
                 </div>
             </form>
         </div>
@@ -393,9 +451,6 @@
 {% endif %}
 {% endfor %}
 {% endif %}
-</div>
-</div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -410,6 +465,18 @@
             }
         });
     });
+
+    var emailModal = document.getElementById('emailModal');
+    if (emailModal) {
+        emailModal.addEventListener('shown.bs.modal', function () {
+            var subject = document.getElementById('email_subject');
+            if (subject) subject.focus();
+        });
+        emailModal.addEventListener('hidden.bs.modal', function () {
+            var form = emailModal.querySelector('form');
+            if (form) form.reset();
+        });
+    }
 })();
 </script>
 {% endblock %}

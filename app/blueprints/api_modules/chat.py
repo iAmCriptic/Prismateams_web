@@ -95,7 +95,6 @@ def _build_calendar_message_metadata(event, current_user_status="pending"):
     accepted_count = sum(1 for participant in participants if participant.status == "accepted")
     declined_count = sum(1 for participant in participants if participant.status == "declined")
     pending_count = sum(1 for participant in participants if participant.status == "pending")
-    from app.utils import get_local_time
     return {
         "event_id": event.id,
         "title": event.title,
@@ -103,8 +102,9 @@ def _build_calendar_message_metadata(event, current_user_status="pending"):
         "location": event.location or "",
         "start_time": event.start_time.isoformat() if event.start_time else None,
         "end_time": event.end_time.isoformat() if event.end_time else None,
-        "start_time_label": "Ganztägig" if is_all_day else (get_local_time(event.start_time).strftime("%H:%M") if event.start_time else ""),
-        "end_time_label": "" if is_all_day else (get_local_time(event.end_time).strftime("%H:%M") if event.end_time else ""),
+        # Termine werden als Portal-Wandzeit gespeichert — nicht erneut als UTC umrechnen
+        "start_time_label": "Ganztägig" if is_all_day else (event.start_time.strftime("%H:%M") if event.start_time else ""),
+        "end_time_label": "" if is_all_day else (event.end_time.strftime("%H:%M") if event.end_time else ""),
         "is_all_day": is_all_day,
         "event_url": url_for("calendar.view_event", event_id=event.id),
         "accepted_count": accepted_count,

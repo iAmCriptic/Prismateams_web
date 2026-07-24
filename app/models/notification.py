@@ -23,6 +23,7 @@ class NotificationSettings(db.Model):
     calendar_no_response = db.Column(db.Boolean, default=False, nullable=False)
 
     booking_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    booking_message_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     
     reminder_times = db.Column(db.Text, nullable=True)
     

@@ -48,16 +48,18 @@ window.ptConfirm = function ptConfirm(message, options) {
     const msgEl = document.getElementById('ptConfirmMessage');
     const okBtn = document.getElementById('ptConfirmOkBtn');
     const cancelBtn = document.getElementById('ptConfirmCancelBtn');
+    const iconEl = document.getElementById('ptConfirmIcon');
     const i18nCommon = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: true });
+    const isDanger = opts.danger !== false;
 
     const applyCopy = () => {
         if (titleEl) {
             titleEl.textContent =
                 opts.title ||
-                modalEl.getAttribute('data-i18n-title') ||
-                i18nCommon.confirm_delete_title ||
-                'Löschen bestätigen';
+                (isDanger
+                    ? (modalEl.getAttribute('data-i18n-title') || i18nCommon.confirm_delete_title || 'Löschen bestätigen')
+                    : (i18nCommon.confirm || 'Bestätigen'));
         }
         if (msgEl) {
             msgEl.textContent = String(
@@ -67,13 +69,18 @@ window.ptConfirm = function ptConfirm(message, options) {
                 'Möchten Sie dieses Element wirklich löschen?'
             );
         }
+        if (iconEl) {
+            iconEl.className = isDanger
+                ? 'bi bi-exclamation-triangle-fill text-danger flex-shrink-0'
+                : 'bi bi-question-circle-fill text-primary flex-shrink-0';
+        }
         if (okBtn) {
             okBtn.textContent =
                 opts.confirmLabel ||
-                modalEl.getAttribute('data-i18n-ok') ||
-                i18nCommon.delete ||
-                'Löschen';
-            okBtn.className = opts.danger === false ? 'btn btn-accent' : 'btn btn-danger';
+                (isDanger
+                    ? (modalEl.getAttribute('data-i18n-ok') || i18nCommon.delete || 'Löschen')
+                    : (i18nCommon.confirm || 'Bestätigen'));
+            okBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-outline-primary';
         }
         if (cancelBtn) {
             cancelBtn.textContent =

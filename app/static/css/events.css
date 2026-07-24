@@ -119,12 +119,12 @@
     background: rgba(127, 127, 127, 0.12);
 }
 
-/* Schlägt globale .nav-link.active (transparent) — Accent-Pille wie Dateien */
+/* Aktiver Nav-Punkt: nur Schriftfarbe (wie Portal-Standard) */
 .events-sidebar-nav .events-nav-link.nav-link.active,
 .events-sidebar-nav .events-nav-link.nav-link.active:hover,
 .events-mobile-offcanvas .events-nav-link.nav-link.active,
 .events-mobile-offcanvas .events-nav-link.nav-link.active:hover {
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
+    background: transparent !important;
     background-image: none !important;
     color: var(--accent-color, #0d6efd) !important;
     font-weight: 600;
@@ -217,6 +217,12 @@
 .events-mobile-menu-btn {
     flex-shrink: 0;
     padding: 0.35rem 0.55rem;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .events-mobile-view-toggle {

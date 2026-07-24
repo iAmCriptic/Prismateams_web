@@ -45,6 +45,7 @@ def create_checkout(
     require_end_date: bool = True,
     event_id: Optional[int] = None,
     event_appointment_id: Optional[int] = None,
+    product_source_sets: Optional[dict] = None,
 ) -> Checkout:
     event_name = (event_name or "").strip()
     borrower_name = (borrower_name or "").strip()
@@ -112,10 +113,20 @@ def create_checkout(
     db.session.flush()
 
     for product in available:
+        source_set_id = None
+        if product_source_sets:
+            raw = product_source_sets.get(product.id)
+            if raw is None:
+                raw = product_source_sets.get(str(product.id))
+            try:
+                source_set_id = int(raw) if raw is not None else None
+            except (TypeError, ValueError):
+                source_set_id = None
         db.session.add(
             CheckoutItem(
                 checkout_id=checkout.id,
                 product_id=product.id,
+                source_set_id=source_set_id,
                 returned_at=None,
             )
         )

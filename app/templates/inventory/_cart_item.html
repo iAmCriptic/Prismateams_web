@@ -1,0 +1,42 @@
+{# Erwartet: product mit optional product.cart_source_set = {set_id, set_name, members} #}
+{% set source_set = product.cart_source_set if product.cart_source_set else none %}
+<div class="inventory-cart-item cart-item{% if source_set %} inventory-cart-item--set{% endif %}"
+     data-product-id="{{ product.id }}"
+     {% if source_set %}data-set-id="{{ source_set.set_id }}"{% endif %}>
+    <div class="inventory-cart-item-body">
+        <p class="inventory-cart-item-title">
+            {{ product.name }}
+            {% if source_set %}
+            <span class="badge inventory-set-badge" title="{{ _('inventory.cart.set_badge_title') }}">
+                <i class="bi bi-collection" aria-hidden="true"></i> {{ _('inventory.cart.set_badge') }}
+            </span>
+            {% endif %}
+        </p>
+        {% if product.category %}
+        <p class="inventory-cart-item-meta">{{ product.category }}</p>
+        {% endif %}
+        {% if source_set %}
+        <details class="inventory-set-members">
+            <summary class="inventory-set-members-summary">
+                {{ source_set.set_name }} · {{ _('inventory.cart.set_contents') }}
+            </summary>
+            <ul class="inventory-set-members-list">
+                {% for member in source_set.members or [] %}
+                <li>
+                    <i class="bi bi-box-seam text-muted" aria-hidden="true"></i>
+                    <span>{{ member.name }}</span>
+                    {% if member.quantity and member.quantity > 1 %}
+                    <span class="badge bg-secondary">×{{ member.quantity }}</span>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="text-muted">{{ _('inventory.cart.set_members_empty') }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+    </div>
+    <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="{{ product.id }}">
+        <i class="bi bi-trash"></i>
+    </button>
+</div>

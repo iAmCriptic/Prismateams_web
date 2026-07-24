@@ -220,6 +220,11 @@ def try_route_inbound_email(
             f"Routed inbound email to booking request {booking_request.id} via {reason} "
             f"(message_id={mid})"
         )
+        try:
+            from app.utils.notifications import send_booking_message_notification
+            send_booking_message_notification(booking_request, row)
+        except Exception as notify_error:
+            logging.error(f"Booking message notification failed: {notify_error}")
         return True
     except Exception as e:
         db.session.rollback()

@@ -64,7 +64,7 @@
     left: 0.95rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--bs-secondary-color, #6c757d);
+    color: var(--accent-color, #0d6efd);
     pointer-events: none;
     font-size: 0.95rem;
 }
@@ -183,6 +183,12 @@
 .wiki-mobile-menu-btn {
     flex-shrink: 0;
     padding: 0.35rem 0.55rem;
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .wiki-mobile-offcanvas {

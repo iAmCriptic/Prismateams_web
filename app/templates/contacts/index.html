@@ -485,6 +485,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script>
 function toggleContactFavorite(id) {
     fetch(`{{ url_for('contacts.toggle_favorite', contact_id=0) }}`.replace('/0', '/' + id), {
@@ -575,6 +576,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 50);
         });
     });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.InventoryPillSelect) {
+        window.InventoryPillSelect.enhanceAll(document);
+    }
 });
 </script>
 {% endblock %}

@@ -1,25 +1,6 @@
 {% macro shortlinks_sidebar_tools(id_suffix='') %}
-{% set has_filter_state = search_query or status_filter or expiry_filter or password_filter or clicks_filter %}
+{% set has_filter_state = status_filter or expiry_filter or password_filter or clicks_filter %}
 <div class="mod-sidebar-tools">
-    <div class="mod-sidebar-section">
-        <div class="mod-sidebar-heading">
-            <i class="bi bi-search me-1"></i>Suche
-        </div>
-        <form method="GET" action="{{ url_for('shortlinks.index') }}" class="mod-sidebar-form d-grid gap-2">
-            <input type="hidden" name="sort" value="{{ sort_by }}">
-            <input type="hidden" name="dir" value="{{ sort_dir }}">
-            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-            {% if expiry_filter %}<input type="hidden" name="expiry" value="{{ expiry_filter }}">{% endif %}
-            {% if password_filter %}<input type="hidden" name="password" value="{{ password_filter }}">{% endif %}
-            {% if clicks_filter %}<input type="hidden" name="clicks" value="{{ clicks_filter }}">{% endif %}
-            <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Kürzel oder Ziel-URL…" aria-label="Suche">
-            <button type="submit" class="btn mod-sidebar-action w-100">
-                <i class="bi bi-search"></i>
-                <span>Suchen</span>
-            </button>
-        </form>
-    </div>
-
     <div class="mod-sidebar-section">
         <div class="mod-sidebar-heading">
             <i class="bi bi-sort-alpha-down me-1"></i>Sortierung
@@ -102,7 +83,7 @@
                     <span>Anwenden</span>
                 </button>
                 {% if has_filter_state %}
-                <a href="{{ url_for('shortlinks.index', sort=sort_by, dir=sort_dir) }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
+                <a href="{{ url_for('shortlinks.index', q=search_query or None, sort=sort_by, dir=sort_dir) }}" class="btn mod-sidebar-action mod-sidebar-action--muted">
                     <i class="bi bi-x-lg"></i>
                     <span>Reset</span>
                 </a>

@@ -229,7 +229,7 @@ def _parse_vevent_component(component):
         if 'UNTIL' in rrule_dict:
             until = rrule_dict['UNTIL'][0]
             if isinstance(until, datetime):
-                recurrence_end_date = until
+                recurrence_end_date = as_portal_wall_time(until)
 
     return {
         'title': title[:200],

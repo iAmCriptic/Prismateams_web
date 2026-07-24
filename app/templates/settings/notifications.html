@@ -147,6 +147,10 @@
                     <input class="form-check-input" type="checkbox" id="booking_notifications_enabled" name="booking_notifications_enabled" {% if settings.booking_notifications_enabled %}checked{% endif %}>
                     <label class="form-check-label" for="booking_notifications_enabled">{{ _('settings.notifications.booking.toggle') }}</label>
                 </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="booking_message_notifications_enabled" name="booking_message_notifications_enabled" {% if settings.booking_message_notifications_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="booking_message_notifications_enabled">{{ _('settings.notifications.booking.toggle_messages') }}</label>
+                </div>
             </section>
 
             {# Kalender — volle Breite #}
