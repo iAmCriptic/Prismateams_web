@@ -1,28 +1,28 @@
 {# Shared macros for Veranstaltungen shell (sidebar, toggle, cards/rows) #}
 
 {% macro events_nav_links(active_nav, dismiss_offcanvas=false) %}
-<nav class="events-sidebar-nav nav flex-column gap-1">
-    <a class="nav-link events-nav-link {% if active_nav == 'standard' %}active{% endif %}"
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link {% if active_nav == 'standard' %}active{% endif %}"
        href="{{ url_for('events.index') }}"
        {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar3 me-2"></i>Standardübersicht
     </a>
-    <a class="nav-link events-nav-link {% if active_nav == 'overview' %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if active_nav == 'overview' %}active{% endif %}"
        href="{{ url_for('events.overview') }}"
        {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar2-week me-2"></i>Veranstaltungsübersicht
     </a>
-    <a class="nav-link events-nav-link {% if active_nav == 'people' %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if active_nav == 'people' %}active{% endif %}"
        href="{{ url_for('events.people_overview') }}"
        {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people me-2"></i>Personenübersicht
     </a>
-    <a class="nav-link events-nav-link {% if active_nav == 'mine' %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if active_nav == 'mine' %}active{% endif %}"
        href="{{ url_for('events.my_events') }}"
        {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-person-check me-2"></i>Meine Veranstaltungen
     </a>
-    <a class="nav-link events-nav-link {% if active_nav == 'archive' %}active{% endif %}"
+    <a class="nav-link mod-nav-link {% if active_nav == 'archive' %}active{% endif %}"
        href="{{ url_for('events.archive') }}"
        {% if dismiss_offcanvas %}data-events-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-archive me-2"></i>Archiv
@@ -44,34 +44,36 @@
 {% macro events_shell_open(active_nav, page_title, page_icon='bi-calendar2-week', show_toggle=true, minimal_sidebar=false) %}
 {% set _active = active_nav|default('standard') %}
 {% set pdf_url = url_for('events.overview_pdf', view=_active) %}
-<div class="events-shell events-shell--nav">
-<aside class="events-sidebar d-none d-lg-flex flex-column">
-    <div class="events-sidebar-brand">
+<div class="events-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-calendar2-week" aria-hidden="true"></i>
         <span>Veranstaltungen</span>
     </div>
-    <a class="btn events-sidebar-new w-100 text-start" href="{{ url_for('events.create_event') }}">
-        <i class="bi bi-plus-lg me-2"></i>Neu
-    </a>
+    <div class="mod-sidebar-new-wrap w-100">
+        <a class="btn mod-sidebar-new w-100 text-start" href="{{ url_for('events.create_event') }}">
+            <i class="bi bi-plus-lg me-2"></i>Neu
+        </a>
+    </div>
     {% if not minimal_sidebar %}
-    <div class="events-sidebar-actions">
-        <a class="btn events-sidebar-action w-100" href="{{ pdf_url }}" title="PDF Übersicht">
+    <div class="mod-sidebar-actions">
+        <a class="btn mod-sidebar-action w-100" href="{{ pdf_url }}" title="PDF Übersicht">
             <i class="bi bi-file-earmark-pdf"></i>
-            <span class="events-sidebar-action-label">PDF Übersicht</span>
+            <span class="mod-sidebar-action-label">PDF Übersicht</span>
         </a>
     </div>
     {{ events_nav_links(_active, false) }}
     {% endif %}
 </aside>
 
-<div class="events-main flex-grow-1 min-width-0">
-    <div class="events-mobile-topbar d-lg-none mb-3">
+<div class="mod-main events-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
         <div class="d-flex justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center min-width-0 gap-2">
-                <button type="button" class="btn btn-outline-secondary events-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#eventsMobileNav" aria-controls="eventsMobileNav" aria-label="Menü">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#eventsMobileNav" aria-controls="eventsMobileNav" aria-label="Menü">
                     <i class="bi bi-list"></i>
                 </button>
-                <h1 class="h5 mb-0 text-truncate events-mobile-title">
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
                     <i class="bi {{ page_icon }}" aria-hidden="true"></i>
                     <span>{{ page_title }}</span>
                 </h1>
@@ -81,7 +83,7 @@
                 <a class="btn btn-link btn-sm events-mobile-pdf-btn" href="{{ pdf_url }}" title="PDF Übersicht">
                     <i class="bi bi-file-earmark-pdf"></i>
                 </a>
-                <a class="btn events-sidebar-new btn-sm" href="{{ url_for('events.create_event') }}">
+                <a class="btn mod-sidebar-new btn-sm" href="{{ url_for('events.create_event') }}">
                     <i class="bi bi-plus-lg"></i> Neu
                 </a>
             </div>
@@ -106,7 +108,7 @@
 </div>
 
 {# Offcanvas außerhalb der Shell — sonst klemmen Klicks/Backdrop #}
-<div class="offcanvas offcanvas-start events-mobile-offcanvas" tabindex="-1" id="eventsMobileNav" aria-labelledby="eventsMobileNavLabel">
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="eventsMobileNav" aria-labelledby="eventsMobileNavLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="eventsMobileNavLabel">
             <i class="bi bi-calendar2-week" aria-hidden="true"></i>
@@ -115,9 +117,11 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        <a class="btn events-sidebar-new w-100 text-start mb-3" href="{{ url_for('events.create_event') }}" data-events-dismiss-offcanvas="1">
-            <i class="bi bi-plus-lg me-2"></i>Neu
-        </a>
+        <div class="mod-sidebar-new-wrap w-100 mb-3">
+            <a class="btn mod-sidebar-new w-100 text-start" href="{{ url_for('events.create_event') }}" data-events-dismiss-offcanvas="1">
+                <i class="bi bi-plus-lg me-2"></i>Neu
+            </a>
+        </div>
         {% if not minimal_sidebar %}
         {{ events_nav_links(active_nav|default('standard'), true) }}
         {% endif %}
@@ -304,7 +308,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
         {% endfor %}
     </div>
     {% else %}
-    <div class="events-empty-state">
+    <div class="mod-empty-state">
         <div>
             <i class="bi bi-calendar3 display-6 d-block mb-2 opacity-50"></i>
             {{ empty_message }}
@@ -334,7 +338,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
         </table>
     </div>
     {% else %}
-    <div class="events-empty-state">
+    <div class="mod-empty-state">
         <div>
             <i class="bi bi-calendar3 display-6 d-block mb-2 opacity-50"></i>
             {{ empty_message }}
@@ -353,7 +357,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
         {% endfor %}
     </div>
     {% else %}
-    <div class="events-empty-state">
+    <div class="mod-empty-state">
         <div>
             <i class="bi bi-calendar2-week display-6 d-block mb-2 opacity-50"></i>
             {{ empty_message }}
@@ -383,7 +387,7 @@ document.querySelectorAll('#eventsMobileNav a[data-events-dismiss-offcanvas]').f
         </table>
     </div>
     {% else %}
-    <div class="events-empty-state">
+    <div class="mod-empty-state">
         <div>
             <i class="bi bi-calendar2-week display-6 d-block mb-2 opacity-50"></i>
             {{ empty_message }}

@@ -1649,9 +1649,34 @@
       }
     },
     "settings": {
+      "page_title": "Chat settings - {name}",
+      "heading": "Chat settings",
+      "subtitle": "Edit group “{name}”",
+      "back_to_chat": "Back to chat",
       "members": {
         "label": "Members",
         "help": "Choose who participates in this group chat. You always remain a member."
+      },
+      "avatar": {
+        "label": "Group photo",
+        "help": "Optional — upload an image for this chat",
+        "remove": "Remove current image",
+        "alt": "Group photo"
+      },
+      "form": {
+        "chat_name": {
+          "label": "Group name",
+          "placeholder": "e.g. Project Team"
+        },
+        "description": {
+          "label": "Description",
+          "placeholder": "Optional: What is this group about?",
+          "help": "Optional description for this chat"
+        },
+        "buttons": {
+          "save": "Save",
+          "cancel": "Cancel"
+        }
       },
       "delete": {
         "title": "Danger zone",

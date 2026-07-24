@@ -6,21 +6,23 @@
 {% set nav_items = nav_items|default([]) %}
 {% set active_chat_id = active_chat_id|default(none) %}
 
-<div class="chat-shell chat-shell--create{% if group_step %} chat-shell--create-group{% endif %}">
-<aside class="chat-sidebar d-none d-lg-flex flex-column">
-    <div class="chat-sidebar-brand">
+<div class="chat-shell mod-shell--nav chat-shell--create{% if group_step %} chat-shell--create-group{% endif %}">
+<aside class="mod-sidebar chat-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-chat-dots" aria-hidden="true"></i>
         <span>{{ _('chat.index.heading') }}</span>
     </div>
-    <a href="{{ url_for('chat.create_chat') }}" class="btn chat-sidebar-new rounded-pill{% if not group_step %} active{% endif %}">
-        <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
-    </a>
-    <div class="chat-sidebar-nav flex-grow-1 min-width-0">
+    <div class="mod-sidebar-new-wrap w-100">
+        <a href="{{ url_for('chat.create_chat') }}" class="btn mod-sidebar-new w-100 text-start{% if not group_step %} active{% endif %}">
+            <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
+        </a>
+    </div>
+    <div class="mod-sidebar-nav chat-sidebar-nav flex-grow-1 min-width-0">
     {% include 'chat/_chat_nav.html' %}
     </div>
 </aside>
 
-<div class="chat-main chat-create-main flex-grow-1 min-width-0">
+<div class="mod-main chat-main chat-create-main flex-grow-1 min-width-0">
 <div class="chat-create{% if group_step %} chat-create--group{% endif %}">
     {% if group_step %}
     <div class="chat-create-header">

@@ -1705,9 +1705,34 @@
       }
     },
     "settings": {
+      "page_title": "Chat-Einstellungen - {name}",
+      "heading": "Chat-Einstellungen",
+      "subtitle": "Gruppe „{name}“ bearbeiten",
+      "back_to_chat": "Zurück zum Chat",
       "members": {
         "label": "Mitglieder",
         "help": "Wählen Sie die Teilnehmer dieses Gruppen-Chats. Sie selbst bleiben immer Mitglied."
+      },
+      "avatar": {
+        "label": "Gruppenbild",
+        "help": "Optional — Bild für diesen Chat hochladen",
+        "remove": "Aktuelles Bild entfernen",
+        "alt": "Gruppenbild"
+      },
+      "form": {
+        "chat_name": {
+          "label": "Gruppenname",
+          "placeholder": "z.B. Projekt Team"
+        },
+        "description": {
+          "label": "Beschreibung",
+          "placeholder": "Optional: Worum geht es in der Gruppe?",
+          "help": "Optionale Beschreibung für diesen Chat"
+        },
+        "buttons": {
+          "save": "Speichern",
+          "cancel": "Abbrechen"
+        }
       },
       "delete": {
         "title": "Gefährliche Aktion",

@@ -7,21 +7,23 @@
 {% set nav_items = nav_items|default([]) %}
 {% set active_chat_id = active_chat_id|default(1 if chat.is_main_chat else chat.id) %}
 
-<div class="chat-shell">
-<aside class="chat-sidebar d-none d-lg-flex flex-column">
-    <div class="chat-sidebar-brand">
+<div class="chat-shell mod-shell--nav">
+<aside class="mod-sidebar chat-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
         <i class="bi bi-chat-dots" aria-hidden="true"></i>
         <span>{{ _('chat.index.heading') }}</span>
     </div>
-    <a href="{{ url_for('chat.create_chat') }}" class="btn chat-sidebar-new rounded-pill">
-        <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
-    </a>
-    <div class="chat-sidebar-nav flex-grow-1 min-width-0">
-        {% include 'chat/_chat_nav.html' %}
+    <div class="mod-sidebar-new-wrap w-100">
+        <a href="{{ url_for('chat.create_chat') }}" class="btn mod-sidebar-new w-100 text-start">
+            <i class="bi bi-plus-lg me-2"></i>{{ _('chat.index.new_chat') }}
+        </a>
+    </div>
+    <div class="mod-sidebar-nav chat-sidebar-nav flex-grow-1 min-width-0">
+    {% include 'chat/_chat_nav.html' %}
     </div>
 </aside>
 
-<div class="chat-main flex-grow-1 min-width-0">
+<div class="mod-main chat-main flex-grow-1 min-width-0">
 <!-- Desktop Header -->
 <div class="desktop-chat-header d-none d-md-flex" data-context-zone data-context-menu="dropdown">
     <div class="desktop-chat-info">

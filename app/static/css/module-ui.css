@@ -226,6 +226,31 @@
     filter: none;
 }
 
+.mod-sidebar-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 0.4rem;
+    margin: 0.45rem 0 0.85rem;
+}
+
+.mod-sidebar-action-form {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+}
+
+.mod-sidebar-actions > .mod-sidebar-action,
+.mod-sidebar-actions > .btn.mod-sidebar-action {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.mod-sidebar-action-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ——— Nav links (calendar-style pills) ——— */
 .mod-nav-link,
 a.mod-nav-link,

@@ -109,7 +109,7 @@
         {% if mode == 'sidebar' %}
         <li class="nav-item email-folder-node" data-folder-depth="{{ entry.depth }}">
             <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
-               class="nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+               class="nav-link mod-nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
                data-folder="{{ folder.name }}"
                data-folder-type="{{ folder.folder_type }}"
                data-is-system="{{ 'true' if folder.is_system else 'false' }}"
@@ -127,7 +127,7 @@
         </li>
         {% elif mode == 'offcanvas' %}
         <a href="{{ url_for('email.folder_view', folder_name=folder.name) }}"
-           class="nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
+           class="nav-link mod-nav-link email-folder-link email-folder-droptarget {% if current_folder == folder.name %}active{% endif %}"
            data-folder="{{ folder.name }}"
            data-folder-type="{{ folder.folder_type }}"
            data-is-system="{{ 'true' if folder.is_system else 'false' }}"
@@ -313,10 +313,10 @@
 {% set current_folder_obj = _cf_matches[0] if _cf_matches else none %}
 <div class="email-content w-100" data-module="email">
 <!-- Mobile Header (wie Dateien-Topbar) -->
-<div class="d-md-none mb-3 email-mobile-topbar">
+<div class="d-md-none mb-3 mod-mobile-topbar email-mobile-topbar">
     <div class="d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex align-items-center min-width-0 gap-2">
-            <button type="button" class="btn btn-outline-secondary email-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#mobileFolderMenu" aria-controls="mobileFolderMenu" aria-label="{{ _('email.index.mobile.folders_title') }}">
+            <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#mobileFolderMenu" aria-controls="mobileFolderMenu" aria-label="{{ _('email.index.mobile.folders_title') }}">
                 <i class="bi bi-list"></i>
             </button>
             <div class="email-mobile-path text-truncate min-width-0">
@@ -331,7 +331,7 @@
                     <i class="bi bi-arrow-clockwise sync-icon"></i>
                 </button>
             </form>
-            <a href="{{ url_for('email.compose') }}" class="btn email-mobile-compose-btn btn-sm" title="{{ _('email.index.buttons.compose') }}">
+            <a href="{{ url_for('email.compose') }}" class="btn mod-sidebar-new btn-sm" title="{{ _('email.index.buttons.compose') }}">
                 <i class="bi bi-pencil-square me-1"></i>{{ _('email.index.buttons.compose') }}
             </a>
         </div>
@@ -339,7 +339,7 @@
 </div>
 
 <!-- Mobile Folder Menu Overlay (wie Dateien-Offcanvas) -->
-<div class="offcanvas offcanvas-start email-mobile-offcanvas" tabindex="-1" id="mobileFolderMenu" aria-labelledby="mobileFolderMenuLabel">
+<div class="offcanvas offcanvas-start mod-offcanvas email-mobile-offcanvas" tabindex="-1" id="mobileFolderMenu" aria-labelledby="mobileFolderMenuLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="mobileFolderMenuLabel">
             <i class="bi bi-envelope" aria-hidden="true"></i>
@@ -348,13 +348,13 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('email.index.mobile.close') }}"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        <nav class="nav flex-column gap-1 email-folder-list email-mobile-folder-nav">
+        <nav class="nav flex-column gap-1 mod-sidebar-nav email-folder-list email-mobile-folder-nav">
             {{ folder_tree_links(folder_tree, current_folder, 'offcanvas') }}
         </nav>
         <div class="email-mobile-offcanvas-actions mt-3 pt-3">
-            <button type="button" class="btn email-sidebar-action w-100 justify-content-start" data-action="open-folder-create" data-folder-inline="emailFolderCreateMobile">
+            <button type="button" class="btn mod-sidebar-action w-100 justify-content-start" data-action="open-folder-create" data-folder-inline="emailFolderCreateMobile">
                 <i class="bi bi-folder-plus"></i>
-                <span class="email-sidebar-action-label">{{ _('email.index.buttons.new_folder') }}</span>
+                <span class="mod-sidebar-action-label">{{ _('email.index.buttons.new_folder') }}</span>
             </button>
             {{ email_folder_create_inline('emailFolderCreateMobile') }}
         </div>
@@ -382,36 +382,38 @@
 </div>
 
 <!-- Desktop Layout with Sidebar (from xl up) -->
-<div class="d-none d-xl-flex email-layout-desktop">
-    <div class="email-folder-sidebar">
-        <div class="email-sidebar-brand">
+<div class="d-none d-xl-flex email-layout-desktop mod-shell--nav">
+    <div class="mod-sidebar email-folder-sidebar">
+        <div class="mod-sidebar-brand">
             <i class="bi bi-envelope" aria-hidden="true"></i>
             <span>{{ _('email.index.heading') }}</span>
         </div>
-        <a href="{{ url_for('email.compose') }}" class="btn email-sidebar-compose w-100 text-start">
-            <i class="bi bi-pencil-square me-2"></i>{{ _('email.index.buttons.compose') }}
-        </a>
-        <div class="email-sidebar-actions">
-            <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form email-sidebar-action-form" onsubmit="return handleSyncSubmit(event, this);">
-                <button type="submit" class="btn email-sidebar-action sync-btn w-100">
+        <div class="mod-sidebar-new-wrap w-100">
+            <a href="{{ url_for('email.compose') }}" class="btn mod-sidebar-new w-100 text-start">
+                <i class="bi bi-pencil-square me-2"></i>{{ _('email.index.buttons.compose') }}
+            </a>
+        </div>
+        <div class="mod-sidebar-actions">
+            <form method="POST" action="{{ url_for('email.sync_emails') }}" class="sync-form mod-sidebar-action-form" onsubmit="return handleSyncSubmit(event, this);">
+                <button type="submit" class="btn mod-sidebar-action sync-btn w-100">
                     <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="display: none;"></span>
                     <i class="bi bi-arrow-clockwise sync-icon"></i>
-                    <span class="email-sidebar-action-label">{{ _('email.index.buttons.sync') }}</span>
+                    <span class="mod-sidebar-action-label">{{ _('email.index.buttons.sync') }}</span>
                 </button>
             </form>
-            <button type="button" class="btn email-sidebar-action w-100" data-action="open-folder-create" data-folder-inline="emailFolderCreateSidebar">
+            <button type="button" class="btn mod-sidebar-action w-100" data-action="open-folder-create" data-folder-inline="emailFolderCreateSidebar">
                 <i class="bi bi-folder-plus"></i>
-                <span class="email-sidebar-action-label">{{ _('email.index.buttons.new_folder') }}</span>
+                <span class="mod-sidebar-action-label">{{ _('email.index.buttons.new_folder') }}</span>
             </button>
         </div>
         {{ email_folder_create_inline('emailFolderCreateSidebar') }}
         <hr class="my-2">
-        <ul class="nav flex-column gap-1 email-folder-list" id="emailFolderList">
+        <ul class="nav flex-column gap-1 mod-sidebar-nav email-folder-list" id="emailFolderList">
             {{ folder_tree_links(folder_tree, current_folder, 'sidebar') }}
         </ul>
     </div>
 
-    <div class="email-main-content">
+    <div class="mod-main email-main-content">
         <div class="email-list-toolbar mb-3">
             <h4 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
             {{ email_search_form('Desktop') }}

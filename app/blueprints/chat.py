@@ -933,13 +933,15 @@ def chat_settings(chat_id):
     else:
         members = []
 
-    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).all()
+    users = User.query.filter(*selectable_chat_user_filters(include_guests=True)).order_by(User.first_name, User.last_name).all()
     
     return render_template(
         'chat/settings.html',
         chat=chat,
         members=members,
         users=users,
+        nav_items=build_chat_nav_items(current_user),
+        active_chat_id=1 if chat.is_main_chat else chat.id,
     )
 
 

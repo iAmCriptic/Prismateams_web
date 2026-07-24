@@ -1560,59 +1560,17 @@
     background-color: #6c757d;
 }
 
-/* ===== Chat shell / sidebar nav (desktop + mobile list) ===== */
-.chat-shell {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.25rem;
-}
-
-.chat-sidebar {
+/* ===== Chat shell / sidebar — chrome via module-ui; keep width + scroll ===== */
+.chat-sidebar.mod-sidebar {
     width: 280px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 1rem;
     max-height: calc(100vh - 2rem);
     overflow: hidden;
     padding: 0 0.25rem 1rem;
 }
 
-.chat-sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.15rem 0.35rem 1rem;
-    font-size: 1.55rem;
-    font-weight: 650;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-}
-
-.chat-sidebar-brand .bi {
-    font-size: 1.45rem;
-    opacity: 0.95;
-}
-
-.chat-sidebar-new {
-    --bs-btn-border-radius: 50rem;
-    border-radius: 50rem !important;
-    border: none;
-    font-weight: 600;
-    padding: 0.7rem 1.25rem;
-    margin-bottom: 1rem;
-    width: 100%;
-    text-align: left;
-    color: #fff !important;
-    background: var(--accent-style, var(--accent-color, #0d6efd)) !important;
-    text-decoration: none;
-    box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
-}
-
-.chat-sidebar-new:hover,
-.chat-sidebar-new:focus {
-    color: #fff !important;
-    filter: brightness(1.08);
-    text-decoration: none;
+.chat-sidebar-nav {
+    overflow-y: auto;
+    padding-right: 0.15rem;
 }
 
 .chat-list-new-btn {
@@ -1630,16 +1588,6 @@
 .chat-list-new-btn:focus {
     color: #fff !important;
     filter: brightness(1.08);
-}
-
-.chat-sidebar-nav {
-    overflow-y: auto;
-    padding-right: 0.15rem;
-}
-
-.chat-main {
-    min-width: 0;
-    flex: 1;
 }
 
 .chat-messages-column {
@@ -1842,10 +1790,6 @@
 }
 
 @media (max-width: 991.98px) {
-    .chat-shell {
-        display: block;
-    }
-
     .chat-list-page .chat-nav-item {
         padding: 0.85rem 0.9rem;
     }
@@ -3355,5 +3299,53 @@ body .messages-area .chat-message.other .message-content {
 
     .chat-create-actions:not(.chat-create-actions--floating) {
         flex-direction: column;
+    }
+}
+
+/* Chat settings — same shell as create, plus danger zone */
+.chat-settings-remove-avatar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--chat-text-muted, #6c757d);
+    cursor: pointer;
+}
+
+.chat-settings-remove-avatar .form-check-input {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.chat-settings-danger {
+    margin-top: 0.35rem;
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, #dc3545 35%, var(--chat-muted-border, #e9ecef));
+}
+
+.chat-settings-danger-title {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: #dc3545;
+}
+
+.chat-settings-danger-help {
+    margin: 0 0 0.85rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--chat-text-muted, #6c757d);
+}
+
+.chat-settings-danger-btn {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 0.75rem;
+}
+
+@media (max-width: 991.98px) {
+    .chat-create--settings .chat-settings-danger {
+        margin-bottom: 0.5rem;
     }
 }
