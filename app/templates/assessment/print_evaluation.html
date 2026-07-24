@@ -4,7 +4,7 @@
 {% block document_title %}Bewertungsbogen{% endblock %}
 {% block document_subtitle %}<p class="subtitle">{{ stand_name or 'Ziel unbekannt' }}</p>{% endblock %}
 {% block document_meta %}
-{% if evaluation.timestamp %}Zeitpunkt: {{ evaluation.timestamp.strftime('%d.%m.%Y %H:%M') }} · {% endif %}Bewertungs-Nr.: {{ evaluation.id }}
+{% if evaluation.timestamp %}Zeitpunkt: {{ evaluation.timestamp|localdatetime('%d.%m.%Y %H:%M') }} · {% endif %}Bewertungs-Nr.: {{ evaluation.id }}
 {% endblock %}
 
 {% block print_content %}

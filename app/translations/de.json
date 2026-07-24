@@ -2017,7 +2017,9 @@
         "drag_to_move": "Zum Verschieben ziehen",
         "move_success": "Element wurde verschoben.",
         "move_error": "Element konnte nicht verschoben werden."
-      }
+      },
+      "search_placeholder": "In Dateien suchen",
+      "search_empty": "Keine Treffer in diesem Ordner."
     },
     "view": {
       "download": "Herunterladen",
@@ -2027,7 +2029,13 @@
       "image_preview_alt": "Bildvorschau",
       "image_fullscreen_hint": "Klicken für Vollbild",
       "video_label": "Video",
-      "audio_label": "Audio"
+      "audio_label": "Audio",
+      "history": "Historie",
+      "history_loading": "Lade Versionen…",
+      "history_empty": "Keine älteren Versionen.",
+      "history_current": "aktuell",
+      "more": "Mehr",
+      "version_label": "Version {number}"
     },
     "onlyoffice": {
       "back_button_label": "Zurück"
@@ -2059,10 +2067,16 @@
         "cancel": "Abbrechen"
       },
       "folder_default": "Posteingang",
+      "search": {
+        "placeholder": "Betreff suchen…",
+        "aria": "E-Mails nach Betreff suchen",
+        "clear": "Suche zurücksetzen"
+      },
       "labels": {
         "new_badge": "Neu",
         "move_to_folder": "In Ordner verschieben",
         "empty": "Keine E-Mails vorhanden",
+        "empty_search": "Keine E-Mails mit diesem Betreff gefunden",
         "options_title": "Optionen",
         "has_attachments": "Enthält Anhänge"
       },
@@ -2304,6 +2318,11 @@
         "save": "Speichern",
         "delete_confirm": "Ordner wirklich löschen? Einträge landen wieder im Root.",
         "move_down": "Ordner nach unten"
+      },
+      "search": {
+        "placeholder": "Suche in Name, Benutzername, URL oder Notiz...",
+        "button": "Suchen",
+        "empty": "Keine Zugangsdaten gefunden."
       }
     },
     "form": {
@@ -2604,7 +2623,9 @@
         "filtered": "Keine Seiten gefunden. Versuchen Sie andere Suchkriterien."
       },
       "js": {
-        "favorite_error": "Fehler beim Aktualisieren der Favoriten."
+        "favorite_error": "Fehler beim Aktualisieren der Favoriten.",
+        "history_loading": "Lade Versionshistorie…",
+        "history_error": "Versionshistorie konnte nicht geladen werden."
       },
       "new_button": "Neu",
       "nav": {
@@ -2629,6 +2650,22 @@
       "favorites": {
         "title": "Favoriten",
         "empty": "Keine Favoriten"
+      },
+      "folders": {
+        "all": "Alle",
+        "favorites": "Favoriten",
+        "favorites_empty": "Keine Favoriten gesetzt."
+      },
+      "view_toggle": {
+        "label": "Ansicht umschalten",
+        "list": "Listenansicht",
+        "grid": "Rasteransicht"
+      },
+      "list": {
+        "title": "Titel",
+        "category": "Kategorie",
+        "author": "Autor",
+        "updated": "Aktualisiert"
       }
     },
     "create": {
@@ -2641,7 +2678,7 @@
         "category": {
           "label": "Kategorie",
           "none": "Keine Kategorie",
-          "new_option": "➕ Neue Kategorie",
+          "new_option": "Neue Kategorie",
           "new_placeholder": "Kategoriename eingeben"
         },
         "tags": {
@@ -2715,8 +2752,10 @@
       "meta": {
         "by_author": "Von {name}",
         "updated_at": "{date}",
-        "version": "Version {number}"
+        "version": "Version {number}",
+        "readonly": "Nur Ansicht"
       },
+      "historical_banner": "Dies ist Version {number} — nur Ansicht, nicht bearbeitbar.",
       "buttons": {
         "edit": "Bearbeiten",
         "history": "Historie",
@@ -2728,12 +2767,24 @@
     "history": {
       "page_title": "Versionshistorie - {title}",
       "heading": "Versionshistorie",
+      "side_title": "Details & Versionen",
+      "info_title": "Seiteninfos",
+      "info_labels": {
+        "title": "Titel",
+        "author": "Autor",
+        "updated": "Aktualisiert",
+        "version": "Version"
+      },
       "badge_current": "Aktuell",
+      "keep_hint": "Es werden die letzten 3 Versionen gespeichert. Alte Versionen sind nur lesbar.",
       "buttons": {
         "back": "Zurück",
+        "view": "Ansehen",
         "view_current": "Aktuelle Version ansehen"
       },
-      "empty": "Keine Versionshistorie vorhanden."
+      "empty": "Keine Versionshistorie vorhanden.",
+      "loading": "Lade Versionshistorie…",
+      "error": "Versionshistorie konnte nicht geladen werden."
     },
     "api": {
       "errors": {
@@ -3008,6 +3059,13 @@
       "js": {
         "no_events": "Keine Termine gefunden.",
         "error_loading": "Fehler beim Laden der Termine."
+      },
+      "search": {
+        "placeholder": "Termine suchen",
+        "aria": "Termine suchen",
+        "results": "Suchergebnisse",
+        "empty": "Keine Termine gefunden.",
+        "hint": "Mindestens 2 Zeichen eingeben."
       }
     },
     "create": {
@@ -3199,6 +3257,11 @@
         "empty": "Dieser Ordner ist leer.",
         "move_up": "Ordner nach oben",
         "move_down": "Ordner nach unten"
+      },
+      "search": {
+        "placeholder": "Anleitungen suchen...",
+        "button": "Suchen",
+        "empty": "Keine Anleitungen gefunden."
       }
     },
     "upload": {
@@ -3505,6 +3568,14 @@
         "bulk_edit": {
           "title": "Mehrere Produkte bearbeiten",
           "info": "{count} Produkt(e) werden bearbeitet.",
+          "info_suffix": "Produkt(e) ausgewählt",
+          "selection": "Auswahl",
+          "fill_hint": "Nur ausgefüllte Felder werden übernommen. Leere Felder bleiben unverändert.",
+          "no_change": "— nicht ändern —",
+          "section_location": "Ort & Zustand",
+          "section_org": "Organisation",
+          "section_dguv": "DGUV-Prüfung",
+          "section_media": "Medien",
           "attribute_label": "Zu bearbeitendes Attribut",
           "select_attribute": "Bitte wählen...",
           "location": "Lagerort",
@@ -3512,8 +3583,12 @@
           "condition": "Zustand",
           "category": "Kategorie",
           "folder": "Ordner",
+          "dguv": "DGUV-Prüfung (Datum + Intervall)",
+          "dguv_interval": "DGUV-Intervall (Monate)",
+          "dguv_last": "DGUV letzte Prüfung",
+          "dguv_next": "DGUV nächste Prüfung",
           "remove_image": "Produktbild entfernen",
-          "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Produkte werden mit dem neuen Wert aktualisiert.",
+          "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Produkte werden mit den ausgefüllten Werten aktualisiert.",
           "cancel": "Abbrechen",
           "update": "Aktualisieren"
         }
@@ -3585,6 +3660,11 @@
         "dguv_last_check": "DGUV letzte Prüfung",
         "dguv_next_check": "DGUV nächste Prüfung",
         "dguv_interval_months": "DGUV Intervall (Monate)",
+        "dguv_required": "DGUV-Prüfung erforderlich",
+        "dguv_last_help": "Optional. Leer lassen: nächste Prüfung = Anlagedatum. Mit Datum: nächste Prüfung = letzte + Intervall.",
+        "dguv_interval_help": "Prüfintervall in Monaten (beim Anlegen/Bearbeiten einstellbar).",
+        "dguv_interval_readonly_help": "Festes Prüfintervall (nicht änderbar).",
+        "dguv_next_auto_help": "Automatisch berechnet (oder Anlagedatum, wenn keine letzte Prüfung).",
         "external_barcode": "Externer Barcode / QR-ID",
         "external_barcode_placeholder": "Eigene Barcode-ID",
         "current_image": "Aktuelles Bild:",

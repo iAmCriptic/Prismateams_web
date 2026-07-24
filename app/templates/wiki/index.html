@@ -2,9 +2,227 @@
 
 {% block title %}{{ _('wiki.index.page_title') }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
+{% endblock %}
+
 {% block content %}
 {% from 'wiki/_sidebar.html' import wiki_sidebar_chrome with context %}
 {% set create_url = url_for('wiki.create') %}
+{% set active_favorites = active_favorites|default(favorites_only|default(false)) %}
+{% set favorite_ids = favorite_ids|default([]) %}
+{% set show_favorites_nav = show_favorites_nav|default(false) %}
+{% set heading_label = _('wiki.index.folders.favorites') if active_favorites else _('wiki.index.heading') %}
+
+{% macro wiki_view_toggle(suffix='', extra_class='') %}
+<div class="wiki-view-toggle {{ extra_class }}" role="group" aria-label="{{ _('wiki.index.view_toggle.label') }}">
+    <button type="button" class="wiki-view-toggle__btn" id="listViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.list') }}">
+        <i class="bi bi-list"></i>
+    </button>
+    <button type="button" class="wiki-view-toggle__btn active is-active" id="gridViewBtn{{ suffix }}" title="{{ _('wiki.index.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro wiki_search_form(id_suffix='') %}
+<form method="GET" action="{{ url_for('wiki.index') }}" class="wiki-search" role="search" id="wikiSearchForm{{ id_suffix }}">
+    {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="dir" value="{{ sort_dir }}">
+    {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+    {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
+    <i class="bi bi-search wiki-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="wikiSearchInput{{ id_suffix }}"
+           value="{{ search_query }}"
+           class="form-control wiki-search-input"
+           placeholder="{{ _('wiki.index.search.placeholder') }}"
+           aria-label="{{ _('wiki.index.search.submit') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('wiki.index', sort=sort_by, dir=sort_dir, category=selected_category or none, tag=selected_tag or none, view=('favorites' if active_favorites else none)) }}"
+       class="btn wiki-search-clear"
+       id="wikiSearchClear{{ id_suffix }}"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endmacro %}
+
+{% macro wiki_page_menu_items(page) %}
+<li><a class="dropdown-item" href="{{ url_for('wiki.view', slug=page.slug) }}">
+    <i class="bi bi-eye me-2"></i>{{ _('wiki.index.card.view') }}
+</a></li>
+<li><a class="dropdown-item" href="{{ url_for('wiki.edit', slug=page.slug) }}">
+    <i class="bi bi-pencil me-2"></i>{{ _('wiki.index.card.edit') }}
+</a></li>
+<li><a class="dropdown-item" href="#" data-wiki-history="{{ page.slug }}">
+    <i class="bi bi-clock-history me-2"></i>{{ _('wiki.index.card.history') }}
+</a></li>
+<li><hr class="dropdown-divider"></li>
+<li>
+    <a class="dropdown-item toggle-favorite-item" href="#" data-page-id="{{ page.id }}">
+        <i class="bi {% if page.id in favorite_ids %}bi-star-fill{% else %}bi-star{% endif %} favorite-icon-{{ page.id }}"></i>
+        <span class="favorite-text-{{ page.id }}">
+            {% if page.id in favorite_ids %}{{ _('wiki.index.card.favorite_remove') }}{% else %}{{ _('wiki.index.card.favorite_add') }}{% endif %}
+        </span>
+    </a>
+</li>
+<li><hr class="dropdown-divider"></li>
+<li>
+    <form method="POST" action="{{ url_for('wiki.delete', slug=page.slug) }}" class="d-inline">
+        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('wiki.index.card.delete_confirm') }}">
+            <i class="bi bi-trash me-2"></i>{{ _('wiki.index.card.delete') }}
+        </button>
+    </form>
+</li>
+{% endmacro %}
+
+{% macro render_wiki_card(page) %}
+<div class="col-12 col-md-6 col-lg-4" data-context-zone data-context-menu="dropdown">
+    <div class="card h-100 wiki-page-card" onclick="location.href='{{ url_for('wiki.view', slug=page.slug) }}'" style="cursor: pointer;">
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                <div class="wiki-card-avatar flex-shrink-0" aria-hidden="true"
+                     {% if page.category and page.category.color %}style="background: {{ page.category.color }};"{% endif %}>
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <div class="d-flex align-items-start gap-1 wiki-card-actions" onclick="event.stopPropagation()">
+                    <div class="wiki-grid-hover-actions">
+                        <button type="button" class="btn btn-sm btn-link toggle-favorite-item" data-page-id="{{ page.id }}" title="{{ _('wiki.index.card.favorite_add') }}">
+                            <i class="bi {% if page.id in favorite_ids %}bi-star-fill{% else %}bi-star{% endif %} favorite-icon-{{ page.id }}"></i>
+                        </button>
+                        <a class="btn btn-sm btn-link" href="{{ url_for('wiki.view', slug=page.slug) }}" title="{{ _('wiki.index.card.view') }}">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a class="btn btn-sm btn-link" href="{{ url_for('wiki.edit', slug=page.slug) }}" title="{{ _('wiki.index.card.edit') }}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button type="button" class="btn btn-sm btn-link" data-wiki-history="{{ page.slug }}" title="{{ _('wiki.index.card.history') }}">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
+                    </div>
+                    <div class="dropdown wiki-card-menu">
+                        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu wiki-pill-dropdown">
+                            {{ wiki_page_menu_items(page) }}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="card-title wiki-card-title mb-1" title="{{ page.title }}">{{ page.title }}</h5>
+
+            {% if page.category or page.tags %}
+            <div class="wiki-card-meta-pills mb-2">
+                {% if page.category %}
+                <span class="wiki-viewer-pill" style="--wiki-pill-color: {{ page.category.color or 'var(--accent-color, #0d6efd)' }}">
+                    <i class="bi bi-folder2" aria-hidden="true"></i>{{ page.category.name }}
+                </span>
+                {% endif %}
+                {% for tag in page.tags[:3] %}
+                <span class="wiki-viewer-pill wiki-viewer-pill--tag">
+                    <i class="bi bi-tag" aria-hidden="true"></i>{{ tag.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="wiki-card-meta mt-auto">
+                <span class="wiki-card-meta-line">
+                    <i class="bi bi-person" aria-hidden="true"></i>
+                    <span class="text-truncate">{{ page.creator.full_name }}</span>
+                </span>
+                <span class="wiki-card-meta-line">
+                    <i class="bi bi-calendar3" aria-hidden="true"></i>
+                    <span>{{ page.updated_at | localtime('%d.%m.%Y %H:%M') }}</span>
+                </span>
+                {% if page.version_number > 1 %}
+                <span class="wiki-card-meta-line">
+                    <i class="bi bi-layers" aria-hidden="true"></i>
+                    <span>{{ _('wiki.index.card.version', number=page.version_number) }}</span>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_wiki_list_row(page) %}
+<tr class="mod-list-row" data-context-zone data-context-menu="dropdown">
+    <td>
+        <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('wiki.view', slug=page.slug) }}">
+            <i class="bi bi-journal-text flex-shrink-0"></i>
+            <span class="text-truncate">{{ page.title }}</span>
+        </a>
+    </td>
+    <td class="d-none d-md-table-cell">
+        {% if page.category %}
+        <span class="wiki-viewer-pill" style="--wiki-pill-color: {{ page.category.color or 'var(--accent-color, #0d6efd)' }}">
+            {{ page.category.name }}
+        </span>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td class="d-none d-lg-table-cell text-muted">
+        <span class="text-truncate d-inline-block mw-100">{{ page.creator.full_name }}</span>
+    </td>
+    <td class="d-none d-xl-table-cell text-muted">
+        {{ page.updated_at | localtime('%d.%m.%Y %H:%M') }}
+    </td>
+    <td class="text-end">
+        <div class="mod-list-actions">
+            <div class="mod-list-hover-actions">
+                <a class="btn btn-sm btn-link" href="{{ url_for('wiki.view', slug=page.slug) }}" title="{{ _('wiki.index.card.view') }}">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a class="btn btn-sm btn-link" href="{{ url_for('wiki.edit', slug=page.slug) }}" title="{{ _('wiki.index.card.edit') }}">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <button type="button" class="btn btn-sm btn-link" data-wiki-history="{{ page.slug }}" title="{{ _('wiki.index.card.history') }}">
+                    <i class="bi bi-clock-history"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-link toggle-favorite-item" data-page-id="{{ page.id }}" title="{{ _('wiki.index.card.favorite_add') }}">
+                    <i class="bi {% if page.id in favorite_ids %}bi-star-fill{% else %}bi-star{% endif %} favorite-icon-{{ page.id }}"></i>
+                </button>
+            </div>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu wiki-pill-dropdown">
+                    {{ wiki_page_menu_items(page) }}
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+{% macro wiki_empty_state() %}
+<div class="mod-empty-state">
+    <div>
+        <i class="bi bi-journal-text display-6 d-block mb-2 opacity-50"></i>
+        {% if active_favorites %}
+        {{ _('wiki.index.folders.favorites_empty') }}
+        {% elif search_query or selected_category or selected_tag %}
+        {{ _('wiki.index.empty.filtered') }}
+        {% else %}
+        {{ _('wiki.index.empty.default') }}
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
 
 <div class="wiki-shell mod-shell--nav">
 <aside class="mod-sidebar d-none d-lg-flex flex-column">
@@ -37,108 +255,259 @@
                 </button>
                 <h1 class="h5 mb-0 text-truncate mod-mobile-title">
                     <i class="bi bi-journal-text" aria-hidden="true"></i>
-                    <span>{{ _('wiki.index.heading') }}</span>
+                    <span>{{ heading_label }}</span>
                 </h1>
             </div>
             <a href="{{ create_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
                 <i class="bi bi-plus-lg"></i> {{ _('wiki.index.new_button') }}
             </a>
         </div>
-    </div>
-
-    {% if pages %}
-    <div class="row g-3">
-        {% for page in pages %}
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card wiki-page-card h-100" data-context-zone data-context-menu="dropdown">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title mb-0">
-                            <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="text-decoration-none">
-                                {{ page.title }}
-                            </a>
-                        </h5>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" data-page-id="{{ page.id }}">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('wiki.view', slug=page.slug) }}">
-                                    <i class="bi bi-eye"></i> {{ _('wiki.index.card.view') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('wiki.edit', slug=page.slug) }}">
-                                    <i class="bi bi-pencil"></i> {{ _('wiki.index.card.edit') }}
-                                </a></li>
-                                <li><a class="dropdown-item" href="{{ url_for('wiki.history', slug=page.slug) }}">
-                                    <i class="bi bi-clock-history"></i> {{ _('wiki.index.card.history') }}
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item toggle-favorite-item" href="#" data-page-id="{{ page.id }}">
-                                        <i class="bi bi-star favorite-icon-{{ page.id }}"></i> <span class="favorite-text-{{ page.id }}">{{ _('wiki.index.card.favorite_add') }}</span>
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form method="POST" action="{{ url_for('wiki.delete', slug=page.slug) }}" class="d-inline">
-                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('{{ _('wiki.index.card.delete_confirm') }}')">
-                                            <i class="bi bi-trash"></i> {{ _('wiki.index.card.delete') }}
-                                        </button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    {% if page.category %}
-                    <span class="badge" style="background-color: {{ page.category.color or '#0d6efd' }}">
-                        {{ page.category.name }}
-                    </span>
-                    {% endif %}
-
-                    {% if page.tags %}
-                    <div class="mt-2">
-                        {% for tag in page.tags %}
-                        <span class="badge bg-secondary me-1">{{ tag.name }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <p class="card-text text-muted small mt-2 mb-0">
-                        <i class="bi bi-person"></i> {{ _('wiki.index.card.created_by', name=page.creator.full_name) }}<br>
-                        <i class="bi bi-calendar"></i> {{ _('wiki.index.card.updated_at', date=page.updated_at | localtime('%d.%m.%Y %H:%M')) }}
-                        {% if page.version_number > 1 %}
-                        <br><i class="bi bi-arrow-repeat"></i> {{ _('wiki.index.card.version', number=page.version_number) }}
-                        {% endif %}
-                    </p>
-                </div>
+        <div class="wiki-mobile-toolbar mt-2">
+            <div class="wiki-mobile-search min-width-0 flex-grow-1">
+                {{ wiki_search_form('Mobile') }}
+            </div>
+            <div class="wiki-mobile-view-toggle flex-shrink-0">
+                {{ wiki_view_toggle('Mobile') }}
             </div>
         </div>
-        {% endfor %}
     </div>
-    {% else %}
-    <div class="mod-empty-state">
-        <div>
-            <i class="bi bi-journal-text display-6 d-block mb-2 opacity-50"></i>
-            {% if search_query or selected_category or selected_tag or favorites_only %}
-            {{ _('wiki.index.empty.filtered') }}
-            {% else %}
-            {{ _('wiki.index.empty.default') }}
-            {% endif %}
+
+    <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col-lg-3 min-width-0">
+            <h1 class="h4 mb-0 text-truncate">{{ heading_label }}</h1>
+        </div>
+        <div class="col-lg-6">
+            {{ wiki_search_form('') }}
+        </div>
+        <div class="col-lg-3">
+            <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                {{ wiki_view_toggle('') }}
+            </div>
         </div>
     </div>
-    {% endif %}
+
+    <div id="gridViewContainer" style="display: none;">
+        {% if pages %}
+        <div class="row g-3">
+            {% for page in pages %}
+                {{ render_wiki_card(page) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        {{ wiki_empty_state() }}
+        {% endif %}
+    </div>
+
+    <div id="listViewContainer" style="display: none;">
+        {% if pages %}
+        <div class="mod-list-table-wrap">
+            <table class="table mod-list-table align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ _('wiki.index.list.title') }}</th>
+                        <th scope="col" class="d-none d-md-table-cell">{{ _('wiki.index.list.category') }}</th>
+                        <th scope="col" class="d-none d-lg-table-cell">{{ _('wiki.index.list.author') }}</th>
+                        <th scope="col" class="d-none d-xl-table-cell">{{ _('wiki.index.list.updated') }}</th>
+                        <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for page in pages %}
+                        {{ render_wiki_list_row(page) }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {{ wiki_empty_state() }}
+        {% endif %}
+    </div>
 </div>
+</div>
+
+<div class="offcanvas offcanvas-end wiki-history-offcanvas" tabindex="-1" id="wikiHistoryOffcanvas" aria-labelledby="wikiHistoryOffcanvasLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="wikiHistoryOffcanvasLabel">
+            <i class="bi bi-info-circle me-2" aria-hidden="true"></i>{{ _('wiki.history.side_title') }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body" id="wikiHistoryContent"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+(function () {
 const WIKI_INDEX_I18N = {{ current_translations.get('wiki', {}).get('index', {})|tojson }};
 const WIKI_INDEX_CARD = WIKI_INDEX_I18N.card || {};
 const WIKI_INDEX_JS = WIKI_INDEX_I18N.js || {};
+const WIKI_HISTORY_I18N = {{ current_translations.get('wiki', {}).get('history', {})|tojson }};
+const WIKI_ACTIVE_FAVORITES = {{ active_favorites|tojson }};
+
+function wikiEscapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getWikiHistoryPanel() {
+    return document.getElementById('wikiHistoryOffcanvas');
+}
+
+function getWikiHistoryContent() {
+    return document.getElementById('wikiHistoryContent');
+}
+
+function openWikiPageHistory(slug) {
+    const panelEl = getWikiHistoryPanel();
+    const content = getWikiHistoryContent();
+    if (!panelEl || !content || !slug || typeof bootstrap === 'undefined') return;
+
+    const labels = WIKI_HISTORY_I18N.info_labels || {};
+    const loadingText = WIKI_INDEX_JS.history_loading || WIKI_HISTORY_I18N.loading || '…';
+    const errorText = WIKI_INDEX_JS.history_error || WIKI_HISTORY_I18N.error || 'Error';
+    const emptyText = WIKI_HISTORY_I18N.empty || '';
+    const currentBadge = WIKI_HISTORY_I18N.badge_current || '';
+    const versionTpl = WIKI_INDEX_CARD.version || 'Version {number}';
+
+    content.innerHTML = '<div class="text-muted small">' + wikiEscapeHtml(loadingText) + '</div>';
+
+    // Offcanvas an body → über Sidebar/Grid sichtbar
+    if (panelEl.parentElement !== document.body) {
+        document.body.appendChild(panelEl);
+    }
+
+    const panel = bootstrap.Offcanvas.getOrCreateInstance(panelEl);
+    panel.show();
+
+    fetch('/wiki/api/history/' + encodeURIComponent(slug))
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (!data.success || !data.page) {
+                content.innerHTML = '<div class="alert portal-msg portal-msg--danger" role="alert"><div class="portal-msg__body"><div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div><div class="portal-msg__content"><p class="portal-msg__text">' + wikiEscapeHtml(data.error || errorText) + '</p></div></div></div>';
+                return;
+            }
+
+            const page = data.page;
+            const versions = data.versions || [];
+            const versionLabel = function (n) {
+                return wikiEscapeHtml(String(versionTpl).replace('{number}', n));
+            };
+
+            let versionsHtml;
+            if (versions.length) {
+                const viewLabel = (WIKI_HISTORY_I18N.buttons && WIKI_HISTORY_I18N.buttons.view) || 'View';
+                const keepHint = WIKI_HISTORY_I18N.keep_hint || '';
+                versionsHtml = (keepHint ? '<p class="small text-muted mb-2">' + wikiEscapeHtml(keepHint) + '</p>' : '')
+                    + '<div class="list-group list-group-flush wiki-history-side-list">' + versions.map(function (version) {
+                    return '<div class="list-group-item wiki-history-side-item">'
+                        + '<div class="d-flex justify-content-between align-items-start gap-2">'
+                        + '<div class="min-width-0">'
+                        + '<div class="fw-semibold"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>'
+                        + versionLabel(version.version_number) + '</div>'
+                        + '<small class="text-muted"><i class="bi bi-person me-1"></i>' + wikiEscapeHtml(version.creator)
+                        + ' · ' + wikiEscapeHtml(version.created_at) + '</small></div>'
+                        + (version.view_url
+                            ? '<a href="' + wikiEscapeHtml(version.view_url) + '" class="btn btn-sm btn-outline-primary files-pill-btn flex-shrink-0">'
+                              + '<i class="bi bi-eye"></i><span class="ms-1">' + wikiEscapeHtml(viewLabel) + '</span></a>'
+                            : '')
+                        + '</div></div>';
+                }).join('') + '</div>';
+            } else {
+                versionsHtml = '<div class="alert portal-msg portal-msg--info" role="status"><div class="portal-msg__body"><div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></div><div class="portal-msg__content"><p class="portal-msg__text">' + wikiEscapeHtml(emptyText) + '</p></div></div></div>';
+            }
+
+            content.innerHTML = ''
+                + '<div class="mb-4"><h6>' + wikiEscapeHtml(WIKI_HISTORY_I18N.info_title || '') + '</h6>'
+                + '<div class="files-details-card">'
+                + '<p><strong>' + wikiEscapeHtml(labels.title || '') + ':</strong> ' + wikiEscapeHtml(page.title) + '</p>'
+                + '<p><strong>' + wikiEscapeHtml(labels.author || '') + ':</strong> ' + wikiEscapeHtml(page.creator) + '</p>'
+                + '<p><strong>' + wikiEscapeHtml(labels.updated || '') + ':</strong> ' + wikiEscapeHtml(page.updated_at) + '</p>'
+                + '<p class="mb-0"><strong>' + wikiEscapeHtml(labels.version || '') + ':</strong> '
+                + versionLabel(page.version_number)
+                + ' <span class="wiki-viewer-pill ms-1">' + wikiEscapeHtml(currentBadge) + '</span></p>'
+                + '</div></div>'
+                + '<div class="mb-2"><h6>' + wikiEscapeHtml(WIKI_HISTORY_I18N.heading || '') + '</h6></div>'
+                + versionsHtml;
+        })
+        .catch(function (error) {
+            console.error('Error loading wiki history:', error);
+            content.innerHTML = '<div class="alert portal-msg portal-msg--danger" role="alert"><div class="portal-msg__body"><div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div><div class="portal-msg__content"><p class="portal-msg__text">' + wikiEscapeHtml(errorText) + '</p></div></div></div>';
+        });
+}
+
+function closeWikiPageHistory() {
+    const panelEl = getWikiHistoryPanel();
+    if (!panelEl || typeof bootstrap === 'undefined') return;
+    const panel = bootstrap.Offcanvas.getInstance(panelEl);
+    if (panel) panel.hide();
+}
+
+window.openWikiPageHistory = openWikiPageHistory;
+window.closeWikiPageHistory = closeWikiPageHistory;
+
+document.addEventListener('click', function (e) {
+    const trigger = e.target.closest('[data-wiki-history]');
+    if (!trigger) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openWikiPageHistory(trigger.getAttribute('data-wiki-history'));
+}, true);
+
+function setWikiViewMode(mode) {
+    const grid = document.getElementById('gridViewContainer');
+    const list = document.getElementById('listViewContainer');
+    const listBtns = [document.getElementById('listViewBtn'), document.getElementById('listViewBtnMobile')].filter(Boolean);
+    const gridBtns = [document.getElementById('gridViewBtn'), document.getElementById('gridViewBtnMobile')].filter(Boolean);
+    const isList = mode === 'list';
+    if (grid) grid.style.display = isList ? 'none' : '';
+    if (list) list.style.display = isList ? '' : 'none';
+    listBtns.forEach((btn) => {
+        btn.classList.toggle('active', isList);
+        btn.classList.toggle('is-active', isList);
+    });
+    gridBtns.forEach((btn) => {
+        btn.classList.toggle('active', !isList);
+        btn.classList.toggle('is-active', !isList);
+    });
+    localStorage.setItem('wikiViewMode', isList ? 'list' : 'grid');
+}
+
+function wikiNotify(message, category) {
+    if (typeof window.showAppBanner === 'function') {
+        window.showAppBanner(message, category || 'info');
+        return;
+    }
+    window.alert(message);
+}
+
+function updateFavoriteUI(pageId, isFavorite) {
+    document.querySelectorAll(`.favorite-icon-${pageId}`).forEach((icon) => {
+        icon.classList.toggle('bi-star-fill', isFavorite);
+        icon.classList.toggle('bi-star', !isFavorite);
+    });
+    document.querySelectorAll(`.favorite-text-${pageId}`).forEach((text) => {
+        text.textContent = isFavorite
+            ? (WIKI_INDEX_CARD.favorite_remove || 'Remove from favorites')
+            : (WIKI_INDEX_CARD.favorite_add || 'Add to favorites');
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    setWikiViewMode(localStorage.getItem('wikiViewMode') || 'grid');
+    ['listViewBtn', 'listViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setWikiViewMode('list'));
+    });
+    ['gridViewBtn', 'gridViewBtnMobile'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', () => setWikiViewMode('grid'));
+    });
+
     document.querySelectorAll('[data-wiki-dismiss-offcanvas]').forEach(function(el) {
         el.addEventListener('click', function() {
             const offcanvasEl = document.getElementById('wikiMobileNav');
@@ -149,62 +518,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    const favoriteItems = document.querySelectorAll('.toggle-favorite-item');
-    favoriteItems.forEach(item => {
+    document.querySelectorAll('[data-confirm-delete]').forEach((btn) => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const message = btn.getAttribute('data-confirm-delete');
+            const form = btn.closest('form');
+            const ok = typeof window.ptConfirm === 'function'
+                ? await window.ptConfirm(message, { danger: true })
+                : window.confirm(message);
+            if (ok && form) form.submit();
+        });
+    });
+
+    document.querySelectorAll('.toggle-favorite-item').forEach((item) => {
         const pageId = item.getAttribute('data-page-id');
         if (!pageId) return;
 
-        fetch(`/wiki/api/favorite/check/${pageId}`)
-            .then(response => response.json())
-            .then(data => {
-                updateFavoriteUI(pageId, data.is_favorite);
-            });
-
         item.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             const icon = document.querySelector(`.favorite-icon-${pageId}`);
-            const isFavorite = icon.classList.contains('bi-star-fill');
+            const isFavorite = icon && icon.classList.contains('bi-star-fill');
             const method = isFavorite ? 'DELETE' : 'POST';
 
             fetch(`/wiki/api/favorite/${pageId}`, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     updateFavoriteUI(pageId, data.is_favorite);
-                    window.location.reload();
-                } else if (data.error) {
-                    alert(data.error);
+                    document.querySelectorAll('[data-wiki-favorites-nav]').forEach((el) => {
+                        el.hidden = !(data.favorites_count > 0);
+                    });
+                    if (WIKI_ACTIVE_FAVORITES && !data.is_favorite) {
+                        window.location.href = {{ url_for('wiki.index', view='favorites')|tojson }};
+                    } else if (!{{ show_favorites_nav|tojson }} && data.favorites_count > 0) {
+                        window.location.reload();
+                    } else if (data.message) {
+                        wikiNotify(data.message, 'success');
+                    }
                 } else {
-                    alert(WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.');
+                    wikiNotify(data.error || WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.', 'danger');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert(WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.');
+                wikiNotify(WIKI_INDEX_JS.favorite_error || 'Failed to update favorites.', 'danger');
             });
         });
     });
-
-    function updateFavoriteUI(pageId, isFavorite) {
-        const icon = document.querySelector(`.favorite-icon-${pageId}`);
-        const text = document.querySelector(`.favorite-text-${pageId}`);
-        if (!icon || !text) return;
-
-        if (isFavorite) {
-            icon.classList.remove('bi-star');
-            icon.classList.add('bi-star-fill');
-            text.textContent = WIKI_INDEX_CARD.favorite_remove || 'Remove from favorites';
-        } else {
-            icon.classList.remove('bi-star-fill');
-            icon.classList.add('bi-star');
-            text.textContent = WIKI_INDEX_CARD.favorite_add || 'Add to favorites';
-        }
-    }
 });
+})();
 </script>
 {% endblock %}

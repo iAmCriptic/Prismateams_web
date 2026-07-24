@@ -398,6 +398,7 @@ class InventoryItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
     checked = db.Column(db.Boolean, default=False, nullable=False)
     notes = db.Column(db.Text, nullable=True)
+    counted_quantity = db.Column(db.Integer, nullable=True)  # Gezählte Menge (z.B. gleiche Kabel)
     location_changed = db.Column(db.Boolean, default=False, nullable=False)
     new_location = db.Column(db.String(255), nullable=True)
     condition_changed = db.Column(db.Boolean, default=False, nullable=False)

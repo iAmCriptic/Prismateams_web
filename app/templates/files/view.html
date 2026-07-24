@@ -21,10 +21,85 @@
     .file-viewer-header {
         position: sticky;
         top: 0;
-        background: var(--bs-body-bg);
-        border-bottom: 1px solid var(--bs-border-color);
+        background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
+        border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
         z-index: 1051;
-        padding: 1rem;
+        padding: 0.65rem 1rem;
+    }
+
+    .file-viewer-header-inner--text {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .file-viewer-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .file-viewer-brand-logo {
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 999px;
+        object-fit: cover;
+        flex-shrink: 0;
+        box-shadow: 0 0.12rem 0.4rem rgba(13, 110, 253, 0.18);
+    }
+
+    .file-viewer-brand-mark {
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: 999px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent-style, var(--accent-color, #0d6efd));
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .file-viewer-brand-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.05rem;
+    }
+
+    .file-viewer-filename {
+        font-size: 1.05rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--bs-body-color);
+    }
+
+    .file-viewer-meta-line {
+        display: block;
+        font-size: 0.78rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-viewer-more-btn.dropdown-toggle::after {
+        margin-left: 0.35rem;
+    }
+
+    .file-viewer-history-list .list-group-item {
+        border-radius: var(--mod-radius-pill, 1.5rem) !important;
+        margin-bottom: 0.45rem;
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
     }
 
     .file-viewer-content {
@@ -217,25 +292,44 @@
     /* Mobile Layout für Header (nicht-PDF/Media) */
     @media (max-width: 768px) {
         .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header {
-            padding: 1rem 0.75rem;
+            padding: 0.55rem 0.65rem;
         }
 
-        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header .d-flex {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 1rem;
-        }
-
-        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header .file-viewer-actions {
-            width: 100%;
-            justify-content: center;
-            flex-wrap: wrap;
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header-inner--text {
+            flex-direction: row !important;
+            align-items: center !important;
             gap: 0.5rem;
+            flex-wrap: nowrap;
         }
 
-        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-header .file-viewer-actions .btn {
-            flex: 1;
-            min-width: 120px;
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-filename {
+            font-size: 0.95rem;
+        }
+
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-meta-line {
+            font-size: 0.72rem;
+        }
+
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-actions {
+            width: auto;
+            justify-content: flex-end;
+            flex-wrap: nowrap;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-actions .btn-label {
+            display: none;
+        }
+
+        .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-actions .btn {
+            flex: 0 0 auto;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0.45rem 0.7rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .file-viewer:not(.file-viewer--pdf):not(.file-viewer--media) .file-viewer-content {
@@ -296,7 +390,7 @@
                 <small class="text-muted">
                     {{ (file.file_size / 1024)|round(2) }} KB •
                     Von {{ file.uploader.full_name if file.uploader else '—' }} •
-                    {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
+                    {{ file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                     {% if file.version_number > 1 %}
                     • Version {{ file.version_number }}
                     {% endif %}
@@ -312,34 +406,86 @@
             </div>
         </div>
         {% else %}
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h4 class="mb-0">{{ file.name }}</h4>
-                <small class="text-muted">
-                    {{ (file.file_size / 1024)|round(2) }} KB •
-                    Von {{ file.uploader.full_name if file.uploader else '—' }} •
-                    {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
-                    {% if file.version_number > 1 %}
-                    • Version {{ file.version_number }}
-                    {% endif %}
-                </small>
+        <div class="file-viewer-header-inner file-viewer-header-inner--text">
+            <div class="file-viewer-brand">
+                {% if portal_logo_filename %}
+                <img class="file-viewer-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% elif app_logo %}
+                <img class="file-viewer-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% else %}
+                <span class="file-viewer-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+                {% endif %}
+                <div class="file-viewer-brand-text">
+                    <h4 class="file-viewer-filename mb-0" title="{{ file.name }}">{{ file.name }}</h4>
+                    <small class="file-viewer-meta-line text-muted">
+                        Von {{ file.uploader.full_name if file.uploader else '—' }}
+                        -
+                        {{ file.updated_at|localdatetime('%d.%m.%Y %H:%M') if file.updated_at else file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
+                    </small>
+                </div>
             </div>
             <div class="file-viewer-actions">
-                {% if not is_public_share and current_user.is_authenticated and file.name.endswith(('.txt', '.md')) %}
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="closeViewer()" title="{{ _('files.view.close') }}">
+                    <i class="bi bi-arrow-left"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
+                </button>
+                {% if not is_public_share and current_user.is_authenticated and (is_markdown|default(False) or file.name.endswith(('.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'))) %}
                 <a href="{{ url_for('files.edit_file', file_id=file.id) }}" class="btn btn-accent files-pill-btn">
-                    <i class="bi bi-pencil"></i> {{ _('files.view.edit') }}
+                    <i class="bi bi-pencil"></i><span class="btn-label ms-1">{{ _('files.view.edit') }}</span>
                 </a>
                 {% endif %}
-                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn">
-                    <i class="bi bi-download"></i> {{ _('files.view.download') }}
-                </a>
-                <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="closeViewer()">
-                    <i class="bi bi-x-lg"></i> {{ _('files.view.close') }}
+                {% if not is_public_share and current_user.is_authenticated %}
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" id="fileViewerHistoryBtn" data-file-id="{{ file.id }}" title="{{ _('files.view.history') }}">
+                    <i class="bi bi-clock-history"></i><span class="btn-label ms-1">{{ _('files.view.history') }}</span>
                 </button>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary files-pill-btn dropdown-toggle file-viewer-more-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('files.view.more') }}">
+                        <i class="bi bi-exclamation-circle"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end files-dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="{{ download_url }}">
+                                <i class="bi bi-download me-2"></i>{{ _('files.view.download') }}
+                            </a>
+                        </li>
+                        {% if file.version_number > 1 %}
+                        <li>
+                            <span class="dropdown-item-text text-muted small">
+                                Version {{ file.version_number }}
+                            </span>
+                        </li>
+                        {% endif %}
+                        <li>
+                            <span class="dropdown-item-text text-muted small">
+                                {{ (file.file_size / 1024)|round(2) }} KB
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+                {% else %}
+                <a href="{{ download_url }}" class="btn btn-outline-primary files-pill-btn">
+                    <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
+                </a>
+                {% endif %}
             </div>
         </div>
         {% endif %}
     </div>
+
+    {% if not (is_pdf|default(False) or is_media) and not is_public_share and current_user.is_authenticated %}
+    <div class="offcanvas offcanvas-end file-viewer-history-panel" tabindex="-1" id="fileViewerHistoryPanel" aria-labelledby="fileViewerHistoryLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="fileViewerHistoryLabel">
+                <i class="bi bi-clock-history me-2"></i>{{ _('files.view.history') }}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('files.view.close') }}"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div id="fileViewerHistoryList" class="file-viewer-history-list">
+                <div class="text-muted small">{{ _('files.view.history_loading') }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     {% if is_pdf|default(False) %}
     <button type="button" class="file-viewer-close-fab" onclick="closeViewer()" aria-label="{{ _('files.view.close') }}">
@@ -423,6 +569,54 @@ document.addEventListener('keydown', function(e) {
         closeViewer();
     }
 });
+
+(function initFileViewerHistory() {
+    const btn = document.getElementById('fileViewerHistoryBtn');
+    const panelEl = document.getElementById('fileViewerHistoryPanel');
+    const listEl = document.getElementById('fileViewerHistoryList');
+    if (!btn || !panelEl || !listEl || typeof bootstrap === 'undefined') return;
+
+    const labels = {
+        loading: {{ _('files.view.history_loading')|tojson }},
+        empty: {{ _('files.view.history_empty')|tojson }},
+        current: {{ _('files.view.history_current')|tojson }},
+        version: {{ _('files.view.version_label')|tojson }},
+        download: {{ _('files.view.download')|tojson }}
+    };
+
+    btn.addEventListener('click', function() {
+        const fileId = btn.getAttribute('data-file-id');
+        const panel = bootstrap.Offcanvas.getOrCreateInstance(panelEl);
+        listEl.innerHTML = '<div class="text-muted small">' + labels.loading + '</div>';
+        panel.show();
+
+        fetch('/files/api/file-details/' + encodeURIComponent(fileId))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data || !data.success) {
+                    listEl.innerHTML = '<div class="alert alert-danger py-2">' + labels.empty + '</div>';
+                    return;
+                }
+                const versions = data.versions || [];
+                if (!versions.length) {
+                    listEl.innerHTML = '<div class="text-muted small">' + labels.empty + '</div>';
+                    return;
+                }
+                listEl.innerHTML = '<div class="list-group list-group-flush">' + versions.map(function(v) {
+                    const title = labels.version.replace('{number}', v.version_number)
+                        + (v.is_current ? ' (' + labels.current + ')' : '');
+                    return '<div class="list-group-item d-flex justify-content-between align-items-center gap-2">'
+                        + '<span><i class="bi bi-clock-history me-2"></i>' + title + '</span>'
+                        + '<a class="btn btn-sm btn-outline-primary files-pill-btn" href="' + v.download_url + '">'
+                        + '<i class="bi bi-download"></i><span class="ms-1">' + labels.download + '</span></a>'
+                        + '</div>';
+                }).join('') + '</div>';
+            })
+            .catch(function() {
+                listEl.innerHTML = '<div class="alert alert-danger py-2">' + labels.empty + '</div>';
+            });
+    });
+})();
 
 {% if is_pdf|default(False) %}
 document.documentElement.classList.add('file-viewer-pdf-open');

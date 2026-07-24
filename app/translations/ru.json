@@ -481,5 +481,19 @@
         "draft_error": "Не удалось сохранить черновик."
       }
     }
+  },
+  "files": {
+    "view": {
+      "history": "История",
+      "history_loading": "Загрузка версий…",
+      "history_empty": "Нет предыдущих версий.",
+      "history_current": "текущая",
+      "more": "Ещё",
+      "version_label": "Version {number}"
+    },
+    "index": {
+      "search_placeholder": "Поиск в файлах",
+      "search_empty": "Нет совпадений в этой папке."
+    }
   }
 }

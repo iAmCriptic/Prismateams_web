@@ -1,60 +1,44 @@
 // Inventurtool JavaScript
 
-// Inventory Tool Manager - Verwaltet das Inventurtool
 class InventoryToolManager {
-    constructor(inventoryId) {
+    constructor(inventoryId, options = {}) {
         this.inventoryId = inventoryId;
+        this.readOnly = !!options.readOnly;
         this.items = new Map();
         this.pollingInterval = null;
         this.lastUpdateTime = null;
         this.currentEditingProductId = null;
         this.lockRefreshTimer = null;
+        this.statusFilter = 'open';
+        this.viewMode = 'list';
     }
-    
+
     init() {
-        console.log('InventoryToolManager initialisiert für Inventur:', this.inventoryId);
-        
-        // Lade initiale Daten
-        this.loadItems();
-        
-        // Starte Polling für Live-Updates
-        this.startPolling();
-        
-        // Event Listeners
         this.setupEventListeners();
-        
-        // Tab-Wechsel Handler
-        this.setupTabHandlers();
+        this.setupViewToggle();
+        this.setupFilterChips();
+        this.loadItems();
+        if (!this.readOnly) {
+            this.startPolling();
+        }
     }
-    
+
     setupEventListeners() {
-        // Suchfunktion
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
-            searchInput.addEventListener('input', () => this.filterItems());
+            searchInput.addEventListener('input', () => this.renderItems());
         }
-        
-        // Save Button im Modal
+
         const saveBtn = document.getElementById('saveProductBtn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => this.saveProduct());
         }
-        
-        // Modal Close Event - Scanner wieder aktivieren und Backdrop entfernen
+
         const productModal = document.getElementById('productEditModal');
         if (productModal) {
+            this.ensureModalOnBody(productModal);
             productModal.addEventListener('hidden.bs.modal', () => {
-                // Entferne Backdrop falls vorhanden
-                const backdrop = document.querySelector('.modal-backdrop');
-                if (backdrop) {
-                    backdrop.remove();
-                }
-                // Entferne modal-open Klasse vom body
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-                
-                // Scanner wieder aktivieren
+                this.clearModalArtifacts();
                 this.resumeScannerIfActive();
                 if (this.currentEditingProductId) {
                     this.releaseLock(this.currentEditingProductId);
@@ -66,163 +50,458 @@ class InventoryToolManager {
                 }
             });
         }
+
+        const completeModal = document.getElementById('completeInventoryModal');
+        if (completeModal) {
+            this.ensureModalOnBody(completeModal);
+            completeModal.addEventListener('hidden.bs.modal', () => {
+                this.clearModalArtifacts();
+            });
+        }
     }
-    
-    setupTabHandlers() {
-        // Tab-Wechsel: Scanner stoppen wenn Tab gewechselt wird
-        const tabs = document.querySelectorAll('#inventoryTabs button[data-bs-toggle="tab"]');
-        tabs.forEach(tab => {
-            tab.addEventListener('shown.bs.tab', (e) => {
-                const targetId = e.target.getAttribute('data-bs-target');
-                
-                // Wenn Scanner-Tab verlassen wird, Scanner stoppen
-                if (targetId !== '#scanner' && window.inventoryScannerManager) {
-                    window.inventoryScannerManager.stopScanner();
-                }
-                
-                // Wenn Scanner-Tab aktiviert wird, Scanner initialisieren
-                if (targetId === '#scanner' && window.inventoryScannerManager) {
-                    // Scanner wird automatisch initialisiert wenn Tab aktiv ist
-                }
+
+    ensureModalOnBody(modalElement) {
+        if (!modalElement) return;
+        if (modalElement.parentElement !== document.body) {
+            document.body.appendChild(modalElement);
+        }
+    }
+
+    clearModalArtifacts() {
+        document.querySelectorAll('.modal-backdrop').forEach((el) => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    }
+
+    setupViewToggle() {
+        const listBtn = document.getElementById('sessionListViewBtn');
+        const gridBtn = document.getElementById('sessionGridViewBtn');
+        const storageKey = 'inventurSessionViewMode';
+        let saved = 'list';
+        try { saved = localStorage.getItem(storageKey) || 'list'; } catch (e) {}
+        this.applyViewMode(saved);
+
+        if (listBtn) listBtn.addEventListener('click', () => this.applyViewMode('list'));
+        if (gridBtn) gridBtn.addEventListener('click', () => this.applyViewMode('grid'));
+    }
+
+    applyViewMode(mode) {
+        this.viewMode = mode === 'grid' ? 'grid' : 'list';
+        const listView = document.getElementById('sessionListView');
+        const gridView = document.getElementById('sessionGridView');
+        const listBtn = document.getElementById('sessionListViewBtn');
+        const gridBtn = document.getElementById('sessionGridViewBtn');
+        const isGrid = this.viewMode === 'grid';
+        if (listView) listView.style.display = isGrid ? 'none' : '';
+        if (gridView) gridView.style.display = isGrid ? '' : 'none';
+        if (listBtn) listBtn.classList.toggle('active', !isGrid);
+        if (gridBtn) gridBtn.classList.toggle('active', isGrid);
+        try { localStorage.setItem('inventurSessionViewMode', this.viewMode); } catch (e) {}
+        this.renderItems();
+    }
+
+    setupFilterChips() {
+        document.querySelectorAll('#inventurFilterChips [data-filter]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                this.statusFilter = btn.dataset.filter || 'all';
+                document.querySelectorAll('#inventurFilterChips [data-filter]').forEach((el) => {
+                    el.classList.toggle('active', el === btn);
+                });
+                this.renderItems();
             });
         });
     }
-    
+
     async loadItems() {
         try {
             const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/items`);
             if (!response.ok) throw new Error('Fehler beim Laden der Inventur-Items');
 
             const data = await response.json();
-            
-            // Speichere Items
             this.items.clear();
-            data.items.forEach(item => {
+            data.items.forEach((item) => {
                 this.items.set(item.product_id, item);
             });
-            
-            // Rendere Tabelle
-            this.renderTable();
-            
-            // Update Fortschritt
+
+            this.renderItems();
             this.updateProgress(data.inventory);
-            
+            this.updateStats();
             this.lastUpdateTime = new Date();
         } catch (error) {
             console.error('Fehler beim Laden der Items:', error);
         }
     }
-    
+
+    getFilteredItems() {
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        let items = Array.from(this.items.values());
+
+        items = items.filter((item) => {
+            if (this.statusFilter === 'open' && item.checked) return false;
+            if (this.statusFilter === 'checked' && !item.checked) return false;
+            if (this.statusFilter === 'changed') {
+                const hasChanges = item.location_changed || item.condition_changed || !!item.notes;
+                if (!hasChanges) return false;
+            }
+            if (searchTerm) {
+                const searchable = `${item.product_name || ''} ${item.product_category || ''} ${item.product_location || ''} ${item.notes || ''}`.toLowerCase();
+                if (!searchable.includes(searchTerm)) return false;
+            }
+            return true;
+        });
+
+        items.sort((a, b) => {
+            if (this.statusFilter === 'all' || this.statusFilter === 'open') {
+                if (!!a.checked !== !!b.checked) return a.checked ? 1 : -1;
+            }
+            return String(a.product_name || '').localeCompare(String(b.product_name || ''), 'de');
+        });
+
+        return items;
+    }
+
+    statusBadgeHtml(item) {
+        const statusLabels = {
+            available: 'Verfügbar',
+            borrowed: 'Ausgeliehen',
+            missing: 'Fehlend',
+            defective: 'Defekt',
+            in_repair: 'In Reparatur',
+            retired: 'Ausgemustert',
+        };
+        const status = item.product_status || '';
+        if (status === 'available') return '<span class="badge bg-success">Verfügbar</span>';
+        if (status === 'borrowed') return '<span class="badge bg-warning text-dark">Ausgeliehen</span>';
+        if (status === 'missing' || status === 'defective' || status === 'in_repair') {
+            return `<span class="badge bg-danger">${statusLabels[status] || status}</span>`;
+        }
+        if (status) return `<span class="badge bg-secondary">${statusLabels[status] || status}</span>`;
+        return '<span class="badge bg-secondary">—</span>';
+    }
+
+    itemHasChanges(item) {
+        return !!(item.location_changed || item.condition_changed || item.notes || item.counted_quantity != null);
+    }
+
+    quantityDiffers(item) {
+        if (item.counted_quantity == null) return false;
+        const expected = item.expected_quantity != null ? Number(item.expected_quantity) : 1;
+        return Number(item.counted_quantity) !== expected;
+    }
+
+    quantityCellHtml(item) {
+        const expected = item.expected_quantity != null ? Number(item.expected_quantity) : 1;
+        if (item.counted_quantity == null) {
+            return `<span class="text-muted">${expected}</span>`;
+        }
+        const counted = Number(item.counted_quantity);
+        const cls = counted !== expected ? 'text-warning fw-semibold' : '';
+        return `<span class="${cls}">${counted}</span><small class="text-muted"> / ${expected}</small>`;
+    }
+
+    dguvBadgeHtml(item) {
+        if (item.dguv_due) {
+            return '<span class="badge bg-danger ms-1">DGUV fällig</span>';
+        }
+        if (item.dguv_next_check) {
+            return `<span class="badge bg-light text-dark border ms-1">DGUV ${this.escapeHtml(this.formatDate(item.dguv_next_check))}</span>`;
+        }
+        return '';
+    }
+
+    inventurActionHtml(item) {
+        const productId = item.product_id;
+        const inventurBadge = item.checked
+            ? '<span class="badge bg-success">OK</span>'
+            : '<span class="badge bg-secondary">Offen</span>';
+        if (this.readOnly) {
+            return `<span class="me-1">${inventurBadge}</span>`;
+        }
+        return `
+            <button class="btn btn-sm btn-link toggle-check-btn p-0 me-1" type="button"
+                    data-product-id="${productId}"
+                    title="${item.checked ? 'Als offen markieren' : 'Als inventiert markieren'}">
+                ${inventurBadge}
+            </button>`;
+    }
+
+    itemActionsHtml(item) {
+        const productId = item.product_id;
+        if (this.readOnly) {
+            return '';
+        }
+        return `
+            <div class="mod-list-actions">
+                <div class="mod-list-hover-actions align-items-center">
+                    <button class="btn btn-sm btn-link edit-item-btn" type="button" data-product-id="${productId}" title="Bearbeiten">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                        <li>
+                            <button class="dropdown-item toggle-check-btn" type="button" data-product-id="${productId}">
+                                <i class="bi bi-${item.checked ? 'x-circle' : 'check-circle'} me-2"></i>
+                                ${item.checked ? 'Als offen markieren' : 'Als inventiert markieren'}
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item edit-item-btn" type="button" data-product-id="${productId}">
+                                <i class="bi bi-pencil me-2"></i>Bearbeiten
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>`;
+    }
+
+    productImageHtml(item) {
+        const name = this.escapeHtml(item.product_name || '');
+        if (item.product_image_path) {
+            return `
+                <img src="/inventory/product-images/${this.escapeHtml(item.product_image_path)}"
+                     alt="${name}"
+                     class="inventory-product-preview-img image-mini-preview img-fluid rounded"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="inventory-product-preview-fallback" style="display: none;"><i class="bi bi-box-seam"></i></div>`;
+        }
+        return `<div class="inventory-product-preview-fallback"><i class="bi bi-box-seam"></i></div>`;
+    }
+
+    renderItems() {
+        if (this.viewMode === 'grid') {
+            this.renderGrid();
+        } else {
+            this.renderTable();
+        }
+        this.updateStats();
+    }
+
     renderTable() {
         const tbody = document.getElementById('inventoryTableBody');
         if (!tbody) return;
-        
-        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-        
-        let html = '';
-        for (const [productId, item] of this.items.entries()) {
-            const product = {
-                id: item.product_id,
-                name: item.product_name,
-                category: item.product_category,
-                location: item.product_location,
-                condition: item.product_condition
-            };
-            
-            // Filter nach Suchbegriff
-            if (searchTerm) {
-                const searchable = `${product.name} ${product.category} ${product.location} ${item.notes || ''}`.toLowerCase();
-                if (!searchable.includes(searchTerm)) {
-                    continue;
-                }
-            }
-            
-            const statusLabels = {
-                available: 'Verfügbar',
-                borrowed: 'Ausgeliehen',
-                missing: 'Fehlend',
-                defective: 'Defekt',
-                in_repair: 'In Reparatur',
-                retired: 'Ausgemustert',
-            };
-            const status = item.product_status || '';
-            let statusBadge = '<span class="badge bg-secondary">—</span>';
-            if (status === 'available') statusBadge = '<span class="badge bg-success">Verfügbar</span>';
-            else if (status === 'borrowed') statusBadge = '<span class="badge bg-warning text-dark">Ausgeliehen</span>';
-            else if (status === 'missing' || status === 'defective' || status === 'in_repair') {
-                statusBadge = `<span class="badge bg-danger">${statusLabels[status] || status}</span>`;
-            } else if (status) {
-                statusBadge = `<span class="badge bg-secondary">${statusLabels[status] || status}</span>`;
-            }
 
-            const checkedClass = item.checked ? 'checked' : '';
-            const hasChanges = item.location_changed || item.condition_changed || item.notes;
-            const changeBadge = hasChanges ? '<span class="badge bg-warning ms-2">Geändert</span>' : '';
-            
-            html += `
-                <tr class="inventory-item-row ${checkedClass}" data-product-id="${product.id}">
-                    <td>
-                        <input type="checkbox" class="form-check-input item-checkbox" 
-                               data-product-id="${product.id}" 
-                               ${item.checked ? 'checked' : ''}>
+        const items = this.getFilteredItems();
+        if (!items.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9">
+                        <div class="mod-empty-state py-4 text-center">
+                            <p class="text-muted mb-0">Keine Produkte in diesem Filter</p>
+                        </div>
                     </td>
-                    <td>
-                        <strong>${this.escapeHtml(product.name)}</strong>
-                        ${changeBadge}
-                    </td>
-                    <td>${statusBadge}</td>
-                    <td>${this.escapeHtml(product.category || '-')}</td>
-                    <td>
-                        ${item.location_changed ? '<span class="text-warning">' + this.escapeHtml(item.new_location || '-') + '</span>' : this.escapeHtml(product.location || '-')}
-                    </td>
-                    <td>
-                        ${item.condition_changed ? '<span class="text-warning">' + this.escapeHtml(item.new_condition || '-') + '</span>' : this.escapeHtml(product.condition || '-')}
-                    </td>
-                    <td>
-                        <small class="text-muted">${item.notes ? this.escapeHtml(item.notes.substring(0, 50)) + (item.notes.length > 50 ? '...' : '') : '-'}</small>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary edit-item-btn" data-product-id="${product.id}">
-                            <i class="bi bi-pencil"></i> Bearbeiten
-                        </button>
-                    </td>
-                </tr>
-            `;
+                </tr>`;
+            return;
         }
-        
-        tbody.innerHTML = html || '<tr><td colspan="8" class="text-center text-muted">Keine Produkte gefunden</td></tr>';
-        
-        // Event Listeners für Checkboxen
-        tbody.querySelectorAll('.item-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const productId = parseInt(e.target.dataset.productId);
-                this.toggleCheck(productId, e.target.checked);
+
+        tbody.innerHTML = items.map((item) => {
+            const productId = item.product_id;
+            const changeBadge = this.itemHasChanges(item)
+                ? '<span class="badge bg-warning ms-1">Geändert</span>'
+                : '';
+            const qtyBadge = this.quantityDiffers(item)
+                ? '<span class="badge bg-warning ms-1">Menge</span>'
+                : '';
+            const locationRaw = item.location_changed
+                ? this.cleanText(item.new_location)
+                : this.cleanText(item.product_location);
+            const location = locationRaw
+                ? (item.location_changed
+                    ? `<span class="text-warning">${this.escapeHtml(locationRaw)}</span>`
+                    : this.escapeHtml(locationRaw))
+                : '—';
+            const conditionRaw = item.condition_changed
+                ? this.cleanText(item.new_condition)
+                : this.cleanText(item.product_condition);
+            const condition = conditionRaw
+                ? (item.condition_changed
+                    ? `<span class="text-warning">${this.escapeHtml(conditionRaw)}</span>`
+                    : this.escapeHtml(conditionRaw))
+                : '—';
+            const notes = item.notes
+                ? this.escapeHtml(item.notes.substring(0, 50)) + (item.notes.length > 50 ? '...' : '')
+                : '—';
+            const dguvCell = item.dguv_due
+                ? `<span class="text-danger fw-semibold">${this.escapeHtml(this.formatDate(item.dguv_next_check))}</span>`
+                : (item.dguv_next_check ? this.escapeHtml(this.formatDate(item.dguv_next_check)) : '—');
+
+            return `
+                <tr class="mod-list-row inventory-item-row ${item.checked ? 'checked' : ''}" data-product-id="${productId}">
+                    <td>
+                        <div class="d-flex align-items-center flex-wrap gap-1">
+                            <strong>${this.escapeHtml(item.product_name || '')}</strong>
+                            ${this.inventurActionHtml(item)}
+                            ${this.dguvBadgeHtml(item)}${qtyBadge}${changeBadge}
+                        </div>
+                    </td>
+                    <td>${this.statusBadgeHtml(item)}</td>
+                    <td class="d-none d-md-table-cell">${this.escapeHtml(this.cleanText(item.product_category) || '—')}</td>
+                    <td class="d-none d-lg-table-cell">${location}</td>
+                    <td class="d-none d-md-table-cell">${this.quantityCellHtml(item)}</td>
+                    <td class="d-none d-lg-table-cell">${condition}</td>
+                    <td class="d-none d-xl-table-cell"><small>${dguvCell}</small></td>
+                    <td class="d-none d-xl-table-cell"><small class="text-muted">${notes}</small></td>
+                    <td class="text-end" onclick="event.stopPropagation()">${this.itemActionsHtml(item)}</td>
+                </tr>`;
+        }).join('');
+
+        this.bindItemActions(tbody);
+    }
+
+    renderGrid() {
+        const grid = document.getElementById('sessionGridView');
+        if (!grid) return;
+
+        const items = this.getFilteredItems();
+        if (!items.length) {
+            grid.innerHTML = `
+                <div class="col-12">
+                    <div class="mod-empty-state py-4 text-center">
+                        <p class="text-muted mb-0">Keine Produkte in diesem Filter</p>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        grid.innerHTML = items.map((item) => {
+            const productId = item.product_id;
+            const changeBadge = this.itemHasChanges(item)
+                ? '<span class="badge bg-warning">Geändert</span>'
+                : '';
+            const locDisplay = this.cleanText(item.location_changed ? item.new_location : item.product_location) || '—';
+            const editBtn = this.readOnly
+                ? ''
+                : `<button class="btn btn-sm btn-link edit-item-btn" type="button" data-product-id="${productId}" title="Bearbeiten">
+                        <i class="bi bi-pencil"></i>
+                   </button>`;
+            const menu = this.readOnly
+                ? ''
+                : `<div class="dropdown">
+                        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
+                            <li>
+                                <button class="dropdown-item toggle-check-btn" type="button" data-product-id="${productId}">
+                                    <i class="bi bi-${item.checked ? 'x-circle' : 'check-circle'} me-2"></i>
+                                    ${item.checked ? 'Als offen markieren' : 'Als inventiert markieren'}
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item edit-item-btn" type="button" data-product-id="${productId}">
+                                    <i class="bi bi-pencil me-2"></i>Bearbeiten
+                                </button>
+                            </li>
+                        </ul>
+                   </div>`;
+
+            return `
+                <div class="col-12 col-md-6 col-lg-4">
+                    <article class="card h-100 inventory-product-card product-card inventory-session-card ${item.checked ? 'is-checked' : ''}"
+                             data-product-id="${productId}">
+                        <div class="card-body d-flex flex-column">
+                            <div class="inventory-product-preview text-center mb-3">
+                                ${this.productImageHtml(item)}
+                            </div>
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div class="flex-grow-1 min-width-0">
+                                    <div class="d-flex align-items-center gap-2 mb-1 min-width-0 flex-wrap">
+                                        <h6 class="card-title text-truncate mb-0" title="${this.escapeHtml(item.product_name || '')}">
+                                            ${this.escapeHtml(item.product_name || '')}
+                                        </h6>
+                                        ${this.inventurActionHtml(item)}
+                                        ${this.statusBadgeHtml(item)}
+                                        ${changeBadge}
+                                        ${this.dguvBadgeHtml(item)}
+                                    </div>
+                                    ${item.product_category ? `<p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-tag"></i> ${this.escapeHtml(item.product_category)}</p>` : ''}
+                                    <p class="inventory-card-meta mb-1 text-truncate"><i class="bi bi-hash"></i> ${this.quantityCellHtml(item)}</p>
+                                    <p class="inventory-card-meta mb-0 text-truncate"><i class="bi bi-geo-alt"></i> ${this.escapeHtml(locDisplay)}</p>
+                                </div>
+                                <div class="d-flex align-items-start gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                                    <div class="inventory-grid-hover-actions align-items-center">
+                                        ${editBtn}
+                                    </div>
+                                    ${menu}
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>`;
+        }).join('');
+
+        this.bindItemActions(grid);
+    }
+
+    bindItemActions(root) {
+        if (this.readOnly) return;
+        root.querySelectorAll('.toggle-check-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const el = e.target.closest('.toggle-check-btn');
+                const productId = parseInt(el.dataset.productId, 10);
+                const item = this.items.get(productId);
+                if (!item) return;
+                this.toggleCheck(productId, !item.checked);
             });
         });
-        
-        // Event Listeners für Bearbeiten-Buttons
-        tbody.querySelectorAll('.edit-item-btn').forEach(btn => {
+        root.querySelectorAll('.edit-item-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
-                const productId = parseInt(e.target.closest('.edit-item-btn').dataset.productId);
+                e.preventDefault();
+                e.stopPropagation();
+                const productId = parseInt(e.target.closest('.edit-item-btn').dataset.productId, 10);
                 this.showProductModal(productId);
             });
         });
     }
-    
+
     filterItems() {
-        this.renderTable();
+        this.renderItems();
     }
-    
+
+    getOpenCount() {
+        let n = 0;
+        this.items.forEach((item) => {
+            if (!item.checked) n += 1;
+        });
+        return n;
+    }
+
+    updateStats() {
+        let total = 0;
+        let open = 0;
+        let checked = 0;
+        let changed = 0;
+        this.items.forEach((item) => {
+            total += 1;
+            if (item.checked) checked += 1;
+            else open += 1;
+            if (this.itemHasChanges(item)) changed += 1;
+        });
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = String(val);
+        };
+        set('statTotal', total);
+        set('statOpen', open);
+        set('statChecked', checked);
+        set('statChanged', changed);
+    }
+
     async toggleCheck(productId, checked) {
+        if (this.readOnly) return;
         try {
             const item = this.items.get(productId);
             const payload = { checked: checked, version: item?.version };
             const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/item/${productId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
@@ -234,32 +513,25 @@ class InventoryToolManager {
                 }
                 throw new Error('Fehler beim Aktualisieren');
             }
-            
+
             const data = await response.json();
-            
-            // Update lokale Daten
-            const item = this.items.get(productId);
-            if (item) {
-                if (data.item) {
-                    Object.assign(item, data.item);
-                } else {
-                    item.checked = data.checked;
-                    item.checked_at = data.checked_at;
+            const local = this.items.get(productId);
+            if (local) {
+                if (data.item) Object.assign(local, data.item);
+                else {
+                    local.checked = data.checked;
+                    local.checked_at = data.checked_at;
                 }
             }
-            
-            // Rendere Tabelle neu
-            this.renderTable();
-            
-            // Update Fortschritt
-            this.loadItems();
+            await this.loadItems();
         } catch (error) {
             console.error('Fehler beim Toggle Check:', error);
             this.showError('Fehler beim Aktualisieren der Checkbox.');
         }
     }
-    
+
     async showProductModal(productId) {
+        if (this.readOnly) return;
         const item = this.items.get(productId);
         if (!item) {
             this.showError('Produkt nicht gefunden.');
@@ -267,113 +539,240 @@ class InventoryToolManager {
         }
 
         const lock = await this.acquireLock(productId);
-        if (!lock) {
-            return;
-        }
+        if (!lock) return;
         this.currentEditingProductId = productId;
-        if (this.lockRefreshTimer) {
-            clearInterval(this.lockRefreshTimer);
-        }
-        this.lockRefreshTimer = setInterval(() => {
-            this.refreshLock(productId);
-        }, 30000);
-        
+        if (this.lockRefreshTimer) clearInterval(this.lockRefreshTimer);
+        this.lockRefreshTimer = setInterval(() => this.refreshLock(productId), 30000);
+
         const modalBody = document.getElementById('productEditModalBody');
         if (!modalBody) return;
-        
+
         const product = {
             id: item.product_id,
             name: item.product_name,
             category: item.product_category,
-            location: item.product_location,
-            condition: item.product_condition
+            location: this.cleanText(item.product_location),
+            condition: this.cleanText(item.product_condition),
+            status: item.product_status || 'available',
         };
-        
+        const locationValue = this.cleanText(item.new_location) || product.location;
+        const conditionValue = this.cleanText(item.new_condition) || product.condition;
+        const changedAt = this.formatDateTime(item.last_changed_at);
+        const dguvLast = this.formatDateInput(item.dguv_last_check);
+        const dguvNext = this.formatDateInput(item.dguv_next_check);
+        const dguvDueAlert = item.dguv_due
+            ? `<div class="alert alert-warning py-2 px-3 mb-0" style="border-radius: 1rem;">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    DGUV-Prüfung fällig${item.dguv_next_check ? ` seit ${this.escapeHtml(this.formatDate(item.dguv_next_check))}` : ''}.
+               </div>`
+            : '';
+
+        const statusOptions = [
+            ['available', 'Verfügbar'],
+            ['borrowed', 'Ausgeliehen'],
+            ['missing', 'Fehlend'],
+            ['defective', 'Defekt'],
+            ['in_repair', 'In Reparatur'],
+            ['retired', 'Ausgemustert'],
+        ].map(([value, label]) =>
+            `<option value="${value}" ${product.status === value ? 'selected' : ''}>${label}</option>`
+        ).join('');
+
+        const conditionOptions = ['Neu', 'Gut', 'Gebraucht', 'Beschädigt'].map((value) =>
+            `<option value="${value}" ${conditionValue === value ? 'selected' : ''}>${value}</option>`
+        ).join('');
+
+        const expectedQty = item.expected_quantity != null ? Number(item.expected_quantity) : 1;
+        const countedQty = item.counted_quantity != null ? String(item.counted_quantity) : '';
+        const isConsumable = (item.product_item_type || 'asset') === 'consumable';
+        const qtyHint = isConsumable
+            ? 'Wird beim Abschließen als neuer Bestand übernommen'
+            : 'Für gleiche Artikel (z.B. Kabel). Bestand wird nur bei Verbrauchsmaterial übernommen';
+        const dguvIntervalNum = item.dguv_interval_months != null ? Number(item.dguv_interval_months) : 12;
+        const dguvNextComputed = this.computeDguvNextIso(dguvLast, dguvIntervalNum) || dguvNext;
+
         modalBody.innerHTML = `
-            <form id="productEditForm">
+            <form id="productEditForm" class="inventory-inventur-edit-form">
                 <input type="hidden" id="editProductId" value="${product.id}">
                 <input type="hidden" id="editProductVersion" value="${item.version || 1}">
-                
-                <div class="mb-3">
-                    <h5>${this.escapeHtml(product.name)}</h5>
-                    <small class="text-muted">${this.escapeHtml(product.category || 'Keine Kategorie')}</small>
-                    <div class="small text-muted mt-1">
-                        Letzte Aenderung: ${this.escapeHtml(item.last_changed_by || 'Unbekannt')} um ${this.escapeHtml(item.last_changed_at || '-')}
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-box-seam"></i> Produkt</h2>
                     </div>
-                </div>
-                
-                <div class="mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="editChecked" ${item.checked ? 'checked' : ''}>
-                        <label class="form-check-label" for="editChecked">
-                            Inventiert
-                        </label>
+                    <div class="inventory-form-fields">
+                        <div>
+                            <div class="fw-semibold fs-5">${this.escapeHtml(product.name)}</div>
+                            <div class="text-muted small">${this.escapeHtml(product.category || 'Keine Kategorie')}</div>
+                            <div class="text-muted small mt-1">
+                                Letzte Änderung: ${this.escapeHtml(item.last_changed_by || 'Unbekannt')} um ${this.escapeHtml(changedAt)}
+                            </div>
+                        </div>
+                        ${dguvDueAlert}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editChecked" ${item.checked ? 'checked' : ''}>
+                            <label class="form-check-label" for="editChecked">Inventiert</label>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="editNotes" class="form-label">Anmerkungen</label>
-                    <textarea class="form-control" id="editNotes" rows="3" placeholder="Anmerkungen zur Inventur...">${this.escapeHtml(item.notes || '')}</textarea>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="editLocation" class="form-label">Lagerort</label>
-                        <input type="text" class="form-control" id="editLocation" 
-                               value="${this.escapeHtml(item.new_location || product.location || '')}" 
-                               placeholder="Aktuell: ${this.escapeHtml(product.location || 'Nicht gesetzt')}">
-                        <small class="text-muted">Leer lassen um nicht zu ändern</small>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-hash"></i> Zählung</h2>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="editCondition" class="form-label">Zustand</label>
-                        <select class="form-select" id="editCondition">
-                            <option value="">Bitte wählen...</option>
-                            <option value="Neu" ${item.new_condition === 'Neu' ? 'selected' : ''}>Neu</option>
-                            <option value="Gut" ${item.new_condition === 'Gut' ? 'selected' : ''}>Gut</option>
-                            <option value="Gebraucht" ${item.new_condition === 'Gebraucht' ? 'selected' : ''}>Gebraucht</option>
-                            <option value="Beschädigt" ${item.new_condition === 'Beschädigt' ? 'selected' : ''}>Beschädigt</option>
-                        </select>
-                        <small class="text-muted">Aktuell: ${this.escapeHtml(product.condition || 'Nicht gesetzt')}</small>
+                    <div class="inventory-form-fields inventory-form-fields--2">
+                        <div class="inventory-form-field">
+                            <label for="editCountedQuantity" class="form-label">Anzahl (gezählt)</label>
+                            <input type="number" min="0" step="1" class="form-control" id="editCountedQuantity"
+                                   value="${this.escapeHtml(countedQty)}" placeholder="Soll: ${expectedQty}">
+                            <small class="text-muted">Aktuell im System: ${expectedQty}. ${qtyHint}</small>
+                        </div>
+                        <div class="inventory-form-field">
+                            <label for="editNotes" class="form-label">Anmerkungen</label>
+                            <textarea class="form-control" id="editNotes" rows="2" placeholder="Anmerkungen zur Inventur...">${this.escapeHtml(item.notes || '')}</textarea>
+                        </div>
                     </div>
-                </div>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-geo-alt"></i> Zustand & Ort</h2>
+                    </div>
+                    <div class="inventory-form-fields inventory-form-fields--3">
+                        <div class="inventory-form-field">
+                            <label for="editLocation" class="form-label">Lagerort</label>
+                            <input type="text" class="form-control" id="editLocation"
+                                   value="${this.escapeHtml(locationValue)}"
+                                   placeholder="${this.escapeHtml(product.location || 'Nicht gesetzt')}">
+                            <small class="text-muted">Beim Abschließen übernehmen</small>
+                        </div>
+                        <div class="inventory-form-field">
+                            <label for="editCondition" class="form-label">Zustand</label>
+                            <select class="form-select" id="editCondition">
+                                <option value="">Bitte wählen...</option>
+                                ${conditionOptions}
+                            </select>
+                            <small class="text-muted">Aktuell: ${this.escapeHtml(product.condition || 'Nicht gesetzt')}</small>
+                        </div>
+                        <div class="inventory-form-field">
+                            <label for="editProductStatus" class="form-label">Status</label>
+                            <select class="form-select" id="editProductStatus">${statusOptions}</select>
+                            <small class="text-muted">Sofort gespeichert</small>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-shield-check"></i> DGUV-Prüfung</h2>
+                    </div>
+                    <div class="inventory-form-fields inventory-form-fields--3">
+                        <div class="inventory-form-field">
+                            <label for="editDguvLast" class="form-label">Letzte Prüfung</label>
+                            <input type="date" class="form-control" id="editDguvLast" value="${this.escapeHtml(dguvLast)}">
+                            <small class="text-muted">Nur dieses Datum angeben</small>
+                        </div>
+                        <div class="inventory-form-field">
+                            <label class="form-label">Intervall</label>
+                            <input type="text" class="form-control" id="editDguvIntervalDisplay" readonly
+                                   value="${dguvIntervalNum} Monate">
+                            <input type="hidden" id="editDguvInterval" value="${dguvIntervalNum}">
+                            <small class="text-muted">Fest (nicht änderbar)</small>
+                        </div>
+                        <div class="inventory-form-field">
+                            <label class="form-label">Nächste Prüfung</label>
+                            <input type="text" class="form-control" id="editDguvNextDisplay" readonly
+                                   value="${this.escapeHtml(dguvNextComputed ? this.formatDate(dguvNextComputed) : '')}"
+                                   placeholder="—">
+                            <small class="text-muted">Automatisch berechnet</small>
+                        </div>
+                    </div>
+                </section>
             </form>
         `;
-        
-        const modalElement = document.getElementById('productEditModal');
-        
-        // Prüfe ob Modal bereits existiert und entferne alte Instanz
-        const existingModal = bootstrap.Modal.getInstance(modalElement);
-        if (existingModal) {
-            existingModal.dispose();
+
+        const lastEl = document.getElementById('editDguvLast');
+        const intervalEl = document.getElementById('editDguvInterval');
+        const nextDisplayEl = document.getElementById('editDguvNextDisplay');
+        const refreshDguvNext = () => {
+            const nextIso = this.computeDguvNextIso(lastEl?.value, intervalEl?.value || 12);
+            if (nextDisplayEl) nextDisplayEl.value = nextIso ? this.formatDate(nextIso) : '';
+        };
+        if (lastEl) {
+            lastEl.addEventListener('change', refreshDguvNext);
+            lastEl.addEventListener('input', refreshDguvNext);
         }
-        
-        const modal = new bootstrap.Modal(modalElement);
+
+        const modalElement = document.getElementById('productEditModal');
+        if (!modalElement) return;
+        this.ensureModalOnBody(modalElement);
+        this.clearModalArtifacts();
+
+        let modal = bootstrap.Modal.getInstance(modalElement);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalElement, { backdrop: true, keyboard: true, focus: true });
+        }
         modal.show();
+
+        requestAnimationFrame(() => {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 1) {
+                backdrops.forEach((el, idx) => {
+                    if (idx < backdrops.length - 1) el.remove();
+                });
+            }
+            modalElement.style.zIndex = '1055';
+            const activeBackdrop = document.querySelector('.modal-backdrop');
+            if (activeBackdrop) activeBackdrop.style.zIndex = '1050';
+        });
     }
-    
+
+    computeDguvNextIso(isoDate, months) {
+        if (!isoDate || !months) return null;
+        const parts = String(isoDate).slice(0, 10).split('-').map(Number);
+        if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+        const [y, m, d] = parts;
+        const totalMonths = (y * 12 + (m - 1)) + Number(months);
+        const year = Math.floor(totalMonths / 12);
+        const month = (totalMonths % 12) + 1;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const day = Math.min(d, daysInMonth);
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
     async saveProduct() {
-        const productId = parseInt(document.getElementById('editProductId')?.value);
-        const version = parseInt(document.getElementById('editProductVersion')?.value || '1');
+        const productId = parseInt(document.getElementById('editProductId')?.value, 10);
+        const version = parseInt(document.getElementById('editProductVersion')?.value || '1', 10);
         if (!productId) return;
-        
+
         const checked = document.getElementById('editChecked')?.checked || false;
         const notes = document.getElementById('editNotes')?.value.trim() || null;
-        const newLocation = document.getElementById('editLocation')?.value.trim() || null;
+        let newLocation = document.getElementById('editLocation')?.value.trim() || null;
+        if (newLocation === 'None' || newLocation === 'null') newLocation = null;
         const newCondition = document.getElementById('editCondition')?.value || null;
-        
+        const productStatus = document.getElementById('editProductStatus')?.value || null;
+        const dguvLast = document.getElementById('editDguvLast')?.value || null;
+        const countedRaw = document.getElementById('editCountedQuantity')?.value;
+        const countedQuantity = countedRaw === '' || countedRaw == null ? null : parseInt(countedRaw, 10);
+        if (countedQuantity != null && (!Number.isFinite(countedQuantity) || countedQuantity < 0)) {
+            this.showError('Anzahl muss eine ganze Zahl >= 0 sein.');
+            return;
+        }
+
         try {
             const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/item/${productId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    checked: checked,
-                    notes: notes,
+                    checked: checked || countedQuantity != null,
+                    notes,
+                    counted_quantity: countedQuantity,
                     new_location: newLocation,
                     new_condition: newCondition,
-                    version: version
-                })
+                    product_status: productStatus,
+                    dguv_last_check: dguvLast,
+                    version,
+                }),
             });
 
             if (!response.ok) {
@@ -385,108 +784,56 @@ class InventoryToolManager {
                 }
                 throw new Error('Fehler beim Speichern');
             }
-            
+
             const data = await response.json();
-            
-            // Update lokale Daten
             const item = this.items.get(productId);
-            if (item) {
-                Object.assign(item, data.item);
-            }
-            
-            // Schließe Modal
+            if (item) Object.assign(item, data.item);
+
             const modalElement = document.getElementById('productEditModal');
             const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Warte bis Modal vollständig geschlossen ist, dann entferne Backdrop
-            setTimeout(() => {
-                const backdrop = document.querySelector('.modal-backdrop');
-                if (backdrop) {
-                    backdrop.remove();
-                }
-                // Entferne modal-open Klasse vom body
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            }, 300);
-            
-            // Rendere Tabelle neu
-            this.renderTable();
-            
-            // Update Fortschritt
-            this.loadItems();
-            
-            // Scanner wieder aktivieren wenn Scanner-Tab aktiv ist
+            if (modal) modal.hide();
+            setTimeout(() => this.clearModalArtifacts(), 300);
+
+            await this.loadItems();
             this.resumeScannerIfActive();
         } catch (error) {
             console.error('Fehler beim Speichern:', error);
             this.showError('Fehler beim Speichern der Änderungen.');
         }
     }
-    
+
     resumeScannerIfActive() {
-        // Prüfe ob Scanner-Tab aktiv ist
-        const scannerTab = document.getElementById('scanner-tab');
-        const scannerPane = document.getElementById('scanner');
-        
-        if (scannerTab && scannerPane && 
-            scannerTab.classList.contains('active') && 
-            scannerPane.classList.contains('active') &&
-            scannerPane.classList.contains('show')) {
-            
-            // Prüfe ob Scanner-Manager existiert und Scanner gestartet werden sollte
-            if (window.inventoryScannerManager && window.inventoryScannerManager.stream) {
-                // Scanner sollte bereits laufen, aber sicherstellen dass er aktiv ist
-                if (!window.inventoryScannerManager.scanning) {
-                    window.inventoryScannerManager.scanning = true;
-                    setTimeout(() => {
-                        window.inventoryScannerManager.scanForQR();
-                    }, 500);
-                }
+        if (window.inventoryScannerManager && window.inventoryScannerManager.stream) {
+            if (!window.inventoryScannerManager.scanning) {
+                window.inventoryScannerManager.scanning = true;
+                setTimeout(() => window.inventoryScannerManager.scanForQR(), 500);
             }
         }
     }
-    
+
     async handleScan(qrData) {
         try {
             const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/scan`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ qr_data: qrData })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qr_data: qrData }),
             });
-            
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.error || 'Fehler beim Scannen');
             }
-            
+
             const data = await response.json();
-            
-            // Zeige Erfolgs-Popup
             this.showScanSuccess();
-            
-            // Pausiere Scanner während Modal offen ist
             if (window.inventoryScannerManager) {
                 window.inventoryScannerManager.scanning = false;
             }
-            
-            // Öffne Produkt-Modal automatisch
-            setTimeout(() => {
-                this.showProductModal(data.product.id);
-            }, 500);
-            
-            // Update Items
+            setTimeout(() => this.showProductModal(data.product.id), 500);
             this.loadItems();
         } catch (error) {
             console.error('Fehler beim Scannen:', error);
             this.showError(error.message);
-            
-            // Bei Fehler Scanner wieder aktivieren
             if (window.inventoryScannerManager && window.inventoryScannerManager.stream) {
                 setTimeout(() => {
                     window.inventoryScannerManager.scanning = true;
@@ -495,133 +842,99 @@ class InventoryToolManager {
             }
         }
     }
-    
+
     async handleManualInput(input) {
-        if (!input || !input.trim()) {
-            return;
-        }
-        
+        if (!input || !input.trim()) return;
         const trimmedInput = input.trim();
-        console.log('Manuelle Eingabe verarbeiten:', trimmedInput);
-        
-        // Versuche als Produkt-ID zu parsen
         let productId = null;
-        
-        // Normalisiere Eingabe: Entferne alle nicht-numerischen Zeichen am Anfang
-        // Unterstützt Formate wie: PROD-123, PRODB1, 123, PROD123, etc.
-        let cleaned = trimmedInput;
-        
-        // Entferne PROD- oder PRODB Präfix (auch mit Bindestrich oder ohne)
-        cleaned = cleaned.replace(/^PROD[B-]?/i, '').trim();
-        
-        // Versuche als Zahl zu parsen
-        const parsed = parseInt(cleaned);
+        let cleaned = trimmedInput.replace(/^PROD[B-]?/i, '').trim();
+        const parsed = parseInt(cleaned, 10);
         if (!isNaN(parsed) && parsed > 0) {
             productId = parsed;
         } else {
-            // Falls Parsing fehlschlägt, versuche direkt als QR-Code
-            // Aber zuerst nochmal versuchen, alle Buchstaben zu entfernen und nur Zahlen zu nehmen
             const numbersOnly = trimmedInput.replace(/\D/g, '');
             if (numbersOnly) {
-                const numParsed = parseInt(numbersOnly);
-                if (!isNaN(numParsed) && numParsed > 0) {
-                    productId = numParsed;
-                } else {
-                    // Versuche als QR-Code zu parsen (kann PROD-123 oder SET-456 sein)
-                    try {
-                        await this.handleScan(trimmedInput);
-                        return;
-                    } catch (error) {
-                        console.error('Fehler beim Scannen:', error);
-                        this.showError('Ungueltiger QR-Code oder Produkt-ID. Bitte PROD-123 oder eine numerische ID verwenden.');
-                        return;
-                    }
-                }
-            } else {
-                // Versuche als QR-Code zu parsen
-                try {
+                const numParsed = parseInt(numbersOnly, 10);
+                if (!isNaN(numParsed) && numParsed > 0) productId = numParsed;
+                else {
                     await this.handleScan(trimmedInput);
                     return;
-                } catch (error) {
-                    console.error('Fehler beim Scannen:', error);
-                    this.showError('Ungueltiger QR-Code oder Produkt-ID. Bitte PROD-123 oder eine numerische ID verwenden.');
-                    return;
                 }
+            } else {
+                await this.handleScan(trimmedInput);
+                return;
             }
         }
-        
-        // Finde Produkt
-        const item = this.items.get(productId);
+
+        let item = this.items.get(productId);
         if (!item) {
-            // Warte kurz und versuche es nochmal (falls Items noch nicht geladen sind)
-            await new Promise(resolve => setTimeout(resolve, 100));
-            const retryItem = this.items.get(productId);
-            if (!retryItem) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            item = this.items.get(productId);
+            if (!item) {
                 this.showError('Produkt nicht in dieser Inventur gefunden: ' + productId);
                 return;
             }
-            // Verwende retryItem
-            productId = retryItem.product_id;
+            productId = item.product_id;
         }
-        
-        // Automatisch abhaken
+
         try {
             await this.toggleCheck(productId, true);
         } catch (error) {
             console.error('Fehler beim Abhaken:', error);
         }
-        
-        // Öffne Modal nach kurzer Verzögerung, damit UI aktualisiert werden kann
-        setTimeout(() => {
-            this.showProductModal(productId);
-        }, 100);
+        setTimeout(() => this.showProductModal(productId), 100);
     }
-    
+
     updateProgress(inventory) {
-        // Update Fortschrittsanzeige im Alert
-        const alert = document.querySelector('.alert-info');
-        if (alert && inventory) {
-            const progressText = alert.querySelector('small');
-            if (progressText) {
-                progressText.textContent = `Fortschritt: ${inventory.checked_count} von ${inventory.total_count} Produkten inventiert`;
-            }
+        if (!inventory) {
+            this.updateStats();
+            return;
         }
+        const progressText = document.getElementById('inventurProgressText');
+        if (progressText) {
+            progressText.textContent = `Fortschritt: ${inventory.checked_count} von ${inventory.total_count} Produkten inventiert`;
+        }
+        const bar = document.getElementById('inventurProgressBar');
+        if (bar) {
+            const pct = inventory.total_count > 0
+                ? (inventory.checked_count / inventory.total_count) * 100
+                : 0;
+            bar.style.width = `${pct}%`;
+            const wrap = bar.parentElement;
+            if (wrap) wrap.setAttribute('aria-valuenow', String(Math.round(pct)));
+        }
+        this.updateStats();
     }
-    
+
     startPolling() {
-        // Polling alle 3 Sekunden
-        this.pollingInterval = setInterval(() => {
-            this.loadItems();
-        }, 3000);
+        this.pollingInterval = setInterval(() => this.loadItems(), 3000);
     }
-    
+
     stopPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
         }
     }
-    
+
     showScanSuccess() {
         const popup = document.getElementById('scannerSuccessPopup');
         if (popup) {
             popup.style.display = 'block';
-            setTimeout(() => {
-                popup.style.display = 'none';
-            }, 2000);
+            setTimeout(() => { popup.style.display = 'none'; }, 2000);
         }
     }
-    
+
     showError(message) {
         const errorDiv = document.getElementById('scannerError');
         if (errorDiv) {
             errorDiv.className = 'alert alert-danger';
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
+            setTimeout(() => { errorDiv.style.display = 'none'; }, 5000);
+            return;
         }
+        if (window.showAppBanner) window.showAppBanner(message, 'danger');
     }
 
     showConflictMessage(conflictPayload) {
@@ -634,7 +947,7 @@ class InventoryToolManager {
             const response = await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/acquire`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product_id: productId, ttl_seconds: 90, reason: 'modal_edit' })
+                body: JSON.stringify({ product_id: productId, ttl_seconds: 90, reason: 'modal_edit' }),
             });
             if (!response.ok) {
                 if (response.status === 409) {
@@ -657,7 +970,7 @@ class InventoryToolManager {
             await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/release`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product_id: productId })
+                body: JSON.stringify({ product_id: productId }),
             });
         } catch (error) {
             console.warn('Lock release fehlgeschlagen', error);
@@ -669,22 +982,60 @@ class InventoryToolManager {
             await fetch(`/inventory/vnext/api/inventory/${this.inventoryId}/locks/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product_id: productId, ttl_seconds: 90 })
+                body: JSON.stringify({ product_id: productId, ttl_seconds: 90 }),
             });
         } catch (error) {
             console.warn('Lock refresh fehlgeschlagen', error);
         }
     }
-    
+
     escapeHtml(text) {
-        if (!text) return '';
+        if (text === null || text === undefined) return '';
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
+    }
+
+    cleanText(value) {
+        if (value === null || value === undefined) return '';
+        const s = String(value).trim();
+        if (!s || s === 'None' || s === 'null' || s === 'undefined') return '';
+        return s;
+    }
+
+    formatDateTime(value) {
+        const raw = this.cleanText(value);
+        if (!raw) return '—';
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return raw;
+        return d.toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }
+
+    formatDate(value) {
+        const raw = this.cleanText(value);
+        if (!raw) return '—';
+        const d = new Date(raw.length <= 10 ? `${raw}T00:00:00` : raw);
+        if (Number.isNaN(d.getTime())) return raw;
+        return d.toLocaleDateString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        });
+    }
+
+    formatDateInput(value) {
+        const raw = this.cleanText(value);
+        if (!raw) return '';
+        return raw.slice(0, 10);
     }
 }
 
-// Inventory Scanner Manager - Verwaltet den QR-Code Scanner für Inventur
 class InventoryScannerManager {
     constructor(inventoryId, toolManager) {
         this.inventoryId = inventoryId;
@@ -692,48 +1043,32 @@ class InventoryScannerManager {
         this.stream = null;
         this.scanning = false;
     }
-    
+
     init() {
         const startBtn = document.getElementById('startScannerBtn');
         const stopBtn = document.getElementById('stopScannerBtn');
-        
-        if (startBtn) {
-            startBtn.addEventListener('click', () => this.startScanner());
-        }
-        
-        if (stopBtn) {
-            stopBtn.addEventListener('click', () => this.stopScanner());
-        }
+        if (startBtn) startBtn.addEventListener('click', () => this.startScanner());
+        if (stopBtn) stopBtn.addEventListener('click', () => this.stopScanner());
     }
-    
+
     async startScanner() {
         if (!('getUserMedia' in navigator.mediaDevices)) {
             this.toolManager?.showError('Ihr Browser unterstuetzt keine Kamera-API.');
             return;
         }
-        
         try {
-            const constraints = {
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
-            
-            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+            });
             const video = document.getElementById('scannerVideo');
             const container = document.getElementById('scannerContainer');
-            
             if (video && container) {
                 video.srcObject = this.stream;
                 container.style.display = 'block';
-                
                 const startBtn = document.getElementById('startScannerBtn');
                 const stopBtn = document.getElementById('stopScannerBtn');
                 if (startBtn) startBtn.style.display = 'none';
                 if (stopBtn) stopBtn.style.display = 'inline-block';
-                
                 this.scanning = true;
                 this.scanForQR();
             }
@@ -742,130 +1077,63 @@ class InventoryScannerManager {
             this.toolManager?.showError('Fehler beim Starten der Kamera: ' + error.message);
         }
     }
-    
+
     stopScanner() {
         this.scanning = false;
-        
         if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
+            this.stream.getTracks().forEach((track) => track.stop());
             this.stream = null;
         }
-        
         const video = document.getElementById('scannerVideo');
         const container = document.getElementById('scannerContainer');
-        
-        if (video) {
-            video.srcObject = null;
-        }
-        
-        if (container) {
-            container.style.display = 'none';
-        }
-        
+        if (video) video.srcObject = null;
+        if (container) container.style.display = 'none';
         const startBtn = document.getElementById('startScannerBtn');
         const stopBtn = document.getElementById('stopScannerBtn');
         if (startBtn) startBtn.style.display = 'inline-block';
         if (stopBtn) stopBtn.style.display = 'none';
     }
-    
+
     scanForQR() {
         if (!this.scanning) return;
-        
         const video = document.getElementById('scannerVideo');
         const canvas = document.getElementById('scannerCanvas');
-        
         if (!video || !canvas) {
             setTimeout(() => this.scanForQR(), 500);
             return;
         }
-        
-        if (typeof jsQR === 'undefined' && typeof window.jsQR === 'undefined') {
-            console.error('jsQR ist nicht geladen!');
+        const jsQRFunction = window.jsQR || (typeof jsQR !== 'undefined' ? jsQR : null);
+        if (!jsQRFunction) {
             setTimeout(() => this.scanForQR(), 500);
             return;
         }
-        
-        const jsQRFunction = window.jsQR || jsQR;
-        
-        if (video.readyState < 2) {
+        if (video.readyState < 2 || !video.videoWidth) {
             setTimeout(() => this.scanForQR(), 200);
             return;
         }
-        
-        const videoWidth = video.videoWidth;
-        const videoHeight = video.videoHeight;
-        
-        if (videoWidth === 0 || videoHeight === 0) {
-            setTimeout(() => this.scanForQR(), 200);
-            return;
-        }
-        
-        if (canvas.width !== videoWidth || canvas.height !== videoHeight) {
-            canvas.width = videoWidth;
-            canvas.height = videoHeight;
-        }
-        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
         const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, videoWidth, videoHeight);
-        
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
         try {
-            const imageData = context.getImageData(0, 0, videoWidth, videoHeight);
-            
-            let code = null;
-            
-            code = jsQRFunction(imageData.data, imageData.width, imageData.height, {
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQRFunction(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: 'attemptBoth',
             });
-            
-            if (!code) {
-                const grayscaleData = new Uint8ClampedArray(imageData.data.length);
-                for (let i = 0; i < imageData.data.length; i += 4) {
-                    const gray = Math.round(
-                        0.299 * imageData.data[i] +
-                        0.587 * imageData.data[i + 1] +
-                        0.114 * imageData.data[i + 2]
-                    );
-                    grayscaleData[i] = gray;
-                    grayscaleData[i + 1] = gray;
-                    grayscaleData[i + 2] = gray;
-                    grayscaleData[i + 3] = imageData.data[i + 3];
-                }
-                
-                code = jsQRFunction(grayscaleData, imageData.width, imageData.height, {
-                    inversionAttempts: 'attemptBoth',
-                });
-            }
-            
             if (code) {
-                console.log('QR-Code erkannt (InventoryScanner):', code.data);
                 this.scanning = false;
-                
-                const qrCodeData = code.data;
-                
-                // Zeige Erfolgs-Popup
-                if (this.toolManager) {
-                    this.toolManager.showScanSuccess();
-                }
-                
-                // Verarbeite Scan
-                if (this.toolManager) {
-                    this.toolManager.handleScan(qrCodeData).then(() => {
-                        // Scanner wird nach Modal-Schließung wieder aktiviert
-                        // Nicht hier aktivieren, da Modal geöffnet wird
-                    }).catch(() => {
-                        // Bei Fehler Scanner wieder aktivieren
-                        setTimeout(() => {
-                            if (this.stream && !this.scanning) {
-                                this.scanning = true;
-                                this.scanForQR();
-                            }
-                        }, 1000);
-                    });
-                }
+                this.toolManager?.showScanSuccess();
+                this.toolManager?.handleScan(code.data).catch(() => {
+                    setTimeout(() => {
+                        if (this.stream && !this.scanning) {
+                            this.scanning = true;
+                            this.scanForQR();
+                        }
+                    }, 1000);
+                });
                 return;
-            } else {
-                requestAnimationFrame(() => this.scanForQR());
             }
+            requestAnimationFrame(() => this.scanForQR());
         } catch (error) {
             console.error('Fehler beim Scannen:', error);
             setTimeout(() => this.scanForQR(), 200);
@@ -873,7 +1141,5 @@ class InventoryScannerManager {
     }
 }
 
-// Globale Verfügbarkeit
 window.InventoryToolManager = InventoryToolManager;
 window.InventoryScannerManager = InventoryScannerManager;
-

@@ -55,90 +55,88 @@
 
     {% if links %}
     <div class="mod-list-table-wrap">
-        <div class="table-responsive">
-            <table class="table align-middle mod-list-table mb-0">
-                <thead>
-                    <tr>
-                        <th>Kurzlink</th>
-                        <th class="d-none d-md-table-cell">Ziel</th>
-                        <th>Status</th>
-                        <th class="d-none d-sm-table-cell">Klicks</th>
-                        <th class="d-none d-lg-table-cell">Ablauf</th>
-                        <th class="text-end"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for link in links %}
-                    {% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
-                    <tr class="mod-list-row">
-                        <td>
-                            <a class="mod-list-name text-decoration-none" href="{{ short_url }}" target="_blank" rel="noopener">
-                                <i class="bi bi-link-45deg me-1"></i>{{ link.slug }}
-                            </a>
-                            <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ link.target_url }}</div>
-                        </td>
-                        <td class="d-none d-md-table-cell text-truncate" style="max-width: 280px;">
-                            <span class="text-muted" title="{{ link.target_url }}">{{ link.target_url }}</span>
-                        </td>
-                        <td>
-                            {% if link.is_accessible() %}
-                            <span class="badge bg-success">Aktiv</span>
-                            {% else %}
-                            <span class="badge bg-secondary">Inaktiv</span>
-                            {% endif %}
-                            {% if link.password_hash %}
-                            <span class="badge bg-warning text-dark">Passwort</span>
-                            {% endif %}
-                        </td>
-                        <td class="d-none d-sm-table-cell">{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
-                        <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at.strftime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
-                        <td class="text-end">
-                            <div class="mod-list-actions">
-                                <div class="mod-list-hover-actions">
-                                    <button type="button" class="btn btn-sm btn-link shortlinks-copy-btn" title="Link kopieren" data-copy-url="{{ short_url }}">
-                                        <i class="bi bi-clipboard"></i>
-                                    </button>
-                                    <a class="btn btn-sm btn-link" href="{{ url_for('shortlinks.edit', link_id=link.id) }}" title="Bearbeiten">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                </div>
-                                <div class="dropdown d-inline-block">
-                                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Aktionen">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ short_url }}" target="_blank" rel="noopener">
-                                                <i class="bi bi-box-arrow-up-right"></i> Öffnen
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('shortlinks.edit', link_id=link.id) }}">
-                                                <i class="bi bi-pencil"></i> Bearbeiten
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <button type="button" class="dropdown-item shortlinks-copy-btn" data-copy-url="{{ short_url }}">
-                                                <i class="bi bi-clipboard"></i> Link kopieren
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}" onsubmit="return confirm('Kurzlink wirklich löschen?');">
-                                                <button type="submit" class="dropdown-item text-danger">
-                                                    <i class="bi bi-trash"></i> Löschen
-                                                </button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </div>
+        <table class="table align-middle mod-list-table mb-0">
+            <thead>
+                <tr>
+                    <th>Kurzlink</th>
+                    <th class="d-none d-md-table-cell">Ziel</th>
+                    <th>Status</th>
+                    <th class="d-none d-sm-table-cell">Klicks</th>
+                    <th class="d-none d-lg-table-cell">Ablauf</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in links %}
+                {% set short_url = url_for('shortlinks.resolve', slug=link.slug, _external=True) %}
+                <tr class="mod-list-row">
+                    <td>
+                        <a class="mod-list-name text-decoration-none" href="{{ short_url }}" target="_blank" rel="noopener">
+                            <i class="bi bi-link-45deg me-1"></i>{{ link.slug }}
+                        </a>
+                        <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ link.target_url }}</div>
+                    </td>
+                    <td class="d-none d-md-table-cell text-truncate" style="max-width: 280px;">
+                        <span class="text-muted" title="{{ link.target_url }}">{{ link.target_url }}</span>
+                    </td>
+                    <td>
+                        {% if link.is_accessible() %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                        {% if link.password_hash %}
+                        <span class="badge bg-warning text-dark">Passwort</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-sm-table-cell">{{ link.click_count }}{% if link.max_clicks %} / {{ link.max_clicks }}{% endif %}</td>
+                    <td class="d-none d-lg-table-cell text-muted">{{ link.expires_at|localdatetime('%d.%m.%Y %H:%M') if link.expires_at else '—' }}</td>
+                    <td class="text-end">
+                        <div class="mod-list-actions">
+                            <div class="mod-list-hover-actions">
+                                <button type="button" class="btn btn-sm btn-link shortlinks-copy-btn" title="Link kopieren" data-copy-url="{{ short_url }}">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                                <a class="btn btn-sm btn-link" href="{{ url_for('shortlinks.edit', link_id=link.id) }}" title="Bearbeiten">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
                             </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="Aktionen">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shortlinks-actions-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ short_url }}" target="_blank" rel="noopener">
+                                            <i class="bi bi-box-arrow-up-right"></i> Öffnen
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('shortlinks.edit', link_id=link.id) }}">
+                                            <i class="bi bi-pencil"></i> Bearbeiten
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <button type="button" class="dropdown-item shortlinks-copy-btn" data-copy-url="{{ short_url }}">
+                                            <i class="bi bi-clipboard"></i> Link kopieren
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="{{ url_for('shortlinks.delete', link_id=link.id) }}" onsubmit="return confirm('Kurzlink wirklich löschen?');">
+                                            <button type="submit" class="dropdown-item text-danger">
+                                                <i class="bi bi-trash"></i> Löschen
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
     <div class="mod-empty-state">

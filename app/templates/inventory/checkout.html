@@ -10,8 +10,14 @@
     Kopfdaten setzen, Artikel scannen, bestätigen. Rückgabe-QR wird automatisch zurückgebucht.
 </p>
 
-<div class="card mb-3" id="checkoutHeaderCard">
-    <div class="card-body">
+<div class="inventory-panel mb-3" id="checkoutHeaderCard">
+    <div class="inventory-panel-header">
+        <h2 class="inventory-panel-title">
+            <i class="bi bi-person-badge" aria-hidden="true"></i>
+            Kopfdaten
+        </h2>
+    </div>
+    <div class="inventory-panel-body inventory-form-grid">
         {% if preset_event_appointment_id %}
         <div class="alert alert-info py-2 mb-3">
             <i class="bi bi-link-45deg"></i>
@@ -32,7 +38,7 @@
                            value="{% if preset_borrower_name %}{{ preset_borrower_name }}{% else %}{{ current_user.full_name }}{% endif %}" placeholder="Name suchen oder frei eingeben" autocomplete="off">
                     <input type="hidden" id="borrower_id" name="borrower_id" form="checkoutForm"
                            value="{% if preset_borrower_id %}{{ preset_borrower_id }}{% elif not preset_event_appointment_id %}{{ current_user.id }}{% endif %}">
-                    <div id="borrowerSuggest" class="list-group position-absolute w-100 shadow-sm" style="z-index: 20; display: none; max-height: 220px; overflow: auto;"></div>
+                    <div id="borrowerSuggest" class="list-group inventory-suggest-dropdown" style="display: none;"></div>
                 </div>
                 <small class="form-text text-muted">Portal-User wählen oder Freitext eingeben.</small>
             </div>
@@ -57,25 +63,20 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-12 col-lg-7 mb-4">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Produkt eingeben</h5></div>
-            <div class="card-body">
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0">QR-Code scannen</label>
-                        <div>
-                            <button class="btn btn-sm btn-primary" id="startScannerBtn" type="button">
-                                <i class="bi bi-camera"></i> Kamera starten
-                            </button>
-                            <button class="btn btn-sm btn-danger" id="stopScannerBtn" type="button" style="display: none;">
-                                <i class="bi bi-stop-circle"></i> Kamera stoppen
-                            </button>
-                        </div>
-                    </div>
-                    <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative;">
-                        <video id="scannerVideo" autoplay playsinline style="width: 100%; height: 360px; border-radius: 8px; background: #000; object-fit: cover;"></video>
+<div class="row g-3 inventory-scan-layout">
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    Produkt eingeben
+                </h2>
+            </div>
+            <div class="inventory-panel-body">
+                <div class="mb-3">
+                    <label class="form-label mb-2">QR-Code scannen</label>
+                    <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                        <video id="scannerVideo" autoplay playsinline muted></video>
                         <canvas id="scannerCanvas" style="display: none;"></canvas>
                         <div id="scannerFrame" class="scanner-frame"></div>
                         <div id="scannerLine" class="scanner-line"></div>
@@ -83,15 +84,22 @@
                             <i class="bi bi-check-circle-fill"></i> Erfasst
                         </div>
                     </div>
+                    <div class="inventory-scan-controls">
+                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                            <i class="bi bi-camera"></i> Kamera starten
+                        </button>
+                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                            <i class="bi bi-stop-circle"></i> Kamera stoppen
+                        </button>
+                    </div>
                     <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
                     <div id="scannerFeedback" class="alert mt-2 d-none"></div>
                 </div>
-                <hr>
                 <label for="manualQrInput" class="form-label">QR-Code oder Produkt-ID</label>
-                <div class="input-group">
+                <div class="inventory-manual-row">
                     <input type="text" class="form-control" id="manualQrInput" autofocus
                            placeholder="PROD-123, SET-456 oder Rückgabe-QR" autocomplete="off">
-                    <button class="btn btn-accent" id="addToCartBtn" type="button">
+                    <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
                         <i class="bi bi-plus-circle"></i> Hinzufügen
                     </button>
                 </div>
@@ -100,37 +108,38 @@
         </div>
     </div>
 
-    <div class="col-12 col-lg-5">
-        <div class="card" id="borrowCartPanel">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Warenkorb</h5>
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100" id="borrowCartPanel">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-cart3" aria-hidden="true"></i>
+                    Warenkorb
+                </h2>
                 <span class="badge bg-primary" id="cartCount">{{ cart_products|length }}</span>
             </div>
-            <div class="card-body">
-                <div id="cartItems">
+            <div class="inventory-panel-body">
+                <div id="cartItems" class="inventory-cart-list">
                     {% if cart_products %}
                     {% for product in cart_products %}
-                    <div class="card mb-2 cart-item" data-product-id="{{ product.id }}">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ product.name }}</strong>
-                                    {% if product.category %}<br><small class="text-muted">{{ product.category }}</small>{% endif %}
-                                </div>
-                                <button class="btn btn-sm btn-outline-danger remove-from-cart" type="button" data-product-id="{{ product.id }}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
+                    <div class="inventory-cart-item cart-item" data-product-id="{{ product.id }}">
+                        <div class="inventory-cart-item-body">
+                            <p class="inventory-cart-item-title">{{ product.name }}</p>
+                            {% if product.category %}
+                            <p class="inventory-cart-item-meta">{{ product.category }}</p>
+                            {% endif %}
                         </div>
+                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="{{ product.id }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                     {% endfor %}
                     {% else %}
-                    <p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>
+                    <p class="text-muted text-center inventory-empty-hint py-3 mb-0">Keine Produkte hinzugefügt</p>
                     {% endif %}
                 </div>
                 <hr>
                 <form method="POST" action="{{ url_for('inventory.inventory_checkout_confirm') }}" id="checkoutForm">
-                    <button type="submit" class="btn btn-accent w-100" {% if not cart_products %}disabled{% endif %}>
+                    <button type="submit" class="btn btn-accent inventory-pill-btn w-100" {% if not cart_products %}disabled{% endif %}>
                         <i class="bi bi-check-circle"></i> Ausleihe bestätigen
                     </button>
                 </form>
@@ -239,7 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (borrowerInput) {
         borrowerInput.addEventListener('input', () => {
-            // Freitext → User-Verknüpfung lösen, Portal-Mail freigeben/leeren
             borrowerIdInput.value = '';
             if (emailInput) emailInput.value = '';
             syncEmailRequirement();
@@ -252,7 +260,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     syncEmailRequirement();
 
-    // Dates — bei Veranstaltungs-Verknüpfung leer lassen (Nutzer setzt Von/Bis bewusst)
     const startInput = document.getElementById('start_date');
     const endInput = document.getElementById('end_date');
     const linkedFromEvent = !!(document.getElementById('event_appointment_id')?.value);
@@ -317,11 +324,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.querySelectorAll('.remove-from-cart').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            window.borrowScannerManager?.removeFromCart(e.target.closest('.remove-from-cart').dataset.productId);
+            const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
+            if (productId) window.borrowScannerManager?.removeFromCart(productId);
         });
     });
 
-    // Prefill return from history deep-link
     const preset = {{ (preset_ref or '')|tojson }};
     if (preset && manualInput) {
         manualInput.value = preset;
@@ -351,7 +358,6 @@ document.addEventListener('DOMContentLoaded', function() {
         ['event_name','borrower_name','borrower_id','contact_email','start_date','end_date','event_id','event_appointment_id'].forEach((name) => {
             const el = document.getElementById(name);
             if (!el) return;
-            // disabled contact_email nicht mitsenden (Portal-User)
             if (name === 'contact_email' && el.disabled) {
                 formData.delete('contact_email');
                 return;

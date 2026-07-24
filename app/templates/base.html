@@ -698,7 +698,7 @@
                     'shortlinks.index', 'booking.requests', 'music.index', 'settings.index',
                     'assessment.general.home'
                 ] %}
-                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email'])) %}
+                {% set hide_back = (request.endpoint in index_endpoints) or (request.endpoint and (request.endpoint.startswith('inventory.') or request.endpoint.startswith('assessment.') or request.endpoint.startswith('settings.') or request.endpoint.startswith('calendar.') or request.endpoint.startswith('events.') or request.endpoint.startswith('contacts.') or request.endpoint.startswith('credentials.') or request.endpoint.startswith('manuals.') or request.endpoint.startswith('shortlinks.') or request.endpoint in ['auth.show_confirmation_codes', 'chat.create_chat', 'email.compose', 'email.reply', 'email.reply_all', 'email.forward', 'email.view_email'])) %}
                 {% if not hide_back %}
                 <div class="back-button-container mb-3">
                     <a href="{{ get_back_url() }}" class="btn btn-outline-secondary back-button" aria-label="{{ _('layout.nav.back') }}">

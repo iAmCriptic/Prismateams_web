@@ -132,9 +132,9 @@
     </div>
 </div>
 {% endif %}
-<div class="row mb-4 page-toolbar-row align-items-start g-3">
-    <div class="col min-width-0">
-        <div class="files-path-row mb-2 {% if files_view %}d-none d-lg-flex{% endif %}">
+<div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-2 g-lg-3">
+    <div class="col-12 col-lg-3 min-width-0">
+        <div class="files-path-row mb-0 {% if files_view %}d-none d-lg-flex{% endif %}">
             <span class="files-path-icon" aria-hidden="true">{{ files_view_icon(files_view) }}</span>
             <nav aria-label="breadcrumb" class="files-path-nav min-width-0">
                 <ol class="breadcrumb mb-0 files-breadcrumb-dropzone">
@@ -159,7 +159,7 @@
         </div>
         {% if breadcrumb_folders %}
         {% set files_back_url = breadcrumb_folders[-2].url if breadcrumb_folders|length > 1 else files_root_url %}
-        <div class="files-back-row mb-3">
+        <div class="files-back-row mt-2 mb-0">
             <a href="{{ files_back_url }}" class="files-back-link" aria-label="{{ _('layout.nav.back') }}">
                 <i class="bi bi-arrow-left" aria-hidden="true"></i>
                 <span>{{ _('layout.nav.back') }}</span>
@@ -167,66 +167,84 @@
         </div>
         {% endif %}
     </div>
-    <div class="col-12 col-lg-auto ms-lg-auto">
-        <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
-        <div class="files-view-toggle" role="group" aria-label="{{ _('files.index.view_toggle.list') }} / {{ _('files.index.view_toggle.grid') }}">
-            <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
-                <i class="bi bi-list"></i>
-            </button>
-            <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn" title="{{ _('files.index.view_toggle.grid') }}">
-                <i class="bi bi-grid-3x3-gap"></i>
-            </button>
-        </div>
-        <div class="btn-group {% if files_view %}d-none{% else %}{% endif %}" role="group">
-            <div class="dropdown" id="newButtonDropdown">
-                <button class="btn btn-accent files-pill-new" type="button" id="newButton">
-                    <i class="bi bi-plus-lg me-1"></i> {{ _('files.index.new_button') }}
+    <div class="col-12 col-lg-9">
+        <div class="files-toolbar-actions">
+            <div class="files-search" role="search">
+                <label class="files-search-field" for="filesSearchInput">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="text"
+                           id="filesSearchInput"
+                           class="files-search-input"
+                           placeholder="{{ _('files.index.search_placeholder') }}"
+                           autocomplete="off"
+                           spellcheck="false"
+                           enterkeyhint="search">
+                </label>
+                <button type="button" class="btn files-search-clear d-none" id="filesSearchClear" aria-label="{{ _('common.cancel') }}">
+                    <i class="bi bi-x-lg"></i>
                 </button>
-                <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu" style="display: none;">
-                    <li>
-                        <a class="dropdown-item" href="#" id="uploadFileMenuItem">
-                            <i class="bi bi-upload me-2"></i> {{ _('files.index.dropdown.upload_files') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#" id="uploadFolderMenuItem">
-                            <i class="bi bi-cloud-upload me-2"></i> {{ _('files.index.dropdown.upload_folder') }}
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item" href="#" id="createFolderMenuItem">
-                            <i class="bi bi-folder-plus me-2"></i> {{ _('files.index.dropdown.create_folder') }}
-                        </a>
-                    </li>
-                    {% if onlyoffice_available %}
-                    <li>
-                        <a class="dropdown-item" href="#" data-create-type="docx">
-                            <i class="bi bi-file-earmark-word me-2"></i> {{ _('files.index.dropdown.create_word') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#" data-create-type="xlsx">
-                            <i class="bi bi-file-earmark-spreadsheet me-2"></i> {{ _('files.index.dropdown.create_excel') }}
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="#" data-create-type="pptx">
-                            <i class="bi bi-file-earmark-slides me-2"></i> {{ _('files.index.dropdown.create_powerpoint') }}
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li>
-                        <a class="dropdown-item" href="#" id="createMdMenuItem">
-                            <i class="bi bi-file-earmark-text me-2"></i> {{ _('files.index.dropdown.create_markdown') }}
-                        </a>
-                    </li>
-                </ul>
             </div>
-            <!-- Hidden file input for direct upload -->
-            <input type="file" id="directFileUpload" name="file" style="display: none;" multiple>
-            <input type="file" id="directFolderUpload" name="folder_upload" style="display: none;" webkitdirectory directory multiple>
+            <div class="files-view-toggle" role="group" aria-label="{{ _('files.index.view_toggle.list') }} / {{ _('files.index.view_toggle.grid') }}">
+                <button type="button" class="files-view-toggle__btn" id="listViewBtn" title="{{ _('files.index.view_toggle.list') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <button type="button" class="files-view-toggle__btn active is-active" id="gridViewBtn" title="{{ _('files.index.view_toggle.grid') }}">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </button>
+            </div>
+            <div class="btn-group files-toolbar-new {% if files_view %}d-none{% else %}{% endif %}" role="group">
+                <div class="dropdown" id="newButtonDropdown">
+                    <button class="btn btn-accent files-pill-new" type="button" id="newButton">
+                        <i class="bi bi-plus-lg me-1"></i> {{ _('files.index.new_button') }}
+                    </button>
+                    <ul class="dropdown-menu files-dropdown-menu" id="newDropdownMenu" style="display: none;">
+                        <li>
+                            <a class="dropdown-item" href="#" id="uploadFileMenuItem">
+                                <i class="bi bi-upload me-2"></i> {{ _('files.index.dropdown.upload_files') }}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="uploadFolderMenuItem">
+                                <i class="bi bi-cloud-upload me-2"></i> {{ _('files.index.dropdown.upload_folder') }}
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="#" id="createFolderMenuItem">
+                                <i class="bi bi-folder-plus me-2"></i> {{ _('files.index.dropdown.create_folder') }}
+                            </a>
+                        </li>
+                        {% if onlyoffice_available %}
+                        <li>
+                            <a class="dropdown-item" href="#" data-create-type="docx">
+                                <i class="bi bi-file-earmark-word me-2"></i> {{ _('files.index.dropdown.create_word') }}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-create-type="xlsx">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i> {{ _('files.index.dropdown.create_excel') }}
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-create-type="pptx">
+                                <i class="bi bi-file-earmark-slides me-2"></i> {{ _('files.index.dropdown.create_powerpoint') }}
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li>
+                            <a class="dropdown-item" href="#" id="createMdMenuItem">
+                                <i class="bi bi-file-earmark-text me-2"></i> {{ _('files.index.dropdown.create_markdown') }}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- Hidden file input for direct upload -->
+                <input type="file" id="directFileUpload" name="file" style="display: none;" multiple>
+                <input type="file" id="directFolderUpload" name="folder_upload" style="display: none;" webkitdirectory directory multiple>
+            </div>
         </div>
+        <div class="files-search-empty text-muted small text-center mt-2 d-none" id="filesSearchEmpty">
+            {{ _('files.index.search_empty') }}
         </div>
     </div>
 </div>
@@ -249,7 +267,7 @@
 </div>
 
 <!-- ============================================ -->
-<!-- GRID VIEW - ORDNER / DATEIEN (Überschriften nur bei Inhalt) -->
+<!-- GRID VIEW - Ordner zuerst, dann Dateien (ein Grid) -->
 <!-- ============================================ -->
 <div id="filesBrowserContextZone" data-context-zone data-context-menu="template" data-context-menu-id="files-browser-context-menu">
 <div id="filesContentMeta" hidden
@@ -260,12 +278,9 @@
     <div class="mod-empty-state" id="filesEmptyStateGrid">{{ _('files.index.labels.nothing_present') }}</div>
     {% endif %}
 
-    <!-- Ordner Überschrift - nur wenn Ordner vorhanden (oder Inline-Erstellung) -->
-    <h5 class="mb-3" id="foldersSectionHeading"{% if not subfolders %} hidden{% endif %}>{{ _('files.index.sections.folders') }}</h5>
-
-    <!-- Inline Folder Creation (Grid View) -->
-    <div id="inlineFolderCreateGrid" class="row g-3 mb-4" style="display: none;">
-        <div class="col-12 col-md-6 col-lg-3">
+    <div id="gridView" class="row g-3">
+        <!-- Inline Folder Creation (Grid View) -->
+        <div id="inlineFolderCreateGrid" class="col-12 col-md-6 col-lg-3" style="display: none;">
             <div class="card folder-item files-inline-create-card">
                 <div class="card-body">
                     <div class="text-center mb-3">
@@ -286,19 +301,18 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Folders Grid View - Nur anzeigen wenn Ordner vorhanden -->
-    <div id="foldersGridView" class="row g-3 mb-4">
         {% if subfolders %}
         {% for folder in subfolders %}
-        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-context-zone data-context-menu="dropdown">
-            <div class="card folder-item files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <i class="bi bi-folder-fill fs-1 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
-                            <h6 class="mt-2 mb-0 files-item-name" data-rename-target="folder-{{ folder.id }}" title="{{ folder.name }}">{{ folder.name }}</h6>
+        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-search-name="{{ folder.name|e }}" data-context-zone data-context-menu="dropdown">
+            <div class="card folder-item h-100 files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
+                <div class="card-body d-flex flex-column">
+                    <div class="files-grid-preview text-center mb-3">
+                        <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1 min-width-0">
+                            <h6 class="mb-1 files-item-name" data-rename-target="folder-{{ folder.id }}" title="{{ folder.name }}">{{ folder.name }}</h6>
                         </div>
                         <div class="d-flex align-items-start gap-1" onclick="event.stopPropagation()">
                             <button type="button" class="btn btn-sm btn-link files-dnd-handle" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" title="{{ _('files.index.messages.drag_to_move') }}">
@@ -385,23 +399,20 @@
                             </div>
                         </div>
                     </div>
+                    <small class="text-muted mt-auto">
+                        {{ _('files.index.sections.folders') }}
+                        {% if folder.updated_at or folder.created_at %}
+                        <br>{{ (folder.updated_at or folder.created_at)|localdatetime('%d.%m.%Y %H:%M') }}
+                        {% endif %}
+                    </small>
                 </div>
             </div>
         </div>
         {% endfor %}
         {% endif %}
-    </div>
 
-    <!-- ============================================ -->
-    <!-- GRID VIEW - DATEIEN Sektion -->
-    <!-- ============================================ -->
-    
-    <!-- Dateien Überschrift - nur wenn Dateien vorhanden (oder Inline-Erstellung) -->
-    <h5 class="mb-3" id="filesSectionHeading"{% if not files %} hidden{% endif %}>{{ _('files.index.sections.files') }}</h5>
-
-    <!-- Inline File Creation (Grid View) -->
-    <div id="inlineFileCreateGrid" class="row g-3 mb-4" style="display: none;">
-        <div class="col-12 col-md-6 col-lg-3">
+        <!-- Inline File Creation (Grid View) -->
+        <div id="inlineFileCreateGrid" class="col-12 col-md-6 col-lg-3" style="display: none;">
             <div class="card file-item files-inline-create-card">
                 <div class="card-body">
                     <div class="text-center mb-3">
@@ -422,13 +433,10 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Files Grid View - Nur anzeigen wenn Dateien vorhanden -->
-    <div id="gridView" class="row g-3">
         {% if files %}
         {% for file in files %}
-        <div class="col-12 col-md-6 col-lg-4" data-item-wrapper="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
+        <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="file" data-item-id="{{ file.id }}" data-search-name="{{ file.name|e }}" data-context-zone data-context-menu="dropdown">
             <div class="card file-item h-100 files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}"
                  {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                  {% set media_exts = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus') %}
@@ -445,9 +453,9 @@
                  {% else %}
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% endif %}>
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <!-- File Preview/Icon -->
-                    <div class="text-center mb-3">
+                    <div class="files-grid-preview text-center mb-3">
                         {% set file_preview = file_preview_map.get(file.id) %}
                         {% set file_preview_html = file_preview_html_map.get(file.id) %}
                         {% if file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')) %}
@@ -591,7 +599,7 @@
                     </div>
                     
                     <!-- File Details -->
-                    <small class="text-muted">
+                    <small class="text-muted mt-auto">
                         {% if file.file_size > 1024*1024 %}
                             {{ (file.file_size / (1024*1024))|round(1) }} MB
                         {% else %}
@@ -599,7 +607,7 @@
                         {% endif %}
                         <br>
                         {{ _('files.index.labels.uploaded_by', name=file.uploader.full_name) }}<br>
-                        {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
+                        {{ file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                     </small>
                 </div>
             </div>
@@ -668,7 +676,7 @@
             {% for folder in subfolders %}
                 {% set owner = users_by_id.get(folder.created_by) %}
                 {% set allow_internal_acl = files_view != 'public' and (folder.space|default('public')) != 'public' %}
-                <tr class="mod-list-row files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-context-zone data-context-menu="dropdown">
+                <tr class="mod-list-row files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-search-name="{{ folder.name|e }}" data-context-zone data-context-menu="dropdown">
                     <td>
                         <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="folder-{{ folder.id }}" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
                             <i class="bi bi-folder-fill me-2 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i><span class="files-item-name-text" title="{{ folder.name }}">{{ folder.name }}</span>
@@ -676,7 +684,7 @@
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else '—' }}</td>
                     <td class="d-none d-md-table-cell text-muted">—</td>
-                    <td class="d-none d-lg-table-cell text-muted">{% if folder.updated_at %}{{ folder.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
+                    <td class="d-none d-lg-table-cell text-muted">{% if folder.updated_at %}{{ folder.updated_at|localdatetime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
                     <td class="d-none d-md-table-cell text-muted">—</td>
                     <td class="text-end">
                         <div class="mod-list-actions">
@@ -726,7 +734,7 @@
                 {% else %}
                     {% set open_url = url_for('files.download_file', file_id=file.id) %}
                 {% endif %}
-                <tr class="mod-list-row files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-context-zone data-context-menu="dropdown">
+                <tr class="mod-list-row files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-search-name="{{ file.name|e }}" data-context-zone data-context-menu="dropdown">
                     <td>
                         <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="file-{{ file.id }}" href="{{ open_url }}">
                             {{ file_type_icon(file.original_name or file.name, 'sm') }}<span class="files-item-name-text" title="{{ file.original_name or file.name }}">{{ file.original_name or file.name }}</span>
@@ -734,7 +742,7 @@
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else (file.uploader.full_name if file.uploader else '—') }}</td>
                     <td class="d-none d-md-table-cell"><span class="badge bg-secondary">v{{ file.version_number }}</span></td>
-                    <td class="d-none d-lg-table-cell text-muted">{% if file.updated_at %}{{ file.updated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
+                    <td class="d-none d-lg-table-cell text-muted">{% if file.updated_at %}{{ file.updated_at|localdatetime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
                     <td class="d-none d-md-table-cell text-muted">{% if file.file_size %}{% if file.file_size >= 1048576 %}{{ '%.1f'|format(file.file_size/1048576) }} MB{% elif file.file_size >= 1024 %}{{ '%.1f'|format(file.file_size/1024) }} KB{% else %}{{ file.file_size }} B{% endif %}{% else %}—{% endif %}</td>
                     <td class="text-end">
                         <div class="mod-list-actions">
@@ -1501,7 +1509,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const draggableItems = document.querySelectorAll('.files-draggable-item[data-item-type][data-item-id]');
     const dropZones = [
         ...Array.from(document.querySelectorAll('.files-drop-target')),
-        document.getElementById('foldersGridView'),
         document.getElementById('foldersListView'),
         document.getElementById('gridView'),
         document.getElementById('filesListTableBody'),
@@ -1595,7 +1602,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const droppedInInternalZone = event.target.closest('.files-drop-target, #foldersGridView, #foldersListView, #gridView, #filesListTableBody, #listViewContainer');
+        const droppedInInternalZone = event.target.closest('.files-drop-target, #foldersListView, #gridView, #filesListTableBody, #listViewContainer');
         if (droppedInInternalZone) {
             return;
         }
@@ -1645,14 +1652,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function restoreFilesSectionHeadings() {
         const meta = getFilesContentMeta();
-        const foldersHeading = document.getElementById('foldersSectionHeading');
-        const filesHeading = document.getElementById('filesSectionHeading');
-        if (foldersHeading) {
-            foldersHeading.hidden = !meta.hasFolders;
-        }
-        if (filesHeading) {
-            filesHeading.hidden = !meta.hasFiles;
-        }
         setFilesEmptyStateVisible(!meta.hasFolders && !meta.hasFiles);
     }
 
@@ -1679,11 +1678,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setFilesEmptyStateVisible(false);
         
         if (type === 'folder') {
-            const foldersHeading = document.getElementById('foldersSectionHeading');
-            if (foldersHeading) foldersHeading.hidden = false;
             // Zeige Inline-Ordner-Erstellung
             if (isGridView) {
-                document.getElementById('inlineFolderCreateGrid').style.display = 'block';
+                document.getElementById('inlineFolderCreateGrid').style.display = '';
             } else {
                 document.getElementById('inlineFolderCreateList').style.display = 'block';
             }
@@ -1693,8 +1690,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (input) input.focus();
             }, 100);
         } else if (type === 'file') {
-            const filesHeading = document.getElementById('filesSectionHeading');
-            if (filesHeading) filesHeading.hidden = false;
             // Zeige Inline-Datei-Erstellung
             const formGrid = document.getElementById('inlineFileForm');
             const formList = document.getElementById('inlineFileFormList');
@@ -1775,7 +1770,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (isGridView) {
-                document.getElementById('inlineFileCreateGrid').style.display = 'block';
+                document.getElementById('inlineFileCreateGrid').style.display = '';
             } else {
                 document.getElementById('inlineFileCreateList').style.display = 'block';
             }
@@ -1818,11 +1813,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // ESC-Taste zum Abbrechen
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            const isVisible = document.getElementById('inlineFolderCreateGrid').style.display === 'block' ||
-                             document.getElementById('inlineFolderCreateList').style.display === 'block' ||
-                             document.getElementById('inlineFileCreateGrid').style.display === 'block' ||
-                             document.getElementById('inlineFileCreateList').style.display === 'block';
-            if (isVisible) {
+            const isVisible = (el) => el && el.style.display !== 'none' && getComputedStyle(el).display !== 'none';
+            if (isVisible(document.getElementById('inlineFolderCreateGrid')) ||
+                isVisible(document.getElementById('inlineFolderCreateList')) ||
+                isVisible(document.getElementById('inlineFileCreateGrid')) ||
+                isVisible(document.getElementById('inlineFileCreateList'))) {
                 hideInlineCreatePanels();
             }
         }
@@ -1834,6 +1829,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const listViewContainer = document.getElementById('listViewContainer');
     const gridViewContainer = document.getElementById('gridViewContainer');
     
+    function isInlinePanelOpen(el) {
+        return el && el.style.display !== 'none' && window.getComputedStyle(el).display !== 'none';
+    }
+
     if (listViewBtn && gridViewBtn) {
         listViewBtn.addEventListener('click', function() {
             // List View Container ANZEIGEN
@@ -1852,11 +1851,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const inlineFileGrid = document.getElementById('inlineFileCreateGrid');
             const inlineFileList = document.getElementById('inlineFileCreateList');
             
-            if (inlineFolderGrid && inlineFolderGrid.style.display === 'block') {
+            if (isInlinePanelOpen(inlineFolderGrid)) {
                 inlineFolderGrid.style.display = 'none';
                 if (inlineFolderList) inlineFolderList.style.display = 'block';
             }
-            if (inlineFileGrid && inlineFileGrid.style.display === 'block') {
+            if (isInlinePanelOpen(inlineFileGrid)) {
                 inlineFileGrid.style.display = 'none';
                 if (inlineFileList) inlineFileList.style.display = 'block';
             }
@@ -1885,11 +1884,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (inlineFolderList && inlineFolderList.style.display === 'block') {
                 inlineFolderList.style.display = 'none';
-                if (inlineFolderGrid) inlineFolderGrid.style.display = 'block';
+                if (inlineFolderGrid) inlineFolderGrid.style.display = '';
             }
             if (inlineFileList && inlineFileList.style.display === 'block') {
                 inlineFileList.style.display = 'none';
-                if (inlineFileGrid) inlineFileGrid.style.display = 'block';
+                if (inlineFileGrid) inlineFileGrid.style.display = '';
             }
             
             gridViewBtn.classList.add('active', 'is-active');
@@ -1924,6 +1923,55 @@ document.addEventListener('DOMContentLoaded', function() {
             listViewBtn.classList.remove('active', 'is-active');
         }
     }
+
+    // Lokale Suche im aktuellen Ordner (Grid + Liste)
+    (function initFilesSearch() {
+        const input = document.getElementById('filesSearchInput');
+        const clearBtn = document.getElementById('filesSearchClear');
+        const emptyHint = document.getElementById('filesSearchEmpty');
+        if (!input) return;
+
+        function applyFilesSearch(rawQuery) {
+            const query = (rawQuery || '').trim().toLowerCase();
+            if (clearBtn) {
+                clearBtn.classList.toggle('d-none', !query);
+            }
+
+            const items = document.querySelectorAll('[data-search-name]');
+            let visibleCount = 0;
+            items.forEach(function(el) {
+                const name = (el.getAttribute('data-search-name') || '').toLowerCase();
+                const match = !query || name.includes(query);
+                el.classList.toggle('d-none', !match);
+                if (match) visibleCount += 1;
+            });
+
+            const hasItems = items.length > 0;
+            if (emptyHint) {
+                emptyHint.classList.toggle('d-none', !(query && hasItems && visibleCount === 0));
+            }
+        }
+
+        input.addEventListener('input', function() {
+            applyFilesSearch(input.value);
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                input.value = '';
+                applyFilesSearch('');
+                input.focus();
+            });
+        }
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && input.value) {
+                e.preventDefault();
+                input.value = '';
+                applyFilesSearch('');
+            }
+        });
+    })();
     
     // File size validation
     const fileInput = document.getElementById('file');

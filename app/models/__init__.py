@@ -1,7 +1,7 @@
 from .user import User
 from .user_session import UserSession
 from .chat import Chat, ChatMessage, ChatMember, ChatPin
-from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite
+from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite, FileEditLock
 from .calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
 from .email import EmailMessage, EmailPermission, EmailAttachment
 from .contact import Contact, ContactFavorite
@@ -43,7 +43,7 @@ from .media_downloader import MediaDownloadJob
 __all__ = [
     'User', 'UserSession',
     'Chat', 'ChatMessage', 'ChatMember', 'ChatPin',
-    'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite',
+    'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite', 'FileEditLock',
     'Calendar', 'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed', 'CalendarSyncSource',
     'EmailMessage', 'EmailPermission', 'EmailAttachment',
     'Contact', 'ContactFavorite',

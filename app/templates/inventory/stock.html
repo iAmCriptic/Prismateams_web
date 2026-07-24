@@ -16,17 +16,40 @@
 
 {% block inventory_toolbar_extra %}{% endblock %}
 
+{% block inventory_toolbar_center %}
+<div class="inventory-search" role="search">
+    <label class="inventory-search-field" for="searchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               id="searchInput"
+               data-inv-filter="searchInput"
+               class="inventory-search-input"
+               placeholder="{{ _('inventory.stock.search.placeholder') }}"
+               aria-label="{{ _('inventory.stock.search.label') }}"
+               autocomplete="off"
+               enterkeyhint="search">
+    </label>
+</div>
+{% endblock %}
+
+{% block inventory_mobile_toolbar_center %}
+<div class="inventory-search" role="search">
+    <label class="inventory-search-field" for="searchInputMobile">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               id="searchInputMobile"
+               data-inv-filter="searchInput"
+               class="inventory-search-input"
+               placeholder="{{ _('inventory.stock.search.placeholder') }}"
+               aria-label="{{ _('inventory.stock.search.label') }}"
+               autocomplete="off"
+               enterkeyhint="search">
+    </label>
+</div>
+{% endblock %}
+
 {% macro stock_filter_tools(id_suffix='') %}
 <div class="inventory-filter-tools">
-    <div class="inventory-filter-section">
-        <label class="inventory-filter-label" for="searchInput{{ id_suffix }}">
-            <i class="bi bi-search" aria-hidden="true"></i>{{ _('inventory.stock.search.label') }}
-        </label>
-        <input type="search" class="form-control form-control-sm inventory-filter-control" id="searchInput{{ id_suffix }}" data-inv-filter="searchInput"
-               placeholder="{{ _('inventory.stock.search.placeholder') }}"
-               aria-label="{{ _('inventory.stock.search.label') }}">
-    </div>
-
     <div class="inventory-filter-section">
         <div class="inventory-filter-label">
             <i class="bi bi-funnel" aria-hidden="true"></i>{{ _('inventory.stock.filters.title') }}
@@ -224,40 +247,40 @@
 </div>
 
 <div class="modal fade" id="productDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 1.25rem;">
+            <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title">{{ _('inventory.stock.modals.product_details.title') }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="productDetailContent"></div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.product_details.close') }}</button>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.product_details.close') }}</button>
             </div>
         </div>
     </div>
 </div>
 
 <div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 1.25rem;">
+            <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle"></i> {{ _('inventory.stock.modals.bulk_delete.title') }}
+                    <i class="bi bi-exclamation-triangle text-danger"></i> {{ _('inventory.stock.modals.bulk_delete.title') }}
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger">
+                <div class="alert alert-danger" style="border-radius: 1rem;">
                     <i class="bi bi-exclamation-triangle"></i>
                     <strong>{{ _('inventory.stock.modals.bulk_delete.warning') }}</strong>
                 </div>
                 <p>{{ _('inventory.stock.modals.bulk_delete.message', count='<strong id="bulkDeleteProductCount">0</strong>')|safe }}</p>
                 <p class="text-muted small mb-0">{{ _('inventory.stock.modals.bulk_delete.note') }}</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_delete.cancel') }}</button>
-                <button type="button" class="btn btn-danger" id="bulkDeleteConfirmBtn">
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_delete.cancel') }}</button>
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--danger" id="bulkDeleteConfirmBtn">
                     <i class="bi bi-trash"></i> {{ _('inventory.stock.modals.bulk_delete.confirm') }}
                 </button>
             </div>
@@ -266,43 +289,124 @@
 </div>
 
 <div class="modal fade" id="bulkEditModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 1.25rem;">
+            <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title">
                     <i class="bi bi-pencil"></i> {{ _('inventory.stock.modals.bulk_edit.title') }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    <strong id="bulkEditProductCount">0</strong> {{ _('inventory.stock.modals.bulk_edit.info', count='0') }}
-                </div>
-                <form id="bulkEditForm">
-                    <div class="mb-3">
-                        <label for="bulkEditAttribute" class="form-label">{{ _('inventory.stock.modals.bulk_edit.attribute_label') }} <span class="text-danger">*</span></label>
-                        <select class="form-select" id="bulkEditAttribute" required>
-                            <option value="">{{ _('inventory.stock.modals.bulk_edit.select_attribute') }}</option>
-                            <option value="location">{{ _('inventory.stock.modals.bulk_edit.location') }}</option>
-                            <option value="length">{{ _('inventory.stock.modals.bulk_edit.length') }}</option>
-                            <option value="condition">{{ _('inventory.stock.modals.bulk_edit.condition') }}</option>
-                            <option value="status">Status</option>
-                            <option value="category">{{ _('inventory.stock.modals.bulk_edit.category') }}</option>
-                            <option value="folder_id">{{ _('inventory.stock.modals.bulk_edit.folder') }}</option>
-                            <option value="remove_image">{{ _('inventory.stock.modals.bulk_edit.remove_image') }}</option>
-                        </select>
-                    </div>
-                    <div id="bulkEditFields"></div>
-                    <div class="alert alert-warning mt-3">
+                <form id="bulkEditForm" class="inventory-inventur-edit-form">
+                    <section class="inventory-form-card">
+                        <div class="inventory-form-card-head">
+                            <h2 class="inventory-form-section-title"><i class="bi bi-collection"></i> {{ _('inventory.stock.modals.bulk_edit.selection') }}</h2>
+                        </div>
+                        <p class="mb-0">
+                            <strong id="bulkEditProductCount" class="inventory-count-accent">0</strong>
+                            {{ _('inventory.stock.modals.bulk_edit.info_suffix') }}
+                        </p>
+                        <small class="text-muted">{{ _('inventory.stock.modals.bulk_edit.fill_hint') }}</small>
+                    </section>
+
+                    <section class="inventory-form-card">
+                        <div class="inventory-form-card-head">
+                            <h2 class="inventory-form-section-title"><i class="bi bi-geo-alt"></i> {{ _('inventory.stock.modals.bulk_edit.section_location') }}</h2>
+                        </div>
+                        <div class="inventory-form-fields inventory-form-fields--2">
+                            <div class="inventory-form-field">
+                                <label for="bulkEditLocation" class="form-label">{{ _('inventory.stock.modals.bulk_edit.location') }}</label>
+                                <input type="text" class="form-control" id="bulkEditLocation" placeholder="z.B. Regal A">
+                            </div>
+                            <div class="inventory-form-field">
+                                <label for="bulkEditLength" class="form-label">{{ _('inventory.stock.modals.bulk_edit.length') }}</label>
+                                <input type="number" class="form-control" id="bulkEditLength" step="0.01" min="0" placeholder="z.B. 5.5">
+                            </div>
+                            <div class="inventory-form-field">
+                                <label for="bulkEditCondition" class="form-label">{{ _('inventory.stock.modals.bulk_edit.condition') }}</label>
+                                <select class="form-select" id="bulkEditCondition">
+                                    <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
+                                    <option value="Neu">Neu</option>
+                                    <option value="Gut">Gut</option>
+                                    <option value="Gebraucht">Gebraucht</option>
+                                    <option value="Beschädigt">Beschädigt</option>
+                                </select>
+                            </div>
+                            <div class="inventory-form-field">
+                                <label for="bulkEditStatus" class="form-label">Status</label>
+                                <select class="form-select" id="bulkEditStatus">
+                                    <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
+                                    <option value="available">Verfügbar</option>
+                                    <option value="missing">Fehlend</option>
+                                    <option value="defective">Defekt</option>
+                                    <option value="in_repair">In Reparatur</option>
+                                    <option value="retired">Ausgemustert</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="inventory-form-card">
+                        <div class="inventory-form-card-head">
+                            <h2 class="inventory-form-section-title"><i class="bi bi-folder"></i> {{ _('inventory.stock.modals.bulk_edit.section_org') }}</h2>
+                        </div>
+                        <div class="inventory-form-fields inventory-form-fields--2">
+                            <div class="inventory-form-field">
+                                <label for="bulkEditCategory" class="form-label">{{ _('inventory.stock.modals.bulk_edit.category') }}</label>
+                                <select class="form-select" id="bulkEditCategory">
+                                    <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
+                                </select>
+                            </div>
+                            <div class="inventory-form-field">
+                                <label for="bulkEditFolder" class="form-label">{{ _('inventory.stock.modals.bulk_edit.folder') }}</label>
+                                <select class="form-select" id="bulkEditFolder">
+                                    <option value="">{{ _('inventory.stock.modals.bulk_edit.no_change') }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="inventory-form-card">
+                        <div class="inventory-form-card-head">
+                            <h2 class="inventory-form-section-title"><i class="bi bi-shield-check"></i> {{ _('inventory.stock.modals.bulk_edit.section_dguv') }}</h2>
+                        </div>
+                        <div class="inventory-form-fields inventory-form-fields--3">
+                            <div class="inventory-form-field">
+                                <label for="bulkEditDguvLast" class="form-label">{{ _('inventory.stock.modals.bulk_edit.dguv_last') }}</label>
+                                <input type="date" class="form-control" id="bulkEditDguvLast">
+                            </div>
+                            <div class="inventory-form-field">
+                                <label for="bulkEditDguvInterval" class="form-label">{{ _('inventory.stock.modals.bulk_edit.dguv_interval') }}</label>
+                                <input type="number" min="1" class="form-control" id="bulkEditDguvInterval" placeholder="z.B. 12">
+                            </div>
+                            <div class="inventory-form-field">
+                                <label class="form-label">{{ _('inventory.stock.modals.bulk_edit.dguv_next') }}</label>
+                                <input type="text" class="form-control" id="bulkEditDguvNextDisplay" readonly placeholder="—">
+                                <small class="text-muted">{{ _('inventory.product.form.dguv_next_auto_help') }}</small>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="inventory-form-card">
+                        <div class="inventory-form-card-head">
+                            <h2 class="inventory-form-section-title"><i class="bi bi-image"></i> {{ _('inventory.stock.modals.bulk_edit.section_media') }}</h2>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bulkEditRemoveImage" value="1">
+                            <label class="form-check-label" for="bulkEditRemoveImage">{{ _('inventory.stock.modals.bulk_edit.remove_image') }}</label>
+                        </div>
+                    </section>
+
+                    <div class="alert alert-warning mb-0" style="border-radius: 1rem;">
                         <i class="bi bi-exclamation-triangle"></i>
                         {{ _('inventory.stock.modals.bulk_edit.warning') }}
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_edit.cancel') }}</button>
-                <button type="button" class="btn btn-primary" id="bulkEditSubmitBtn">
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">{{ _('inventory.stock.modals.bulk_edit.cancel') }}</button>
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--primary" id="bulkEditSubmitBtn">
                     <i class="bi bi-check-circle"></i> {{ _('inventory.stock.modals.bulk_edit.update') }}
                 </button>
             </div>

@@ -135,9 +135,40 @@ class BookingRequest(db.Model):
     accepter = db.relationship('User', foreign_keys=[accepted_by], backref='accepted_bookings')
     rejecter = db.relationship('User', foreign_keys=[rejected_by], backref='rejected_bookings')
     approvals = db.relationship('BookingRequestApproval', back_populates='request', cascade='all, delete-orphan')
-    
+    messages = db.relationship(
+        'BookingRequestMessage',
+        back_populates='request',
+        cascade='all, delete-orphan',
+        order_by='BookingRequestMessage.created_at',
+    )
+
     def __repr__(self):
         return f'<BookingRequest {self.event_name} ({self.status})>'
+
+
+class BookingRequestMessage(db.Model):
+    """E-Mail-Nachrichten-Thread zu einer Buchungsanfrage."""
+    __tablename__ = 'booking_request_messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'), nullable=False, index=True)
+    direction = db.Column(db.String(20), nullable=False)  # inbound / outbound
+    subject = db.Column(db.String(500), nullable=True)
+    body_text = db.Column(db.Text, nullable=True)
+    body_html = db.Column(db.Text, nullable=True)
+    from_email = db.Column(db.String(255), nullable=True)
+    to_email = db.Column(db.String(255), nullable=True)
+    message_id = db.Column(db.String(500), unique=True, nullable=True, index=True)
+    in_reply_to = db.Column(db.String(500), nullable=True)
+    is_read = db.Column(db.Boolean, default=True, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    request = db.relationship('BookingRequest', back_populates='messages')
+    creator = db.relationship('User', foreign_keys=[created_by], backref='booking_messages')
+
+    def __repr__(self):
+        return f'<BookingRequestMessage {self.id} {self.direction} request={self.request_id}>'
 
 
 class BookingRequestField(db.Model):

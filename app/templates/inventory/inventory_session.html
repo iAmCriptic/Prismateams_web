@@ -1,0 +1,331 @@
+{% extends "inventory/layout.html" %}
+
+{% block title %}{{ inventory.name }} - Inventur{% endblock %}
+{% block inventory_heading_icon %}bi-clipboard2-check{% endblock %}
+{% block inventory_heading %}{{ inventory.name }}{% endblock %}
+
+{% block inventory_content %}
+{% set progress_pct = (inventory.checked_count / inventory.total_count * 100) if inventory.total_count > 0 else 0 %}
+{% set checked_count = inventory.checked_count %}
+{% set total_count = inventory.total_count %}
+
+<div class="inventory-back-row mb-3">
+    <a href="{{ url_for('inventory.inventory_tool') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>Zur Übersicht</span>
+    </a>
+</div>
+
+<div class="inventory-panel mb-3" id="inventurStatusPanel">
+    <div class="inventory-panel-header">
+        <h2 class="inventory-panel-title">
+            {% if is_active %}
+            <i class="bi bi-play-circle" aria-hidden="true"></i>
+            {% else %}
+            <i class="bi bi-check2-circle" aria-hidden="true"></i>
+            {% endif %}
+            {{ inventory.name }}
+            {% if is_active %}
+            <span class="badge bg-success ms-1">Aktiv</span>
+            {% else %}
+            <span class="badge bg-secondary ms-1">Abgeschlossen</span>
+            {% endif %}
+        </h2>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('inventory.inventory_list_pdf') }}" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline">
+                <i class="bi bi-printer"></i> Drucken
+            </a>
+            <a href="{{ url_for('inventory.inventory_tool_pdf', inventory_id=inventory.id) }}" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-muted">
+                <i class="bi bi-file-pdf"></i> PDF
+            </a>
+            {% if is_active %}
+            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-success" id="openCompleteModalBtn">
+                <i class="bi bi-check-circle"></i> Abschließen
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="inventory-panel-body">
+        {% if inventory.description %}
+        <p class="text-muted small mb-2">{{ inventory.description }}</p>
+        {% endif %}
+        <div class="inventory-inventur-stats mb-3" id="inventurStats">
+            <div class="inventory-inventur-stat">
+                <span class="inventory-count-accent" id="statTotal">{{ total_count }}</span>
+                <span class="inventory-inventur-stat-label">Gesamt</span>
+            </div>
+            <div class="inventory-inventur-stat">
+                <span class="inventory-count-accent" id="statOpen">{{ open_count }}</span>
+                <span class="inventory-inventur-stat-label">Offen</span>
+            </div>
+            <div class="inventory-inventur-stat">
+                <span class="inventory-count-accent" id="statChecked">{{ checked_count }}</span>
+                <span class="inventory-inventur-stat-label">Inventiert</span>
+            </div>
+            <div class="inventory-inventur-stat">
+                <span class="inventory-count-accent" id="statChanged">0</span>
+                <span class="inventory-inventur-stat-label">Geändert</span>
+            </div>
+        </div>
+        <p class="mb-2 small text-muted" id="inventurProgressText">
+            Fortschritt: {{ checked_count }} von {{ total_count }} Produkten inventiert
+        </p>
+        <div class="inventory-inventur-progress" role="progressbar"
+             aria-valuenow="{{ progress_pct|round|int }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="inventory-inventur-progress-bar" id="inventurProgressBar" style="width: {{ progress_pct }}%;"></div>
+        </div>
+    </div>
+</div>
+
+{% if is_active %}
+<div class="row g-3 inventory-scan-layout mb-3">
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    Kamera-Scanner
+                </h2>
+            </div>
+            <div class="inventory-panel-body">
+                <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                    <video id="scannerVideo" autoplay playsinline muted></video>
+                    <canvas id="scannerCanvas" style="display: none;"></canvas>
+                    <div id="scannerFrame" class="scanner-frame"></div>
+                    <div id="scannerLine" class="scanner-line"></div>
+                    <div id="scannerSuccessPopup" class="scanner-success-popup" style="display: none;">
+                        <i class="bi bi-check-circle-fill"></i> Produkt gefunden
+                    </div>
+                </div>
+                <div class="inventory-scan-controls">
+                    <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                        <i class="bi bi-camera"></i> Kamera starten
+                    </button>
+                    <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                        <i class="bi bi-stop-circle"></i> Kamera stoppen
+                    </button>
+                </div>
+                <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-keyboard" aria-hidden="true"></i>
+                    Manuelle Eingabe
+                </h2>
+            </div>
+            <div class="inventory-panel-body">
+                <label for="manualProductInput" class="form-label">Produkt-ID oder QR-Code</label>
+                <div class="inventory-manual-row">
+                    <input type="text" class="form-control" id="manualProductInput"
+                           placeholder="z.B. 123 oder PROD-123" autocomplete="off">
+                    <button class="btn btn-accent inventory-pill-btn" id="manualSearchBtn" type="button">
+                        <i class="bi bi-search"></i> Suchen
+                    </button>
+                </div>
+                <small class="form-text text-muted">Produkt wird abgehakt und zum Bearbeiten geöffnet.</small>
+                <div id="manualSearchResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="inventory-panel mb-3">
+    <div class="inventory-panel-header flex-wrap">
+        <h2 class="inventory-panel-title">
+            <i class="bi bi-list-check" aria-hidden="true"></i>
+            Produkte
+        </h2>
+        <div class="inventory-view-toggle" role="group" aria-label="{{ _('inventory.shell.view_toggle.label') }}">
+            <button type="button" class="inventory-view-toggle__btn active" id="sessionListViewBtn" title="{{ _('inventory.shell.view_toggle.list') }}">
+                <i class="bi bi-list"></i>
+            </button>
+            <button type="button" class="inventory-view-toggle__btn" id="sessionGridViewBtn" title="{{ _('inventory.shell.view_toggle.grid') }}">
+                <i class="bi bi-grid-3x3-gap"></i>
+            </button>
+        </div>
+    </div>
+    <div class="inventory-panel-body">
+        <div class="inventory-inventur-filters mb-3" id="inventurFilterChips" role="group" aria-label="Filter">
+            <button type="button" class="inventory-filter-chip" data-filter="all">Alle</button>
+            <button type="button" class="inventory-filter-chip active" data-filter="open">Offen</button>
+            <button type="button" class="inventory-filter-chip" data-filter="checked">Inventiert</button>
+            <button type="button" class="inventory-filter-chip" data-filter="changed">Geändert</button>
+        </div>
+        <div class="mb-3">
+            <input type="search" class="form-control" id="searchInput" placeholder="Produkte suchen..."
+                   style="border-radius: var(--mod-radius-pill, 1.5rem);">
+        </div>
+
+        <div id="sessionListView">
+            <div class="mod-list-table-wrap">
+                <table class="table mod-list-table align-middle mb-0" id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>Produktname</th>
+                            <th>Status</th>
+                            <th class="d-none d-md-table-cell">Kategorie</th>
+                            <th class="d-none d-lg-table-cell">Lagerort</th>
+                            <th class="d-none d-md-table-cell">Anzahl</th>
+                            <th class="d-none d-lg-table-cell">Zustand</th>
+                            <th class="d-none d-xl-table-cell">DGUV</th>
+                            <th class="d-none d-xl-table-cell">Anmerkungen</th>
+                            <th class="text-end">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody">
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Lädt...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="sessionGridView" class="row g-3" style="display: none;"></div>
+    </div>
+</div>
+
+{% if is_active %}
+<div class="modal fade" id="productEditModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 1.25rem;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">Produkt bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="productEditModalBody"></div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal" id="closeProductModalBtn">Schließen</button>
+                <button type="button" class="btn inventory-pill-btn inventory-pill-btn--primary" id="saveProductBtn">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="completeInventoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 1.25rem;">
+            <form method="POST" action="{{ url_for('inventory.inventory_complete', inventory_id=inventory.id) }}" id="completeInventoryForm">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Inventur abschließen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3" id="completeOpenWarning">
+                        Noch <strong id="completeOpenCount">{{ open_count }}</strong> Produkte sind nicht inventiert.
+                    </p>
+                    <p class="text-muted small">Ort-, Zustands- und Mengenangaben werden auf die Produkte übernommen (Mengen bei Verbrauchsmaterial).</p>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" value="1" id="markMissing" name="mark_missing">
+                        <label class="form-check-label" for="markMissing">
+                            Nicht inventierte Produkte als fehlend markieren
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn inventory-pill-btn inventory-pill-btn--muted" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--outline-success">
+                        <i class="bi bi-check-circle"></i> Abschließen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block inventory_extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_tool.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isActive = {{ is_active|tojson }};
+
+    if (window.InventoryToolManager) {
+        window.inventoryToolManager = new InventoryToolManager({{ inventory.id }}, { readOnly: !isActive });
+        window.inventoryToolManager.init();
+    }
+
+    {% if is_active %}
+    if (window.InventoryScannerManager && window.inventoryToolManager) {
+        window.inventoryScannerManager = new InventoryScannerManager({{ inventory.id }}, window.inventoryToolManager);
+        window.inventoryScannerManager.init();
+    }
+
+    const manualInput = document.getElementById('manualProductInput');
+    const manualSearchBtn = document.getElementById('manualSearchBtn');
+    if (manualInput && manualSearchBtn && window.inventoryToolManager) {
+        let isProcessing = false;
+        const handleManualSearch = async () => {
+            if (isProcessing) return;
+            const input = manualInput.value.trim();
+            if (!input) return;
+            isProcessing = true;
+            manualInput.disabled = true;
+            try {
+                await window.inventoryToolManager.handleManualInput(input);
+                manualInput.value = '';
+            } catch (error) {
+                console.error(error);
+            } finally {
+                isProcessing = false;
+                manualInput.disabled = false;
+                setTimeout(() => manualInput.focus(), 200);
+            }
+        };
+        manualSearchBtn.addEventListener('click', handleManualSearch);
+        manualInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleManualSearch();
+            }
+        });
+    }
+
+    const openCompleteBtn = document.getElementById('openCompleteModalBtn');
+    const completeModalEl = document.getElementById('completeInventoryModal');
+    if (openCompleteBtn && completeModalEl) {
+        openCompleteBtn.addEventListener('click', () => {
+            const open = window.inventoryToolManager?.getOpenCount?.() ?? {{ open_count }};
+            const countEl = document.getElementById('completeOpenCount');
+            const warnEl = document.getElementById('completeOpenWarning');
+            if (countEl) countEl.textContent = String(open);
+            if (warnEl) {
+                warnEl.style.display = open > 0 ? '' : 'none';
+            }
+            if (window.inventoryToolManager) {
+                window.inventoryToolManager.ensureModalOnBody(completeModalEl);
+                window.inventoryToolManager.clearModalArtifacts();
+            } else if (completeModalEl.parentElement !== document.body) {
+                document.body.appendChild(completeModalEl);
+            }
+            const modal = bootstrap.Modal.getOrCreateInstance(completeModalEl);
+            modal.show();
+            requestAnimationFrame(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 1) {
+                    backdrops.forEach((el, idx) => {
+                        if (idx < backdrops.length - 1) el.remove();
+                    });
+                }
+                completeModalEl.style.zIndex = '1055';
+                const activeBackdrop = document.querySelector('.modal-backdrop');
+                if (activeBackdrop) activeBackdrop.style.zIndex = '1050';
+            });
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -90,7 +90,7 @@
                             <span>{{ entry.description }}</span>
                             <span aria-hidden="true">·</span>
                             {% endif %}
-                            <span>{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                            <span>{{ entry.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                     </div>
                     <div class="settings-admin-whitelist-row-actions">

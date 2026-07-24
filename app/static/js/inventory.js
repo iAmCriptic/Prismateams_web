@@ -1114,65 +1114,154 @@ class StockManager {
             console.warn(`Produkt mit ID ${productId} nicht gefunden`);
             return;
         }
-        
+
         const modalElement = document.getElementById('productDetailModal');
         if (!modalElement) {
             console.error('Modal-Element nicht gefunden');
             return;
         }
-        
-        const modal = new bootstrap.Modal(modalElement);
+
+        if (modalElement.parentElement !== document.body) {
+            document.body.appendChild(modalElement);
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         const content = document.getElementById('productDetailContent');
-        
+        const val = (v) => (this.isValidValue(v) ? this.escapeHtml(String(v)) : '—');
+        const statusBadge = this.statusBadgeHtml(product);
+        const dguvLast = this.formatDateDe(product.dguv_last_check);
+        const dguvNext = this.formatDateDe(product.dguv_next_check);
+        const dguvInterval = product.dguv_interval_months != null ? `${product.dguv_interval_months} Monate` : '—';
+        const dguvDue = product.dguv_next_check && String(product.dguv_next_check).slice(0, 10) <= new Date().toISOString().slice(0, 10);
+        const dims = (product.width_cm || product.height_cm || product.depth_cm)
+            ? `${product.width_cm ?? '—'} × ${product.height_cm ?? '—'} × ${product.depth_cm ?? '—'} cm`
+            : null;
+
         const imageHtml = product.image_path
-            ? `<img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}" class="product-detail-image mb-3" onerror="this.style.display='none';">`
-            : '';
-        
+            ? `<div class="inventory-product-preview text-center mb-0">
+                    <img src="/inventory/product-images/${this.escapeHtml(product.image_path)}" alt="${this.escapeHtml(product.name)}"
+                         class="inventory-product-preview-img image-mini-preview img-fluid rounded"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="inventory-product-preview-fallback" style="display:none;"><i class="bi bi-box-seam"></i></div>
+               </div>`
+            : `<div class="inventory-product-preview text-center"><div class="inventory-product-preview-fallback"><i class="bi bi-box-seam"></i></div></div>`;
+
+        const row = (label, valueHtml) => `
+            <div class="inventory-detail-row">
+                <span class="inventory-detail-label">${label}</span>
+                <span class="inventory-detail-value">${valueHtml}</span>
+            </div>`;
+
         content.innerHTML = `
-            ${imageHtml}
-            <h4>${product.name}</h4>
-            <table class="table">
-                ${product.category ? `<tr><th>Kategorie:</th><td>${product.category}</td></tr>` : ''}
-                ${product.serial_number ? `<tr><th>Seriennummer:</th><td>${product.serial_number}</td></tr>` : ''}
-                ${product.condition ? `<tr><th>Zustand:</th><td>${product.condition}</td></tr>` : ''}
-                ${product.location ? `<tr><th>Lagerort:</th><td>${product.location}</td></tr>` : ''}
-                ${product.length ? `<tr><th>Länge:</th><td>${product.length}</td></tr>` : ''}
-                ${product.purchase_date ? `<tr><th>Anschaffungsdatum:</th><td>${product.purchase_date}</td></tr>` : ''}
-                ${product.purchase_price != null ? `<tr><th>Kaufpreis:</th><td>${product.purchase_price}</td></tr>` : ''}
-                ${product.replacement_value != null ? `<tr><th>Wiederbeschaffung:</th><td>${product.replacement_value}</td></tr>` : ''}
-                ${product.weight_kg != null ? `<tr><th>Gewicht:</th><td>${product.weight_kg} kg</td></tr>` : ''}
-                ${(product.width_cm || product.height_cm || product.depth_cm) ? `<tr><th>Abmessungen:</th><td>${product.width_cm || '—'} × ${product.height_cm || '—'} × ${product.depth_cm || '—'} cm</td></tr>` : ''}
-                ${product.dguv_next_check ? `<tr><th>DGUV nächste Prüfung:</th><td>${product.dguv_next_check}</td></tr>` : ''}
-                <tr><th>Status:</th><td>${
-                    product.status === 'available' ? 'Verfügbar' : 
-                    product.status === 'borrowed' ? 'Ausgeliehen' : 
-                    product.status === 'missing' ? 'Fehlend' :
-                    product.status === 'in_repair' ? 'In Reparatur' :
-                    product.status === 'defective' ? 'Defekt' :
-                    product.status === 'retired' ? 'Ausgemustert' : product.status
-                }</td></tr>
-            </table>
-            ${product.description ? `<p>${product.description}</p>` : ''}
-            <div class="d-flex gap-2 flex-wrap">
-                ${product.status === 'available' 
-                    ? `<a href="/inventory/products/${product.id}/borrow" class="btn btn-primary">Ausleihen</a>`
-                    : ''}
-                <a href="/inventory/products/${product.id}/edit" class="btn btn-outline-secondary">Bearbeiten</a>
-                <a href="/inventory/products/${product.id}/documents" class="btn btn-outline-info">
-                    <i class="bi bi-file-earmark"></i> Dokumente
-                </a>
-                <button type="button" class="btn btn-outline-warning favorite-btn" 
-                        data-product-id="${product.id}" 
-                        onclick="toggleFavorite(${product.id});">
-                    <i class="bi bi-star"></i> Favorit
-                </button>
-                ${product.status === 'missing'
-                    ? `<button class="btn btn-success btn-sm" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
-                    : `<button class="btn btn-outline-danger btn-sm" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`}
+            <div class="inventory-inventur-edit-form">
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-box-seam"></i> Produkt</h2>
+                    </div>
+                    <div class="d-flex flex-column flex-md-row gap-3 align-items-md-start">
+                        <div class="flex-shrink-0" style="min-width: 8rem; max-width: 11rem;">${imageHtml}</div>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                <h4 class="mb-0">${this.escapeHtml(product.name)}</h4>
+                                ${statusBadge}
+                                ${dguvDue ? '<span class="badge bg-danger">DGUV fällig</span>' : ''}
+                            </div>
+                            <div class="text-muted small mb-2">${val(product.category)}</div>
+                            ${this.isValidValue(product.description) ? `<p class="mb-0">${this.escapeHtml(product.description)}</p>` : ''}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-info-circle"></i> Stammdaten</h2>
+                    </div>
+                    <div class="inventory-detail-list">
+                        ${row('Seriennummer', val(product.serial_number))}
+                        ${row('Lagerort', val(product.location))}
+                        ${row('Zustand', val(product.condition))}
+                        ${row('Länge', val(product.length))}
+                        ${row('Ordner', val(product.folder_name))}
+                    </div>
+                </section>
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-shield-check"></i> DGUV-Prüfung</h2>
+                    </div>
+                    <div class="inventory-detail-list">
+                        ${row('Letzte Prüfung', dguvLast)}
+                        ${row('Intervall', this.escapeHtml(dguvInterval))}
+                        ${row('Nächste Prüfung', dguvDue ? `<span class="text-danger fw-semibold">${dguvNext}</span>` : dguvNext)}
+                    </div>
+                </section>
+
+                ${(product.purchase_date || product.purchase_price != null || product.replacement_value != null || product.weight_kg != null || dims) ? `
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-clipboard-data"></i> Weitere Angaben</h2>
+                    </div>
+                    <div class="inventory-detail-list">
+                        ${product.purchase_date ? row('Anschaffung', this.formatDateDe(product.purchase_date)) : ''}
+                        ${product.purchase_price != null ? row('Kaufpreis', this.escapeHtml(String(product.purchase_price))) : ''}
+                        ${product.replacement_value != null ? row('Wiederbeschaffung', this.escapeHtml(String(product.replacement_value))) : ''}
+                        ${product.weight_kg != null ? row('Gewicht', `${this.escapeHtml(String(product.weight_kg))} kg`) : ''}
+                        ${dims ? row('Abmessungen', this.escapeHtml(dims)) : ''}
+                    </div>
+                </section>` : ''}
+
+                <section class="inventory-form-card">
+                    <div class="inventory-form-card-head">
+                        <h2 class="inventory-form-section-title"><i class="bi bi-lightning"></i> Aktionen</h2>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        ${product.status === 'available'
+                            ? `<a href="/inventory/products/${product.id}/borrow" class="btn inventory-pill-btn inventory-pill-btn--primary">Ausleihen</a>`
+                            : ''}
+                        <a href="/inventory/products/${product.id}/edit" class="btn inventory-pill-btn inventory-pill-btn--outline">Bearbeiten</a>
+                        <a href="/inventory/products/${product.id}/documents" class="btn inventory-pill-btn inventory-pill-btn--outline">
+                            <i class="bi bi-file-earmark"></i> Dokumente
+                        </a>
+                        <button type="button" class="btn inventory-pill-btn inventory-pill-btn--outline favorite-btn"
+                                data-product-id="${product.id}"
+                                onclick="toggleFavorite(${product.id});">
+                            <i class="bi bi-star"></i> Favorit
+                        </button>
+                        ${product.status === 'missing'
+                            ? `<button class="btn inventory-pill-btn inventory-pill-btn--outline-success" onclick="markAsFound(${product.id})">Als gefunden markieren</button>`
+                            : `<button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" onclick="markAsMissing(${product.id})">Als fehlend markieren</button>`}
+                    </div>
+                </section>
             </div>
         `;
-        
+
         modal.show();
+        requestAnimationFrame(() => {
+            modalElement.style.zIndex = '1055';
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.style.zIndex = '1050';
+        });
+    }
+
+    formatDateDe(value) {
+        if (!this.isValidValue(value)) return '—';
+        const raw = String(value).slice(0, 10);
+        const d = new Date(`${raw}T00:00:00`);
+        if (Number.isNaN(d.getTime())) return this.escapeHtml(raw);
+        return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    computeDguvNextIso(isoDate, months) {
+        if (!isoDate || !months) return null;
+        const parts = String(isoDate).slice(0, 10).split('-').map(Number);
+        if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+        const [y, m, d] = parts;
+        const totalMonths = (y * 12 + (m - 1)) + Number(months);
+        const year = Math.floor(totalMonths / 12);
+        const month = (totalMonths % 12) + 1;
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const day = Math.min(d, daysInMonth);
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
     
     showError(message) {
@@ -1584,376 +1673,159 @@ class StockManager {
     }
     
     openBulkEditModal() {
-        // Hole aktuelle Auswahl und speichere in lokaler Variable (Snapshot)
         const selectedIds = [...this.getSelectedProducts()];
         if (selectedIds.length === 0) {
             inventoryNotify('Bitte wählen Sie mindestens ein Produkt aus.', 'warning');
             return;
         }
-        
+
         const modalEl = document.getElementById('bulkEditModal');
         if (!modalEl) {
             console.error('Bulk-Edit-Modal nicht gefunden');
             return;
         }
-        
-        const modal = new bootstrap.Modal(modalEl);
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         const productCountEl = document.getElementById('bulkEditProductCount');
-        const attributeSelect = document.getElementById('bulkEditAttribute');
-        const fieldsContainer = document.getElementById('bulkEditFields');
         const form = document.getElementById('bulkEditForm');
         let submitBtn = document.getElementById('bulkEditSubmitBtn');
-        
-        if (productCountEl) {
-            productCountEl.textContent = selectedIds.length;
-        }
-        
-        // Reset Formular
-        if (form) {
-            form.reset();
-        }
-        if (fieldsContainer) {
-            fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
-        }
-        if (submitBtn) {
-            submitBtn.disabled = true;
-        }
-        
-        // Entferne alle alten Event-Handler durch Klonen des Elements
-        // Dies stellt sicher, dass keine alten Handler mehr aktiv sind
-        if (attributeSelect) {
-            const newAttributeSelect = attributeSelect.cloneNode(true);
-            attributeSelect.parentNode.replaceChild(newAttributeSelect, attributeSelect);
-            // Aktualisiere Referenz
-            const attributeSelectRef = newAttributeSelect;
-            
-            const handleAttributeChange = () => {
-                const attribute = attributeSelectRef.value;
-                if (!fieldsContainer) return;
-                
-                // Hole aktuelle submitBtn Referenz (kann nach Klonen geändert worden sein)
-                const currentSubmitBtn = document.getElementById('bulkEditSubmitBtn');
-                
-                fieldsContainer.innerHTML = '';
-                
-                // Aktiviere Button sofort, wenn ein Attribut ausgewählt ist
-                // (auch leere Werte sind gültig, um Werte zu entfernen)
-                if (currentSubmitBtn) {
-                    currentSubmitBtn.disabled = !attribute;
-                }
-                
-                if (!attribute) {
-                    fieldsContainer.innerHTML = '<p class="text-muted">Bitte wählen Sie ein Attribut aus.</p>';
-                    if (currentSubmitBtn) {
-                        currentSubmitBtn.disabled = true;
-                    }
-                    return;
-                }
-                
-                let fieldHtml = '';
-                
-                switch (attribute) {
-                    case 'location':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditLocation" class="form-label">Neuer Lagerort</label>
-                                <input type="text" class="form-control" id="bulkEditLocation" 
-                                       placeholder="z.B. Regal A, Kiste 3">
-                                <small class="form-text text-muted">Leer lassen um Lagerort zu entfernen.</small>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'length':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditLength" class="form-label">Neue Länge (in Metern)</label>
-                                <input type="number" class="form-control" id="bulkEditLength" 
-                                       step="0.01" min="0" placeholder="z.B. 5.5">
-                                <small class="form-text text-muted">Leer lassen um Länge zu entfernen.</small>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'condition':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditCondition" class="form-label">Neuer Zustand</label>
-                                <select class="form-select" id="bulkEditCondition">
-                                    <option value="">Kein Zustand (entfernen)</option>
-                                    <option value="Neu">Neu</option>
-                                    <option value="Gut">Gut</option>
-                                    <option value="Gebraucht">Gebraucht</option>
-                                    <option value="Beschädigt">Beschädigt</option>
-                                </select>
-                            </div>
-                        `;
-                        break;
 
-                    case 'status':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditStatus" class="form-label">Neuer Status</label>
-                                <select class="form-select" id="bulkEditStatus">
-                                    <option value="available">Einsatzbereit / Verfügbar</option>
-                                    <option value="missing">Fehlend</option>
-                                    <option value="defective">Defekt</option>
-                                    <option value="in_repair">In Reparatur</option>
-                                    <option value="retired">Ausgemustert</option>
-                                </select>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'category':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditCategory" class="form-label">Neue Kategorie</label>
-                                <select class="form-select" id="bulkEditCategory">
-                                    <option value="">Keine Kategorie (entfernen)</option>
-                                    ${this.categories ? Array.from(this.categories).sort().map(cat => 
-                                        `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`
-                                    ).join('') : ''}
-                                </select>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'folder_id':
-                        fieldHtml = `
-                            <div class="mb-3">
-                                <label for="bulkEditFolder" class="form-label">Neuer Ordner</label>
-                                <select class="form-select" id="bulkEditFolder">
-                                    <option value="">Kein Ordner (entfernen)</option>
-                                    ${this.folders ? Array.from(this.folders).sort((a, b) => a.name.localeCompare(b.name)).map(folder => 
-                                        `<option value="${folder.id}">${this.escapeHtml(folder.name)}</option>`
-                                    ).join('') : ''}
-                                </select>
-                            </div>
-                        `;
-                        break;
-                    
-                    case 'remove_image':
-                        fieldHtml = `
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i> 
-                                Die Produktbilder aller ausgewählten Produkte werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden.
-                            </div>
-                        `;
-                        break;
-                }
-                
-                fieldsContainer.innerHTML = fieldHtml;
-                
-                // Füge Event-Handler für Eingabefelder hinzu, um Button zu aktivieren
-                // Warte kurz, damit das DOM aktualisiert ist
-                setTimeout(() => {
-                    // Hole aktuelle submitBtn Referenz (kann nach Klonen geändert worden sein)
-                    const currentSubmitBtn = document.getElementById('bulkEditSubmitBtn');
-                    if (!currentSubmitBtn) return;
-                    
-                    const updateSubmitButton = () => {
-                        const attribute = attributeSelectRef.value;
-                        if (!attribute) {
-                            currentSubmitBtn.disabled = true;
-                            return;
-                        }
-                        
-                        // Für alle Attribute: Button ist aktiviert, sobald ein Attribut ausgewählt ist
-                        // (auch leere Werte sind gültig, um Werte zu entfernen)
-                        // Ausnahme: Dropdowns müssen eine Auswahl haben (auch wenn es "entfernen" ist)
-                        let isEnabled = true;
-                        
-                        switch (attribute) {
-                            case 'location':
-                                // Textfeld: Button ist immer aktiviert (leer = entfernen ist gültig)
-                                isEnabled = true;
-                                break;
-                            
-                            case 'length':
-                                // Textfeld: Button ist immer aktiviert (leer = entfernen ist gültig)
-                                isEnabled = true;
-                                break;
-                            
-                            case 'condition':
-                                const conditionSelect = document.getElementById('bulkEditCondition');
-                                // Dropdown: muss existieren (wird automatisch aktiviert wenn Feld erstellt wird)
-                                isEnabled = conditionSelect !== null;
-                                break;
-                            
-                            case 'category':
-                                const categorySelect = document.getElementById('bulkEditCategory');
-                                // Dropdown: muss existieren
-                                isEnabled = categorySelect !== null;
-                                break;
-                            
-                            case 'folder_id':
-                                const folderSelect = document.getElementById('bulkEditFolder');
-                                // Dropdown: muss existieren
-                                isEnabled = folderSelect !== null;
-                                break;
-                            
-                            case 'remove_image':
-                                // Für remove_image ist immer aktiviert (die Aktion selbst)
-                                isEnabled = true;
-                                break;
-                        }
-                        
-                        currentSubmitBtn.disabled = !isEnabled;
-                    };
-                    
-                    // Event-Handler für verschiedene Feldtypen hinzufügen
-                    const locationInput = document.getElementById('bulkEditLocation');
-                    if (locationInput) {
-                        locationInput.addEventListener('input', updateSubmitButton);
-                        locationInput.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const lengthInput = document.getElementById('bulkEditLength');
-                    if (lengthInput) {
-                        lengthInput.addEventListener('input', updateSubmitButton);
-                        lengthInput.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const conditionSelect = document.getElementById('bulkEditCondition');
-                    if (conditionSelect) {
-                        conditionSelect.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const categorySelect = document.getElementById('bulkEditCategory');
-                    if (categorySelect) {
-                        categorySelect.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    const folderSelect = document.getElementById('bulkEditFolder');
-                    if (folderSelect) {
-                        folderSelect.addEventListener('change', updateSubmitButton);
-                    }
-                    
-                    // Initiale Prüfung
-                    updateSubmitButton();
-                }, 10);
-            };
-            
-            attributeSelectRef.addEventListener('change', handleAttributeChange);
+        if (productCountEl) productCountEl.textContent = selectedIds.length;
+        if (form) form.reset();
+
+        const categorySelect = document.getElementById('bulkEditCategory');
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">— nicht ändern —</option>' +
+                (this.categories ? Array.from(this.categories).sort().map((cat) =>
+                    `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`
+                ).join('') : '');
         }
-        
-        // Submit-Handler - verwende lokale selectedIds (Snapshot)
-        // WICHTIG: submitBtn wird NICHT geklont, damit die Referenz konsistent bleibt
+        const folderSelect = document.getElementById('bulkEditFolder');
+        if (folderSelect) {
+            folderSelect.innerHTML = '<option value="">— nicht ändern —</option>' +
+                (this.folders ? Array.from(this.folders).sort((a, b) => a.name.localeCompare(b.name)).map((folder) =>
+                    `<option value="${folder.id}">${this.escapeHtml(folder.name)}</option>`
+                ).join('') : '');
+        }
+
+        const lastEl = document.getElementById('bulkEditDguvLast');
+        const intervalEl = document.getElementById('bulkEditDguvInterval');
+        const nextEl = document.getElementById('bulkEditDguvNextDisplay');
+        const refreshDguv = () => {
+            if (!nextEl) return;
+            if (lastEl?.value) {
+                const nextIso = this.computeDguvNextIso(lastEl.value, intervalEl?.value || 12);
+                nextEl.value = nextIso ? this.formatDateDe(nextIso) : '';
+            } else if (intervalEl?.value) {
+                nextEl.value = this.formatDateDe(new Date().toISOString().slice(0, 10));
+            } else {
+                nextEl.value = '';
+            }
+        };
+        lastEl?.addEventListener('change', refreshDguv);
+        lastEl?.addEventListener('input', refreshDguv);
+        intervalEl?.addEventListener('change', refreshDguv);
+        intervalEl?.addEventListener('input', refreshDguv);
+        refreshDguv();
+
         if (submitBtn) {
-            // Entferne alte Event-Handler (falls vorhanden)
             const newSubmitBtn = submitBtn.cloneNode(true);
             submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
-            // Aktualisiere Referenz für alle nachfolgenden Verwendungen
             submitBtn = newSubmitBtn;
-            
-            const handleSubmit = async () => {
-                const attribute = attributeSelect ? (document.getElementById('bulkEditAttribute')?.value || '') : '';
-                if (!attribute) {
-                    inventoryNotify('Bitte wählen Sie ein Attribut aus.', 'warning');
+            submitBtn.disabled = false;
+
+            submitBtn.addEventListener('click', async () => {
+                const updateData = { product_ids: selectedIds };
+                let hasUpdate = false;
+
+                const location = document.getElementById('bulkEditLocation')?.value.trim();
+                if (location) {
+                    updateData.location = location;
+                    hasUpdate = true;
+                }
+                const lengthRaw = document.getElementById('bulkEditLength')?.value;
+                if (lengthRaw !== undefined && lengthRaw !== '') {
+                    const length = parseFloat(lengthRaw);
+                    if (Number.isNaN(length) || length < 0) {
+                        inventoryNotify('Bitte eine gültige Länge eingeben.', 'warning');
+                        return;
+                    }
+                    updateData.length = length;
+                    hasUpdate = true;
+                }
+                const condition = document.getElementById('bulkEditCondition')?.value;
+                if (condition) {
+                    updateData.condition = condition;
+                    hasUpdate = true;
+                }
+                const status = document.getElementById('bulkEditStatus')?.value;
+                if (status) {
+                    updateData.status = status;
+                    hasUpdate = true;
+                }
+                const category = document.getElementById('bulkEditCategory')?.value;
+                if (category) {
+                    updateData.category = category;
+                    hasUpdate = true;
+                }
+                const folderId = document.getElementById('bulkEditFolder')?.value;
+                if (folderId) {
+                    updateData.folder_id = folderId;
+                    hasUpdate = true;
+                }
+                const dguvLast = document.getElementById('bulkEditDguvLast')?.value;
+                const dguvIntervalRaw = document.getElementById('bulkEditDguvInterval')?.value;
+                if (dguvLast || dguvIntervalRaw) {
+                    if (dguvIntervalRaw) {
+                        const interval = parseInt(dguvIntervalRaw, 10);
+                        if (!Number.isFinite(interval) || interval < 1) {
+                            inventoryNotify('Bitte ein gültiges DGUV-Intervall (>= 1) angeben.', 'warning');
+                            return;
+                        }
+                        updateData.dguv_interval_months = interval;
+                    }
+                    if (dguvLast) {
+                        updateData.dguv_last_check = dguvLast;
+                    }
+                    hasUpdate = true;
+                }
+                if (document.getElementById('bulkEditRemoveImage')?.checked) {
+                    if (!(await inventoryConfirm(`Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`, {
+                        title: 'Bilder entfernen',
+                        confirmLabel: 'Entfernen',
+                        danger: true,
+                    }))) {
+                        return;
+                    }
+                    updateData.remove_image = true;
+                    hasUpdate = true;
+                }
+
+                if (!hasUpdate) {
+                    inventoryNotify('Bitte mindestens ein Feld ausfüllen.', 'warning');
                     return;
                 }
-                
-                // Verwende die lokale selectedIds-Variable (Snapshot beim Öffnen)
-                const updateData = {
-                    product_ids: selectedIds,
-                };
-                
-                let value = null;
-                
-                switch (attribute) {
-                    case 'location':
-                        const locationInput = document.getElementById('bulkEditLocation');
-                        value = locationInput ? locationInput.value.trim() || null : null;
-                        updateData.location = value;
-                        break;
-                    
-                    case 'length':
-                        const lengthInput = document.getElementById('bulkEditLength');
-                        if (lengthInput && lengthInput.value) {
-                            value = parseFloat(lengthInput.value);
-                            if (isNaN(value) || value < 0) {
-                                inventoryNotify('Bitte geben Sie eine gültige Länge ein (Zahl >= 0).', 'warning');
-                                return;
-                            }
-                            updateData.length = value;
-                        } else {
-                            updateData.length = null;
-                        }
-                        break;
-                    
-                    case 'condition':
-                        const conditionSelect = document.getElementById('bulkEditCondition');
-                        value = conditionSelect ? conditionSelect.value || null : null;
-                        updateData.condition = value;
-                        break;
 
-                    case 'status':
-                        const statusSelect = document.getElementById('bulkEditStatus');
-                        value = statusSelect ? statusSelect.value : '';
-                        if (!value) {
-                            inventoryNotify('Bitte einen Status wählen.', 'warning');
-                            return;
-                        }
-                        updateData.status = value;
-                        break;
-                    
-                    case 'category':
-                        const categorySelect = document.getElementById('bulkEditCategory');
-                        value = categorySelect ? categorySelect.value || null : null;
-                        updateData.category = value;
-                        break;
-                    
-                    case 'folder_id':
-                        const folderSelect = document.getElementById('bulkEditFolder');
-                        value = folderSelect ? folderSelect.value || null : null;
-                        updateData.folder_id = value;
-                        break;
-                    
-                    case 'remove_image':
-                        if (!(await inventoryConfirm(`Möchten Sie wirklich die Produktbilder von ${selectedIds.length} Produkt(en) entfernen?`, {
-                            title: 'Bilder entfernen',
-                            confirmLabel: 'Entfernen',
-                            danger: true,
-                        }))) {
-                            return;
-                        }
-                        updateData.remove_image = true;
-                        break;
-                }
-                
-                // Loading-State
                 submitBtn.disabled = true;
                 const originalText = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Aktualisiere...';
-                
                 try {
                     const response = await fetchInventoryApi('/products/bulk-update', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updateData),
                     });
-                    
                     const result = await response.json();
-                    
-                    if (!response.ok) {
-                        throw new Error(result.error || 'Fehler beim Aktualisieren');
-                    }
-                    
-                    // Erfolg
+                    if (!response.ok) throw new Error(result.error || 'Fehler beim Aktualisieren');
                     modal.hide();
-                    inventoryNotify(result.message || `${result.updated_count || selectedIds.length} Produkt(e) erfolgreich aktualisiert.`, 'success');
-                    
-                    // Produktliste neu laden
+                    inventoryNotify(result.message || `${result.updated_count || selectedIds.length} Produkt(e) aktualisiert.`, 'success');
                     await this.loadProducts();
                     this.applyFilters();
-                    
-                    // Auswahl zurücksetzen - WICHTIG: Leere die Auswahl nach erfolgreicher Bearbeitung
                     this.selectedProducts.clear();
                     this.updateSelectionUI();
-                    
                 } catch (error) {
                     console.error('Bulk-Update Fehler:', error);
                     inventoryNotify('Fehler beim Aktualisieren: ' + (error.message || 'Unbekannter Fehler'), 'danger');
@@ -1961,14 +1833,12 @@ class StockManager {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalText;
                 }
-            };
-            
-            submitBtn.addEventListener('click', handleSubmit);
+            });
         }
-        
+
         modal.show();
     }
-    
+
     // View Toggle Funktionen
     setupViewToggle() {
         const bindToggle = (listBtn, gridBtn) => {
@@ -2346,11 +2216,69 @@ class BorrowsManager {
         this.borrows = [];
         this.filteredBorrows = [];
     }
+
+    getFilterEls(key) {
+        return Array.from(document.querySelectorAll(`[data-inv-filter="${key}"]`));
+    }
+
+    getFilterValue(key) {
+        const els = this.getFilterEls(key);
+        if (!els.length) return '';
+        if (els[0].type === 'checkbox') {
+            return els.some((el) => el.checked);
+        }
+        return els[0]?.value || '';
+    }
+
+    setFilterValue(key, value) {
+        this.getFilterEls(key).forEach((el) => {
+            if (el.type === 'checkbox') {
+                el.checked = !!value;
+            } else {
+                el.value = value;
+                if (window.InventoryPillSelect) {
+                    window.InventoryPillSelect.sync(el);
+                }
+            }
+        });
+    }
     
     async init() {
+        this.setupFilterListeners();
+        if (window.InventoryPillSelect) {
+            window.InventoryPillSelect.enhanceAll(document);
+        }
         await this.loadBorrows();
         this.renderBorrows();
         setInterval(() => this.loadBorrows(), 30000);
+    }
+
+    setupFilterListeners() {
+        const textKeys = ['filterBorrower', 'filterEvent', 'filterProduct', 'filterDateFrom', 'filterDateTo'];
+        textKeys.forEach((key) => {
+            this.getFilterEls(key).forEach((el) => {
+                el.addEventListener('input', () => {
+                    this.getFilterEls(key).forEach((other) => {
+                        if (other !== el) other.value = el.value;
+                    });
+                    this.applyFilters();
+                });
+            });
+        });
+
+        this.getFilterEls('filterStatus').forEach((el) => {
+            el.addEventListener('change', () => {
+                this.setFilterValue('filterStatus', el.value || 'all');
+                this.applyFilters();
+            });
+        });
+
+        this.getFilterEls('filterMine').forEach((el) => {
+            el.addEventListener('change', () => {
+                this.setFilterValue('filterMine', el.checked);
+                this.applyFilters();
+            });
+        });
     }
     
     async loadBorrows() {
@@ -2368,13 +2296,13 @@ class BorrowsManager {
     }
     
     applyFilters() {
-        const borrowerFilter = document.getElementById('filterBorrower')?.value.toLowerCase() || '';
-        const eventFilter = document.getElementById('filterEvent')?.value.toLowerCase() || '';
-        const productFilter = document.getElementById('filterProduct')?.value.toLowerCase() || '';
-        const statusFilter = document.getElementById('filterStatus')?.value || 'all';
-        const mineOnly = document.getElementById('filterMine')?.checked;
-        const dateFrom = document.getElementById('filterDateFrom')?.value || '';
-        const dateTo = document.getElementById('filterDateTo')?.value || '';
+        const borrowerFilter = (this.getFilterValue('filterBorrower') || '').toLowerCase();
+        const eventFilter = (this.getFilterValue('filterEvent') || '').toLowerCase();
+        const productFilter = (this.getFilterValue('filterProduct') || '').toLowerCase();
+        const statusFilter = this.getFilterValue('filterStatus') || 'all';
+        const mineOnly = !!this.getFilterValue('filterMine');
+        const dateFrom = this.getFilterValue('filterDateFrom') || '';
+        const dateTo = this.getFilterValue('filterDateTo') || '';
         const uid = window.currentUserId;
         
         this.filteredBorrows = this.borrows.filter(b => {
@@ -2422,8 +2350,11 @@ class BorrowsManager {
         if (this.filteredBorrows.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <p class="text-muted">Keine Ausleihen gefunden</p>
+                    <td colspan="8">
+                        <div class="mod-empty-state py-5 text-center">
+                            <i class="bi bi-clock-history d-block mb-2 fs-3 text-muted" aria-hidden="true"></i>
+                            <p class="text-muted mb-0">Keine Ausleihen gefunden</p>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -2476,7 +2407,7 @@ class BorrowsManager {
                             <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="event.stopPropagation()">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
+                            <ul class="dropdown-menu dropdown-menu-end inventory-actions-menu">
                                 ${menuReturn}
                                 <li><a class="dropdown-item" href="${borrowPdf}"><i class="bi bi-file-pdf me-2"></i>Ausleihschein</a></li>
                             </ul>
@@ -2909,8 +2840,6 @@ class BorrowScannerManager {
         const stopBtn = document.getElementById('stopScannerBtn');
         const addBtn = document.getElementById('addToCartBtn');
         const manualInput = document.getElementById('manualQrInput');
-        const undoBtn = document.getElementById('undoLastCartActionBtn');
-        const retryBtn = document.getElementById('retryLastCartActionBtn');
         
         if (startBtn) {
             startBtn.addEventListener('click', () => this.startScanner());
@@ -2928,21 +2857,33 @@ class BorrowScannerManager {
                 }
             });
         }
-
-        if (undoBtn) {
-            undoBtn.addEventListener('click', () => this.undoLastAction());
-        }
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => this.retryLastAction());
-        }
         
         // Remove from cart buttons
         document.querySelectorAll('.remove-from-cart').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const productId = e.target.closest('.remove-from-cart').dataset.productId;
-                this.removeFromCart(productId);
+                const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
+                if (productId) this.removeFromCart(productId);
             });
         });
+    }
+
+    buildCartItemElement(product) {
+        const newItem = document.createElement('div');
+        newItem.className = 'inventory-cart-item cart-item';
+        newItem.setAttribute('data-product-id', product.id);
+        const categoryHtml = product.category
+            ? `<p class="inventory-cart-item-meta">${this.escapeHtml(product.category)}</p>`
+            : '';
+        newItem.innerHTML = `
+            <div class="inventory-cart-item-body">
+                <p class="inventory-cart-item-title">${this.escapeHtml(product.name)}</p>
+                ${categoryHtml}
+            </div>
+            <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="${product.id}">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        return newItem;
     }
     
     async startScanner() {
@@ -2980,14 +2921,12 @@ class BorrowScannerManager {
             // Zeige Scanner-Container SOFORT, bevor Video geladen wird
             const scannerContainer = document.getElementById('scannerContainer');
             if (scannerContainer) {
-                scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
-                // Force reflow
+                scannerContainer.style.display = 'block';
                 scannerContainer.offsetHeight;
             }
             
             if (video) {
-                // Stelle sicher, dass Video-Element sichtbar ist - mit !important
-                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important;';
                 
                 video.srcObject = this.stream;
                 video.setAttribute('playsinline', 'true');
@@ -3009,10 +2948,10 @@ class BorrowScannerManager {
                             .then(() => {
                                 console.log('Video gestartet (BorrowScanner), Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
                                 // Stelle sicher, dass Video sichtbar ist
-                                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
+                                video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important;';
                                 // Stelle sicher, dass Container auch sichtbar ist
                                 if (scannerContainer) {
-                                    scannerContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; position: relative !important;';
+                                    scannerContainer.style.display = 'block';
                                 }
                                 // Force reflow um sicherzustellen, dass Browser rendert
                                 video.offsetHeight;
@@ -3425,29 +3364,7 @@ class BorrowScannerManager {
                     return;
                 }
                 
-                // Erstelle neues Cart-Item
-                const newItem = document.createElement('div');
-                newItem.className = 'card mb-2 cart-item';
-                newItem.setAttribute('data-product-id', product.id);
-                
-                const categoryHtml = product.category 
-                    ? `<br><small class="text-muted">${this.escapeHtml(product.category)}</small>` 
-                    : '';
-                
-                newItem.innerHTML = `
-                    <div class="card-body p-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${this.escapeHtml(product.name)}</strong>
-                                ${categoryHtml}
-                            </div>
-                            <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="${product.id}">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
+                const newItem = this.buildCartItemElement(product);
                 cartItems.appendChild(newItem);
                 console.log(`✓ Produkt ${product.id} zum DOM hinzugefügt`);
             });
@@ -3506,29 +3423,7 @@ class BorrowScannerManager {
             console.log('✓ Leere Nachricht entfernt');
         }
         
-        // Erstelle neues Cart-Item
-        const newItem = document.createElement('div');
-        newItem.className = 'card mb-2 cart-item';
-        newItem.setAttribute('data-product-id', result.product.id);
-        
-        const categoryHtml = result.product.category 
-            ? `<br><small class="text-muted">${this.escapeHtml(result.product.category)}</small>` 
-            : '';
-        
-        newItem.innerHTML = `
-            <div class="card-body p-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>${this.escapeHtml(result.product.name)}</strong>
-                        ${categoryHtml}
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger remove-from-cart" data-product-id="${result.product.id}">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        
+        const newItem = this.buildCartItemElement(result.product);
         cartItems.appendChild(newItem);
         console.log('✓ Produkt zum DOM hinzugefügt');
         
@@ -3595,7 +3490,8 @@ class BorrowScannerManager {
             
             // WICHTIG: Erstelle das Checkout-Formular manuell statt die gesamte Seite zu laden
             // Das verhindert, dass der Warenkorb überschrieben wird
-            const cartCardBody = cartItemsContainer?.closest('.card-body');
+            const cartCardBody = cartItemsContainer?.closest('.inventory-panel-body')
+                || cartItemsContainer?.closest('.card-body');
             if (!cartCardBody) {
                 console.warn('cartCardBody nicht gefunden');
                 return;
@@ -4107,7 +4003,7 @@ class BorrowScannerManager {
                     // Zeige "Keine Produkte" Nachricht
                     const cartItems = document.getElementById('cartItems');
                     if (cartItems && cartItems.querySelectorAll('.cart-item').length === 0) {
-                        cartItems.innerHTML = '<p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>';
+                        cartItems.innerHTML = '<p class="text-muted text-center inventory-empty-hint py-3 mb-0">Keine Produkte hinzugefügt</p>';
                     }
                 }
                 if (removedSnapshot) {

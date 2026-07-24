@@ -2,51 +2,61 @@
 
 {% block title %}{{ _('wiki.history.page_title', title=page.title) }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wiki.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h1><i class="bi bi-clock-history"></i> {{ _('wiki.history.heading') }}</h1>
-        <p class="text-muted">
-            <a href="{{ url_for('wiki.view', slug=page.slug) }}">{{ page.title }}</a>
-        </p>
-    </div>
-    <div class="col-auto">
-        <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary">
+<div class="wiki-history-shell">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+        <div class="markdown-editor-brand wiki-viewer-brand" style="max-width: none;">
+            {% if portal_logo_filename %}
+            <img class="markdown-editor-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% elif app_logo %}
+            <img class="markdown-editor-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+            {% else %}
+            <span class="markdown-editor-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+            {% endif %}
+            <div class="markdown-editor-brand-text">
+                <h1 class="h4 mb-0 markdown-editor-filename">{{ _('wiki.history.heading') }}</h1>
+                <small class="text-muted">
+                    <a href="{{ url_for('wiki.view', slug=page.slug) }}">{{ page.title }}</a>
+                </small>
+            </div>
+        </div>
+        <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-outline-secondary files-pill-btn">
             <i class="bi bi-arrow-left"></i> {{ _('wiki.history.buttons.back') }}
         </a>
     </div>
-</div>
 
-{% if versions %}
-<div class="list-group">
-    {% for version in versions %}
-    <div class="list-group-item">
-        <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">
-                {{ _('wiki.index.card.version', number=version.version_number) }}
-                {% if version.version_number == page.version_number %}
-                <span class="badge bg-primary">{{ _('wiki.history.badge_current') }}</span>
-                {% endif %}
-            </h5>
-            <small>{{ version.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
-        </div>
-        <p class="mb-1">
-            <i class="bi bi-person"></i> {{ version.creator.full_name }}
-        </p>
-        <div class="mt-2">
-            <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-sm btn-outline-primary">
+    {% if versions %}
+    <div class="list-group wiki-history-list">
+        {% for version in versions %}
+        <div class="list-group-item wiki-history-item">
+            <div class="d-flex w-100 justify-content-between gap-2 flex-wrap">
+                <h5 class="mb-1">
+                    {{ _('wiki.index.card.version', number=version.version_number) }}
+                    {% if version.version_number == page.version_number %}
+                    <span class="wiki-viewer-pill ms-1">{{ _('wiki.history.badge_current') }}</span>
+                    {% endif %}
+                </h5>
+                <small class="text-muted">{{ version.created_at|localdatetime('%d.%m.%Y %H:%M') }}</small>
+            </div>
+            <p class="mb-2">
+                <i class="bi bi-person"></i> {{ version.creator.full_name }}
+            </p>
+            <a href="{{ url_for('wiki.view', slug=page.slug) }}" class="btn btn-sm btn-outline-primary files-pill-btn">
                 <i class="bi bi-eye"></i> {{ _('wiki.history.buttons.view_current') }}
             </a>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
+    {% else %}
+    <div class="alert alert-info rounded-pill px-3">
+        <i class="bi bi-info-circle"></i>
+        {{ _('wiki.history.empty') }}
+    </div>
+    {% endif %}
 </div>
-{% else %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    {{ _('wiki.history.empty') }}
-</div>
-{% endif %}
 {% endblock %}
-
-

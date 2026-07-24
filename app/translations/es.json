@@ -481,5 +481,19 @@
         "draft_error": "No se pudo guardar el borrador."
       }
     }
+  },
+  "files": {
+    "view": {
+      "history": "Historial",
+      "history_loading": "Cargando versiones...",
+      "history_empty": "No hay versiones anteriores.",
+      "history_current": "actual",
+      "more": "Más",
+      "version_label": "Version {number}"
+    },
+    "index": {
+      "search_placeholder": "Buscar en archivos",
+      "search_empty": "Sin resultados en esta carpeta."
+    }
   }
 }

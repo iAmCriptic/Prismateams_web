@@ -11,7 +11,7 @@ from app.models.booking import BookingRequest
 from app.models.contact import Contact
 from app.models.user import User
 from app import db
-from app.utils.common import is_module_enabled, check_for_updates
+from app.utils.common import is_module_enabled, check_for_updates, portal_now_naive
 from app.utils.i18n import translate
 from app.utils.multi_calendars import (
     events_query_for_calendars,
@@ -68,7 +68,7 @@ def _flatten_sidebar_calendars(user):
 
 def _load_termine_for_widget(user, calendar_ids):
     try:
-        base_filters = [CalendarEvent.start_time >= datetime.utcnow()]
+        base_filters = [CalendarEvent.start_time >= portal_now_naive()]
         if calendar_ids:
             if is_calendar_multi_enabled():
                 q = events_query_for_calendars(user, calendar_ids, base_filters=base_filters)

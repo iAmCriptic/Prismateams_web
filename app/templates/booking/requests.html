@@ -150,7 +150,7 @@
                         {% elif req.status == 'accepted' %}{{ _('booking.requests.status.accepted') }}
                         {% elif req.status == 'rejected' %}{{ _('booking.requests.status.rejected') }}
                         {% else %}{{ _('booking.requests.status.archived') }}{% endif %}
-                        · {{ req.created_at.strftime('%d.%m.%Y') }}
+                        · {{ req.created_at|localdatetime('%d.%m.%Y') }}
                     </span>
                 </li>
                 {% endfor %}
@@ -185,6 +185,9 @@
                                 <a class="mod-list-name text-decoration-none" href="{{ detail_url }}">
                                     <i class="bi bi-calendar-event me-1"></i>{{ req.event_name }}
                                 </a>
+                                {% if (unread_by_request or {}).get(req.id) %}
+                                <span class="booking-msg-badge ms-1">Neue Nachricht</span>
+                                {% endif %}
                                 <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ req.email }}</div>
                             </td>
                             <td class="d-none d-md-table-cell text-truncate" style="max-width: 220px;">
@@ -208,7 +211,7 @@
                                 <span class="badge bg-secondary">{{ _('booking.requests.status.archived') }}</span>
                                 {% endif %}
                             </td>
-                            <td class="d-none d-lg-table-cell text-muted">{{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td class="d-none d-lg-table-cell text-muted">{{ req.created_at|localdatetime('%d.%m.%Y %H:%M') }}</td>
                             <td class="text-end">
                                 <div class="mod-list-actions">
                                     <div class="mod-list-hover-actions">
@@ -220,10 +223,10 @@
                                         </a>
                                     </div>
                                     <div class="dropdown d-inline-block">
-                                        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('booking.requests.table.actions') }}">
+                                        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('booking.requests.table.actions') }}">
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
+                                        <ul class="dropdown-menu dropdown-menu-end booking-actions-menu">
                                             <li>
                                                 <a class="dropdown-item" href="{{ detail_url }}">
                                                     <i class="bi bi-eye"></i> {{ _('booking.requests.table.details') }}

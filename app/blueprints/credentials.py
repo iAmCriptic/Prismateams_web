@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from app import db
 from app.models.credential import Credential, CredentialFolder, CredentialFavorite
 from app.utils.access_control import check_module_access
@@ -123,6 +124,7 @@ def index():
     folders = CredentialFolder.query.order_by(CredentialFolder.position.asc(), CredentialFolder.name.asc()).all()
     view = (request.args.get('view') or '').strip().lower()
     active_favorites = view == 'favorites'
+    search_query = request.args.get('q', '').strip()
     active_folder_id = None if active_favorites else parse_folder_id(request.args.get('folder_id'))
     active_folder = CredentialFolder.query.get(active_folder_id) if active_folder_id else None
     favorite_ids = get_user_favorite_ids(current_user.id)
@@ -131,15 +133,29 @@ def index():
     credentials_query = Credential.query.order_by(Credential.website_name.asc())
     if active_favorites:
         if favorite_ids:
-            credentials = credentials_query.filter(Credential.id.in_(favorite_ids)).all()
+            credentials_query = credentials_query.filter(Credential.id.in_(favorite_ids))
         else:
-            credentials = []
             # Kein Favorit mehr — zurück zum Root
             return redirect(url_for('credentials.index'))
-    elif active_folder_id is None:
-        credentials = credentials_query.filter(Credential.folder_id.is_(None)).all()
-    else:
-        credentials = credentials_query.filter(Credential.folder_id == active_folder_id).all()
+    elif not search_query:
+        # Ohne Suche: nur aktueller Ordner / Root. Mit Suche: alle Ordner durchsuchen.
+        if active_folder_id is None:
+            credentials_query = credentials_query.filter(Credential.folder_id.is_(None))
+        else:
+            credentials_query = credentials_query.filter(Credential.folder_id == active_folder_id)
+
+    if search_query:
+        like = f'%{search_query}%'
+        credentials_query = credentials_query.filter(
+            or_(
+                Credential.website_name.ilike(like),
+                Credential.username.ilike(like),
+                Credential.website_url.ilike(like),
+                Credential.notes.ilike(like),
+            )
+        )
+
+    credentials = credentials_query.all()
 
     return render_template(
         'credentials/index.html',
@@ -150,6 +166,7 @@ def index():
         active_favorites=active_favorites,
         favorite_ids=favorite_ids,
         show_favorites_nav=show_favorites_nav,
+        search_query=search_query,
     )
 
 

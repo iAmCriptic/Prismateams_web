@@ -179,7 +179,7 @@
                 <h4 title="{{ manual.title }}">{{ manual.title }}</h4>
                 <small class="text-muted">
                     {{ (manual.file_size / 1024)|round(2) }} KB •
-                    {{ manual.uploaded_at.strftime('%d.%m.%Y %H:%M') }}
+                    {{ manual.uploaded_at|localdatetime('%d.%m.%Y %H:%M') }}
                 </small>
             </div>
             <div class="file-viewer-actions">

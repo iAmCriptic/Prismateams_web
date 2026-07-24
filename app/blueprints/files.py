@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app.utils.i18n import get_current_language, translate
 from app import db
 from app.models.file import File, FileVersion, Folder, ResourceACL
+from app.utils import file_edit_lock as file_edit_lock_util
 from app.models.user import User
 from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
@@ -1797,12 +1798,39 @@ def edit_file(file_id):
     # Check if file is editable (text file)
     editable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     file_ext = os.path.splitext(file.original_name)[1].lower()
+    is_markdown = _is_markdown_extension(file_ext)
     
     if file_ext not in editable_extensions:
         flash('Dieser Dateityp kann nicht online bearbeitet werden.', 'warning')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     if request.method == 'POST':
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.headers.get('Accept') or '')
+        )
+        # Exclusive edit lock: only the lock holder may save.
+        if not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
+            blocker = file_edit_lock_util.get_active_lock(file.id)
+            locker_name = None
+            if blocker:
+                locker = blocker.locker or User.query.get(blocker.locked_by)
+                locker_name = (locker.full_name if locker else None) or 'einem anderen Nutzer'
+            msg = (
+                f'Die Datei wird gerade von {locker_name} bearbeitet und kann nicht gespeichert werden.'
+                if locker_name
+                else 'Sie halten keinen Bearbeitungs-Lock für diese Datei.'
+            )
+            if wants_json:
+                return jsonify({
+                    'success': False,
+                    'error': msg,
+                    'locked': True,
+                    'lock': file_edit_lock_util.serialize_lock(blocker, include_session=False),
+                }), 409
+            flash(msg, 'warning')
+            return redirect(url_for('files.edit_file', file_id=file.id))
+
         content = request.form.get('content', '')
         
         # Save current version to history
@@ -1845,6 +1873,9 @@ def edit_file(file_id):
         file.updated_at = datetime.utcnow()
         
         db.session.commit()
+
+        if wants_json:
+            return jsonify({'success': True, 'message': 'Datei wurde gespeichert.'})
         
         flash('Datei wurde gespeichert.', 'success')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
@@ -1862,12 +1893,24 @@ def edit_file(file_id):
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
+
+    lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
+    edit_locked = lock is None
+    if lock:
+        lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
+        db.session.commit()
+    else:
+        lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
     
     return render_template(
         'files/edit.html',
         file=file,
         content=content,
-        back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids)
+        back_url=_get_safe_file_back_url(file, guest_accessible_folder_ids),
+        is_markdown=is_markdown,
+        edit_locked=edit_locked,
+        lock_info=lock_info,
+        edit_session_key=(lock.session_key if lock else None),
     )
 
 
@@ -3688,6 +3731,79 @@ def api_onlyoffice_presence():
     )
     db.session.commit()
     return jsonify({'success': True, 'session_key': row.session_key})
+
+
+@files_bp.route('/api/edit-lock', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def api_file_edit_lock():
+    """Acquire / heartbeat / release exclusive text-editor locks."""
+    payload = request.get_json(silent=True) or {}
+    action = (payload.get('action') or 'heartbeat').strip().lower()
+    session_key = (payload.get('session_key') or '').strip()
+
+    if action == 'leave':
+        ok = False
+        if session_key:
+            ok = file_edit_lock_util.release(session_key, current_user.id)
+        elif payload.get('file_id') is not None:
+            try:
+                file_id = int(payload.get('file_id'))
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
+            ok = file_edit_lock_util.release_for_file(file_id, current_user.id)
+        if ok:
+            db.session.commit()
+        return jsonify({'success': True, 'released': ok})
+
+    if action == 'heartbeat':
+        if not session_key:
+            return jsonify({'success': False, 'error': 'session_key fehlt'}), 400
+        lock = file_edit_lock_util.heartbeat(session_key, current_user.id)
+        if not lock:
+            return jsonify({'success': False, 'error': 'Lock unbekannt oder abgelaufen'}), 404
+        db.session.commit()
+        return jsonify({'success': True, 'lock': file_edit_lock_util.serialize_lock(lock)})
+
+    if action == 'status':
+        try:
+            file_id = int(payload.get('file_id'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
+        lock = file_edit_lock_util.get_active_lock(file_id)
+        held_by_me = bool(lock and lock.locked_by == current_user.id)
+        return jsonify({
+            'success': True,
+            'locked': bool(lock),
+            'held_by_me': held_by_me,
+            'lock': file_edit_lock_util.serialize_lock(lock, include_session=held_by_me),
+        })
+
+    # Default: acquire / join
+    try:
+        file_id = int(payload.get('file_id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
+    file_obj = File.query.get_or_404(file_id)
+    if _is_guest_user():
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file_obj):
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+
+    lock, blocker = file_edit_lock_util.acquire(
+        file_id,
+        current_user.id,
+        session_key=session_key or None,
+    )
+    if not lock:
+        return jsonify({
+            'success': False,
+            'locked': True,
+            'error': 'Datei wird gerade von einem anderen Nutzer bearbeitet.',
+            'lock': file_edit_lock_util.serialize_lock(blocker, include_session=False),
+        }), 409
+    db.session.commit()
+    return jsonify({'success': True, 'lock': file_edit_lock_util.serialize_lock(lock)})
 
 
 @files_bp.route('/edit-onlyoffice/<int:file_id>')

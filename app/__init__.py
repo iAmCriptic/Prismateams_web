@@ -911,7 +911,7 @@ def create_app(config_name='default'):
                 # Dies ist notwendig, damit SQLAlchemy alle Tabellen erstellt
                 from app.models.user import User
                 from app.models.chat import Chat, ChatMessage, ChatMember, ChatPin
-                from app.models.file import File, FileVersion, Folder
+                from app.models.file import File, FileVersion, Folder, FileEditLock
                 from app.models.calendar import CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
                 from app.models.email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder
                 from app.models.credential import Credential, CredentialFolder, CredentialFavorite

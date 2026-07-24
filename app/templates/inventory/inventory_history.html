@@ -30,10 +30,10 @@
                             <br><small class="text-muted">{{ inventory.description }}</small>
                             {% endif %}
                         </td>
-                        <td>{{ inventory.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>{{ inventory.started_at|localdatetime('%d.%m.%Y %H:%M') }}</td>
                         <td>
                             {% if inventory.completed_at %}
-                            {{ inventory.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                            {{ inventory.completed_at|localdatetime('%d.%m.%Y %H:%M') }}
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}

@@ -43,7 +43,7 @@
                         {% endif %}
                         <span>{{ _('settings.admin.booking_forms.requests_count', count=form.requests|length) }}</span>
                         <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.booking_forms.created') }} {{ form.created_at.strftime('%d.%m.%Y') }}</span>
+                        <span>{{ _('settings.admin.booking_forms.created') }} {{ form.created_at|localdatetime('%d.%m.%Y') }}</span>
                     </div>
                 </div>
                 <div class="settings-admin-booking-row-actions">

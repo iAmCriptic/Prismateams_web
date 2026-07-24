@@ -5,9 +5,36 @@
 {% block content %}
 {% set active_folder_id = active_folder_id|default(none) %}
 {% set active_folder = active_folder|default(none) %}
+{% set search_query = search_query|default('') %}
 {% set upload_url = url_for('manuals.upload', folder_id=active_folder_id) if active_folder_id else url_for('manuals.upload') %}
 {% set active_folder_label = active_folder.name if active_folder else _('manuals.index.folders.root') %}
 {% set can_manage = current_user.is_admin %}
+{% set manuals_clear_url = url_for('manuals.index', folder_id=active_folder_id) if active_folder_id else url_for('manuals.index') %}
+
+{% macro manuals_search_form(id_suffix='') %}
+<form method="GET" class="manuals-search" role="search" id="manualsSearchForm{{ id_suffix }}">
+    {% if active_folder_id %}<input type="hidden" name="folder_id" value="{{ active_folder_id }}">{% endif %}
+    <i class="bi bi-search manuals-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="manualsSearchInput{{ id_suffix }}"
+           value="{{ search_query }}"
+           class="form-control manuals-search-input"
+           placeholder="{{ _('manuals.index.search.placeholder') }}"
+           aria-label="{{ _('manuals.index.search.button') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ manuals_clear_url }}"
+       class="btn manuals-search-clear"
+       id="manualsSearchClear{{ id_suffix }}"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endmacro %}
 
 {% macro manuals_new_menu(menu_id, folder_inline_id, extra_class='') %}
 <ul class="dropdown-menu manuals-sidebar-new-menu manuals-actions-menu {{ extra_class }}" id="{{ menu_id }}" style="display: none;">
@@ -211,7 +238,7 @@
                 </span>
                 <span class="manuals-card-meta-row">
                     <i class="bi bi-calendar" aria-hidden="true"></i>
-                    {{ manual.uploaded_at.strftime('%d.%m.%Y') }}
+                    {{ manual.uploaded_at|localdatetime('%d.%m.%Y') }}
                 </span>
             </div>
         </div>
@@ -233,7 +260,7 @@
         {{ (manual.file_size / 1024)|round(2) }} KB
     </td>
     <td class="d-none d-lg-table-cell text-muted">
-        {{ manual.uploaded_at.strftime('%d.%m.%Y') }}
+        {{ manual.uploaded_at|localdatetime('%d.%m.%Y') }}
     </td>
     <td class="text-end" onclick="event.stopPropagation()">
         <div class="mod-list-actions">
@@ -319,14 +346,27 @@
             </div>
             {% endif %}
         </div>
-        <div class="manuals-mobile-view-toggle mt-2">
-            {{ manuals_view_toggle('Mobile') }}
+        <div class="manuals-mobile-toolbar mt-2">
+            <div class="manuals-mobile-search min-width-0 flex-grow-1">
+                {{ manuals_search_form('Mobile') }}
+            </div>
+            <div class="manuals-mobile-view-toggle flex-shrink-0">
+                {{ manuals_view_toggle('Mobile') }}
+            </div>
         </div>
     </div>
 
-    <div class="row mb-3 page-toolbar-row align-items-center g-2">
-        <div class="col-auto d-none d-lg-flex ms-lg-auto">
-            {{ manuals_view_toggle('') }}
+    <div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col-lg-3 min-width-0">
+            <h1 class="h4 mb-0 text-truncate">{{ active_folder_label }}</h1>
+        </div>
+        <div class="col-lg-6">
+            {{ manuals_search_form('') }}
+        </div>
+        <div class="col-lg-3">
+            <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                {{ manuals_view_toggle('') }}
+            </div>
         </div>
     </div>
 
@@ -341,12 +381,14 @@
         <div class="mod-empty-state">
             <div>
                 <i class="bi bi-book display-6 d-block mb-2 opacity-50"></i>
-                {% if active_folder_id %}
+                {% if search_query %}
+                {{ _('manuals.index.search.empty') }}
+                {% elif active_folder_id %}
                 {{ _('manuals.index.folders.empty') }}
                 {% else %}
                 {{ _('manuals.index.folders.root_empty') }}
                 {% endif %}
-                {% if can_manage %}
+                {% if can_manage and not search_query %}
                 <div class="small mt-1">{{ _('manuals.index.empty.hint') }}</div>
                 {% endif %}
             </div>
@@ -377,12 +419,14 @@
         <div class="mod-empty-state">
             <div>
                 <i class="bi bi-book display-6 d-block mb-2 opacity-50"></i>
-                {% if active_folder_id %}
+                {% if search_query %}
+                {{ _('manuals.index.search.empty') }}
+                {% elif active_folder_id %}
                 {{ _('manuals.index.folders.empty') }}
                 {% else %}
                 {{ _('manuals.index.folders.root_empty') }}
                 {% endif %}
-                {% if can_manage %}
+                {% if can_manage and not search_query %}
                 <div class="small mt-1">{{ _('manuals.index.empty.hint') }}</div>
                 {% endif %}
             </div>

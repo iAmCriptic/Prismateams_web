@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import db
 
 
@@ -142,3 +142,31 @@ class FolderFavorite(db.Model):
 
     def __repr__(self):
         return f'<FolderFavorite user={self.user_id} folder={self.folder_id}>'
+
+
+class FileEditLock(db.Model):
+    """Exclusive soft-lock so only one user can edit a text/markdown file at a time."""
+    __tablename__ = 'file_edit_locks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    file_id = db.Column(db.Integer, db.ForeignKey('files.id'), nullable=False, unique=True, index=True)
+    locked_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    session_key = db.Column(db.String(128), nullable=False, unique=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    last_heartbeat_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    file = db.relationship('File')
+    locker = db.relationship('User', foreign_keys=[locked_by])
+
+    @property
+    def is_active(self):
+        return self.expires_at > datetime.utcnow()
+
+    def refresh(self, ttl_seconds=90):
+        now = datetime.utcnow()
+        self.last_heartbeat_at = now
+        self.expires_at = now + timedelta(seconds=ttl_seconds)
+
+    def __repr__(self):
+        return f'<FileEditLock file={self.file_id} by={self.locked_by}>'

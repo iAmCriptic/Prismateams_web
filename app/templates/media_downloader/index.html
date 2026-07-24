@@ -157,7 +157,7 @@
                         </td>
                         <td class="job-expires-cell">
                             {% if job.expires_at %}
-                                {{ job.expires_at.strftime('%d.%m.%Y %H:%M') }} UTC
+                                {{ job.expires_at|localdatetime('%d.%m.%Y %H:%M') }} UTC
                             {% else %}
                                 –
                             {% endif %}

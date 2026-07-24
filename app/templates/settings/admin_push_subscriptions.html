@@ -47,9 +47,9 @@
                     <div class="settings-admin-push-row-meta">
                         <span>{{ sub.user_agent or '—' }}</span>
                         <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.push_subscriptions.table.created') }} {{ sub.created_at.strftime('%d.%m.%Y %H:%M') if sub.created_at else '—' }}</span>
+                        <span>{{ _('settings.admin.push_subscriptions.table.created') }} {{ sub.created_at|localdatetime('%d.%m.%Y %H:%M') if sub.created_at else '—' }}</span>
                         <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.push_subscriptions.table.last_used') }} {{ sub.last_used.strftime('%d.%m.%Y %H:%M') if sub.last_used else '—' }}</span>
+                        <span>{{ _('settings.admin.push_subscriptions.table.last_used') }} {{ sub.last_used|localdatetime('%d.%m.%Y %H:%M') if sub.last_used else '—' }}</span>
                     </div>
                 </div>
                 <div class="settings-admin-push-row-actions">

@@ -16,10 +16,11 @@ from app.utils.qr_code import (
 from app.utils.pdf_generator import generate_borrow_receipt_pdf, generate_qr_code_sheet_pdf
 from app.utils.pdf_generator_color_table import generate_color_code_table_pdf
 from app.utils.lengths import normalize_length_input, parse_length_to_meters
+from app.utils.dates import compute_dguv_next
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 import os
 import secrets
 import string
@@ -28,6 +29,7 @@ from io import BytesIO
 inventory_bp = Blueprint('inventory', __name__)
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+DEFAULT_DGUV_INTERVAL_MONTHS = 12
 
 
 def allowed_file(filename):
@@ -56,13 +58,70 @@ def _parse_optional_int(value):
 
 
 def _parse_optional_date(value):
-    raw = (value or '').strip()
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    raw = (value or '').strip() if value is not None else ''
     if not raw:
         return None
     try:
         return datetime.strptime(raw, '%Y-%m-%d').date()
     except ValueError:
         return None
+
+
+def _clear_dguv_fields(product):
+    product.dguv_last_check = None
+    product.dguv_next_check = None
+    product.dguv_interval_months = None
+    return product
+
+
+def _apply_dguv_fields(
+    product,
+    last_raw,
+    interval_raw=None,
+    *,
+    keep_existing_interval=False,
+    default_last_to_today=False,
+    next_equals_created_if_no_last=False,
+):
+    """Setzt letzte Prüfung (+ Intervall) und berechnet die nächste Prüfung automatisch.
+
+    next_equals_created_if_no_last: Wenn keine letzte Prüfung gesetzt ist, wird
+    die nächste Prüfung auf das Anlagedatum (heute / created_at) gesetzt.
+    """
+    last = _parse_optional_date(last_raw)
+    if last is None and default_last_to_today:
+        last = date.today()
+    if keep_existing_interval:
+        interval = product.dguv_interval_months or DEFAULT_DGUV_INTERVAL_MONTHS
+    else:
+        parsed = _parse_optional_int(interval_raw)
+        interval = parsed if parsed is not None else DEFAULT_DGUV_INTERVAL_MONTHS
+
+    product.dguv_last_check = last
+    product.dguv_interval_months = interval
+    if last:
+        product.dguv_next_check = compute_dguv_next(last, interval)
+    elif next_equals_created_if_no_last:
+        created = product.created_at.date() if getattr(product, "created_at", None) else date.today()
+        product.dguv_next_check = created
+    else:
+        product.dguv_next_check = None
+    return product
+
+
+def _apply_dguv_from_form(product, form, *, next_equals_created_if_no_last=False, keep_existing_interval=False):
+    """Übernimmt DGUV-Felder aus dem Formular; ohne dguv_required werden sie geleert."""
+    if form.get('dguv_required') != '1':
+        return _clear_dguv_fields(product)
+    return _apply_dguv_fields(
+        product,
+        form.get('dguv_last_check'),
+        form.get('dguv_interval_months'),
+        keep_existing_interval=keep_existing_interval,
+        next_equals_created_if_no_last=next_equals_created_if_no_last,
+    )
 
 
 def _product_extra_fields(p):
@@ -338,9 +397,11 @@ def product_new():
                     depth_cm=_parse_optional_float(request.form.get('depth_cm')),
                     purchase_price=_parse_optional_float(request.form.get('purchase_price')),
                     replacement_value=_parse_optional_float(request.form.get('replacement_value')),
-                    dguv_last_check=_parse_optional_date(request.form.get('dguv_last_check')),
-                    dguv_next_check=_parse_optional_date(request.form.get('dguv_next_check')),
-                    dguv_interval_months=_parse_optional_int(request.form.get('dguv_interval_months')),
+                )
+                _apply_dguv_from_form(
+                    product,
+                    request.form,
+                    next_equals_created_if_no_last=True,
                 )
                 
                 db.session.add(product)
@@ -443,10 +504,11 @@ def product_edit(product_id):
         product.depth_cm = _parse_optional_float(request.form.get('depth_cm'))
         product.purchase_price = _parse_optional_float(request.form.get('purchase_price'))
         product.replacement_value = _parse_optional_float(request.form.get('replacement_value'))
-        product.dguv_last_check = _parse_optional_date(request.form.get('dguv_last_check'))
-        product.dguv_next_check = _parse_optional_date(request.form.get('dguv_next_check'))
-        product.dguv_interval_months = _parse_optional_int(request.form.get('dguv_interval_months'))
-        
+        _apply_dguv_from_form(
+            product,
+            request.form,
+            next_equals_created_if_no_last=True,
+        )
         if request.form.get('remove_image') == '1':
             if product.image_path:
                 upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'inventory', 'product_images')
@@ -1139,23 +1201,23 @@ def inventory_list_pdf():
 @inventory_bp.route('/inventory-tool', methods=['GET', 'POST'])
 @login_required
 def inventory_tool():
-    """Hauptseite für das Inventurtool."""
+    """Übersicht: Neue Inventur starten + Historie (aktiv und abgeschlossen)."""
     active_inventory = Inventory.query.filter_by(status='active').first()
-    
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'start':
             if active_inventory:
                 flash(_('inventory.flash.inventory_active_exists'), 'warning')
                 return redirect(url_for('inventory.inventory_tool'))
-            
+
             name = request.form.get('name', '').strip()
             if not name:
                 name = f"Inventur {datetime.now().strftime('%d.%m.%Y %H:%M')}"
-            
+
             description = request.form.get('description', '').strip() or None
-            
+
             new_inventory = Inventory(
                 name=name,
                 description=description,
@@ -1164,7 +1226,7 @@ def inventory_tool():
             )
             db.session.add(new_inventory)
             db.session.flush()
-            
+
             products = Product.query.filter(Product.status != 'retired').order_by(Product.name).all()
             for product in products:
                 inventory_item = InventoryItem(
@@ -1172,21 +1234,54 @@ def inventory_tool():
                     product_id=product.id
                 )
                 db.session.add(inventory_item)
-            
+
             db.session.commit()
             flash(_('inventory.flash.inventory_started', name=name), 'success')
             return redirect(url_for('inventory.inventory_tool'))
-    
-    inventory_items = []
-    if active_inventory:
-        inventory_items = InventoryItem.query.filter_by(inventory_id=active_inventory.id).options(
-            joinedload(InventoryItem.product),
-            joinedload(InventoryItem.checker)
-        ).all()
-    
-    return render_template('inventory/inventory_tool.html', 
-                         active_inventory=active_inventory,
-                         inventory_items=inventory_items)
+
+    inventories = Inventory.query.filter(
+        Inventory.status.in_(('active', 'completed'))
+    ).order_by(Inventory.started_at.desc()).all()
+
+    inventories = sorted(
+        inventories,
+        key=lambda inv: (
+            0 if inv.status == 'active' else 1,
+            -(inv.completed_at or inv.started_at or datetime.min).timestamp(),
+        )
+    )
+
+    return render_template(
+        'inventory/inventory_tool.html',
+        active_inventory=active_inventory,
+        inventories=inventories,
+    )
+
+
+@inventory_bp.route('/inventory-tool/history')
+@login_required
+def inventory_history():
+    """Historie liegt auf der Inventur-Startseite."""
+    return redirect(url_for('inventory.inventory_tool') + '#history')
+
+
+@inventory_bp.route('/inventory-tool/<int:inventory_id>')
+@login_required
+def inventory_session(inventory_id):
+    """Durchführung / Ansicht einer Inventur-Session."""
+    inventory = Inventory.query.get_or_404(inventory_id)
+    inventory_items = InventoryItem.query.filter_by(inventory_id=inventory.id).options(
+        joinedload(InventoryItem.product),
+        joinedload(InventoryItem.checker)
+    ).all()
+    open_count = sum(1 for item in inventory_items if not item.checked)
+    return render_template(
+        'inventory/inventory_session.html',
+        inventory=inventory,
+        inventory_items=inventory_items,
+        open_count=open_count,
+        is_active=inventory.status == 'active',
+    )
 
 
 @inventory_bp.route('/inventory-tool/<int:inventory_id>/complete', methods=['POST'])
@@ -1194,41 +1289,70 @@ def inventory_tool():
 def inventory_complete(inventory_id):
     """Inventur abschließen und Änderungen auf Produkte anwenden."""
     inventory = Inventory.query.get_or_404(inventory_id)
-    
+
     if inventory.status != 'active':
         flash(_('inventory.flash.inventory_completed'), 'warning')
         return redirect(url_for('inventory.inventory_tool'))
-    
-    items = InventoryItem.query.filter_by(inventory_id=inventory_id).all()
+
+    items = InventoryItem.query.filter_by(inventory_id=inventory_id).options(
+        joinedload(InventoryItem.product).selectinload(Product.lots)
+    ).all()
     updated_count = 0
-    
+    missing_count = 0
+    stock_adjusted = 0
+    mark_missing = request.form.get('mark_missing') in ('1', 'on', 'true', 'yes')
+
+    from app.services.inventory import StockService
+
     for item in items:
         if item.location_changed and item.new_location:
             item.product.location = item.new_location
             updated_count += 1
-        
+
         if item.condition_changed and item.new_condition:
             item.product.condition = item.new_condition
             updated_count += 1
-    
+
+        if (
+            item.product
+            and item.product.item_type == 'consumable'
+            and item.counted_quantity is not None
+        ):
+            try:
+                movement = StockService.set_stock_count(
+                    item.product,
+                    item.counted_quantity,
+                    current_user.id,
+                    reason=f'Inventur {inventory.name}',
+                    context_type='inventory',
+                    context_id=inventory.id,
+                )
+                if movement:
+                    stock_adjusted += 1
+                    updated_count += 1
+            except ValueError:
+                pass
+
+        if mark_missing and not item.checked and item.product:
+            item.product.status = 'missing'
+            missing_count += 1
+
     inventory.status = 'completed'
     inventory.completed_at = datetime.utcnow()
-    
+
     db.session.commit()
-    
-    flash(_('inventory.flash.inventory_finished', count=updated_count), 'success')
+
+    msg = _('inventory.flash.inventory_finished', count=updated_count)
+    extras = []
+    if stock_adjusted:
+        extras.append(f'{stock_adjusted} Bestände angepasst')
+    if missing_count:
+        extras.append(f'{missing_count} als fehlend markiert')
+    if extras:
+        flash(f"{msg} ({', '.join(extras)})", 'success')
+    else:
+        flash(msg, 'success')
     return redirect(url_for('inventory.inventory_tool'))
-
-
-@inventory_bp.route('/inventory-tool/history')
-@login_required
-def inventory_history():
-    """Liste aller abgeschlossenen Inventuren."""
-    completed_inventories = Inventory.query.filter_by(status='completed').order_by(
-        Inventory.completed_at.desc()
-    ).all()
-    
-    return render_template('inventory/inventory_history.html', inventories=completed_inventories)
 
 
 @inventory_bp.route('/inventory-tool/<int:inventory_id>/pdf')
@@ -2074,6 +2198,17 @@ def api_products_bulk_update():
     
     if 'remove_image' in data and data.get('remove_image'):
         updates['remove_image'] = True
+
+    if 'dguv_interval_months' in data:
+        interval = _parse_optional_int(data.get('dguv_interval_months'))
+        if interval is None or interval < 1:
+            errors.append('Ungültiges DGUV-Intervall (Monate >= 1).')
+        else:
+            updates['dguv_interval_months'] = interval
+
+    if 'dguv_last_check' in data or data.get('dguv_default_last_to_today'):
+        updates['dguv_last_check'] = data.get('dguv_last_check')
+        updates['dguv_default_last_to_today'] = bool(data.get('dguv_default_last_to_today'))
     
     if errors:
         return jsonify({'error': translate('inventory.errors.validation_error'), 'details': errors}), 400
@@ -2107,6 +2242,17 @@ def api_products_bulk_update():
                         except Exception as e:
                             current_app.logger.error(f"Fehler beim Löschen des Bildes: {e}")
                 product.image_path = None
+            if 'dguv_interval_months' in updates and 'dguv_last_check' not in updates:
+                product.dguv_interval_months = updates['dguv_interval_months']
+                product.dguv_next_check = compute_dguv_next(product.dguv_last_check, product.dguv_interval_months)
+            if 'dguv_last_check' in updates:
+                _apply_dguv_fields(
+                    product,
+                    updates.get('dguv_last_check'),
+                    updates.get('dguv_interval_months', product.dguv_interval_months),
+                    keep_existing_interval='dguv_interval_months' not in updates,
+                    default_last_to_today=bool(updates.get('dguv_default_last_to_today')),
+                )
             updated_count += 1
         except Exception as e:
             current_app.logger.error(f"Fehler beim Aktualisieren von Produkt {product.id}: {e}")

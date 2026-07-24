@@ -41,7 +41,7 @@
                             <span>{{ user.email }}</span>
                             {% if user.phone %}<span aria-hidden="true">·</span><span>{{ user.phone }}</span>{% endif %}
                             <span aria-hidden="true">·</span>
-                            <span>{{ _('settings.admin.users.registered') }} {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                            <span>{{ _('settings.admin.users.registered') }} {{ user.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                     </div>
                     <div class="settings-admin-users-row-actions">
@@ -83,11 +83,11 @@
                         <div class="settings-admin-users-meta">
                             <span>{{ user.email }}</span>
                             <span aria-hidden="true">·</span>
-                            <span>{{ _('settings.admin.users.registered') }} {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                            <span>{{ _('settings.admin.users.registered') }} {{ user.created_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
                             <span aria-hidden="true">·</span>
                             <span>
                                 {% if user.confirmation_code_expires %}
-                                    {{ _('settings.admin.users.code_expires') }} {{ user.confirmation_code_expires.strftime('%d.%m.%Y %H:%M') }}
+                                    {{ _('settings.admin.users.code_expires') }} {{ user.confirmation_code_expires|localdatetime('%d.%m.%Y %H:%M') }}
                                 {% else %}
                                     {{ _('settings.admin.users.code_unlimited') }}
                                 {% endif %}
@@ -142,7 +142,7 @@
                     <div class="settings-admin-users-meta">
                         <span>{{ user.email }}</span>
                         <span aria-hidden="true">·</span>
-                        <span>{{ _('settings.admin.users.last_login') }} {{ user.last_login.strftime('%d.%m.%Y') if user.last_login else _('settings.admin.users.never') }}</span>
+                        <span>{{ _('settings.admin.users.last_login') }} {{ user.last_login|localdatetime('%d.%m.%Y') if user.last_login else _('settings.admin.users.never') }}</span>
                         {% if not user.is_super_admin and not user.is_admin and not item.has_full_access and item.module_roles %}
                         <span aria-hidden="true">·</span>
                         <span>
@@ -223,7 +223,7 @@
                         {% endif %}
                         <span aria-hidden="true">·</span>
                         {% if guest.guest_expires_at %}
-                        <span class="{% if is_expired %}text-danger{% endif %}">{{ _('settings.admin.users.expires') }} {{ guest.guest_expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        <span class="{% if is_expired %}text-danger{% endif %}">{{ _('settings.admin.users.expires') }} {{ guest.guest_expires_at|localdatetime('%d.%m.%Y %H:%M') }}</span>
                         {% else %}
                         <span>{{ _('settings.admin.users.code_unlimited') }}</span>
                         {% endif %}

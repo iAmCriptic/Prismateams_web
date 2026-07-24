@@ -4,7 +4,8 @@ from app import db
 from app.models.booking import (
     BookingForm, BookingFormField, BookingFormImage,
     BookingRequest, BookingRequestField, BookingRequestFile,
-    BookingFormRole, BookingFormRoleUser, BookingRequestApproval
+    BookingFormRole, BookingFormRoleUser, BookingRequestApproval,
+    BookingRequestMessage,
 )
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.file import Folder
@@ -194,24 +195,41 @@ def public_form(form_id):
         flash(translate('booking.flash.form_not_active'), 'warning')
         return redirect(url_for('booking.public_booking'))
     
+    # GET: Formular-Kontext
+    # Sortiere Felder nach field_order
+    fields = sorted(form.fields, key=lambda f: f.field_order)
+
+    # Lade Portalslogo
+    from app.models.settings import SystemSettings
+    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
+    portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
+
     if request.method == 'POST':
         # Validiere Pflichtfelder
         applicant_name = request.form.get('applicant_name', '').strip()
         event_name = request.form.get('event_name', '').strip()
         email = request.form.get('email', '').strip()
-        
+
+        def _form_error():
+            return render_template(
+                'booking/public_form.html',
+                form=form,
+                fields=fields,
+                portal_logo_filename=portal_logo_filename,
+            )
+
         if not applicant_name:
             flash(translate('booking.flash.enter_name'), 'danger')
-            return render_template('booking/public_form.html', form=form)
-        
+            return _form_error()
+
         if not event_name:
             flash(translate('booking.flash.enter_event_name'), 'danger')
-            return render_template('booking/public_form.html', form=form)
-        
+            return _form_error()
+
         if not email or '@' not in email:
             flash(translate('booking.flash.enter_valid_email'), 'danger')
-            return render_template('booking/public_form.html', form=form)
-        
+            return _form_error()
+
         # Validiere zusätzliche Pflichtfelder
         errors = []
         for field in form.fields:
@@ -223,7 +241,7 @@ def public_form(form_id):
         if errors:
             for error in errors:
                 flash(error, 'danger')
-            return render_template('booking/public_form.html', form=form)
+            return _form_error()
         
         # Parse Event-Datum und Zeiten
         event_date = None
@@ -345,17 +363,13 @@ def public_form(form_id):
         
         # Weiterleitung zur Übersicht mit Token
         return redirect(url_for('booking.public_view', token=token))
-    
-    # GET: Zeige Formular
-    # Sortiere Felder nach field_order
-    fields = sorted(form.fields, key=lambda f: f.field_order)
-    
-    # Lade Portalslogo
-    from app.models.settings import SystemSettings
-    portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-    portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
-    
-    return render_template('booking/public_form.html', form=form, fields=fields, portal_logo_filename=portal_logo_filename)
+
+    return render_template(
+        'booking/public_form.html',
+        form=form,
+        fields=fields,
+        portal_logo_filename=portal_logo_filename,
+    )
 
 
 @booking_bp.route('/view/<token>')
@@ -374,12 +388,20 @@ def public_view(token):
     portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
     portal_logo_filename = portal_logo_setting.value if portal_logo_setting and portal_logo_setting.value else None
     
-    return render_template('booking/public_view.html', 
-                         request=booking_request, 
+    thread_messages = (
+        BookingRequestMessage.query
+        .filter_by(request_id=booking_request.id)
+        .order_by(BookingRequestMessage.created_at.asc())
+        .all()
+    )
+
+    return render_template('booking/public_view.html',
+                         booking_request=booking_request,
                          form=form,
                          field_values=field_values,
                          token=token,
-                         portal_logo_filename=portal_logo_filename)
+                         portal_logo_filename=portal_logo_filename,
+                         messages=thread_messages)
 
 
 @booking_bp.route('/mailbox/<token>', methods=['GET', 'POST'])
@@ -483,7 +505,7 @@ def mailbox_upload(token):
     bot_ctx['show_bot'] = bot_ctx.get('bot_enabled_mailbox', False) and not session.get(f'mailbox_bot_verified_{token}')
 
     return render_template('booking/mailbox_upload.html',
-                         request=booking_request,
+                         booking_request=booking_request,
                          token=token,
                          folder=folder,
                          uploaded_files=uploaded_files,
@@ -520,6 +542,7 @@ def requests():
 
     stats = None
     requests_list = []
+    unread_by_request = {}
     if current_form:
         if view == 'overview':
             stats = _form_dashboard_stats(current_form.id)
@@ -529,12 +552,32 @@ def requests():
             if status:
                 query = query.filter_by(status=status)
             requests_list = query.order_by(BookingRequest.created_at.desc()).all()
+            if requests_list:
+                try:
+                    ids = [r.id for r in requests_list]
+                    rows = (
+                        db.session.query(
+                            BookingRequestMessage.request_id,
+                            func.count(BookingRequestMessage.id),
+                        )
+                        .filter(
+                            BookingRequestMessage.request_id.in_(ids),
+                            BookingRequestMessage.direction == 'inbound',
+                            BookingRequestMessage.is_read.is_(False),
+                        )
+                        .group_by(BookingRequestMessage.request_id)
+                        .all()
+                    )
+                    unread_by_request = {rid: cnt for rid, cnt in rows}
+                except Exception as e:
+                    current_app.logger.error(f"Unread booking message counts failed: {e}")
 
     return render_template(
         'booking/requests.html',
         requests=requests_list,
         stats=stats,
         status_filter=VIEW_TO_STATUS.get(view, 'pending'),
+        unread_by_request=unread_by_request,
         **ctx,
     )
 
@@ -570,13 +613,27 @@ def request_detail(request_id):
     detail_view = STATUS_TO_VIEW.get(booking_request.status, 'overview')
     ctx = _booking_sidebar_context(form_id=form.id, view=detail_view)
 
+    try:
+        from app.utils.booking_messages import mark_messages_read
+        mark_messages_read(booking_request.id)
+    except Exception as e:
+        current_app.logger.error(f"Could not mark booking messages read: {e}")
+
+    thread_messages = (
+        BookingRequestMessage.query
+        .filter_by(request_id=booking_request.id)
+        .order_by(BookingRequestMessage.created_at.asc())
+        .all()
+    )
+
     return render_template(
         'booking/request_detail.html',
-        request=booking_request,
+        booking_request=booking_request,
         form=form,
         field_values=field_values,
         approvals=approvals,
         user_role_assignments=user_role_assignments,
+        messages=thread_messages,
         **ctx,
     )
 
@@ -725,36 +782,32 @@ def request_reject(request_id):
 @login_required
 @check_module_access('module_booking')
 def request_send_email(request_id):
-    """E-Mail-Rückfrage an Buchungskunden senden."""
+    """E-Mail-Rückfrage an Buchungskunden senden (Thread)."""
     booking_request = BookingRequest.query.get_or_404(request_id)
-    
+
     email_subject = request.form.get('email_subject', '').strip()
     email_body = request.form.get('email_body', '').strip()
-    
+
     if not email_subject or not email_body:
         flash(translate('booking.flash.fill_subject_message'), 'danger')
         return redirect(url_for('booking.request_detail', request_id=request_id))
-    
-    # Sende E-Mail
+
     try:
-        from flask_mail import Message
-        from app import mail
-        from app.utils.email_sender import send_email_with_lock
-        from config import get_formatted_sender
-        
-        msg = Message(
-            subject=email_subject,
-            recipients=[booking_request.email],
-            sender=get_formatted_sender() or current_app.config.get('MAIL_USERNAME'),
-            body=email_body
+        from app.utils.email_sender import send_booking_staff_message
+        ok = send_booking_staff_message(
+            booking_request,
+            email_subject,
+            email_body,
+            created_by=current_user.id,
         )
-        send_email_with_lock(msg)
-        
-        flash(translate('booking.flash.email_sent'), 'success')
+        if ok:
+            flash(translate('booking.flash.email_sent'), 'success')
+        else:
+            flash(translate('booking.flash.email_error'), 'danger')
     except Exception as e:
         current_app.logger.error(f"Fehler beim Senden der E-Mail: {e}")
         flash(translate('booking.flash.email_error'), 'danger')
-    
+
     return redirect(url_for('booking.request_detail', request_id=request_id))
 
 

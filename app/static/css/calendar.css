@@ -1665,3 +1665,161 @@
     }
 }
 
+/* ——— Termin-Suche oben (wie Dateien / Kontakte) ——— */
+.calendar-search {
+    position: relative;
+    max-width: 28rem;
+    margin: 0 auto;
+    width: 100%;
+    z-index: 5;
+}
+
+.calendar-mobile-search .calendar-search {
+    max-width: none;
+}
+
+.calendar-search-field {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 2.55rem;
+    padding: 0.35rem 0.95rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.calendar-search-field:hover {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, var(--bs-border-color));
+}
+
+.calendar-search-field:focus-within {
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, var(--bs-border-color));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent);
+}
+
+.calendar-search-field > .bi-search {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.calendar-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--bs-body-color);
+    font-size: 0.95rem;
+    padding: 0;
+    box-shadow: none;
+}
+
+.calendar-search-input::placeholder {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+.calendar-search-clear {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--bs-secondary-color, #6c757d);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.calendar-search-clear:hover {
+    background: rgba(127, 127, 127, 0.12);
+    color: var(--bs-body-color);
+}
+
+.calendar-search:has(.calendar-search-clear:not(.d-none)) .calendar-search-field {
+    padding-right: 2.4rem;
+}
+
+.calendar-search-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    max-height: min(22rem, 55vh);
+    overflow-y: auto;
+    border-radius: 0.85rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 0.65rem 1.5rem rgba(0, 0, 0, 0.12);
+    padding: 0.35rem;
+}
+
+.calendar-search-result {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.55rem 0.65rem;
+    border: 0;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    text-decoration: none;
+}
+
+.calendar-search-result:hover,
+.calendar-search-result:focus {
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    color: inherit;
+}
+
+.calendar-search-result-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 0.35rem;
+}
+
+.calendar-search-result-body {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.calendar-search-result-title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.92rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calendar-search-result-meta {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color, #6c757d);
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calendar-search-empty {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-align: center;
+}
+

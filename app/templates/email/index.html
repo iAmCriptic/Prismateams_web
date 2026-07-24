@@ -219,6 +219,47 @@
 </div>
 {% endmacro %}
 
+{% macro email_search_form(suffix='') %}
+{% set search_query = search_query|default('') %}
+<form method="GET"
+      action="{{ url_for('email.folder_view', folder_name=current_folder) }}"
+      class="email-search"
+      role="search"
+      id="emailSearchForm{{ suffix }}">
+    <i class="bi bi-search email-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="emailSearchInput{{ suffix }}"
+           value="{{ search_query }}"
+           class="form-control email-search-input"
+           placeholder="{{ _('email.index.search.placeholder') }}"
+           aria-label="{{ _('email.index.search.aria') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('email.folder_view', folder_name=current_folder) }}"
+       class="btn email-search-clear"
+       id="emailSearchClear{{ suffix }}"
+       aria-label="{{ _('email.index.search.clear') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endmacro %}
+
+{% macro email_empty_state() %}
+{% set search_query = search_query|default('') %}
+<div class="p-4 text-center text-muted">
+    <i class="bi bi-{{ 'search' if search_query else 'inbox' }} fs-1 d-block mb-2"></i>
+    {% if search_query %}
+        {{ _('email.index.labels.empty_search') }}
+    {% else %}
+        {{ _('email.index.labels.empty') }}
+    {% endif %}
+</div>
+{% endmacro %}
+
 {% macro email_folder_create_inline(form_id) %}
 {% set parent_none_label = _('email.index.folder_create.parent_none') %}
 <div class="email-folder-inline" id="{{ form_id }}Wrap" hidden>
@@ -318,6 +359,9 @@
             {{ email_folder_create_inline('emailFolderCreateMobile') }}
         </div>
     </div>
+    <div class="email-mobile-search mt-2">
+        {{ email_search_form('Mobile') }}
+    </div>
 </div>
 
 <!-- Mobile Email List -->
@@ -331,10 +375,7 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="p-4 text-center text-muted">
-                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                {{ _('email.index.labels.empty') }}
-            </div>
+            {{ email_empty_state() }}
             {% endif %}
         </div>
     </div>
@@ -371,8 +412,9 @@
     </div>
 
     <div class="email-main-content">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
+        <div class="email-list-toolbar mb-3">
+            <h4 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
+            {{ email_search_form('Desktop') }}
         </div>
         <div class="card">
             <div class="card-body p-0">
@@ -383,10 +425,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="p-4 text-center text-muted">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    {{ _('email.index.labels.empty') }}
-                </div>
+                {{ email_empty_state() }}
                 {% endif %}
             </div>
         </div>
@@ -431,8 +470,9 @@
 <!-- Mid-desktop email list (md to xl) -->
 <div class="d-none d-md-block d-xl-none">
     <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
+        <div class="card-header email-list-toolbar">
+            <h5 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
+            {{ email_search_form('Mid') }}
         </div>
         <div class="card-body p-0">
             {% if emails %}
@@ -442,10 +482,7 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="p-4 text-center text-muted">
-                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                {{ _('email.index.labels.empty') }}
-            </div>
+            {{ email_empty_state() }}
             {% endif %}
         </div>
     </div>

@@ -5,6 +5,7 @@ from app.models.calendar import Calendar, CalendarEvent, EventParticipant, Publi
 from app.models.user import User
 from app.models.booking import BookingRequest
 from app.utils.access_control import check_module_access
+from app.utils.common import portal_now_naive
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
 from app.utils.multi_calendars import (
@@ -508,7 +509,7 @@ def create_event():
 
         try:
             from app.utils.dashboard_events import emit_dashboard_update
-            now = datetime.utcnow()
+            now = portal_now_naive()
             week_from_now = now + timedelta(days=7)
             upcoming_count = CalendarEvent.query.filter(
                 CalendarEvent.start_time > now,
@@ -639,7 +640,7 @@ def edit_event(event_id):
 
         try:
             from app.utils.dashboard_events import emit_dashboard_update
-            now = datetime.utcnow()
+            now = portal_now_naive()
             week_from_now = now + timedelta(days=7)
             upcoming_count = CalendarEvent.query.filter(
                 CalendarEvent.start_time > now,
@@ -696,7 +697,7 @@ def delete_event(event_id):
         from app.utils.dashboard_events import emit_dashboard_update
         
         # Berechne upcoming_count
-        now = datetime.utcnow()
+        now = portal_now_naive()
         week_from_now = now + timedelta(days=7)
         upcoming_count = CalendarEvent.query.filter(
             CalendarEvent.start_time > now,
@@ -873,6 +874,55 @@ def get_events_for_month(year, month):
             })
     
     events_data.sort(key=lambda x: x['start_time'])
+    return jsonify(events_data)
+
+
+@calendar_bp.route('/api/events/search')
+@login_required
+@check_module_access('module_calendar')
+def search_events():
+    """Search events by title, location, or description."""
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2:
+        return jsonify([])
+
+    like = f'%{q}%'
+    selected_ids = _selected_calendar_ids_from_request(current_user)
+    multi = is_calendar_multi_enabled()
+    text_filter = or_(
+        CalendarEvent.title.ilike(like),
+        CalendarEvent.location.ilike(like),
+        CalendarEvent.description.ilike(like),
+    )
+    base = [
+        CalendarEvent.is_recurring_instance == False,
+        text_filter,
+    ]
+    if multi:
+        events = (
+            events_query_for_calendars(current_user, selected_ids, base)
+            .order_by(CalendarEvent.start_time.desc())
+            .limit(25)
+            .all()
+        )
+    else:
+        events = (
+            CalendarEvent.query.filter(*base)
+            .order_by(CalendarEvent.start_time.desc())
+            .limit(25)
+            .all()
+        )
+
+    events_data = []
+    for event in events:
+        participation = EventParticipant.query.filter_by(
+            event_id=event.id,
+            user_id=current_user.id,
+        ).first()
+        events_data.append(event_to_api_dict(
+            event,
+            participation.status if participation else None,
+        ))
     return jsonify(events_data)
 
 

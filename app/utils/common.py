@@ -2,7 +2,7 @@
 Utility functions for the Team Portal application.
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from flask import current_app
 import pytz
 import requests
@@ -75,12 +75,17 @@ def get_local_time(utc_datetime):
 
     Args:
         utc_datetime: datetime-Objekt (naiv = UTC aus der DB, sonst timezone-aware)
+                      date-Objekte werden unverändert belassen (keine Uhrzeit).
 
     Returns:
-        timezone-aware datetime in der Portal-Zeitzone
+        timezone-aware datetime in der Portal-Zeitzone (oder date unverändert)
     """
     if utc_datetime is None:
         return None
+
+    # Reine Datumsangaben (ohne Uhrzeit) nicht als UTC interpretieren
+    if type(utc_datetime) is date:
+        return utc_datetime
 
     tz = _portal_timezone()
 
@@ -97,6 +102,25 @@ def now_in_portal_timezone():
     return datetime.now(_portal_timezone())
 
 
+def portal_now_naive():
+    """Aktuelle Portal-Zeit als naives datetime (für Vergleiche mit Wandzeiten in der DB)."""
+    return now_in_portal_timezone().replace(tzinfo=None)
+
+
+def as_portal_wall_time(dt):
+    """
+    Wandzeit in der Portal-Zeitzone als naives datetime.
+
+    - timezone-aware Werte werden in die Portal-Zone konvertiert
+    - naive Werte gelten bereits als Portal-Wandzeit (Formular/Floating) und bleiben unverändert
+    """
+    if dt is None:
+        return None
+    if getattr(dt, 'tzinfo', None) is not None:
+        return get_local_time(dt).replace(tzinfo=None)
+    return dt
+
+
 def format_datetime(dt, format_string='%d.%m.%Y %H:%M'):
     """
     Format a datetime object with local timezone.
@@ -110,8 +134,10 @@ def format_datetime(dt, format_string='%d.%m.%Y %H:%M'):
     """
     if dt is None:
         return ''
-    
+
     local_dt = get_local_time(dt)
+    if local_dt is None:
+        return ''
     return local_dt.strftime(format_string)
 
 
@@ -128,8 +154,10 @@ def format_time(dt, format_string='%H:%M'):
     """
     if dt is None:
         return ''
-    
+
     local_dt = get_local_time(dt)
+    if local_dt is None or type(local_dt) is date:
+        return ''
     return local_dt.strftime(format_string)
 
 

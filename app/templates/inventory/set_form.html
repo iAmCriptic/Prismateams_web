@@ -6,102 +6,103 @@
 
 
 {% block inventory_content %}
-<form method="POST" id="setForm">
-    <div class="row">
-        <div class="col-12 col-lg-8">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Set-Informationen</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name" 
-                               value="{% if product_set %}{{ product_set.name }}{% endif %}" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Beschreibung</label>
-                        <textarea class="form-control" id="description" name="description" rows="3">{% if product_set %}{{ product_set.description or '' }}{% endif %}</textarea>
-                    </div>
-                </div>
+<form method="POST" id="setForm" class="inventory-form">
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="set-form-basics">
+        <div class="inventory-form-card-head">
+            <h2 id="set-form-basics" class="inventory-form-section-title">
+                <i class="bi bi-card-text" aria-hidden="true"></i>
+                Set-Informationen
+            </h2>
+            <button type="button" class="inventory-info-btn"
+                    data-bs-toggle="tooltip"
+                    title="Ein Set bündelt mehrere Produkte, die gemeinsam ausgeliehen oder gescannt werden können."
+                    aria-label="Hinweis zu Set-Informationen">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="inventory-form-fields inventory-form-fields--basics">
+            <div class="inventory-form-field">
+                <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name"
+                       value="{% if product_set %}{{ product_set.name }}{% endif %}" required>
             </div>
-            
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Produkte im Set</h5>
-                    <button type="button" class="btn btn-sm btn-primary" onclick="addProductRow()">
-                        <i class="bi bi-plus"></i> Produkt hinzufügen
+            <div class="inventory-form-field">
+                <label for="description" class="form-label">Beschreibung</label>
+                <textarea class="form-control" id="description" name="description" rows="2">{% if product_set %}{{ product_set.description or '' }}{% endif %}</textarea>
+            </div>
+        </div>
+    </section>
+
+    <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="set-form-products">
+        <div class="inventory-form-card-head justify-content-between flex-wrap">
+            <div class="d-inline-flex align-items-center gap-2">
+                <h2 id="set-form-products" class="inventory-form-section-title mb-0">
+                    <i class="bi bi-box-seam" aria-hidden="true"></i>
+                    Produkte im Set
+                </h2>
+                <button type="button" class="inventory-info-btn"
+                        data-bs-toggle="tooltip"
+                        title="Jedes Produkt einmal wählen und die Menge angeben. Doppelte Produktauswahl wird automatisch verhindert."
+                        aria-label="Hinweis zu Produkten im Set">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+            <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" onclick="addProductRow()">
+                <i class="bi bi-plus"></i> Produkt hinzufügen
+            </button>
+        </div>
+        <div id="productsContainer" class="inventory-set-products">
+            {% if product_set and product_set.items %}
+                {% for item in product_set.items %}
+                <div class="inventory-set-product-row product-row">
+                    <select class="form-select product-select" name="product_ids" required>
+                        <option value="">Produkt auswählen...</option>
+                        {% for product in products %}
+                        <option value="{{ product.id }}" {% if product.id == item.product_id %}selected{% endif %}>
+                            {{ product.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" class="form-control inventory-set-qty" name="quantities"
+                           value="{{ item.quantity }}" min="1" required aria-label="Menge">
+                    <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
+                        <i class="bi bi-trash"></i>
                     </button>
                 </div>
-                <div class="card-body">
-                    <div id="productsContainer">
-                        {% if product_set and product_set.items %}
-                            {% for item in product_set.items %}
-                            <div class="row g-2 mb-2 product-row">
-                                <div class="col-8">
-                                    <select class="form-select product-select" name="product_ids" required>
-                                        <option value="">Produkt auswählen...</option>
-                                        {% for product in products %}
-                                        <option value="{{ product.id }}" {% if product.id == item.product_id %}selected{% endif %}>
-                                            {{ product.name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-3">
-                                    <input type="number" class="form-control" name="quantities" 
-                                           value="{{ item.quantity }}" min="1" required>
-                                </div>
-                                <div class="col-1">
-                                    <button type="button" class="btn btn-sm btn-danger w-100" onclick="removeProductRow(this)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="row g-2 mb-2 product-row">
-                                <div class="col-8">
-                                    <select class="form-select product-select" name="product_ids" required>
-                                        <option value="">Produkt auswählen...</option>
-                                        {% for product in products %}
-                                        <option value="{{ product.id }}">{{ product.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-3">
-                                    <input type="number" class="form-control" name="quantities" value="1" min="1" required>
-                                </div>
-                                <div class="col-1">
-                                    <button type="button" class="btn btn-sm btn-danger w-100" onclick="removeProductRow(this)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        {% endif %}
-                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="inventory-set-product-row product-row">
+                    <select class="form-select product-select" name="product_ids" required>
+                        <option value="">Produkt auswählen...</option>
+                        {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" class="form-control inventory-set-qty" name="quantities" value="1" min="1" required aria-label="Menge">
+                    <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </div>
-            </div>
+            {% endif %}
         </div>
-    </div>
-    
-    <div class="row mt-4">
-        <div class="col-12">
-            <button type="submit" class="btn btn-accent">
-                <i class="bi bi-check-circle"></i> {% if product_set %}Aktualisieren{% else %}Erstellen{% endif %}
-            </button>
-            <a href="{{ url_for('inventory.sets') }}" class="btn btn-outline-secondary">Abbrechen</a>
-        </div>
+    </section>
+
+    <div class="inventory-form-actions inventory-form-card--wide">
+        <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
+            <i class="bi bi-check-circle"></i> {% if product_set %}Aktualisieren{% else %}Erstellen{% endif %}
+        </button>
+        <a href="{{ url_for('inventory.sets') }}" class="btn inventory-pill-btn inventory-pill-btn--muted">Abbrechen</a>
     </div>
 </form>
+{% endblock %}
 
+{% block inventory_extra_js %}
 <script>
 function addProductRow() {
     const container = document.getElementById('productsContainer');
     const row = document.createElement('div');
-    row.className = 'row g-2 mb-2 product-row';
-    
+    row.className = 'inventory-set-product-row product-row';
+
     const productsData = {{ products_data | tojson }};
     let optionsHtml = '<option value="">Produkt auswählen...</option>';
     if (productsData && productsData.length > 0) {
@@ -109,23 +110,17 @@ function addProductRow() {
             optionsHtml += `<option value="${product.id}">${product.name}</option>`;
         });
     }
-    
+
     row.innerHTML = `
-        <div class="col-8">
-            <select class="form-select product-select" name="product_ids" required>
-                ${optionsHtml}
-            </select>
-        </div>
-        <div class="col-3">
-            <input type="number" class="form-control" name="quantities" value="1" min="1" required>
-        </div>
-        <div class="col-1">
-            <button type="button" class="btn btn-sm btn-danger w-100" onclick="removeProductRow(this)">
-                <i class="bi bi-trash"></i>
-            </button>
-        </div>
+        <select class="form-select product-select" name="product_ids" required>
+            ${optionsHtml}
+        </select>
+        <input type="number" class="form-control inventory-set-qty" name="quantities" value="1" min="1" required aria-label="Menge">
+        <button type="button" class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" onclick="removeProductRow(this)" aria-label="Entfernen">
+            <i class="bi bi-trash"></i>
+        </button>
     `;
-    
+
     container.appendChild(row);
 }
 
@@ -133,24 +128,28 @@ function removeProductRow(button) {
     const rows = document.querySelectorAll('.product-row');
     if (rows.length > 1) {
         button.closest('.product-row').remove();
-    } else {
-        if (window.showAppBanner) window.showAppBanner('Mindestens ein Produkt muss im Set sein.', 'warning');
+    } else if (window.showAppBanner) {
+        window.showAppBanner('Mindestens ein Produkt muss im Set sein.', 'warning');
     }
 }
 
-// Verhindere doppelte Produktauswahl
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('product-select')) {
         const selectedValue = e.target.value;
-        const allSelects = document.querySelectorAll('.product-select');
-        
-        allSelects.forEach(select => {
+        document.querySelectorAll('.product-select').forEach(select => {
             if (select !== e.target && select.value === selectedValue && selectedValue !== '') {
                 select.value = '';
             }
         });
     }
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+});
 </script>
 {% endblock %}
-

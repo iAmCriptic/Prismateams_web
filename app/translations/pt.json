@@ -481,5 +481,19 @@
         "draft_error": "Nao foi possivel guardar o rascunho."
       }
     }
+  },
+  "files": {
+    "view": {
+      "history": "Histórico",
+      "history_loading": "A carregar versões...",
+      "history_empty": "Sem versões anteriores.",
+      "history_current": "atual",
+      "more": "Mais",
+      "version_label": "Versão {number}"
+    },
+    "index": {
+      "search_placeholder": "Pesquisar em ficheiros",
+      "search_empty": "Sem resultados nesta pasta."
+    }
   }
 }

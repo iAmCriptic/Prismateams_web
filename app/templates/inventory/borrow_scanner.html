@@ -11,27 +11,20 @@
     Projekt und Rückgabedatum sind optional; Verantwortlicher ist immer du.
 </p>
 
-<div class="row">
-    <div class="col-12 col-lg-7 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Produkt eingeben</h5>
+<div class="row g-3 inventory-scan-layout">
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-qr-code-scan" aria-hidden="true"></i>
+                    Produkt eingeben
+                </h2>
             </div>
-            <div class="card-body">
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label mb-0">QR-Code scannen</label>
-                        <div>
-                            <button class="btn btn-sm btn-primary" id="startScannerBtn" type="button">
-                                <i class="bi bi-camera"></i> Kamera starten
-                            </button>
-                            <button class="btn btn-sm btn-danger" id="stopScannerBtn" type="button" style="display: none;">
-                                <i class="bi bi-stop-circle"></i> Kamera stoppen
-                            </button>
-                        </div>
-                    </div>
-                    <div id="scannerContainer" style="display: none; margin-bottom: 1rem; position: relative;">
-                        <video id="scannerVideo" autoplay playsinline style="width: 100%; max-width: 100%; height: 400px; min-height: 300px; border-radius: 8px; background: #000; object-fit: cover; display: block;"></video>
+            <div class="inventory-panel-body">
+                <div class="mb-3">
+                    <label class="form-label mb-2">QR-Code scannen</label>
+                    <div id="scannerContainer" class="inventory-scan-stage mb-2" style="display: none;">
+                        <video id="scannerVideo" autoplay playsinline muted></video>
                         <canvas id="scannerCanvas" style="display: none;"></canvas>
                         <div id="scannerFrame" class="scanner-frame"></div>
                         <div id="scannerLine" class="scanner-line"></div>
@@ -39,19 +32,25 @@
                             <i class="bi bi-check-circle-fill"></i> Erfasst
                         </div>
                     </div>
+                    <div class="inventory-scan-controls">
+                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                            <i class="bi bi-camera"></i> Kamera starten
+                        </button>
+                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                            <i class="bi bi-stop-circle"></i> Kamera stoppen
+                        </button>
+                    </div>
                     <div id="scannerError" class="alert alert-danger mt-2" style="display: none;"></div>
                     <div id="scannerFeedback" class="alert mt-2 d-none"></div>
                 </div>
 
-                <hr>
-
                 <div>
                     <label for="manualQrInput" class="form-label">QR-Code oder Produkt-ID eingeben</label>
-                    <div class="input-group">
+                    <div class="inventory-manual-row">
                         <input type="text" class="form-control" id="manualQrInput" autofocus
                                placeholder="PROD-123, SET-456 oder Rückgabe-QR"
                                autocomplete="off">
-                        <button class="btn btn-accent" id="addToCartBtn" type="button">
+                        <button class="btn btn-accent inventory-pill-btn" id="addToCartBtn" type="button">
                             <i class="bi bi-plus-circle"></i> Hinzufügen
                         </button>
                     </div>
@@ -62,49 +61,48 @@
         </div>
     </div>
 
-    <div class="col-12 col-lg-5">
-        <div class="card" id="borrowCartPanel">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Warenkorb</h5>
+    <div class="col-12 col-lg-6">
+        <div class="inventory-panel h-100" id="borrowCartPanel">
+            <div class="inventory-panel-header">
+                <h2 class="inventory-panel-title">
+                    <i class="bi bi-cart3" aria-hidden="true"></i>
+                    Warenkorb
+                </h2>
                 <span class="badge bg-primary" id="cartCount">{{ cart_products|length }}</span>
             </div>
-            <div class="card-body">
-                <div id="cartItems">
+            <div class="inventory-panel-body">
+                <div id="cartItems" class="inventory-cart-list">
                     {% if cart_products %}
                     {% for product in cart_products %}
-                    <div class="card mb-2 cart-item" data-product-id="{{ product.id }}">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ product.name }}</strong>
-                                    {% if product.category %}
-                                    <br><small class="text-muted">{{ product.category }}</small>
-                                    {% endif %}
-                                </div>
-                                <button class="btn btn-sm btn-outline-danger remove-from-cart" type="button" data-product-id="{{ product.id }}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
+                    <div class="inventory-cart-item cart-item" data-product-id="{{ product.id }}">
+                        <div class="inventory-cart-item-body">
+                            <p class="inventory-cart-item-title">{{ product.name }}</p>
+                            {% if product.category %}
+                            <p class="inventory-cart-item-meta">{{ product.category }}</p>
+                            {% endif %}
                         </div>
+                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger remove-from-cart" type="button" data-product-id="{{ product.id }}">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                     {% endfor %}
                     {% else %}
-                    <p class="text-muted text-center py-3">Keine Produkte hinzugefügt</p>
+                    <p class="text-muted text-center inventory-empty-hint py-3 mb-0">Keine Produkte hinzugefügt</p>
                     {% endif %}
                 </div>
 
                 <hr>
-                <form method="POST" action="{{ url_for('inventory.borrow_scanner_checkout') }}" id="checkoutForm">
+                <form method="POST" action="{{ url_for('inventory.borrow_scanner_checkout') }}" id="checkoutForm" class="inventory-form-grid">
                     <div class="mb-2">
-                        <label for="event_name" class="form-label small text-muted">Projekt (optional)</label>
-                        <input type="text" class="form-control form-control-sm" id="event_name" name="event_name"
+                        <label for="event_name" class="form-label">Projekt (optional)</label>
+                        <input type="text" class="form-control" id="event_name" name="event_name"
                                placeholder="z.B. Probe" autocomplete="off">
                     </div>
                     <div class="mb-3">
-                        <label for="end_date" class="form-label small text-muted">Rückgabe bis (optional)</label>
-                        <input type="datetime-local" class="form-control form-control-sm" id="end_date" name="end_date">
+                        <label for="end_date" class="form-label">Rückgabe bis (optional)</label>
+                        <input type="datetime-local" class="form-control" id="end_date" name="end_date">
                     </div>
-                    <button type="submit" class="btn btn-accent w-100" {% if not cart_products %}disabled{% endif %}>
+                    <button type="submit" class="btn btn-accent inventory-pill-btn w-100" {% if not cart_products %}disabled{% endif %}>
                         <i class="bi bi-check-circle"></i> Ausleihe bestätigen
                     </button>
                 </form>
@@ -137,15 +135,6 @@
             </div>
         </div>
     </div>
-</div>
-
-<div class="d-flex gap-2 mt-3">
-    <button type="button" class="btn btn-outline-secondary btn-sm" id="undoLastCartActionBtn" disabled>
-        <i class="bi bi-arrow-counterclockwise"></i> Letzte Aktion rückgängig
-    </button>
-    <button type="button" class="btn btn-outline-primary btn-sm" id="retryLastCartActionBtn" disabled>
-        <i class="bi bi-arrow-repeat"></i> Letzten Request wiederholen
-    </button>
 </div>
 {% endblock %}
 
@@ -210,7 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger mb-0">${error.message}</div>`;
             window.borrowScannerManager?.showError(error.message || 'Fehler');
-            window.borrowScannerManager?.enableRetry(addToCart);
         }
     }
 
@@ -223,8 +211,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('.remove-from-cart').forEach(btn => {
         btn.addEventListener('click', function(e) {
-            const productId = e.target.closest('.remove-from-cart').dataset.productId;
-            window.borrowScannerManager?.removeFromCart(productId);
+            const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
+            if (productId) window.borrowScannerManager?.removeFromCart(productId);
         });
     });
 
@@ -256,13 +244,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    document.getElementById('undoLastCartActionBtn')?.addEventListener('click', () => {
-        window.borrowScannerManager?.undoLastAction();
-    });
-    document.getElementById('retryLastCartActionBtn')?.addEventListener('click', () => {
-        window.borrowScannerManager?.retryLastAction();
-    });
 });
 </script>
 {% endblock %}

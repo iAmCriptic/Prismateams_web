@@ -72,9 +72,9 @@
                             <br><small class="text-muted"><i class="bi bi-stack"></i> {{ borrow.count }} Artikel</small>
                             {% endif %}
                         </td>
-                        <td>{{ borrow.borrow_date.strftime('%d.%m.%Y') }}</td>
+                        <td>{{ borrow.borrow_date|localdatetime('%d.%m.%Y') }}</td>
                         <td>
-                            {{ borrow.expected_return_date.strftime('%d.%m.%Y') }}
+                            {{ borrow.expected_return_date|localdatetime('%d.%m.%Y') }}
                             {% if borrow.is_overdue %}
                             <br><span class="badge rounded-pill bg-danger">{{ _('inventory.dashboard.my_borrows.table.overdue') }}</span>
                             {% endif %}

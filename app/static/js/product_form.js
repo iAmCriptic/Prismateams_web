@@ -489,4 +489,101 @@ const InventoryFormManager = (() => {
 
 document.addEventListener('DOMContentLoaded', () => {
     InventoryFormManager.init();
+    setupProductFormTooltips();
+    setupDguvRequiredToggle();
+    setupDguvAutoNext();
 });
+
+function setupProductFormTooltips() {
+    const root = document.querySelector('.inventory-form');
+    if (!root || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+        bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+}
+
+function addMonthsToDate(isoDate, months) {
+    if (!isoDate || !months) return null;
+    const parts = String(isoDate).slice(0, 10).split('-').map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+    const [y, m, d] = parts;
+    const totalMonths = (y * 12 + (m - 1)) + Number(months);
+    const year = Math.floor(totalMonths / 12);
+    const month = (totalMonths % 12) + 1;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const day = Math.min(d, daysInMonth);
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${year}-${mm}-${dd}`;
+}
+
+function formatDeDate(isoDate) {
+    if (!isoDate) return '';
+    const [y, m, d] = String(isoDate).slice(0, 10).split('-');
+    if (!y || !m || !d) return '';
+    return `${d}.${m}.${y}`;
+}
+
+function isDguvRequired() {
+    const toggle = document.getElementById('dguv_required');
+    return !toggle || toggle.checked;
+}
+
+function setupDguvRequiredToggle() {
+    const toggle = document.getElementById('dguv_required');
+    const wrap = document.getElementById('dguvFieldsWrap');
+    if (!toggle || !wrap) return;
+
+    const sync = () => {
+        wrap.classList.toggle('d-none', !toggle.checked);
+        if (toggle.checked && typeof window.__inventoryRefreshDguvNext === 'function') {
+            window.__inventoryRefreshDguvNext();
+        } else if (!toggle.checked) {
+            const nextDisplay = document.getElementById('dguv_next_check_display');
+            const nextHidden = document.getElementById('dguv_next_check');
+            if (nextDisplay) nextDisplay.value = '';
+            if (nextHidden) nextHidden.value = '';
+        }
+    };
+
+    toggle.addEventListener('change', sync);
+    sync();
+}
+
+function setupDguvAutoNext() {
+    const lastInput = document.getElementById('dguv_last_check');
+    const intervalInput = document.getElementById('dguv_interval_months');
+    const nextDisplay = document.getElementById('dguv_next_check_display');
+    const nextHidden = document.getElementById('dguv_next_check');
+    if (!lastInput || !intervalInput) return;
+
+    const isCreate = !document.querySelector('#status');
+
+    const refresh = () => {
+        if (!isDguvRequired()) {
+            if (nextDisplay) nextDisplay.value = '';
+            if (nextHidden) nextHidden.value = '';
+            return;
+        }
+        let nextIso = null;
+        if (lastInput.value) {
+            nextIso = addMonthsToDate(lastInput.value, intervalInput.value || 12);
+        } else if (isCreate) {
+            nextIso = new Date().toISOString().slice(0, 10);
+        } else {
+            // Bearbeiten ohne letzte Prüfung: Anlagedatum nicht im Formular — leer lassen,
+            // Backend setzt next auf created_at.
+            nextIso = null;
+        }
+        if (nextDisplay) nextDisplay.value = nextIso ? formatDeDate(nextIso) : '';
+        if (nextHidden) nextHidden.value = nextIso || '';
+    };
+
+    window.__inventoryRefreshDguvNext = refresh;
+
+    lastInput.addEventListener('change', refresh);
+    lastInput.addEventListener('input', refresh);
+    intervalInput.addEventListener('change', refresh);
+    intervalInput.addEventListener('input', refresh);
+    refresh();
+}

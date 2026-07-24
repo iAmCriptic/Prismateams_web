@@ -273,21 +273,21 @@ def delete_comment(comment_id):
 def search_users():
     """Sucht Benutzer für @-Mention-Autovervollständigung."""
     query = request.args.get('q', '').strip()
-    
-    if len(query) < 2:
-        return jsonify({'users': []})
-    
-    # Suche nach Benutzern
-    users = User.query.filter(
-        db.and_(
-            User.is_active == True,
-            db.or_(
-                User.first_name.ilike(f"%{query}%"),
-                User.last_name.ilike(f"%{query}%"),
-                User.email.ilike(f"%{query}%")
-            )
-        )
-    ).limit(10).all()
+    limit = request.args.get('limit', type=int) or 3
+    limit = max(1, min(limit, 10))
+
+    filters = [User.is_active == True]
+    if query:
+        filters.append(db.or_(
+            User.first_name.ilike(f"%{query}%"),
+            User.last_name.ilike(f"%{query}%"),
+            User.email.ilike(f"%{query}%"),
+            db.func.concat(User.first_name, ' ', User.last_name).ilike(f"%{query}%")
+        ))
+
+    users = User.query.filter(db.and_(*filters)).order_by(
+        User.first_name.asc(), User.last_name.asc()
+    ).limit(limit).all()
     
     result = []
     for user in users:

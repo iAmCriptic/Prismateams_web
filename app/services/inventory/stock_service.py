@@ -147,3 +147,49 @@ class StockService:
         db.session.add(movement)
         db.session.flush()
         return movement
+
+    @staticmethod
+    def set_stock_count(product, target_quantity, user_id, reason=None, context_type="inventory", context_id=None):
+        """Setzt den physischen Gesamtbestand auf target_quantity (Inventurzählung)."""
+        if product.item_type != "consumable":
+            raise ValueError("set_stock_count only valid for consumables")
+
+        target = max(0, int(target_quantity))
+        lots = list(product.lots or [])
+        current = int(sum((lot.quantity_on_hand or 0) for lot in lots))
+        delta = target - current
+        if delta == 0:
+            return None
+
+        default_lot = StockService.ensure_default_lot(product, user_id)
+        if delta > 0:
+            default_lot.quantity_on_hand = int(default_lot.quantity_on_hand or 0) + delta
+        else:
+            remaining = -delta
+            ordered = sorted(
+                lots if lots else [default_lot],
+                key=lambda lot: 0 if lot.id == default_lot.id else 1,
+            )
+            for lot in ordered:
+                if remaining <= 0:
+                    break
+                available = int(lot.quantity_on_hand or 0)
+                take = min(available, remaining)
+                lot.quantity_on_hand = available - take
+                remaining -= take
+
+        movement = StockMovement(
+            product_id=product.id,
+            lot_id=default_lot.id,
+            movement_type="ADJUST",
+            quantity_delta=int(delta),
+            quantity_after=target,
+            reason=reason,
+            context_type=context_type,
+            context_id=str(context_id) if context_id else None,
+            performed_by=user_id,
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(movement)
+        db.session.flush()
+        return movement

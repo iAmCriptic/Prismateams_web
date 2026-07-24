@@ -245,27 +245,63 @@
     </section>
 
     <section class="inventory-form-card" aria-labelledby="inv-form-dguv">
-        <div class="inventory-form-card-head">
+        <div class="inventory-form-card-head inventory-form-card-head--split">
             <h2 id="inv-form-dguv" class="inventory-form-section-title">
                 <i class="bi bi-shield-check" aria-hidden="true"></i>
                 {{ _('inventory.product.form.sections.dguv') }}
             </h2>
+            <div class="form-check form-switch mb-0">
+                {% set dguv_required = product and (product.dguv_last_check or product.dguv_next_check or product.dguv_interval_months) %}
+                <input class="form-check-input" type="checkbox" role="switch"
+                       id="dguv_required" name="dguv_required" value="1"
+                       {% if dguv_required %}checked{% endif %}>
+                <label class="form-check-label" for="dguv_required">{{ _('inventory.product.form.dguv_required') }}</label>
+            </div>
         </div>
-        <div class="inventory-form-fields">
-            <div class="inventory-form-field">
-                <label for="dguv_last_check" class="form-label">{{ _('inventory.product.form.dguv_last_check') }}</label>
-                <input type="date" class="form-control" id="dguv_last_check" name="dguv_last_check"
-                       value="{{ product.dguv_last_check.strftime('%Y-%m-%d') if product and product.dguv_last_check else '' }}">
-            </div>
-            <div class="inventory-form-field">
-                <label for="dguv_next_check" class="form-label">{{ _('inventory.product.form.dguv_next_check') }}</label>
-                <input type="date" class="form-control" id="dguv_next_check" name="dguv_next_check"
-                       value="{{ product.dguv_next_check.strftime('%Y-%m-%d') if product and product.dguv_next_check else '' }}">
-            </div>
-            <div class="inventory-form-field">
-                <label for="dguv_interval_months" class="form-label">{{ _('inventory.product.form.dguv_interval_months') }}</label>
-                <input type="number" min="1" class="form-control" id="dguv_interval_months" name="dguv_interval_months"
-                       value="{{ product.dguv_interval_months if product and product.dguv_interval_months is not none else '' }}">
+        <div id="dguvFieldsWrap" class="{% if not dguv_required %}d-none{% endif %}">
+            <div class="inventory-form-fields inventory-form-fields--3">
+                <div class="inventory-form-field">
+                    <label for="dguv_last_check" class="form-label d-inline-flex align-items-center gap-1">
+                        {{ _('inventory.product.form.dguv_last_check') }}
+                        <button type="button" class="inventory-info-btn"
+                                data-bs-toggle="tooltip"
+                                title="{{ _('inventory.product.form.dguv_last_help') }}"
+                                aria-label="{{ _('inventory.product.form.dguv_last_help') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </label>
+                    <input type="date" class="form-control" id="dguv_last_check" name="dguv_last_check"
+                           value="{{ product.dguv_last_check.strftime('%Y-%m-%d') if product and product.dguv_last_check else '' }}">
+                </div>
+                <div class="inventory-form-field">
+                    <label for="dguv_interval_months" class="form-label d-inline-flex align-items-center gap-1">
+                        {{ _('inventory.product.form.dguv_interval_months') }}
+                        <button type="button" class="inventory-info-btn"
+                                data-bs-toggle="tooltip"
+                                title="{{ _('inventory.product.form.dguv_interval_help') }}"
+                                aria-label="{{ _('inventory.product.form.dguv_interval_help') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </label>
+                    <input type="number" min="1" class="form-control" id="dguv_interval_months" name="dguv_interval_months"
+                           value="{{ product.dguv_interval_months if product and product.dguv_interval_months is not none else 12 }}">
+                </div>
+                <div class="inventory-form-field">
+                    <label for="dguv_next_check_display" class="form-label d-inline-flex align-items-center gap-1">
+                        {{ _('inventory.product.form.dguv_next_check') }}
+                        <button type="button" class="inventory-info-btn"
+                                data-bs-toggle="tooltip"
+                                title="{{ _('inventory.product.form.dguv_next_auto_help') }}"
+                                aria-label="{{ _('inventory.product.form.dguv_next_auto_help') }}">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </label>
+                    <input type="text" class="form-control" id="dguv_next_check_display" readonly
+                           value="{{ product.dguv_next_check.strftime('%d.%m.%Y') if product and product.dguv_next_check else '' }}"
+                           placeholder="—">
+                    <input type="hidden" id="dguv_next_check" name="dguv_next_check"
+                           value="{{ product.dguv_next_check.strftime('%Y-%m-%d') if product and product.dguv_next_check else '' }}">
+                </div>
             </div>
         </div>
     </section>
@@ -293,14 +329,29 @@
             {% endif %}
             {% if not product %}
             <div class="inventory-form-field">
-                <label for="quantity" class="form-label">{{ _('inventory.product.form.quantity') }}</label>
+                <label for="quantity" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.quantity') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.quantity_help') }}"
+                            aria-label="{{ _('inventory.product.form.quantity_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
                 <input type="number" class="form-control" id="quantity" name="quantity"
                        value="1" min="1" max="100" required>
-                <small class="form-text text-muted">{{ _('inventory.product.form.quantity_help') }}</small>
             </div>
             {% endif %}
             <div class="inventory-form-field">
-                <label for="image" class="form-label">{{ _('inventory.product.form.image') }}</label>
+                <label for="image" class="form-label d-inline-flex align-items-center gap-1">
+                    {{ _('inventory.product.form.image') }}
+                    <button type="button" class="inventory-info-btn"
+                            data-bs-toggle="tooltip"
+                            title="{{ _('inventory.product.form.image_help') }}"
+                            aria-label="{{ _('inventory.product.form.image_help') }}">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </label>
                 <input type="file" class="form-control" id="image" name="image" accept="image/*">
                 {% if product and product.image_path %}
                 <div class="mt-2" id="currentImageWrap">
@@ -316,16 +367,15 @@
                     <input type="hidden" id="remove_image" name="remove_image" value="0">
                 </div>
                 {% endif %}
-                <small class="form-text text-muted">{{ _('inventory.product.form.image_help') }}</small>
             </div>
         </div>
     </section>
 
     <div class="inventory-form-actions inventory-form-card--wide">
-        <a href="{{ url_for('inventory.stock') }}" class="btn inventory-pill-btn inventory-pill-btn--muted">{{ _('inventory.product.form.cancel') }}</a>
         <button type="submit" class="btn inventory-pill-btn inventory-pill-btn--primary">
             <i class="bi bi-check-circle"></i> {{ _('inventory.product.form.save') }}
         </button>
+        <a href="{{ url_for('inventory.stock') }}" class="btn inventory-pill-btn inventory-pill-btn--muted">{{ _('inventory.product.form.cancel') }}</a>
     </div>
 </form>
 {% endblock %}

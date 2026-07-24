@@ -92,7 +92,7 @@
         <a class="dash-widget-row" href="{{ url_for('chat.view_chat', chat_id=1 if message.chat.is_main_chat else message.chat_id) }}" onclick="event.stopPropagation();">
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ message.sender.full_name }}</p>
-                <span class="dash-widget-row-meta">{{ message.created_at.strftime('%H:%M') }}</span>
+                <span class="dash-widget-row-meta">{{ message.created_at|localtime('%H:%M') }}</span>
             </div>
             <p class="dash-widget-row-sub">{{ message.content or _('dashboard.widgets.chat.fallback_file') }}</p>
         </a>
@@ -159,9 +159,9 @@
         <a class="dash-widget-row" href="{{ file_url }}" {% if onlyoffice_available and is_onlyoffice_type %}target="_blank"{% endif %} onclick="event.stopPropagation();">
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ file.original_name }}</p>
-                <span class="dash-widget-row-meta">{{ file.updated_at.strftime('%d.%m.') }}</span>
+                <span class="dash-widget-row-meta">{{ file.updated_at|localdatetime('%d.%m.') }}</span>
             </div>
-            <p class="dash-widget-row-sub">{{ file.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+            <p class="dash-widget-row-sub">{{ file.updated_at|localtime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
         </a>
         {% endfor %}
     </div>
@@ -216,9 +216,9 @@
         <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" onclick="event.stopPropagation();">
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ page.title }}</p>
-                <span class="dash-widget-row-meta">{{ page.updated_at.strftime('%d.%m.') }}</span>
+                <span class="dash-widget-row-meta">{{ page.updated_at|localdatetime('%d.%m.') }}</span>
             </div>
-            <p class="dash-widget-row-sub">{{ page.updated_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+            <p class="dash-widget-row-sub">{{ page.updated_at|localtime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
         </a>
         {% endfor %}
     </div>
@@ -243,7 +243,7 @@
         <a class="dash-widget-row" href="{{ url_for('wiki.view', slug=page.slug) }}" onclick="event.stopPropagation();">
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title"><i class="bi bi-star-fill text-warning me-1"></i>{{ page.title }}</p>
-                <span class="dash-widget-row-meta">{{ page.updated_at.strftime('%d.%m.') }}</span>
+                <span class="dash-widget-row-meta">{{ page.updated_at|localdatetime('%d.%m.') }}</span>
             </div>
         </a>
         {% endfor %}
@@ -268,10 +268,10 @@
         {% for group in my_borrow_groups %}
         <div class="dash-widget-row" onclick="event.stopPropagation();">
             <div class="dash-widget-row-top">
-                <p class="dash-widget-row-title">{{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date.strftime('%d.%m.%Y')) }}</p>
+                <p class="dash-widget-row-title">{{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date|localdatetime('%d.%m.%Y')) }}</p>
                 {% if group.is_overdue %}<span class="badge bg-danger">{{ _('dashboard.widgets.borrows.overdue') }}</span>{% endif %}
             </div>
-            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date.strftime('%d.%m.%Y')) }}</p>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date|localdatetime('%d.%m.%Y')) }}</p>
             <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="btn btn-sm btn-success mt-1" onclick="event.stopPropagation();">
                 <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
             </a>
@@ -300,9 +300,9 @@
         <a class="dash-widget-row" href="{{ url_for('booking.request_detail', request_id=req.id) }}" onclick="event.stopPropagation();">
             <div class="dash-widget-row-top">
                 <p class="dash-widget-row-title">{{ req.event_name }}</p>
-                <span class="dash-widget-row-meta">{{ req.created_at.strftime('%d.%m.') }}</span>
+                <span class="dash-widget-row-meta">{{ req.created_at|localdatetime('%d.%m.') }}</span>
             </div>
-            <p class="dash-widget-row-sub">{{ req.created_at.strftime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}{% if req.email %} · {{ req.email }}{% endif %}</p>
+            <p class="dash-widget-row-sub">{{ req.created_at|localtime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}{% if req.email %} · {{ req.email }}{% endif %}</p>
         </a>
         {% endfor %}
         {% if total_pending_bookings > 3 %}

@@ -73,7 +73,7 @@
             </div>
 
             {% if user.created_at %}
-            <p class="settings-profile-meta">{{ _('settings.profile.exists_since', date=user.created_at.strftime('%d.%m.%Y')) }}</p>
+            <p class="settings-profile-meta">{{ _('settings.profile.exists_since', date=user.created_at|localdatetime('%d.%m.%Y')) }}</p>
             {% endif %}
         </section>
 

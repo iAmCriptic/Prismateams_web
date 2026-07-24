@@ -43,29 +43,40 @@
 </div>
 {% endmacro %}
 
+{% macro contacts_search_form(id_suffix='') %}
+<form method="GET" class="contacts-search" role="search" id="contactsSearchForm{{ id_suffix }}">
+    {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
+    <input type="hidden" name="sort" value="{{ current_sort }}">
+    <input type="hidden" name="dir" value="{{ current_dir }}">
+    <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
+    <input type="hidden" name="name" value="{{ current_filters.name }}">
+    <input type="hidden" name="email" value="{{ current_filters.email }}">
+    <input type="hidden" name="phone" value="{{ current_filters.phone }}">
+    <input type="hidden" name="notes" value="{{ current_filters.notes }}">
+    <i class="bi bi-search contacts-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           id="contactsSearchInput{{ id_suffix }}"
+           value="{{ search_query }}"
+           class="form-control contacts-search-input"
+           placeholder="{{ _('contacts.index.search.placeholder') }}"
+           aria-label="{{ _('contacts.index.search.button') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('contacts.index', sort=current_sort, dir=current_dir, salutation=current_filters.salutation or None, name=current_filters.name or None, email=current_filters.email or None, phone=current_filters.phone or None, notes=current_filters.notes or None, view=view_param or None) }}"
+       class="btn contacts-search-clear"
+       id="contactsSearchClear{{ id_suffix }}"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endmacro %}
+
 {% macro contacts_sidebar_tools(id_suffix='') %}
 <div class="mod-sidebar-tools">
-    <div class="mod-sidebar-section">
-        <div class="mod-sidebar-heading">
-            <i class="bi bi-search me-1"></i>{{ _('contacts.index.search.button') }}
-        </div>
-        <form method="GET" class="mod-sidebar-form d-grid gap-2">
-            {% if active_favorites %}<input type="hidden" name="view" value="favorites">{% endif %}
-            <input type="hidden" name="sort" value="{{ current_sort }}">
-            <input type="hidden" name="dir" value="{{ current_dir }}">
-            <input type="hidden" name="salutation" value="{{ current_filters.salutation }}">
-            <input type="hidden" name="name" value="{{ current_filters.name }}">
-            <input type="hidden" name="email" value="{{ current_filters.email }}">
-            <input type="hidden" name="phone" value="{{ current_filters.phone }}">
-            <input type="hidden" name="notes" value="{{ current_filters.notes }}">
-            <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="{{ _('contacts.index.search.placeholder') }}" aria-label="{{ _('contacts.index.search.button') }}">
-            <button type="submit" class="btn mod-sidebar-action w-100">
-                <i class="bi bi-search"></i>
-                <span>{{ _('contacts.index.search.button') }}</span>
-            </button>
-        </form>
-    </div>
-
     <div class="mod-sidebar-section">
         <div class="mod-sidebar-heading">
             <i class="bi bi-sort-alpha-down me-1"></i>{{ _('contacts.index.sort.menu_button') }}
@@ -370,11 +381,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        <div class="mod-sidebar-new-wrap w-100 mb-3">
-            <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
-                <i class="bi bi-plus-lg me-2"></i>{{ _('contacts.index.new_button') }}
-            </a>
-        </div>
         {{ contacts_folder_nav(true) }}
         {{ contacts_sidebar_tools('-mobile') }}
     </div>
@@ -396,14 +402,27 @@
                 <i class="bi bi-plus-lg"></i> {{ _('contacts.index.new_button') }}
             </a>
         </div>
-        <div class="contacts-mobile-view-toggle mt-2">
-            {{ contacts_view_toggle('Mobile') }}
+        <div class="contacts-mobile-toolbar mt-2">
+            <div class="contacts-mobile-search min-width-0 flex-grow-1">
+                {{ contacts_search_form('Mobile') }}
+            </div>
+            <div class="contacts-mobile-view-toggle flex-shrink-0">
+                {{ contacts_view_toggle('Mobile') }}
+            </div>
         </div>
     </div>
 
-    <div class="row mb-3 page-toolbar-row align-items-center g-2">
-        <div class="col-auto d-none d-lg-flex ms-lg-auto">
-            {{ contacts_view_toggle('') }}
+    <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col-lg-3 min-width-0">
+            <h1 class="h4 mb-0 text-truncate">{{ active_folder_label }}</h1>
+        </div>
+        <div class="col-lg-6">
+            {{ contacts_search_form('') }}
+        </div>
+        <div class="col-lg-3">
+            <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                {{ contacts_view_toggle('') }}
+            </div>
         </div>
     </div>
 

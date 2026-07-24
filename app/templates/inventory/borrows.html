@@ -1,89 +1,108 @@
 {% extends "inventory/layout.html" %}
+{% set inventory_show_filter_nav = true %}
 
 {% block title %}Ausleihen - {{ app_name or 'Rpismateams' }}{% endblock %}
 {% block inventory_heading_icon %}bi-clock-history{% endblock %}
 {% block inventory_heading %}{{ _('inventory.shell.nav.borrows') }}{% endblock %}
 
-
-{% block inventory_content %}
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3">
-                <label for="filterBorrower" class="form-label">Verantwortlicher</label>
-                <input type="text" class="form-control" id="filterBorrower" placeholder="Name suchen...">
+{% macro borrows_filter_tools(id_suffix='') %}
+<div class="inventory-filter-tools">
+    <div class="inventory-filter-section">
+        <div class="inventory-filter-label">
+            <i class="bi bi-funnel" aria-hidden="true"></i>{{ _('inventory.stock.filters.title') }}
+        </div>
+        <div class="inventory-filter-grid">
+            <div>
+                <label for="filterBorrower{{ id_suffix }}" class="form-label mb-1">Verantwortlicher</label>
+                <input type="text" class="form-control form-control-sm inventory-filter-control"
+                       id="filterBorrower{{ id_suffix }}" data-inv-filter="filterBorrower"
+                       placeholder="Name suchen...">
             </div>
-            <div class="col-12 col-md-3">
-                <label for="filterEvent" class="form-label">Projekt / Event</label>
-                <input type="text" class="form-control" id="filterEvent" placeholder="Projekt suchen...">
+            <div>
+                <label for="filterEvent{{ id_suffix }}" class="form-label mb-1">Projekt / Event</label>
+                <input type="text" class="form-control form-control-sm inventory-filter-control"
+                       id="filterEvent{{ id_suffix }}" data-inv-filter="filterEvent"
+                       placeholder="Projekt suchen...">
             </div>
-            <div class="col-12 col-md-3">
-                <label for="filterProduct" class="form-label">Produkt</label>
-                <input type="text" class="form-control" id="filterProduct" placeholder="Produktname suchen...">
+            <div>
+                <label for="filterProduct{{ id_suffix }}" class="form-label mb-1">Produkt</label>
+                <input type="text" class="form-control form-control-sm inventory-filter-control"
+                       id="filterProduct{{ id_suffix }}" data-inv-filter="filterProduct"
+                       placeholder="Produktname suchen...">
             </div>
-            <div class="col-12 col-md-3">
-                <label for="filterStatus" class="form-label">Status</label>
-                <select class="form-select" id="filterStatus">
+            <div>
+                <label for="filterStatus{{ id_suffix }}" class="form-label mb-1">Status</label>
+                <select class="form-select form-select-sm inventory-filter-control"
+                        id="filterStatus{{ id_suffix }}" data-inv-filter="filterStatus">
                     <option value="all">Alle</option>
                     <option value="active">Aktiv</option>
                     <option value="overdue">Überfällig</option>
                     <option value="returned">Zurückgegeben</option>
                 </select>
             </div>
-            <div class="col-12 col-md-3">
-                <label for="filterDateFrom" class="form-label">Von</label>
-                <input type="date" class="form-control" id="filterDateFrom">
+            <div>
+                <label for="filterDateFrom{{ id_suffix }}" class="form-label mb-1">Von</label>
+                <input type="date" class="form-control form-control-sm inventory-filter-control"
+                       id="filterDateFrom{{ id_suffix }}" data-inv-filter="filterDateFrom">
             </div>
-            <div class="col-12 col-md-3">
-                <label for="filterDateTo" class="form-label">Bis</label>
-                <input type="date" class="form-control" id="filterDateTo">
+            <div>
+                <label for="filterDateTo{{ id_suffix }}" class="form-label mb-1">Bis</label>
+                <input type="date" class="form-control form-control-sm inventory-filter-control"
+                       id="filterDateTo{{ id_suffix }}" data-inv-filter="filterDateTo">
             </div>
-            <div class="col-12 col-md-3">
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" id="filterMine">
-                    <label class="form-check-label" for="filterMine">Nur meine Ausleihen</label>
-                </div>
+            <div class="form-check mt-1">
+                <input class="form-check-input" type="checkbox" id="filterMine{{ id_suffix }}"
+                       data-inv-filter="filterMine">
+                <label class="form-check-label" for="filterMine{{ id_suffix }}">Nur meine Ausleihen</label>
             </div>
         </div>
     </div>
 </div>
+{% endmacro %}
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Ausleihen</h5>
-        <span class="badge bg-primary" id="borrowsCount">0</span>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover" id="borrowsTable">
-                <thead>
-                    <tr>
-                        <th>Vorgangsnummer</th>
-                        <th>Event</th>
-                        <th>Produkt</th>
-                        <th>Verantwortlicher</th>
-                        <th>Ausleihdatum</th>
-                        <th>Rückgabedatum</th>
-                        <th>Status</th>
-                        <th>Aktionen</th>
-                    </tr>
-                </thead>
-                <tbody id="borrowsTableBody">
-                    <tr>
-                        <td colspan="8" class="text-center py-5">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Lädt...</span>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+{% block inventory_filter_nav %}
+{{ borrows_filter_tools('') }}
+{% endblock %}
+
+{% block inventory_mobile_stock_tools %}
+{{ borrows_filter_tools('Mobile') }}
+{% endblock %}
+
+{% block inventory_content %}
+<div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+    <span class="text-muted small">Ausleihen</span>
+    <span class="inventory-count-accent" id="borrowsCount">0</span>
+</div>
+
+<div id="borrowsListContainer" class="mod-list-table-wrap">
+    <table class="table mod-list-table align-middle mb-0" id="borrowsTable">
+        <thead>
+            <tr>
+                <th>Vorgangsnummer</th>
+                <th>Event</th>
+                <th>Produkt</th>
+                <th>Verantwortlicher</th>
+                <th>Ausleihdatum</th>
+                <th>Rückgabedatum</th>
+                <th>Status</th>
+                <th class="text-end">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody id="borrowsTableBody">
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Lädt...</span>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 {% endblock %}
 
 {% block inventory_extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -91,19 +110,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const borrowsManager = new BorrowsManager();
     borrowsManager.init();
 
-    ['filterBorrower', 'filterEvent', 'filterProduct', 'filterDateFrom', 'filterDateTo'].forEach((id) => {
-        document.getElementById(id)?.addEventListener('input', () => borrowsManager.applyFilters());
-    });
-    document.getElementById('filterStatus')?.addEventListener('change', () => borrowsManager.applyFilters());
-    document.getElementById('filterMine')?.addEventListener('change', () => borrowsManager.applyFilters());
-
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('filter') === 'my') {
-        const mine = document.getElementById('filterMine');
-        if (mine) {
-            mine.checked = true;
-            borrowsManager.applyFilters();
-        }
+        document.querySelectorAll('[data-inv-filter="filterMine"]').forEach((el) => {
+            el.checked = true;
+        });
+        borrowsManager.applyFilters();
     }
 });
 </script>

@@ -81,11 +81,11 @@
                         {{ _('inventory.borrow.borrow_info.info') }}
                     </div>
 
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-secondary">{{ _('inventory.borrow.borrow_info.cancel') }}</a>
+                    <div class="d-flex flex-wrap gap-2">
                         <button type="submit" class="btn btn-accent">
                             <i class="bi bi-check-circle"></i> {{ _('inventory.borrow.borrow_info.confirm') }}
                         </button>
+                        <a href="{{ url_for('inventory.stock') }}" class="btn btn-outline-secondary">{{ _('inventory.borrow.borrow_info.cancel') }}</a>
                     </div>
                 </form>
             </div>

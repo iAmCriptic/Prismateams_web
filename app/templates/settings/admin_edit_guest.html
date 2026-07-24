@@ -36,7 +36,7 @@
             <div class="mb-3">
                 <label for="guest_expires_at" class="form-label">Ablaufzeit (optional)</label>
                 <input type="datetime-local" class="form-control" id="guest_expires_at" name="guest_expires_at" 
-                       value="{% if user.guest_expires_at %}{{ user.guest_expires_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                       value="{% if user.guest_expires_at %}{{ user.guest_expires_at|localdatetime('%Y-%m-%dT%H:%M') }}{% endif %}">
                 <small class="form-text text-muted">Der Account wird automatisch gelöscht, wenn die Ablaufzeit erreicht ist.</small>
             </div>
             

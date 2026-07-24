@@ -3,62 +3,151 @@
 {% block title %}{% if link %}Kurzlink bearbeiten{% else %}Kurzlink erstellen{% endif %}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0">{% if link %}Kurzlink bearbeiten{% else %}Kurzlink erstellen{% endif %}</h4>
+{% set is_edit = link is defined and link %}
+{% set create_url = url_for('shortlinks.create') %}
+{% set index_url = url_for('shortlinks.index') %}
+{% set page_title = 'Kurzlink bearbeiten' if is_edit else 'Kurzlink erstellen' %}
+{% set page_subtitle = 'Ziel, Kürzel und optionale Limits anpassen.' if is_edit else 'Ziel-URL angeben und optionalen Kurzlink festlegen.' %}
+
+<div class="shortlinks-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-link-45deg" aria-hidden="true"></i>
+        <span>URL-Shortener</span>
+    </div>
+    <div class="mod-sidebar-new-wrap w-100">
+        <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
+            <i class="bi bi-plus-lg me-2"></i>Neu
+        </a>
+    </div>
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="shortlinksMobileNav" aria-labelledby="shortlinksMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="shortlinksMobileNavLabel">
+            <i class="bi bi-link-45deg" aria-hidden="true"></i>
+            <span>URL-Shortener</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        <div class="mod-sidebar-new-wrap w-100 mb-3">
+            <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
+                <i class="bi bi-plus-lg me-2"></i>Neu
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#shortlinksMobileNav" aria-controls="shortlinksMobileNav" aria-label="Menü">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-{{ 'pencil' if is_edit else 'plus-circle' }}" aria-hidden="true"></i>
+                    <span>{{ page_title }}</span>
+                </h1>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="target_url" class="form-label">Ziel-URL</label>
-                        <input type="text" class="form-control" id="target_url" name="target_url" required value="{{ (link.target_url if link else request.form.get('target_url', '')) }}">
+        </div>
+    </div>
+
+    <div class="shortlinks-form">
+        <div class="shortlinks-form-header d-none d-lg-block">
+            <a href="{{ index_url }}" class="shortlinks-form-back">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <span>Zurück</span>
+            </a>
+            <h1 class="shortlinks-form-title">{{ page_title }}</h1>
+            <p class="shortlinks-form-subtitle">{{ page_subtitle }}</p>
+        </div>
+
+        <form method="POST" class="shortlinks-form-body">
+            <section class="shortlinks-form-card" aria-labelledby="shortlinks-form-target">
+                <div class="shortlinks-form-card-head">
+                    <h2 id="shortlinks-form-target" class="shortlinks-form-section-title">
+                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                        Ziel
+                    </h2>
+                </div>
+                <div class="shortlinks-form-fields">
+                    <div class="shortlinks-form-field">
+                        <label for="target_url" class="form-label">Ziel-URL <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="target_url" name="target_url" required
+                               value="{{ (link.target_url if link else request.form.get('target_url', '')) }}"
+                               placeholder="https://beispiel.de/seite">
                         <div class="form-text">Mit oder ohne http(s) möglich.</div>
                     </div>
-
-                    <div class="mb-3">
+                    <div class="shortlinks-form-field">
                         <label for="slug" class="form-label">Kürzel (optional)</label>
-                        <input type="text" class="form-control" id="slug" name="slug" value="{{ (link.slug if link else request.form.get('slug', '')) }}">
-                        <div class="form-text">Leer lassen für zufälliges Kürzel. Erlaubt: Buchstaben, Zahlen, - und _ (3-64 Zeichen).</div>
+                        <input type="text" class="form-control" id="slug" name="slug"
+                               value="{{ (link.slug if link else request.form.get('slug', '')) }}"
+                               placeholder="mein-link">
+                        <div class="form-text">Leer lassen für zufälliges Kürzel. Erlaubt: Buchstaben, Zahlen, - und _ (3–64 Zeichen).</div>
                     </div>
+                </div>
+            </section>
 
-                    <div class="mb-3">
+            <section class="shortlinks-form-card" aria-labelledby="shortlinks-form-protection">
+                <div class="shortlinks-form-card-head">
+                    <h2 id="shortlinks-form-protection" class="shortlinks-form-section-title">
+                        <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                        Schutz
+                    </h2>
+                </div>
+                <div class="shortlinks-form-fields">
+                    <div class="shortlinks-form-field">
                         <label for="password" class="form-label">Passwort (optional)</label>
-                        <input type="password" class="form-control" id="password" name="password">
+                        <input type="password" class="form-control" id="password" name="password" autocomplete="new-password">
                         {% if link and link.password_hash %}
-                        <div class="form-check mt-2">
+                        <div class="form-check shortlinks-form-check mt-2">
                             <input class="form-check-input" type="checkbox" id="clear_password" name="clear_password">
                             <label class="form-check-label" for="clear_password">Passwortschutz entfernen</label>
                         </div>
                         {% endif %}
                     </div>
+                </div>
+            </section>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="expires_at" class="form-label">Ablaufdatum (optional)</label>
-                            <input type="datetime-local" class="form-control" id="expires_at" name="expires_at" value="{% if link and link.expires_at %}{{ link.expires_at.strftime('%Y-%m-%dT%H:%M') }}{% else %}{{ request.form.get('expires_at', '') }}{% endif %}">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="max_clicks" class="form-label">Maximale Aufrufe (optional)</label>
-                            <input type="number" min="1" class="form-control" id="max_clicks" name="max_clicks" value="{{ (link.max_clicks if link and link.max_clicks else request.form.get('max_clicks', '')) }}">
-                        </div>
+            <section class="shortlinks-form-card" aria-labelledby="shortlinks-form-limits">
+                <div class="shortlinks-form-card-head">
+                    <h2 id="shortlinks-form-limits" class="shortlinks-form-section-title">
+                        <i class="bi bi-sliders" aria-hidden="true"></i>
+                        Limits
+                    </h2>
+                </div>
+                <div class="shortlinks-form-fields shortlinks-form-fields--2">
+                    <div class="shortlinks-form-field">
+                        <label for="expires_at" class="form-label">Ablaufdatum (optional)</label>
+                        <input type="datetime-local" class="form-control" id="expires_at" name="expires_at"
+                               value="{% if link and link.expires_at %}{{ link.expires_at|localdatetime('%Y-%m-%dT%H:%M') }}{% else %}{{ request.form.get('expires_at', '') }}{% endif %}">
                     </div>
-
-                    {% if link %}
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if link.is_active %}checked{% endif %}>
-                        <label class="form-check-label" for="is_active">Link aktiv</label>
+                    <div class="shortlinks-form-field">
+                        <label for="max_clicks" class="form-label">Maximale Aufrufe (optional)</label>
+                        <input type="number" min="1" class="form-control" id="max_clicks" name="max_clicks"
+                               value="{{ (link.max_clicks if link and link.max_clicks else request.form.get('max_clicks', '')) }}">
+                    </div>
+                    {% if is_edit %}
+                    <div class="shortlinks-form-field shortlinks-form-field--span-2">
+                        <div class="form-check shortlinks-form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if link.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">Link aktiv</label>
+                        </div>
                     </div>
                     {% endif %}
+                </div>
+            </section>
 
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-accent">Speichern</button>
-                        <a href="{{ url_for('shortlinks.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
-                    </div>
-                </form>
+            <div class="shortlinks-form-actions">
+                <button type="submit" class="btn btn-accent shortlinks-form-submit">
+                    <i class="bi bi-save" aria-hidden="true"></i> Speichern
+                </button>
+                <a href="{{ index_url }}" class="btn btn-outline-secondary shortlinks-form-cancel">Abbrechen</a>
             </div>
-        </div>
+        </form>
     </div>
+</div>
 </div>
 {% endblock %}

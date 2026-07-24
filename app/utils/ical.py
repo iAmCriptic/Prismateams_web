@@ -187,6 +187,12 @@ def _parse_vevent_component(component):
     else:
         end_time = start_time + timedelta(hours=1)
 
+    # Aware iCal-Zeiten (z.B. ...Z / UTC) in Portal-Wandzeit umrechnen,
+    # damit Anzeige und Vergleiche konsistent mit manuell erfassten Terminen sind.
+    from app.utils.common import as_portal_wall_time
+    start_time = as_portal_wall_time(start_time)
+    end_time = as_portal_wall_time(end_time)
+
     description = str(component.get('description', '')) or None
     location = str(component.get('location', '')) or None
 

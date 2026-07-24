@@ -1960,6 +1960,28 @@ def sync_emails_from_folder(folder_name):
                 
                 if text_max_length > 0 and body_text and len(body_text) > text_max_length:
                     body_text = body_text[:text_max_length]
+
+                # Booking-Thread: Antworten auf Buchungsmails nicht in der normalen Inbox zeigen
+                try:
+                    from app.utils.booking_messages import try_route_inbound_email
+                    routed = try_route_inbound_email(
+                        email_msg,
+                        message_id=message_id,
+                        sender=sender,
+                        subject=subject,
+                        recipients=recipients or '',
+                        body_text=body_text or '',
+                        body_html=body_html or '',
+                    )
+                    if routed:
+                        stats['skipped_emails'] += 1
+                        logging.info(
+                            f"Email {message_id} routed to booking thread, skipped inbox "
+                            f"(folder={folder_name})"
+                        )
+                        continue
+                except Exception as booking_route_error:
+                    logging.error(f"Booking email routing failed: {booking_route_error}")
                 
                 # Bestimme is_read Status:
                 # 1. E-Mails im "Sent"-Ordner sind immer als gelesen markiert (man hat sie selbst versendet)
@@ -2462,6 +2484,35 @@ def _folder_tree_context():
     return flat, ordered
 
 
+def _escape_like(value: str) -> str:
+    """Escape LIKE wildcards so user input is matched literally."""
+    return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
+def _emails_for_folder(folder_name: str, search_query: str = ''):
+    """Load emails for a folder, optionally filtered by subject search."""
+    query = EmailMessage.query.filter_by(folder=folder_name)
+    if search_query:
+        query = query.filter(
+            EmailMessage.subject.ilike(f'%{_escape_like(search_query)}%', escape='\\')
+        )
+    return query.order_by(EmailMessage.received_at.desc()).all()
+
+
+def _restore_false_deleted_flags(emails, folder_name: str) -> None:
+    restored_count = 0
+    for email in emails:
+        if email.is_deleted_imap:
+            email.is_deleted_imap = False
+            restored_count += 1
+    if restored_count > 0:
+        db.session.commit()
+        logging.info(
+            f"Wiederhergestellt {restored_count} fälschlicherweise als gelöscht "
+            f"markierte E-Mails im Ordner '{folder_name}'"
+        )
+
+
 @email_bp.route('/')
 @login_required
 @check_module_access('module_email')
@@ -2472,20 +2523,10 @@ def index():
         return redirect(url_for('dashboard.index'))
     
     current_folder = request.args.get('folder', 'INBOX')
-    # Zeige alle E-Mails (auch die als gelöscht markierten, um zu prüfen was los ist)
-    emails = EmailMessage.query.filter_by(
-        folder=current_folder
-    ).order_by(EmailMessage.received_at.desc()).all()
-    
-    # Stelle alle fälschlicherweise als gelöscht markierten E-Mails wieder her
-    restored_count = 0
-    for email in emails:
-        if email.is_deleted_imap:
-            email.is_deleted_imap = False
-            restored_count += 1
-    if restored_count > 0:
-        db.session.commit()
-        logging.info(f"Wiederhergestellt {restored_count} fälschlicherweise als gelöscht markierte E-Mails im Ordner '{current_folder}'")
+    search_query = (request.args.get('q') or '').strip()
+    emails = _emails_for_folder(current_folder, search_query)
+    _restore_false_deleted_flags(emails, current_folder)
+
     folder_obj = EmailFolder.query.filter_by(name=current_folder).first()
     folder_display_name = folder_obj.display_name if folder_obj else current_folder
 
@@ -2508,6 +2549,7 @@ def index():
         folder_unread_counts=count_unread_emails_by_folder(),
         current_folder=current_folder,
         folder_display_name=folder_display_name,
+        search_query=search_query,
         color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
     )
 
@@ -2539,20 +2581,9 @@ def folder_view(folder_name):
         flash(f'Ordner "{folder_name}" nicht gefunden.', 'warning')
         return redirect(url_for('email.index'))
     
-    # Zeige alle E-Mails (auch die als gelöscht markierten, um zu prüfen was los ist)
-    emails = EmailMessage.query.filter_by(
-        folder=folder_name
-    ).order_by(EmailMessage.received_at.desc()).all()
-    
-    # Stelle alle fälschlicherweise als gelöscht markierten E-Mails wieder her
-    restored_count = 0
-    for email in emails:
-        if email.is_deleted_imap:
-            email.is_deleted_imap = False
-            restored_count += 1
-    if restored_count > 0:
-        db.session.commit()
-        logging.info(f"Wiederhergestellt {restored_count} fälschlicherweise als gelöscht markierte E-Mails im Ordner '{folder_name}'")
+    search_query = (request.args.get('q') or '').strip()
+    emails = _emails_for_folder(folder_name, search_query)
+    _restore_false_deleted_flags(emails, folder_name)
     
     logging.info(f"Viewing folder '{folder_name}' with {len(emails)} emails")
 
@@ -2569,6 +2600,7 @@ def folder_view(folder_name):
         folder_unread_counts=count_unread_emails_by_folder(),
         current_folder=folder_name,
         folder_display_name=folder_display_name,
+        search_query=search_query,
         color_dot_choices=[c for c in COLOR_DOT_CHOICES.keys() if c not in ('', 'none')],
     )
 

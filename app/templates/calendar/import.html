@@ -94,7 +94,7 @@
                                 </td>
                                 <td>
                                     {% if source.last_synced_at %}
-                                    {{ source.last_synced_at.strftime('%d.%m.%Y %H:%M') }}
+                                    {{ source.last_synced_at|localdatetime('%d.%m.%Y %H:%M') }}
                                     {% else %}
                                     <span class="text-muted">—</span>
                                     {% endif %}

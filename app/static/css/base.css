@@ -1571,6 +1571,12 @@ button, .btn {
     body:has(#desktopSidebar) .app-flash-banner {
         left: calc(280px + (100vw - 280px) / 2);
     }
+    body:has(.wiki-file-viewer) .app-flash-banner,
+    body:has(.markdown-editor-fullscreen) .app-flash-banner,
+    body:has(.file-viewer) .app-flash-banner {
+        left: 50%;
+        z-index: 1080;
+    }
 }
 
 .portal-msg {

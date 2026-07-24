@@ -1971,7 +1971,9 @@
       },
       "errors": {
         "file_type_not_supported": "File type not supported"
-      }
+      },
+      "search_placeholder": "Search in files",
+      "search_empty": "No matches in this folder."
     },
     "view": {
       "download": "Download",
@@ -1981,7 +1983,13 @@
       "image_preview_alt": "Image preview",
       "image_fullscreen_hint": "Click for fullscreen",
       "video_label": "Video",
-      "audio_label": "Audio"
+      "audio_label": "Audio",
+      "history": "History",
+      "history_loading": "Loading versions...",
+      "history_empty": "No older versions.",
+      "history_current": "current",
+      "more": "More",
+      "version_label": "Version {number}"
     },
     "onlyoffice": {
       "back_button_label": "Back"
@@ -2111,7 +2119,9 @@
         "filtered": "No pages found. Try different search criteria."
       },
       "js": {
-        "favorite_error": "Failed to update favorites."
+        "favorite_error": "Failed to update favorites.",
+        "history_loading": "Loading version history…",
+        "history_error": "Could not load version history."
       },
       "new_button": "New",
       "nav": {
@@ -2136,6 +2146,22 @@
       "favorites": {
         "title": "Favorites",
         "empty": "No favorites"
+      },
+      "folders": {
+        "all": "All",
+        "favorites": "Favorites",
+        "favorites_empty": "No favorites yet."
+      },
+      "view_toggle": {
+        "label": "Toggle view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "list": {
+        "title": "Title",
+        "category": "Category",
+        "author": "Author",
+        "updated": "Updated"
       }
     },
     "create": {
@@ -2148,7 +2174,7 @@
         "category": {
           "label": "Category",
           "none": "No category",
-          "new_option": "➕ New category",
+          "new_option": "New category",
           "new_placeholder": "Enter category name"
         },
         "tags": {
@@ -2222,8 +2248,10 @@
       "meta": {
         "by_author": "By {name}",
         "updated_at": "{date}",
-        "version": "Version {number}"
+        "version": "Version {number}",
+        "readonly": "Read only"
       },
+      "historical_banner": "This is version {number} — view only, not editable.",
       "buttons": {
         "edit": "Edit",
         "history": "History",
@@ -2235,12 +2263,24 @@
     "history": {
       "page_title": "Version history - {title}",
       "heading": "Version history",
+      "side_title": "Details & versions",
+      "info_title": "Page info",
+      "info_labels": {
+        "title": "Title",
+        "author": "Author",
+        "updated": "Updated",
+        "version": "Version"
+      },
       "badge_current": "Current",
+      "keep_hint": "The last 3 versions are kept. Older versions are read-only.",
       "buttons": {
         "back": "Back",
+        "view": "View",
         "view_current": "View current version"
       },
-      "empty": "No version history yet."
+      "empty": "No version history yet.",
+      "loading": "Loading version history…",
+      "error": "Could not load version history."
     },
     "api": {
       "module_disabled": "Wiki module not enabled",
@@ -2415,6 +2455,13 @@
       "js": {
         "no_events": "No events found.",
         "error_loading": "Error loading events."
+      },
+      "search": {
+        "placeholder": "Search events",
+        "aria": "Search events",
+        "results": "Search results",
+        "empty": "No events found.",
+        "hint": "Enter at least 2 characters."
       }
     },
     "create": {
@@ -2658,10 +2705,16 @@
         "cancel": "Cancel"
       },
       "folder_default": "Inbox",
+      "search": {
+        "placeholder": "Search subject…",
+        "aria": "Search emails by subject",
+        "clear": "Clear search"
+      },
       "labels": {
         "new_badge": "New",
         "move_to_folder": "Move to folder",
         "empty": "No emails available",
+        "empty_search": "No emails found with this subject",
         "options_title": "Options",
         "has_attachments": "Has attachments"
       },
@@ -2901,6 +2954,11 @@
         "save": "Save",
         "delete_confirm": "Really delete this folder? Entries will move back to root.",
         "move_down": "Move folder down"
+      },
+      "search": {
+        "placeholder": "Search in name, username, URL or notes...",
+        "button": "Search",
+        "empty": "No credentials found."
       }
     },
     "form": {
@@ -3156,6 +3214,11 @@
         "empty": "This folder is empty.",
         "move_up": "Move folder up",
         "move_down": "Move folder down"
+      },
+      "search": {
+        "placeholder": "Search manuals...",
+        "button": "Search",
+        "empty": "No manuals found."
       }
     },
     "upload": {
@@ -3347,6 +3410,14 @@
         "bulk_edit": {
           "title": "Edit multiple products",
           "info": "{count} product(s) will be edited.",
+          "info_suffix": "product(s) selected",
+          "selection": "Selection",
+          "fill_hint": "Only filled fields are applied. Empty fields stay unchanged.",
+          "no_change": "— no change —",
+          "section_location": "Location & condition",
+          "section_org": "Organisation",
+          "section_dguv": "DGUV inspection",
+          "section_media": "Media",
           "attribute_label": "Attribute to edit",
           "select_attribute": "Please select...",
           "location": "Location",
@@ -3354,8 +3425,12 @@
           "condition": "Condition",
           "category": "Category",
           "folder": "Folder",
+          "dguv": "DGUV check (date + interval)",
+          "dguv_interval": "DGUV interval (months)",
+          "dguv_last": "DGUV last check",
+          "dguv_next": "DGUV next check",
           "remove_image": "Remove product image",
-          "warning": "This action cannot be undone. All selected products will be updated with the new value.",
+          "warning": "This action cannot be undone. All selected products will be updated with the filled values.",
           "cancel": "Cancel",
           "update": "Update"
         }
@@ -3427,6 +3502,11 @@
         "dguv_last_check": "DGUV last check",
         "dguv_next_check": "DGUV next check",
         "dguv_interval_months": "DGUV interval (months)",
+        "dguv_required": "DGUV inspection required",
+        "dguv_last_help": "Optional. Leave empty: next check = creation date. With a date: next check = last + interval.",
+        "dguv_interval_help": "Inspection interval in months (editable when creating/editing).",
+        "dguv_interval_readonly_help": "Fixed inspection interval (not editable).",
+        "dguv_next_auto_help": "Calculated automatically (or creation date if no last check).",
         "external_barcode": "External barcode / QR ID",
         "external_barcode_placeholder": "Custom barcode ID",
         "current_image": "Current image:",

@@ -12,7 +12,9 @@
   'borrows': ep == 'inventory.borrows',
   'sets': ep.startswith('inventory.set'),
   'inventory_tool': ep in (
-    'inventory.inventory_tool', 'inventory.inventory_history', 'inventory.inventory_list'
+    'inventory.inventory_tool', 'inventory.inventory_session',
+    'inventory.inventory_history', 'inventory.inventory_list',
+    'inventory.inventory_complete', 'inventory.inventory_tool_pdf'
   ),
   'print_qr': ep == 'inventory.print_qr',
   'statistics': ep == 'inventory.statistics'
@@ -20,6 +22,7 @@
 {% set show_new = not (current_user.is_authenticated and current_user.is_guest) %}
 {% set show_view_toggle = inventory_show_view_toggle|default(false) %}
 {% set show_stock_tools = inventory_show_stock_tools|default(false) %}
+{% set show_filter_nav = inventory_show_filter_nav|default(false) or show_stock_tools %}
 
 {% macro inventory_new_menu(menu_id) %}
 <ul class="dropdown-menu inventory-sidebar-new-menu inventory-new-menu" id="{{ menu_id }}" style="display: none;">
@@ -98,7 +101,7 @@
 {% endmacro %}
 
 {% block content %}
-<div class="inventory-shell mod-shell--nav {% if show_stock_tools %}inventory-shell--filters{% endif %}">
+<div class="inventory-shell mod-shell--nav {% if show_filter_nav %}inventory-shell--filters{% endif %}">
     <aside class="mod-sidebar d-none d-lg-flex flex-column">
         <div class="mod-sidebar-brand">
             <i class="bi bi-box-seam" aria-hidden="true"></i>
@@ -115,7 +118,7 @@
         {{ inventory_nav_links(false) }}
     </aside>
 
-    {% if show_stock_tools %}
+    {% if show_filter_nav %}
     <aside class="inventory-filter-nav d-none d-lg-flex flex-column" aria-label="{{ _('inventory.stock.filters_sort_button') }}">
         <div class="inventory-filter-nav-brand">
             <i class="bi bi-funnel" aria-hidden="true"></i>
@@ -141,7 +144,7 @@
                     </h1>
                 </div>
                 <div class="flex-shrink-0 inventory-mobile-actions">
-                    {% if show_stock_tools %}
+                    {% if show_filter_nav %}
                     <button type="button" class="btn btn-outline-secondary inventory-filter-mobile-btn"
                             data-bs-toggle="offcanvas" data-bs-target="#inventoryStockFiltersNav"
                             aria-controls="inventoryStockFiltersNav">
@@ -160,17 +163,30 @@
         </div>
 
         <div class="page-toolbar-row d-none d-lg-flex align-items-center justify-content-between gap-2 mb-3">
-            <div class="min-width-0">
+            <div class="min-width-0 flex-shrink-1">
                 <h1 class="mb-0 text-break mod-view-heading">
                     <i class="bi {{ self.inventory_heading_icon() }}" aria-hidden="true"></i>
                     <span>{{ self.inventory_heading() }}</span>
                 </h1>
                 {% block inventory_toolbar_extra %}{% endblock %}
             </div>
-            {% if show_view_toggle %}
-            {{ inventory_view_toggle('') }}
+            {% if show_stock_tools %}
+            <div class="inventory-toolbar-center flex-grow-1 d-flex justify-content-center min-width-0 px-2">
+                {% block inventory_toolbar_center %}{% endblock %}
+            </div>
             {% endif %}
+            <div class="flex-shrink-0">
+                {% if show_view_toggle %}
+                {{ inventory_view_toggle('') }}
+                {% endif %}
+            </div>
         </div>
+
+        {% if show_stock_tools %}
+        <div class="d-lg-none mb-3">
+            {% block inventory_mobile_toolbar_center %}{% endblock %}
+        </div>
+        {% endif %}
 
         {% block inventory_content %}{% endblock %}
     </div>
@@ -189,7 +205,7 @@
     </div>
 </div>
 
-{% if show_stock_tools %}
+{% if show_filter_nav %}
 <div class="offcanvas offcanvas-end mod-offcanvas" tabindex="-1" id="inventoryStockFiltersNav" aria-labelledby="inventoryStockFiltersNavLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="inventoryStockFiltersNavLabel">

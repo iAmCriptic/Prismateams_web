@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, current_app
 from flask_login import login_required, current_user
+from sqlalchemy import or_
 from app import db
 from app.models.manual import Manual, ManualFolder
 from app.utils.access_control import check_module_access
@@ -62,12 +63,24 @@ def index():
     folders = ManualFolder.query.order_by(ManualFolder.position.asc(), ManualFolder.name.asc()).all()
     active_folder_id = parse_folder_id(request.args.get('folder_id'))
     active_folder = ManualFolder.query.get(active_folder_id) if active_folder_id else None
+    search_query = (request.args.get('q') or '').strip()
 
     manuals_query = Manual.query.order_by(Manual.uploaded_at.desc())
     if active_folder_id is None:
-        manuals = manuals_query.filter(Manual.folder_id.is_(None)).all()
+        manuals_query = manuals_query.filter(Manual.folder_id.is_(None))
     else:
-        manuals = manuals_query.filter(Manual.folder_id == active_folder_id).all()
+        manuals_query = manuals_query.filter(Manual.folder_id == active_folder_id)
+
+    if search_query:
+        like = f'%{search_query}%'
+        manuals_query = manuals_query.filter(
+            or_(
+                Manual.title.ilike(like),
+                Manual.filename.ilike(like),
+            )
+        )
+
+    manuals = manuals_query.all()
 
     return render_template(
         'manuals/index.html',
@@ -75,6 +88,7 @@ def index():
         folders=folders,
         active_folder_id=active_folder_id,
         active_folder=active_folder,
+        search_query=search_query,
     )
 
 

@@ -60,7 +60,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {{ doc.created_at.strftime('%d.%m.%Y') }}
+                                    {{ doc.created_at|localdatetime('%d.%m.%Y') }}
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">

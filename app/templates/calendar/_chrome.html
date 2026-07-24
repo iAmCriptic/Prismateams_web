@@ -43,6 +43,26 @@
 </div>
 {% endmacro %}
 
+{% macro calendar_search(id_suffix='') %}
+<div class="calendar-search" role="search" data-calendar-search>
+    <label class="calendar-search-field" for="calendarSearchInput{{ id_suffix }}">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               id="calendarSearchInput{{ id_suffix }}"
+               class="calendar-search-input"
+               placeholder="{{ _('calendar.index.search.placeholder') }}"
+               aria-label="{{ _('calendar.index.search.aria') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn calendar-search-clear d-none" id="calendarSearchClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+    <div class="calendar-search-results d-none" id="calendarSearchResults{{ id_suffix }}" role="listbox" aria-label="{{ _('calendar.index.search.results') }}"></div>
+</div>
+{% endmacro %}
+
 {% macro calendar_sidebar(show_view_pills=false, interactive=true, minimal=false) %}
 {% set sc = sidebar_calendars|default(none) %}
 {% if minimal %}

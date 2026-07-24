@@ -163,9 +163,9 @@
                         <span aria-hidden="true">·</span>
                         <span>
                             {% if sess.last_activity %}
-                                {{ sess.last_activity.strftime('%d.%m.%Y %H:%M') }}
+                                {{ sess.last_activity|localdatetime('%d.%m.%Y %H:%M') }}
                             {% else %}
-                                {{ sess.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                {{ sess.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                             {% endif %}
                         </span>
                         {% if sess.is_active %}

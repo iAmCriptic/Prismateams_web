@@ -3,7 +3,7 @@
 {% block title %}{{ _('calendar.index.page_title') }}{% endblock %}
 
 {% block content %}
-{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu, calendar_view_pills with context %}
+{% from 'calendar/_chrome.html' import calendar_sidebar, calendar_more_menu, calendar_view_pills, calendar_search with context %}
 
 {% set calendar_multi_enabled = calendar_multi_enabled|default(false) %}
 {% set calendar_export_enabled = calendar_export_enabled|default(true) %}
@@ -38,6 +38,9 @@
             {% endif %}
         </div>
     </div>
+    <div class="calendar-mobile-search mt-2">
+        {{ calendar_search('Mobile') }}
+    </div>
 </div>
 {% elif not calendar_multi_enabled %}
 <div class="calendar-mobile-topbar d-lg-none mb-2">
@@ -55,8 +58,22 @@
             {% endif %}
         </div>
     </div>
+    <div class="calendar-mobile-search mt-2">
+        {{ calendar_search('Mobile') }}
+    </div>
 </div>
 {% endif %}
+
+<div class="row mb-3 page-toolbar-row align-items-center g-2 d-none d-lg-flex">
+    <div class="col-lg-3 min-width-0">
+        <h1 class="h4 mb-0 text-truncate calendar-desktop-title">{{ _('calendar.index.heading') }}</h1>
+    </div>
+    <div class="col-lg-6">
+        {{ calendar_search('') }}
+    </div>
+    <div class="col-lg-3"></div>
+</div>
+
 <div class="row mb-3 page-toolbar-row align-items-start g-2 d-lg-none">
     <div class="col-12">
         <div class="d-flex flex-wrap align-items-center gap-2 w-100">
@@ -101,7 +118,9 @@
     {% if events %}
     <div class="list-group">
         {% for event in events %}
-        <div class="list-group-item list-group-item-action event-list-item" style="border-left-color: {{ event.event_color or '#0d6efd' }};">
+        <div class="list-group-item list-group-item-action event-list-item"
+             style="border-left-color: {{ event.event_color or '#0d6efd' }};"
+             data-search-text="{{ ((event.title or '') ~ ' ' ~ (event.location or '') ~ ' ' ~ (event.description or ''))|lower|e }}">
             <div class="d-flex w-100 justify-content-between align-items-start">
                 <div class="flex-grow-1">
                     <h5 class="mb-1 d-flex align-items-center gap-2">
@@ -1220,6 +1239,217 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+(function initCalendarSearch() {
+    const widgets = Array.from(document.querySelectorAll('[data-calendar-search]'));
+    if (!widgets.length) return;
+
+    const searchI18n = (CAL_I18N && CAL_I18N.search) || {};
+    const emptyText = searchI18n.empty || (CAL_I18N.js && CAL_I18N.js.no_events) || 'No events found.';
+    const hintText = searchI18n.hint || '';
+    let debounceTimer = null;
+    let activeController = null;
+    let syncing = false;
+
+    function getParts(root) {
+        return {
+            input: root.querySelector('.calendar-search-input'),
+            clearBtn: root.querySelector('.calendar-search-clear'),
+            results: root.querySelector('.calendar-search-results'),
+        };
+    }
+
+    function formatEventWhen(event) {
+        try {
+            const start = new Date(event.start_time);
+            if (Number.isNaN(start.getTime())) return '';
+            const dateStr = start.toLocaleDateString(getLocale(), {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+            });
+            if (event.is_all_day) return dateStr;
+            const timeStr = event.time || start.toLocaleTimeString(getLocale(), {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+            return dateStr + (timeStr ? ' · ' + timeStr : '');
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function filterListView(query) {
+        const items = document.querySelectorAll('#listView .event-list-item[data-search-text]');
+        const q = (query || '').trim().toLowerCase();
+        items.forEach(function (el) {
+            const hay = el.getAttribute('data-search-text') || '';
+            el.classList.toggle('d-none', !!(q && !hay.includes(q)));
+        });
+    }
+
+    function hideResults(exceptRoot) {
+        widgets.forEach(function (root) {
+            if (exceptRoot && root === exceptRoot) return;
+            const parts = getParts(root);
+            if (parts.results) parts.results.classList.add('d-none');
+        });
+    }
+
+    function renderResults(root, events, query) {
+        const parts = getParts(root);
+        if (!parts.results) return;
+        parts.results.innerHTML = '';
+
+        if (!query || query.length < 2) {
+            parts.results.classList.add('d-none');
+            return;
+        }
+
+        if (!events.length) {
+            const empty = document.createElement('div');
+            empty.className = 'calendar-search-empty';
+            empty.textContent = emptyText;
+            parts.results.appendChild(empty);
+            parts.results.classList.remove('d-none');
+            return;
+        }
+
+        events.forEach(function (event) {
+            const link = document.createElement('a');
+            link.className = 'calendar-search-result';
+            link.href = event.url || ('/calendar/event/' + event.id);
+            link.setAttribute('role', 'option');
+
+            const dot = document.createElement('span');
+            dot.className = 'calendar-search-result-dot';
+            dot.style.background = event.event_color || '#0d6efd';
+            link.appendChild(dot);
+
+            const body = document.createElement('span');
+            body.className = 'calendar-search-result-body';
+
+            const title = document.createElement('span');
+            title.className = 'calendar-search-result-title';
+            title.textContent = event.title || '';
+            body.appendChild(title);
+
+            const meta = document.createElement('span');
+            meta.className = 'calendar-search-result-meta';
+            const when = formatEventWhen(event);
+            const loc = event.location || '';
+            meta.textContent = [when, loc].filter(Boolean).join(' · ');
+            body.appendChild(meta);
+
+            link.appendChild(body);
+            parts.results.appendChild(link);
+        });
+        parts.results.classList.remove('d-none');
+    }
+
+    async function runSearch(query, sourceRoot) {
+        filterListView(query);
+        if (!query || query.length < 2) {
+            hideResults();
+            return;
+        }
+
+        if (activeController) {
+            try { activeController.abort(); } catch (e) {}
+        }
+        activeController = new AbortController();
+
+        try {
+            const params = new URLSearchParams();
+            params.set('q', query);
+            if (CAL_MULTI) {
+                const ids = getSelectedCalendarIds();
+                if (ids.length) params.set('calendars', ids.join(','));
+            }
+            const response = await fetch('/calendar/api/events/search?' + params.toString(), {
+                signal: activeController.signal,
+            });
+            if (!response.ok) throw new Error('search failed');
+            const events = await response.json();
+            renderResults(sourceRoot, Array.isArray(events) ? events : [], query);
+            hideResults(sourceRoot);
+        } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            renderResults(sourceRoot, [], query);
+        }
+    }
+
+    function setClearVisible(root, visible) {
+        const parts = getParts(root);
+        if (parts.clearBtn) {
+            parts.clearBtn.classList.toggle('d-none', !visible);
+        }
+    }
+
+    function syncInputs(value, exceptInput) {
+        syncing = true;
+        widgets.forEach(function (root) {
+            const parts = getParts(root);
+            if (!parts.input || parts.input === exceptInput) return;
+            parts.input.value = value;
+            setClearVisible(root, !!value);
+        });
+        syncing = false;
+    }
+
+    widgets.forEach(function (root) {
+        const parts = getParts(root);
+        if (!parts.input) return;
+
+        parts.input.addEventListener('input', function () {
+            if (syncing) return;
+            const value = parts.input.value;
+            setClearVisible(root, !!value.trim());
+            syncInputs(value, parts.input);
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () {
+                runSearch(value.trim(), root);
+            }, 220);
+        });
+
+        parts.input.addEventListener('focus', function () {
+            const value = parts.input.value.trim();
+            if (value.length >= 2 && parts.results && parts.results.childElementCount) {
+                parts.results.classList.remove('d-none');
+                hideResults(root);
+            }
+        });
+
+        parts.input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                if (parts.input.value) {
+                    e.preventDefault();
+                    parts.input.value = '';
+                    setClearVisible(root, false);
+                    syncInputs('', parts.input);
+                    runSearch('', root);
+                } else {
+                    hideResults();
+                }
+            }
+        });
+
+        if (parts.clearBtn) {
+            parts.clearBtn.addEventListener('click', function () {
+                parts.input.value = '';
+                setClearVisible(root, false);
+                syncInputs('', parts.input);
+                runSearch('', root);
+                parts.input.focus();
+            });
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-calendar-search]')) return;
+        hideResults();
+    });
+})();
 </script>
 {% endblock %}
 
