@@ -558,8 +558,8 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     max-width: 75vw;
     width: 75vw;
     margin: 0.75rem auto;
-    height: min(78vh, 620px);
-    max-height: min(78vh, 620px);
+    height: min(82vh, 680px);
+    max-height: min(82vh, 680px);
     display: flex;
     align-items: stretch;
 }
@@ -568,8 +568,8 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     .whats-new-dialog {
         width: calc(100vw - 1.25rem);
         max-width: calc(100vw - 1.25rem);
-        height: min(82vh, 580px);
-        max-height: min(82vh, 580px);
+        height: min(86vh, 640px);
+        max-height: min(86vh, 640px);
     }
 }
 
@@ -643,6 +643,97 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     z-index: 1;
 }
 
+.whats-new-welcome {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 0.85rem;
+    padding: 0.5rem 0.75rem 1rem;
+    overflow: auto;
+}
+
+.whats-new-welcome-hero {
+    width: 3.4rem;
+    height: 3.4rem;
+    border-radius: 1.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.45rem;
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 24%, transparent);
+}
+
+.whats-new-welcome-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+}
+
+.whats-new-welcome-title {
+    margin: 0;
+    font-size: clamp(1.55rem, 2.8vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+}
+
+.whats-new-welcome-text {
+    margin: 0;
+    max-width: 34rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--bs-secondary-color);
+}
+
+.whats-new-welcome-highlights {
+    list-style: none;
+    margin: 0.45rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.7rem;
+    width: 100%;
+    max-width: 36rem;
+    text-align: left;
+}
+
+.whats-new-welcome-highlights li {
+    margin: 0;
+    padding: 0.85rem 0.95rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color, #dee2e6) 80%, transparent);
+    border-radius: 1.05rem;
+    background: color-mix(in srgb, var(--bs-body-bg, #fff) 96%, transparent);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.whats-new-progress {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.32rem;
+    padding: 0.15rem 1.05rem 0.55rem;
+    max-width: 100%;
+}
+
 .whats-new-overview-subtitle {
     flex: 0 0 auto;
     margin: 0 0 0.55rem;
@@ -656,8 +747,10 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.45rem;
-    grid-auto-rows: minmax(0, 1fr);
+    grid-auto-rows: minmax(4.5rem, auto);
     grid-auto-flow: dense;
+    overflow-y: auto;
+    padding-right: 0.15rem;
 }
 
 @media (min-width: 576px) {
@@ -817,34 +910,60 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     padding: 0;
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.4rem;
+    gap: 0.75rem;
     flex: 1 1 auto;
     min-height: 0;
     align-content: start;
-    overflow: hidden;
+    overflow-y: auto;
+    padding-right: 0.2rem;
 }
 
 @media (min-width: 576px) {
     .whats-new-feature-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
     }
 }
 
+.whats-new-feature,
 .whats-new-feature-list li {
     margin: 0;
-    padding: 0.55rem 0.7rem;
-    line-height: 1.35;
-    font-size: 0.82rem;
+    padding: 0.85rem 0.95rem;
+    line-height: 1.45;
+    font-size: 0.86rem;
     border: 1px solid color-mix(in srgb, var(--bs-border-color, #dee2e6) 80%, transparent);
-    border-radius: 1rem;
+    border-radius: 1.05rem;
     background: color-mix(in srgb, var(--bs-body-bg, #fff) 96%, transparent);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.whats-new-feature-icon {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.7rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--accent-color, #0d6efd);
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+}
+
+.whats-new-feature-text {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .whats-new-dots {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem;
-    min-height: 0.6rem;
+    justify-content: center;
+    gap: 0.32rem;
+    min-height: 0.7rem;
 }
 
 .whats-new-footer {
@@ -855,12 +974,6 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     flex-wrap: wrap;
 }
 
-.whats-new-footer .whats-new-dots {
-    order: 0;
-    flex: 1 1 auto;
-    justify-content: center;
-}
-
 .whats-new-footer .whats-new-nav-actions {
     margin-left: auto;
 }
@@ -868,13 +981,13 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 .whats-new-btn {
     border-radius: 1.5rem !important;
     font-weight: 600;
-    font-size: 0.8rem;
-    padding: 0.35rem 0.85rem !important;
+    font-size: 0.84rem;
+    padding: 0.45rem 1rem !important;
     border: none;
     line-height: 1.2;
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.35rem;
 }
 
 .whats-new-btn--ghost {
@@ -900,23 +1013,38 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     background: var(--accent-color, #0d6efd);
 }
 
+.whats-new-btn--next {
+    min-width: 8.5rem;
+    justify-content: center;
+    padding: 0.65rem 1.35rem !important;
+    font-size: 0.95rem;
+    border-radius: 999px !important;
+    box-shadow: 0 0.35rem 0.9rem color-mix(in srgb, var(--accent-color, #0d6efd) 28%, transparent);
+}
+
 .whats-new-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--bs-border-color, #ced4da);
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    border: none;
+    padding: 0;
+    background: color-mix(in srgb, var(--bs-secondary-color, #6c757d) 35%, transparent);
     cursor: pointer;
     display: inline-block;
+    transition: width 0.15s ease, background 0.15s ease;
 }
 
 .whats-new-dot.active {
+    width: 1.1rem;
     background: var(--accent-color, #0d6efd);
-    transform: scale(1.15);
+    transform: none;
 }
 
 [data-oled-mode="true"] .whats-new-modal,
 [data-oled-mode="true"] .whats-new-tile,
-[data-oled-mode="true"] .whats-new-feature-list li {
+[data-oled-mode="true"] .whats-new-feature,
+[data-oled-mode="true"] .whats-new-feature-list li,
+[data-oled-mode="true"] .whats-new-welcome-highlights li {
     background: #000 !important;
     border-color: #1a1a1a !important;
 }

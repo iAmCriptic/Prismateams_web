@@ -56,7 +56,7 @@
                     aria-label="{{ _('dashboard.whats_new.button_aria') }}">
                 <i class="bi bi-stars" aria-hidden="true"></i>
                 <span>{{ _('dashboard.whats_new.button_label') }}</span>
-                <span class="position-absolute badge rounded-pill bg-danger dashboard-whats-new-badge d-none" id="whatsNewBadge">
+                <span class="position-absolute badge rounded-pill bg-danger dashboard-whats-new-badge{% if not (show_whats_new|default(false)) %} d-none{% endif %}" id="whatsNewBadge">
                     {{ _('dashboard.whats_new.badge') }}
                     <span class="visually-hidden">{{ _('dashboard.whats_new.badge_sr') }}</span>
                 </span>
@@ -232,16 +232,23 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// What's New (v2.6)
+// What's New (v3.0.0)
 (function initWhatsNew() {
-    const VERSION = '2.6';
-    const STORAGE_KEY = 'prismateams_whats_new_seen_v' + VERSION;
-    const panelsOrder = ['overview', 'general', 'dashboard', 'chat', 'files', 'calendar', 'events', 'email', 'contacts', 'credentials', 'manuals', 'inventory', 'media_downloader'];
+    const VERSION = {{ (whats_new_version|default('3.0.0'))|tojson }};
+    const AUTO_OPEN = {{ 'true' if show_whats_new|default(false) else 'false' }};
+    const panelsOrder = [
+        'welcome', 'overview', 'general', 'dashboard', 'security', 'chat', 'files',
+        'calendar', 'events', 'email', 'contacts', 'credentials', 'manuals',
+        'inventory', 'booking', 'music', 'assessment', 'shortlinks', 'media_downloader', 'wiki'
+    ];
     const titleEl = document.querySelector('[data-whats-new-title]');
-    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version='2.6', current='{current}', total='{total}')|tojson }};
+    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.0.0'), current='{current}', total='{total}')|tojson }};
     const moduleTitles = {
+        welcome: {{ _('dashboard.whats_new.welcome.title')|tojson }},
+        overview: {{ _('dashboard.whats_new.overview_label')|tojson }},
         general: {{ _('dashboard.whats_new.modules.general.title')|tojson }},
         dashboard: {{ _('dashboard.whats_new.modules.dashboard.title')|tojson }},
+        security: {{ _('dashboard.whats_new.modules.security.title')|tojson }},
         chat: {{ _('dashboard.whats_new.modules.chat.title')|tojson }},
         files: {{ _('dashboard.whats_new.modules.files.title')|tojson }},
         calendar: {{ _('dashboard.whats_new.modules.calendar.title')|tojson }},
@@ -251,13 +258,35 @@ setInterval(updateClock, 1000);
         credentials: {{ _('dashboard.whats_new.modules.credentials.title')|tojson }},
         manuals: {{ _('dashboard.whats_new.modules.manuals.title')|tojson }},
         inventory: {{ _('dashboard.whats_new.modules.inventory.title')|tojson }},
-        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }}
+        booking: {{ _('dashboard.whats_new.modules.booking.title')|tojson }},
+        music: {{ _('dashboard.whats_new.modules.music.title')|tojson }},
+        assessment: {{ _('dashboard.whats_new.modules.assessment.title')|tojson }},
+        shortlinks: {{ _('dashboard.whats_new.modules.shortlinks.title')|tojson }},
+        media_downloader: {{ _('dashboard.whats_new.modules.media_downloader.title')|tojson }},
+        wiki: {{ _('dashboard.whats_new.modules.wiki.title')|tojson }}
     };
-    let currentPanel = 'overview';
+    let currentPanel = 'welcome';
+    let seenMarked = !AUTO_OPEN;
 
     const badge = document.getElementById('whatsNewBadge');
-    if (badge && localStorage.getItem(STORAGE_KEY) !== '1') {
-        badge.classList.remove('d-none');
+    const modalEl = document.getElementById('whatsNewModal');
+    const seenUrl = modalEl ? modalEl.dataset.whatsNewSeenUrl : '';
+
+    function markSeen() {
+        if (seenMarked || !seenUrl) return;
+        seenMarked = true;
+        if (badge) badge.classList.add('d-none');
+        fetch(seenUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ version: VERSION })
+        }).catch(() => {
+            seenMarked = false;
+        });
     }
 
     function updateTitle(idx) {
@@ -273,7 +302,7 @@ setInterval(updateClock, 1000);
             panel.classList.toggle('is-active', panel.dataset.panel === name);
         });
 
-        const isOverview = name === 'overview';
+        const isHub = name === 'welcome' || name === 'overview';
         const idx = panelsOrder.indexOf(name);
         updateTitle(idx);
 
@@ -282,15 +311,15 @@ setInterval(updateClock, 1000);
         const nextBtn = document.getElementById('whatsNewNextBtn');
         const closeBtn = document.getElementById('whatsNewCloseBtn');
 
-        if (backBtn) backBtn.classList.toggle('d-none', isOverview);
-        if (prevBtn) prevBtn.classList.toggle('d-none', isOverview);
+        if (backBtn) backBtn.classList.toggle('d-none', isHub);
+        if (prevBtn) prevBtn.classList.toggle('d-none', idx <= 0);
         if (nextBtn) nextBtn.classList.toggle('d-none', idx >= panelsOrder.length - 1);
         if (closeBtn) closeBtn.classList.toggle('d-none', idx !== panelsOrder.length - 1);
 
         const dots = document.getElementById('whatsNewDots');
         if (dots) {
             dots.innerHTML = panelsOrder.map((p) =>
-                `<span class="whats-new-dot${p === name ? ' active' : ''}" data-goto="${p}" title="${moduleTitles[p] || ''}"></span>`
+                `<button type="button" class="whats-new-dot${p === name ? ' active' : ''}" data-goto="${p}" title="${moduleTitles[p] || ''}" aria-label="${moduleTitles[p] || ''}"></button>`
             ).join('');
         }
     }
@@ -306,8 +335,7 @@ setInterval(updateClock, 1000);
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
             const idx = panelsOrder.indexOf(currentPanel);
-            if (idx > 1) showPanel(panelsOrder[idx - 1]);
-            else showPanel('overview');
+            if (idx > 0) showPanel(panelsOrder[idx - 1]);
         });
     }
 
@@ -327,13 +355,19 @@ setInterval(updateClock, 1000);
         });
     }
 
-    const modalEl = document.getElementById('whatsNewModal');
     if (modalEl) {
         modalEl.addEventListener('show.bs.modal', () => {
-            showPanel('overview');
-            localStorage.setItem(STORAGE_KEY, '1');
-            if (badge) badge.classList.add('d-none');
+            showPanel('welcome');
         });
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            markSeen();
+        });
+
+        if (AUTO_OPEN && typeof bootstrap !== 'undefined') {
+            requestAnimationFrame(() => {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            });
+        }
     }
 })();
 

@@ -8,8 +8,6 @@ from flask_limiter.util import get_remote_address
 from config import config
 import json
 import os
-import subprocess
-import sys
 from app.utils.i18n import register_i18n, translate
 
 db = SQLAlchemy()
@@ -1044,32 +1042,20 @@ def create_app(config_name='default'):
                                 pass
                         else:
                             print("[FEHLER] Keine Tabellen gefunden und Erstellung fehlgeschlagen")
+
+                # Alle migrate_*.py aus migrations/ automatisch ausführen (vor Server-Start)
+                if not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
+                    try:
+                        from app.utils.auto_migrate import run_pending_migrations
+                        run_pending_migrations(db)
+                    except Exception as auto_mig_err:
+                        print(f"[WARNUNG] Auto-Migration fehlgeschlagen: {auto_mig_err}")
                 
                 try:
                     from sqlalchemy import inspect
                     inspector = inspect(db.engine)
                     if 'folders' in inspector.get_table_names():
                         columns = {col['name']: col for col in inspector.get_columns('folders')}
-                        if 'is_dropbox' not in columns or 'dropbox_token' not in columns or 'dropbox_password_hash' not in columns:
-                            print("[INFO] Führe Migration zu Version 1.5.2 aus...")
-                            # Führe Migration direkt aus (ohne Import, da Python-Module mit Punkten nicht importierbar sind)
-                            migrations_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations', 'Migrate_to_1.5.2.py')
-                            if os.path.exists(migrations_path):
-                                try:
-                                    result = subprocess.run([sys.executable, migrations_path], 
-                                                           capture_output=True, text=True, timeout=30)
-                                    if result.returncode == 0:
-                                        print("[OK] Migration erfolgreich ausgeführt")
-                                    else:
-                                        print(f"[WARNUNG] Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-                                except subprocess.TimeoutExpired:
-                                    print("[WARNUNG] Migration dauerte zu lange. Bitte manuell ausführen.")
-                                except Exception as e:
-                                    print(f"[WARNUNG] Migration konnte nicht ausgeführt werden: {e}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/Migrate_to_1.5.2.py")
-                            else:
-                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/Migrate_to_1.5.2.py")
                         if 'color' not in columns:
                             print("[INFO] Ergänze folders.color ...")
                             with db.engine.begin() as connection:
@@ -1124,73 +1110,37 @@ def create_app(config_name='default'):
                             print(f"[WARNUNG] Legacy-Favoriten-Migration: {fav_err}")
 
                     if ('users' in inspector.get_table_names() and
-                            'language' not in {col['name'] for col in inspector.get_columns('users')} and
-                            not os.getenv('RUNNING_LANGUAGE_MIGRATION')):
-                        print("[INFO] Führe Sprachmigration aus...")
-                        migrations_path = os.path.join(
-                            os.path.dirname(os.path.dirname(__file__)),
-                            'migrations',
-                            'migrate_languages.py'
-                        )
-                        if os.path.exists(migrations_path):
-                            env = os.environ.copy()
-                            env.setdefault('RUNNING_LANGUAGE_MIGRATION', '1')
-                            env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
-                            try:
-                                result = subprocess.run(
-                                    [sys.executable, migrations_path],
-                                    capture_output=True,
-                                    text=True,
-                                    timeout=60,
-                                    env=env
-                                )
-                                if result.returncode == 0:
-                                    print("[OK] Sprachmigration erfolgreich ausgeführt")
-                                else:
-                                    print(f"[WARNUNG] Sprachmigration gab Fehler zurück: {result.stderr}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
-                            except subprocess.TimeoutExpired:
-                                print("[WARNUNG] Sprachmigration dauerte zu lange. Bitte manuell ausführen.")
-                            except Exception as exc:
-                                print(f"[WARNUNG] Sprachmigration konnte nicht ausgeführt werden: {exc}")
-                                print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_languages.py")
-                        else:
-                            print("[WARNUNG] Sprach-Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_languages.py")
+                            'language' not in {col['name'] for col in inspector.get_columns('users')}):
+                        print("[INFO] Ergänze users.language ...")
+                        with db.engine.begin() as connection:
+                            connection.execute(text(
+                                "ALTER TABLE users ADD COLUMN language VARCHAR(10) NOT NULL DEFAULT 'de'"
+                            ))
+                        print("[OK] users.language hinzugefügt")
                     
                     # Sicherheitsfeatures-Migration (2FA, Rate Limiting, Session-Management)
+                    # Vollständige Migration läuft über Auto-Migration (migrate_to_2_4_3.py).
+                    # Hier nur Notfall-Fallback, falls Spalten noch fehlen.
                     if 'users' in inspector.get_table_names():
                         columns = {col['name'] for col in inspector.get_columns('users')}
-                        security_columns = {'totp_secret', 'totp_enabled', 'password_changed_at', 'failed_login_attempts', 'failed_login_until'}
-                        if not security_columns.issubset(columns) or 'user_sessions' not in inspector.get_table_names():
-                            print("[INFO] Führe Sicherheitsfeatures-Migration aus...")
-                            migrations_path = os.path.join(
-                                os.path.dirname(os.path.dirname(__file__)),
-                                'migrations',
-                                'migrate_to_2_4_1.py'
-                            )
-                            if os.path.exists(migrations_path):
-                                env = os.environ.copy()
-                                env.setdefault('PRISMATEAMS_SKIP_BACKGROUND_JOBS', '1')
-                                try:
-                                    result = subprocess.run(
-                                        [sys.executable, migrations_path, '--security-only'],
-                                        capture_output=True,
-                                        text=True,
-                                        timeout=60,
-                                        env=env
-                                    )
-                                    if result.returncode == 0:
-                                        print("[OK] Sicherheitsfeatures-Migration erfolgreich ausgeführt")
-                                    else:
-                                        print(f"[WARNUNG] Sicherheitsfeatures-Migration gab Fehler zurück: {result.stderr}")
-                                        print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
-                                except subprocess.TimeoutExpired:
-                                    print("[WARNUNG] Sicherheitsfeatures-Migration dauerte zu lange. Bitte manuell ausführen.")
-                                except Exception as exc:
-                                    print(f"[WARNUNG] Sicherheitsfeatures-Migration konnte nicht ausgeführt werden: {exc}")
-                                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
-                            else:
-                                print("[WARNUNG] Migrationsdatei nicht gefunden. Bitte manuell ausführen: python migrations/migrate_to_2_4_1.py --security-only")
+                        security_columns = {
+                            ('totp_secret', 'VARCHAR(255)'),
+                            ('totp_enabled', 'BOOLEAN DEFAULT 0'),
+                            ('password_changed_at', 'DATETIME'),
+                            ('failed_login_attempts', 'INTEGER DEFAULT 0'),
+                            ('failed_login_until', 'DATETIME'),
+                        }
+                        missing = [(n, d) for n, d in security_columns if n not in columns]
+                        if missing:
+                            print("[INFO] Ergänze fehlende Security-Spalten an users ...")
+                            with db.engine.begin() as connection:
+                                for col_name, col_ddl in missing:
+                                    connection.execute(text(
+                                        f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"
+                                    ))
+                            print("[OK] Security-Spalten ergänzt")
+                        if 'user_sessions' not in inspector.get_table_names():
+                            print("[INFO] user_sessions fehlt – wird von Auto-Migration (2.4.3) angelegt")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
@@ -1325,8 +1275,8 @@ def create_app(config_name='default'):
                             except Exception as mail_col_error:
                                 print(f"[WARNUNG] Mail-Manager-Spalten konnten nicht hinzugefügt werden: {mail_col_error}")
                 except Exception as migration_error:
-                    print(f"[WARNUNG] Migration konnte nicht automatisch ausgeführt werden: {migration_error}")
-                    print("[INFO] Bitte führen Sie manuell aus: python migrations/migrate_to_2_4_1.py --security-only")
+                    print(f"[WARNUNG] Inline-Schema-Nachrüstung fehlgeschlagen: {migration_error}")
+                    print("[INFO] Bitte prüfen: python migrations/run_all.py")
 
                 try:
                     from sqlalchemy import inspect, text

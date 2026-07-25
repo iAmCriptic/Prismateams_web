@@ -262,114 +262,241 @@
       "badge": "!",
       "badge_sr": "ungelesene Neuigkeiten",
       "overview_title": "So neu in v{version}",
+      "overview_label": "Übersicht",
       "persistent_title": "Neu in Version {version} - ({current}/{total})",
-      "overview_subtitle": "Nur Module mit Neuigkeiten in dieser Version.",
+      "overview_subtitle": "Tippe ein Modul an, um alle Neuigkeiten zu sehen.",
       "version_label": "Neu in v{version}",
       "back_overview": "Übersicht",
       "prev": "Zurück",
       "next": "Weiter",
+      "welcome": {
+        "title": "Willkommen zu Version 3",
+        "text": "PrismaTeams 3.0.0 ist da – neues Design, neue Module und viele Verbesserungen für den Alltag im Team.",
+        "highlights": {
+          "design": "Frischere Oberfläche, klarere Navigation und einheitliche Designsprache.",
+          "modules": "Neue und stark erweiterte Module: Bewertung, Musik, Shortlinks, Booking, Events und mehr.",
+          "security": "Mehr Sicherheit mit 2FA, Bot-Schutz, Gast-Accounts und Session-Verwaltung."
+        }
+      },
       "modules": {
         "general": {
-          "title": "General",
-          "teaser": "Akzentfarben & Alerts",
+          "title": "Allgemein",
+          "teaser": "Design, Nav & System",
           "items": {
-            "accent": "Akzentfarben wurden gefixt und werden häufiger angewendet als vorher.",
-            "alerts": "Angepasste Alert-Bubbles, damit weniger Verschiebung entsteht."
+            "design": "Neue Designsprache über das gesamte Portal – klarer, ruhiger und konsistenter.",
+            "accent": "Akzentfarben werden zuverlässiger und an mehr Stellen angewendet.",
+            "alerts": "Alert-Bubbles angepasst, damit Layout weniger springt.",
+            "navigation": "Desktop-Sidebar und Mobile-Navigation überarbeitet.",
+            "context_menus": "Kontextmenüs in vielen Modulen für schnellere Aktionen.",
+            "setup": "Setup-Assistent und Erstkonfiguration verbessert.",
+            "push": "Web-Push-Subscriptions und Benachrichtigungen erweitert (inkl. Admin-Verwaltung).",
+            "email_templates": "Einheitliches E-Mail-Template-System für alle Systemmails.",
+            "pdf": "PDF-Generator überarbeitet (Inventar, Events, Booking, QR).",
+            "i18n": "Übersetzungen und Mehrsprachigkeit weiter ausgebaut."
           }
         },
         "dashboard": {
           "title": "Dashboard",
-          "teaser": "Neues",
+          "teaser": "Neues & Widgets",
           "items": {
-            "whats_new": "„Neues“ um Neuigkeiten der Version bekannt zu geben."
+            "whats_new": "„Neues“ zeigt die Highlights jeder Version.",
+            "widgets": "Widgets und Schnellzugriff um neue Module ergänzt.",
+            "quick_access": "Dashboard-Bearbeitung unterstützt Events, Assessment, Musik, Media Download und mehr.",
+            "design": "Design- und Layout-Anpassungen für die Startseite."
+          }
+        },
+        "security": {
+          "title": "Sicherheit",
+          "teaser": "2FA, Gäste & Schutz",
+          "items": {
+            "twofa": "Zwei-Faktor-Authentifizierung (TOTP) für den Login.",
+            "rate_limit": "Rate-Limiting gegen Brute-Force bei Anmeldeversuchen.",
+            "bot": "Bot-Schutz mit Google reCAPTCHA oder Cloudflare Turnstile (Login/Registrierung).",
+            "password_reset": "Passwort-Reset per E-Mail.",
+            "sessions": "Session-Tracking und Geräteübersicht.",
+            "guests": "Gast-Accounts mit modulbasierter Zugriffskontrolle.",
+            "api_2fa": "API-Login mit optionaler 2FA-Unterstützung."
           }
         },
         "chat": {
           "title": "Chats",
-          "teaser": "Designupdate",
+          "teaser": "Design, Pins & Stabilität",
           "items": {
-            "design": "Designupdate."
+            "design": "Designupdate für Desktop und Mobile.",
+            "pins": "Chats anpinnen (bis zu 6 pro Benutzer).",
+            "settings": "Chat-Einstellungen und Navigation verbessert.",
+            "socket": "Socket.IO / Redis-Stabilität für Echtzeitnachrichten.",
+            "fixes": "Bugfixes und UI-Verbesserungen."
           }
         },
         "files": {
           "title": "Dateien",
-          "teaser": "Design, Limits & Admin",
+          "teaser": "Privat, Limits & Freigaben",
           "items": {
-            "design": "Design-Erneuerungen für eine klarere und modernere Dateiübersicht.",
-            "private": "Private Dateien und internes Teilen innerhalb des Teams.",
-            "upload": "Upload-Anzeige für besseres Feedback während des Hochladens.",
+            "design": "Design-Erneuerung für eine klarere Dateiübersicht.",
+            "private": "Private Ordner, Bereiche, Papierkorb und ACL.",
+            "upload": "Upload-Anzeige und Konfliktbehandlung (neue Version).",
             "favorites": "Bis zu 10 Ordner als Favoriten speichern.",
-            "fixes": "Bugfixes und Fehlerbehebungen.",
-            "admin_settings": "Neue Einstellungsmöglichkeiten für Administratoren.",
-            "upload_limit": "Uploads größer als 10 MB möglich – je nach Einstellung der Administratoren.",
-            "user_quota": "Möglichkeit zum Einstellen eines Gesamtlimits pro Benutzer."
+            "shares": "Freigaben überarbeitet (Labels, Dropbox-Mode, Briefkästen).",
+            "locks": "Exklusive Soft-Locks für Text-/Markdown-Editor.",
+            "dropbox": "Dropbox-Upload und -Integration verbessert.",
+            "admin_settings": "Neue Admin-Einstellungen für das Dateimodul.",
+            "upload_limit": "Größere Uploads möglich – je nach Admin-Einstellung.",
+            "user_quota": "Speicherlimit pro Benutzer einstellbar.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
           }
         },
         "calendar": {
           "title": "Kalender",
-          "teaser": "Tagesansicht, Sync & Multi-Kalender",
+          "teaser": "Multi-Kalender & Sync",
           "items": {
-            "day_view": "Aktuelle Tagesansicht für den schnellen Überblick.",
-            "external_sync": "Externe Kalender können jetzt synchronisiert werden.",
-            "embed": "Einbinden des Kalenders in externe Apps ist einfacher geworden.",
-            "multi_mode": "Neuer Multi-Kalender-Modus für einzelne Personen sowie für alle – bessere Teilung und Übersicht.",
+            "day_view": "Tagesansicht für den schnellen Überblick.",
+            "external_sync": "Externe Kalender können synchronisiert werden.",
+            "embed": "Einbinden und Export/Import einfacher gemacht.",
+            "multi_mode": "Multi-Kalender-Modus für Personen und Teams.",
+            "context": "Kontextmenü: Termin direkt aus der Ansicht anlegen.",
+            "design": "Design- und OLED-Anpassungen.",
             "fixes": "Fehlerbehebungen und Verbesserungen."
           }
         },
         "events": {
           "title": "Veranstaltungen",
-          "teaser": "Design & PDF",
+          "teaser": "Neues Modul & Scanner",
           "items": {
-            "design": "Designupdate.",
-            "pdf": "Anpassungen der PDF-Generierung.",
+            "new_module": "Eigenes Veranstaltungsmodul mit Terminen, Zuweisungen und Bedarf.",
+            "design": "Designupdate der Event-Oberflächen.",
+            "scanner": "Appointment-Scanner für schnellere Erfassung.",
+            "inventory_link": "Checkouts können mit Event und Termin verknüpft werden.",
+            "pdf": "PDF-Generierung für Events überarbeitet.",
             "fixes": "Anpassungen und Fehlerbehebungen."
           }
         },
         "email": {
           "title": "E-Mail",
-          "teaser": "Design & Mobile",
+          "teaser": "Design, Mobile & Rechte",
           "items": {
             "design": "Designanpassungen für eine klarere Oberfläche.",
             "mobile_layout": "Mobile Layout Fixes.",
-            "mobile_nav": "Mobile Navigation Fixes."
+            "mobile_nav": "Mobile Navigation Fixes.",
+            "permissions": "Berechtigungen zum Lesen und Senden pro Benutzer.",
+            "sent_folder": "Gesendete Mails können im IMAP-Sent-Ordner landen.",
+            "templates": "Systemmails nutzen das neue einheitliche Template.",
+            "fixes": "Weitere Stabilitäts- und UI-Fixes."
           }
         },
         "contacts": {
           "title": "Kontakte",
-          "teaser": "Design & Fixes",
+          "teaser": "Design & Favoriten",
           "items": {
-            "design": "Designupdate und Fehlerbehebungen."
+            "design": "Designupdate der Kontaktübersicht.",
+            "favorites": "Persönliche Favoriten pro Benutzer.",
+            "context": "Kontextmenüs für schnelle Aktionen.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
           }
         },
         "credentials": {
           "title": "Zugangsdaten",
-          "teaser": "Designupdate",
+          "teaser": "Design & Favoriten",
           "items": {
-            "design": "Designupdate."
+            "design": "Designupdate.",
+            "favorites": "Persönliche Favoriten pro Benutzer.",
+            "badges": "Provider-Badges und verbesserte Suche.",
+            "context": "Kontextmenüs für schnelle Aktionen.",
+            "fixes": "Bugfixes und Fehlerbehebungen."
           }
         },
         "manuals": {
           "title": "Handbücher",
-          "teaser": "Design & Fixes",
+          "teaser": "Ordner & Design",
           "items": {
             "design": "Designanpassungen.",
+            "folders": "Ordnerstruktur für Handbücher/Anleitungen.",
             "fixes": "Bugfixes und Fehlerbehebungen."
           }
         },
         "inventory": {
           "title": "Inventar",
-          "teaser": "Design, Ausleihe & Farben",
+          "teaser": "Checkout & Scanner",
           "items": {
-            "design": "Designanpassungen.",
-            "borrow": "Anpassungen der Ausleih-/Rückgabefunktionen.",
-            "colors": "Farbcodes mit verbesserter Lesbarkeit bei geringen Größenunterschieden."
+            "design": "Designanpassungen und klarere Abläufe.",
+            "checkout": "Neues Checkout-System (Ausleihe/Rückgabe) inkl. Kontaktdaten.",
+            "product_fields": "Mehr Produktfelder: Gewicht, Maße, Preise, DGUV, Barcode, Schadenfoto.",
+            "event_link": "Checkout mit Veranstaltung und Termin verknüpfbar.",
+            "stocktake": "Inventur mit gezählter Menge.",
+            "scanner": "Scanner- und Checkout-UX verbessert.",
+            "colors": "Farbcodes besser lesbar bei kleinen Unterschieden.",
+            "pdf": "Belege und PDFs überarbeitet.",
+            "fixes": "API-Kompatibilität und weitere Bugfixes."
+          }
+        },
+        "booking": {
+          "title": "Buchungen",
+          "teaser": "Formulare & Nachrichten",
+          "items": {
+            "module": "Buchungsmodul mit öffentlichen Formularen und Genehmigung.",
+            "forms": "Anpassbare Formulare, Uploads und Antragsteller-Felder.",
+            "roles": "Rollenbasierte Freigabe und Secondary Logo.",
+            "messages": "Nachrichten-Thread zwischen Staff und Antragsteller.",
+            "notifications": "Benachrichtigungen für Buchungen und Nachrichten.",
+            "pdf_mail": "PDF-Export und neue Mail-Templates inkl. Staff-Nachricht.",
+            "design": "Design- und Navigationsverbesserungen."
+          }
+        },
+        "music": {
+          "title": "Musik",
+          "teaser": "Wünsche & Public Links",
+          "items": {
+            "module": "Musikmodul für Wünsche und Team-Playlists.",
+            "design": "Designupdate der Musik-Oberfläche.",
+            "wishlist": "Wunschliste und Wunschverwaltung verbessert.",
+            "public": "Öffentliche URLs / Wishlist-Seiten.",
+            "oauth": "Admin-Einstellungen und OAuth-Anbindung.",
+            "fixes": "Bugfixes und Stabilitätsverbesserungen."
+          }
+        },
+        "assessment": {
+          "title": "Bewertung",
+          "teaser": "Neues Modul & Jury",
+          "items": {
+            "module": "Neues Bewertungsmodul für Jury und Wettbewerbe.",
+            "design": "Eigenes Design und isolierte Jury-Ansicht.",
+            "jury": "Jury-Accounts ohne volles Portal-Konto.",
+            "plans": "Bewertungspläne, Kriterien und Stände.",
+            "ranking": "Rankings und Auswertungen.",
+            "excel": "Excel-Uploads und Datenübernahme.",
+            "fixes": "Bugfixes und Admin-/Settings-Verbesserungen."
+          }
+        },
+        "shortlinks": {
+          "title": "Shortlinks",
+          "teaser": "Neues Modul",
+          "items": {
+            "module": "Neues Shortlinks-Modul für kurze, teilbare Links.",
+            "design": "Design und Sidebar-Navigation.",
+            "sharing": "Anbindung an Datei-Freigaben und Teilen.",
+            "fixes": "Bugfixes und UX-Verbesserungen."
           }
         },
         "media_downloader": {
           "title": "Media Download",
-          "teaser": "Stabilität & Verbesserungen",
+          "teaser": "Playlists & Stabilität",
           "items": {
-            "fixes": "Fehlerbehebungen und Verbesserungen."
+            "design": "Design- und UI-Update der Download-Oberfläche.",
+            "playlists": "Playlist-Support und Vorschau.",
+            "cancel": "Jobs abbrechen und aufräumen.",
+            "errors": "Klarere Fehlerantworten und Feedback.",
+            "config": "Konfiguration und Kompatibilitätsanzeige.",
+            "fixes": "Zahlreiche Stabilitäts- und Bugfixes."
+          }
+        },
+        "wiki": {
+          "title": "Wiki",
+          "teaser": "Versionen & Favoriten",
+          "items": {
+            "design": "Design- und Navigationsanpassungen.",
+            "versions": "Versionsverwaltung und Verlauf.",
+            "favorites": "Favoriten für schnellen Zugriff.",
+            "fixes": "Bugfixes und Verbesserungen."
           }
         }
       }

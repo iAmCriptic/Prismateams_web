@@ -318,7 +318,15 @@ def appearance():
         label = translate(key)
         if label == key:
             label = LANGUAGE_FALLBACK_NAMES.get(code, code.upper())
-        language_options.append({'code': code, 'label': label})
+        completeness = LANGUAGE_COMPLETENESS.get(code)
+        badge = f'{completeness}%' if completeness is not None else None
+        language_options.append({
+            'code': code,
+            'label': label,
+            'completeness': completeness,
+            'badge': badge,
+            'badge_grade': _language_badge_grade(completeness) if completeness is not None else None,
+        })
 
     mobile_nav_slots = get_mobile_nav_slots(current_user)
     mobile_nav_options = get_available_mobile_nav_options(current_user)
@@ -3429,8 +3437,8 @@ def revoke_all_sessions_route():
     return redirect(url_for('settings.security_devices'))
 
 
-ABOUT_RELEASE_VERSION = 'V2.6.0 - Alpha'
-ABOUT_BUILD_NUMBER = '2.6.0-alpha.1+202607220123'
+ABOUT_RELEASE_VERSION = 'v3.0.0'
+ABOUT_BUILD_NUMBER = 'B300.262607261025.01'
 
 
 @settings_bp.route('/about')
@@ -3468,4 +3476,26 @@ LANGUAGE_FALLBACK_NAMES = {
     'es': 'Español',
     'ru': 'Русский'
 }
+
+# Übersetzungabdeckung relativ zu Deutsch (alle Keys vorhanden = 100)
+LANGUAGE_COMPLETENESS = {
+    'de': 100,
+    'en': 100,
+    'es': 11,
+    'pt': 11,
+    'ru': 11,
+}
+
+
+def _language_badge_grade(percent):
+    """Farbstufe für Übersetzungs-Badge (low → full)."""
+    if percent is None:
+        return None
+    if percent >= 100:
+        return 'full'
+    if percent >= 70:
+        return 'high'
+    if percent >= 40:
+        return 'mid'
+    return 'low'
 

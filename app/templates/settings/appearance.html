@@ -24,11 +24,25 @@
                 </div>
                 <div class="settings-appearance-field mb-0">
                     <label for="language" class="form-label">{{ _('settings.appearance.language_label') }}</label>
-                    <select class="form-select settings-appearance-input" id="language" name="language">
-                        {% for option in language_options %}
-                        <option value="{{ option.code }}" {% if option.code == user.language %}selected{% endif %}>{{ option.label }}</option>
-                        {% endfor %}
-                    </select>
+                    <div class="settings-appearance-language-row">
+                        <select class="form-select settings-appearance-input" id="language" name="language">
+                            {% for option in language_options %}
+                            <option
+                                value="{{ option.code }}"
+                                {% if option.code == user.language %}selected{% endif %}
+                                {% if option.badge %} data-badge="{{ option.badge }}"{% endif %}
+                                {% if option.badge_grade %} data-grade="{{ option.badge_grade }}"{% endif %}
+                                {% if option.completeness is not none %} data-completeness="{{ option.completeness }}"{% endif %}
+                            >{{ option.label }}{% if option.badge %} ({{ option.badge }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        {% set selected_lang = language_options|selectattr('code', 'equalto', user.language)|list|first %}
+                        {% if selected_lang and selected_lang.badge %}
+                        <span class="badge rounded-pill settings-appearance-lang-badge settings-appearance-lang-badge--{{ selected_lang.badge_grade }}" id="language-completeness-badge" aria-hidden="true">{{ selected_lang.badge }}</span>
+                        {% else %}
+                        <span class="badge rounded-pill settings-appearance-lang-badge d-none" id="language-completeness-badge" aria-hidden="true"></span>
+                        {% endif %}
+                    </div>
                 </div>
             </section>
 
@@ -227,6 +241,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    var languageSelect = document.getElementById('language');
+    var languageBadge = document.getElementById('language-completeness-badge');
+    var languageGradeClasses = [
+        'settings-appearance-lang-badge--low',
+        'settings-appearance-lang-badge--mid',
+        'settings-appearance-lang-badge--high',
+        'settings-appearance-lang-badge--full'
+    ];
+    if (languageSelect && languageBadge) {
+        var syncLanguageBadge = function () {
+            var selected = languageSelect.options[languageSelect.selectedIndex];
+            var badge = selected ? selected.getAttribute('data-badge') : null;
+            var grade = selected ? selected.getAttribute('data-grade') : null;
+            languageBadge.classList.remove.apply(languageBadge.classList, languageGradeClasses);
+            if (badge) {
+                languageBadge.textContent = badge;
+                languageBadge.classList.remove('d-none');
+                if (grade) {
+                    languageBadge.classList.add('settings-appearance-lang-badge--' + grade);
+                }
+            } else {
+                languageBadge.textContent = '';
+                languageBadge.classList.add('d-none');
+            }
+        };
+        languageSelect.addEventListener('change', syncLanguageBadge);
+        syncLanguageBadge();
+    }
+
     var solidSection = document.getElementById('solid-color-section');
     var gradientSection = document.getElementById('gradient-section');
     var accentGradient = document.getElementById('accent_gradient');
@@ -310,9 +353,42 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        function optionBaseLabel(opt) {
+            var raw = (opt.textContent || '').trim();
+            var badge = opt.getAttribute('data-badge');
+            if (badge) {
+                var suffix = ' (' + badge + ')';
+                if (raw.endsWith(suffix)) {
+                    return raw.slice(0, -suffix.length).trim();
+                }
+            }
+            return raw;
+        }
+
+        function renderOptionLabel(target, opt) {
+            target.textContent = '';
+            var label = document.createElement('span');
+            label.className = 'settings-pill-select__label';
+            label.textContent = optionBaseLabel(opt);
+            target.appendChild(label);
+            var badge = opt.getAttribute('data-badge');
+            if (badge) {
+                var badgeEl = document.createElement('span');
+                var grade = opt.getAttribute('data-grade') || '';
+                badgeEl.className = 'settings-pill-select__badge' + (grade ? ' settings-pill-select__badge--' + grade : '');
+                badgeEl.textContent = '(' + badge + ')';
+                badgeEl.setAttribute('title', badge + ' complete');
+                target.appendChild(badgeEl);
+            }
+        }
+
         function syncLabel(select, valueEl) {
             var selected = select.options[select.selectedIndex];
-            valueEl.textContent = selected ? selected.textContent.trim() : '';
+            if (!selected) {
+                valueEl.textContent = '';
+                return;
+            }
+            renderOptionLabel(valueEl, selected);
         }
 
         function buildOptions(select, menu, valueEl) {
@@ -321,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'settings-pill-select__option' + (opt.selected ? ' is-active' : '');
-                btn.textContent = opt.textContent.trim();
+                renderOptionLabel(btn, opt);
                 btn.dataset.value = opt.value;
                 btn.setAttribute('role', 'option');
                 btn.setAttribute('aria-selected', opt.selected ? 'true' : 'false');

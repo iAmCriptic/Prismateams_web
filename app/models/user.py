@@ -83,6 +83,9 @@ class User(UserMixin, db.Model):
     dashboard_config = db.Column(db.Text, nullable=True)
     
     show_update_notifications = db.Column(db.Boolean, default=True, nullable=False)
+
+    # What's New: zuletzt gesehene Versionsnummer (bei Release WHATS_NEW_VERSION bumpen → erneut anzeigen)
+    whats_new_seen_version = db.Column(db.String(32), nullable=True)
     
     chat_memberships = db.relationship('ChatMember', back_populates='user', cascade='all, delete-orphan')
     sent_messages = db.relationship('ChatMessage', back_populates='sender', cascade='all, delete-orphan')

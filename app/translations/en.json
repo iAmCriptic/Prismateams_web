@@ -107,7 +107,10 @@
       "register_link_cta": "Create an account",
       "switch_title": "New here?",
       "switch_text": "Don't have an account yet? Register and get started with Prismateams.",
-      "switch_cta": "Register"
+      "switch_cta": "Register",
+      "2fa_code": "2FA code",
+      "2fa_code_help": "Enter the 6-digit code from your authenticator app.",
+      "forgot_password": "Forgot password?"
     },
     "register": {
       "title": "Register",
@@ -182,10 +185,39 @@
       "test_email_success_message": "Email was successfully sent.",
       "test_email_error": "Error sending test email: {error}",
       "logout_success": "You have been successfully logged out.",
-      "bot_protection_failed": "Security verification failed. Please try again."
+      "bot_protection_failed": "Security verification failed. Please try again.",
+      "enter_email": "Please enter your email address.",
+      "password_reset_email_sent": "If an account with this email address exists, a reset code has been sent.",
+      "invalid_reset_code": "Invalid or expired reset code.",
+      "password_reset_success": "Password was reset successfully. You can now log in.",
+      "enter_2fa_code": "Please enter your 2FA code.",
+      "invalid_2fa_code": "Invalid 2FA code. Please try again.",
+      "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts."
     },
     "bot_protection": {
       "recaptcha_required": "Please confirm that you are not a robot."
+    },
+    "forgot_password": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email address to receive a reset code.",
+      "email": "Email address",
+      "email_help": "We will send you a code to reset your password.",
+      "info_message": "We will send you a 6-digit code by email that you can use to reset your password.",
+      "submit": "Request code",
+      "back_to_login": "Back to login"
+    },
+    "reset_password": {
+      "title": "Reset password",
+      "subtitle": "Enter the code and your new password.",
+      "email": "Email address",
+      "reset_code": "Reset code",
+      "code_help": "You can find the code in the email with the subject \"Reset password\".",
+      "new_password": "New password",
+      "confirm_password": "Confirm new password",
+      "password_help": "At least 8 characters",
+      "info_message": "The code is valid for 1 hour. Please also check your spam folder.",
+      "submit": "Reset password",
+      "back_to_login": "Back to login"
     }
   },
   "dashboard": {
@@ -226,113 +258,240 @@
       "badge": "!",
       "badge_sr": "unread news",
       "overview_title": "What's new in v{version}",
+      "overview_label": "Overview",
       "persistent_title": "New in Version {version} - ({current}/{total})",
-      "overview_subtitle": "Only modules with updates in this version.",
+      "overview_subtitle": "Tap a module to see all updates.",
       "version_label": "New in v{version}",
       "back_overview": "Overview",
       "prev": "Back",
       "next": "Next",
+      "welcome": {
+        "title": "Welcome to Version 3",
+        "text": "PrismaTeams 3.0.0 is here – a refreshed design, new modules, and many day-to-day improvements for your team.",
+        "highlights": {
+          "design": "A fresher UI, clearer navigation, and a consistent design language.",
+          "modules": "New and expanded modules: Assessment, Music, Shortlinks, Booking, Events, and more.",
+          "security": "Stronger security with 2FA, bot protection, guest accounts, and session management."
+        }
+      },
       "modules": {
         "general": {
           "title": "General",
-          "teaser": "Accent colors & alerts",
+          "teaser": "Design, nav & system",
           "items": {
-            "accent": "Accent colors were fixed and are applied more consistently than before.",
-            "alerts": "Adjusted alert bubbles to cause less layout shift."
+            "design": "New design language across the portal – clearer, calmer, and more consistent.",
+            "accent": "Accent colors are applied more reliably in more places.",
+            "alerts": "Alert bubbles adjusted to cause less layout shift.",
+            "navigation": "Desktop sidebar and mobile navigation redesigned.",
+            "context_menus": "Context menus in many modules for faster actions.",
+            "setup": "Setup wizard and first-time configuration improved.",
+            "push": "Web push subscriptions and notifications expanded (including admin management).",
+            "email_templates": "Unified email template system for all system mails.",
+            "pdf": "PDF generator reworked (inventory, events, booking, QR).",
+            "i18n": "Translations and multilingual support expanded further."
           }
         },
         "dashboard": {
           "title": "Dashboard",
-          "teaser": "What's new",
+          "teaser": "What's new & widgets",
           "items": {
-            "whats_new": "\"What's new\" to announce news for each version."
+            "whats_new": "\"What's new\" highlights each version's updates.",
+            "widgets": "Widgets and quick access extended with new modules.",
+            "quick_access": "Dashboard editing supports Events, Assessment, Music, Media Download, and more.",
+            "design": "Design and layout tweaks for the home page."
+          }
+        },
+        "security": {
+          "title": "Security",
+          "teaser": "2FA, guests & protection",
+          "items": {
+            "twofa": "Two-factor authentication (TOTP) for login.",
+            "rate_limit": "Rate limiting against brute-force login attempts.",
+            "bot": "Bot protection with Google reCAPTCHA or Cloudflare Turnstile (login/registration).",
+            "password_reset": "Password reset via email.",
+            "sessions": "Session tracking and device overview.",
+            "guests": "Guest accounts with module-based access control.",
+            "api_2fa": "API login with optional 2FA support."
           }
         },
         "chat": {
           "title": "Chats",
-          "teaser": "Design update",
+          "teaser": "Design, pins & stability",
           "items": {
-            "design": "Design update."
+            "design": "Design update for desktop and mobile.",
+            "pins": "Pin chats (up to 6 per user).",
+            "settings": "Chat settings and navigation improved.",
+            "socket": "Socket.IO / Redis stability for realtime messages.",
+            "fixes": "Bug fixes and UI improvements."
           }
         },
         "files": {
           "title": "Files",
-          "teaser": "Design, limits & admin",
+          "teaser": "Private, limits & shares",
           "items": {
-            "design": "Design refresh for a clearer, more modern file overview.",
-            "private": "Private files and internal sharing within the team.",
-            "upload": "Upload progress display for better feedback while uploading.",
+            "design": "Design refresh for a clearer file overview.",
+            "private": "Private folders, spaces, trash, and ACL.",
+            "upload": "Upload progress and conflict handling (new version).",
             "favorites": "Save up to 10 folders as favorites.",
-            "fixes": "Bug fixes and corrections.",
-            "admin_settings": "New settings options for administrators.",
-            "upload_limit": "Uploads larger than 10 MB possible – depending on administrator settings.",
-            "user_quota": "Option to set an overall storage limit per user."
+            "shares": "Shares reworked (labels, Dropbox mode, mailboxes).",
+            "locks": "Exclusive soft locks for the text/markdown editor.",
+            "dropbox": "Dropbox upload and integration improved.",
+            "admin_settings": "New admin settings for the files module.",
+            "upload_limit": "Larger uploads possible – depending on admin settings.",
+            "user_quota": "Per-user storage quota can be set.",
+            "fixes": "Bug fixes and corrections."
           }
         },
         "calendar": {
           "title": "Calendar",
-          "teaser": "Day view, sync & multi-calendar",
+          "teaser": "Multi-calendar & sync",
           "items": {
-            "day_view": "Current day view for a quick overview.",
-            "external_sync": "External calendars can now be synchronized.",
-            "embed": "Embedding the calendar in external apps is easier.",
-            "multi_mode": "New multi-calendar mode for individuals and for everyone – better sharing and overview.",
+            "day_view": "Day view for a quick overview.",
+            "external_sync": "External calendars can be synchronized.",
+            "embed": "Embedding and export/import made easier.",
+            "multi_mode": "Multi-calendar mode for people and teams.",
+            "context": "Context menu: create events directly from the view.",
+            "design": "Design and OLED adjustments.",
             "fixes": "Bug fixes and improvements."
           }
         },
         "events": {
           "title": "Events",
-          "teaser": "Design & PDF",
+          "teaser": "New module & scanner",
           "items": {
-            "design": "Design update.",
-            "pdf": "Adjustments to PDF generation.",
+            "new_module": "Dedicated events module with appointments, assignments, and needs.",
+            "design": "Design update for event screens.",
+            "scanner": "Appointment scanner for faster capture.",
+            "inventory_link": "Checkouts can be linked to an event and appointment.",
+            "pdf": "Event PDF generation reworked.",
             "fixes": "Adjustments and bug fixes."
           }
         },
         "email": {
           "title": "Email",
-          "teaser": "Design & mobile",
+          "teaser": "Design, mobile & permissions",
           "items": {
             "design": "Design adjustments for a clearer interface.",
             "mobile_layout": "Mobile layout fixes.",
-            "mobile_nav": "Mobile navigation fixes."
+            "mobile_nav": "Mobile navigation fixes.",
+            "permissions": "Read and send permissions per user.",
+            "sent_folder": "Sent mail can be stored in the IMAP Sent folder.",
+            "templates": "System mails use the new unified template.",
+            "fixes": "Additional stability and UI fixes."
           }
         },
         "contacts": {
           "title": "Contacts",
-          "teaser": "Design & fixes",
+          "teaser": "Design & favorites",
           "items": {
-            "design": "Design update and bug fixes."
+            "design": "Design update for the contacts overview.",
+            "favorites": "Personal favorites per user.",
+            "context": "Context menus for quick actions.",
+            "fixes": "Bug fixes and corrections."
           }
         },
         "credentials": {
           "title": "Credentials",
-          "teaser": "Design update",
+          "teaser": "Design & favorites",
           "items": {
-            "design": "Design update."
+            "design": "Design update.",
+            "favorites": "Personal favorites per user.",
+            "badges": "Provider badges and improved search.",
+            "context": "Context menus for quick actions.",
+            "fixes": "Bug fixes and corrections."
           }
         },
         "manuals": {
           "title": "Manuals",
-          "teaser": "Design & fixes",
+          "teaser": "Folders & design",
           "items": {
             "design": "Design adjustments.",
+            "folders": "Folder structure for manuals/guides.",
             "fixes": "Bug fixes and corrections."
           }
         },
         "inventory": {
           "title": "Inventory",
-          "teaser": "Design, borrow & colors",
+          "teaser": "Checkout & scanner",
           "items": {
-            "design": "Design adjustments.",
-            "borrow": "Adjustments to borrow/return functions.",
-            "colors": "Color codes with improved readability for small size differences."
+            "design": "Design adjustments and clearer workflows.",
+            "checkout": "New checkout system (borrow/return) including contact details.",
+            "product_fields": "More product fields: weight, dimensions, prices, DGUV, barcode, damage photo.",
+            "event_link": "Checkouts can be linked to events and appointments.",
+            "stocktake": "Stocktake with counted quantity.",
+            "scanner": "Scanner and checkout UX improved.",
+            "colors": "Color codes more readable for small differences.",
+            "pdf": "Receipts and PDFs reworked.",
+            "fixes": "API compatibility and further bug fixes."
+          }
+        },
+        "booking": {
+          "title": "Bookings",
+          "teaser": "Forms & messages",
+          "items": {
+            "module": "Booking module with public forms and approval.",
+            "forms": "Customizable forms, uploads, and applicant fields.",
+            "roles": "Role-based approval and secondary logo.",
+            "messages": "Message thread between staff and applicant.",
+            "notifications": "Notifications for bookings and messages.",
+            "pdf_mail": "PDF export and new mail templates including staff messages.",
+            "design": "Design and navigation improvements."
+          }
+        },
+        "music": {
+          "title": "Music",
+          "teaser": "Wishes & public links",
+          "items": {
+            "module": "Music module for wishes and team playlists.",
+            "design": "Design update for the music UI.",
+            "wishlist": "Wishlist and wish management improved.",
+            "public": "Public URLs / wishlist pages.",
+            "oauth": "Admin settings and OAuth connection.",
+            "fixes": "Bug fixes and stability improvements."
+          }
+        },
+        "assessment": {
+          "title": "Assessment",
+          "teaser": "New module & jury",
+          "items": {
+            "module": "New assessment module for juries and competitions.",
+            "design": "Dedicated design and isolated jury view.",
+            "jury": "Jury accounts without a full portal account.",
+            "plans": "Assessment plans, criteria, and stands.",
+            "ranking": "Rankings and evaluations.",
+            "excel": "Excel uploads and data import.",
+            "fixes": "Bug fixes and admin/settings improvements."
+          }
+        },
+        "shortlinks": {
+          "title": "Shortlinks",
+          "teaser": "New module",
+          "items": {
+            "module": "New shortlinks module for short, shareable links.",
+            "design": "Design and sidebar navigation.",
+            "sharing": "Integration with file shares and sharing flows.",
+            "fixes": "Bug fixes and UX improvements."
           }
         },
         "media_downloader": {
           "title": "Media Download",
-          "teaser": "Stability & improvements",
+          "teaser": "Playlists & stability",
           "items": {
+            "design": "Design and UI update for the download interface.",
+            "playlists": "Playlist support and preview.",
+            "cancel": "Cancel and purge jobs.",
+            "errors": "Clearer error responses and feedback.",
+            "config": "Configuration and compatibility indicator.",
+            "fixes": "Many stability and bug fixes."
+          }
+        },
+        "wiki": {
+          "title": "Wiki",
+          "teaser": "Versions & favorites",
+          "items": {
+            "design": "Design and navigation adjustments.",
+            "versions": "Versioning and history.",
+            "favorites": "Favorites for quick access.",
             "fixes": "Bug fixes and improvements."
           }
         }
@@ -1993,10 +2152,21 @@
         "progress": "Loading...",
         "file_details_error": "Error loading file details",
         "settings_error": "Error loading settings",
-        "file_too_large": "The file is too large. Maximum size: 100MB per file."
+        "file_too_large": "The file is too large. Maximum size: 100MB per file.",
+        "drag_to_move": "Drag to move",
+        "move_error": "Item could not be moved.",
+        "move_success": "Item was moved.",
+        "upload_drag_error": "Error during drag-and-drop upload."
       },
       "errors": {
-        "file_type_not_supported": "File type not supported"
+        "file_type_not_supported": "File type not supported",
+        "move_cycle_folder": "A folder cannot be moved into itself or a subfolder.",
+        "move_guest_not_allowed": "Guest accounts cannot move files or folders.",
+        "move_invalid_request": "Invalid move request.",
+        "move_invalid_target": "Invalid target folder.",
+        "move_item_not_found": "Item was not found.",
+        "move_name_conflict": "A file with this name already exists in the target folder.",
+        "move_target_not_found": "Target folder was not found."
       },
       "search_placeholder": "Search in files",
       "search_empty": "No matches in this folder."
@@ -4052,7 +4222,9 @@
       "recommendation_badge": "Recommendation",
       "no_recommendations": "No recommendations available.",
       "unknown_artist": "Unknown artist",
-      "search_error": "Search error: {error}"
+      "search_error": "Search error: {error}",
+      "search_hint": "Use quotation marks for more precise search results, e.g. \"Street boy\" \"Sido\"",
+      "search_hint_title": "Tip"
     },
     "public_url": {
       "page_title": "Music requests – QR code",
@@ -4532,6 +4704,21 @@
     "push": {
       "test_title": "Test notification",
       "test_body": "Test from {portal_name}. Push works."
+    }
+  },
+  "assessment": {
+    "appearance": {
+      "title": "Appearance",
+      "dark_mode": "Dark Mode",
+      "oled_mode": "OLED mode",
+      "save": "Save appearance",
+      "portal_hint": "Dark mode and accent color are controlled via your portal profile.",
+      "portal_link": "Go to portal appearance"
+    },
+    "admin_settings": {
+      "page_title": "Settings – Assessment",
+      "heading": "Assessment module settings",
+      "subtitle": "Texts, ranking and appearance"
     }
   }
 }

@@ -1,17 +1,54 @@
-{# What's New Modal – v2.6 #}
-<div class="modal fade" id="whatsNewModal" tabindex="-1" aria-labelledby="whatsNewModalLabel" aria-hidden="true">
+{# What's New Modal – v3.0.0 #}
+{% macro wn_feature(icon, key) -%}
+<li class="whats-new-feature">
+    <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-{{ icon }}"></i></span>
+    <span class="whats-new-feature-text">{{ _(key) }}</span>
+</li>
+{%- endmacro %}
+
+<div class="modal fade" id="whatsNewModal" tabindex="-1" aria-labelledby="whatsNewModalLabel" aria-hidden="true"
+     data-whats-new-auto="{{ '1' if show_whats_new|default(false) else '0' }}"
+     data-whats-new-seen-url="{{ url_for('dashboard.api_whats_new_seen') }}">
     <div class="modal-dialog modal-dialog-centered modal-lg whats-new-dialog">
         <div class="modal-content whats-new-modal">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title" id="whatsNewModalLabel">
                     <i class="bi bi-stars" aria-hidden="true"></i>
-                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version='2.6', current=1, total=13) }}</span>
+                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.0.0'), current=1, total=20) }}</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
-            <div class="modal-body pt-2">
+
+            <div class="whats-new-progress" id="whatsNewDots" aria-hidden="true"></div>
+
+            <div class="modal-body pt-1">
                 <div class="whats-new-panels">
-                <div class="whats-new-panel is-active" data-panel="overview">
+                <div class="whats-new-panel is-active" data-panel="welcome">
+                    <div class="whats-new-welcome">
+                        <span class="whats-new-welcome-badge">v{{ whats_new_version|default('3.0.0') }}</span>
+                        <div class="whats-new-welcome-hero" aria-hidden="true">
+                            <i class="bi bi-rocket-takeoff"></i>
+                        </div>
+                        <h3 class="whats-new-welcome-title">{{ _('dashboard.whats_new.welcome.title') }}</h3>
+                        <p class="whats-new-welcome-text">{{ _('dashboard.whats_new.welcome.text') }}</p>
+                        <ul class="whats-new-welcome-highlights">
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-palette2"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.design') }}</span>
+                            </li>
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-grid-1x2"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.modules') }}</span>
+                            </li>
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.security') }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="whats-new-panel" data-panel="overview">
                     <p class="whats-new-overview-subtitle">{{ _('dashboard.whats_new.overview_subtitle') }}</p>
                     <div class="whats-new-tile-grid">
                         <button type="button" class="whats-new-tile whats-new-tile--lg whats-new-module-btn" data-goto="files">
@@ -21,6 +58,13 @@
                                 <small>{{ _('dashboard.whats_new.modules.files.teaser') }}</small>
                             </span>
                         </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="inventory">
+                            <span class="whats-new-module-icon text-warning"><i class="bi bi-box-seam"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.inventory.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.inventory.teaser') }}</small>
+                            </span>
+                        </button>
                         <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="calendar">
                             <span class="whats-new-module-icon text-success"><i class="bi bi-calendar3"></i></span>
                             <span class="whats-new-tile-text">
@@ -28,11 +72,11 @@
                                 <small>{{ _('dashboard.whats_new.modules.calendar.teaser') }}</small>
                             </span>
                         </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="chat">
-                            <span class="whats-new-module-icon text-primary"><i class="bi bi-chat-dots"></i></span>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="security">
+                            <span class="whats-new-module-icon text-danger"><i class="bi bi-shield-lock"></i></span>
                             <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.chat.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.chat.teaser') }}</small>
+                                <strong>{{ _('dashboard.whats_new.modules.security.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.security.teaser') }}</small>
                             </span>
                         </button>
                         <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="general">
@@ -42,13 +86,6 @@
                                 <small>{{ _('dashboard.whats_new.modules.general.teaser') }}</small>
                             </span>
                         </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="email">
-                            <span class="whats-new-module-icon text-info"><i class="bi bi-envelope"></i></span>
-                            <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.email.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.email.teaser') }}</small>
-                            </span>
-                        </button>
                         <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="dashboard">
                             <span class="whats-new-module-icon text-success"><i class="bi bi-house-door"></i></span>
                             <span class="whats-new-tile-text">
@@ -56,18 +93,60 @@
                                 <small>{{ _('dashboard.whats_new.modules.dashboard.teaser') }}</small>
                             </span>
                         </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="events">
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="chat">
+                            <span class="whats-new-module-icon text-primary"><i class="bi bi-chat-dots"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.chat.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.chat.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="email">
+                            <span class="whats-new-module-icon text-info"><i class="bi bi-envelope"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.email.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.email.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="events">
                             <span class="whats-new-module-icon text-warning"><i class="bi bi-calendar2-week"></i></span>
                             <span class="whats-new-tile-text">
                                 <strong>{{ _('dashboard.whats_new.modules.events.title') }}</strong>
                                 <small>{{ _('dashboard.whats_new.modules.events.teaser') }}</small>
                             </span>
                         </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="inventory">
-                            <span class="whats-new-module-icon text-warning"><i class="bi bi-box-seam"></i></span>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="booking">
+                            <span class="whats-new-module-icon text-primary"><i class="bi bi-journal-check"></i></span>
                             <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.inventory.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.inventory.teaser') }}</small>
+                                <strong>{{ _('dashboard.whats_new.modules.booking.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.booking.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="assessment">
+                            <span class="whats-new-module-icon text-success"><i class="bi bi-clipboard2-check"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.assessment.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.assessment.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="music">
+                            <span class="whats-new-module-icon text-danger"><i class="bi bi-music-note-beamed"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.music.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.music.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="media_downloader">
+                            <span class="whats-new-module-icon text-warning"><i class="bi bi-download"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.media_downloader.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.media_downloader.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="shortlinks">
+                            <span class="whats-new-module-icon text-info"><i class="bi bi-link-45deg"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.shortlinks.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.shortlinks.teaser') }}</small>
                             </span>
                         </button>
                         <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="contacts">
@@ -91,11 +170,11 @@
                                 <small>{{ _('dashboard.whats_new.modules.manuals.teaser') }}</small>
                             </span>
                         </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="media_downloader">
-                            <span class="whats-new-module-icon text-warning"><i class="bi bi-download"></i></span>
+                        <button type="button" class="whats-new-tile whats-new-tile--sm whats-new-module-btn" data-goto="wiki">
+                            <span class="whats-new-module-icon text-secondary"><i class="bi bi-journal-richtext"></i></span>
                             <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.media_downloader.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.media_downloader.teaser') }}</small>
+                                <strong>{{ _('dashboard.whats_new.modules.wiki.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.wiki.teaser') }}</small>
                             </span>
                         </button>
                     </div>
@@ -107,8 +186,16 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.general.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.general.items.accent') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.general.items.alerts') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.general.items.design') }}
+                        {{ wn_feature('brush', 'dashboard.whats_new.modules.general.items.accent') }}
+                        {{ wn_feature('exclamation-circle', 'dashboard.whats_new.modules.general.items.alerts') }}
+                        {{ wn_feature('layout-sidebar', 'dashboard.whats_new.modules.general.items.navigation') }}
+                        {{ wn_feature('menu-button-wide', 'dashboard.whats_new.modules.general.items.context_menus') }}
+                        {{ wn_feature('gear-wide-connected', 'dashboard.whats_new.modules.general.items.setup') }}
+                        {{ wn_feature('bell', 'dashboard.whats_new.modules.general.items.push') }}
+                        {{ wn_feature('envelope-paper', 'dashboard.whats_new.modules.general.items.email_templates') }}
+                        {{ wn_feature('filetype-pdf', 'dashboard.whats_new.modules.general.items.pdf') }}
+                        {{ wn_feature('translate', 'dashboard.whats_new.modules.general.items.i18n') }}
                     </ul>
                 </div>
 
@@ -118,7 +205,26 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.dashboard.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.dashboard.items.whats_new') }}</li>
+                        {{ wn_feature('stars', 'dashboard.whats_new.modules.dashboard.items.whats_new') }}
+                        {{ wn_feature('grid', 'dashboard.whats_new.modules.dashboard.items.widgets') }}
+                        {{ wn_feature('lightning', 'dashboard.whats_new.modules.dashboard.items.quick_access') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.dashboard.items.design') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="security">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-danger"><i class="bi bi-shield-lock"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.security.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('phone', 'dashboard.whats_new.modules.security.items.twofa') }}
+                        {{ wn_feature('hourglass-split', 'dashboard.whats_new.modules.security.items.rate_limit') }}
+                        {{ wn_feature('robot', 'dashboard.whats_new.modules.security.items.bot') }}
+                        {{ wn_feature('key', 'dashboard.whats_new.modules.security.items.password_reset') }}
+                        {{ wn_feature('laptop', 'dashboard.whats_new.modules.security.items.sessions') }}
+                        {{ wn_feature('person-badge', 'dashboard.whats_new.modules.security.items.guests') }}
+                        {{ wn_feature('braces', 'dashboard.whats_new.modules.security.items.api_2fa') }}
                     </ul>
                 </div>
 
@@ -128,7 +234,11 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.chat.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.chat.items.design') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.chat.items.design') }}
+                        {{ wn_feature('pin-angle', 'dashboard.whats_new.modules.chat.items.pins') }}
+                        {{ wn_feature('sliders', 'dashboard.whats_new.modules.chat.items.settings') }}
+                        {{ wn_feature('broadcast', 'dashboard.whats_new.modules.chat.items.socket') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.chat.items.fixes') }}
                     </ul>
                 </div>
 
@@ -138,14 +248,17 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.files.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.files.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.private') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.upload') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.favorites') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.fixes') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.admin_settings') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.upload_limit') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.files.items.user_quota') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.files.items.design') }}
+                        {{ wn_feature('lock', 'dashboard.whats_new.modules.files.items.private') }}
+                        {{ wn_feature('cloud-upload', 'dashboard.whats_new.modules.files.items.upload') }}
+                        {{ wn_feature('star', 'dashboard.whats_new.modules.files.items.favorites') }}
+                        {{ wn_feature('share', 'dashboard.whats_new.modules.files.items.shares') }}
+                        {{ wn_feature('pencil-square', 'dashboard.whats_new.modules.files.items.locks') }}
+                        {{ wn_feature('dropbox', 'dashboard.whats_new.modules.files.items.dropbox') }}
+                        {{ wn_feature('gear', 'dashboard.whats_new.modules.files.items.admin_settings') }}
+                        {{ wn_feature('hdd', 'dashboard.whats_new.modules.files.items.upload_limit') }}
+                        {{ wn_feature('pie-chart', 'dashboard.whats_new.modules.files.items.user_quota') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.files.items.fixes') }}
                     </ul>
                 </div>
 
@@ -155,11 +268,13 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.calendar.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.day_view') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.external_sync') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.embed') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.multi_mode') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.calendar.items.fixes') }}</li>
+                        {{ wn_feature('sun', 'dashboard.whats_new.modules.calendar.items.day_view') }}
+                        {{ wn_feature('arrow-repeat', 'dashboard.whats_new.modules.calendar.items.external_sync') }}
+                        {{ wn_feature('box-arrow-up-right', 'dashboard.whats_new.modules.calendar.items.embed') }}
+                        {{ wn_feature('calendar-week', 'dashboard.whats_new.modules.calendar.items.multi_mode') }}
+                        {{ wn_feature('cursor', 'dashboard.whats_new.modules.calendar.items.context') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.calendar.items.design') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.calendar.items.fixes') }}
                     </ul>
                 </div>
 
@@ -169,9 +284,12 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.events.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.events.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.events.items.pdf') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.events.items.fixes') }}</li>
+                        {{ wn_feature('plus-circle', 'dashboard.whats_new.modules.events.items.new_module') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.events.items.design') }}
+                        {{ wn_feature('qr-code-scan', 'dashboard.whats_new.modules.events.items.scanner') }}
+                        {{ wn_feature('link-45deg', 'dashboard.whats_new.modules.events.items.inventory_link') }}
+                        {{ wn_feature('filetype-pdf', 'dashboard.whats_new.modules.events.items.pdf') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.events.items.fixes') }}
                     </ul>
                 </div>
 
@@ -181,9 +299,13 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.email.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.email.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.email.items.mobile_layout') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.email.items.mobile_nav') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.email.items.design') }}
+                        {{ wn_feature('phone', 'dashboard.whats_new.modules.email.items.mobile_layout') }}
+                        {{ wn_feature('list', 'dashboard.whats_new.modules.email.items.mobile_nav') }}
+                        {{ wn_feature('person-check', 'dashboard.whats_new.modules.email.items.permissions') }}
+                        {{ wn_feature('send', 'dashboard.whats_new.modules.email.items.sent_folder') }}
+                        {{ wn_feature('file-earmark-text', 'dashboard.whats_new.modules.email.items.templates') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.email.items.fixes') }}
                     </ul>
                 </div>
 
@@ -193,7 +315,10 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.contacts.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.contacts.items.design') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.contacts.items.design') }}
+                        {{ wn_feature('star', 'dashboard.whats_new.modules.contacts.items.favorites') }}
+                        {{ wn_feature('menu-button-wide', 'dashboard.whats_new.modules.contacts.items.context') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.contacts.items.fixes') }}
                     </ul>
                 </div>
 
@@ -203,7 +328,11 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.credentials.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.credentials.items.design') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.credentials.items.design') }}
+                        {{ wn_feature('star', 'dashboard.whats_new.modules.credentials.items.favorites') }}
+                        {{ wn_feature('award', 'dashboard.whats_new.modules.credentials.items.badges') }}
+                        {{ wn_feature('menu-button-wide', 'dashboard.whats_new.modules.credentials.items.context') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.credentials.items.fixes') }}
                     </ul>
                 </div>
 
@@ -213,8 +342,9 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.manuals.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.manuals.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.manuals.items.fixes') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.manuals.items.design') }}
+                        {{ wn_feature('folder', 'dashboard.whats_new.modules.manuals.items.folders') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.manuals.items.fixes') }}
                     </ul>
                 </div>
 
@@ -224,9 +354,75 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.inventory.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.inventory.items.design') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.inventory.items.borrow') }}</li>
-                        <li>{{ _('dashboard.whats_new.modules.inventory.items.colors') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.inventory.items.design') }}
+                        {{ wn_feature('cart-check', 'dashboard.whats_new.modules.inventory.items.checkout') }}
+                        {{ wn_feature('tags', 'dashboard.whats_new.modules.inventory.items.product_fields') }}
+                        {{ wn_feature('link-45deg', 'dashboard.whats_new.modules.inventory.items.event_link') }}
+                        {{ wn_feature('clipboard-data', 'dashboard.whats_new.modules.inventory.items.stocktake') }}
+                        {{ wn_feature('upc-scan', 'dashboard.whats_new.modules.inventory.items.scanner') }}
+                        {{ wn_feature('palette', 'dashboard.whats_new.modules.inventory.items.colors') }}
+                        {{ wn_feature('filetype-pdf', 'dashboard.whats_new.modules.inventory.items.pdf') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.inventory.items.fixes') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="booking">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-primary"><i class="bi bi-journal-check"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.booking.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('plus-circle', 'dashboard.whats_new.modules.booking.items.module') }}
+                        {{ wn_feature('ui-checks', 'dashboard.whats_new.modules.booking.items.forms') }}
+                        {{ wn_feature('people', 'dashboard.whats_new.modules.booking.items.roles') }}
+                        {{ wn_feature('chat-left-text', 'dashboard.whats_new.modules.booking.items.messages') }}
+                        {{ wn_feature('bell', 'dashboard.whats_new.modules.booking.items.notifications') }}
+                        {{ wn_feature('envelope-paper', 'dashboard.whats_new.modules.booking.items.pdf_mail') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.booking.items.design') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="music">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-danger"><i class="bi bi-music-note-beamed"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.music.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('plus-circle', 'dashboard.whats_new.modules.music.items.module') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.music.items.design') }}
+                        {{ wn_feature('heart', 'dashboard.whats_new.modules.music.items.wishlist') }}
+                        {{ wn_feature('globe', 'dashboard.whats_new.modules.music.items.public') }}
+                        {{ wn_feature('plug', 'dashboard.whats_new.modules.music.items.oauth') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.music.items.fixes') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="assessment">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-success"><i class="bi bi-clipboard2-check"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.assessment.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('plus-circle', 'dashboard.whats_new.modules.assessment.items.module') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.assessment.items.design') }}
+                        {{ wn_feature('person-workspace', 'dashboard.whats_new.modules.assessment.items.jury') }}
+                        {{ wn_feature('list-check', 'dashboard.whats_new.modules.assessment.items.plans') }}
+                        {{ wn_feature('trophy', 'dashboard.whats_new.modules.assessment.items.ranking') }}
+                        {{ wn_feature('filetype-xlsx', 'dashboard.whats_new.modules.assessment.items.excel') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.assessment.items.fixes') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="shortlinks">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-info"><i class="bi bi-link-45deg"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.shortlinks.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('plus-circle', 'dashboard.whats_new.modules.shortlinks.items.module') }}
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.shortlinks.items.design') }}
+                        {{ wn_feature('share', 'dashboard.whats_new.modules.shortlinks.items.sharing') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.shortlinks.items.fixes') }}
                     </ul>
                 </div>
 
@@ -236,26 +432,44 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.media_downloader.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
-                        <li>{{ _('dashboard.whats_new.modules.media_downloader.items.fixes') }}</li>
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.media_downloader.items.design') }}
+                        {{ wn_feature('collection-play', 'dashboard.whats_new.modules.media_downloader.items.playlists') }}
+                        {{ wn_feature('x-circle', 'dashboard.whats_new.modules.media_downloader.items.cancel') }}
+                        {{ wn_feature('exclamation-triangle', 'dashboard.whats_new.modules.media_downloader.items.errors') }}
+                        {{ wn_feature('gear', 'dashboard.whats_new.modules.media_downloader.items.config') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.media_downloader.items.fixes') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="wiki">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-secondary"><i class="bi bi-journal-richtext"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.wiki.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('palette2', 'dashboard.whats_new.modules.wiki.items.design') }}
+                        {{ wn_feature('clock-history', 'dashboard.whats_new.modules.wiki.items.versions') }}
+                        {{ wn_feature('star', 'dashboard.whats_new.modules.wiki.items.favorites') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.wiki.items.fixes') }}
                     </ul>
                 </div>
                 </div>
             </div>
+
             <div class="modal-footer border-0 pt-0 whats-new-footer">
                 <button type="button" class="btn whats-new-btn whats-new-btn--ghost btn-sm d-none" id="whatsNewBackBtn">
                     <i class="bi bi-arrow-left me-1"></i>{{ _('dashboard.whats_new.back_overview') }}
                 </button>
-                <div class="whats-new-dots" id="whatsNewDots" aria-hidden="true"></div>
-                <div class="d-flex gap-2 whats-new-nav-actions">
-                    <button type="button" class="btn whats-new-btn whats-new-btn--ghost btn-sm d-none" id="whatsNewPrevBtn">
+                <div class="d-flex gap-2 whats-new-nav-actions ms-auto">
+                    <button type="button" class="btn whats-new-btn whats-new-btn--ghost d-none" id="whatsNewPrevBtn">
                         <i class="bi bi-chevron-left"></i>
                         <span class="d-none d-sm-inline">{{ _('dashboard.whats_new.prev') }}</span>
                     </button>
-                    <button type="button" class="btn whats-new-btn whats-new-btn--primary btn-sm" id="whatsNewNextBtn">
-                        <span class="d-none d-sm-inline">{{ _('dashboard.whats_new.next') }}</span>
-                        <i class="bi bi-chevron-right"></i>
+                    <button type="button" class="btn whats-new-btn whats-new-btn--primary whats-new-btn--next" id="whatsNewNextBtn">
+                        <span>{{ _('dashboard.whats_new.next') }}</span>
+                        <i class="bi bi-arrow-right"></i>
                     </button>
-                    <button type="button" class="btn whats-new-btn whats-new-btn--primary btn-sm d-none" data-bs-dismiss="modal" id="whatsNewCloseBtn">
+                    <button type="button" class="btn whats-new-btn whats-new-btn--primary whats-new-btn--next d-none" data-bs-dismiss="modal" id="whatsNewCloseBtn">
                         {{ _('common.close') }}
                     </button>
                 </div>

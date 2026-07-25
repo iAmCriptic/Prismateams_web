@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
+# Bei jedem Release erhöhen, damit alle Nutzer What's New einmalig erneut sehen.
+WHATS_NEW_VERSION = '3.0.0'
+
 WIDGET_MODULE_MAP = {
     'termine': 'module_calendar',
     'nachrichten': 'module_chat',
@@ -346,7 +349,18 @@ def index():
         guest_has_file_access=guest_has_file_access,
         guest_accessible_modules=guest_accessible_modules,
         greeting_key=greeting_key,
+        whats_new_version=WHATS_NEW_VERSION,
+        show_whats_new=getattr(current_user, 'whats_new_seen_version', None) != WHATS_NEW_VERSION,
     )
+
+
+@dashboard_bp.route('/api/dashboard/whats-new/seen', methods=['POST'])
+@login_required
+def api_whats_new_seen():
+    """Markiert What's New für die aktuelle Release-Version als gesehen."""
+    current_user.whats_new_seen_version = WHATS_NEW_VERSION
+    db.session.commit()
+    return jsonify({'success': True, 'version': WHATS_NEW_VERSION})
 
 
 @dashboard_bp.route('/dashboard/edit', methods=['GET', 'POST'])
