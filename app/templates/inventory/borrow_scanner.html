@@ -111,31 +111,6 @@
     </div>
 </div>
 
-<div class="modal fade" id="setScannedModal" tabindex="-1" aria-labelledby="setScannedModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="setScannedModalLabel">
-                    <i class="bi bi-collection"></i> Set gescannt
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">
-                    <strong>Zu dem Set "<span id="setScannedName"></span>" gehören:</strong>
-                </p>
-                <ul id="setScannedProducts" class="list-group list-group-flush mb-3"></ul>
-                <div id="setScannedUnavailable" class="alert alert-warning" style="display: none;">
-                    <strong>Hinweis:</strong> Folgende Produkte konnten nicht hinzugefügt werden:
-                    <ul id="setScannedUnavailableList" class="mb-0 mt-2"></ul>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Verstanden</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block inventory_extra_js %}

@@ -2249,8 +2249,7 @@ def admin_email_test_smtp():
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
     from flask import current_app
-    from flask_mail import Message
-    from app.utils.email_sender import send_email_with_lock
+    from app.utils.email_sender import send_smtp_test_email
 
     mail_server = current_app.config.get('MAIL_SERVER')
     mail_username = current_app.config.get('MAIL_USERNAME')
@@ -2263,15 +2262,7 @@ def admin_email_test_smtp():
         })
 
     try:
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or mail_username
-        msg = Message(
-            subject=translate('settings.admin.email_module.test.smtp_subject'),
-            recipients=[current_user.email],
-            sender=sender,
-        )
-        msg.body = translate('settings.admin.email_module.test.smtp_body')
-        send_email_with_lock(msg)
+        send_smtp_test_email(current_user.email)
         return jsonify({
             'success': True,
             'message': translate('settings.admin.email_module.test.smtp_ok', email=current_user.email),

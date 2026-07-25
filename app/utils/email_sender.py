@@ -11,6 +11,24 @@ from app.models.user import User
 from app.utils.lock_manager import acquire_email_send_lock
 
 
+
+def _msg_has_nested_related(msg):
+    """True if msg.msg is mixed with an inner multipart/related (CID + attachments)."""
+    try:
+        if not getattr(msg, 'msg', None):
+            return False
+        if msg.msg.get_content_type() != 'multipart/mixed':
+            return False
+        parts = msg.msg.get_payload()
+        if not isinstance(parts, list):
+            return False
+        return any(
+            hasattr(p, 'get_content_type') and p.get_content_type() == 'multipart/related'
+            for p in parts
+        )
+    except Exception:
+        return False
+
 def send_email_with_lock(msg, timeout=60):
     """
     Sendet eine E-Mail mit Lock-Schutz, um sicherzustellen, dass nur ein Worker gleichzeitig sendet.
@@ -202,7 +220,7 @@ def send_email_with_lock(msg, timeout=60):
                 # KRITISCH: Wenn multipart/mixed, müssen wir auf multipart/related umstellen
                 # Aber: Wenn es normale Anhänge gibt, müssen wir verschachteln:
                 # multipart/mixed (äußere) -> multipart/related (innere, mit Logo)
-                if current_content_type == 'multipart/mixed':
+                if current_content_type == 'multipart/mixed' and not _msg_has_nested_related(msg):
                     from email.mime.multipart import MIMEMultipart
                     from email.mime.text import MIMEText
                     from email.header import Header
@@ -878,119 +896,136 @@ def create_message_with_logo(subject, recipients, html_content, body_text=None, 
     return msg
 
 
+def _portal_name():
+    """Portal-Anzeigename aus SystemSettings."""
+    try:
+        from app.models.settings import SystemSettings
+        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
+        return (
+            portal_name_setting.value
+            if portal_name_setting and portal_name_setting.value
+            else current_app.config.get('APP_NAME', 'Prismateams')
+        )
+    except Exception:
+        return current_app.config.get('APP_NAME', 'Prismateams')
+
+
+def _mail_configured():
+    return all([
+        current_app.config.get('MAIL_SERVER'),
+        current_app.config.get('MAIL_USERNAME'),
+        current_app.config.get('MAIL_PASSWORD'),
+    ])
+
+
+def _attach_files_to_message(msg, attachments):
+    """Hängt Dateien an (multipart/mixed um related mit CID-Logo)."""
+    if not attachments:
+        return
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+
+    if getattr(msg, 'msg', None) is not None:
+        outer = MIMEMultipart('mixed')
+        for key, value in msg.msg.items():
+            if key.lower() not in ('content-type', 'mime-version'):
+                outer[key] = value
+        outer.attach(msg.msg)
+        for filename, mimetype, data in attachments:
+            part = MIMEApplication(data, Name=filename)
+            part.add_header('Content-Disposition', 'attachment', filename=filename)
+            outer.attach(part)
+        msg.msg = outer
+    else:
+        for filename, mimetype, data in attachments:
+            msg.attach(filename, mimetype, data)
+
+
+def render_portal_email(template_name, **ctx):
+    """Rendert Portal-E-Mail-Template mit Standard-Kontext (CID-Logo)."""
+    portal_name = ctx.pop('app_name', None) or _portal_name()
+    ctx.setdefault('app_name', portal_name)
+    ctx.setdefault('current_year', datetime.utcnow().year)
+    ctx.setdefault('logo_cid', 'portal_logo')
+    html_content = render_template(template_name, **ctx)
+    return html_content, portal_name
+
+
+def build_portal_message(subject, recipients, template_name, body_text=None, attachments=None, **ctx):
+    """Baut Flask-Mail Message mit Portal-Shell und CID-Logo."""
+    html_content, portal_name = render_portal_email(template_name, **ctx)
+    msg = create_message_with_logo(
+        subject=subject,
+        recipients=recipients,
+        html_content=html_content,
+        body_text=body_text,
+    )
+    _attach_files_to_message(msg, attachments)
+    return msg, html_content, portal_name
+
+
+def render_and_send_portal_email(subject, recipients, template_name, body_text=None, attachments=None, **ctx):
+    """Rendert Template, baut CID-Message und sendet."""
+    if not _mail_configured():
+        logging.warning(f'E-Mail-Konfiguration unvollständig. Versand übersprungen: {subject}')
+        return False
+    msg, _, _ = build_portal_message(
+        subject, recipients, template_name,
+        body_text=body_text, attachments=attachments, **ctx
+    )
+    send_email_with_lock(msg)
+    return True
+
+
 def send_confirmation_email(user):
     """Sendet eine Bestätigungs-E-Mail an den Benutzer."""
     try:
-        # Generiere Bestätigungscode
         confirmation_code = generate_confirmation_code()
-        
-        # Setze Ablaufzeit (24 Stunden)
         expires_at = datetime.utcnow() + timedelta(hours=24)
-        
-        # Aktualisiere Benutzer-Daten
         user.confirmation_code = confirmation_code
         user.confirmation_code_expires = expires_at
         user.is_email_confirmed = False
-        
-        # Speichere in Datenbank
         from app import db
         db.session.commit()
-        
-        # Prüfe E-Mail-Konfiguration
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        mail_port = current_app.config.get('MAIL_PORT', 587)
-        mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
-        mail_use_ssl = current_app.config.get('MAIL_USE_SSL', False)
-        
-        
-        if not all([mail_server, mail_username, mail_password]):
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Code für {user.email}: {confirmation_code}")
+
+        if not _mail_configured():
+            logging.warning(f'E-Mail-Konfiguration unvollständig. Code für {user.email}: {confirmation_code}')
             return False
-        
-        # Get portal name from SystemSettings
-        try:
-            from app.models.settings import SystemSettings
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-        except:
-            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
-        
-        # HTML-Template rendern (Logo wird als CID-Anhang eingefügt)
-        html_content = render_template(
-            'emails/confirmation_code.html',
-            user=user,
-            confirmation_code=confirmation_code,
-            app_name=portal_name,
-            current_year=datetime.utcnow().year,
-            logo_cid='portal_logo'
+
+        portal_name = _portal_name()
+        plain_text = (
+            f'E-Mail-Bestätigungscode: {confirmation_code}\n\n'
+            'Bitte geben Sie diesen Code zur Bestätigung Ihrer E-Mail-Adresse ein.'
         )
-        
-        # Plain text Version
-        plain_text = f"E-Mail-Bestätigungscode: {confirmation_code}\n\nBitte geben Sie diesen Code zur Bestätigung Ihrer E-Mail-Adresse ein."
-        
-        # Erstelle Message mit Logo als CID-Anhang
-        msg = create_message_with_logo(
-            subject=f'E-Mail-Bestätigung - {portal_name}',
-            recipients=[user.email],
-            html_content=html_content,
-            body_text=plain_text
-        )
-        
-        # E-Mail senden mit verbesserter Fehlerbehandlung
         try:
-            send_email_with_lock(msg)
-            logging.info(f"Confirmation email sent to {user.email} with code: {confirmation_code}")
+            render_and_send_portal_email(
+                subject=f'E-Mail-Bestätigung - {portal_name}',
+                recipients=[user.email],
+                template_name='emails/confirmation_code.html',
+                body_text=plain_text,
+                user=user,
+                confirmation_code=confirmation_code,
+            )
+            logging.info(f'Confirmation email sent to {user.email} with code: {confirmation_code}')
             return True
         except Exception as send_error:
-            logging.error(f"Failed to send confirmation email to {user.email}: {str(send_error)}")
-            
-            # Versuche alternative Konfiguration für Infomaniak
+            logging.error(f'Failed to send confirmation email to {user.email}: {str(send_error)}')
             try:
-                logging.info("Versuche alternative E-Mail-Konfiguration...")
-                
-                # Get portal name from SystemSettings (bereits oben definiert, aber zur Sicherheit nochmal)
-                try:
-                    from app.models.settings import SystemSettings
-                    portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-                    portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-                except:
-                    portal_name = current_app.config.get('APP_NAME', 'Prismateams')
-                
-                # HTML-Template rendern
-                html_content_alt = render_template(
-                    'emails/confirmation_code.html',
-                    user=user,
-                    confirmation_code=confirmation_code,
-                    app_name=portal_name,
-                    current_year=datetime.utcnow().year,
-                    logo_cid='portal_logo'
-                )
-                
-                # Plain text Version
-                plain_text_alt = f"E-Mail-Bestätigungscode: {confirmation_code}\n\nBitte geben Sie diesen Code zur Bestätigung Ihrer E-Mail-Adresse ein."
-                
-                # Erstelle Message mit Logo als CID-Anhang
-                msg_alt = create_message_with_logo(
+                render_and_send_portal_email(
                     subject=f'E-Mail-Bestätigung - {portal_name}',
                     recipients=[user.email],
-                    html_content=html_content_alt,
-                    body_text=plain_text_alt
+                    template_name='emails/confirmation_code.html',
+                    body_text=plain_text,
+                    user=user,
+                    confirmation_code=confirmation_code,
                 )
-                
-                # Versuche erneut zu senden
-                send_email_with_lock(msg_alt)
-                logging.info(f"Alternative E-Mail erfolgreich gesendet an {user.email}")
+                logging.info(f'Alternative E-Mail erfolgreich gesendet an {user.email}')
                 return True
-                
             except Exception as alt_error:
-                logging.error(f"Alternative E-Mail-Versand auch fehlgeschlagen: {str(alt_error)}")
+                logging.error(f'Alternative E-Mail-Versand auch fehlgeschlagen: {str(alt_error)}')
                 return False
-        
     except Exception as e:
-        logging.error(f"Failed to send confirmation email to {user.email}: {str(e)}")
-        # Code trotzdem in Datenbank speichern für manuelle Eingabe
+        logging.error(f'Failed to send confirmation email to {user.email}: {str(e)}')
         return False
 
 
@@ -998,23 +1033,15 @@ def verify_confirmation_code(user, code):
     """Überprüft den Bestätigungscode."""
     if not user.confirmation_code or not user.confirmation_code_expires:
         return False
-    
-    # Prüfe Ablaufzeit
     if datetime.utcnow() > user.confirmation_code_expires:
         return False
-    
-    # Prüfe Code
     if user.confirmation_code != code:
         return False
-    
-    # Code ist gültig - bestätige E-Mail
     user.is_email_confirmed = True
     user.confirmation_code = None
     user.confirmation_code_expires = None
-    
     from app import db
     db.session.commit()
-    
     return True
 
 
@@ -1026,69 +1053,38 @@ def resend_confirmation_email(user):
 def send_password_reset_email(user):
     """Sendet eine Passwort-Reset-E-Mail an den Benutzer."""
     try:
-        # Generiere Passwort-Reset-Code
         reset_code = generate_confirmation_code()
-        
-        # Setze Ablaufzeit (1 Stunde)
         expires_at = datetime.utcnow() + timedelta(hours=1)
-        
-        # Aktualisiere Benutzer-Daten
         user.password_reset_code = reset_code
         user.password_reset_code_expires = expires_at
-        
-        # Speichere in Datenbank
         from app import db
         db.session.commit()
-        
-        # Prüfe E-Mail-Konfiguration
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        
-        if not all([mail_server, mail_username, mail_password]):
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Reset-Code für {user.email}: {reset_code}")
+
+        if not _mail_configured():
+            logging.warning(f'E-Mail-Konfiguration unvollständig. Reset-Code für {user.email}: {reset_code}')
             return False
-        
-        # Get portal name from SystemSettings
-        try:
-            from app.models.settings import SystemSettings
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-        except:
-            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
-        
-        # HTML-Template rendern (Logo wird als CID-Anhang eingefügt)
-        html_content = render_template(
-            'emails/password_reset.html',
-            user=user,
-            reset_code=reset_code,
-            app_name=portal_name,
-            current_year=datetime.utcnow().year,
-            logo_cid='portal_logo'
+
+        portal_name = _portal_name()
+        plain_text = (
+            f'Passwort-Reset-Code: {reset_code}\n\n'
+            'Bitte geben Sie diesen Code ein, um Ihr Passwort zurückzusetzen. Der Code ist 1 Stunde gültig.'
         )
-        
-        # Plain text Version
-        plain_text = f"Passwort-Reset-Code: {reset_code}\n\nBitte geben Sie diesen Code ein, um Ihr Passwort zurückzusetzen. Der Code ist 1 Stunde gültig."
-        
-        # Erstelle Message mit Logo als CID-Anhang
-        msg = create_message_with_logo(
-            subject=f'Passwort zurücksetzen - {portal_name}',
-            recipients=[user.email],
-            html_content=html_content,
-            body_text=plain_text
-        )
-        
-        # E-Mail senden
         try:
-            send_email_with_lock(msg)
-            logging.info(f"Password reset email sent to {user.email} with code: {reset_code}")
+            render_and_send_portal_email(
+                subject=f'Passwort zurücksetzen - {portal_name}',
+                recipients=[user.email],
+                template_name='emails/password_reset.html',
+                body_text=plain_text,
+                user=user,
+                reset_code=reset_code,
+            )
+            logging.info(f'Password reset email sent to {user.email} with code: {reset_code}')
             return True
         except Exception as send_error:
-            logging.error(f"Failed to send password reset email to {user.email}: {str(send_error)}")
+            logging.error(f'Failed to send password reset email to {user.email}: {str(send_error)}')
             return False
-        
     except Exception as e:
-        logging.error(f"Failed to send password reset email to {user.email}: {str(e)}")
+        logging.error(f'Failed to send password reset email to {user.email}: {str(e)}')
         return False
 
 
@@ -1096,206 +1092,155 @@ def verify_password_reset_code(user, code):
     """Überprüft den Passwort-Reset-Code."""
     if not user.password_reset_code or not user.password_reset_code_expires:
         return False
-    
-    # Prüfe Ablaufzeit
     if datetime.utcnow() > user.password_reset_code_expires:
         return False
-    
-    # Prüfe Code
     if user.password_reset_code != code:
         return False
-    
-    # Code ist gültig
     return True
 
 
-def send_borrow_receipt_email(borrow_transactions):
-    """Sendet eine E-Mail mit Ausleihschein-PDF nach erfolgreicher Ausleihe."""
+def _checkout_recipient_email(checkout):
+    """Empfänger für Inventar-Mails: contact_email oder Portal-User-E-Mail."""
+    email = (getattr(checkout, 'contact_email', None) or '').strip()
+    if email:
+        return email
+    borrower = getattr(checkout, 'borrower', None)
+    if borrower and getattr(borrower, 'email', None):
+        return borrower.email.strip()
+    return None
+
+
+def _checkout_item_rows(items):
+    rows = []
+    for item in items or []:
+        product = getattr(item, 'product', None)
+        rows.append({
+            'id': getattr(product, 'id', None) or getattr(item, 'product_id', '—'),
+            'name': getattr(product, 'name', None) or '—',
+        })
+    return rows
+
+
+def send_borrow_receipt_email(checkout):
+    """Sendet Ausleihschein-PDF nach Checkout (Quick Scan / Ausleihe)."""
     try:
-        from app.models.inventory import BorrowTransaction, Product
+        from app.models.inventory import Checkout
         from app.utils.pdf_generator import generate_borrow_receipt_pdf
         from io import BytesIO
-        
-        # Normalisiere zu Liste
-        if not isinstance(borrow_transactions, list):
-            borrow_transactions = [borrow_transactions]
-        
-        if not borrow_transactions:
-            logging.error("Keine Transaktionen zum Versenden vorhanden.")
-            return False
-        
-        first_transaction = borrow_transactions[0]
-        borrower = first_transaction.borrower
-        
-        # Prüfe E-Mail-Konfiguration
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        
-        if not all([mail_server, mail_username, mail_password]):
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Ausleihschein für {first_transaction.transaction_number} nicht gesendet.")
-            return False
-        
-        if not borrower.email:
-            logging.warning(f"Benutzer {borrower.id} hat keine E-Mail-Adresse. Ausleihschein nicht gesendet.")
-            return False
-        
-        # Get portal name from SystemSettings
-        try:
-            from app.models.settings import SystemSettings
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-        except:
-            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
-        
-        # Erstelle E-Mail
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or mail_username
-        msg = Message(
-            subject=f'Ausleihschein - {portal_name}',
-            recipients=[borrower.email],
-            sender=sender
-        )
-        
-        # Logo als Base64 laden
-        logo_base64 = get_logo_base64()
-        
-        # HTML-Template für Ausleihschein
-        borrow_date = first_transaction.borrow_date.strftime('%d.%m.%Y %H:%M')
-        expected_return_date = first_transaction.expected_return_date.strftime('%d.%m.%Y')
-        
-        display_ref = first_transaction.borrow_group_id or first_transaction.transaction_number
 
-        html_content = render_template(
-            'emails/borrow_receipt.html',
-            app_name=portal_name,
-            borrower=borrower,
-            transactions=borrow_transactions,
+        if not isinstance(checkout, Checkout):
+            logging.error('send_borrow_receipt_email erwartet ein Checkout-Objekt.')
+            return False
+
+        recipient = _checkout_recipient_email(checkout)
+        if not recipient:
+            logging.warning(
+                f'Keine E-Mail für Checkout {checkout.checkout_number}. Ausleihschein nicht gesendet.'
+            )
+            return False
+        if not _mail_configured():
+            logging.warning(
+                f'E-Mail-Konfiguration unvollständig. Ausleihschein für {checkout.checkout_number} nicht gesendet.'
+            )
+            return False
+
+        portal_name = _portal_name()
+        borrow_date = checkout.start_date.strftime('%d.%m.%Y %H:%M') if checkout.start_date else '—'
+        expected_return_date = checkout.end_date.strftime('%d.%m.%Y') if checkout.end_date else '—'
+        items = _checkout_item_rows(checkout.items)
+
+        pdf_buffer = BytesIO()
+        generate_borrow_receipt_pdf(checkout, pdf_buffer)
+        pdf_buffer.seek(0)
+        filename = f'Ausleihschein_{checkout.checkout_number}.pdf'
+
+        plain_text = (
+            f'Ausleihschein {checkout.checkout_number}\n'
+            f'Projekt: {checkout.event_name}\n'
+            f'Ausleiher: {checkout.borrower_name}\n'
+            f'Ausleihe: {borrow_date}\n'
+            f'Rückgabe: {expected_return_date}\n'
+        )
+        render_and_send_portal_email(
+            subject=f'Ausleihschein - {portal_name}',
+            recipients=[recipient],
+            template_name='emails/borrow_receipt.html',
+            body_text=plain_text,
+            attachments=[(filename, 'application/pdf', pdf_buffer.read())],
+            borrower_name=checkout.borrower_name,
+            checkout_number=checkout.checkout_number,
+            event_name=checkout.event_name,
             borrow_date=borrow_date,
             expected_return_date=expected_return_date,
-            transaction_number=display_ref,
-            current_year=datetime.utcnow().year,
-            logo_base64=logo_base64
+            contact_email=recipient,
+            items=items,
         )
-        
-        msg.html = html_content
-        
-        # PDF-Anhang generieren
-        pdf_buffer = BytesIO()
-        generate_borrow_receipt_pdf(borrow_transactions, pdf_buffer)
-        pdf_buffer.seek(0)
-        
-        # PDF als Anhang hinzufügen
-        filename = f"Ausleihschein_{display_ref}.pdf"
-        msg.attach(filename, "application/pdf", pdf_buffer.read())
-        
-        # E-Mail senden
-        try:
-            send_email_with_lock(msg)
-            logging.info(f"Borrow receipt email sent to {borrower.email} for transaction {display_ref}")
-            return True
-        except Exception as send_error:
-            logging.error(f"Failed to send borrow receipt email to {borrower.email}: {str(send_error)}")
-            return False
-        
+        logging.info(f'Borrow receipt email sent to {recipient} for {checkout.checkout_number}')
+        return True
     except Exception as e:
-        logging.error(f"Failed to send borrow receipt email: {str(e)}")
+        logging.error(f'Failed to send borrow receipt email: {str(e)}')
         return False
 
 
-def send_return_confirmation_email(borrow_transaction):
-    """Sendet eine Bestätigungs-E-Mail nach erfolgreicher Rückgabe mit PDF-Anhang."""
+def send_return_confirmation_email(checkout, returned_items=None):
+    """Sendet Rückgabe-Bestätigung mit PDF nach Rückgabe."""
     try:
-        from app.models.inventory import BorrowTransaction, Product
+        from app.models.inventory import Checkout
         from app.utils.pdf_generator import generate_return_confirmation_pdf
         from io import BytesIO
-        
-        product = borrow_transaction.product
-        borrower = borrow_transaction.borrower
-        
-        # Prüfe E-Mail-Konfiguration
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        
-        if not all([mail_server, mail_username, mail_password]):
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Rückgabe-Bestätigung für {borrow_transaction.transaction_number} nicht gesendet.")
+
+        if not isinstance(checkout, Checkout):
+            logging.error('send_return_confirmation_email erwartet ein Checkout-Objekt.')
             return False
-        
-        # Get portal name from SystemSettings
-        try:
-            from app.models.settings import SystemSettings
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-        except:
-            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
-        
-        # Erstelle E-Mail
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or mail_username
-        msg = Message(
-            subject=f'Rückgabe-Bestätigung - {portal_name}',
-            recipients=[borrower.email],
-            sender=sender
-        )
-        
-        # Logo als Base64 laden
-        logo_base64 = get_logo_base64()
-        
-        # HTML-Template für Rückgabe-Bestätigung
-        return_date = borrow_transaction.actual_return_date.strftime('%d.%m.%Y') if borrow_transaction.actual_return_date else datetime.utcnow().strftime('%d.%m.%Y')
-        
-        html_content = render_template(
-            'emails/return_confirmation.html',
-            app_name=portal_name,
-            borrower=borrower,
-            product=product,
-            transaction=borrow_transaction,
-            return_date=return_date,
-            current_year=datetime.utcnow().year,
-            logo_base64=logo_base64
-        )
-        
-        msg.html = html_content
-        
-        # PDF-Anhang generieren
+
+        recipient = _checkout_recipient_email(checkout)
+        if not recipient:
+            logging.warning(
+                f'Keine E-Mail für Checkout {checkout.checkout_number}. Rückgabe-Mail nicht gesendet.'
+            )
+            return False
+        if not _mail_configured():
+            logging.warning(
+                f'E-Mail-Konfiguration unvollständig. Rückgabe für {checkout.checkout_number} nicht gesendet.'
+            )
+            return False
+
+        portal_name = _portal_name()
+        items_source = returned_items if returned_items is not None else checkout.returned_items
+        items = _checkout_item_rows(items_source)
+        return_date = datetime.utcnow().strftime('%d.%m.%Y %H:%M')
+        if items_source:
+            first_returned = getattr(items_source[0], 'returned_at', None)
+            if first_returned:
+                return_date = first_returned.strftime('%d.%m.%Y %H:%M')
+
         pdf_buffer = BytesIO()
-        generate_return_confirmation_pdf(borrow_transaction, pdf_buffer)
+        generate_return_confirmation_pdf(checkout, pdf_buffer)
         pdf_buffer.seek(0)
-        
-        # PDF als Anhang hinzufügen
-        filename = f"Rueckgabe_Bestaetigung_{borrow_transaction.transaction_number}.pdf"
-        msg.attach(filename, "application/pdf", pdf_buffer.read())
-        
-        # E-Mail senden
-        try:
-            send_email_with_lock(msg)
-            logging.info(f"Return confirmation email sent to {borrower.email} for transaction {borrow_transaction.transaction_number}")
-            return True
-        except Exception as send_error:
-            logging.error(f"Failed to send return confirmation email to {borrower.email}: {str(send_error)}")
-            return False
-        
+        filename = f'Rueckgabe_{checkout.checkout_number}.pdf'
+
+        plain_text = (
+            f'Rückgabe-Bestätigung {checkout.checkout_number}\n'
+            f'Projekt: {checkout.event_name}\n'
+            f'Rückgabe: {return_date}\n'
+        )
+        render_and_send_portal_email(
+            subject=f'Rückgabe-Bestätigung - {portal_name}',
+            recipients=[recipient],
+            template_name='emails/return_confirmation.html',
+            body_text=plain_text,
+            attachments=[(filename, 'application/pdf', pdf_buffer.read())],
+            borrower_name=checkout.borrower_name,
+            checkout_number=checkout.checkout_number,
+            event_name=checkout.event_name,
+            return_date=return_date,
+            items=items,
+        )
+        logging.info(f'Return confirmation email sent to {recipient} for {checkout.checkout_number}')
+        return True
     except Exception as e:
-        logging.error(f"Failed to send return confirmation email: {str(e)}")
+        logging.error(f'Failed to send return confirmation email: {str(e)}')
         return False
-
-
-def _booking_portal_name():
-    try:
-        from app.models.settings import SystemSettings
-        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-        return portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-    except Exception:
-        return current_app.config.get('APP_NAME', 'Prismateams')
-
-
-def _mail_configured():
-    return all([
-        current_app.config.get('MAIL_SERVER'),
-        current_app.config.get('MAIL_USERNAME'),
-        current_app.config.get('MAIL_PASSWORD'),
-    ])
 
 
 def _persist_booking_outbound(booking_request, msg, subject, body_text, body_html=None, created_by=None):
@@ -1317,297 +1262,236 @@ def _persist_booking_outbound(booking_request, msg, subject, body_text, body_htm
             created_by=created_by,
         )
     except Exception as persist_error:
-        logging.error(f"Booking outbound mail sent but thread save failed: {persist_error}")
+        logging.error(f'Booking outbound mail sent but thread save failed: {persist_error}')
     return True
 
 
 def send_booking_confirmation_email(booking_request):
-    """Sendet eine Bestätigungs-E-Mail nach Buchungsanfrage."""
+    """Sendet Bestätigungs-E-Mail nach Buchungsanfrage."""
     try:
         from app.utils.booking_messages import ensure_booking_subject
-
-        if not _mail_configured():
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Bestätigung für Buchung {booking_request.id} nicht gesendet.")
-            return False
-
-        portal_name = _booking_portal_name()
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
-        subject = ensure_booking_subject(f'Buchungsbestätigung - {portal_name}', booking_request.id)
-        msg = Message(
-            subject=subject,
-            recipients=[booking_request.email],
-            sender=sender
-        )
-
-        logo_base64 = get_logo_base64()
-        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
-        html_content = render_template(
-            'emails/booking_confirmation.html',
-            app_name=portal_name,
-            booking_request=booking_request,
-            booking_url=booking_url,
-            current_year=datetime.utcnow().year,
-            logo_base64=logo_base64
-        )
-        msg.html = html_content
-        body_text = f'Buchungsbestätigung für {booking_request.event_name}. Status: {booking_url}'
-
-        try:
-            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
-            logging.info(f"Booking confirmation email sent to {booking_request.email} for booking {booking_request.id}")
-            return True
-        except Exception as send_error:
-            logging.error(f"Failed to send booking confirmation email to {booking_request.email}: {str(send_error)}")
-            return False
-
-    except Exception as e:
-        logging.error(f"Failed to send booking confirmation email: {str(e)}")
-        return False
-
-
-def send_booking_accepted_email(booking_request, calendar_event):
-    """Sendet eine E-Mail bei Annahme einer Buchung."""
-    try:
-        from flask import url_for
-        from app.utils.booking_messages import ensure_booking_subject
-
-        if not _mail_configured():
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Annahme-Benachrichtigung für Buchung {booking_request.id} nicht gesendet.")
-            return False
-
-        portal_name = _booking_portal_name()
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
-        subject = ensure_booking_subject(f'Buchung angenommen - {booking_request.event_name}', booking_request.id)
-        msg = Message(
-            subject=subject,
-            recipients=[booking_request.email],
-            sender=sender
-        )
-
-        logo_base64 = get_logo_base64()
-        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
-        calendar_url = url_for('calendar.view_event', event_id=calendar_event.id, _external=True) if calendar_event else None
-        html_content = render_template(
-            'emails/booking_accepted.html',
-            app_name=portal_name,
-            booking_request=booking_request,
-            calendar_event=calendar_event,
-            booking_url=booking_url,
-            calendar_url=calendar_url,
-            current_year=datetime.utcnow().year,
-            logo_base64=logo_base64
-        )
-        msg.html = html_content
-        body_text = f'Ihre Buchung „{booking_request.event_name}“ wurde angenommen. Status: {booking_url}'
-
-        try:
-            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
-            logging.info(f"Booking accepted email sent to {booking_request.email} for booking {booking_request.id}")
-            return True
-        except Exception as send_error:
-            logging.error(f"Failed to send booking accepted email to {booking_request.email}: {str(send_error)}")
-            return False
-
-    except Exception as e:
-        logging.error(f"Failed to send booking accepted email: {str(e)}")
-        return False
-
-
-def send_booking_rejected_email(booking_request):
-    """Sendet eine E-Mail bei Ablehnung einer Buchung."""
-    try:
-        from flask import url_for
-        from app.utils.booking_messages import ensure_booking_subject
-
-        if not _mail_configured():
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Ablehnungs-Benachrichtigung für Buchung {booking_request.id} nicht gesendet.")
-            return False
-
-        portal_name = _booking_portal_name()
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
-        subject = ensure_booking_subject(f'Buchung abgelehnt - {booking_request.event_name}', booking_request.id)
-        msg = Message(
-            subject=subject,
-            recipients=[booking_request.email],
-            sender=sender
-        )
-
-        logo_base64 = get_logo_base64()
-        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
-        html_content = render_template(
-            'emails/booking_rejected.html',
-            app_name=portal_name,
-            booking_request=booking_request,
-            booking_url=booking_url,
-            current_year=datetime.utcnow().year,
-            logo_base64=logo_base64
-        )
-        msg.html = html_content
-        body_text = f'Ihre Buchung „{booking_request.event_name}“ wurde abgelehnt. Status: {booking_url}'
-
-        try:
-            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
-            logging.info(f"Booking rejected email sent to {booking_request.email} for booking {booking_request.id}")
-            return True
-        except Exception as send_error:
-            logging.error(f"Failed to send booking rejected email to {booking_request.email}: {str(send_error)}")
-            return False
-
-    except Exception as e:
-        logging.error(f"Failed to send booking rejected email: {str(e)}")
-        return False
-
-
-def send_booking_staff_message(booking_request, subject, body_text, created_by=None):
-    """Staff-Nachricht an Antragsteller (Thread)."""
-    try:
-        from flask import url_for
-        from app.utils.booking_messages import ensure_booking_subject
-
         if not _mail_configured():
             logging.warning(
-                f"E-Mail-Konfiguration unvollständig. Staff-Nachricht für Buchung {booking_request.id} nicht gesendet."
+                f'E-Mail-Konfiguration unvollständig. Bestätigung für Buchung {booking_request.id} nicht gesendet.'
             )
             return False
-
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
-        subject = ensure_booking_subject(subject, booking_request.id)
+        portal_name = _portal_name()
+        subject = ensure_booking_subject(f'Buchungsbestätigung - {portal_name}', booking_request.id)
         booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
-        full_body = (body_text or '').strip()
-        if booking_url and booking_url not in full_body:
-            full_body = f'{full_body}\n\n—\nStatusseite: {booking_url}'
-
-        msg = Message(
+        body_text = f'Buchungsbestätigung für {booking_request.event_name}. Status: {booking_url}'
+        msg, html_content, _ = build_portal_message(
             subject=subject,
             recipients=[booking_request.email],
-            sender=sender,
-            body=full_body,
+            template_name='emails/booking_confirmation.html',
+            body_text=body_text,
+            booking_request=booking_request,
+            booking_url=booking_url,
         )
         try:
-            _persist_booking_outbound(
-                booking_request,
-                msg,
-                subject,
-                full_body,
-                created_by=created_by,
-            )
+            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
             logging.info(
-                f"Booking staff message sent to {booking_request.email} for booking {booking_request.id}"
+                f'Booking confirmation email sent to {booking_request.email} for booking {booking_request.id}'
             )
             return True
         except Exception as send_error:
             logging.error(
-                f"Failed to send booking staff message to {booking_request.email}: {str(send_error)}"
+                f'Failed to send booking confirmation email to {booking_request.email}: {str(send_error)}'
             )
             return False
     except Exception as e:
-        logging.error(f"Failed to send booking staff message: {str(e)}")
+        logging.error(f'Failed to send booking confirmation email: {str(e)}')
         return False
 
 
+def send_booking_accepted_email(booking_request, calendar_event):
+    """Sendet E-Mail bei Annahme einer Buchung."""
+    try:
+        from app.utils.booking_messages import ensure_booking_subject
+        if not _mail_configured():
+            logging.warning(
+                f'E-Mail-Konfiguration unvollständig. Annahme für Buchung {booking_request.id} nicht gesendet.'
+            )
+            return False
+        portal_name = _portal_name()
+        subject = ensure_booking_subject(
+            f'Buchung angenommen - {booking_request.event_name}', booking_request.id
+        )
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        calendar_url = (
+            url_for('calendar.view_event', event_id=calendar_event.id, _external=True)
+            if calendar_event else None
+        )
+        body_text = f'Ihre Buchung „{booking_request.event_name}“ wurde angenommen. Status: {booking_url}'
+        msg, html_content, _ = build_portal_message(
+            subject=subject,
+            recipients=[booking_request.email],
+            template_name='emails/booking_accepted.html',
+            body_text=body_text,
+            booking_request=booking_request,
+            calendar_event=calendar_event,
+            booking_url=booking_url,
+            calendar_url=calendar_url,
+        )
+        try:
+            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
+            logging.info(
+                f'Booking accepted email sent to {booking_request.email} for booking {booking_request.id}'
+            )
+            return True
+        except Exception as send_error:
+            logging.error(
+                f'Failed to send booking accepted email to {booking_request.email}: {str(send_error)}'
+            )
+            return False
+    except Exception as e:
+        logging.error(f'Failed to send booking accepted email: {str(e)}')
+        return False
+
+
+def send_booking_rejected_email(booking_request):
+    """Sendet E-Mail bei Ablehnung einer Buchung."""
+    try:
+        from app.utils.booking_messages import ensure_booking_subject
+        if not _mail_configured():
+            logging.warning(
+                f'E-Mail-Konfiguration unvollständig. Ablehnung für Buchung {booking_request.id} nicht gesendet.'
+            )
+            return False
+        portal_name = _portal_name()
+        subject = ensure_booking_subject(
+            f'Buchung abgelehnt - {booking_request.event_name}', booking_request.id
+        )
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        body_text = f'Ihre Buchung „{booking_request.event_name}“ wurde abgelehnt. Status: {booking_url}'
+        msg, html_content, _ = build_portal_message(
+            subject=subject,
+            recipients=[booking_request.email],
+            template_name='emails/booking_rejected.html',
+            body_text=body_text,
+            booking_request=booking_request,
+            booking_url=booking_url,
+        )
+        try:
+            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
+            logging.info(
+                f'Booking rejected email sent to {booking_request.email} for booking {booking_request.id}'
+            )
+            return True
+        except Exception as send_error:
+            logging.error(
+                f'Failed to send booking rejected email to {booking_request.email}: {str(send_error)}'
+            )
+            return False
+    except Exception as e:
+        logging.error(f'Failed to send booking rejected email: {str(e)}')
+        return False
+
+
+def send_booking_staff_message(booking_request, subject, body_text, created_by=None):
+    """Staff-Nachricht an Antragsteller im Portal-Shell."""
+    try:
+        from app.utils.booking_messages import ensure_booking_subject
+        if not _mail_configured():
+            logging.warning(
+                f'E-Mail-Konfiguration unvollständig. Staff-Nachricht für Buchung {booking_request.id} nicht gesendet.'
+            )
+            return False
+        subject = ensure_booking_subject(subject, booking_request.id)
+        booking_url = url_for('booking.public_view', token=booking_request.token, _external=True)
+        message_body = (body_text or '').strip()
+        full_body = message_body
+        if booking_url and booking_url not in full_body:
+            full_body = f'{full_body}\n\n—\nStatusseite: {booking_url}'
+        msg, html_content, _ = build_portal_message(
+            subject=subject,
+            recipients=[booking_request.email],
+            template_name='emails/booking_staff_message.html',
+            body_text=full_body,
+            booking_request=booking_request,
+            booking_url=booking_url,
+            message_body=message_body,
+        )
+        try:
+            _persist_booking_outbound(
+                booking_request, msg, subject, full_body,
+                body_html=html_content, created_by=created_by,
+            )
+            logging.info(
+                f'Booking staff message sent to {booking_request.email} for booking {booking_request.id}'
+            )
+            return True
+        except Exception as send_error:
+            logging.error(
+                f'Failed to send booking staff message to {booking_request.email}: {str(send_error)}'
+            )
+            return False
+    except Exception as e:
+        logging.error(f'Failed to send booking staff message: {str(e)}')
+        return False
+
+
+def send_smtp_test_email(recipient_email):
+    """Sendet HTML-Test-E-Mail im Portal-Shell."""
+    try:
+        if not _mail_configured():
+            logging.warning('E-Mail-Konfiguration unvollständig. SMTP-Test nicht gesendet.')
+            return False
+        portal_name = _portal_name()
+        render_and_send_portal_email(
+            subject=f'Test-E-Mail - {portal_name}',
+            recipients=[recipient_email],
+            template_name='emails/smtp_test.html',
+            body_text=f'Dies ist eine Test-E-Mail von {portal_name}.',
+            recipient_email=recipient_email,
+        )
+        logging.info(f'SMTP test email sent to {recipient_email}')
+        return True
+    except Exception as e:
+        logging.error(f'Failed to send SMTP test email: {str(e)}')
+        raise
+
+
 def generate_random_password(length=8):
-    """Generiert ein sicheres zufälliges Passwort.
-    
-    Args:
-        length: Länge des Passworts (Standard: 8)
-    
-    Returns:
-        String mit zufälligem Passwort
-    """
-    # Verwende alphanumerische Zeichen (Groß- und Kleinbuchstaben, Ziffern)
-    # Ausgeschlossen: I, l, 1, 0, O (verwechslungsanfällig)
+    """Generiert ein sicheres zufälliges Passwort."""
     alphabet = string.ascii_letters + string.digits
-    # Entferne verwechslungsanfällige Zeichen
     excluded_chars = 'Il1O0'
     alphabet = ''.join(c for c in alphabet if c not in excluded_chars)
-    
-    # Generiere Passwort mit secrets.choice für kryptografische Sicherheit
-    password = ''.join(secrets.choice(alphabet) for _ in range(length))
-    return password
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 def send_account_creation_email(user, password):
-    """Sendet eine E-Mail mit Zugangsdaten nach Account-Erstellung durch Administrator.
-    
-    Args:
-        user: User-Objekt
-        password: Das generierte Passwort (im Klartext, wird in E-Mail gesendet)
-    
-    Returns:
-        True wenn erfolgreich gesendet, False sonst
-    """
+    """Sendet Zugangsdaten nach Admin-Account-Erstellung."""
     try:
-        # Prüfe E-Mail-Konfiguration
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        
-        if not all([mail_server, mail_username, mail_password]):
-            logging.warning(f"E-Mail-Konfiguration unvollständig. Zugangsdaten für {user.email}: Benutzername: {user.email}, Passwort: {password}")
+        if not _mail_configured():
+            logging.warning(
+                f'E-Mail-Konfiguration unvollständig. Zugangsdaten für {user.email}: '
+                f'Benutzername: {user.email}, Passwort: {password}'
+            )
             return False
-        
-        # Get portal name from SystemSettings
-        try:
-            from app.models.settings import SystemSettings
-            portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-            portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else current_app.config.get('APP_NAME', 'Prismateams')
-        except:
-            portal_name = current_app.config.get('APP_NAME', 'Prismateams')
-        
-        # Login-URL erstellen
+        portal_name = _portal_name()
         login_url = url_for('auth.login', _external=True)
-        
-        # HTML-Template rendern
-        html_content = render_template(
-            'emails/account_created.html',
-            user=user,
-            password=password,
-            login_url=login_url,
-            app_name=portal_name,
-            current_year=datetime.utcnow().year,
-            logo_cid='portal_logo'
+        plain_text = (
+            f'Willkommen bei {portal_name}!\n\n'
+            f'Ihr Account wurde erfolgreich erstellt.\n\n'
+            f'Zugangsdaten:\nBenutzername/E-Mail: {user.email}\nPasswort: {password}\n\n'
+            f'Bitte melden Sie sich unter folgender Adresse an:\n{login_url}\n\n'
+            f'Nach dem ersten Login sollten Sie Ihr Passwort ändern.\n'
         )
-        
-        # Plain text Version
-        plain_text = f"""Willkommen bei {portal_name}!
-
-Ihr Account wurde erfolgreich erstellt.
-
-Zugangsdaten:
-Benutzername/E-Mail: {user.email}
-Passwort: {password}
-
-Bitte melden Sie sich unter folgender Adresse an:
-{login_url}
-
-Nach dem ersten Login sollten Sie Ihr Passwort ändern.
-
-Bei Fragen wenden Sie sich bitte an den Administrator.
-
-Mit freundlichen Grüßen
-Ihr {portal_name} Team"""
-        
-        # Erstelle Message mit Logo als CID-Anhang
-        msg = create_message_with_logo(
-            subject=f'Zugangsdaten für {portal_name}',
-            recipients=[user.email],
-            html_content=html_content,
-            body_text=plain_text
-        )
-        
-        # E-Mail senden
         try:
-            send_email_with_lock(msg)
-            logging.info(f"Account creation email sent to {user.email}")
+            render_and_send_portal_email(
+                subject=f'Zugangsdaten für {portal_name}',
+                recipients=[user.email],
+                template_name='emails/account_created.html',
+                body_text=plain_text,
+                user=user,
+                password=password,
+                login_url=login_url,
+            )
+            logging.info(f'Account creation email sent to {user.email}')
             return True
         except Exception as send_error:
-            logging.error(f"Failed to send account creation email to {user.email}: {str(send_error)}")
+            logging.error(f'Failed to send account creation email to {user.email}: {str(send_error)}')
             return False
-        
     except Exception as e:
-        logging.error(f"Failed to send account creation email to {user.email}: {str(e)}")
+        logging.error(f'Failed to send account creation email to {user.email}: {str(e)}')
         return False

@@ -134,6 +134,14 @@ def create_checkout(
 
     checkout.refresh_status()
     db.session.commit()
+
+    try:
+        from app.utils.email_sender import send_borrow_receipt_email
+        send_borrow_receipt_email(checkout)
+    except Exception as email_err:
+        import logging
+        logging.error(f"Borrow receipt email failed for {checkout.checkout_number}: {email_err}")
+
     return checkout
 
 
@@ -169,6 +177,23 @@ def return_checkout_items(
             checkout.refresh_status()
 
     db.session.commit()
+
+    if returned:
+        try:
+            from app.utils.email_sender import send_return_confirmation_email
+            by_checkout = {}
+            for item in returned:
+                if item.checkout_id not in by_checkout:
+                    by_checkout[item.checkout_id] = []
+                by_checkout[item.checkout_id].append(item)
+            for checkout_id, items in by_checkout.items():
+                checkout = checkouts.get(checkout_id) or items[0].checkout
+                if checkout:
+                    send_return_confirmation_email(checkout, returned_items=items)
+        except Exception as email_err:
+            import logging
+            logging.error(f"Return confirmation email failed: {email_err}")
+
     return returned
 
 

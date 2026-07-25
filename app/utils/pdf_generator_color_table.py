@@ -6,7 +6,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from flask import current_app
 from datetime import datetime
-from app.utils.pdf_generator import build_standard_header, build_standard_pdf
+from app.utils.pdf_generator import (
+    PDF_COLORS,
+    build_standard_header,
+    build_standard_pdf,
+)
 from app.utils.color_mapping import get_all_color_mappings, initialize_color_mappings
 from app.utils.lengths import format_length_from_meters
 
@@ -14,7 +18,7 @@ from app.utils.lengths import format_length_from_meters
 def generate_color_code_table_pdf(output=None):
     """
     Generiert eine Tabelle mit allen Längen-Farb-Zuordnungen.
-    Einheitliches Layout: Portal-Logo, blauer Titel, Standard-Footer.
+    Einheitliches Layout: Portal-Logo, Standard-Tabelle, Footer.
     """
     try:
         initialize_color_mappings()
@@ -32,7 +36,7 @@ def generate_color_code_table_pdf(output=None):
             pagesize=A4,
             logo_size=2.0 * cm,
         ),
-        Spacer(1, 0.4 * cm),
+        Spacer(1, 0.35 * cm),
     ]
 
     mappings = get_all_color_mappings()
@@ -41,8 +45,8 @@ def generate_color_code_table_pdf(output=None):
         no_data_style = ParagraphStyle(
             'NoData',
             parent=styles['Normal'],
-            fontSize=12,
-            textColor=colors.HexColor('#6c757d'),
+            fontSize=11,
+            textColor=PDF_COLORS['text_muted'],
             alignment=TA_CENTER,
         )
         story.append(Paragraph("Keine Farbzuordnungen vorhanden.", no_data_style))
@@ -54,18 +58,22 @@ def generate_color_code_table_pdf(output=None):
 
         color_table = Table(table_data, colWidths=[8 * cm, 9 * cm], repeatRows=1)
         style_cmds = [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0d6efd')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('BOX', (0, 0), (-1, -1), 0.6, PDF_COLORS['line']),
+            ('LINEBELOW', (0, 0), (-1, -2), 0.4, PDF_COLORS['line_soft']),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#adb5bd')),
+            ('LEADING', (0, 0), (-1, -1), 13),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('TOPPADDING', (0, 0), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 8),
             ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('TEXTCOLOR', (0, 0), (-1, -1), PDF_COLORS['text']),
+            ('BACKGROUND', (0, 0), (-1, 0), PDF_COLORS['header_bg']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), PDF_COLORS['text']),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('LINEBELOW', (0, 0), (-1, 0), 1.0, PDF_COLORS['line']),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [PDF_COLORS['white'], PDF_COLORS['zebra']]),
         ]
         row_idx = 1
         for _length_meters, color_hex in sorted(mappings.items()):

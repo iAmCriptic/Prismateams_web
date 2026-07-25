@@ -105,8 +105,8 @@
 .calendar-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+    background-color: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .day-header {
@@ -149,11 +149,11 @@
 }
 
 .calendar-day:hover {
-    background-color: #f8f9fa;
+    background-color: var(--bs-tertiary-bg);
 }
 
 .calendar-day.empty {
-    background-color: #f8f9fa;
+    background-color: var(--bs-tertiary-bg);
     cursor: default;
 }
 
@@ -232,7 +232,7 @@
 }
 
 .calendar-event.multi-day.removed {
-    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+    background: linear-gradient(90deg, var(--bs-tertiary-bg) 0%, var(--bs-border-color) 100%);
     color: #6c757d;
     border-left: 4px solid #6c757d;
     border-color: rgba(108, 117, 125, 0.3);
@@ -283,7 +283,7 @@
 }
 
 .calendar-event.removed {
-    background-color: #f8f9fa;
+    background-color: var(--bs-tertiary-bg);
     color: #6c757d;
     border-left: 3px solid #6c757d;
     opacity: 0.6;

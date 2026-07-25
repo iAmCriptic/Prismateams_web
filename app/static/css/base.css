@@ -65,6 +65,8 @@ body {
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
+    background-color: var(--bs-body-bg, var(--portal-bg, #f0f2f5));
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
 }
 
 .mobile-nav.navbar {
@@ -331,6 +333,8 @@ body {
     flex-direction: column;
     /* visible: User-Dropdown im Footer darf nach oben rausragen */
     overflow: visible;
+    background-color: var(--bs-body-bg, var(--portal-bg, #f0f2f5));
+    border-right: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
 }
 
 /* Dynamische Höhe für mobile Browser mit Adressleiste */

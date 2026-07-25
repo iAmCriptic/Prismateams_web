@@ -499,12 +499,9 @@ def test_email():
         return redirect(url_for('dashboard.index'))
     
     from flask import current_app
-    from flask_mail import Message
-    from app import mail
-    from app.utils.email_sender import send_email_with_lock
+    from app.utils.email_sender import send_smtp_test_email
     
     try:
-        # Prüfe E-Mail-Konfiguration
         mail_server = current_app.config.get('MAIL_SERVER')
         mail_username = current_app.config.get('MAIL_USERNAME')
         mail_password = current_app.config.get('MAIL_PASSWORD')
@@ -519,17 +516,7 @@ def test_email():
             'MAIL_USE_TLS': mail_use_tls
         }
         
-        # Versuche Test-E-Mail zu senden
-        from config import get_formatted_sender
-        sender = get_formatted_sender() or mail_username
-        msg = Message(
-            subject='Test-E-Mail - Prismateams',
-            recipients=[current_user.email],
-            sender=sender
-        )
-        msg.body = 'Dies ist eine Test-E-Mail von Prismateams.'
-        
-        send_email_with_lock(msg)
+        send_smtp_test_email(current_user.email)
         
         flash(translate('auth.flash.test_email_sent'), 'success')
         return render_template('auth/email_test_result.html', 

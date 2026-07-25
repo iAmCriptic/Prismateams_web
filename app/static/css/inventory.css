@@ -1927,6 +1927,29 @@ button.mod-list-name.inventory-item-name {
     padding: 0.55rem 0.95rem;
 }
 
+/* Locked / vorausgefüllte Felder (statt Bootstrap bg-light — bricht Dark Mode) */
+.form-control.inventory-input-locked,
+.form-control.inventory-input-locked:disabled {
+    background-color: var(--bs-secondary-bg, #e9ecef) !important;
+    color: var(--bs-secondary-color, #6c757d) !important;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+[data-bs-theme="dark"] .form-control.inventory-input-locked,
+[data-bs-theme="dark"] .form-control.inventory-input-locked:disabled {
+    background-color: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 70%, #fff 8%) !important;
+    color: var(--bs-secondary-color, rgba(222, 226, 230, 0.75)) !important;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-oled-mode="true"] .form-control.inventory-input-locked,
+[data-oled-mode="true"] .form-control.inventory-input-locked:disabled {
+    background-color: #0a0a0a !important;
+    color: rgba(241, 243, 245, 0.65) !important;
+    border-color: #1a1a1a;
+}
+
 .inventory-form textarea.form-control {
     border-radius: 1rem !important;
 }

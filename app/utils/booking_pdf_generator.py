@@ -7,17 +7,17 @@ from datetime import datetime
 from io import BytesIO
 
 from flask import current_app
-from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
 from app.utils.pdf_generator import (
     build_standard_header,
     build_standard_pdf,
-    inventory_table_style,
+    pdf_paragraph_styles,
+    standard_table_style,
 )
 
 
@@ -140,7 +140,7 @@ def _field_values_table(booking_request, usable_width: float):
     col1 = usable_width * 0.35
     col2 = usable_width * 0.65
     table = Table(rows, colWidths=[col1, col2])
-    table.setStyle(inventory_table_style(header=True))
+    table.setStyle(standard_table_style(header=True))
     return table
 
 
@@ -158,7 +158,6 @@ def generate_booking_request_pdf(booking_request, output=None):
     if output is None:
         output = BytesIO()
 
-    styles = getSampleStyleSheet()
     usable_width = A4[0] - 4 * cm
     form = booking_request.form
     story = []
@@ -188,13 +187,13 @@ def generate_booking_request_pdf(booking_request, output=None):
     else:
         story.append(header)
 
-    story.append(Spacer(1, 0.6 * cm))
+    story.append(Spacer(1, 0.45 * cm))
 
+    ps = pdf_paragraph_styles()
     meta_style = ParagraphStyle(
         'BookingMeta',
-        parent=styles['Normal'],
+        parent=ps['muted'],
         fontSize=10,
-        textColor=colors.HexColor('#6c757d'),
         spaceAfter=4,
     )
     story.append(Paragraph(
@@ -204,14 +203,14 @@ def generate_booking_request_pdf(booking_request, output=None):
     time_range = _build_time_range(booking_request)
     if time_range:
         story.append(Paragraph(f"Zeitraum: {time_range}", meta_style))
-    story.append(Spacer(1, 0.4 * cm))
+    story.append(Spacer(1, 0.35 * cm))
 
     if form.pdf_application_text:
         pdf_text = _apply_placeholders(form.pdf_application_text, booking_request)
         pdf_text = pdf_text.replace('\n', '<br/>')
         text_style = ParagraphStyle(
             'BookingPdfText',
-            parent=styles['Normal'],
+            parent=ps['body'],
             fontSize=11,
             alignment=TA_LEFT,
             spaceAfter=12,
@@ -221,17 +220,16 @@ def generate_booking_request_pdf(booking_request, output=None):
 
     fields_table = _field_values_table(booking_request, usable_width)
     if fields_table:
-        story.append(Spacer(1, 0.35 * cm))
+        story.append(Spacer(1, 0.3 * cm))
         story.append(fields_table)
 
     if form.pdf_footer_text:
-        story.append(Spacer(1, 0.5 * cm))
+        story.append(Spacer(1, 0.45 * cm))
         footer_extra = _apply_placeholders(form.pdf_footer_text, booking_request).replace('\n', '<br/>')
         footer_style = ParagraphStyle(
             'BookingPdfFooterExtra',
-            parent=styles['Normal'],
+            parent=ps['muted'],
             fontSize=9,
-            textColor=colors.HexColor('#6c757d'),
             leading=12,
         )
         story.append(Paragraph(footer_extra, footer_style))

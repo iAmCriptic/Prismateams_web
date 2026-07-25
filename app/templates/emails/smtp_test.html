@@ -1,0 +1,20 @@
+{% extends "emails/_base_email.html" %}
+{% block title %}Test-E-Mail - {{ app_name or 'Prismateams' }}{% endblock %}
+{% block content %}
+<div class="email-status-ok">
+    <strong>SMTP-Test erfolgreich</strong>
+</div>
+
+<h2>Test-E-Mail</h2>
+<p>Hallo,</p>
+<p>dies ist eine Test-E-Mail von <strong>{{ app_name or 'Prismateams' }}</strong>.</p>
+<p>Wenn Sie diese Nachricht sehen, ist der E-Mail-Versand korrekt konfiguriert und das Portal-Design wird wie vorgesehen dargestellt.</p>
+
+{% if recipient_email %}
+<div class="email-details">
+    <p style="margin-bottom: 0;"><strong>Empfänger:</strong> {{ recipient_email }}</p>
+</div>
+{% endif %}
+
+<p style="margin-bottom: 0;">Mit freundlichen Grüßen,<br>Ihr {{ app_name or 'Prismateams' }} Team</p>
+{% endblock %}

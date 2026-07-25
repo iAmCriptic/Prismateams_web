@@ -44,7 +44,7 @@
             </div>
             <div class="col-md-4" id="contactEmailWrap">
                 <label for="contact_email" class="form-label">Kontakt-E-Mail <span class="text-danger" id="emailRequiredMark" style="display:none;">*</span></label>
-                <input type="email" class="form-control bg-light" id="contact_email" name="contact_email" form="checkoutForm"
+                <input type="email" class="form-control inventory-input-locked" id="contact_email" name="contact_email" form="checkoutForm"
                        value="{{ preset_contact_email or current_user.email or '' }}" placeholder="name@example.com" autocomplete="off" disabled
                        title="E-Mail des Portal-Users">
                 <small class="form-text text-muted" id="contactEmailHint">E-Mail des verknüpften Portal-Users (nicht änderbar).</small>
@@ -151,26 +151,6 @@
     </div>
 </div>
 
-<div class="modal fade" id="setScannedModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-collection"></i> Set gescannt</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Zu dem Set "<span id="setScannedName"></span>" gehören:</strong></p>
-                <ul id="setScannedProducts" class="list-group list-group-flush mb-3"></ul>
-                <div id="setScannedUnavailable" class="alert alert-warning" style="display: none;">
-                    <ul id="setScannedUnavailableList" class="mb-0 mt-2"></ul>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Verstanden</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block inventory_extra_js %}
@@ -201,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
             emailInput.disabled = hasUser;
             if (hasUser) {
                 emailInput.removeAttribute('required');
-                emailInput.classList.add('bg-light', 'text-muted');
+                emailInput.classList.add('inventory-input-locked');
                 const portalEmail = findUserEmail(borrowerIdInput.value) || emailInput.value || '';
                 emailInput.value = portalEmail;
                 emailInput.placeholder = portalEmail || 'Keine E-Mail hinterlegt';
@@ -209,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     contactEmailHint.textContent = 'E-Mail des verknüpften Portal-Users (nicht änderbar).';
                 }
             } else {
-                emailInput.classList.remove('bg-light', 'text-muted');
+                emailInput.classList.remove('inventory-input-locked');
                 emailInput.placeholder = 'name@example.com';
                 if (contactEmailHint) {
                     contactEmailHint.textContent = 'Pflicht, wenn kein Portal-User verknüpft ist.';

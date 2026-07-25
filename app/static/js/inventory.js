@@ -3517,7 +3517,7 @@ class BorrowScannerManager {
                     return Promise.resolve(result);
                 }
                 
-                // Zeige Modal für Sets
+                // Alert für Sets (kein Modal)
                 if (result.is_set) {
                     this.showSetScannedModal(result);
                 }
@@ -3854,85 +3854,56 @@ class BorrowScannerManager {
     }
     
     showSetScannedModal(result) {
-        // Zeige Modal mit Set-Informationen
-        const modal = document.getElementById('setScannedModal');
-        if (!modal) {
-            console.warn('Set-Modal nicht gefunden, zeige Inline-Feedback');
-            this.showSuccess(`Set "${result.set.name}" verarbeitet: ${result.added_products.length} Produkt(e) hinzugefuegt.`);
+        // Alert statt Modal — Workflow nicht unterbrechen
+        const setName = result?.set?.name || 'Set';
+        const added = Array.isArray(result.added_products) ? result.added_products : [];
+        const unavailable = Array.isArray(result.unavailable_products) ? result.unavailable_products : [];
+
+        const details = added.map((product) => {
+            if (product.was_in_cart) {
+                return `${product.name}: bereits im Warenkorb`;
+            }
+            if (product.added > 0) {
+                return `${product.name}: ${product.added} hinzugefügt`;
+            }
+            return `${product.name}: nicht verfügbar`;
+        });
+
+        let message = `Set "${setName}" gescannt`;
+        if (details.length > 0) {
+            message += ` — ${details.join('; ')}`;
+        } else {
+            message += ' — keine Produkte hinzugefügt';
+        }
+
+        if (unavailable.length > 0) {
+            const names = unavailable.map((p) => {
+                const status = p.status === 'borrowed' ? 'ausgeliehen' : 'fehlend';
+                return `${p.name} (${status})`;
+            }).join(', ');
+            message += `. Nicht hinzugefügt: ${names}`;
+            this.showSetScanAlert(message, 'warning');
             return;
         }
-        
-        // Setze Set-Namen
-        const setNameEl = document.getElementById('setScannedName');
-        if (setNameEl) {
-            setNameEl.textContent = result.set.name;
+
+        this.showSetScanAlert(message, 'success');
+    }
+
+    showSetScanAlert(message, level) {
+        const errorDiv = document.getElementById('scannerError');
+        if (errorDiv) {
+            errorDiv.className = `alert alert-${level} mt-2`;
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => this.hideError(), 5000);
         }
-        
-        // Fülle Produkt-Liste
-        const productsList = document.getElementById('setScannedProducts');
-        if (productsList) {
-            productsList.innerHTML = '';
-            
-            if (result.added_products && result.added_products.length > 0) {
-                result.added_products.forEach(product => {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    
-                    const productInfo = document.createElement('div');
-                    let productText = `<strong>${this.escapeHtml(product.name)}</strong>`;
-                    if (product.category) {
-                        productText += ` <span class="text-muted">(${this.escapeHtml(product.category)})</span>`;
-                    }
-                    // Zeige Menge wenn vorhanden und > 1
-                    if (product.quantity && product.quantity > 1) {
-                        productText += ` <span class="badge bg-info">x${product.quantity}</span>`;
-                    }
-                    productInfo.innerHTML = productText;
-                    
-                    const badge = document.createElement('span');
-                    if (product.was_in_cart) {
-                        badge.className = 'badge bg-info';
-                        badge.innerHTML = `<i class="bi bi-info-circle"></i> Bereits im Warenkorb`;
-                    } else if (product.added > 0) {
-                        badge.className = 'badge bg-success';
-                        badge.innerHTML = `<i class="bi bi-check-circle"></i> ${product.added} hinzugefügt`;
-                    } else {
-                        badge.className = 'badge bg-secondary';
-                        badge.innerHTML = `<i class="bi bi-dash-circle"></i> Nicht verfügbar`;
-                    }
-                    
-                    listItem.appendChild(productInfo);
-                    listItem.appendChild(badge);
-                    productsList.appendChild(listItem);
-                });
-            } else {
-                const emptyItem = document.createElement('li');
-                emptyItem.className = 'list-group-item text-muted';
-                emptyItem.textContent = 'Keine Produkte hinzugefügt';
-                productsList.appendChild(emptyItem);
-            }
+        const feedback = document.getElementById('scannerFeedback');
+        if (feedback) {
+            feedback.className = `alert alert-${level} mt-2`;
+            feedback.textContent = message;
+            feedback.classList.remove('d-none');
+            setTimeout(() => feedback.classList.add('d-none'), 5000);
         }
-        
-        // Zeige nicht verfügbare Produkte
-        const unavailableDiv = document.getElementById('setScannedUnavailable');
-        const unavailableList = document.getElementById('setScannedUnavailableList');
-        if (unavailableDiv && unavailableList) {
-            if (result.unavailable_products && result.unavailable_products.length > 0) {
-                unavailableList.innerHTML = '';
-                result.unavailable_products.forEach(product => {
-                    const listItem = document.createElement('li');
-                    listItem.innerHTML = `<strong>${this.escapeHtml(product.name)}</strong> <span class="text-muted">(${product.status === 'borrowed' ? 'Ausgeliehen' : 'Fehlend'})</span>`;
-                    unavailableList.appendChild(listItem);
-                });
-                unavailableDiv.style.display = 'block';
-            } else {
-                unavailableDiv.style.display = 'none';
-            }
-        }
-        
-        // Zeige Modal
-        const bsModal = new bootstrap.Modal(modal);
-        bsModal.show();
     }
     
     escapeHtml(text) {

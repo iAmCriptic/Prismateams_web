@@ -487,6 +487,36 @@
     }
 }
 
+/* Dark mode — --bs-card-bg is component-scoped on .card, not global */
+[data-bs-theme="dark"] .dash-widget {
+    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 82%, #fff 8%);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color, #e9ecef);
+    box-shadow: none;
+}
+
+[data-bs-theme="dark"] .dash-widget:hover {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, var(--bs-body-bg, #1a1a1a));
+    border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 35%, rgba(255, 255, 255, 0.12));
+    box-shadow: none;
+}
+
+[data-bs-theme="dark"] .dashboard-qa-tile {
+    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, #fff 6%);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color, #e9ecef);
+}
+
+[data-bs-theme="dark"] .dashboard-qa-tile:hover {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, var(--bs-body-bg, #1a1a1a));
+}
+
+[data-bs-theme="dark"] .dashboard-qa-tile--neu {
+    background: var(--accent-style, var(--accent-color, #0d6efd));
+    border-color: transparent;
+    color: #fff;
+}
+
 /* OLED */
 [data-oled-mode="true"] .dash-widget,
 [data-oled-mode="true"] .dashboard-qa-tile {
