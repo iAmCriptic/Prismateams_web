@@ -332,31 +332,9 @@ self.addEventListener('notificationclick', function(event) {
   }
 });
 
-// Background Sync für Offline-Funktionalität
+// Background Sync (Cache/Netz — keine Offline-Ausleihen)
 self.addEventListener('sync', function(event) {
   if (event.tag === 'background-sync') {
-    event.waitUntil(
-      // Hier könnten Offline-Aktionen synchronisiert werden
-      Promise.resolve()
-    );
-  }
-  
-  // Background Sync für Inventory-Ausleihen
-  if (event.tag === 'sync-inventory-borrow') {
-    event.waitUntil(
-      syncInventoryBorrows()
-    );
+    event.waitUntil(Promise.resolve());
   }
 });
-
-// Inventory-spezifische Offline-Funktionalität
-async function syncInventoryBorrows() {
-  // Synchronisiere ausstehende Ausleihen aus IndexedDB
-  // Diese Funktion kann erweitert werden, um Offline-Ausleihen zu synchronisieren
-  try {
-    // TODO: Implementierung für Offline-Ausleihen
-    console.log('Synchronisiere Inventory-Ausleihen...');
-  } catch (error) {
-    console.error('Fehler bei Inventory-Synchronisation:', error);
-  }
-}

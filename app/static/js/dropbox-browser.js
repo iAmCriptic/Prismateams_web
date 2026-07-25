@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('uploadForm');
     const uploadProgress = document.getElementById('uploadProgress');
     const selectionInfo = document.getElementById('selectionInfo');
-    const maxSize = 100 * 1024 * 1024;
+    const maxSize = Number(window.FILES_MAX_UPLOAD_BYTES) || (100 * 1024 * 1024);
 
     const listViewBtn = document.getElementById('dropboxListViewBtn');
     const gridViewBtn = document.getElementById('dropboxGridViewBtn');

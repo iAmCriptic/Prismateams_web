@@ -53,9 +53,7 @@
                          class="chat-avatar rounded-circle" 
                          alt="{{ get_chat_display_name(chat) }}">
                     {% elif other_user %}
-                    <div class="chat-avatar chat-avatar-initial rounded-circle">
-                        {{ other_user.full_name[0].upper() }}
-                    </div>
+                    <div class="chat-avatar chat-avatar-initial rounded-circle">{{ other_user.full_name[0].upper() }}</div>
                     {% else %}
                     <div class="chat-avatar chat-avatar-group">
                         <i class="bi bi-person-circle"></i>

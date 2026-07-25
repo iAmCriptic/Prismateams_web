@@ -9,8 +9,7 @@ from flask_mail import Message
 from app import mail
 from app.models.user import User
 from app.utils.lock_manager import acquire_email_send_lock
-
-
+from app.utils.common import portal_now_naive
 
 def _msg_has_nested_related(msg):
     """True if msg.msg is mixed with an inner multipart/related (CID + attachments)."""
@@ -99,31 +98,9 @@ def send_email_with_lock(msg, timeout=60):
                             elif not disp:
                                 part.add_header('Content-Disposition', 'inline; filename="logo.png"')
                             
-                            # #region agent log
-                            try:
-                                import json
-                                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                    f.write(json.dumps({"location":"email_sender.py:55","message":"Logo-Anhang mit CID markiert VOR mail.send()","data":{"cid":part.get('Content-ID'),"disposition":part.get('Content-Disposition'),"content_type":part.get_content_type()},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}) + '\n')
-                            except: pass
-                            # #endregion
                             logging.info(f"Logo-Anhang mit CID markiert: {part.get('Content-ID')}, Disposition: {part.get('Content-Disposition')}")
                             break
     
-    # #region agent log
-    try:
-        import json
-        msg_content_type = msg.msg.get_content_type() if hasattr(msg, 'msg') and hasattr(msg.msg, 'get_content_type') else 'N/A'
-        msg_parts = msg.msg.get_payload() if hasattr(msg, 'msg') and hasattr(msg.msg, 'get_payload') else []
-        logo_count = sum(1 for p in msg_parts if isinstance(msg_parts, list) and hasattr(p, 'get_content_type') and p.get_content_type().startswith('image/') and p.get('Content-ID', '').find('portal_logo') != -1)
-        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"location":"email_sender.py:30","message":"VOR mail.send() - Message-Struktur","data":{"content_type":msg_content_type,"total_parts":len(msg_parts) if isinstance(msg_parts, list) else 0,"logo_count":logo_count},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}) + '\n')
-    except Exception as e:
-        try:
-            import json
-            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                f.write(json.dumps({"location":"email_sender.py:30","message":"FEHLER beim Loggen vor mail.send()","data":{"error":str(e)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"E"}) + '\n')
-        except: pass
-    # #endregion
     
     # KRITISCHER PUNKT: Flask-Mail erstellt msg.msg erst INNERHALB von mail.send()
     # Wir müssen die Message-Struktur NACH ihrer Erstellung, aber VOR dem tatsächlichen Senden manipulieren
@@ -169,13 +146,6 @@ def send_email_with_lock(msg, timeout=60):
                                 elif not disp:
                                     part.add_header('Content-Disposition', 'inline; filename="logo.png"')
                                 
-                                # #region agent log
-                                try:
-                                    import json
-                                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                        f.write(json.dumps({"location":"email_sender.py:120","message":"Logo mit CID markiert in send_with_logo_fix()","data":{"cid":part.get('Content-ID'),"disposition":part.get('Content-Disposition'),"content_type":part.get_content_type()},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"I"}) + '\n')
-                                except: pass
-                                # #endregion
                                 logging.info(f"Logo mit CID markiert in send_with_logo_fix(): {part.get('Content-ID')}")
                                 break
         
@@ -209,13 +179,6 @@ def send_email_with_lock(msg, timeout=60):
                 # KRITISCH: Für inline images mit CID brauchen wir multipart/related, nicht multipart/mixed
                 current_content_type = msg.msg.get_content_type() if hasattr(msg.msg, 'get_content_type') else None
                 
-                # #region agent log
-                try:
-                    import json
-                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"location":"email_sender.py:115","message":"Message-Struktur VOR Manipulation","data":{"content_type":current_content_type},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"K"}) + '\n')
-                except: pass
-                # #endregion
                 
                 # KRITISCH: Wenn multipart/mixed, müssen wir auf multipart/related umstellen
                 # Aber: Wenn es normale Anhänge gibt, müssen wir verschachteln:
@@ -245,22 +208,6 @@ def send_email_with_lock(msg, timeout=60):
                         logo_part = None
                         other_attachments = []
                         
-                        # #region agent log
-                        try:
-                            import json
-                            parts_info = []
-                            for i, p in enumerate(old_parts):
-                                if hasattr(p, 'get_content_type'):
-                                    parts_info.append({
-                                        "index": i,
-                                        "content_type": p.get_content_type(),
-                                        "disposition": p.get('Content-Disposition', '') if hasattr(p, 'get') else '',
-                                        "content_id": p.get('Content-ID', '') if hasattr(p, 'get') else ''
-                                    })
-                            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                f.write(json.dumps({"location":"email_sender.py:230","message":"Suche nach Logo in Parts","data":{"total_parts":len(old_parts),"parts_info":parts_info},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}) + '\n')
-                        except: pass
-                        # #endregion
                         
                         for part in old_parts:
                             if hasattr(part, 'get_content_type'):
@@ -273,14 +220,6 @@ def send_email_with_lock(msg, timeout=60):
                                     # Prüfe, ob es ein Logo ist (nach Dateinamen in Content-Disposition)
                                     is_logo = any(logo_fn in disp.lower() for logo_fn in ['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.gif'])
                                     
-                                    # #region agent log
-                                    if is_logo:
-                                        try:
-                                            import json
-                                            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                                f.write(json.dumps({"location":"email_sender.py:248","message":"Logo-Teil GEFUNDEN","data":{"content_type":ct,"disposition":disp,"content_id":part.get('Content-ID', '') if hasattr(part, 'get') else ''},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"C"}) + '\n')
-                                        except: pass
-                                    # #endregion
                                     
                                     if is_logo and not logo_part:
                                         logo_part = part
@@ -300,27 +239,10 @@ def send_email_with_lock(msg, timeout=60):
                         
                         # Füge Logo hinzu (mit CID) - NACH dem Root
                         if logo_part:
-                            # #region agent log
-                            try:
-                                import json
-                                old_logo_cid = logo_part.get('Content-ID', '')
-                                old_logo_disp = logo_part.get('Content-Disposition', '')
-                                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                    f.write(json.dumps({"location":"email_sender.py:242","message":"Logo-Teil gefunden beim Umstellen auf multipart/related","data":{"old_cid":old_logo_cid,"old_disposition":old_logo_disp},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-                            except: pass
-                            # #endregion
                             if not logo_part.get('Content-ID'):
                                 # WICHTIG: Content-ID muss exakt mit der CID-Referenz im HTML übereinstimmen
                                 # Im HTML: cid:portal_logo -> Im Attachment: <portal_logo>
                                 logo_part.add_header('Content-ID', '<portal_logo>')
-                                # #region agent log
-                                try:
-                                    import json
-                                    final_cid = logo_part.get('Content-ID', '')
-                                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                        f.write(json.dumps({"location":"email_sender.py:295","message":"Content-ID auf Logo gesetzt","data":{"content_id":final_cid,"expected_html_ref":"cid:portal_logo"},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}) + '\n')
-                                except: pass
-                                # #endregion
                             disp = logo_part.get('Content-Disposition', '')
                             if 'attachment' in disp and 'inline' not in disp:
                                 import re
@@ -333,15 +255,6 @@ def send_email_with_lock(msg, timeout=60):
                                     logo_part.add_header('Content-Disposition', f'inline; filename="{filename}"')
                             elif not disp:
                                 logo_part.add_header('Content-Disposition', 'inline; filename="logo.png"')
-                            # #region agent log
-                            try:
-                                import json
-                                new_logo_cid = logo_part.get('Content-ID', '')
-                                new_logo_disp = logo_part.get('Content-Disposition', '')
-                                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                    f.write(json.dumps({"location":"email_sender.py:258","message":"Logo-Teil mit CID/Disposition markiert und zu multipart/related hinzugefügt","data":{"new_cid":new_logo_cid,"new_disposition":new_logo_disp},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-                            except: pass
-                            # #endregion
                             new_msg.attach(logo_part)
                             
                             # WICHTIG: Füge Logo ZUSÄTZLICH als attachment hinzu (für separaten Anhang)
@@ -371,23 +284,9 @@ def send_email_with_lock(msg, timeout=60):
                                 # Speichere für später (wird zur multipart/mixed Struktur hinzugefügt)
                                 logo_attachment_part = logo_attachment
                                 
-                                # #region agent log
-                                try:
-                                    import json
-                                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                        f.write(json.dumps({"location":"email_sender.py:330","message":"Logo als Attachment erstellt (zusätzlich zum inline)","data":{"filename":attachment_filename_att,"has_cid":False},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}) + '\n')
-                                except: pass
-                                # #endregion
                             else:
                                 logo_attachment_part = None
                         else:
-                            # #region agent log
-                            try:
-                                import json
-                                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                    f.write(json.dumps({"location":"email_sender.py:258","message":"Logo-Teil NICHT gefunden beim Umstellen auf multipart/related","data":{},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-                            except: pass
-                            # #endregion
                             logo_attachment_part = None
                         
                         # KRITISCH: Erstelle IMMER multipart/mixed Struktur, wenn Logo vorhanden ist
@@ -416,13 +315,6 @@ def send_email_with_lock(msg, timeout=60):
                             # Ersetze msg.msg mit der verschachtelten Struktur
                             msg.msg = outer_msg
                             
-                            # #region agent log
-                            try:
-                                import json
-                                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                    f.write(json.dumps({"location":"email_sender.py:375","message":"Struktur verschachtelt: multipart/mixed mit multipart/related + Logo als Attachment","data":{"outer_type":"multipart/mixed","inner_type":"multipart/related","has_logo_inline":True,"has_logo_attachment":True,"other_attachments_count":len(other_attachments) if other_attachments else 0},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}) + '\n')
-                            except: pass
-                            # #endregion
                         elif other_attachments:
                             # Logo nicht gefunden, aber andere Anhänge vorhanden
                             # Erstelle multipart/mixed als äußere Ebene
@@ -448,30 +340,6 @@ def send_email_with_lock(msg, timeout=60):
                             # Ersetze msg.msg mit neuer Struktur
                             msg.msg = new_msg
                     
-                    # #region agent log
-                    try:
-                        import json
-                        # Detaillierte Logging der finalen Struktur
-                        final_parts = new_msg.get_payload() if hasattr(new_msg, 'get_payload') else []
-                        parts_detail = []
-                        if isinstance(final_parts, list):
-                            for i, p in enumerate(final_parts):
-                                part_info = {
-                                    "index": i,
-                                    "content_type": p.get_content_type() if hasattr(p, 'get_content_type') else 'N/A',
-                                    "content_id": p.get('Content-ID', '') if hasattr(p, 'get') else '',
-                                    "disposition": p.get('Content-Disposition', '') if hasattr(p, 'get') else ''
-                                }
-                                # Wenn es ein multipart ist, zeige auch seine Parts
-                                if hasattr(p, 'get_payload'):
-                                    sub_parts = p.get_payload()
-                                    if isinstance(sub_parts, list):
-                                        part_info["subparts_count"] = len(sub_parts)
-                                parts_detail.append(part_info)
-                        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({"location":"email_sender.py:170","message":"Message-Struktur auf multipart/related umgestellt","data":{"new_content_type":new_msg.get_content_type(),"has_logo":logo_part is not None,"total_parts":len(final_parts) if isinstance(final_parts, list) else 0,"parts_detail":parts_detail},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"K"}) + '\n')
-                    except: pass
-                    # #endregion
                     logging.info("Message-Struktur auf multipart/related umgestellt für inline Logo")
                 else:
                     # Wenn bereits multipart/related oder andere Struktur, markiere Logo nur mit CID
@@ -501,44 +369,9 @@ def send_email_with_lock(msg, timeout=60):
                                         elif not disp:
                                             part.add_header('Content-Disposition', 'inline; filename="logo.png"')
                                         
-                                        # #region agent log
-                                        try:
-                                            import json
-                                            with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                                                f.write(json.dumps({"location":"email_sender.py:200","message":"Logo mit CID markiert (bereits multipart/related)","data":{"cid":part.get('Content-ID'),"disposition":part.get('Content-Disposition'),"content_type":part.get_content_type()},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"J"}) + '\n')
-                                        except: pass
-                                        # #endregion
                                         logging.info(f"Logo mit CID markiert: {part.get('Content-ID')}, Disposition: {part.get('Content-Disposition')}")
                                         break
             
-            # #region agent log
-            try:
-                import json
-                if hasattr(msg, 'msg') and msg.msg:
-                    msg_ct = msg.msg.get_content_type() if hasattr(msg.msg, 'get_content_type') else 'N/A'
-                    parts_count = 0
-                    logo_cid_found = None
-                    logo_disp_found = None
-                    if hasattr(msg.msg, 'get_payload'):
-                        parts = msg.msg.get_payload()
-                        if isinstance(parts, list):
-                            parts_count = len(parts)
-                            for p in parts:
-                                if hasattr(p, 'get_content_type') and p.get_content_type().startswith('image/'):
-                                    disp = p.get('Content-Disposition', '')
-                                    if 'logo' in disp.lower():
-                                        logo_cid_found = p.get('Content-ID', '')
-                                        logo_disp_found = disp
-                                        break
-                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"location":"email_sender.py:313","message":"VOR mail.send() - Finale Message-Struktur in send_email_with_lock()","data":{"content_type":msg_ct,"parts_count":parts_count,"logo_cid":logo_cid_found,"logo_disposition":logo_disp_found},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
-            except Exception as e:
-                try:
-                    import json
-                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"location":"email_sender.py:313","message":"FEHLER beim Loggen vor mail.send()","data":{"error":str(e)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
-                except: pass
-            # #endregion
             
             # KRITISCH: Flask-Mail's send() erstellt möglicherweise msg.msg neu und überschreibt unsere Struktur
             # Lösung: Sende die Message direkt über SMTP, ohne Flask-Mail's send()
@@ -591,13 +424,6 @@ def send_email_with_lock(msg, timeout=60):
                 smtp.sendmail(msg.sender, recipients, email_bytes)
                 smtp.quit()
                 
-                # #region agent log
-                try:
-                    import json
-                    with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                        f.write(json.dumps({"location":"email_sender.py:350","message":"E-Mail direkt über SMTP gesendet (Flask-Mail umgangen)","data":{"recipients_count":len(recipients)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
-                except: pass
-                # #endregion
                 
                 return True
                 
@@ -606,13 +432,6 @@ def send_email_with_lock(msg, timeout=60):
                 logging.warning(f"Direktes SMTP-Senden fehlgeschlagen, verwende Flask-Mail: {smtp_error}")
                 try:
                     mail.send(msg)
-                    # #region agent log
-                    try:
-                        import json
-                        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({"location":"email_sender.py:365","message":"Fallback: Flask-Mail.send() verwendet","data":{"error":str(smtp_error)},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}) + '\n')
-                    except: pass
-                    # #endregion
                     return True
                 except Exception as fallback_error:
                     logging.error(f"Fehler beim Senden der E-Mail: {fallback_error}")
@@ -657,21 +476,12 @@ def send_email_with_lock(msg, timeout=60):
             mail.send(msg)
             return True
 
-
 def generate_confirmation_code():
     """Generiert einen 6-stelligen Bestätigungscode."""
     return ''.join(secrets.choice(string.digits) for _ in range(6))
 
-
 def get_logo_data():
     """Holt das Portal-Logo aus SystemSettings oder Konfiguration und gibt Logo-Daten, MIME-Type und Dateiname zurück."""
-    # #region agent log
-    try:
-        import json
-        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"location":"email_sender.py:44","message":"get_logo_data() aufgerufen","data":{},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-    except: pass
-    # #endregion
     try:
         from app.models.settings import SystemSettings
         
@@ -696,13 +506,6 @@ def get_logo_data():
                     }
                     mime_type = mime_types.get(ext, 'image/png')
                     filename = portal_logo_setting.value
-                    # #region agent log
-                    try:
-                        import json
-                        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                            f.write(json.dumps({"location":"email_sender.py:70","message":"Portal-Logo geladen","data":{"has_data":logo_data is not None,"data_size":len(logo_data) if logo_data else 0,"mime_type":mime_type,"filename":filename},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-                    except: pass
-                    # #endregion
                     return logo_data, mime_type, filename
                 except Exception as e:
                     logging.warning(f"Fehler beim Laden des Portal-Logos: {e}")
@@ -735,27 +538,12 @@ def get_logo_data():
             }
             mime_type = mime_types.get(ext, 'image/png')
             filename = os.path.basename(full_path)
-            # #region agent log
-            try:
-                import json
-                with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps({"location":"email_sender.py:102","message":"Standard-Logo geladen","data":{"has_data":logo_data is not None,"data_size":len(logo_data) if logo_data else 0,"mime_type":mime_type,"filename":filename},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-            except: pass
-            # #endregion
             return logo_data, mime_type, filename
     except Exception as e:
         logging.warning(f"Fehler beim Laden des Standard-Logos: {e}")
     
     # Wenn kein Logo gefunden wurde, gib None zurück
-    # #region agent log
-    try:
-        import json
-        with open(r'c:\Users\ermat\Documents\GitHub\Prismateams_web\.cursor\debug.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps({"location":"email_sender.py:107","message":"KEIN Logo gefunden - get_logo_data gibt None zurück","data":{},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}) + '\n')
-    except: pass
-    # #endregion
     return None, None, None
-
 
 def get_logo_base64():
     """Holt das Portal-Logo aus SystemSettings oder Konfiguration und gibt es als Base64-String zurück."""
@@ -764,7 +552,6 @@ def get_logo_base64():
         logo_base64 = base64.b64encode(logo_data).decode('utf-8')
         return f"data:{mime_type};base64,{logo_base64}"
     return None
-
 
 def create_message_with_logo(subject, recipients, html_content, body_text=None, sender=None, cc=None, logo_cid='portal_logo'):
     """
@@ -895,7 +682,6 @@ def create_message_with_logo(subject, recipients, html_content, body_text=None, 
     
     return msg
 
-
 def _portal_name():
     """Portal-Anzeigename aus SystemSettings."""
     try:
@@ -909,14 +695,12 @@ def _portal_name():
     except Exception:
         return current_app.config.get('APP_NAME', 'Prismateams')
 
-
 def _mail_configured():
     return all([
         current_app.config.get('MAIL_SERVER'),
         current_app.config.get('MAIL_USERNAME'),
         current_app.config.get('MAIL_PASSWORD'),
     ])
-
 
 def _attach_files_to_message(msg, attachments):
     """Hängt Dateien an (multipart/mixed um related mit CID-Logo)."""
@@ -940,16 +724,114 @@ def _attach_files_to_message(msg, attachments):
         for filename, mimetype, data in attachments:
             msg.attach(filename, mimetype, data)
 
+def _footer_placeholder_values(user=None, app_name=None, **ctx):
+    """Werte für <user>/<email>/<app_name>/<date>/<time> im Footer-Template."""
+    from app.utils.common import now_in_portal_timezone
+
+    name = ''
+    email = ''
+    if user is not None:
+        name = (getattr(user, 'full_name', None) or '').strip()
+        email = (getattr(user, 'email', None) or '').strip()
+
+    booking = ctx.get('booking_request')
+    if booking is not None:
+        if not name:
+            name = (
+                getattr(booking, 'contact_name', None)
+                or getattr(booking, 'name', None)
+                or getattr(booking, 'event_name', None)
+                or ''
+            )
+            name = str(name).strip() if name else ''
+        if not email:
+            email = (getattr(booking, 'email', None) or '').strip()
+
+    if not name:
+        name = (
+            ctx.get('borrower_name')
+            or ctx.get('recipient_name')
+            or ''
+        )
+        name = str(name).strip() if name else ''
+    if not email:
+        email = (
+            ctx.get('contact_email')
+            or ctx.get('recipient_email')
+            or ''
+        )
+        email = str(email).strip() if email else ''
+
+    now = now_in_portal_timezone()
+    return {
+        '<user>': name,
+        '<email>': email,
+        '<app_name>': app_name or _portal_name(),
+        '<date>': now.strftime('%d.%m.%Y'),
+        '<time>': now.strftime('%H:%M'),
+    }
+
+def _format_footer_plain_to_html(text):
+    """Wandelt Plaintext-Footer (Zeilenumbrüche) in Absätze mit <br> um."""
+    import re
+
+    if not text or not str(text).strip():
+        return ''
+    paragraphs = re.split(r'\n\n+', str(text))
+    formatted = []
+    for para in paragraphs:
+        if para.strip():
+            formatted.append(f'<p>{para.strip().replace(chr(10), "<br>")}</p>')
+    return ''.join(formatted)
+
+def build_email_footer_html(user=None, app_name=None, *, sender_line=False, **ctx):
+    """
+    Baut HTML-Footer aus SystemSettings (email_footer_template / email_footer_text).
+    Gleiche Platzhalter wie Admin-Footer: <user>, <email>, <app_name>, <date>, <time>.
+    Gibt None zurück, wenn kein konfigurierter Footer existiert (außer sender_line).
+    """
+    from app.models.settings import SystemSettings
+
+    portal_name = app_name or _portal_name()
+    replacements = _footer_placeholder_values(user=user, app_name=portal_name, **ctx)
+
+    footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
+    if footer_template and footer_template.value and str(footer_template.value).strip():
+        footer_html = str(footer_template.value)
+        for placeholder, value in replacements.items():
+            footer_html = footer_html.replace(placeholder, value)
+        return _format_footer_plain_to_html(footer_html) or footer_html
+
+    lines = []
+    footer_text_setting = SystemSettings.query.filter_by(key='email_footer_text').first()
+    if footer_text_setting and footer_text_setting.value and str(footer_text_setting.value).strip():
+        lines.append(str(footer_text_setting.value).strip())
+    if sender_line and user is not None:
+        display = (getattr(user, 'full_name', None) or '').strip() or replacements['<user>']
+        if display:
+            lines.append(f'Gesendet von {display}')
+    if not lines:
+        return None
+    return ''.join(f'<p>{line}</p>' for line in lines if line)
 
 def render_portal_email(template_name, **ctx):
-    """Rendert Portal-E-Mail-Template mit Standard-Kontext (CID-Logo)."""
+    """Rendert Portal-E-Mail-Template mit Standard-Kontext (CID-Logo + Admin-Footer)."""
     portal_name = ctx.pop('app_name', None) or _portal_name()
     ctx.setdefault('app_name', portal_name)
-    ctx.setdefault('current_year', datetime.utcnow().year)
+    ctx.setdefault('current_year', portal_now_naive().year)
     ctx.setdefault('logo_cid', 'portal_logo')
+    if 'email_footer_html' not in ctx:
+        ctx['email_footer_html'] = build_email_footer_html(
+            user=ctx.get('user'),
+            app_name=portal_name,
+            borrower_name=ctx.get('borrower_name'),
+            recipient_name=ctx.get('recipient_name'),
+            contact_email=ctx.get('contact_email'),
+            recipient_email=ctx.get('recipient_email'),
+            booking_request=ctx.get('booking_request'),
+        )
     html_content = render_template(template_name, **ctx)
     return html_content, portal_name
-
 
 def build_portal_message(subject, recipients, template_name, body_text=None, attachments=None, **ctx):
     """Baut Flask-Mail Message mit Portal-Shell und CID-Logo."""
@@ -963,7 +845,6 @@ def build_portal_message(subject, recipients, template_name, body_text=None, att
     _attach_files_to_message(msg, attachments)
     return msg, html_content, portal_name
 
-
 def render_and_send_portal_email(subject, recipients, template_name, body_text=None, attachments=None, **ctx):
     """Rendert Template, baut CID-Message und sendet."""
     if not _mail_configured():
@@ -976,12 +857,11 @@ def render_and_send_portal_email(subject, recipients, template_name, body_text=N
     send_email_with_lock(msg)
     return True
 
-
 def send_confirmation_email(user):
     """Sendet eine Bestätigungs-E-Mail an den Benutzer."""
     try:
         confirmation_code = generate_confirmation_code()
-        expires_at = datetime.utcnow() + timedelta(hours=24)
+        expires_at = portal_now_naive() + timedelta(hours=24)
         user.confirmation_code = confirmation_code
         user.confirmation_code_expires = expires_at
         user.is_email_confirmed = False
@@ -989,7 +869,11 @@ def send_confirmation_email(user):
         db.session.commit()
 
         if not _mail_configured():
-            logging.warning(f'E-Mail-Konfiguration unvollständig. Code für {user.email}: {confirmation_code}')
+            logging.warning(
+                'E-Mail-Konfiguration unvollständig. Bestätigungs-E-Mail an %s nicht gesendet '
+                '(Code nur in der Datenbank gespeichert).',
+                user.email,
+            )
             return False
 
         portal_name = _portal_name()
@@ -1006,7 +890,7 @@ def send_confirmation_email(user):
                 user=user,
                 confirmation_code=confirmation_code,
             )
-            logging.info(f'Confirmation email sent to {user.email} with code: {confirmation_code}')
+            logging.info('Confirmation email sent to %s', user.email)
             return True
         except Exception as send_error:
             logging.error(f'Failed to send confirmation email to {user.email}: {str(send_error)}')
@@ -1028,12 +912,11 @@ def send_confirmation_email(user):
         logging.error(f'Failed to send confirmation email to {user.email}: {str(e)}')
         return False
 
-
 def verify_confirmation_code(user, code):
     """Überprüft den Bestätigungscode."""
     if not user.confirmation_code or not user.confirmation_code_expires:
         return False
-    if datetime.utcnow() > user.confirmation_code_expires:
+    if portal_now_naive() > user.confirmation_code_expires:
         return False
     if user.confirmation_code != code:
         return False
@@ -1044,24 +927,26 @@ def verify_confirmation_code(user, code):
     db.session.commit()
     return True
 
-
 def resend_confirmation_email(user):
     """Sendet eine neue Bestätigungs-E-Mail."""
     return send_confirmation_email(user)
-
 
 def send_password_reset_email(user):
     """Sendet eine Passwort-Reset-E-Mail an den Benutzer."""
     try:
         reset_code = generate_confirmation_code()
-        expires_at = datetime.utcnow() + timedelta(hours=1)
+        expires_at = portal_now_naive() + timedelta(hours=1)
         user.password_reset_code = reset_code
         user.password_reset_code_expires = expires_at
         from app import db
         db.session.commit()
 
         if not _mail_configured():
-            logging.warning(f'E-Mail-Konfiguration unvollständig. Reset-Code für {user.email}: {reset_code}')
+            logging.warning(
+                'E-Mail-Konfiguration unvollständig. Passwort-Reset-E-Mail an %s nicht gesendet '
+                '(Code nur in der Datenbank gespeichert).',
+                user.email,
+            )
             return False
 
         portal_name = _portal_name()
@@ -1078,7 +963,7 @@ def send_password_reset_email(user):
                 user=user,
                 reset_code=reset_code,
             )
-            logging.info(f'Password reset email sent to {user.email} with code: {reset_code}')
+            logging.info('Password reset email sent to %s', user.email)
             return True
         except Exception as send_error:
             logging.error(f'Failed to send password reset email to {user.email}: {str(send_error)}')
@@ -1087,17 +972,15 @@ def send_password_reset_email(user):
         logging.error(f'Failed to send password reset email to {user.email}: {str(e)}')
         return False
 
-
 def verify_password_reset_code(user, code):
     """Überprüft den Passwort-Reset-Code."""
     if not user.password_reset_code or not user.password_reset_code_expires:
         return False
-    if datetime.utcnow() > user.password_reset_code_expires:
+    if portal_now_naive() > user.password_reset_code_expires:
         return False
     if user.password_reset_code != code:
         return False
     return True
-
 
 def _checkout_recipient_email(checkout):
     """Empfänger für Inventar-Mails: contact_email oder Portal-User-E-Mail."""
@@ -1109,7 +992,6 @@ def _checkout_recipient_email(checkout):
         return borrower.email.strip()
     return None
 
-
 def _checkout_item_rows(items):
     rows = []
     for item in items or []:
@@ -1119,7 +1001,6 @@ def _checkout_item_rows(items):
             'name': getattr(product, 'name', None) or '—',
         })
     return rows
-
 
 def send_borrow_receipt_email(checkout):
     """Sendet Ausleihschein-PDF nach Checkout (Quick Scan / Ausleihe)."""
@@ -1181,7 +1062,6 @@ def send_borrow_receipt_email(checkout):
         logging.error(f'Failed to send borrow receipt email: {str(e)}')
         return False
 
-
 def send_return_confirmation_email(checkout, returned_items=None):
     """Sendet Rückgabe-Bestätigung mit PDF nach Rückgabe."""
     try:
@@ -1208,14 +1088,14 @@ def send_return_confirmation_email(checkout, returned_items=None):
         portal_name = _portal_name()
         items_source = returned_items if returned_items is not None else checkout.returned_items
         items = _checkout_item_rows(items_source)
-        return_date = datetime.utcnow().strftime('%d.%m.%Y %H:%M')
+        return_date = portal_now_naive().strftime('%d.%m.%Y %H:%M')
         if items_source:
             first_returned = getattr(items_source[0], 'returned_at', None)
             if first_returned:
                 return_date = first_returned.strftime('%d.%m.%Y %H:%M')
 
         pdf_buffer = BytesIO()
-        generate_return_confirmation_pdf(checkout, pdf_buffer)
+        generate_return_confirmation_pdf(checkout, pdf_buffer, returned_items=items_source)
         pdf_buffer.seek(0)
         filename = f'Rueckgabe_{checkout.checkout_number}.pdf'
 
@@ -1242,7 +1122,6 @@ def send_return_confirmation_email(checkout, returned_items=None):
         logging.error(f'Failed to send return confirmation email: {str(e)}')
         return False
 
-
 def _persist_booking_outbound(booking_request, msg, subject, body_text, body_html=None, created_by=None):
     from app.utils.booking_messages import apply_thread_headers, save_outbound_message
 
@@ -1264,7 +1143,6 @@ def _persist_booking_outbound(booking_request, msg, subject, body_text, body_htm
     except Exception as persist_error:
         logging.error(f'Booking outbound mail sent but thread save failed: {persist_error}')
     return True
-
 
 def send_booking_confirmation_email(booking_request):
     """Sendet Bestätigungs-E-Mail nach Buchungsanfrage."""
@@ -1301,7 +1179,6 @@ def send_booking_confirmation_email(booking_request):
     except Exception as e:
         logging.error(f'Failed to send booking confirmation email: {str(e)}')
         return False
-
 
 def send_booking_accepted_email(booking_request, calendar_event):
     """Sendet E-Mail bei Annahme einer Buchung."""
@@ -1347,7 +1224,6 @@ def send_booking_accepted_email(booking_request, calendar_event):
         logging.error(f'Failed to send booking accepted email: {str(e)}')
         return False
 
-
 def send_booking_rejected_email(booking_request):
     """Sendet E-Mail bei Ablehnung einer Buchung."""
     try:
@@ -1385,7 +1261,6 @@ def send_booking_rejected_email(booking_request):
     except Exception as e:
         logging.error(f'Failed to send booking rejected email: {str(e)}')
         return False
-
 
 def send_booking_staff_message(booking_request, subject, body_text, created_by=None):
     """Staff-Nachricht an Antragsteller im Portal-Shell."""
@@ -1429,7 +1304,6 @@ def send_booking_staff_message(booking_request, subject, body_text, created_by=N
         logging.error(f'Failed to send booking staff message: {str(e)}')
         return False
 
-
 def send_smtp_test_email(recipient_email):
     """Sendet HTML-Test-E-Mail im Portal-Shell."""
     try:
@@ -1450,7 +1324,6 @@ def send_smtp_test_email(recipient_email):
         logging.error(f'Failed to send SMTP test email: {str(e)}')
         raise
 
-
 def generate_random_password(length=8):
     """Generiert ein sicheres zufälliges Passwort."""
     alphabet = string.ascii_letters + string.digits
@@ -1458,14 +1331,14 @@ def generate_random_password(length=8):
     alphabet = ''.join(c for c in alphabet if c not in excluded_chars)
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-
 def send_account_creation_email(user, password):
     """Sendet Zugangsdaten nach Admin-Account-Erstellung."""
     try:
         if not _mail_configured():
             logging.warning(
-                f'E-Mail-Konfiguration unvollständig. Zugangsdaten für {user.email}: '
-                f'Benutzername: {user.email}, Passwort: {password}'
+                'E-Mail-Konfiguration unvollständig. Account-E-Mail an %s nicht gesendet '
+                '(Passwort wird nicht geloggt).',
+                user.email,
             )
             return False
         portal_name = _portal_name()

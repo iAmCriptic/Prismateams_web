@@ -43,7 +43,8 @@ class Config:
     IMAP_USE_SSL = os.environ.get('IMAP_USE_SSL', 'True').lower() == 'true'
     
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 524288000))
+    # Request-Deckel: Start-Default; wird nach DB-Sync aus Datei-Einstellungen gesetzt
+    MAX_CONTENT_LENGTH = 100 * 1024 * 1024
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'md', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar'}
     
     APP_NAME = os.environ.get('APP_NAME', 'Prismateams')

@@ -1,4 +1,4 @@
-/* Desktop custom context menu */
+/* Desktop custom context menu (pointer:fine only — touch uses always-visible ⋮) */
 .pt-context-menu {
     position: fixed;
     z-index: 1080;
@@ -33,9 +33,38 @@
     display: none;
 }
 
-.pt-context-menu .dropdown-submenu:hover > .dropdown-menu,
-.pt-context-menu .dropdown-submenu > .dropdown-menu.show {
+@media (hover: hover) and (pointer: fine) {
+    .pt-context-menu .dropdown-submenu:hover > .dropdown-menu {
+        display: block;
+    }
+}
+
+.pt-context-menu .dropdown-submenu > .dropdown-menu.show,
+.pt-context-menu .dropdown-submenu.is-open > .dropdown-menu {
     display: block;
+}
+
+/* Prefer inline expand when flyout would be awkward (narrow desktop / touch hybrid) */
+@media (max-width: 991.98px) {
+    .pt-context-menu .dropdown-submenu > .dropdown-menu {
+        position: static;
+        left: auto;
+        margin: 0.2rem 0 0.35rem 0.5rem;
+        box-shadow: none;
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+        border-radius: var(--mod-radius-pill, 1rem);
+        min-width: 0;
+        width: calc(100% - 0.5rem);
+    }
+
+    .pt-context-menu .dropdown-submenu:hover > .dropdown-menu {
+        display: none;
+    }
+
+    .pt-context-menu .dropdown-submenu > .dropdown-menu.show,
+    .pt-context-menu .dropdown-submenu.is-open > .dropdown-menu {
+        display: block;
+    }
 }
 
 .pt-context-menu .dropdown-item {

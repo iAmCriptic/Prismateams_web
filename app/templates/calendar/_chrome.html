@@ -141,6 +141,9 @@
         {% endmacro %}
         {{ cal_nav_item(sc.personal, _('calendar.sidebar.my_calendar')) }}
         {{ cal_nav_item(sc.public, _('calendar.sidebar.public')) }}
+        {% if sc.events %}
+        {{ cal_nav_item(sc.events, _('calendar.sidebar.events')) }}
+        {% endif %}
         <hr class="my-2">
         {% if interactive %}
         <div class="px-1 mb-2">
@@ -156,7 +159,7 @@
 </aside>
 
 {% if interactive %}
-<div class="offcanvas offcanvas-start calendar-mobile-offcanvas" tabindex="-1" id="calendarMobileNav" aria-labelledby="calendarMobileNavLabel">
+<div class="offcanvas offcanvas-start mod-offcanvas calendar-mobile-offcanvas" tabindex="-1" id="calendarMobileNav" aria-labelledby="calendarMobileNavLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title d-flex align-items-center gap-2" id="calendarMobileNavLabel">
             <i class="bi bi-calendar-event" aria-hidden="true"></i>

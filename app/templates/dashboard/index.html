@@ -276,6 +276,13 @@ setInterval(updateClock, 1000);
         if (seenMarked || !seenUrl) return;
         seenMarked = true;
         if (badge) badge.classList.add('d-none');
+        const payload = JSON.stringify({ version: VERSION });
+        try {
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                if (navigator.sendBeacon(seenUrl, blob)) return;
+            }
+        } catch (e) { /* fallback unten */ }
         fetch(seenUrl, {
             method: 'POST',
             headers: {
@@ -283,7 +290,8 @@ setInterval(updateClock, 1000);
                 'X-Requested-With': 'XMLHttpRequest'
             },
             credentials: 'same-origin',
-            body: JSON.stringify({ version: VERSION })
+            keepalive: true,
+            body: payload
         }).catch(() => {
             seenMarked = false;
         });
@@ -358,10 +366,14 @@ setInterval(updateClock, 1000);
     if (modalEl) {
         modalEl.addEventListener('show.bs.modal', () => {
             showPanel('welcome');
-        });
-        modalEl.addEventListener('hidden.bs.modal', () => {
+            // Sofort als gesehen markieren – auch wenn danach nur das X geklickt wird
             markSeen();
         });
+        modalEl.addEventListener('hide.bs.modal', markSeen);
+        modalEl.addEventListener('hidden.bs.modal', markSeen);
+
+        const closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+        if (closeBtn) closeBtn.addEventListener('click', markSeen);
 
         if (AUTO_OPEN && typeof bootstrap !== 'undefined') {
             requestAnimationFrame(() => {

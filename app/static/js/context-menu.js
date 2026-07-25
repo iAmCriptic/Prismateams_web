@@ -1,5 +1,6 @@
 /**
- * Desktop custom context menu – mirrors ⋮ dropdowns and page-specific actions.
+ * Desktop custom context menu – mirrors always-visible ⋮ dropdowns.
+ * Enabled only for fine pointer + ≥768px; touch/mobile uses the ⋮ menus instead.
  */
 (function () {
     'use strict';
@@ -209,12 +210,18 @@
             if (toggle) {
                 e.preventDefault();
                 e.stopPropagation();
-                const sub = toggle.parentElement.querySelector(':scope > .dropdown-menu');
+                const parent = toggle.closest('.dropdown-submenu');
+                const sub = parent && parent.querySelector(':scope > .dropdown-menu');
                 if (sub) {
-                    container.querySelectorAll('.dropdown-submenu > .dropdown-menu.show').forEach((m) => {
-                        if (m !== sub) m.classList.remove('show');
+                    container.querySelectorAll('.dropdown-submenu').forEach((li) => {
+                        if (li === parent) return;
+                        li.classList.remove('is-open');
+                        const m = li.querySelector(':scope > .dropdown-menu.show');
+                        if (m) m.classList.remove('show');
                     });
-                    sub.classList.toggle('show');
+                    const open = !sub.classList.contains('show');
+                    sub.classList.toggle('show', open);
+                    if (parent) parent.classList.toggle('is-open', open);
                 }
                 return;
             }

@@ -31,11 +31,11 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        <div class="mod-sidebar-new-wrap w-100 mb-3">
-            <a href="{{ create_url }}" class="btn mod-sidebar-new w-100 text-start">
-                <i class="bi bi-plus-lg me-2"></i>Neu
+        <nav class="mod-sidebar-nav nav flex-column gap-1">
+            <a class="nav-link mod-nav-link" href="{{ index_url }}">
+                <i class="bi bi-arrow-left me-2"></i>{{ _('layout.nav.back') }}
             </a>
-        </div>
+        </nav>
     </div>
 </div>
 

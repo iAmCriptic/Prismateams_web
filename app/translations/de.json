@@ -1644,7 +1644,7 @@
         },
         "file_settings": {
           "title": "Datei-Einstellungen",
-          "description": "Briefkästen, Freigaben und private Ordner aktivieren oder deaktivieren"
+          "description": "Briefkästen, Freigaben, private Ordner und Speicherlimits"
         },
         "calendar_settings": {
           "title": "Kalender-Einstellungen",
@@ -1695,7 +1695,7 @@
         "page_title": "Datei-Einstellungen - Administration",
         "breadcrumb_file_settings": "Datei-Einstellungen",
         "heading": "Datei-Einstellungen",
-        "subtitle": "Briefkästen, Freigaben und private Ordner für das Datei-Modul steuern.",
+        "subtitle": "Briefkästen, Freigaben, private Ordner sowie Speicherlimits und Kontingente steuern.",
         "section_title": "Datei-Funktionen",
         "dropbox_label": "Briefkästen aktivieren",
         "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
@@ -1703,9 +1703,38 @@
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
         "private_folders_label": "Private Ordner aktivieren",
         "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
+        "storage_section_title": "Speicher & Limits",
+        "max_file_label": "Maximale Dateigröße",
+        "max_file_help": "Gilt für alle Uploads. Ausnahme-Regeln können einzelne Nutzer überschreiben.",
+        "quota_enabled_label": "Speicherkontingente aktivieren",
+        "quota_enabled_help": "Wenn aktiv, erhält jeder Nutzer ein Speicherkontingent (öffentliche und private Ordner). In der Dateien-Sidebar wird der Verbrauch angezeigt.",
+        "quota_label": "Standard-Kontingent pro Nutzer",
+        "exceptions_section_title": "Ausnahmen",
+        "exceptions_help": "Einzelnen Nutzern andere Dateigrößenlimits oder Kontingente zuweisen.",
+        "exceptions_empty": "Keine Ausnahmen hinterlegt.",
+        "exception_add_title": "Ausnahme hinzufügen",
+        "exception_user": "Nutzer",
+        "exception_user_placeholder": "Nutzer wählen…",
+        "exception_user_search": "Nutzer suchen (Name oder E-Mail)…",
+        "exception_user_empty": "Keine Nutzer gefunden.",
+        "exception_users_none": "Keine weiteren Nutzer verfügbar.",
+        "exception_custom_max_file": "Eigenes Dateigrößenlimit",
+        "exception_custom_quota": "Eigenes Speicherkontingent",
+        "exception_add_button": "Ausnahme hinzufügen",
+        "exception_delete": "Ausnahme entfernen",
+        "exception_max_file": "Dateilimit",
+        "exception_max_file_default": "Dateilimit: Standard",
+        "exception_quota": "Kontingent",
+        "exception_quota_default": "Kontingent: Standard",
         "save_button": "Speichern",
         "flash_updated": "Datei-Einstellungen wurden aktualisiert.",
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
+        "flash_invalid_size": "Bitte eine gültige Größe angeben.",
+        "flash_exception_added": "Ausnahme wurde hinzugefügt.",
+        "flash_exception_deleted": "Ausnahme wurde entfernt.",
+        "flash_exception_exists": "Für diesen Nutzer existiert bereits eine Ausnahme.",
+        "flash_exception_user_invalid": "Bitte einen gültigen Nutzer wählen.",
+        "flash_exception_empty": "Bitte mindestens Dateilimit oder Kontingent für die Ausnahme setzen."
       },
       "calendar_settings": {
         "page_title": "Kalender-Einstellungen - Administration",
@@ -1944,6 +1973,12 @@
         "add": "Zu Favoriten",
         "remove": "Aus Favoriten entfernen",
         "limit": "Maximal 10 Favoriten."
+      },
+      "storage": {
+        "title": "Speicherplatz",
+        "usage": "{used} / {quota} ({percent}%)",
+        "file_limit": "Dateigrößenlimit: {limit}",
+        "warning": "Speicher fast voll"
       },
       "list": {
         "name": "Name",
@@ -3057,6 +3092,8 @@
       "sync_added": "Kalender-Sync hinzugefügt.",
       "sync_added_with_error": "Kalender-Sync angelegt, aber erster Abruf fehlgeschlagen:",
       "sync_deleted": "Kalender-Sync und zugehörige Termine wurden gelöscht.",
+      "sync_updated": "Importierter Kalender wurde aktualisiert.",
+      "sync_edit_denied": "Keine Berechtigung, diesen Sync zu bearbeiten.",
       "no_create_permission": "In diesem Kalender dürfen keine Termine erstellt werden.",
       "no_edit_permission": "Keine Berechtigung, diesen Termin zu bearbeiten.",
       "export_disabled": "Kalender-Export ist deaktiviert.",
@@ -3076,6 +3113,7 @@
       "reset": "Zurücksetzen",
       "my_calendar": "Mein Kalender",
       "public": "Public",
+      "events": "Veranstaltungen",
       "search": "Personen suchen…",
       "others": "Andere Kalender",
       "delete_import": "Löschen",
@@ -3130,6 +3168,9 @@
       "sync_now": "Jetzt synchronisieren",
       "sync_delete": "Löschen",
       "sync_delete_confirm": "Sync und alle zugehörigen Termine wirklich löschen?",
+      "sync_edit": "Bearbeiten",
+      "sync_save": "Speichern",
+      "sync_color": "Farbe",
       "sync_empty": "Noch keine Sync-Links. Jeder Benutzer kann einen hinzufügen — sichtbar für alle."
     },
     "index": {
@@ -3200,6 +3241,9 @@
         "time_column": "Zeit",
         "today": "Heute",
         "range_separator": " - "
+      },
+      "month": {
+        "today": "Heute"
       },
       "day": {
         "title": "Tag",
@@ -3293,6 +3337,7 @@
       "time_label": "Uhrzeit",
       "time_suffix": "Uhr",
       "location_label": "Ort",
+      "calendar_label": "Kalender",
       "recurrence_label": "Wiederkehrender Termin:",
       "recurrence_types": {
         "daily": "Täglich",
@@ -3555,6 +3600,7 @@
       "borrow_registered": "Ausleihe erfolgreich registriert. Vorgangsnummer: {transaction_number}",
       "no_active_borrow": "Keine aktive Ausleihe gefunden. Bitte überprüfen Sie die Eingabe.",
       "return_success": "Rückgabe erfolgreich registriert. Eine Bestätigungs-E-Mail wurde gesendet.",
+      "return_registered_no_email": "Die Rückgabe wurde registriert, aber die Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.",
       "no_products_to_borrow": "Keine Produkte zum Ausleihen ausgewählt.",
       "inventory_active_exists": "Es existiert bereits eine aktive Inventur. Bitte schließen Sie diese zuerst ab.",
       "inventory_started": "Inventur \"{name}\" wurde gestartet.",

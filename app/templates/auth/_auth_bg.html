@@ -1,4 +1,4 @@
-{# Shared auth background: PC gradient via CSS var, mobile forced white in auth.css #}
+{# Shared auth background: PC gradient via CSS var, mobile solid page color in auth.css #}
 <style>
 :root {
     --auth-page-bg: {% if color_gradient %}{{ color_gradient }}{% else %}linear-gradient(135deg, #667eea 0%, #764ba2 100%){% endif %};
@@ -6,6 +6,12 @@
 @media (max-width: 768px) {
     :root {
         --auth-page-bg: #ffffff;
+    }
+    html[data-bs-theme="dark"] {
+        --auth-page-bg: var(--bs-body-bg, #1a1a1a);
+    }
+    html[data-oled-mode="true"] {
+        --auth-page-bg: #000000;
     }
 }
 </style>

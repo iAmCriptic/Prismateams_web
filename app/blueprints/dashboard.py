@@ -59,7 +59,7 @@ SIMPLE_WIDGET_TYPES = [
 def _flatten_sidebar_calendars(user):
     groups = list_sidebar_calendars(user)
     cals = []
-    for key in ('personal', 'public', 'others'):
+    for key in ('personal', 'public', 'events', 'others'):
         item = groups.get(key)
         if key == 'others':
             for cal in (item or []):
@@ -339,6 +339,18 @@ def index():
     else:
         greeting_key = 'dashboard.greeting.evening'
 
+    # What's New genau einmal: schon beim ersten Dashboard-Aufruf als gesehen speichern.
+    # Modal öffnet in diesem Request noch, auch wenn der Nutzer nur per X schließt.
+    seen_version = getattr(current_user, 'whats_new_seen_version', None)
+    show_whats_new = seen_version != WHATS_NEW_VERSION
+    if show_whats_new:
+        try:
+            current_user.whats_new_seen_version = WHATS_NEW_VERSION
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"What's New gesehen-Status konnte nicht gespeichert werden: {e}")
+
     return render_template(
         'dashboard/index.html',
         dashboard_widgets=visible_widgets,
@@ -350,7 +362,7 @@ def index():
         guest_accessible_modules=guest_accessible_modules,
         greeting_key=greeting_key,
         whats_new_version=WHATS_NEW_VERSION,
-        show_whats_new=getattr(current_user, 'whats_new_seen_version', None) != WHATS_NEW_VERSION,
+        show_whats_new=show_whats_new,
     )
 
 

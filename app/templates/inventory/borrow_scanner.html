@@ -33,10 +33,10 @@
                         </div>
                     </div>
                     <div class="inventory-scan-controls">
-                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
                             <i class="bi bi-camera"></i> Kamera starten
                         </button>
-                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
                             <i class="bi bi-stop-circle"></i> Kamera stoppen
                         </button>
                     </div>
@@ -122,102 +122,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof BorrowScannerManager !== 'undefined') {
         window.borrowScannerManager = new BorrowScannerManager();
         window.borrowScannerManager.init();
-    }
-
-    const manualInput = document.getElementById('manualQrInput');
-    const addBtn = document.getElementById('addToCartBtn');
-    const checkoutForm = document.getElementById('checkoutForm');
-    const resultEl = document.getElementById('returnScanResult');
-
-    function showReturnOk(result) {
-        const msg = `Rückgabe OK${result.returned_count ? ' (' + result.returned_count + ')' : ''}${result.checkout_number ? ': ' + result.checkout_number : ''}.`;
-        if (resultEl) resultEl.innerHTML = `<div class="alert alert-success mb-0">${msg}</div>`;
-        window.borrowScannerManager?.showSuccess('Rückgabe erfolgreich.');
-    }
-
-    async function handleScanValue(value) {
-        const formData = new FormData();
-        formData.append('action', 'add_to_cart');
-        formData.append('qr_code', value);
-        const response = await fetch('/inventory/borrow-scanner', { method: 'POST', body: formData });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || result.error) {
-            throw new Error(result.error || 'Scan fehlgeschlagen');
-        }
-        if (result.is_return) {
-            showReturnOk(result);
-            if (manualInput) manualInput.value = '';
-            return;
-        }
-        if (manualInput) manualInput.value = '';
-        if (result.is_set && window.borrowScannerManager) {
-            window.borrowScannerManager.showSetScannedModal(result);
-        } else if (result.product && window.borrowScannerManager) {
-            const productName = result.product.name + (result.product.category ? ' (' + result.product.category + ')' : '');
-            window.borrowScannerManager.showSuccess(`Produkt "${productName}" hinzugefügt.`);
-        }
-        if (window.borrowScannerManager) {
-            window.borrowScannerManager.updateCartFromJSON(result);
-            window.borrowScannerManager.registerAddAction(result);
-        } else {
-            window.location.reload();
-        }
-    }
-
-    async function addToCart() {
-        if (!manualInput || !manualInput.value.trim()) {
-            window.borrowScannerManager?.showError('Bitte ID eingeben.');
-            return;
-        }
-        try {
-            await handleScanValue(manualInput.value.trim());
-        } catch (error) {
-            if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger mb-0">${error.message}</div>`;
-            window.borrowScannerManager?.showError(error.message || 'Fehler');
-        }
-    }
-
-    if (addBtn) addBtn.addEventListener('click', addToCart);
-    if (manualInput) {
-        manualInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') { e.preventDefault(); addToCart(); }
-        });
-    }
-
-    document.querySelectorAll('.remove-from-cart').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
-            if (productId) window.borrowScannerManager?.removeFromCart(productId);
-        });
-    });
-
-    if (checkoutForm) {
-        checkoutForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const formData = new FormData(checkoutForm);
-            const submitBtn = checkoutForm.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
-            }
-            try {
-                const response = await fetch(checkoutForm.action, {
-                    method: 'POST',
-                    body: formData,
-                    redirect: 'follow'
-                });
-                if (!response.ok) throw new Error('Checkout fehlgeschlagen');
-                window.borrowScannerManager?.showSuccess('Ausleihe erstellt. Weiterleitung...');
-                window.setTimeout(() => { window.location.href = '/inventory/borrows'; }, 600);
-            } catch (error) {
-                window.borrowScannerManager?.showError('Fehler beim Erstellen der Ausleihe.');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnText;
-                }
-            }
-        });
     }
 });
 </script>

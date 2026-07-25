@@ -731,7 +731,7 @@ def create_app(config_name='default'):
             or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             or 'application/json' in (request.headers.get('Accept') or '')
         )
-        msg = 'Die hochgeladene Datei überschreitet das maximale Größenlimit (max. 100MB pro Datei).'
+        msg = 'Die hochgeladene Datei überschreitet das maximale Größenlimit.'
         if wants_json:
             return jsonify({
                 'success': False,
@@ -739,7 +739,13 @@ def create_app(config_name='default'):
                 'message': msg,
                 'messages': [{'category': 'danger', 'text': msg}],
             }), 413
-        max_size_mb = app.config.get('MAX_CONTENT_LENGTH', 524288000) / (1024 * 1024)
+        try:
+            from app.utils.file_storage_limits import format_bytes_de, get_max_configured_file_size
+            max_label = format_bytes_de(get_max_configured_file_size())
+            msg = f'Die hochgeladene Datei überschreitet das maximale Größenlimit (max. {max_label} pro Datei).'
+        except Exception:
+            pass
+        max_size_mb = (app.config.get('MAX_CONTENT_LENGTH') or (100 * 1024 * 1024)) / (1024 * 1024)
         return render_template(
             'errors/413.html',
             max_size_mb=max_size_mb,
@@ -857,6 +863,17 @@ def create_app(config_name='default'):
             
             manifest_data['name'] = portal_name
             manifest_data['short_name'] = portal_name[:12]  # short_name sollte max 12 Zeichen haben
+
+            # Statusleisten-/PWA-Farbe an Dark/OLED anpassen
+            theme_color = '#f0f2f5'
+            from flask_login import current_user
+            if getattr(current_user, 'is_authenticated', False):
+                if getattr(current_user, 'oled_mode', False) and getattr(current_user, 'dark_mode', False):
+                    theme_color = '#000000'
+                elif getattr(current_user, 'dark_mode', False):
+                    theme_color = '#1a1a1a'
+            manifest_data['theme_color'] = theme_color
+            manifest_data['background_color'] = theme_color
             
             # Logo in allen Icon-Einträgen aktualisieren
             for icon in manifest_data.get('icons', []):
@@ -1564,6 +1581,13 @@ def create_app(config_name='default'):
                 
             except Exception as e:
                 print(f"[WARNUNG] Warnung beim Erstellen der Datenbank-Tabellen: {e}")
+
+        try:
+            from app.utils.file_storage_limits import sync_flask_max_content_length
+            synced = sync_flask_max_content_length(app)
+            print(f"[INFO] MAX_CONTENT_LENGTH aus Datei-Einstellungen: {synced} Bytes")
+        except Exception as sync_err:
+            print(f"[WARNUNG] MAX_CONTENT_LENGTH-Sync fehlgeschlagen: {sync_err}")
     
     # Background-Jobs nur im Hauptprozess starten
     if is_main_process and not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):

@@ -3,12 +3,12 @@ from app import db
 
 
 class Calendar(db.Model):
-    """Kalender-Container: personal, public oder imported (Sync)."""
+    """Kalender-Container: personal, public, events oder imported (Sync)."""
     __tablename__ = 'calendars'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
-    calendar_type = db.Column(db.String(20), nullable=False, index=True)  # personal | public | imported
+    calendar_type = db.Column(db.String(20), nullable=False, index=True)  # personal | public | events | imported
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     sync_source_id = db.Column(db.Integer, db.ForeignKey('calendar_sync_sources.id'), nullable=True, unique=True)
     color = db.Column(db.String(7), nullable=False, default='#0d6efd')

@@ -17,9 +17,8 @@ class EventService:
         if calendar_event is None:
             calendar_id = None
             try:
-                from app.utils.multi_calendars import is_calendar_multi_enabled, get_public_calendar
-                if is_calendar_multi_enabled():
-                    calendar_id = get_public_calendar().id
+                from app.utils.multi_calendars import target_calendar_id_for_module_events
+                calendar_id = target_calendar_id_for_module_events()
             except Exception:
                 calendar_id = None
             calendar_event = CalendarEvent(
@@ -31,9 +30,8 @@ class EventService:
             appointment.calendar_event = calendar_event
         elif getattr(calendar_event, 'calendar_id', None) is None:
             try:
-                from app.utils.multi_calendars import is_calendar_multi_enabled, get_public_calendar
-                if is_calendar_multi_enabled():
-                    calendar_event.calendar_id = get_public_calendar().id
+                from app.utils.multi_calendars import target_calendar_id_for_module_events
+                calendar_event.calendar_id = target_calendar_id_for_module_events()
             except Exception:
                 pass
 

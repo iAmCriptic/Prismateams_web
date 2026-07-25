@@ -197,7 +197,7 @@
     overflow-x: hidden;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
     .markdown-content,
     .text-content {
         font-size: 16px;

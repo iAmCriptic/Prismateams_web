@@ -150,12 +150,15 @@ window.INVENTORY_STATS_I18N = {
     }
 
     function chartTheme() {
-        const oled = document.documentElement.getAttribute('data-oled-mode') === 'true';
-        if (!oled) return {};
+        const root = document.documentElement;
+        const dark = root.getAttribute('data-bs-theme') === 'dark'
+            || root.getAttribute('data-oled-mode') === 'true';
+        if (!dark) return {};
+        const border = root.getAttribute('data-oled-mode') === 'true' ? '#1a1a1a' : '#2a2a2a';
         return {
             theme: { mode: 'dark' },
             chart: { foreColor: '#ffffff', background: 'transparent' },
-            grid: { borderColor: '#1a1a1a' },
+            grid: { borderColor: border },
             tooltip: { theme: 'dark' },
             legend: { labels: { colors: '#ffffff' } },
             dataLabels: { style: { colors: ['#ffffff'] } },

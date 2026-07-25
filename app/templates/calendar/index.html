@@ -18,13 +18,13 @@
 
 <div class="calendar-main flex-grow-1 min-width-0">
 {% if calendar_multi_enabled and sc %}
-<div class="calendar-mobile-topbar d-lg-none mb-2">
+<div class="mod-mobile-topbar calendar-mobile-topbar d-lg-none mb-2">
     <div class="d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex align-items-center min-width-0 gap-2">
-            <button type="button" class="btn btn-outline-secondary calendar-mobile-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#calendarMobileNav" aria-controls="calendarMobileNav" aria-label="{{ _('calendar.sidebar.menu') }}">
+            <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#calendarMobileNav" aria-controls="calendarMobileNav" aria-label="{{ _('calendar.sidebar.menu') }}">
                 <i class="bi bi-list"></i>
             </button>
-            <h1 class="h5 mb-0 text-truncate calendar-mobile-title">
+            <h1 class="h5 mb-0 text-truncate mod-mobile-title calendar-mobile-title">
                 <i class="bi bi-calendar-event" aria-hidden="true"></i>
                 <span>{{ _('calendar.index.heading') }}</span>
             </h1>
@@ -32,7 +32,7 @@
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
             {{ calendar_more_menu(align_end=true) }}
             {% if sc %}
-            <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn calendar-mobile-new-btn btn-sm">
+            <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn mod-new-btn btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
             </a>
             {% endif %}
@@ -43,16 +43,16 @@
     </div>
 </div>
 {% elif not calendar_multi_enabled %}
-<div class="calendar-mobile-topbar d-lg-none mb-2">
+<div class="mod-mobile-topbar calendar-mobile-topbar d-lg-none mb-2">
     <div class="d-flex justify-content-between align-items-center gap-2">
-        <h1 class="h5 mb-0 text-truncate calendar-mobile-title">
+        <h1 class="h5 mb-0 text-truncate mod-mobile-title calendar-mobile-title">
             <i class="bi bi-calendar-event" aria-hidden="true"></i>
             <span>{{ _('calendar.index.heading') }}</span>
         </h1>
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
             {{ calendar_more_menu(align_end=true) }}
             {% if can_create_focus %}
-            <a href="{{ url_for('calendar.create_event') }}" class="btn calendar-mobile-new-btn btn-sm">
+            <a href="{{ url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
             </a>
             {% endif %}
@@ -65,13 +65,9 @@
 {% endif %}
 
 <div class="row mb-3 page-toolbar-row align-items-center g-2 d-none d-lg-flex">
-    <div class="col-lg-3 min-width-0">
-        <h1 class="h4 mb-0 text-truncate calendar-desktop-title">{{ _('calendar.index.heading') }}</h1>
-    </div>
-    <div class="col-lg-6">
+    <div class="col-12">
         {{ calendar_search('') }}
     </div>
-    <div class="col-lg-3"></div>
 </div>
 
 <div class="row mb-3 page-toolbar-row align-items-start g-2 d-lg-none">
@@ -85,18 +81,19 @@
 <!-- Monatsansicht -->
 <div id="monthView" class="calendar-view" style="display: flex;">
     <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
-        <div class="col-auto">
-            <button type="button" class="btn calendar-nav-arrow" id="prevMonth" aria-label="{{ _('calendar.index.view_buttons.month') }}">
-                <i class="bi bi-chevron-left"></i>
-            </button>
-        </div>
-        <div class="col text-center">
-            <h3 id="currentMonth" class="mb-0"></h3>
+        <div class="col min-width-0">
+            <h3 id="currentMonth" class="mb-0 text-truncate"></h3>
         </div>
         <div class="col-auto">
-            <button type="button" class="btn calendar-nav-arrow" id="nextMonth" aria-label="{{ _('calendar.index.view_buttons.month') }}">
-                <i class="bi bi-chevron-right"></i>
-            </button>
+            <div class="calendar-nav-arrows" role="group">
+                <button type="button" class="btn calendar-nav-arrow" id="prevMonth" aria-label="prev">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button type="button" class="btn calendar-nav-today" id="todayMonthBtn">{{ _('calendar.index.month.today') }}</button>
+                <button type="button" class="btn calendar-nav-arrow" id="nextMonth" aria-label="next">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
         </div>
     </div>
     
@@ -115,16 +112,17 @@
 
 <!-- Terminübersicht -->
 <div id="listView" class="calendar-view" style="display: none;">
+    <h1 class="h4 mb-3 calendar-list-title">{{ _('calendar.index.heading') }}</h1>
     {% if events %}
     <div class="list-group">
         {% for event in events %}
         <div class="list-group-item list-group-item-action event-list-item"
-             style="border-left-color: {{ event.event_color or '#0d6efd' }};"
+             style="border-left-color: {{ display_color_for_event(event, current_user) }};"
              data-search-text="{{ ((event.title or '') ~ ' ' ~ (event.location or '') ~ ' ' ~ (event.description or ''))|lower|e }}">
             <div class="d-flex w-100 justify-content-between align-items-start">
                 <div class="flex-grow-1">
                     <h5 class="mb-1 d-flex align-items-center gap-2">
-                        <span style="display:inline-block;width:.8rem;height:.8rem;border-radius:50%;background: {{ event.event_color or '#0d6efd' }};"></span>
+                        <span style="display:inline-block;width:.8rem;height:.8rem;border-radius:50%;background: {{ display_color_for_event(event, current_user) }};"></span>
                         {{ event.title }}
                     </h5>
                     <p class="mb-1">
@@ -235,6 +233,29 @@ function isBannerEvent(event) {
     if (event.duration_days && event.duration_days > 1) return true;
     if (!event.time || event.time === 'Ganztägig') return true;
     return false;
+}
+
+function eventDisplayColor(event) {
+    return event.display_color || event.event_color || '#0d6efd';
+}
+
+/** Safe timed-event chip: never inject title/location via raw innerHTML. */
+function renderTimedEventContent(eventElement, event) {
+    const strong = document.createElement('strong');
+    strong.textContent = event.time || 'Ganztägig';
+    eventElement.appendChild(strong);
+    eventElement.appendChild(document.createElement('br'));
+    eventElement.appendChild(document.createTextNode(event.title || ''));
+    if (event.location) {
+        eventElement.appendChild(document.createElement('br'));
+        const small = document.createElement('small');
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-geo-alt';
+        icon.setAttribute('aria-hidden', 'true');
+        small.appendChild(icon);
+        small.appendChild(document.createTextNode(' ' + event.location));
+        eventElement.appendChild(small);
+    }
 }
 
 function getEventHour(event) {
@@ -798,7 +819,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eventElement.textContent = event.title;
         const timeText = event.time || 'Ganztägig';
         eventElement.title = `${event.title} - ${timeText}${event.location ? ' - ' + event.location : ''}`;
-        applyEventColors(eventElement, event.event_color, isMultiDay);
+        applyEventColors(eventElement, eventDisplayColor(event), isMultiDay);
         
         // Make event clickable
         eventElement.style.cursor = 'pointer';
@@ -817,6 +838,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('nextMonth').addEventListener('click', function() {
         currentDate.setMonth(currentDate.getMonth() + 1);
+        updateCalendar();
+    });
+
+    document.getElementById('todayMonthBtn').addEventListener('click', function() {
+        currentDate = new Date();
         updateCalendar();
     });
     
@@ -945,13 +971,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (timeSlot) {
                         const eventElement = document.createElement('div');
                         eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
-                        const eventColor = event.event_color || '#0d6efd';
-                        const timeText = event.time || 'Ganztägig';
-                        eventElement.innerHTML = `
-                            <strong>${timeText}</strong><br>
-                            ${event.title}
-                            ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
-                        `;
+                        const eventColor = eventDisplayColor(event);
+                        renderTimedEventContent(eventElement, event);
                         eventElement.title = formatTooltip(event);
                         applyEventColors(eventElement, eventColor, false);
                         eventElement.onclick = () => window.location.href = event.url;
@@ -980,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     : event.title;
                                 eventElement.textContent = titleText;
                                 eventElement.title = formatTooltip(event);
-                                applyEventColors(eventElement, event.event_color, !!(event.duration_days && event.duration_days > 1));
+                                applyEventColors(eventElement, eventDisplayColor(event), !!(event.duration_days && event.duration_days > 1));
                                 eventElement.onclick = () => window.location.href = event.url;
                                 multiDaySlot.appendChild(eventElement);
                             }
@@ -1063,7 +1084,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
                     eventElement.textContent = titleText;
                     eventElement.title = formatTooltip(event);
-                    applyEventColors(eventElement, event.event_color, !!(event.duration_days && event.duration_days > 1));
+                    applyEventColors(eventElement, eventDisplayColor(event), !!(event.duration_days && event.duration_days > 1));
                     eventElement.onclick = () => window.location.href = event.url;
                     if (multiDaySlot) {
                         multiDaySlot.appendChild(eventElement);
@@ -1077,14 +1098,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (timeSlot) {
                         const eventElement = document.createElement('div');
                         eventElement.className = `calendar-event ${event.participation_status || 'pending'}`;
-                        const eventColor = event.event_color || '#0d6efd';
-                        
-                        const timeText = event.time || 'Ganztägig';
-                        eventElement.innerHTML = `
-                            <strong>${timeText}</strong><br>
-                            ${event.title}
-                            ${event.location ? `<br><small><i class="bi bi-geo-alt"></i> ${event.location}</small>` : ''}
-                        `;
+                        const eventColor = eventDisplayColor(event);
+                        renderTimedEventContent(eventElement, event);
                         eventElement.title = formatTooltip(event);
                         applyEventColors(eventElement, eventColor, false);
                         eventElement.onclick = () => window.location.href = event.url;
@@ -1324,7 +1339,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const dot = document.createElement('span');
             dot.className = 'calendar-search-result-dot';
-            dot.style.background = event.event_color || '#0d6efd';
+            dot.style.background = eventDisplayColor(event);
             link.appendChild(dot);
 
             const body = document.createElement('span');

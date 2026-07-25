@@ -490,32 +490,32 @@ def show_confirmation_codes():
     return redirect(url_for('settings.admin_users') + '#confirmation-codes')
 
 
-@auth_bp.route('/admin/test-email', methods=['GET', 'POST'])
+@auth_bp.route('/admin/test-email', methods=['POST'])
 @login_required
 def test_email():
-    """Testet die E-Mail-Konfiguration (Admin only)."""
+    """Testet die E-Mail-Konfiguration (Admin only, POST-only — kein GET-Side-Effect)."""
     if not current_user.is_admin:
         flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
     
     from flask import current_app
     from app.utils.email_sender import send_smtp_test_email
-    
+
+    mail_server = current_app.config.get('MAIL_SERVER')
+    mail_username = current_app.config.get('MAIL_USERNAME')
+    mail_password = current_app.config.get('MAIL_PASSWORD')
+    mail_port = current_app.config.get('MAIL_PORT', 587)
+    mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
+
+    config_info = {
+        'MAIL_SERVER': mail_server,
+        'MAIL_USERNAME': mail_username,
+        'MAIL_PASSWORD': '***' if mail_password else None,
+        'MAIL_PORT': mail_port,
+        'MAIL_USE_TLS': mail_use_tls
+    }
+
     try:
-        mail_server = current_app.config.get('MAIL_SERVER')
-        mail_username = current_app.config.get('MAIL_USERNAME')
-        mail_password = current_app.config.get('MAIL_PASSWORD')
-        mail_port = current_app.config.get('MAIL_PORT', 587)
-        mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
-        
-        config_info = {
-            'MAIL_SERVER': mail_server,
-            'MAIL_USERNAME': mail_username,
-            'MAIL_PASSWORD': '***' if mail_password else None,
-            'MAIL_PORT': mail_port,
-            'MAIL_USE_TLS': mail_use_tls
-        }
-        
         send_smtp_test_email(current_user.email)
         
         flash(translate('auth.flash.test_email_sent'), 'success')

@@ -126,9 +126,11 @@ MAIL_DEFAULT_SENDER=ihre-email@gmail.com</code></pre>
             {% endif %}
             
             <div class="mt-4">
-                <a href="{{ url_for('auth.test_email') }}" class="btn btn-primary">
-                    <i class="bi bi-arrow-clockwise me-2"></i>Test erneut ausführen
-                </a>
+                <form method="post" action="{{ url_for('auth.test_email') }}" class="d-inline">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Test erneut ausführen
+                    </button>
+                </form>
                 <a href="{{ url_for('auth.show_confirmation_codes') }}" class="btn btn-outline-primary">
                     <i class="bi bi-key me-2"></i>Bestätigungscodes anzeigen
                 </a>

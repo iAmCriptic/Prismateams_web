@@ -88,9 +88,9 @@
 </div>
 {% endmacro %}
 
-{% macro assessment_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+{% macro assessment_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
 {% set sections = assessment_sections|default([]) %}
-{% if 'evaluate' in sections or 'print_blank' in sections %}
+{% if include_new and ('evaluate' in sections or 'print_blank' in sections) %}
 <div class="mod-sidebar-new-wrap w-100">
     {% if 'evaluate' in sections %}
     <a href="{{ url_for('assessment.evaluations.evaluate_page') }}" class="btn mod-sidebar-new w-100 text-start"{{ assessment_nav_attr(dismiss_offcanvas) }}>

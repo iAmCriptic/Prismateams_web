@@ -30,7 +30,7 @@ import re
 
 from app.utils.email_sender import get_logo_base64, get_logo_data, send_email_with_lock
 from app.utils.lock_manager import acquire_email_sync_lock
-from app.utils.common import format_datetime, now_in_portal_timezone
+from app.utils.common import format_datetime
 
 email_bp = Blueprint('email', __name__)
 
@@ -53,42 +53,18 @@ def html_to_plain_text(html_content: str) -> str:
 
 
 def build_footer_html():
-    footer_template = SystemSettings.query.filter_by(key='email_footer_template').first()
-    portal_name = get_portal_display_name()
+    """Footer für ausgehende Mails im E-Mail-Modul (Admin-Template + Absenderzeile)."""
+    from app.utils.email_sender import build_email_footer_html
 
-    if footer_template and footer_template.value:
-        now = now_in_portal_timezone()
-        date_part = now.strftime('%d.%m.%Y')
-        time_part = now.strftime('%H:%M')
-        footer_html = footer_template.value
-        replacements = {
-            '<user>': current_user.full_name or '',
-            '<email>': current_user.email or '',
-            '<app_name>': portal_name,
-            '<date>': date_part,
-            '<time>': time_part
-        }
-        for placeholder, value in replacements.items():
-            footer_html = footer_html.replace(placeholder, value)
-        
-        paragraphs = re.split(r'\n\n+', footer_html)
-        formatted_paragraphs = []
-        for para in paragraphs:
-            if para.strip():
-                para_with_br = para.strip().replace('\n', '<br>')
-                formatted_paragraphs.append(f'<p>{para_with_br}</p>')
-        
-        footer_html = ''.join(formatted_paragraphs) if formatted_paragraphs else footer_html
-        return footer_html
-
-    footer_text_setting = SystemSettings.query.filter_by(key='email_footer_text').first()
-
-    lines = []
-    if footer_text_setting and footer_text_setting.value:
-        lines.append(footer_text_setting.value)
-    lines.append(f"Gesendet von {current_user.full_name}")
-
-    return ''.join(f'<p>{line}</p>' for line in lines if line and line.strip())
+    html = build_email_footer_html(
+        user=current_user,
+        app_name=get_portal_display_name(),
+        sender_line=True,
+    )
+    if html:
+        return html
+    display = (current_user.full_name or '').strip() or (current_user.email or '')
+    return f'<p>Gesendet von {display}</p>' if display else ''
 
 
 def backfill_inline_attachments_from_imap(email_msg) -> bool:

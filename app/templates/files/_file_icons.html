@@ -39,8 +39,7 @@
 
 {% macro file_type_icon(filename, size='sm', extra_class='') %}
 {%- set ext = _file_ext(filename)|trim -%}
-{%- set me = '' if size == 'lg' else 'me-2' -%}
-{%- set cls = (me ~ ' ' ~ (extra_class or ''))|trim -%}
+{%- set cls = (extra_class or '')|trim -%}
 {%- if ext in ['.docx', '.doc', '.odt', '.rtf'] -%}
 {{ _asset_or_bi('img/docx.png', 'Word', 'bi-file-earmark-word text-primary', size, cls) }}
 {%- elif ext in ['.xlsx', '.xls', '.ods', '.csv'] -%}

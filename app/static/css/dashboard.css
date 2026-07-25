@@ -1040,6 +1040,27 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     transform: none;
 }
 
+[data-bs-theme="dark"] .whats-new-modal,
+[data-bs-theme="dark"] .whats-new-tile,
+[data-bs-theme="dark"] .whats-new-feature,
+[data-bs-theme="dark"] .whats-new-feature-list li,
+[data-bs-theme="dark"] .whats-new-welcome-highlights li {
+    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, #fff 6%);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color, #e9ecef);
+}
+
+[data-bs-theme="dark"] .whats-new-tile:hover,
+[data-bs-theme="dark"] .whats-new-tile:focus {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 10%, var(--bs-body-bg, #1a1a1a));
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-bs-theme="dark"] .whats-new-modal .modal-header,
+[data-bs-theme="dark"] .whats-new-modal .modal-footer {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
 [data-oled-mode="true"] .whats-new-modal,
 [data-oled-mode="true"] .whats-new-tile,
 [data-oled-mode="true"] .whats-new-feature,
@@ -1323,6 +1344,13 @@ body:has(.dashboard-edit-page) .back-button:hover {
 .contact-results .list-group-item {
     border-left: none;
     border-right: none;
+}
+
+[data-bs-theme="dark"] .dashboard-edit-panel,
+[data-bs-theme="dark"] .dashboard-edit-instance {
+    background: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 90%, #fff 5%);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--bs-body-color, #e9ecef);
 }
 
 [data-oled-mode="true"] .dashboard-edit-panel,

@@ -104,12 +104,14 @@
 </nav>
 {% endmacro %}
 
-{% macro wiki_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+{% macro wiki_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
+{% if include_new %}
 <div class="mod-sidebar-new-wrap w-100">
     <a href="{{ url_for('wiki.create') }}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-wiki-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-plus-lg me-2"></i>{{ _('wiki.index.new_button') }}
     </a>
 </div>
+{% endif %}
 {{ wiki_folder_nav(dismiss_offcanvas) }}
 {{ wiki_sidebar_tools(id_suffix) }}
 {% endmacro %}

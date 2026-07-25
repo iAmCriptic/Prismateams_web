@@ -33,6 +33,32 @@ DEFAULT_DGUV_INTERVAL_MONTHS = 12
 CART_SET_META_KEY = 'borrow_cart_set_meta'
 
 
+def _flash_checkout_receipt_email(checkout):
+    """Warnung wenn Ausleihe ok, Ausleihschein-Mail aber fehlgeschlagen."""
+    if not getattr(checkout, 'receipt_email_sent', True):
+        flash(_('inventory.flash.borrow_registered_no_email'), 'warning')
+
+
+def _return_email_ok(returned_or_checkout) -> bool:
+    if returned_or_checkout is None:
+        return True
+    if hasattr(returned_or_checkout, 'return_email_sent'):
+        return bool(getattr(returned_or_checkout, 'return_email_sent', True))
+    if isinstance(returned_or_checkout, (list, tuple)):
+        if not returned_or_checkout:
+            return True
+        return all(getattr(i, 'return_email_sent', True) for i in returned_or_checkout)
+    return True
+
+
+def _flash_return_email(returned_or_checkout):
+    """Erfolg inkl. Mail-Hinweis, oder Warnung wenn Bestätigungs-Mail fehlschlug."""
+    if _return_email_ok(returned_or_checkout):
+        flash(_('inventory.flash.return_success'), 'success')
+    else:
+        flash(_('inventory.flash.return_registered_no_email'), 'warning')
+
+
 def _serialize_set_members(product_set):
     """Set-Mitglieder für Badge/Dropdown-UI."""
     members = []
@@ -261,16 +287,18 @@ def get_product_folders():
     return ProductFolder.query.order_by(ProductFolder.name).all()
 
 
-def check_borrow_permission():
-    """Prüft ob der aktuelle User ausleihen darf."""
-    if not current_user.is_authenticated:
-        return False
+def check_borrow_permission(user=None):
+    """Prüft ob der User ausleihen darf (Session-User oder API-Token-User)."""
+    if user is None:
+        if not current_user.is_authenticated:
+            return False
+        user = current_user
     # Gast-Accounts können nicht ausleihen
-    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+    if hasattr(user, 'is_guest') and user.is_guest:
         return False
-    if current_user.is_admin:
+    if getattr(user, 'is_admin', False):
         return True
-    return current_user.can_borrow
+    return bool(getattr(user, 'can_borrow', False))
 
 
 def generate_transaction_number():
@@ -858,12 +886,12 @@ def return_complete_borrow():
         return redirect(url_for('inventory.dashboard'))
 
     try:
-        return_checkout_by_ref(borrow_ref)
+        checkout = return_checkout_by_ref(borrow_ref)
     except ValueError:
         flash(_('inventory.flash.no_active_borrow'), 'danger')
         return redirect(url_for('inventory.dashboard'))
 
-    flash(_('inventory.flash.return_success'), 'success')
+    _flash_return_email(checkout)
     return redirect(url_for('inventory.dashboard'))
 
 
@@ -912,6 +940,7 @@ def borrow_scanner():
                                 'checkout_number': checkout.checkout_number,
                                 'returned_count': len(checkout.returned_items),
                                 'status': checkout.status,
+                                'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
                             })
                         except ValueError as exc:
                             return jsonify({'error': str(exc), 'is_return': True}), 400
@@ -931,6 +960,7 @@ def borrow_scanner():
                             'checkout_number': checkout.checkout_number,
                             'returned_count': len([i for i in checkout.items if i.returned_at]),
                             'status': checkout.status,
+                            'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
                         })
                     except ValueError as exc:
                         return jsonify({'error': str(exc), 'is_return': True}), 400
@@ -1148,6 +1178,7 @@ def borrow_scanner_checkout():
     session.pop('borrow_cart', None)
     _clear_all_cart_set_meta()
     flash(_('inventory.flash.borrow_success', count=len(checkout.items)), 'success')
+    _flash_checkout_receipt_email(checkout)
     return redirect(url_for('inventory.borrows'))
 
 
@@ -1287,6 +1318,7 @@ def inventory_checkout_confirm():
     session.pop('borrow_cart', None)
     _clear_all_cart_set_meta()
     flash(_('inventory.flash.borrow_success', count=len(checkout.items)), 'success')
+    _flash_checkout_receipt_email(checkout)
     return redirect(url_for('inventory.borrows'))
 
 
@@ -2839,6 +2871,7 @@ def api_borrow():
         'transaction_number': checkout.checkout_number,
         'borrow_group_id': checkout.checkout_number,
         'qr_code_data': checkout.qr_code_data,
+        'receipt_email_sent': bool(getattr(checkout, 'receipt_email_sent', False)),
         'checkout': serialize_checkout(checkout),
     }), 201
 
@@ -2983,19 +3016,36 @@ def api_return():
     try:
         if item_ids:
             returned = return_checkout_items(item_ids, mark_defective=mark_defective)
-            return jsonify({'success': True, 'returned_count': len(returned)})
+            return jsonify({
+                'success': True,
+                'returned_count': len(returned),
+                'return_email_sent': _return_email_ok(returned),
+            })
         if transaction_id:
             returned = return_checkout_items([int(transaction_id)], mark_defective=mark_defective)
-            return jsonify({'success': True, 'returned_count': len(returned)})
+            return jsonify({
+                'success': True,
+                'returned_count': len(returned),
+                'return_email_sent': _return_email_ok(returned),
+            })
         if product_id:
             item = find_active_checkout_item_for_product(int(product_id))
             if not item:
                 return jsonify({'error': translate('inventory.errors.no_active_borrow')}), 404
             returned = return_checkout_items([item.id], mark_defective=mark_defective)
-            return jsonify({'success': True, 'returned_count': len(returned)})
+            return jsonify({
+                'success': True,
+                'returned_count': len(returned),
+                'return_email_sent': _return_email_ok(returned),
+            })
         if checkout_ref:
             checkout = return_checkout_by_ref(str(checkout_ref))
-            return jsonify({'success': True, 'checkout_id': checkout.id, 'status': checkout.status})
+            return jsonify({
+                'success': True,
+                'checkout_id': checkout.id,
+                'status': checkout.status,
+                'return_email_sent': bool(getattr(checkout, 'return_email_sent', True)),
+            })
     except ValueError as exc:
         return jsonify({'error': str(exc)}), 400
 
@@ -4066,6 +4116,9 @@ def api_mobile_borrow():
     user = verify_api_token()
     if not user:
         return jsonify({'error': translate('inventory.errors.invalid_or_expired_token')}), 401
+
+    if not check_borrow_permission(user):
+        return jsonify({'error': translate('inventory.errors.no_borrow_permission')}), 403
     
     data = request.get_json() or {}
     product_id = data.get('product_id')
@@ -4106,6 +4159,7 @@ def api_mobile_borrow():
         'transaction_id': checkout.id,
         'checkout_id': checkout.id,
         'transaction_number': checkout.checkout_number,
+        'receipt_email_sent': bool(getattr(checkout, 'receipt_email_sent', False)),
     })
 
 
@@ -4151,6 +4205,7 @@ def api_mobile_return():
         'message': 'Rückgabe erfolgreich registriert.',
         'returned_count': len(returned),
         'transaction_id': returned[0].id if returned else None,
+        'return_email_sent': _return_email_ok(returned),
     })
 
 

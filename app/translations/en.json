@@ -1313,7 +1313,7 @@
         },
         "file_settings": {
           "title": "File Settings",
-          "description": "Enable or disable mailboxes, shares and private folders"
+          "description": "Mailboxes, shares, private folders and storage limits"
         },
         "calendar_settings": {
           "title": "Calendar Settings",
@@ -1364,7 +1364,7 @@
         "page_title": "File Settings - Administration",
         "breadcrumb_file_settings": "File Settings",
         "heading": "File Settings",
-        "subtitle": "Control mailboxes, shares and private folders for the files module.",
+        "subtitle": "Control mailboxes, shares, private folders, and storage limits for the files module.",
         "section_title": "File Functions",
         "dropbox_label": "Enable Mailboxes",
         "dropbox_help": "Allows creating mailboxes (upload-only folders) for bookings and other purposes.",
@@ -1372,9 +1372,38 @@
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
         "private_folders_label": "Enable private folders",
         "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
+        "storage_section_title": "Storage & Limits",
+        "max_file_label": "Maximum file size",
+        "max_file_help": "Applies to all uploads. Exception rules can override this per user.",
+        "quota_enabled_label": "Enable storage quotas",
+        "quota_enabled_help": "When enabled, each user gets a storage quota (public and private folders). Usage is shown in the files sidebar.",
+        "quota_label": "Default quota per user",
+        "exceptions_section_title": "Exceptions",
+        "exceptions_help": "Assign different file size limits or quotas to individual users.",
+        "exceptions_empty": "No exceptions configured.",
+        "exception_add_title": "Add exception",
+        "exception_user": "User",
+        "exception_user_placeholder": "Select user…",
+        "exception_user_search": "Search users (name or email)…",
+        "exception_user_empty": "No users found.",
+        "exception_users_none": "No more users available.",
+        "exception_custom_max_file": "Custom file size limit",
+        "exception_custom_quota": "Custom storage quota",
+        "exception_add_button": "Add exception",
+        "exception_delete": "Remove exception",
+        "exception_max_file": "File limit",
+        "exception_max_file_default": "File limit: default",
+        "exception_quota": "Quota",
+        "exception_quota_default": "Quota: default",
         "save_button": "Save",
         "flash_updated": "File settings have been updated.",
-        "flash_unauthorized": "Only administrators have access to this page."
+        "flash_unauthorized": "Only administrators have access to this page.",
+        "flash_invalid_size": "Please enter a valid size.",
+        "flash_exception_added": "Exception has been added.",
+        "flash_exception_deleted": "Exception has been removed.",
+        "flash_exception_exists": "An exception already exists for this user.",
+        "flash_exception_user_invalid": "Please select a valid user.",
+        "flash_exception_empty": "Set at least a file limit or quota for the exception."
       },
       "calendar_settings": {
         "page_title": "Calendar Settings - Administration",
@@ -1941,6 +1970,12 @@
         "add": "Add to favorites",
         "remove": "Remove from favorites",
         "limit": "Maximum 10 favorites."
+      },
+      "storage": {
+        "title": "Storage",
+        "usage": "{used} / {quota} ({percent}%)",
+        "file_limit": "File size limit: {limit}",
+        "warning": "Storage almost full"
       },
       "list": {
         "name": "Name",
@@ -2640,6 +2675,9 @@
         "today": "Today",
         "range_separator": " - "
       },
+      "month": {
+        "today": "Today"
+      },
       "day": {
         "title": "Day",
         "today": "Today"
@@ -2732,6 +2770,7 @@
       "time_label": "Time",
       "time_suffix": "",
       "location_label": "Location",
+      "calendar_label": "Calendar",
       "recurrence_label": "Recurring event:",
       "recurrence_types": {
         "daily": "Daily",
@@ -2809,6 +2848,8 @@
       "sync_added": "Calendar sync added.",
       "sync_added_with_error": "Calendar sync created, but the first fetch failed:",
       "sync_deleted": "Calendar sync and related events have been deleted.",
+      "sync_updated": "Imported calendar was updated.",
+      "sync_edit_denied": "You do not have permission to edit this sync.",
       "no_create_permission": "You cannot create events in this calendar.",
       "no_edit_permission": "You do not have permission to edit this event.",
       "export_disabled": "Calendar export is disabled.",
@@ -2828,6 +2869,7 @@
       "reset": "Reset",
       "my_calendar": "My calendar",
       "public": "Public",
+      "events": "Events",
       "search": "Search people…",
       "others": "Other calendars",
       "delete_import": "Delete",
@@ -2882,6 +2924,9 @@
       "sync_now": "Sync now",
       "sync_delete": "Delete",
       "sync_delete_confirm": "Really delete this sync and all related events?",
+      "sync_edit": "Edit",
+      "sync_save": "Save",
+      "sync_color": "Color",
       "sync_empty": "No sync links yet. Any user can add one — visible to everyone."
     },
     "back_to_calendar": "Back"
@@ -4028,6 +4073,7 @@
       "borrow_registered": "Loan registered successfully. Transaction number: {transaction_number}",
       "no_active_borrow": "No active loan found. Please check your input.",
       "return_success": "Return registered successfully. A confirmation email has been sent.",
+      "return_registered_no_email": "The return was registered, but the confirmation email could not be sent. Please contact the administrator.",
       "no_products_to_borrow": "No products selected for borrowing.",
       "inventory_active_exists": "An active inventory already exists. Please close it first.",
       "inventory_started": "Inventory \"{name}\" has been started.",

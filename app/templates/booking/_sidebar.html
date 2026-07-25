@@ -51,12 +51,14 @@
 </div>
 {% endmacro %}
 
-{% macro booking_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+{% macro booking_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
 {% set public_url = url_for('booking.public_booking', _external=True) %}
+{% if include_new %}
 <div class="mod-sidebar-new-wrap w-100">
     <a href="{{ public_url }}" class="btn mod-sidebar-new w-100 text-start" target="_blank" rel="noopener"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-globe2 me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.public_link') }}
     </a>
 </div>
+{% endif %}
 {{ booking_sidebar_nav(dismiss_offcanvas) }}
 {% endmacro %}

@@ -9,6 +9,7 @@ import re
 from app import db
 from app.models.inventory import Checkout, CheckoutItem, Product
 from app.utils.qr_code import generate_borrow_qr_code
+from app.utils.common import portal_now_naive
 import secrets
 import string
 
@@ -18,7 +19,7 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def generate_checkout_number() -> str:
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    timestamp = portal_now_naive().strftime("%Y%m%d%H%M%S")
     random_part = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
     return f"CHK-{timestamp}-{random_part}"
 
@@ -60,6 +61,21 @@ def create_checkout(
     if not product_ids:
         raise ValueError("no_products")
 
+    # Deduplicate IDs (preserve order) to avoid double CheckoutItems / double status flips
+    seen_ids: set[int] = set()
+    unique_ids: list[int] = []
+    for raw_pid in product_ids:
+        try:
+            pid = int(raw_pid)
+        except (TypeError, ValueError):
+            continue
+        if pid in seen_ids:
+            continue
+        seen_ids.add(pid)
+        unique_ids.append(pid)
+    if not unique_ids:
+        raise ValueError("no_products")
+
     if not borrower_id:
         if not contact_email:
             raise ValueError("contact_email_required")
@@ -69,7 +85,7 @@ def create_checkout(
         # Portal-User: E-Mail optional speichern, aber nicht erzwingen
         contact_email = contact_email
 
-    start_dt = _as_datetime(start_date) if start_date else datetime.utcnow()
+    start_dt = _as_datetime(start_date) if start_date else portal_now_naive()
     if end_date:
         end_dt = _as_datetime(end_date)
     elif require_end_date:
@@ -80,10 +96,16 @@ def create_checkout(
     if end_dt < start_dt:
         raise ValueError("end_before_start")
 
-    products = Product.query.filter(Product.id.in_(list(product_ids))).all()
+    # Row-lock products (ordered by id → fewer deadlocks) before availability check
+    products = (
+        Product.query.filter(Product.id.in_(unique_ids))
+        .order_by(Product.id.asc())
+        .with_for_update()
+        .all()
+    )
     by_id = {p.id: p for p in products}
     available = []
-    for pid in product_ids:
+    for pid in unique_ids:
         product = by_id.get(pid)
         if not product:
             continue
@@ -135,12 +157,15 @@ def create_checkout(
     checkout.refresh_status()
     db.session.commit()
 
+    receipt_email_sent = False
     try:
         from app.utils.email_sender import send_borrow_receipt_email
-        send_borrow_receipt_email(checkout)
+        receipt_email_sent = bool(send_borrow_receipt_email(checkout))
     except Exception as email_err:
         import logging
         logging.error(f"Borrow receipt email failed for {checkout.checkout_number}: {email_err}")
+        receipt_email_sent = False
+    checkout.receipt_email_sent = receipt_email_sent
 
     return checkout
 
@@ -155,7 +180,7 @@ def return_checkout_items(
     if not items:
         raise ValueError("no_items")
 
-    now = datetime.utcnow()
+    now = portal_now_naive()
     checkouts = {}
     returned = []
     for item in items:
@@ -178,6 +203,7 @@ def return_checkout_items(
 
     db.session.commit()
 
+    return_email_sent = True
     if returned:
         try:
             from app.utils.email_sender import send_return_confirmation_email
@@ -189,10 +215,18 @@ def return_checkout_items(
             for checkout_id, items in by_checkout.items():
                 checkout = checkouts.get(checkout_id) or items[0].checkout
                 if checkout:
-                    send_return_confirmation_email(checkout, returned_items=items)
+                    if not send_return_confirmation_email(checkout, returned_items=items):
+                        return_email_sent = False
         except Exception as email_err:
             import logging
             logging.error(f"Return confirmation email failed: {email_err}")
+            return_email_sent = False
+
+    for item in returned:
+        item.return_email_sent = return_email_sent
+    for checkout in checkouts.values():
+        if checkout:
+            checkout.return_email_sent = return_email_sent
 
     return returned
 
@@ -210,8 +244,11 @@ def return_checkout_by_ref(ref: str, item_ids: Optional[Sequence[int]] = None) -
     if not targets:
         raise ValueError("no_active_items")
 
-    return_checkout_items([i.id for i in targets])
+    returned = return_checkout_items([i.id for i in targets])
     db.session.refresh(checkout)
+    checkout.return_email_sent = (
+        getattr(returned[0], "return_email_sent", True) if returned else True
+    )
     return checkout
 
 

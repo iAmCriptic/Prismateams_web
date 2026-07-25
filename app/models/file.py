@@ -56,7 +56,7 @@ class File(db.Model):
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
-    file_size = db.Column(db.Integer, nullable=False)
+    file_size = db.Column(db.BigInteger, nullable=False)
     mime_type = db.Column(db.String(100), nullable=True)
     version_number = db.Column(db.Integer, default=1, nullable=False)
     is_current = db.Column(db.Boolean, default=True, nullable=False)
@@ -95,7 +95,7 @@ class FileVersion(db.Model):
     file_id = db.Column(db.Integer, db.ForeignKey('files.id'), nullable=False)
     version_number = db.Column(db.Integer, nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
-    file_size = db.Column(db.Integer, nullable=False)
+    file_size = db.Column(db.BigInteger, nullable=False)
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
@@ -103,6 +103,23 @@ class FileVersion(db.Model):
     
     def __repr__(self):
         return f'<FileVersion {self.file_id} v{self.version_number}>'
+
+
+class FileStorageException(db.Model):
+    """Per-user overrides for max file size and/or storage quota."""
+    __tablename__ = 'file_storage_exceptions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    max_file_size_bytes = db.Column(db.BigInteger, nullable=True)
+    quota_bytes = db.Column(db.BigInteger, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+    def __repr__(self):
+        return f'<FileStorageException user={self.user_id}>'
 
 
 class ResourceACL(db.Model):

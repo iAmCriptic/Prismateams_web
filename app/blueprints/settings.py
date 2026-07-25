@@ -1711,48 +1711,178 @@ def admin_file_settings():
     if not current_user.is_admin:
         flash(translate('settings.admin.file_settings.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
-    
+
+    from app.models.file import FileStorageException
+    from app.utils.file_storage_limits import (
+        SETTING_MAX_FILE,
+        SETTING_QUOTA_BYTES,
+        SETTING_QUOTA_ENABLED,
+        bytes_from_value_unit,
+        format_bytes_de,
+        get_default_quota,
+        get_global_max_file_size,
+        is_quota_enabled,
+        split_bytes_for_ui,
+        sync_flask_max_content_length,
+    )
+
+    def _upsert_text(key: str, value: str, description: str | None = None):
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+        else:
+            db.session.add(SystemSettings(key=key, value=value, description=description))
+
     if request.method == 'POST':
+        action = (request.form.get('storage_action') or 'save').strip().lower()
+
+        if action == 'delete_exception':
+            exc_id = request.form.get('exception_id', type=int)
+            row = FileStorageException.query.get(exc_id) if exc_id else None
+            if row:
+                db.session.delete(row)
+                db.session.commit()
+                try:
+                    sync_flask_max_content_length(current_app._get_current_object())
+                except Exception:
+                    pass
+                flash(translate('settings.admin.file_settings.flash_exception_deleted'), 'success')
+            return _settings_redirect('settings.admin_file_settings')
+
+        if action == 'add_exception':
+            user_id = request.form.get('exception_user_id', type=int)
+            user = User.query.filter_by(id=user_id, is_active=True).first() if user_id else None
+            if not user or user.is_guest:
+                flash(translate('settings.admin.file_settings.flash_exception_user_invalid'), 'danger')
+                return _settings_redirect('settings.admin_file_settings')
+            if FileStorageException.query.filter_by(user_id=user.id).first():
+                flash(translate('settings.admin.file_settings.flash_exception_exists'), 'warning')
+                return _settings_redirect('settings.admin_file_settings')
+
+            max_override = None
+            if request.form.get('exception_max_file_custom') == 'on':
+                max_override = bytes_from_value_unit(
+                    request.form.get('exception_max_file_value', '100'),
+                    request.form.get('exception_max_file_unit', 'MB'),
+                )
+                if max_override < 1:
+                    flash(translate('settings.admin.file_settings.flash_invalid_size'), 'danger')
+                    return _settings_redirect('settings.admin_file_settings')
+
+            quota_override = None
+            if request.form.get('exception_quota_custom') == 'on':
+                quota_override = bytes_from_value_unit(
+                    request.form.get('exception_quota_value', '15'),
+                    request.form.get('exception_quota_unit', 'GB'),
+                )
+
+            if max_override is None and quota_override is None:
+                flash(translate('settings.admin.file_settings.flash_exception_empty'), 'warning')
+                return _settings_redirect('settings.admin_file_settings')
+
+            db.session.add(FileStorageException(
+                user_id=user.id,
+                max_file_size_bytes=max_override,
+                quota_bytes=quota_override,
+            ))
+            db.session.commit()
+            try:
+                sync_flask_max_content_length(current_app._get_current_object())
+            except Exception:
+                pass
+            flash(translate('settings.admin.file_settings.flash_exception_added'), 'success')
+            return _settings_redirect('settings.admin_file_settings')
+
         # Feature Flags: Dateien
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
         private_folders_enabled = request.form.get('files_private_folders_enabled') == 'on'
+        _upsert_text('files_dropbox_enabled', str(dropbox_enabled))
+        _upsert_text('files_sharing_enabled', str(sharing_enabled))
+        _upsert_text('files_private_folders_enabled', str(private_folders_enabled))
 
-        dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
-        if dropbox_setting:
-            dropbox_setting.value = str(dropbox_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_dropbox_enabled', value=str(dropbox_enabled)))
+        max_file_bytes = bytes_from_value_unit(
+            request.form.get('files_max_file_value', '100'),
+            request.form.get('files_max_file_unit', 'MB'),
+        )
+        if max_file_bytes < 1:
+            flash(translate('settings.admin.file_settings.flash_invalid_size'), 'danger')
+            return _settings_redirect('settings.admin_file_settings')
 
-        sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
-        if sharing_setting:
-            sharing_setting.value = str(sharing_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_sharing_enabled', value=str(sharing_enabled)))
+        quota_enabled = request.form.get('files_storage_quota_enabled') == 'on'
+        quota_bytes = bytes_from_value_unit(
+            request.form.get('files_quota_value', '15'),
+            request.form.get('files_quota_unit', 'GB'),
+        )
 
-        private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
-        if private_setting:
-            private_setting.value = str(private_folders_enabled)
-        else:
-            db.session.add(SystemSettings(key='files_private_folders_enabled', value=str(private_folders_enabled)))
+        _upsert_text(SETTING_MAX_FILE, str(max_file_bytes), 'Maximale Dateigroesse in Bytes (global)')
+        _upsert_text(SETTING_QUOTA_ENABLED, str(quota_enabled).lower(), 'Speicherkontingente aktiv')
+        _upsert_text(SETTING_QUOTA_BYTES, str(max(0, quota_bytes)), 'Standard-Speicherkontingent pro Nutzer')
 
         db.session.commit()
+        try:
+            sync_flask_max_content_length(current_app._get_current_object())
+        except Exception as sync_err:
+            current_app.logger.warning('MAX_CONTENT_LENGTH sync failed: %s', sync_err)
+
         flash(translate('settings.admin.file_settings.flash_updated'), 'success')
         return _settings_redirect('settings.admin_file_settings')
-    
-    # Get current settings
+
+    # GET
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
-    
+
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
     files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
-    
-    return render_template('settings/admin_file_settings.html', 
-                           files_dropbox_enabled=files_dropbox_enabled, 
-                           files_sharing_enabled=files_sharing_enabled,
-                           files_private_folders_enabled=files_private_folders_enabled)
+
+    max_file_value, max_file_unit = split_bytes_for_ui(get_global_max_file_size())
+    quota_value, quota_unit = split_bytes_for_ui(get_default_quota())
+    quota_enabled = is_quota_enabled()
+
+    exceptions = (
+        FileStorageException.query
+        .order_by(FileStorageException.id.desc())
+        .all()
+    )
+    exception_user_ids = {e.user_id for e in exceptions}
+    users_q = User.query.filter(User.is_active.is_(True), User.is_guest.is_(False))
+    if exception_user_ids:
+        users_q = users_q.filter(~User.id.in_(exception_user_ids))
+    users_for_exceptions = users_q.order_by(User.last_name.asc(), User.first_name.asc()).all()
+
+    exception_rows = []
+    for exc in exceptions:
+        u = exc.user
+        name = ''
+        if u:
+            name = f'{u.first_name or ""} {u.last_name or ""}'.strip() or (u.email or f'#{u.id}')
+        else:
+            name = f'#{exc.user_id}'
+        exception_rows.append({
+            'id': exc.id,
+            'user_id': exc.user_id,
+            'name': name,
+            'email': getattr(u, 'email', '') or '',
+            'max_file_label': format_bytes_de(exc.max_file_size_bytes) if exc.max_file_size_bytes else None,
+            'quota_label': format_bytes_de(exc.quota_bytes) if exc.quota_bytes is not None else None,
+        })
+
+    return render_template(
+        'settings/admin_file_settings.html',
+        files_dropbox_enabled=files_dropbox_enabled,
+        files_sharing_enabled=files_sharing_enabled,
+        files_private_folders_enabled=files_private_folders_enabled,
+        max_file_value=max_file_value,
+        max_file_unit=max_file_unit,
+        quota_enabled=quota_enabled,
+        quota_value=quota_value,
+        quota_unit=quota_unit,
+        exception_rows=exception_rows,
+        users_for_exceptions=users_for_exceptions,
+        size_units=('KB', 'MB', 'GB', 'TB'),
+    )
 
 
 def _upsert_bool_setting(key, enabled):
@@ -1785,6 +1915,7 @@ def admin_calendar_settings():
             try:
                 from app.utils.multi_calendars import (
                     ensure_imported_calendar_for_source,
+                    get_or_create_events_calendar,
                     get_or_create_personal_calendar,
                     get_public_calendar,
                 )
@@ -1792,10 +1923,34 @@ def admin_calendar_settings():
                 from app.models.user import User as _User
 
                 public = get_public_calendar()
+                events_cal = get_or_create_events_calendar()
                 CalendarEvent.query.filter(CalendarEvent.calendar_id.is_(None)).update(
                     {CalendarEvent.calendar_id: public.id},
                     synchronize_session=False,
                 )
+                # Module entries that were on Public while multi was off → Veranstaltungen
+                booking_or_event_ids = set()
+                for row in CalendarEvent.query.filter(
+                    CalendarEvent.calendar_id == public.id,
+                    CalendarEvent.booking_request_id.isnot(None),
+                ).with_entities(CalendarEvent.id).all():
+                    booking_or_event_ids.add(row[0])
+                try:
+                    from app.models.event import EventAppointment
+                    for row in EventAppointment.query.filter(
+                        EventAppointment.calendar_event_id.isnot(None)
+                    ).with_entities(EventAppointment.calendar_event_id).all():
+                        booking_or_event_ids.add(row[0])
+                except Exception:
+                    pass
+                if booking_or_event_ids:
+                    CalendarEvent.query.filter(
+                        CalendarEvent.id.in_(list(booking_or_event_ids)),
+                        CalendarEvent.calendar_id == public.id,
+                    ).update(
+                        {CalendarEvent.calendar_id: events_cal.id},
+                        synchronize_session=False,
+                    )
                 for u in _User.query.filter_by(is_active=True).all():
                     get_or_create_personal_calendar(u)
                 for source in CalendarSyncSource.query.all():
@@ -1809,6 +1964,15 @@ def admin_calendar_settings():
                 db.session.rollback()
                 import logging
                 logging.error(f'Fehler beim Aktivieren Multi-Kalender: {exc}')
+        else:
+            try:
+                from app.utils.multi_calendars import fold_events_calendar_into_public
+                fold_events_calendar_into_public()
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                import logging
+                logging.error(f'Fehler beim Deaktivieren Multi-Kalender: {exc}')
 
         flash(translate('settings.admin.calendar_settings.flash_updated'), 'success')
         return _settings_redirect('settings.admin_calendar_settings')

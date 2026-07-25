@@ -83,7 +83,7 @@
                 <a class="btn btn-link btn-sm events-mobile-pdf-btn" href="{{ pdf_url }}" title="PDF Übersicht">
                     <i class="bi bi-file-earmark-pdf"></i>
                 </a>
-                <a class="btn mod-sidebar-new btn-sm" href="{{ url_for('events.create_event') }}">
+                <a class="btn mod-new-btn btn-sm" href="{{ url_for('events.create_event') }}">
                     <i class="bi bi-plus-lg"></i> Neu
                 </a>
             </div>
@@ -117,11 +117,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
     </div>
     <div class="offcanvas-body pt-0">
-        <div class="mod-sidebar-new-wrap w-100 mb-3">
-            <a class="btn mod-sidebar-new w-100 text-start" href="{{ url_for('events.create_event') }}" data-events-dismiss-offcanvas="1">
-                <i class="bi bi-plus-lg me-2"></i>Neu
-            </a>
-        </div>
         {% if not minimal_sidebar %}
         {{ events_nav_links(active_nav|default('standard'), true) }}
         {% endif %}

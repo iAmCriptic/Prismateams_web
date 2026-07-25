@@ -10,9 +10,27 @@
     --auth-panel-bg: #ffffff;
 }
 
+[data-bs-theme="dark"] {
+    --auth-field-bg: color-mix(in srgb, var(--bs-body-bg, #1a1a1a) 88%, #fff 12%);
+    --auth-field-border: rgba(255, 255, 255, 0.16);
+    --auth-text: var(--bs-body-color, #e9ecef);
+    --auth-muted: rgba(233, 236, 239, 0.65);
+    --auth-link: color-mix(in srgb, var(--accent-color, #6ea8fe) 70%, #fff);
+    --auth-panel-bg: var(--bs-body-bg, #1a1a1a);
+}
+
+[data-oled-mode="true"] {
+    --auth-field-bg: #0a0a0a;
+    --auth-field-border: rgba(255, 255, 255, 0.14);
+    --auth-text: #f5f5f5;
+    --auth-muted: rgba(245, 245, 245, 0.62);
+    --auth-link: color-mix(in srgb, var(--accent-color, #6ea8fe) 70%, #fff);
+    --auth-panel-bg: #000000;
+}
+
 /* Kill outer white/gray frame: html + body + main must match shell, no gaps */
 /* Gradient ONLY on desktop — mobile handled in media query below */
-@media (min-width: 769px) {
+@media (min-width: 768px) {
     html:has(.auth-container),
     body:has(.auth-container),
     body:has(.auth-container) main {
@@ -106,7 +124,7 @@ body:has(.auth-container) .pwa-install-prompt {
     flex-shrink: 0;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 768px) {
     .auth-card {
         max-width: 520px;
         width: 100%;
@@ -221,11 +239,11 @@ body:has(.auth-container) .pwa-install-prompt {
 .auth-card .form-select:focus {
     border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, white) !important;
     box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
-    background: #fff !important;
+    background: var(--auth-field-bg) !important;
 }
 
 .auth-card .form-control::placeholder {
-    color: rgba(26, 26, 26, 0.4);
+    color: color-mix(in srgb, var(--auth-text) 40%, transparent);
 }
 
 /* Password toggle — integrated pill */
@@ -244,7 +262,7 @@ body:has(.auth-container) .pwa-install-prompt {
 .auth-card .input-group:focus-within {
     border-color: color-mix(in srgb, var(--accent-color, #0d6efd) 55%, white);
     box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
-    background: #fff;
+    background: var(--auth-field-bg);
 }
 
 .auth-card .input-group .form-control {
@@ -292,8 +310,8 @@ body:has(.auth-container) .pwa-install-prompt {
 
 .auth-card .form-check-input {
     border-radius: 0.35rem;
-    border-color: rgba(26, 26, 26, 0.35);
-    background-color: #fff;
+    border-color: color-mix(in srgb, var(--auth-text) 35%, transparent);
+    background-color: var(--auth-field-bg);
 }
 
 .auth-card .form-check-input:checked {
@@ -339,7 +357,7 @@ body:has(.auth-container) .pwa-install-prompt {
 
 .auth-card hr {
     border: none;
-    border-top: 1px solid rgba(26, 26, 26, 0.12);
+    border-top: 1px solid color-mix(in srgb, var(--auth-text) 12%, transparent);
     margin: 1.25rem 0 !important;
     opacity: 1;
 }
@@ -373,10 +391,18 @@ body:has(.auth-container) .pwa-install-prompt {
     padding-right: 0.4rem;
 }
 
-/* ——— Mobile: solid white background, no gradient, panel flat ——— */
-@media (max-width: 768px) {
+/* ——— Mobile: solid page background, no gradient, panel flat ——— */
+@media (max-width: 767.98px) {
     :root {
         --auth-page-bg: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] {
+        --auth-page-bg: var(--bs-body-bg, #1a1a1a) !important;
+    }
+
+    [data-oled-mode="true"] {
+        --auth-page-bg: #000000 !important;
     }
 
     html:has(.auth-container),
@@ -385,8 +411,8 @@ body:has(.auth-container) .pwa-install-prompt {
         margin: 0 !important;
         padding: 0 !important;
         border: none !important;
-        background: #ffffff !important;
-        background-color: #ffffff !important;
+        background: var(--auth-page-bg, #ffffff) !important;
+        background-color: var(--auth-page-bg, #ffffff) !important;
         background-image: none !important;
         background-attachment: scroll !important;
         overflow: auto !important;
@@ -407,7 +433,7 @@ body:has(.auth-container) .pwa-install-prompt {
         max-width: none !important;
         width: 100% !important;
         height: auto !important;
-        background: #ffffff !important;
+        background: var(--auth-page-bg, #ffffff) !important;
     }
 
     .auth-container {
@@ -417,14 +443,14 @@ body:has(.auth-container) .pwa-install-prompt {
         align-items: center;
         justify-content: center;
         padding: 1.25rem 1rem !important;
-        background: #ffffff !important;
-        background-color: #ffffff !important;
+        background: var(--auth-page-bg, #ffffff) !important;
+        background-color: var(--auth-page-bg, #ffffff) !important;
         background-image: none !important;
         background-attachment: scroll !important;
         overflow: visible;
     }
 
-    /* No floating white pill — page itself is white */
+    /* No floating white pill — page itself is the surface */
     .auth-card .auth-panel,
     .auth-card .card {
         border-radius: 0 !important;
@@ -471,13 +497,13 @@ body:has(.auth-container) .pwa-install-prompt {
     .auth-card .form-select {
         font-size: 0.9375rem;
         padding: 0.65rem 1.05rem;
-        border-color: rgba(0, 0, 0, 0.12) !important;
-        background: #fff !important;
+        border-color: var(--auth-field-border) !important;
+        background: var(--auth-field-bg) !important;
     }
 
     .auth-card .input-group {
-        border-color: rgba(0, 0, 0, 0.12);
-        background: #fff;
+        border-color: var(--auth-field-border);
+        background: var(--auth-field-bg);
     }
 
     .auth-card .btn-accent,
@@ -536,7 +562,7 @@ body:has(.auth-container) .pwa-install-prompt {
     }
 }
 
-@media (max-width: 768px) and (orientation: landscape) {
+@media (max-width: 767.98px) and (orientation: landscape) {
     .auth-container {
         align-items: flex-start;
         padding-top: 1rem !important;

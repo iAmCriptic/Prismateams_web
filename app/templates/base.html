@@ -1,5 +1,7 @@
 {% set _assess_scope = session.get('user_scope') == 'assessment' %}
-{% if current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}
+{% if force_light_theme %}
+{% set _theme_dark = false %}{% set _theme_oled = false %}
+{% elif current_user.is_authenticated and current_user.dark_mode and current_user.oled_mode %}
 {% set _theme_dark = true %}{% set _theme_oled = true %}
 {% elif current_user.is_authenticated and current_user.dark_mode %}
 {% set _theme_dark = true %}{% set _theme_oled = false %}
@@ -18,12 +20,22 @@
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="{{ _('layout.meta.description') }}">
-    <meta name="theme-color" content="#0d6efd">
+    {% if _theme_oled %}
+    <meta name="theme-color" content="#000000">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    {% elif _theme_dark %}
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="msapplication-TileColor" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    {% else %}
+    <meta name="theme-color" content="#f0f2f5">
+    <meta name="msapplication-TileColor" content="#f0f2f5">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    {% endif %}
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ app_name or 'Prismateams' }}">
-    <meta name="msapplication-TileColor" content="#0d6efd">
     <meta name="msapplication-config" content="/static/browserconfig.xml">
     
     <!-- Favicon -->

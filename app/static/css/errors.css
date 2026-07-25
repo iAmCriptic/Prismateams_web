@@ -7,6 +7,18 @@
     --error-panel-bg: #ffffff;
 }
 
+[data-bs-theme="dark"] {
+    --error-text: var(--bs-body-color, #e9ecef);
+    --error-muted: rgba(233, 236, 239, 0.65);
+    --error-panel-bg: var(--bs-body-bg, #1a1a1a);
+}
+
+[data-oled-mode="true"] {
+    --error-text: #f5f5f5;
+    --error-muted: rgba(245, 245, 245, 0.62);
+    --error-panel-bg: #000000;
+}
+
 /* Hide chrome so error reads like login (full-bleed) */
 body:has(.error-page) .sidebar,
 body:has(.error-page) .mobile-nav,
@@ -16,7 +28,7 @@ body:has(.error-page) #appFlashBanner {
     display: none !important;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 768px) {
     html:has(.error-page),
     body:has(.error-page),
     body:has(.error-page) main {
@@ -163,14 +175,14 @@ body:has(.error-page) #appFlashBanner {
 
 .error-btn--ghost {
     background: transparent !important;
-    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border: 1px solid color-mix(in srgb, var(--error-text) 12%, transparent) !important;
     color: var(--error-text) !important;
 }
 
 .error-btn--ghost:hover,
 .error-btn--ghost:focus {
-    background: rgba(0, 0, 0, 0.04) !important;
-    border-color: rgba(0, 0, 0, 0.18) !important;
+    background: color-mix(in srgb, var(--error-text) 6%, transparent) !important;
+    border-color: color-mix(in srgb, var(--error-text) 20%, transparent) !important;
     color: var(--error-text) !important;
 }
 
@@ -189,7 +201,7 @@ body:has(.error-page) #appFlashBanner {
     padding: 0;
     border: none;
     background: none;
-    color: rgba(26, 26, 26, 0.45);
+    color: color-mix(in srgb, var(--error-text) 45%, transparent);
     font-size: 0.8rem;
     font-weight: 500;
     text-decoration: none;
@@ -199,7 +211,7 @@ body:has(.error-page) #appFlashBanner {
 
 .error-detail-link:hover,
 .error-detail-link:focus {
-    color: rgba(26, 26, 26, 0.7);
+    color: color-mix(in srgb, var(--error-text) 75%, transparent);
     text-decoration: underline;
 }
 
@@ -209,8 +221,8 @@ body:has(.error-page) #appFlashBanner {
     text-align: left;
     font-size: 0.75rem;
     line-height: 1.45;
-    color: rgba(26, 26, 26, 0.75);
-    background: rgba(0, 0, 0, 0.04);
+    color: var(--error-muted);
+    background: color-mix(in srgb, var(--error-text) 6%, transparent);
     border-radius: 0.85rem;
     white-space: pre-wrap;
     word-break: break-word;
@@ -218,12 +230,27 @@ body:has(.error-page) #appFlashBanner {
     overflow: auto;
 }
 
-/* Mobile: solid white like auth */
-@media (max-width: 768px) {
+/* Mobile: solid page background like auth */
+@media (max-width: 767.98px) {
     html:has(.error-page),
     body:has(.error-page),
     body:has(.error-page) main {
-        background: #ffffff !important;
+        background: var(--auth-page-bg, #ffffff) !important;
+    }
+
+    [data-bs-theme="dark"]:has(.error-page),
+    [data-bs-theme="dark"]:has(.error-page) main,
+    html[data-bs-theme="dark"]:has(.error-page),
+    body[data-bs-theme="dark"]:has(.error-page),
+    body[data-bs-theme="dark"]:has(.error-page) main {
+        background: var(--bs-body-bg, #1a1a1a) !important;
+    }
+
+    [data-oled-mode="true"]:has(.error-page),
+    html[data-oled-mode="true"]:has(.error-page),
+    body[data-oled-mode="true"]:has(.error-page),
+    body[data-oled-mode="true"]:has(.error-page) main {
+        background: #000000 !important;
     }
 
     body:has(.error-page) main > .container-fluid,
@@ -239,14 +266,25 @@ body:has(.error-page) #appFlashBanner {
         min-height: 100vh;
         min-height: 100dvh;
         padding: 1rem;
-        background: #ffffff !important;
+        background: var(--auth-page-bg, #ffffff) !important;
         align-items: flex-start;
         padding-top: 2.5rem;
+    }
+
+    html[data-bs-theme="dark"] .error-page,
+    [data-bs-theme="dark"] .error-page {
+        background: var(--bs-body-bg, #1a1a1a) !important;
+    }
+
+    html[data-oled-mode="true"] .error-page,
+    [data-oled-mode="true"] .error-page {
+        background: #000000 !important;
     }
 
     .error-panel {
         border-radius: 0;
         box-shadow: none;
+        background: transparent;
     }
 
     .error-panel-body {

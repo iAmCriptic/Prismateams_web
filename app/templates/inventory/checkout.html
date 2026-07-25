@@ -85,10 +85,10 @@
                         </div>
                     </div>
                     <div class="inventory-scan-controls">
-                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline" id="startScannerBtn" type="button">
                             <i class="bi bi-camera"></i> Kamera starten
                         </button>
-                        <button class="btn btn-sm inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
+                        <button class="btn inventory-pill-btn inventory-pill-btn--outline-danger" id="stopScannerBtn" type="button" style="display: none;">
                             <i class="bi bi-stop-circle"></i> Kamera stoppen
                         </button>
                     </div>
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const query = (q || '').toLowerCase().trim();
         if (!query) {
             suggestEl.style.display = 'none';
-            suggestEl.innerHTML = '';
+            suggestEl.replaceChildren();
             return;
         }
         const matches = users.filter(u =>
@@ -211,22 +211,35 @@ document.addEventListener('DOMContentLoaded', function() {
         ).slice(0, 8);
         if (!matches.length) {
             suggestEl.style.display = 'none';
-            suggestEl.innerHTML = '';
+            suggestEl.replaceChildren();
             return;
         }
-        suggestEl.innerHTML = matches.map(u =>
-            `<button type="button" class="list-group-item list-group-item-action" data-id="${u.id}" data-name="${u.name.replace(/"/g, '&quot;')}" data-email="${(u.email||'').replace(/"/g, '&quot;')}">${u.name}${u.email ? ' <small class="text-muted">(' + u.email + ')</small>' : ''}</button>`
-        ).join('');
-        suggestEl.style.display = 'block';
-        suggestEl.querySelectorAll('button').forEach(btn => {
+        suggestEl.replaceChildren();
+        matches.forEach((u) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action';
+            btn.dataset.id = String(u.id);
+            btn.dataset.name = u.name || '';
+            btn.dataset.email = u.email || '';
+            btn.appendChild(document.createTextNode(u.name || ''));
+            if (u.email) {
+                btn.appendChild(document.createTextNode(' '));
+                const small = document.createElement('small');
+                small.className = 'text-muted';
+                small.textContent = '(' + u.email + ')';
+                btn.appendChild(small);
+            }
             btn.addEventListener('click', () => {
-                borrowerInput.value = btn.dataset.name;
-                borrowerIdInput.value = btn.dataset.id;
+                borrowerInput.value = btn.dataset.name || '';
+                borrowerIdInput.value = btn.dataset.id || '';
                 if (emailInput) emailInput.value = btn.dataset.email || '';
                 suggestEl.style.display = 'none';
                 syncEmailRequirement();
             });
+            suggestEl.appendChild(btn);
         });
+        suggestEl.style.display = 'block';
     }
 
     if (borrowerInput) {
@@ -259,112 +272,16 @@ document.addEventListener('DOMContentLoaded', function() {
         window.borrowScannerManager.init();
     }
 
+    // Manual add / remove: only via BorrowScannerManager (avoids double cart adds)
     const manualInput = document.getElementById('manualQrInput');
-    const addBtn = document.getElementById('addToCartBtn');
-    const resultEl = document.getElementById('returnScanResult');
-    const checkoutForm = document.getElementById('checkoutForm');
-    const scanEndpoint = '{{ url_for("inventory.inventory_checkout") }}';
-
-    async function handleScanValue(value) {
-        const formData = new FormData();
-        formData.append('action', 'add_to_cart');
-        formData.append('qr_code', value);
-        const response = await fetch(scanEndpoint, { method: 'POST', body: formData });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || result.error) throw new Error(result.error || 'Scan fehlgeschlagen');
-        if (result.is_return) {
-            const msg = `Rückgabe OK${result.returned_count ? ' (' + result.returned_count + ')' : ''}${result.checkout_number ? ': ' + result.checkout_number : ''}.`;
-            if (resultEl) resultEl.innerHTML = `<div class="alert alert-success mb-0">${msg}</div>`;
-            window.borrowScannerManager?.showSuccess('Rückgabe erfolgreich.');
-            if (manualInput) manualInput.value = '';
-            return;
-        }
-        if (manualInput) manualInput.value = '';
-        if (result.is_set) window.borrowScannerManager?.showSetScannedModal(result);
-        else if (result.product) {
-            window.borrowScannerManager?.showSuccess(`Produkt "${result.product.name}" hinzugefügt.`);
-        }
-        window.borrowScannerManager?.updateCartFromJSON(result);
-        window.borrowScannerManager?.registerAddAction(result);
-    }
-
-    async function addToCart() {
-        if (!manualInput?.value.trim()) {
-            window.borrowScannerManager?.showError('Bitte ID eingeben.');
-            return;
-        }
-        try {
-            await handleScanValue(manualInput.value.trim());
-        } catch (err) {
-            if (resultEl) resultEl.innerHTML = `<div class="alert alert-danger mb-0">${err.message}</div>`;
-            window.borrowScannerManager?.showError(err.message || 'Fehler');
-        }
-    }
-
-    addBtn?.addEventListener('click', addToCart);
-    manualInput?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); addToCart(); }
-    });
-    document.querySelectorAll('.remove-from-cart').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
-            if (productId) window.borrowScannerManager?.removeFromCart(productId);
-        });
-    });
 
     const preset = {{ (preset_ref or '')|tojson }};
-    if (preset && manualInput) {
-        manualInput.value = preset;
-        handleScanValue(preset).catch(() => {});
+    if (preset && window.borrowScannerManager) {
+        if (manualInput) manualInput.value = preset;
+        window.borrowScannerManager.addToCart(preset).then(() => {
+            if (manualInput) manualInput.value = '';
+        }).catch(() => {});
     }
-
-    checkoutForm?.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        if (!borrowerInput.value.trim()) {
-            if (window.showAppBanner) window.showAppBanner('Bitte Verantwortlichen angeben.', 'warning');
-            return;
-        }
-        if (!borrowerIdInput.value && !emailInput.value.trim()) {
-            if (window.showAppBanner) window.showAppBanner('Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).', 'warning');
-            emailInput.focus();
-            return;
-        }
-        if (!document.getElementById('event_name').value.trim()) {
-            if (window.showAppBanner) window.showAppBanner('Bitte Projekt / Veranstaltung angeben.', 'warning');
-            return;
-        }
-        if (!endInput.value) {
-            if (window.showAppBanner) window.showAppBanner('Bitte Rückgabe-Zeitraum (Bis) angeben.', 'warning');
-            return;
-        }
-        const formData = new FormData(checkoutForm);
-        ['event_name','borrower_name','borrower_id','contact_email','start_date','end_date','event_id','event_appointment_id'].forEach((name) => {
-            const el = document.getElementById(name);
-            if (!el) return;
-            if (name === 'contact_email' && el.disabled) {
-                formData.delete('contact_email');
-                return;
-            }
-            if (!formData.has(name)) formData.set(name, el.value);
-        });
-        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
-        const original = submitBtn ? submitBtn.innerHTML : '';
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
-        }
-        try {
-            const response = await fetch(checkoutForm.action, { method: 'POST', body: formData, redirect: 'follow' });
-            if (!response.ok) throw new Error('fehlgeschlagen');
-            window.location.href = '/inventory/borrows';
-        } catch (err) {
-            if (window.showAppBanner) window.showAppBanner('Fehler beim Erstellen der Ausleihe.', 'danger');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = original;
-            }
-        }
-    });
 });
 </script>
 {% endblock %}

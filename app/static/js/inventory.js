@@ -262,13 +262,6 @@ class StockManager {
                 this.updateLengths();
                 this.updatePurchaseYears();
                 
-                console.log(`Filter-Optionen geladen für Ordner: ${this.currentFolderId || 'Root'}`, {
-                    categories: this.categories.size,
-                    conditions: this.conditions.size,
-                    locations: this.locations.size,
-                    lengths: this.lengths.size,
-                    purchaseYears: this.purchaseYears.size
-                });
             } else {
                 console.warn('Fehler beim Laden der Filter-Optionen, verwende nur Optionen aus geladenen Produkten');
             }
@@ -390,17 +383,6 @@ class StockManager {
             }
         });
         
-        // Debug: Prüfe ob Filter-Werte extrahiert wurden (nur in Entwicklung)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('Filter-Werte extrahiert:', {
-                categories: this.categories.size,
-                conditions: this.conditions.size,
-                locations: this.locations.size,
-                lengths: this.lengths.size,
-                purchaseYears: this.purchaseYears.size,
-                products: this.products.length
-            });
-        }
     }
     
     // Öffentliche Methode zum Aktualisieren der Filter (kann von außen aufgerufen werden)
@@ -409,7 +391,6 @@ class StockManager {
         await this.loadFilterOptions();
         // Lade Produkte neu und aktualisiere Filter
         await this.loadProducts();
-        console.log('Filter aktualisiert');
     }
     
     updateCategories() {
@@ -2307,7 +2288,8 @@ class BorrowsManager {
         
         this.filteredBorrows = this.borrows.filter(b => {
             const matchesBorrower = !borrowerFilter ||
-                (b.borrower_name && b.borrower_name.toLowerCase().includes(borrowerFilter));
+                (b.borrower_name && b.borrower_name.toLowerCase().includes(borrowerFilter)) ||
+                (b.contact_email && b.contact_email.toLowerCase().includes(borrowerFilter));
             const matchesEvent = !eventFilter ||
                 (b.event_name && b.event_name.toLowerCase().includes(eventFilter));
             const matchesProduct = !productFilter ||
@@ -2390,11 +2372,49 @@ class BorrowsManager {
                 ? `<span class="badge inventory-set-badge" title="Aus Produktset"><i class="bi bi-collection" aria-hidden="true"></i> Set</span>`
                 : '';
             const setDropdown = this.buildBorrowSetDropdown(borrow);
+            const isExternal = !borrow.borrower_id;
+            const contactEmail = (borrow.contact_email || '').trim();
+            let externalBadge = '';
+            if (isExternal) {
+                const emailEscaped = this.escapeHtml(contactEmail);
+                const composeHref = contactEmail
+                    ? `/email/compose?to=${encodeURIComponent(contactEmail)}`
+                    : '';
+                const menuWidthStyle = contactEmail
+                    ? `style="min-width: ${Math.max(contactEmail.length + 4, 18)}ch"`
+                    : '';
+                const dropdownBody = contactEmail
+                    ? `<li class="px-3 py-2">
+                            <div class="small text-muted mb-1">Kontakt-E-Mail</div>
+                            <div class="fw-semibold text-nowrap">${emailEscaped}</div>
+                       </li>
+                       <li><hr class="dropdown-divider"></li>
+                       <li>
+                            <a class="dropdown-item" href="${composeHref}">
+                                <i class="bi bi-envelope me-2" aria-hidden="true"></i>E-Mail schreiben
+                            </a>
+                       </li>`
+                    : `<li class="px-3 py-2 small text-muted text-nowrap">Keine E-Mail hinterlegt</li>`;
+                externalBadge = `
+                    <div class="dropdown d-inline-block">
+                        <button type="button"
+                                class="badge inventory-extern-badge border-0"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                title="Externe Person"
+                                onclick="event.stopPropagation()">
+                            Extern
+                        </button>
+                        <ul class="dropdown-menu inventory-actions-menu" ${menuWidthStyle} onclick="event.stopPropagation()">
+                            ${dropdownBody}
+                        </ul>
+                    </div>`;
+            }
 
             return `
             <tr class="mod-list-row ${borrow.is_overdue ? 'table-danger' : ''}">
-                <td><code>${borrow.transaction_number}</code></td>
-                <td>${borrow.event_name || '—'}</td>
+                <td><code>${this.escapeHtml(borrow.transaction_number || '')}</code></td>
+                <td class="d-none d-md-table-cell">${this.escapeHtml(borrow.event_name || '—')}</td>
                 <td>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <strong>${this.escapeHtml(borrow.product_name || '')}</strong>
@@ -2402,9 +2422,14 @@ class BorrowsManager {
                     </div>
                     ${setDropdown}
                 </td>
-                <td>${this.escapeHtml(borrow.borrower_name || 'Unbekannt')}</td>
-                <td>${borrow.borrow_date ? new Date(borrow.borrow_date).toLocaleDateString('de-DE') : '—'}</td>
-                <td>${borrow.expected_return_date ? new Date(borrow.expected_return_date).toLocaleDateString('de-DE') : '—'}</td>
+                <td class="d-none d-md-table-cell">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span>${this.escapeHtml(borrow.borrower_name || 'Unbekannt')}</span>
+                        ${externalBadge}
+                    </div>
+                </td>
+                <td class="d-none d-lg-table-cell">${borrow.borrow_date ? new Date(borrow.borrow_date).toLocaleDateString('de-DE') : '—'}</td>
+                <td class="d-none d-md-table-cell">${borrow.expected_return_date ? new Date(borrow.expected_return_date).toLocaleDateString('de-DE') : '—'}</td>
                 <td>${statusBadge}</td>
                 <td class="text-end">
                     <div class="mod-list-actions">
@@ -2540,7 +2565,6 @@ class ReturnManager {
                         clearTimeout(timeout);
                         video.play()
                             .then(() => {
-                                console.log('Video gestartet, Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
                                 // Stelle sicher, dass Video sichtbar ist
                                 video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 400px !important;';
                                 // Stelle sicher, dass Container auch sichtbar ist
@@ -3036,18 +3060,24 @@ class BorrowScannerManager {
         const addBtn = document.getElementById('addToCartBtn');
         const manualInput = document.getElementById('manualQrInput');
         
-        if (startBtn) {
+        if (startBtn && !startBtn.dataset.scannerBound) {
+            startBtn.dataset.scannerBound = '1';
             startBtn.addEventListener('click', () => this.startScanner());
         }
         
-        if (stopBtn) {
+        if (stopBtn && !stopBtn.dataset.scannerBound) {
+            stopBtn.dataset.scannerBound = '1';
             stopBtn.addEventListener('click', () => this.stopScanner());
         }
         
-        if (addBtn && manualInput) {
+        // Single owner for manual add — templates must not re-bind these controls
+        if (addBtn && manualInput && !addBtn.dataset.cartBound) {
+            addBtn.dataset.cartBound = '1';
+            manualInput.dataset.cartBound = '1';
             addBtn.addEventListener('click', () => this.addFromInput());
             manualInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    e.preventDefault();
                     this.addFromInput();
                 }
             });
@@ -3069,13 +3099,17 @@ class BorrowScannerManager {
             });
         }
         
-        // Remove from cart buttons
+        // Remove from cart (SSR list). Dynamic rows get listeners in updateCartFromJSON.
         document.querySelectorAll('.remove-from-cart').forEach(btn => {
+            if (btn.dataset.removeBound) return;
+            btn.dataset.removeBound = '1';
             btn.addEventListener('click', (e) => {
                 const productId = e.target.closest('.remove-from-cart')?.dataset?.productId;
                 if (productId) this.removeFromCart(productId);
             });
         });
+
+        this.setupCheckoutForm();
     }
 
     buildSetMembersDropdownHtml(sourceSet, productId) {
@@ -3187,7 +3221,6 @@ class BorrowScannerManager {
                         clearTimeout(timeout);
                         video.play()
                             .then(() => {
-                                console.log('Video gestartet (BorrowScanner), Video-Dimensionen:', video.videoWidth, 'x', video.videoHeight);
                                 // Stelle sicher, dass Video sichtbar ist
                                 video.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important;';
                                 // Stelle sicher, dass Container auch sichtbar ist
@@ -3375,7 +3408,6 @@ class BorrowScannerManager {
             
             if (code) {
                 // QR-Code gefunden!
-                console.log('QR-Code erkannt (BorrowScanner):', code.data);
                 // Kamera NICHT stoppen - für mehrere Scans offen lassen
                 // Pausiere kurz das Scannen, um doppelte Scans zu vermeiden
                 this.scanning = false;
@@ -3389,9 +3421,7 @@ class BorrowScannerManager {
                     this.showScanSuccess();
                     
                     // Direktes Hinzufügen zum Warenkorb
-                    console.log('Starte addToCart für:', qrCodeData);
                     this.addToCart(qrCodeData).then(() => {
-                        console.log('addToCart erfolgreich abgeschlossen');
                         // Nach erfolgreichem Hinzufügen, Scannen nach kurzer Pause fortsetzen
                         setTimeout(() => {
                             if (this.stream && !this.scanning) {
@@ -3427,14 +3457,20 @@ class BorrowScannerManager {
     
     async addFromInput() {
         const input = document.getElementById('manualQrInput');
-        if (input && input.value) {
-            await this.addToCart(input.value);
+        if (!input || !input.value.trim()) {
+            this.showError('Bitte ID eingeben.');
+            return;
+        }
+        const value = input.value.trim();
+        try {
+            await this.addToCart(value);
             input.value = '';
+        } catch (_err) {
+            // Input kept so user can correct / retry; errors already shown in addToCart
         }
     }
     
     async addToCart(qrCode) {
-        console.log('=== addToCart START ===', qrCode);
         if (window.inventoryScanMode === 'return') {
             try {
                 const response = await fetch('/inventory/api/return', {
@@ -3461,16 +3497,23 @@ class BorrowScannerManager {
                     }
                 }
                 const resultEl = document.getElementById('returnScanResult');
+                const emailOk = result.return_email_sent !== false;
                 if (resultEl) {
-                    resultEl.innerHTML = `<div class="alert alert-success mb-0">Rückgabe OK${result.returned_count ? ' (' + result.returned_count + ')' : ''}.</div>`;
+                    const count = result.returned_count ? ` (${Number(result.returned_count) || result.returned_count})` : '';
+                    if (emailOk) {
+                        this.setReturnScanResult(`Rückgabe OK${count}.`, 'success');
+                    } else {
+                        this.setReturnScanResult(`Rückgabe OK${count}, E-Mail fehlgeschlagen.`, 'warning');
+                    }
                 }
-                this.showSuccess('Rückgabe erfolgreich.');
+                if (emailOk) {
+                    this.showSuccess('Rückgabe erfolgreich.');
+                } else {
+                    this.showError('Rückgabe registriert, Bestätigungs-E-Mail konnte nicht gesendet werden.');
+                }
                 return result;
             } catch (error) {
-                const resultEl = document.getElementById('returnScanResult');
-                if (resultEl) {
-                    resultEl.innerHTML = `<div class="alert alert-danger mb-0">${error.message || 'Fehler'}</div>`;
-                }
+                this.setReturnScanResult(error.message || 'Fehler', 'danger');
                 this.showError(error.message || 'Rückgabe fehlgeschlagen');
                 throw error;
             }
@@ -3480,13 +3523,11 @@ class BorrowScannerManager {
             formData.append('action', 'add_to_cart');
             formData.append('qr_code', qrCode);
             
-            console.log('Sende Request an Server...');
             const response = await fetch('/inventory/borrow-scanner', {
                 method: 'POST',
                 body: formData
             });
             
-            console.log('Response erhalten, Status:', response.status);
             
             let result;
             try {
@@ -3504,16 +3545,20 @@ class BorrowScannerManager {
                 console.error('Server-Fehler:', errorMessage);
                 throw new Error(errorMessage);
             }
-            console.log('JSON Response:', result);
             
             if (result.success) {
-                console.log('=== SERVER ERFOLGREICH ===');
 
                 if (result.is_return) {
-                    const resultEl = document.getElementById('returnScanResult');
-                    const msg = `Rückgabe OK${result.returned_count ? ' (' + result.returned_count + ')' : ''}${result.checkout_number ? ': ' + result.checkout_number : ''}.`;
-                    if (resultEl) resultEl.innerHTML = `<div class="alert alert-success mb-0">${msg}</div>`;
-                    this.showSuccess('Rückgabe erfolgreich.');
+                    const count = result.returned_count ? ` (${Number(result.returned_count) || result.returned_count})` : '';
+                    const checkoutNo = result.checkout_number ? `: ${result.checkout_number}` : '';
+                    const emailOk = result.return_email_sent !== false;
+                    if (emailOk) {
+                        this.setReturnScanResult(`Rückgabe OK${count}${checkoutNo}.`, 'success');
+                        this.showSuccess('Rückgabe erfolgreich.');
+                    } else {
+                        this.setReturnScanResult(`Rückgabe OK${count}${checkoutNo}, E-Mail fehlgeschlagen.`, 'warning');
+                        this.showError('Rückgabe registriert, Bestätigungs-E-Mail konnte nicht gesendet werden.');
+                    }
                     return Promise.resolve(result);
                 }
                 
@@ -3522,9 +3567,6 @@ class BorrowScannerManager {
                     this.showSetScannedModal(result);
                 }
                 
-                console.log('Produkt:', result.product);
-                console.log('Set:', result.set);
-                console.log('Cart Count:', result.cart_count);
                 
                 // Prüfe ob result.product vorhanden ist (für einzelne Produkte)
                 if (!result.is_set && !result.product) {
@@ -3537,10 +3579,11 @@ class BorrowScannerManager {
                 
                 // SOFORTIGE Aktualisierung - keine Verzögerung
                 this.updateCartFromJSON(result);
-                
+                this.registerAddAction(result);
+
                 // ensureCheckoutForm wird jetzt in updateCartFromJSON aufgerufen
                 
-                return Promise.resolve();
+                return Promise.resolve(result);
             } else {
                 // Zeige Fehlermeldung im UI
                 const errorMessage = result.error || 'QR Code Nicht erkannt';
@@ -3559,14 +3602,12 @@ class BorrowScannerManager {
     
     updateCartFromJSON(result) {
         // Schnelles Update mit JSON-Daten aus der addToCart-Response
-        console.log('=== updateCartFromJSON START ===', result);
         
         // Aktualisiere Cart-Count SOFORT
         const cartCount = document.getElementById('cartCount');
         if (cartCount) {
             if (result.cart_count !== undefined) {
                 cartCount.textContent = result.cart_count;
-                console.log('✓ Cart-Count aktualisiert:', result.cart_count);
             } else {
                 console.warn('⚠ cart_count nicht vorhanden');
             }
@@ -3584,7 +3625,6 @@ class BorrowScannerManager {
         
         // Wenn ein Set gescannt wurde, füge alle Produkte hinzu
         if (result.is_set && result.added_products && result.added_products.length > 0) {
-            console.log('Füge Set-Produkte hinzu:', result.added_products);
             
             // Verhindere, dass loadCheckoutForm den Warenkorb überschreibt
             cartItems.setAttribute('data-updating', 'true');
@@ -3593,7 +3633,6 @@ class BorrowScannerManager {
             const emptyMessage = cartItems.querySelector('p.text-muted');
             if (emptyMessage) {
                 emptyMessage.remove();
-                console.log('✓ Leere Nachricht entfernt');
             }
             
             // Füge alle Produkte des Sets hinzu
@@ -3611,13 +3650,11 @@ class BorrowScannerManager {
                     // Ersetze durch Version mit Set-Badge
                     const refreshed = this.buildCartItemElement(product);
                     existingItem.replaceWith(refreshed);
-                    console.log(`✓ Produkt ${product.id} mit Set-Info aktualisiert`);
                     return;
                 }
                 
                 const newItem = this.buildCartItemElement(product);
                 cartItems.appendChild(newItem);
-                console.log(`✓ Produkt ${product.id} zum DOM hinzugefügt`);
             });
             
             // Entferne Update-Markierung
@@ -3654,12 +3691,10 @@ class BorrowScannerManager {
             return;
         }
         
-        console.log('Füge Produkt hinzu:', result.product);
         
         // Prüfe ob Produkt bereits vorhanden ist
         const existingItem = cartItems.querySelector(`[data-product-id="${result.product.id}"]`);
         if (existingItem) {
-            console.log('⚠ Produkt bereits vorhanden, überspringe Hinzufügen');
             return;
         }
         
@@ -3671,12 +3706,10 @@ class BorrowScannerManager {
         const emptyMessage = cartItems.querySelector('p.text-muted');
         if (emptyMessage) {
             emptyMessage.remove();
-            console.log('✓ Leere Nachricht entfernt');
         }
         
         const newItem = this.buildCartItemElement(result.product);
         cartItems.appendChild(newItem);
-        console.log('✓ Produkt zum DOM hinzugefügt');
         
         // Entferne Update-Markierung
         cartItems.removeAttribute('data-updating');
@@ -3697,7 +3730,6 @@ class BorrowScannerManager {
         // Prüfe ob Checkout-Formular benötigt wird
         this.ensureCheckoutForm(result.cart_count);
         
-        console.log('=== updateCartFromJSON FERTIG ===');
     }
     
     ensureCheckoutForm(cartCount) {
@@ -3715,14 +3747,12 @@ class BorrowScannerManager {
             // Prüfe ob Checkout-Formular bereits existiert
             const existingCheckoutForm = document.getElementById('checkoutForm');
             if (existingCheckoutForm) {
-                console.log('Checkout-Formular existiert bereits, überspringe Laden');
                 return;
             }
             
             // Prüfe ob gerade ein Update läuft - warte bis es fertig ist
             const cartItemsContainer = document.getElementById('cartItems');
             if (cartItemsContainer && cartItemsContainer.getAttribute('data-updating') === 'true') {
-                console.log('Warenkorb wird gerade aktualisiert, warte...');
                 // Warte länger und prüfe mehrfach
                 let attempts = 0;
                 const checkInterval = setInterval(() => {
@@ -3782,7 +3812,6 @@ class BorrowScannerManager {
                     const newOpt = opt.cloneNode(true);
                     borrowerSelect.appendChild(newOpt);
                 });
-                console.log('✓ Benutzer-Liste kopiert:', borrowerSelect.options.length, 'Optionen');
             } else {
                 // Fallback: Nur aktueller Benutzer
                 const opt = document.createElement('option');
@@ -3833,7 +3862,6 @@ class BorrowScannerManager {
             // Initialisiere Event-Listener für das neue Formular
             this.initCheckoutForm();
             this.setupCheckoutForm();
-            console.log('✓ Checkout-Formular erfolgreich hinzugefügt');
         } catch (error) {
             console.error('Fehler beim Laden des Checkout-Formulars:', error);
             // KEIN automatisches Reload - das würde den Warenkorb zurücksetzen
@@ -3908,34 +3936,41 @@ class BorrowScannerManager {
     
     escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
+    }
+
+    setReturnScanResult(message, level = 'success') {
+        const resultEl = document.getElementById('returnScanResult');
+        if (!resultEl) return;
+        resultEl.replaceChildren();
+        const alert = document.createElement('div');
+        const tone = level === 'danger' ? 'danger' : (level === 'warning' ? 'warning' : 'success');
+        alert.className = `alert alert-${tone} mb-0`;
+        alert.textContent = message == null ? '' : String(message);
+        resultEl.appendChild(alert);
     }
     
     async updateCartDisplay() {
         // Lade Warenkorb-Daten und aktualisiere die Anzeige
         // WICHTIG: Diese Funktion sollte NUR verwendet werden wenn der Warenkorb leer ist
         // oder wenn explizit eine vollständige Aktualisierung benötigt wird
-        console.log('updateCartDisplay() aufgerufen');
         
         // Prüfe ob bereits Produkte im Warenkorb sind - wenn ja, überspringe
         const currentCartItems = document.getElementById('cartItems');
         if (currentCartItems) {
             const existingProducts = currentCartItems.querySelectorAll('.cart-item[data-product-id]');
             if (existingProducts.length > 0) {
-                console.log('⚠ updateCartDisplay() übersprungen - Warenkorb enthält bereits Produkte');
                 return;
             }
         }
         try {
-            console.log('Lade Warenkorb-Daten...');
             const response = await fetch('/inventory/borrow-scanner');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
             const html = await response.text();
-            console.log('HTML geladen, Länge:', html.length);
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
@@ -3944,12 +3979,6 @@ class BorrowScannerManager {
             const newCartCount = doc.querySelector('#cartCount');
             const newCheckoutForm = doc.querySelector('#checkoutForm');
             
-            console.log('Gefundene Elemente:', {
-                newCartItems: !!newCartItems,
-                newCartCount: !!newCartCount,
-                newCheckoutForm: !!newCheckoutForm
-            });
-            
             // Aktualisiere cartItems NUR wenn keine Produkte vorhanden sind
             // Verhindere Überschreibung wenn bereits Produkte im Warenkorb sind
             const currentCartItems = document.getElementById('cartItems');
@@ -3957,13 +3986,10 @@ class BorrowScannerManager {
                 // Prüfe ob bereits Produkte im Warenkorb sind
                 const existingProducts = currentCartItems.querySelectorAll('.cart-item[data-product-id]');
                 if (existingProducts.length > 0) {
-                    console.log('⚠ Warenkorb enthält bereits Produkte, überspringe Überschreibung');
                     // Aktualisiere nur den Cart-Count, nicht die Items
                 } else {
-                    console.log('Aktualisiere cartItems...');
                     const oldContent = currentCartItems.innerHTML;
                     currentCartItems.innerHTML = newCartItems.innerHTML;
-                    console.log('cartItems aktualisiert. Alt:', oldContent.substring(0, 50), 'Neu:', currentCartItems.innerHTML.substring(0, 50));
                 }
             } else {
                 console.warn('cartItems nicht gefunden:', { newCartItems: !!newCartItems, currentCartItems: !!currentCartItems });
@@ -3977,9 +4003,7 @@ class BorrowScannerManager {
                 if (existingProducts > 0) {
                     // Verwende die Anzahl der vorhandenen Produkte
                     currentCartCount.textContent = existingProducts;
-                    console.log('⚠ Cart-Count basiert auf vorhandenen Produkten:', existingProducts);
                 } else if (newCartCount) {
-                    console.log('Aktualisiere cartCount von', currentCartCount.textContent, 'zu', newCartCount.textContent);
                     currentCartCount.textContent = newCartCount.textContent;
                 }
             } else {
@@ -4024,7 +4048,6 @@ class BorrowScannerManager {
             // Remove-from-cart Buttons neu setzen (alte Event-Listener entfernen und neue hinzufügen)
             // Entferne alle alten Event-Listener durch Klonen der Elemente
             const removeButtons = document.querySelectorAll('.remove-from-cart');
-            console.log('Gefundene remove-from-cart Buttons:', removeButtons.length);
             removeButtons.forEach(btn => {
                 const newBtn = btn.cloneNode(true);
                 btn.parentNode.replaceChild(newBtn, btn);
@@ -4040,7 +4063,6 @@ class BorrowScannerManager {
                 });
             });
             
-            console.log('Warenkorb erfolgreich aktualisiert');
         } catch (error) {
             console.error('Fehler beim Aktualisieren des Warenkorbs:', error);
             console.error('Error Details:', error.message, error.stack);
@@ -4051,49 +4073,94 @@ class BorrowScannerManager {
     
     setupCheckoutForm() {
         const checkoutForm = document.getElementById('checkoutForm');
-        if (checkoutForm) {
-            const dateInput = document.getElementById('expected_return_date');
-            if (dateInput) {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                dateInput.min = tomorrow.toISOString().split('T')[0];
+        if (!checkoutForm) return;
+
+        const dateInput = document.getElementById('expected_return_date');
+        if (dateInput) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            dateInput.min = tomorrow.toISOString().split('T')[0];
+        }
+
+        // Avoid stacking submit handlers on repeated cart updates / init
+        if (checkoutForm.dataset.checkoutBound === '1') return;
+        checkoutForm.dataset.checkoutBound = '1';
+
+        checkoutForm.addEventListener('submit', (e) => this.handleCheckoutSubmit(e, checkoutForm));
+    }
+
+    async handleCheckoutSubmit(e, checkoutForm) {
+        e.preventDefault();
+        if (!checkoutForm || checkoutForm.dataset.checkoutSubmitting === '1') return;
+
+        const borrowerInput = document.getElementById('borrower_name');
+        const borrowerIdInput = document.getElementById('borrower_id');
+        const emailInput = document.getElementById('contact_email');
+        const eventNameInput = document.getElementById('event_name');
+        const endInput = document.getElementById('end_date');
+
+        if (borrowerInput && !borrowerInput.value.trim()) {
+            if (window.showAppBanner) window.showAppBanner('Bitte Verantwortlichen angeben.', 'warning');
+            else this.showError?.('Bitte Verantwortlichen angeben.');
+            return;
+        }
+        if (borrowerIdInput && emailInput && !borrowerIdInput.value && !emailInput.value.trim()) {
+            if (window.showAppBanner) {
+                window.showAppBanner('Bitte Kontakt-E-Mail angeben (kein Portal-User gewählt).', 'warning');
+            } else {
+                this.showError?.('Bitte Kontakt-E-Mail angeben.');
             }
-            
-            checkoutForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const formData = new FormData(checkoutForm);
-                
-                // Deaktiviere Button während des Requests
-                const submitBtn = checkoutForm.querySelector('button[type="submit"]');
-                const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
-                }
-                
-                try {
-                    const response = await fetch(checkoutForm.action, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    // Die Checkout-Route gibt immer einen Redirect zurück (302)
-                    // Daher ist response.ok möglicherweise false, aber die Ausleihe war erfolgreich
-                    // Wir leiten zum Dashboard weiter - die Flash-Messages werden serverseitig gesetzt
-                    window.location.href = '/inventory/';
-                    
-                } catch (error) {
-                    console.error('Fehler beim Checkout:', error);
-                    // Bei Netzwerkfehlern Button wieder aktivieren
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                    }
-                    // Trotzdem weiterleiten - könnte erfolgreich gewesen sein
-                    // Die Flash-Message wird serverseitig gesetzt
-                    window.location.href = '/inventory/borrow-scanner';
-                }
+            emailInput.focus();
+            return;
+        }
+        if (eventNameInput && !eventNameInput.value.trim()) {
+            if (window.showAppBanner) window.showAppBanner('Bitte Projekt / Veranstaltung angeben.', 'warning');
+            else this.showError?.('Bitte Projekt / Veranstaltung angeben.');
+            return;
+        }
+        if (endInput && !endInput.value) {
+            if (window.showAppBanner) window.showAppBanner('Bitte Rückgabe-Zeitraum (Bis) angeben.', 'warning');
+            else this.showError?.('Bitte Rückgabe-Zeitraum (Bis) angeben.');
+            return;
+        }
+
+        const formData = new FormData(checkoutForm);
+        ['event_name', 'borrower_name', 'borrower_id', 'contact_email', 'start_date', 'end_date', 'event_id', 'event_appointment_id'].forEach((name) => {
+            const el = document.getElementById(name);
+            if (!el) return;
+            if (name === 'contact_email' && el.disabled) {
+                formData.delete('contact_email');
+                return;
+            }
+            if (!formData.has(name)) formData.set(name, el.value);
+        });
+
+        const submitBtn = checkoutForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+        checkoutForm.dataset.checkoutSubmitting = '1';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Wird verarbeitet...';
+        }
+
+        try {
+            const response = await fetch(checkoutForm.action, {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow',
             });
+            if (!response.ok) throw new Error('Checkout fehlgeschlagen');
+            this.showSuccess?.('Ausleihe erstellt. Weiterleitung...');
+            window.setTimeout(() => { window.location.href = '/inventory/borrows'; }, 600);
+        } catch (error) {
+            console.error('Fehler beim Checkout:', error);
+            if (window.showAppBanner) window.showAppBanner('Fehler beim Erstellen der Ausleihe.', 'danger');
+            else this.showError?.('Fehler beim Erstellen der Ausleihe.');
+            delete checkoutForm.dataset.checkoutSubmitting;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
         }
     }
     
@@ -4201,7 +4268,6 @@ class BorrowScannerManager {
                     const productItem = cartItems.querySelector(`[data-product-id="${productId}"]`);
                     if (productItem) {
                         productItem.remove();
-                        console.log('✓ Produkt aus DOM entfernt');
                     }
                 }
                 

@@ -9,13 +9,16 @@ from app.utils.common import portal_now_naive
 from app.utils.dashboard_events import emit_dashboard_update_multiple
 from app.utils.i18n import translate
 from app.utils.multi_calendars import (
+    calendar_display_name,
     calendar_to_dict,
     can_create_in_calendar,
     can_delete_event,
     can_edit_event,
+    display_color_for_event,
     ensure_imported_calendar_for_source,
     events_query_for_calendars,
     filter_events_for_calendars,
+    get_or_create_events_calendar,
     get_or_create_personal_calendar,
     get_public_calendar,
     is_calendar_export_enabled,
@@ -89,6 +92,7 @@ def _sidebar_context(user, selected_ids=None):
         'sidebar_calendars': {
             'personal': calendar_to_dict(sidebar['personal'], user),
             'public': calendar_to_dict(sidebar['public'], user),
+            'events': calendar_to_dict(sidebar['events'], user),
             'others': [calendar_to_dict(c, user) for c in sidebar['others']],
         },
         'selected_calendar_ids': selected_ids,
@@ -178,12 +182,14 @@ def _add_participants_for_event(event, multi_mode, invitee_ids=None):
     return []
 
 
-def event_to_api_dict(event, participation_status=None, extra=None):
+def event_to_api_dict(event, participation_status=None, extra=None, user=None):
     duration = (event.end_time.date() - event.start_time.date()).days + 1
     is_all_day = (
         event.start_time.strftime('%H:%M') == '00:00'
         and event.end_time.strftime('%H:%M') == '23:59'
     )
+    viewer = user if user is not None else current_user
+    display_color = display_color_for_event(event, viewer)
     data = {
         'id': event.id,
         'title': event.title,
@@ -195,6 +201,7 @@ def event_to_api_dict(event, participation_status=None, extra=None):
         'is_all_day': is_all_day,
         'location': event.location,
         'event_color': event.event_color or DEFAULT_EVENT_COLOR,
+        'display_color': display_color,
         'description': event.description,
         'day': event.start_time.day,
         'time': None if is_all_day else event.start_time.strftime('%H:%M'),
@@ -205,7 +212,13 @@ def event_to_api_dict(event, participation_status=None, extra=None):
     }
     if event.calendar:
         data['calendar_color'] = event.calendar.color or data['event_color']
-        data['calendar_name'] = event.calendar.name
+        data['calendar_name'] = calendar_display_name(event.calendar, viewer)
+        data['calendar_type'] = event.calendar.calendar_type
+        data['calendar_owner_id'] = event.calendar.owner_id
+    else:
+        data['calendar_type'] = None
+        data['calendar_owner_id'] = None
+        data['calendar_name'] = None
     if extra:
         data.update(extra)
     return data
@@ -343,6 +356,7 @@ def index():
         'calendar/index.html',
         events=events,
         participations=participations,
+        display_color_for_event=display_color_for_event,
         **ctx,
     )
 
@@ -375,6 +389,7 @@ def view_event(event_id):
         booking_request=booking_request,
         can_edit=can_edit_event(current_user, event),
         can_delete=can_delete_event(current_user, event),
+        calendar_display_name=calendar_display_name(event.calendar, current_user),
         **_page_shell_context(),
     )
 
@@ -863,6 +878,7 @@ def get_events_for_month(year, month):
                 'is_all_day': is_all_day,
                 'location': instance['location'],
                 'event_color': instance['event_color'],
+                'display_color': display_color_for_event(master_event, current_user),
                 'description': instance['description'],
                 'day': instance['start_time'].day,
                 'time': None if is_all_day else instance['start_time'].strftime('%H:%M'),
@@ -870,6 +886,8 @@ def get_events_for_month(year, month):
                 'is_recurring': True,
                 'parent_event_id': master_event.id,
                 'calendar_id': master_event.calendar_id,
+                'calendar_type': master_event.calendar.calendar_type if master_event.calendar else None,
+                'calendar_color': (master_event.calendar.color if master_event.calendar else None),
                 'url': url_for('calendar.view_event', event_id=master_event.id)
             })
     
@@ -1006,6 +1024,7 @@ def get_events_for_range(start_date, end_date):
                     'is_all_day': is_all_day,
                     'location': instance['location'],
                     'event_color': instance['event_color'],
+                    'display_color': display_color_for_event(master_event, current_user),
                     'description': instance['description'],
                     'day': instance['start_time'].day,
                     'time': None if is_all_day else instance['start_time'].strftime('%H:%M'),
@@ -1013,6 +1032,8 @@ def get_events_for_range(start_date, end_date):
                     'is_recurring': True,
                     'parent_event_id': master_event.id,
                     'calendar_id': master_event.calendar_id,
+                    'calendar_type': master_event.calendar.calendar_type if master_event.calendar else None,
+                    'calendar_color': (master_event.calendar.color if master_event.calendar else None),
                     'url': url_for('calendar.view_event', event_id=master_event.id)
                 })
 
@@ -1307,6 +1328,9 @@ def import_calendar():
         if action == 'delete_sync':
             source_id = request.form.get('source_id', type=int)
             source = CalendarSyncSource.query.get_or_404(source_id)
+            if not (current_user.is_admin or source.created_by == current_user.id):
+                flash(translate('calendar.flash.sync_edit_denied'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
             cal = Calendar.query.filter_by(sync_source_id=source.id).first()
             if cal:
                 for ev in CalendarEvent.query.filter_by(calendar_id=cal.id).all():
@@ -1315,6 +1339,34 @@ def import_calendar():
             db.session.delete(source)
             db.session.commit()
             flash(translate('calendar.flash.sync_deleted'), 'success')
+            return redirect(url_for('calendar.import_calendar'))
+
+        if action == 'edit_sync':
+            source_id = request.form.get('source_id', type=int)
+            source = CalendarSyncSource.query.get_or_404(source_id)
+            if not (current_user.is_admin or source.created_by == current_user.id):
+                flash(translate('calendar.flash.sync_edit_denied'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
+            name = request.form.get('sync_name', '').strip()
+            url = normalize_ical_url(request.form.get('sync_url', ''))
+            color = sanitize_event_color(request.form.get('sync_color', ''))
+            if not name or not url:
+                flash(translate('calendar.flash.sync_missing_fields'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
+            if not url.lower().startswith(('http://', 'https://', 'file://')):
+                flash(translate('calendar.flash.sync_invalid_url'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
+            source.name = name[:200]
+            source.url = url[:1000]
+            cal = Calendar.query.filter_by(sync_source_id=source.id).first()
+            if cal:
+                cal.name = source.name
+                cal.color = color
+            elif multi:
+                cal = ensure_imported_calendar_for_source(source)
+                cal.color = color
+            db.session.commit()
+            flash(translate('calendar.flash.sync_updated'), 'success')
             return redirect(url_for('calendar.import_calendar'))
 
         if 'ical_file' not in request.files:
@@ -1377,9 +1429,15 @@ def import_calendar():
             return redirect(url_for('calendar.import_calendar'))
 
     sync_sources = CalendarSyncSource.query.order_by(CalendarSyncSource.created_at.desc()).all()
+    source_calendars = {}
+    for source in sync_sources:
+        cal = Calendar.query.filter_by(sync_source_id=source.id).first()
+        if cal:
+            source_calendars[source.id] = cal
     return render_template(
         'calendar/import.html',
         sync_sources=sync_sources,
-        calendar_multi_enabled=multi,
+        source_calendars=source_calendars,
+        **_page_shell_context(),
     )
 

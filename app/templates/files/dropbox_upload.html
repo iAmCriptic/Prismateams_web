@@ -155,5 +155,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+window.FILES_MAX_UPLOAD_BYTES = {{ files_max_upload_bytes|default(104857600)|int }};
+</script>
 <script src="{{ url_for('static', filename='js/dropbox-browser.js') }}"></script>
 {% endblock %}

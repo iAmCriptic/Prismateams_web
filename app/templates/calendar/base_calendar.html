@@ -31,11 +31,11 @@
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
                 {{ calendar_more_menu(align_end=true) }}
                 {% if calendar_multi_enabled and sc %}
-                <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn calendar-mobile-new-btn btn-sm">
+                <a href="{{ url_for('calendar.create_event', calendar_id=sc.personal.id) }}" class="btn mod-new-btn btn-sm">
                     <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
                 </a>
                 {% elif can_create_focus %}
-                <a href="{{ url_for('calendar.create_event') }}" class="btn calendar-mobile-new-btn btn-sm">
+                <a href="{{ url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
                     <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
                 </a>
                 {% endif %}

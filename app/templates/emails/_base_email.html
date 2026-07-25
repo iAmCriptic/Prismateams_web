@@ -329,8 +329,12 @@
                     </tr>
                     <tr>
                         <td class="email-footer">
+                            {% if email_footer_html %}
+                            {{ email_footer_html|safe }}
+                            {% else %}
                             <p>Diese E-Mail enthält sensible Inhalte und ist nur für den genannten Empfänger bestimmt. Sollten Sie nicht der adressierte Nutzer sein, wenden Sie sich bitte an den Versender und löschen Sie diese E-Mail.</p>
                             <p>&copy; {{ current_year }} {{ app_name or 'Prismateams' }}. Alle Rechte vorbehalten.</p>
+                            {% endif %}
                         </td>
                     </tr>
                 </table>

@@ -1101,8 +1101,12 @@ def generate_inventory_tool_pdf(inventory, items, output=None):
     return build_standard_pdf(story, pagesize=A4, output=output)
 
 
-def generate_return_confirmation_pdf(borrow_transaction, output=None):
-    """Kompakte Rückgabe-Bestätigung im Standard-Layout (optional mit QR)."""
+def generate_return_confirmation_pdf(borrow_transaction, output=None, returned_items=None):
+    """Kompakte Rückgabe-Bestätigung im Standard-Layout (optional mit QR + Artikelliste)."""
+    from app.utils.common import portal_now_naive
+
+    styles = getSampleStyleSheet()
+    ps = pdf_paragraph_styles()
     stand = datetime.now().strftime('%d.%m.%Y')
     story = [
         build_standard_header("Rückgabeschein", subtitle=f"Stand: {stand}", pagesize=A4, logo_size=2.0 * cm),
@@ -1111,22 +1115,32 @@ def generate_return_confirmation_pdf(borrow_transaction, output=None):
 
     # CheckoutItem / Checkout compat
     from app.models.inventory import Checkout, CheckoutItem
+    items_for_table = None
     if isinstance(borrow_transaction, Checkout):
         checkout = borrow_transaction
-        return_date = datetime.utcnow()
+        items_for_table = (
+            list(returned_items) if returned_items is not None else list(checkout.returned_items or [])
+        )
+        return_date = portal_now_naive()
+        if items_for_table:
+            first_returned = getattr(items_for_table[0], 'returned_at', None)
+            if first_returned:
+                return_date = first_returned
         rows = [
             ["Vorgangsnummer", checkout.checkout_number],
             ["Projekt", checkout.event_name or "—"],
             ["Verantwortlicher", checkout.borrower_name or "—"],
             ["Status", checkout.status or "—"],
             ["Bestätigt am", return_date.strftime("%d.%m.%Y %H:%M")],
+            ["Artikel", str(len(items_for_table))],
         ]
         qr_payload = checkout.qr_code_data or generate_borrow_qr_code(checkout.checkout_number)
     elif isinstance(borrow_transaction, CheckoutItem):
         item = borrow_transaction
         checkout = item.checkout
         product = item.product
-        return_date = item.returned_at or datetime.utcnow()
+        return_date = item.returned_at or portal_now_naive()
+        items_for_table = list(returned_items) if returned_items is not None else [item]
         rows = [
             ["Vorgangsnummer", checkout.checkout_number if checkout else "—"],
             ["Produkt", getattr(product, "name", None) or "—"],
@@ -1141,7 +1155,7 @@ def generate_return_confirmation_pdf(borrow_transaction, output=None):
         product = getattr(borrow_transaction, "product", None)
         borrower_name = getattr(borrower, "full_name", "—") if borrower else "—"
         product_name = getattr(product, "name", "—") if product else "—"
-        return_date = getattr(borrow_transaction, "actual_return_date", None) or datetime.utcnow()
+        return_date = getattr(borrow_transaction, "actual_return_date", None) or portal_now_naive()
         txn = getattr(borrow_transaction, "transaction_number", "—")
         rows = [
             ["Vorgangsnummer", txn],
@@ -1150,6 +1164,8 @@ def generate_return_confirmation_pdf(borrow_transaction, output=None):
             ["Rückgabedatum", return_date.strftime("%d.%m.%Y %H:%M")],
         ]
         qr_payload = generate_borrow_qr_code(txn) if txn and txn != "—" else None
+        if returned_items is not None:
+            items_for_table = list(returned_items)
 
     details = Table(rows, colWidths=[5 * cm, 6.5 * cm])
     details.setStyle(meta_kv_table_style())
@@ -1165,5 +1181,38 @@ def generate_return_confirmation_pdf(borrow_transaction, output=None):
         story.append(layout)
     else:
         story.append(details)
+
+    if items_for_table:
+        story.append(Spacer(1, 0.5 * cm))
+        story.append(Paragraph("Zurückgegebene Artikel", ps['section']))
+        items_data = [['Nr.', 'Produktname', 'ID', 'Länge', 'Rückgabe']]
+        for idx, item in enumerate(items_for_table, 1):
+            product = getattr(item, 'product', None)
+            length_str = (
+                _format_length(product.length)
+                if product and getattr(product, 'length', None)
+                else '—'
+            )
+            returned_at = getattr(item, 'returned_at', None)
+            items_data.append([
+                str(idx),
+                Paragraph(getattr(product, 'name', None) or '—', styles['Normal']),
+                str(getattr(product, 'id', None) or getattr(item, 'product_id', '—')),
+                length_str,
+                returned_at.strftime('%d.%m.%Y %H:%M') if returned_at else '—',
+            ])
+        items_table = Table(
+            items_data,
+            colWidths=[1.1 * cm, 7.2 * cm, 2.2 * cm, 2.5 * cm, 3.2 * cm],
+            repeatRows=1,
+        )
+        items_table.setStyle(standard_table_style())
+        story.append(items_table)
+        story.append(Spacer(1, 0.35 * cm))
+        story.append(Paragraph(
+            "Diese Liste enthält die bei diesem Vorgang zurückgegebenen Artikel "
+            "(auch bei Teilerückgabe).",
+            ps['muted'],
+        ))
 
     return build_standard_pdf(story, pagesize=A4, output=output)

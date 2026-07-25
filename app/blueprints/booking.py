@@ -670,14 +670,13 @@ def request_accept(request_id):
         # Default: 1 Stunde später
         end_datetime = start_datetime + timedelta(hours=1)
     
-    # Erstelle Kalendereintrag (bei Multi-Kalender im Public-Kalender)
+    # Multi an → Veranstaltungen; Multi aus → Public
     calendar_id = None
     try:
-        from app.utils.multi_calendars import is_calendar_multi_enabled, get_public_calendar
-        if is_calendar_multi_enabled():
-            calendar_id = get_public_calendar().id
+        from app.utils.multi_calendars import target_calendar_id_for_module_events
+        calendar_id = target_calendar_id_for_module_events()
     except Exception as e:
-        current_app.logger.error(f"Multi-Kalender Public-Lookup fehlgeschlagen: {e}")
+        current_app.logger.error(f"Modul-Kalender-Lookup fehlgeschlagen: {e}")
 
     calendar_event = CalendarEvent(
         title=booking_request.event_name,

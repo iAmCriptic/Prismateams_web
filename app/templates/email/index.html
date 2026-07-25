@@ -331,7 +331,7 @@
                     <i class="bi bi-arrow-clockwise sync-icon"></i>
                 </button>
             </form>
-            <a href="{{ url_for('email.compose') }}" class="btn mod-sidebar-new btn-sm" title="{{ _('email.index.buttons.compose') }}">
+            <a href="{{ url_for('email.compose') }}" class="btn mod-new-btn btn-sm" title="{{ _('email.index.buttons.compose') }}">
                 <i class="bi bi-pencil-square me-1"></i>{{ _('email.index.buttons.compose') }}
             </a>
         </div>
@@ -875,7 +875,7 @@ document.addEventListener('click', (e) => {
     handleDeleteFolder(btn.dataset.folder);
 });
 
-// Mobile actions modal: render dropdown contents as modal on narrow screens
+// Mobile actions modal: render ⋮ dropdown contents as modal on narrow screens
 document.addEventListener('click', function(e) {
     const toggleBtn = e.target.closest('[data-mobile-modal="dropdown"]');
     if (!toggleBtn) return;
@@ -889,8 +889,37 @@ document.addEventListener('click', function(e) {
     contentEl.innerHTML = '';
     Array.from(dropdown.children).forEach(child => contentEl.appendChild(child.cloneNode(true)));
     contentEl.querySelectorAll('.dropdown-item').forEach(item => item.classList.add('py-2'));
+    // Nested “move to folder” stays inside ⋮ — expand via tap, no hover flyout
+    contentEl.querySelectorAll('.dropdown-submenu > .dropdown-toggle').forEach((toggle) => {
+        toggle.removeAttribute('data-bs-toggle');
+        toggle.setAttribute('aria-expanded', 'false');
+    });
     const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
     bsModal.show();
+});
+
+// ⋮ / modal: open nested submenu by tap (touch has no :hover)
+document.addEventListener('click', function(e) {
+    const toggle = e.target.closest('.email-actions-menu .dropdown-submenu > .dropdown-toggle, #emailActionsContent .dropdown-submenu > .dropdown-toggle');
+    if (!toggle) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const parent = toggle.closest('.dropdown-submenu');
+    const sub = parent && parent.querySelector(':scope > .dropdown-menu');
+    if (!parent || !sub) return;
+    const root = toggle.closest('.email-actions-menu, #emailActionsContent') || document;
+    root.querySelectorAll('.dropdown-submenu').forEach((li) => {
+        if (li === parent) return;
+        li.classList.remove('is-open');
+        const m = li.querySelector(':scope > .dropdown-menu.show');
+        if (m) m.classList.remove('show');
+        const t = li.querySelector(':scope > .dropdown-toggle');
+        if (t) t.setAttribute('aria-expanded', 'false');
+    });
+    const open = !sub.classList.contains('show');
+    sub.classList.toggle('show', open);
+    parent.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 });
 
 // Mobile Ordner-Offcanvas schließen nach Klick (wie Dateien)

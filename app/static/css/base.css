@@ -29,6 +29,7 @@ body {
 
 [data-bs-theme="dark"] {
     --bs-body-bg: #1a1a1a;
+    --portal-bg: #1a1a1a;
 }
 
 [data-bs-theme="dark"] body {
@@ -42,6 +43,7 @@ body {
 /* OLED Mode - echtes Schwarz für OLED-Displays */
 [data-oled-mode="true"] {
     --bs-body-bg: #000000;
+    --portal-bg: #000000;
 }
 
 [data-oled-mode="true"] body {
@@ -570,10 +572,12 @@ body {
     .main-content:has(.chat-container) .container-fluid {
         padding: 0 !important;
         margin: 0 !important;
-        max-width: none !important;
-        width: 100vw !important;
-        height: 100vh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100dvh !important;
         overflow: hidden !important;
+        box-sizing: border-box !important;
     }
     
     /* Hide mobile navigation on chat pages */
@@ -583,8 +587,10 @@ body {
     
     /* Full screen chat container */
     .chat-container {
-        width: 100vw !important;
-        height: 100vh !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100dvh !important;
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -596,6 +602,7 @@ body {
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
+        box-sizing: border-box !important;
     }
     
     /* Hide mobile nav when chat is active */

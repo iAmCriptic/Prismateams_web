@@ -19,7 +19,8 @@
         return mode;
     }
 
-    const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB — matches files.upload_file
+    const MAX_UPLOAD_BYTES = Number(window.FILES_MAX_UPLOAD_BYTES) || (100 * 1024 * 1024);
+    const UPLOAD_HISTORY_KEY = 'filesUploadHistoryV1';
 
     function ensureToastStack() {
         let stack = document.getElementById('filesUploadToastStack');
@@ -32,64 +33,540 @@
         return stack;
     }
 
-    function createUploadToast(fileNames) {
+    function loadUploadHistory() {
+        try {
+            const raw = sessionStorage.getItem(UPLOAD_HISTORY_KEY);
+            const data = raw ? JSON.parse(raw) : null;
+            if (!data || !Array.isArray(data.items)) return { items: [], collapsed: true };
+            return {
+                items: data.items.slice(-40),
+                collapsed: data.collapsed !== false,
+            };
+        } catch (e) {
+            return { items: [], collapsed: true };
+        }
+    }
+
+    function saveUploadHistory(state) {
+        try {
+            sessionStorage.setItem(UPLOAD_HISTORY_KEY, JSON.stringify({
+                items: (state.items || []).slice(-40),
+                collapsed: !!state.collapsed,
+            }));
+        } catch (e) { /* ignore */ }
+    }
+
+    function clearUploadHistory() {
+        try { sessionStorage.removeItem(UPLOAD_HISTORY_KEY); } catch (e) { /* ignore */ }
+    }
+
+    function pluralUploads(n) {
+        return n === 1 ? 'Upload' : 'Uploads';
+    }
+
+    function normalizeUploadEntries(fileEntries) {
+        if (!fileEntries || !fileEntries.length) return [];
+        return fileEntries.map((entry) => {
+            if (typeof entry === 'string') {
+                return { name: entry, size: 0 };
+            }
+            return {
+                name: (entry && entry.name) || 'Datei',
+                size: Math.max(0, Number(entry && entry.size) || 0),
+            };
+        }).filter((e) => e.name);
+    }
+
+    function extractUploadFiles(formData) {
+        const files = [];
+        for (const [key, value] of formData.entries()) {
+            if ((key === 'file' || key === 'folder_upload') && value && typeof value === 'object' && typeof value.size === 'number') {
+                files.push({
+                    name: value.name || 'Datei',
+                    size: value.size,
+                });
+            }
+        }
+        return files;
+    }
+
+    /** Persistentes Upload-Panel unten rechts (Verlauf, Collapse, Schließen). */
+    function getUploadPanel() {
         const stack = ensureToastStack();
-        const id = 'upload-toast-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
-        const names = (fileNames || []).filter(Boolean);
-        const label = names.length === 0
-            ? 'Upload'
-            : (names.length === 1 ? names[0] : names.length + ' Dateien');
-        const el = document.createElement('div');
-        el.id = id;
-        el.className = 'files-upload-toast';
+        let el = document.getElementById('filesUploadPanel');
+        if (el && el._uploadApi) return el._uploadApi;
+
+        // Altes Markup ohne Progress außerhalb entfernen
+        if (el) el.remove();
+
+        el = document.createElement('div');
+        el.id = 'filesUploadPanel';
+        el.className = 'files-upload-toast files-upload-panel is-collapsed';
         el.setAttribute('role', 'status');
+        el.hidden = true;
         el.innerHTML = `
-            <div class="files-upload-toast-title">Wird hochgeladen…</div>
-            <div class="files-upload-toast-meta"></div>
-            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:0%"></div>
+            <div class="files-upload-panel-header">
+                <button type="button" class="files-upload-panel-toggle" data-upload-toggle aria-expanded="false" title="Details">
+                    <i class="bi bi-chevron-up" aria-hidden="true"></i>
+                </button>
+                <div class="files-upload-panel-summary" data-upload-summary></div>
+                <button type="button" class="files-upload-panel-close" data-upload-close aria-label="Schließen">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
             </div>
-            <div class="files-upload-toast-pct">0%</div>
+            <div class="files-upload-panel-progress" data-upload-progress hidden>
+                <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%"></div>
+                </div>
+                <div class="files-upload-toast-pct" data-upload-pct>0%</div>
+            </div>
+            <div class="files-upload-panel-body" data-upload-body hidden>
+                <div class="files-upload-panel-list" data-upload-list></div>
+            </div>
         `;
-        el.querySelector('.files-upload-toast-meta').textContent = label;
         stack.appendChild(el);
-        return {
-            id,
+
+        const state = {
+            items: [],
+            collapsed: true,
+            uploading: false,
+            batchIds: [],
+        };
+
+        const summaryEl = () => el.querySelector('[data-upload-summary]');
+        const listEl = () => el.querySelector('[data-upload-list]');
+        const bodyEl = () => el.querySelector('[data-upload-body]');
+        const progressWrap = () => el.querySelector('[data-upload-progress]');
+        const toggleBtn = () => el.querySelector('[data-upload-toggle]');
+
+        function isDoneStatus(status) {
+            return status === 'success';
+        }
+
+        function canDismissStatus(status) {
+            return status === 'success' || status === 'error';
+        }
+
+        function removeItem(id) {
+            const item = state.items.find((i) => i.id === id);
+            if (!item || !canDismissStatus(item.status)) return;
+            state.items = state.items.filter((i) => i.id !== id);
+            state.batchIds = state.batchIds.filter((bid) => bid !== id);
+            if (!state.items.length) {
+                hideAndClear();
+                return;
+            }
+            renderList();
+            renderSummary();
+            persist();
+        }
+
+        function paintItemProgress(itemId) {
+            const item = state.items.find((i) => i.id === itemId);
+            if (!item) return;
+            const list = listEl();
+            if (!list) return;
+            const row = list.querySelector(`[data-item-id="${itemId}"]`);
+            if (!row) return;
+            const pct = Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0)));
+            const bar = row.querySelector('.files-upload-panel-item-bar');
+            const pctEl = row.querySelector('.files-upload-panel-item-pct');
+            const msgEl = row.querySelector('.files-upload-panel-item-msg');
+            if (bar) bar.style.width = pct + '%';
+            if (pctEl) pctEl.textContent = pct + '%';
+            if (msgEl && item.status === 'uploading') {
+                msgEl.hidden = false;
+                msgEl.textContent = pct > 0 ? `Wird hochgeladen… ${pct}%` : 'Wird hochgeladen…';
+            }
+        }
+
+        /** Verteilt Gesamt-Bytes auf die aktuelle Batch (geschätzt nach Dateigröße). */
+        function distributeBatchProgress(loaded, total) {
+            const batch = state.batchIds
+                .map((id) => state.items.find((i) => i.id === id))
+                .filter(Boolean);
+            if (!batch.length) return;
+            const sizes = batch.map((i) => Math.max(0, Number(i.size) || 0));
+            const sum = sizes.reduce((a, b) => a + b, 0);
+            const overallFrac = (total > 0) ? Math.max(0, Math.min(1, loaded / total)) : 0;
+
+            if (!sum) {
+                const pct = Math.round(overallFrac * 100);
+                batch.forEach((item) => {
+                    item.progress = pct;
+                    paintItemProgress(item.id);
+                });
+                return;
+            }
+
+            let cursor = overallFrac * sum;
+            batch.forEach((item, idx) => {
+                const size = sizes[idx] || 1;
+                let pct = 0;
+                if (cursor >= size) {
+                    pct = 100;
+                    cursor -= size;
+                } else if (cursor > 0) {
+                    pct = Math.min(100, Math.round((cursor / size) * 100));
+                    cursor = 0;
+                }
+                item.progress = pct;
+                paintItemProgress(item.id);
+            });
+        }
+
+        function renderList() {
+            const list = listEl();
+            if (!list) return;
+            list.innerHTML = '';
+            state.items.forEach((item) => {
+                const row = document.createElement('div');
+                const status = item.status || 'pending';
+                const pct = Math.max(0, Math.min(100, Math.round(Number(item.progress) || 0)));
+                row.className = 'files-upload-panel-item is-' + status;
+                row.dataset.itemId = item.id;
+                const icon = status === 'success' ? 'bi-check-circle-fill'
+                    : status === 'error' ? 'bi-x-circle-fill'
+                    : status === 'uploading' ? 'bi-arrow-up-circle-fill'
+                    : 'bi-file-earmark';
+                const dismissBtn = canDismissStatus(status)
+                    ? `<button type="button" class="files-upload-panel-item-dismiss" data-upload-dismiss="${item.id}" aria-label="Entfernen" title="Entfernen"><i class="bi bi-x" aria-hidden="true"></i></button>`
+                    : '';
+                const itemBar = status === 'uploading'
+                    ? `<div class="files-upload-panel-item-progress">
+                            <div class="files-upload-panel-item-bar-track">
+                                <div class="files-upload-panel-item-bar" style="width:${pct}%"></div>
+                            </div>
+                            <span class="files-upload-panel-item-pct">${pct}%</span>
+                       </div>`
+                    : '';
+                row.innerHTML = `
+                    <i class="bi ${icon}" aria-hidden="true"></i>
+                    <div class="files-upload-panel-item-main">
+                        <span class="files-upload-panel-item-name"></span>
+                        <span class="files-upload-panel-item-msg" hidden></span>
+                        ${itemBar}
+                    </div>
+                    ${dismissBtn}
+                `;
+                row.querySelector('.files-upload-panel-item-name').textContent = item.name || 'Datei';
+                const msgEl = row.querySelector('.files-upload-panel-item-msg');
+                if (status === 'error' && item.message) {
+                    msgEl.hidden = false;
+                    msgEl.textContent = item.message;
+                } else if (status === 'success') {
+                    msgEl.hidden = false;
+                    msgEl.textContent = 'Hochgeladen';
+                } else if (status === 'uploading') {
+                    msgEl.hidden = false;
+                    msgEl.textContent = pct > 0 ? `Wird hochgeladen… ${pct}%` : 'Wird hochgeladen…';
+                }
+                if (item.message) row.title = item.message;
+                list.appendChild(row);
+            });
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function syncProgressVisibility() {
+            const prog = progressWrap();
+            if (!prog) return;
+            // Gesamtbalken nur bei mehreren Dateien / Ordner-Upload
+            const multi = state.uploading && state.batchIds.length > 1;
+            prog.hidden = !multi;
+        }
+
+        function renderSummary() {
+            const sum = summaryEl();
+            if (!sum) return;
+            const total = state.items.length;
+            const done = state.items.filter((i) => isDoneStatus(i.status)).length;
+            const err = state.items.filter((i) => i.status === 'error').length;
+            const uploading = state.uploading || state.items.some((i) => i.status === 'uploading');
+
+            el.classList.remove('is-success', 'is-error', 'is-warning', 'is-uploading');
+            if (uploading) {
+                el.classList.add('is-uploading');
+                if (!sum.dataset.live) {
+                    sum.textContent = 'Wird hochgeladen…';
+                }
+            } else if (total === 0) {
+                sum.textContent = '';
+                delete sum.dataset.live;
+            } else if (done === 0 && err > 0) {
+                delete sum.dataset.live;
+                sum.textContent = `${err}/${total} ${pluralUploads(total)} fehlgeschlagen`;
+                el.classList.add('is-error');
+            } else {
+                delete sum.dataset.live;
+                sum.textContent = `${done}/${total} ${pluralUploads(total)} abgeschlossen`;
+                if (err > 0) el.classList.add('is-error');
+                else el.classList.add('is-success');
+            }
+            syncProgressVisibility();
+        }
+
+        function applyCollapsed() {
+            const body = bodyEl();
+            const btn = toggleBtn();
+            el.classList.toggle('is-collapsed', state.collapsed);
+            // Nur Dateiliste einklappbar — Fortschrittsbalken bleibt unabhängig sichtbar
+            if (body) body.hidden = state.collapsed;
+            if (btn) {
+                btn.setAttribute('aria-expanded', state.collapsed ? 'false' : 'true');
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = state.collapsed ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+                }
+            }
+        }
+
+        function persist() {
+            saveUploadHistory({ items: state.items, collapsed: state.collapsed });
+        }
+
+        function show() {
+            el.hidden = false;
+        }
+
+        function hideAndClear() {
+            state.items = [];
+            state.batchIds = [];
+            state.uploading = false;
+            clearUploadHistory();
+            el.hidden = true;
+            const sum = summaryEl();
+            if (sum) delete sum.dataset.live;
+            renderList();
+            renderSummary();
+            syncProgressVisibility();
+        }
+
+        function setCollapsed(collapsed) {
+            state.collapsed = !!collapsed;
+            applyCollapsed();
+            persist();
+        }
+
+        const api = {
             el,
-            setProgress(pct) {
+            restore() {
+                const saved = loadUploadHistory();
+                state.items = saved.items || [];
+                state.collapsed = saved.collapsed !== false;
+                if (!state.items.length) {
+                    el.hidden = true;
+                    return;
+                }
+                state.items.forEach((item) => {
+                    if (item.status === 'uploading') {
+                        item.status = 'error';
+                        item.message = item.message || 'Upload unterbrochen';
+                    }
+                });
+                state.uploading = false;
+                // Fehler nach Reload sichtbar lassen
+                if (state.items.some((i) => i.status === 'error')) {
+                    state.collapsed = false;
+                }
+                // Alte "warning"-Einträge als Erfolg behandeln
+                state.items.forEach((item) => {
+                    if (item.status === 'warning') item.status = 'success';
+                });
+                show();
+                renderList();
+                renderSummary();
+                applyCollapsed();
+                syncProgressVisibility();
+                persist();
+            },
+            beginBatch(fileEntries) {
+                const entries = normalizeUploadEntries(fileEntries);
+                const ids = [];
+                const stamp = Date.now();
+                if (!entries.length) {
+                    const id = 'u-' + stamp + '-0';
+                    state.items.push({ id, name: 'Upload', status: 'uploading', progress: 0, size: 0 });
+                    ids.push(id);
+                } else {
+                    entries.forEach((entry, idx) => {
+                        const id = 'u-' + stamp + '-' + idx + '-' + Math.random().toString(36).slice(2, 6);
+                        state.items.push({
+                            id,
+                            name: entry.name,
+                            status: 'uploading',
+                            progress: 0,
+                            size: entry.size || 0,
+                        });
+                        ids.push(id);
+                    });
+                }
+                state.batchIds = ids;
+                state.uploading = true;
+                // Während Upload aufklappen — Einzelbalken sichtbar
+                state.collapsed = false;
+                show();
+                renderList();
+                renderSummary();
+                applyCollapsed();
+                syncProgressVisibility();
+                this.setProgress(0);
+                const bar = el.querySelector('.progress-bar');
+                if (bar) bar.classList.add('progress-bar-animated', 'progress-bar-striped');
+                persist();
+                return ids;
+            },
+            setProgress(pct, loaded, total) {
                 const n = Math.max(0, Math.min(100, Number(pct) || 0));
                 const bar = el.querySelector('.progress-bar');
-                const wrap = el.querySelector('.progress');
-                const pctEl = el.querySelector('.files-upload-toast-pct');
-                if (bar) bar.style.width = n + '%';
-                if (wrap) wrap.setAttribute('aria-valuenow', String(Math.round(n)));
-                if (pctEl) pctEl.textContent = Math.round(n) + '%';
+                const wrap = el.querySelector('[data-upload-progress] .progress');
+                const pctEl = el.querySelector('[data-upload-pct]');
+                const multi = state.batchIds.length > 1;
+                const prog = progressWrap();
+                if (prog) prog.hidden = !(state.uploading && multi);
+                if (multi) {
+                    if (bar) {
+                        bar.style.width = n + '%';
+                        bar.classList.add('progress-bar-animated', 'progress-bar-striped');
+                    }
+                    if (wrap) wrap.setAttribute('aria-valuenow', String(Math.round(n)));
+                    if (pctEl) pctEl.textContent = Math.round(n) + '%';
+                }
+                const sum = summaryEl();
+                if (sum && state.uploading) {
+                    sum.dataset.live = '1';
+                    sum.textContent = 'Wird hochgeladen… ' + Math.round(n) + '%';
+                }
+                if (typeof loaded === 'number' && typeof total === 'number' && total > 0) {
+                    distributeBatchProgress(loaded, total);
+                } else if (state.batchIds.length) {
+                    state.batchIds.forEach((id) => {
+                        const item = state.items.find((i) => i.id === id);
+                        if (item && item.status === 'uploading') {
+                            item.progress = n;
+                            paintItemProgress(id);
+                        }
+                    });
+                }
             },
             setIndeterminate(on) {
                 const bar = el.querySelector('.progress-bar');
-                if (!bar) return;
+                const multi = state.batchIds.length > 1;
+                const prog = progressWrap();
+                if (prog) prog.hidden = !(state.uploading && multi);
+                if (!bar || !multi) return;
                 if (on) {
                     bar.classList.add('progress-bar-animated', 'progress-bar-striped');
                     bar.style.width = '100%';
                 }
             },
-            setStatus(text, kind) {
-                const title = el.querySelector('.files-upload-toast-title');
-                if (title) title.textContent = text;
-                el.classList.remove('is-success', 'is-error', 'is-warning');
-                if (kind === 'success') el.classList.add('is-success');
-                if (kind === 'error') el.classList.add('is-error');
-                if (kind === 'warning') el.classList.add('is-warning');
+            setStatus(text) {
+                const sum = summaryEl();
+                if (sum && text) {
+                    sum.dataset.live = '1';
+                    sum.textContent = text;
+                }
             },
-            done(ok, message, kind) {
+            finishBatch(ok, message, kind) {
+                // ok → immer grün (auch bei Info-/Warn-Flash); Fehler → rot
+                const status = ok ? 'success' : 'error';
+                const ids = state.batchIds.length
+                    ? state.batchIds.slice()
+                    : state.items.filter((i) => i.status === 'uploading').map((i) => i.id);
+                ids.forEach((id) => {
+                    const item = state.items.find((i) => i.id === id);
+                    if (item) {
+                        item.status = status;
+                        item.progress = ok ? 100 : (item.progress || 0);
+                        if (!ok && message) item.message = message;
+                        else if (ok) item.message = 'Hochgeladen';
+                    }
+                });
+                state.batchIds = [];
+                state.uploading = false;
+                const wasMulti = ids.length > 1;
                 const bar = el.querySelector('.progress-bar');
-                if (bar) bar.classList.remove('progress-bar-animated');
-                this.setProgress(100);
-                const k = kind || (ok ? 'success' : 'error');
-                this.setStatus(message || (ok ? 'Upload fertig' : 'Upload fehlgeschlagen'), k);
-                setTimeout(() => el.remove(), ok && k !== 'warning' ? 2800 : 7000);
-            }
+                if (bar) {
+                    bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    bar.style.width = '100%';
+                }
+                const pctEl = el.querySelector('[data-upload-pct]');
+                if (pctEl) pctEl.textContent = '100%';
+                const sum = summaryEl();
+                if (sum) delete sum.dataset.live;
+                const prog = progressWrap();
+                if (prog) {
+                    if (wasMulti) {
+                        prog.hidden = false;
+                        setTimeout(() => { prog.hidden = true; }, 450);
+                    } else {
+                        prog.hidden = true;
+                    }
+                }
+                // Bei Fehler oder mehreren Dateien aufklappen
+                if (status === 'error' || ids.length > 1) state.collapsed = false;
+                else state.collapsed = true;
+                show();
+                renderList();
+                renderSummary();
+                applyCollapsed();
+                persist();
+            },
+            close: hideAndClear,
         };
+
+        const tBtn = toggleBtn();
+        if (tBtn) {
+            tBtn.addEventListener('click', () => setCollapsed(!state.collapsed));
+        }
+        const cBtn = el.querySelector('[data-upload-close]');
+        if (cBtn) {
+            cBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                hideAndClear();
+            });
+        }
+        const list = listEl();
+        if (list) {
+            list.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-upload-dismiss]');
+                if (!btn) return;
+                e.preventDefault();
+                e.stopPropagation();
+                removeItem(btn.getAttribute('data-upload-dismiss'));
+            });
+        }
+
+        el._uploadApi = api;
+        applyCollapsed();
+        syncProgressVisibility();
+        return api;
+    }
+
+    /** Kompatibilität: liefert API ähnlich dem alten Toast. */
+    function createUploadToast(fileEntries) {
+        const panel = getUploadPanel();
+        panel.beginBatch(fileEntries);
+        return {
+            id: 'filesUploadPanel',
+            el: panel.el,
+            setProgress(pct, loaded, total) { panel.setProgress(pct, loaded, total); },
+            setIndeterminate(on) { panel.setIndeterminate(on); },
+            setStatus(text) { panel.setStatus(text); },
+            done(ok, message, kind) { panel.finishBatch(ok, message, kind); },
+        };
+    }
+
+    // Nach Reload Verlauf wiederherstellen (einmalig)
+    let uploadPanelRestored = false;
+    function restoreUploadPanelOnce() {
+        if (uploadPanelRestored) return;
+        uploadPanelRestored = true;
+        getUploadPanel().restore();
+    }
+    document.addEventListener('DOMContentLoaded', restoreUploadPanelOnce);
+    if (document.readyState !== 'loading') {
+        restoreUploadPanelOnce();
     }
 
     function formatBytes(n) {
@@ -125,13 +602,14 @@
                 if (!onProgress) return;
                 if (evt.lengthComputable && evt.total > 0) {
                     sawProgress = true;
-                    onProgress(Math.round((evt.loaded / evt.total) * 100), false);
+                    const pct = Math.round((evt.loaded / evt.total) * 100);
+                    onProgress(pct, false, evt.loaded, evt.total);
                 } else {
                     onProgress(null, true);
                 }
             };
             xhr.upload.onloadstart = () => {
-                if (onProgress) onProgress(1, false);
+                if (onProgress) onProgress(1, false, 0, 1);
             };
             xhr.onload = () => {
                 let data = null;
@@ -169,8 +647,12 @@
 
         const tooBig = validateFormDataSizes(formData);
         if (tooBig.length) {
+            const maxLabel = formatBytes(MAX_UPLOAD_BYTES);
             const detail = tooBig.slice(0, 3).map(f => `${f.name} (${formatBytes(f.size)})`).join(', ');
-            const msg = `Datei zu groß (max. 100MB): ${detail}${tooBig.length > 3 ? ' …' : ''}`;
+            const msg = `Datei zu groß (max. ${maxLabel}): ${detail}${tooBig.length > 3 ? ' …' : ''}`;
+            const panel = getUploadPanel();
+            panel.beginBatch(tooBig);
+            panel.finishBatch(false, msg, 'error');
             if (typeof window.showAppBanner === 'function') {
                 window.showAppBanner(msg, 'danger', { timeout: 8000 });
             }
@@ -192,16 +674,20 @@
             return;
         }
 
-        const toast = createUploadToast(fileNames);
+        const uploadEntries = extractUploadFiles(formData);
+        const toastEntries = uploadEntries.length
+            ? uploadEntries
+            : normalizeUploadEntries(fileNames);
+        const toast = createUploadToast(toastEntries);
         toast.setStatus('Wird hochgeladen…', null);
         try {
             const result = await xhrUpload(uploadUrl, formData, {
-                onProgress: (pct, indeterminate) => {
+                onProgress: (pct, indeterminate, loaded, total) => {
                     if (indeterminate) {
                         toast.setIndeterminate(true);
                         toast.setStatus('Upload läuft…', null);
                     } else if (pct != null) {
-                        toast.setProgress(pct);
+                        toast.setProgress(pct, loaded, total);
                         toast.setStatus(`Wird hochgeladen… ${pct}%`, null);
                     }
                 }
@@ -209,8 +695,8 @@
 
             if (result.status === 413) {
                 const msg = (result.data && (result.data.message || pickMessage(result.data.messages || [], ['danger'])))
-                    || 'Datei zu groß für den Server (max. 100MB pro Datei).';
-                toast.el.remove();
+                    || 'Datei zu groß für den Server.';
+                toast.done(false, msg, 'error');
                 if (typeof window.showAppBanner === 'function') {
                     window.showAppBanner(msg, 'danger', { timeout: 8000 });
                 }
@@ -230,15 +716,17 @@
                         || msgs.upload_error
                         || 'Upload fehlgeschlagen';
                     toast.done(false, errText, 'error');
+                    // Kein Reload bei Fehler — Meldung bleibt im Panel
                     return;
                 }
-                const warnText = pickMessage(messages, ['warning', 'info']);
+                const dangerText = pickMessage(messages, ['danger']);
                 const okText = pickMessage(messages, ['success']) || 'Upload fertig';
-                if (warnText) {
-                    toast.done(true, `${okText} — ${warnText}`, 'warning');
-                } else {
-                    toast.done(true, okText, 'success');
+                if (dangerText && !result.data.success) {
+                    toast.done(false, dangerText, 'error');
+                    return;
                 }
+                // Erfolg immer grün — Warn-/Info-Flash nicht als gelb anzeigen
+                toast.done(true, okText, 'success');
                 setTimeout(() => {
                     const url = result.data.redirect_url;
                     if (url) window.location.href = url;

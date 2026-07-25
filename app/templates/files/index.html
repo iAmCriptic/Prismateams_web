@@ -81,6 +81,20 @@
     </div>
     {{ files_nav_links(false) }}
     {{ files_favorites_nav(false) }}
+    <div class="mod-sidebar-footer files-storage-footer" id="filesStorageWidget" hidden>
+        <div class="files-storage-widget" data-files-storage-widget>
+            <div class="files-storage-widget__head">
+                <i class="bi bi-cloud" aria-hidden="true"></i>
+                <span class="files-storage-widget__title">{{ _('files.index.storage.title') }}</span>
+                <i class="bi bi-exclamation-triangle-fill files-storage-widget__warn" data-storage-warn hidden title="{{ _('files.index.storage.warning') }}" aria-hidden="true"></i>
+            </div>
+            <div class="files-storage-widget__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-storage-bar>
+                <div class="files-storage-widget__bar-fill" data-storage-fill style="width: 0%"></div>
+            </div>
+            <div class="files-storage-widget__usage" data-storage-usage></div>
+            <div class="files-storage-widget__limit" data-storage-limit></div>
+        </div>
+    </div>
 </aside>
 
 <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="filesMobileNav" aria-labelledby="filesMobileNavLabel">
@@ -91,9 +105,23 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
     </div>
-    <div class="offcanvas-body pt-0">
+    <div class="offcanvas-body pt-0 d-flex flex-column">
         {{ files_nav_links(true) }}
         {{ files_favorites_nav(true) }}
+        <div class="mod-sidebar-footer files-storage-footer mt-auto" id="filesStorageWidgetMobile" hidden>
+            <div class="files-storage-widget" data-files-storage-widget>
+                <div class="files-storage-widget__head">
+                    <i class="bi bi-cloud" aria-hidden="true"></i>
+                    <span class="files-storage-widget__title">{{ _('files.index.storage.title') }}</span>
+                    <i class="bi bi-exclamation-triangle-fill files-storage-widget__warn" data-storage-warn hidden title="{{ _('files.index.storage.warning') }}" aria-hidden="true"></i>
+                </div>
+                <div class="files-storage-widget__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-storage-bar>
+                    <div class="files-storage-widget__bar-fill" data-storage-fill style="width: 0%"></div>
+                </div>
+                <div class="files-storage-widget__usage" data-storage-usage></div>
+                <div class="files-storage-widget__limit" data-storage-limit></div>
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -113,7 +141,7 @@
             </div>
         </div>
         <div class="dropdown flex-shrink-0" id="newButtonDropdownMobile">
-            <button class="btn files-mobile-new-btn btn-sm rounded-pill" type="button" id="newButtonMobile">
+            <button class="btn mod-new-btn files-mobile-new-btn btn-sm" type="button" id="newButtonMobile">
                 <i class="bi bi-plus-lg"></i> {{ _('files.index.new_button') }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end files-mobile-new-menu files-dropdown-menu" id="newDropdownMenuMobile" style="display: none;">
@@ -269,6 +297,44 @@
 <!-- ============================================ -->
 <!-- GRID VIEW - Ordner zuerst, dann Dateien (ein Grid) -->
 <!-- ============================================ -->
+<div id="filesBulkToolbar" class="files-bulk-bar mb-3" style="display: none;">
+    <div class="files-bulk-inner">
+        <div>
+            <span class="text-muted">
+                <strong id="filesBulkCount">0</strong> ausgewählt
+            </span>
+        </div>
+        <div class="files-bulk-actions">
+            <button type="button" id="filesBulkSelectAllBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Alle auswählen">
+                <i class="bi bi-check-square"></i> Alle
+            </button>
+            <button type="button" id="filesBulkDeselectBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--muted" title="Auswahl aufheben">
+                <i class="bi bi-square"></i> Keine
+            </button>
+            <button type="button" id="filesBulkZipBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Als ZIP herunterladen">
+                <i class="bi bi-file-earmark-zip"></i> ZIP
+            </button>
+            {% if files_sharing_enabled or files_dropbox_enabled %}
+            <button type="button" id="filesBulkShareBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Freigaben">
+                <i class="bi bi-share"></i> Freigeben
+            </button>
+            {% endif %}
+            {% if not is_trash_view %}
+            <button type="button" id="filesBulkDeleteBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--danger" title="Löschen">
+                <i class="bi bi-trash"></i> Löschen
+            </button>
+            {% else %}
+            <button type="button" id="filesBulkRestoreBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--outline" title="Wiederherstellen">
+                <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
+            </button>
+            <button type="button" id="filesBulkPurgeBtn" class="btn btn-sm files-bulk-btn files-bulk-btn--danger" title="Endgültig löschen">
+                <i class="bi bi-trash"></i> Endgültig
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
 <div id="filesBrowserContextZone" data-context-zone data-context-menu="template" data-context-menu-id="files-browser-context-menu">
 <div id="filesContentMeta" hidden
      data-has-folders="{{ '1' if subfolders else '0' }}"
@@ -305,7 +371,12 @@
         {% if subfolders %}
         {% for folder in subfolders %}
         <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="folder" data-item-id="{{ folder.id }}" data-search-name="{{ folder.name|e }}" data-context-zone data-context-menu="dropdown">
-            <div class="card folder-item h-100 files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
+            <div class="card folder-item h-100 files-drop-target files-draggable-item position-relative" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" onclick="location.href='{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}'">
+                {% if not folder.is_personal_root|default(false) %}
+                <label class="files-select-check" onclick="event.stopPropagation()" title="Auswählen">
+                    <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="folder" data-item-id="{{ folder.id }}">
+                </label>
+                {% endif %}
                 <div class="card-body d-flex flex-column">
                     <div class="files-grid-preview text-center mb-3">
                         <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i>
@@ -437,7 +508,7 @@
         {% if files %}
         {% for file in files %}
         <div class="col-12 col-md-6 col-lg-3" data-item-wrapper="file" data-item-id="{{ file.id }}" data-search-name="{{ file.name|e }}" data-context-zone data-context-menu="dropdown">
-            <div class="card file-item h-100 files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}"
+            <div class="card file-item h-100 files-draggable-item position-relative" draggable="true" data-item-type="file" data-item-id="{{ file.id }}"
                  {% set file_ext = file.name[file.name.rfind('.'):] if '.' in file.name else '' %}
                  {% set media_exts = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.mp4', '.webm', '.mov', '.avi', '.m4v', '.ogv', '.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.oga', '.opus') %}
                  {% if file.name.endswith(('.md', '.markdown')) %}
@@ -453,6 +524,9 @@
                  {% else %}
                  onclick="location.href='{{ url_for('files.download_file', file_id=file.id) }}'" style="cursor: pointer;"
                  {% endif %}>
+                <label class="files-select-check" onclick="event.stopPropagation()" title="Auswählen">
+                    <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="file" data-item-id="{{ file.id }}">
+                </label>
                 <div class="card-body d-flex flex-column">
                     <!-- File Preview/Icon -->
                     <div class="files-grid-preview text-center mb-3">
@@ -664,7 +738,12 @@
         <table class="table mod-list-table align-middle mb-0">
             <thead>
                 <tr>
-                    <th scope="col">{{ _('files.index.list.name') }}</th>
+                    <th scope="col">
+                        <span class="files-list-select-all-wrap" title="Alle auswählen">
+                            <input type="checkbox" class="form-check-input" id="filesSelectAllCheckbox" title="Alle auswählen">
+                        </span>
+                        {{ _('files.index.list.name') }}
+                    </th>
                     <th scope="col" class="d-none d-md-table-cell">{{ _('files.index.list.owner') }}</th>
                     <th scope="col" class="d-none d-md-table-cell">{{ _('files.index.list.version') }}</th>
                     <th scope="col" class="d-none d-lg-table-cell">{{ _('files.index.list.modified') }}</th>
@@ -677,9 +756,14 @@
                 {% set owner = users_by_id.get(folder.created_by) %}
                 {% set allow_internal_acl = files_view != 'public' and (folder.space|default('public')) != 'public' %}
                 <tr class="mod-list-row files-drop-target files-draggable-item" draggable="true" data-item-type="folder" data-item-id="{{ folder.id }}" data-drop-target="folder" data-search-name="{{ folder.name|e }}" data-context-zone data-context-menu="dropdown">
-                    <td>
+                    <td class="files-list-name-cell">
+                        {% if not folder.is_personal_root|default(false) %}
+                        <label class="files-select-check files-select-check--list" onclick="event.stopPropagation()" title="Auswählen">
+                            <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="folder" data-item-id="{{ folder.id }}">
+                        </label>
+                        {% endif %}
                         <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="folder-{{ folder.id }}" href="{{ url_for('files.browse_folder', folder_id=folder.id, **view_q) }}">
-                            <i class="bi bi-folder-fill me-2 folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i><span class="files-item-name-text" title="{{ folder.name }}">{{ folder.name }}</span>
+                            <i class="bi bi-folder-fill folder-color-icon {% if not folder.color %}text-warning{% endif %}" {% if folder.color %}style="color: {{ folder.color }};"{% endif %}></i><span class="files-item-name-text" title="{{ folder.name }}">{{ folder.name }}</span>
                         </a>
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else '—' }}</td>
@@ -735,7 +819,10 @@
                     {% set open_url = url_for('files.download_file', file_id=file.id) %}
                 {% endif %}
                 <tr class="mod-list-row files-draggable-item" draggable="true" data-item-type="file" data-item-id="{{ file.id }}" data-search-name="{{ file.name|e }}" data-context-zone data-context-menu="dropdown">
-                    <td>
+                    <td class="files-list-name-cell">
+                        <label class="files-select-check files-select-check--list" onclick="event.stopPropagation()" title="Auswählen">
+                            <input type="checkbox" class="form-check-input files-item-checkbox" data-item-type="file" data-item-id="{{ file.id }}">
+                        </label>
                         <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="file-{{ file.id }}" href="{{ open_url }}">
                             {{ file_type_icon(file.original_name or file.name, 'sm') }}<span class="files-item-name-text" title="{{ file.original_name or file.name }}">{{ file.original_name or file.name }}</span>
                         </a>
@@ -1029,6 +1116,89 @@ window.FILES_VIEW = {{ files_view|tojson }};
 window.FILES_PRIVATE_FOLDERS = {{ 'true' if files_private_folders_enabled else 'false' }};
 window.FILES_SHARING_ENABLED = FILES_SHARING_ENABLED;
 window.FILES_DROPBOX_ENABLED = FILES_DROPBOX_ENABLED;
+window.FILES_MAX_UPLOAD_BYTES = {{ files_max_upload_bytes|default(104857600)|int }};
+window.FILES_STORAGE_USAGE_URL = {{ url_for('files.api_storage_usage')|tojson }};
+window.FILES_IS_TRASH = {{ 'true' if is_trash_view else 'false' }};
+window.FILES_BULK_ZIP_URL = {{ url_for('files.api_download_zip')|tojson }};
+window.FILES_BULK_DELETE_URL = {{ url_for('files.api_bulk_delete')|tojson }};
+window.FILES_BULK_RESTORE_URL = {{ url_for('files.api_bulk_restore')|tojson }};
+
+(function () {
+    function applyPayload(root, data) {
+        if (!root || !data) {
+            return;
+        }
+        const footer = root.closest('.files-storage-footer') || root;
+        const quotaOn = !!data.quota_enabled;
+        const hasLimit = !!(data.max_file_label || data.max_file_size);
+        if (!quotaOn && !hasLimit) {
+            footer.hidden = true;
+            return;
+        }
+        footer.hidden = false;
+        root.classList.toggle('files-storage-widget--quota', quotaOn);
+        root.classList.toggle('is-warning', quotaOn && !!data.warning);
+
+        const head = root.querySelector('.files-storage-widget__head');
+        if (head) head.hidden = !quotaOn;
+
+        const pct = Math.max(0, Math.min(100, Number(data.percent) || 0));
+        const fill = root.querySelector('[data-storage-fill]');
+        const bar = root.querySelector('[data-storage-bar]');
+        const usage = root.querySelector('[data-storage-usage]');
+        const limit = root.querySelector('[data-storage-limit]');
+        const warn = root.querySelector('[data-storage-warn]');
+        const i18n = (window.FILES_I18N && window.FILES_I18N.storage) || {};
+
+        if (fill) {
+            fill.style.width = quotaOn ? (pct + '%') : '0%';
+        }
+        if (bar) {
+            bar.hidden = !quotaOn;
+            bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+        }
+        if (usage) {
+            usage.hidden = !quotaOn;
+            if (quotaOn) {
+                const tpl = i18n.usage || '{used} / {quota} ({percent}%)';
+                usage.textContent = tpl
+                    .replace('{used}', data.used_label || '')
+                    .replace('{quota}', data.quota_label || '')
+                    .replace('{percent}', String(data.percent != null ? data.percent : Math.round(pct)).replace('.', ','));
+            }
+        }
+        if (limit) {
+            const tpl = i18n.file_limit || 'Dateigrößenlimit: {limit}';
+            limit.textContent = tpl.replace('{limit}', data.max_file_label || '');
+            limit.hidden = !hasLimit;
+        }
+        if (warn) {
+            warn.hidden = !(quotaOn && data.warning);
+        }
+    }
+
+    async function refreshFilesStorageWidgets() {
+        const url = window.FILES_STORAGE_USAGE_URL;
+        if (!url) return;
+        try {
+            const res = await fetch(url, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            document.querySelectorAll('[data-files-storage-widget]').forEach((el) => applyPayload(el, data));
+            if (data && data.max_file_size) {
+                window.FILES_MAX_UPLOAD_BYTES = data.max_file_size;
+            }
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    window.refreshFilesStorageWidgets = refreshFilesStorageWidgets;
+    document.addEventListener('DOMContentLoaded', refreshFilesStorageWidgets);
+})();
 document.addEventListener('DOMContentLoaded', function() {
     function isExternalFileDrag(event) {
         const types = Array.from(event?.dataTransfer?.types || []);
@@ -1979,7 +2149,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('uploadForm');
     const uploadBtn = document.getElementById('uploadBtn');
     const uploadProgress = document.getElementById('uploadProgress');
-    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+    const maxSize = Number(window.FILES_MAX_UPLOAD_BYTES) || (100 * 1024 * 1024);
     
     function validateUpload() {
         let hasValidInput = false;
@@ -2812,6 +2982,7 @@ function showSimpleModal(title, bodyHtml) {
 }
 </script>
 <script src="{{ url_for('static', filename='js/files-dati-update.js') }}"></script>
+<script src="{{ url_for('static', filename='js/files-bulk.js') }}"></script>
 {% endblock %}
 
 

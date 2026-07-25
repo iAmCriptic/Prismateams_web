@@ -313,12 +313,6 @@
     </div>
     <div class="offcanvas-body pt-0">
         {% if can_manage %}
-        <div class="dropdown mod-sidebar-new-wrap w-100 mb-2" id="newButtonDropdownOffcanvas">
-            <button class="btn mod-sidebar-new w-100 text-start" type="button" id="newButtonOffcanvas">
-                <i class="bi bi-plus-lg me-2"></i>{{ _('manuals.index.new_button') }}
-            </button>
-            {{ manuals_new_menu('newDropdownMenuOffcanvas', 'manualsFolderCreateMobile') }}
-        </div>
         {{ manuals_folder_create_inline('manualsFolderCreateMobile') }}
         {% endif %}
         {{ manuals_folder_nav('Mobile', true) }}
@@ -495,7 +489,6 @@ function wireNewDropdown(buttonId, menuId) {
 
 wireNewDropdown('newButtonSidebar', 'newDropdownMenuSidebar');
 wireNewDropdown('newButtonMobile', 'newDropdownMenuMobile');
-wireNewDropdown('newButtonOffcanvas', 'newDropdownMenuOffcanvas');
 
 document.addEventListener('click', () => {
     closeAllNewMenus();

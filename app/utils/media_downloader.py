@@ -277,7 +277,7 @@ def get_retention_timedelta():
 
 def _get_common_ydl_opts():
     """Shared yt-dlp options for metadata extraction and downloads."""
-    max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 524288000)
+    max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 100 * 1024 * 1024)
     ffmpeg_path = get_ffmpeg_path()
 
     ydl_opts = {

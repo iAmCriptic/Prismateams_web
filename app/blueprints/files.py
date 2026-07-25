@@ -9,6 +9,13 @@ from app.models.settings import SystemSettings
 from app.utils.notifications import send_file_notification
 from app.utils.access_control import check_module_access
 from app.utils.dashboard_events import emit_dashboard_update
+from app.utils.file_storage_limits import (
+    check_upload_allowed,
+    format_bytes_de,
+    get_global_max_file_size,
+    resolve_limits_for_user,
+    usage_payload_for_user,
+)
 from app.utils.private_files import (
     can_edit_file,
     can_edit_folder,
@@ -748,7 +755,26 @@ def browse_folder(folder_id):
         is_trash_view=(files_view == 'trash'),
         folder_favorites=folder_favorites,
         favorite_folder_ids=favorite_folder_ids,
+        files_max_upload_bytes=(
+            resolve_limits_for_user(current_user.id)['max_file_size']
+            if not is_guest else get_global_max_file_size()
+        ),
     )
+
+
+@files_bp.route('/api/storage-usage')
+@login_required
+@check_module_access('module_files')
+def api_storage_usage():
+    """Aktueller Speicherverbrauch und Limits des eingeloggten Nutzers."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        max_size = get_global_max_file_size()
+        return jsonify({
+            'quota_enabled': False,
+            'max_file_size': max_size,
+            'max_file_label': format_bytes_de(max_size),
+        }), 200
+    return jsonify(usage_payload_for_user(current_user.id))
 
 
 @files_bp.route('/create-folder', methods=['POST'])
@@ -1261,7 +1287,9 @@ def upload_file():
     if is_private_folders_enabled() and not folder_id and files_view == 'ablage':
         folder_id = resolve_default_parent_for_view('ablage', current_user.id)
     
-    max_size = 100 * 1024 * 1024  # 100MB in bytes
+    limits = resolve_limits_for_user(current_user.id)
+    max_size = limits['max_file_size']
+    pending_bytes = 0
     
     # Check for folder upload
     if 'folder_upload' in request.files:
@@ -1280,7 +1308,10 @@ def upload_file():
                 file_size = file.tell()
                 file.seek(0)  # Reset to beginning
                 
-                if file_size > max_size:
+                ok, _code, err_msg = check_upload_allowed(
+                    current_user.id, file_size, pending_bytes=pending_bytes
+                )
+                if not ok:
                     skipped_count += 1
                     skipped_files.append(file.filename)
                     continue
@@ -1334,16 +1365,19 @@ def upload_file():
                         if conflict_strategy == 'version':
                             _create_new_file_version(existing_file, file, current_user.id)
                             uploaded_count += 1
+                            pending_bytes += file_size
                         elif conflict_strategy == 'separate':
                             unique_name = _generate_unique_filename_in_folder(file_name, target_folder_id)
                             _process_file_upload(file, unique_name, target_folder_id, current_user.id)
                             uploaded_count += 1
+                            pending_bytes += file_size
                         else:
                             skipped_count += 1
                             skipped_files.append(file_name)
                     else:
                         _process_file_upload(file, file_name, target_folder_id, current_user.id)
                         uploaded_count += 1
+                        pending_bytes += file_size
                 except Exception as e:
                     logging.error(f"Fehler beim Hochladen von {file_name}: {e}")
                     skipped_count += 1
@@ -1368,11 +1402,11 @@ def upload_file():
             if uploaded_count > 0:
                 flash(f'{uploaded_count} Datei(en) wurden hochgeladen.', 'success')
             if skipped_count > 0:
-                flash(f'{skipped_count} Datei(en) wurden übersprungen (zu groß oder Fehler).', 'warning')
+                flash(f'{skipped_count} Datei(en) wurden übersprungen (zu groß, Kontingent oder Fehler).', 'warning')
                 if skipped_files:
                     flash(f'Übersprungene Dateien: {", ".join(skipped_files[:5])}{"..." if len(skipped_files) > 5 else ""}', 'info')
             if uploaded_count == 0 and skipped_count > 0:
-                flash('Kein Upload möglich. Dateien ggf. zu groß (max. 100MB) oder fehlerhaft.', 'danger')
+                flash(f'Kein Upload möglich. Dateien ggf. zu groß (max. {format_bytes_de(max_size)}) oder Speicherkontingent voll.', 'danger')
             
             if folder_id:
                 return _finish(_files_context_url(folder_id=folder_id))
@@ -1397,7 +1431,10 @@ def upload_file():
             uploaded_file.seek(0, 2)
             file_size = uploaded_file.tell()
             uploaded_file.seek(0)
-            if file_size > max_size:
+            ok, _code, err_msg = check_upload_allowed(
+                current_user.id, file_size, pending_bytes=pending_bytes
+            )
+            if not ok:
                 skipped_count += 1
                 skipped_files.append(uploaded_file.filename)
                 continue
@@ -1418,11 +1455,13 @@ def upload_file():
                 if conflict_strategy == 'version':
                     _create_new_file_version(existing_file, uploaded_file, current_user.id)
                     uploaded_count += 1
+                    pending_bytes += file_size
                     continue
                 if conflict_strategy == 'separate':
                     unique_name = _generate_unique_filename_in_folder(original_name, folder_id)
                     _process_file_upload(uploaded_file, unique_name, folder_id, current_user.id)
                     uploaded_count += 1
+                    pending_bytes += file_size
                     continue
 
                 skipped_count += 1
@@ -1431,6 +1470,7 @@ def upload_file():
 
             _process_file_upload(uploaded_file, original_name, folder_id, current_user.id)
             uploaded_count += 1
+            pending_bytes += file_size
 
         db.session.commit()
 
@@ -1474,17 +1514,17 @@ def upload_file():
                 preview = ", ".join(skipped_files[:5])
                 flash(f'Übersprungene Dateien: {preview}{"..." if len(skipped_files) > 5 else ""}', 'info')
         if uploaded_count == 0 and skipped_count > 0:
-            flash('Kein Upload möglich. Dateien ggf. zu groß (max. 100MB) oder fehlerhaft.', 'danger')
+            flash(f'Kein Upload möglich. Dateien ggf. zu groß (max. {format_bytes_de(max_size)}) oder Speicherkontingent voll.', 'danger')
     else:
         file = uploaded_files[0]
 
-        # Check file size (100MB limit)
         file.seek(0, 2)  # Seek to end
         file_size = file.tell()
         file.seek(0)  # Reset to beginning
 
-        if file_size > max_size:
-            flash(f'Datei ist zu groß. Maximale Größe: 100MB. Ihre Datei: {file_size / (1024*1024):.1f}MB', 'danger')
+        ok, _code, err_msg = check_upload_allowed(current_user.id, file_size)
+        if not ok:
+            flash(err_msg or f'Datei ist zu groß (max. {format_bytes_de(max_size)}).', 'danger')
             return _finish(request.referrer or url_for('files.index'))
 
         original_name = secure_filename(file.filename)
@@ -2170,6 +2210,290 @@ def restore_folder_route(folder_id):
     return redirect(url_for('files.index', view='trash'))
 
 
+def _abs_disk_path(stored_path):
+    if not stored_path:
+        return None
+    if os.path.isabs(stored_path):
+        return stored_path
+    return os.path.join(os.getcwd(), stored_path)
+
+
+def _parse_bulk_items(payload):
+    raw = (payload or {}).get('items') or []
+    if not isinstance(raw, list):
+        return []
+    items = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        itype = (entry.get('type') or '').strip().lower()
+        try:
+            iid = int(entry.get('id'))
+        except (TypeError, ValueError):
+            continue
+        if itype in ('file', 'folder') and iid > 0:
+            items.append({'type': itype, 'id': iid})
+    return items
+
+
+def _user_can_delete_file(file_obj):
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return False
+    if not is_private_folders_enabled():
+        return True
+    return can_edit_file(file_obj, current_user) or file_obj.uploaded_by == current_user.id or current_user.is_admin
+
+
+def _user_can_delete_folder(folder):
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return False
+    if getattr(folder, 'is_personal_root', False):
+        return False
+    if not is_private_folders_enabled():
+        return True
+    return can_edit_folder(folder, current_user) or folder.created_by == current_user.id or current_user.is_admin
+
+
+def _user_can_view_file_item(file_obj):
+    if not is_private_folders_enabled():
+        return True
+    return can_view_file(file_obj, current_user) or file_obj.uploaded_by == current_user.id or current_user.is_admin
+
+
+def _user_can_view_folder_item(folder):
+    if not is_private_folders_enabled():
+        return True
+    return can_view_folder(folder, current_user) or folder.created_by == current_user.id or current_user.is_admin
+
+
+def _collect_folder_files_for_zip(folder, prefix, out_entries, skipped, limit=2000):
+    """Recursively collect (arcname, abs_path) for zip; mutates out_entries."""
+    if len(out_entries) >= limit:
+        return
+    for child in Folder.query.filter_by(parent_id=folder.id).filter(Folder.deleted_at.is_(None)).all():
+        if not _user_can_view_folder_item(child):
+            skipped.append(child.name)
+            continue
+        child_prefix = f'{prefix}{child.name}/' if prefix else f'{child.name}/'
+        _collect_folder_files_for_zip(child, child_prefix, out_entries, skipped, limit=limit)
+        if len(out_entries) >= limit:
+            return
+    for f in File.query.filter_by(folder_id=folder.id, is_current=True).filter(File.deleted_at.is_(None)).all():
+        if len(out_entries) >= limit:
+            return
+        if not _user_can_view_file_item(f):
+            skipped.append(f.original_name or f.name)
+            continue
+        abs_path = _abs_disk_path(f.file_path)
+        if not abs_path or not os.path.isfile(abs_path):
+            skipped.append(f.original_name or f.name)
+            continue
+        arc = f'{prefix}{f.original_name or f.name}'
+        out_entries.append((arc, abs_path))
+
+
+@files_bp.route('/api/bulk-delete', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def api_bulk_delete():
+    """Soft-delete or purge multiple files/folders."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': 'Gast-Accounts können nichts löschen.'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    items = _parse_bulk_items(payload)
+    if not items:
+        return jsonify({'success': False, 'error': 'Keine Elemente ausgewählt.'}), 400
+
+    purge = bool(payload.get('purge'))
+    deleted = 0
+    skipped = []
+
+    for item in items:
+        if item['type'] == 'file':
+            file_obj = File.query.get(item['id'])
+            if not file_obj:
+                skipped.append(f'Datei #{item["id"]}')
+                continue
+            if not _user_can_delete_file(file_obj):
+                skipped.append(file_obj.original_name or file_obj.name)
+                continue
+            if purge or file_obj.deleted_at is not None or not is_private_folders_enabled():
+                hard_delete_file_disk_and_db(file_obj, os)
+            else:
+                soft_delete_file(file_obj, current_user.id)
+            deleted += 1
+        else:
+            folder = Folder.query.get(item['id'])
+            if not folder:
+                skipped.append(f'Ordner #{item["id"]}')
+                continue
+            if not _user_can_delete_folder(folder):
+                skipped.append(folder.name)
+                continue
+            if purge or folder.deleted_at is not None or not is_private_folders_enabled():
+                hard_delete_folder_recursive(folder, os)
+            else:
+                soft_delete_folder(folder, current_user.id)
+            deleted += 1
+
+    db.session.commit()
+    return jsonify({
+        'success': deleted > 0,
+        'deleted': deleted,
+        'skipped': skipped[:20],
+        'message': f'{deleted} Element(e) gelöscht.' if deleted else 'Nichts gelöscht.',
+    })
+
+
+@files_bp.route('/api/bulk-restore', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def api_bulk_restore():
+    """Restore multiple files/folders from trash."""
+    if hasattr(current_user, 'is_guest') and current_user.is_guest:
+        return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    items = _parse_bulk_items(payload)
+    if not items:
+        return jsonify({'success': False, 'error': 'Keine Elemente ausgewählt.'}), 400
+
+    restored = 0
+    skipped = []
+    for item in items:
+        if item['type'] == 'file':
+            file_obj = File.query.get(item['id'])
+            if not file_obj or file_obj.deleted_at is None:
+                skipped.append(f'Datei #{item["id"]}')
+                continue
+            if file_obj.uploaded_by != current_user.id and not current_user.is_admin:
+                skipped.append(file_obj.original_name or file_obj.name)
+                continue
+            restore_file(file_obj)
+            restored += 1
+        else:
+            folder = Folder.query.get(item['id'])
+            if not folder or folder.deleted_at is None:
+                skipped.append(f'Ordner #{item["id"]}')
+                continue
+            if folder.created_by != current_user.id and not current_user.is_admin:
+                skipped.append(folder.name)
+                continue
+            restore_folder(folder)
+            restored += 1
+
+    db.session.commit()
+    return jsonify({
+        'success': restored > 0,
+        'restored': restored,
+        'skipped': skipped[:20],
+        'message': f'{restored} Element(e) wiederhergestellt.' if restored else 'Nichts wiederhergestellt.',
+    })
+
+
+@files_bp.route('/api/download-zip', methods=['POST'])
+@login_required
+@check_module_access('module_files')
+def api_download_zip():
+    """Build a ZIP from selected files/folders and stream it."""
+    import tempfile
+    from datetime import datetime as dt
+
+    payload = request.get_json(silent=True) or {}
+    items = _parse_bulk_items(payload)
+    if not items:
+        return jsonify({'success': False, 'error': 'Keine Elemente ausgewählt.'}), 400
+
+    entries = []
+    skipped = []
+    used_names = set()
+
+    def _unique_arc(name):
+        base = name or 'Datei'
+        if base not in used_names:
+            used_names.add(base)
+            return base
+        stem, ext = os.path.splitext(base)
+        n = 2
+        while f'{stem} ({n}){ext}' in used_names:
+            n += 1
+        out = f'{stem} ({n}){ext}'
+        used_names.add(out)
+        return out
+
+    for item in items:
+        if item['type'] == 'file':
+            file_obj = File.query.get(item['id'])
+            if not file_obj or file_obj.deleted_at is not None:
+                skipped.append(f'Datei #{item["id"]}')
+                continue
+            if not _user_can_view_file_item(file_obj):
+                skipped.append(file_obj.original_name or file_obj.name)
+                continue
+            abs_path = _abs_disk_path(file_obj.file_path)
+            if not abs_path or not os.path.isfile(abs_path):
+                skipped.append(file_obj.original_name or file_obj.name)
+                continue
+            arc = _unique_arc(file_obj.original_name or file_obj.name)
+            entries.append((arc, abs_path))
+        else:
+            folder = Folder.query.get(item['id'])
+            if not folder or folder.deleted_at is not None:
+                skipped.append(f'Ordner #{item["id"]}')
+                continue
+            if not _user_can_view_folder_item(folder):
+                skipped.append(folder.name)
+                continue
+            prefix = f'{folder.name}/'
+            used_names.add(prefix.rstrip('/'))
+            _collect_folder_files_for_zip(folder, prefix, entries, skipped)
+
+    if not entries:
+        return jsonify({
+            'success': False,
+            'error': 'Keine herunterladbaren Dateien gefunden.',
+            'skipped': skipped[:20],
+        }), 400
+
+    tmp = tempfile.NamedTemporaryFile(prefix='prismateams-zip-', suffix='.zip', delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    try:
+        with zipfile.ZipFile(tmp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+            for arcname, abs_path in entries:
+                try:
+                    zf.write(abs_path, arcname=arcname)
+                except OSError:
+                    skipped.append(arcname)
+        stamp = dt.utcnow().strftime('%Y%m%d-%H%M%S')
+        download_name = f'Dateien-{stamp}.zip'
+
+        from flask import after_this_request
+
+        @after_this_request
+        def _cleanup_zip(response):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            return response
+
+        return send_file(
+            tmp_path,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype='application/zip',
+        )
+    except Exception as e:
+        logging.error(f'ZIP-Erstellung fehlgeschlagen: {e}')
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        return jsonify({'success': False, 'error': 'ZIP konnte nicht erstellt werden.'}), 500
+
+
 @files_bp.route('/api/resource-acl/<resource_type>/<int:resource_id>', methods=['GET', 'POST', 'DELETE'])
 @login_required
 @check_module_access('module_files')
@@ -2522,6 +2846,7 @@ def dropbox_upload(token):
                 guest_name=None,
                 require_name_overlay=True,
                 session_uploads=[],
+                files_max_upload_bytes=get_global_max_file_size(),
                 **bot_ctx,
             )
         submitted_name = request.form.get('guest_name', '').strip()
@@ -2544,6 +2869,7 @@ def dropbox_upload(token):
         guest_name=guest_name,
         require_name_overlay=not bool(guest_name),
         session_uploads=session_uploads,
+        files_max_upload_bytes=get_global_max_file_size(),
         **bot_ctx,
     )
 
@@ -2569,7 +2895,7 @@ def dropbox_upload_file(token):
             if share:
                 log_share_access(share, 'password_auth', request)
     
-    max_size = 100 * 1024 * 1024  # 100MB in bytes
+    max_size = get_global_max_file_size()
     uploaded_count = 0
     skipped_count = 0
     uploader_name = session.get(_dropbox_name_session_key(token)) or request.form.get('uploader_name', '').strip() or 'Anonym'
@@ -2590,6 +2916,14 @@ def dropbox_upload_file(token):
             if file_size > max_size:
                 skipped_count += 1
                 continue
+
+            # Optional: Kontingent des Briefkasten-Besitzers
+            owner_id = getattr(folder, 'created_by', None)
+            if owner_id:
+                ok, _code, _msg = check_upload_allowed(owner_id, file_size)
+                if not ok:
+                    skipped_count += 1
+                    continue
             
             # Process filename with date suffix if duplicate
             original_name = secure_filename(file.filename)
@@ -3938,7 +4272,14 @@ def edit_onlyoffice(file_id):
             "user": {
                 "id": str(current_user.id),
                 "name": current_user.full_name
-            }
+            },
+            "customization": {
+                "uiTheme": (
+                    "theme-contrast-dark"
+                    if getattr(current_user, "oled_mode", False)
+                    else ("theme-dark" if getattr(current_user, "dark_mode", False) else "theme-classic-light")
+                )
+            },
         }
     }
     if user_image:
@@ -3969,6 +4310,9 @@ def edit_onlyoffice(file_id):
     ua = (request.user_agent.string or '').lower()
     is_mobile_ua = any(x in ua for x in ('iphone', 'ipod', 'android', 'mobile', 'ipad'))
     force_desktop = request.args.get('desktop') == '1'
+    theme_dark = bool(getattr(current_user, 'dark_mode', False))
+    theme_oled = bool(getattr(current_user, 'oled_mode', False))
+    onlyoffice_ui_theme = editor_config["editorConfig"]["customization"]["uiTheme"]
     
     return render_template(
         'files/edit_onlyoffice.html',
@@ -3989,6 +4333,9 @@ def edit_onlyoffice(file_id):
         user_image=user_image or '',
         presence_enabled=True,
         is_mobile_client=is_mobile_ua and not force_desktop,
+        theme_dark=theme_dark,
+        theme_oled=theme_oled,
+        onlyoffice_ui_theme=onlyoffice_ui_theme,
     )
 
 
@@ -4099,7 +4446,10 @@ def share_edit_onlyoffice(token):
             "user": {
                 "id": f"guest_{token}",
                 "name": guest_name
-            }
+            },
+            "customization": {
+                "uiTheme": "theme-classic-light"
+            },
         }
     }
     
@@ -4146,6 +4496,9 @@ def share_edit_onlyoffice(token):
         user_image='',
         presence_enabled=True,
         is_mobile_client=False,
+        theme_dark=False,
+        theme_oled=False,
+        onlyoffice_ui_theme='theme-classic-light',
     )
 
 

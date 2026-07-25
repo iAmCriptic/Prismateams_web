@@ -984,7 +984,11 @@ body {
     background: transparent !important;
     color: var(--accent-color, #0d6efd) !important;
     text-decoration: none !important;
-    min-width: 2.25rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
 }
 
@@ -1119,7 +1123,7 @@ div.avatar-circle {
     color: white;
 }
 
-/* Improved Context Menu with Submenu */
+/* Nested submenu: desktop hover flyout; touch/coarse = inline expand via .show */
 .dropdown-submenu {
     position: relative;
 }
@@ -1131,7 +1135,13 @@ div.avatar-circle {
     margin-left: 0.125rem;
 }
 
-.dropdown-submenu:hover > .dropdown-menu {
+@media (hover: hover) and (pointer: fine) {
+    .dropdown-submenu:hover > .dropdown-menu {
+        display: block;
+    }
+}
+
+.dropdown-submenu > .dropdown-menu.show {
     display: block;
 }
 
@@ -1139,6 +1149,42 @@ div.avatar-circle {
     transform: rotate(-90deg);
     float: right;
     margin-top: 0.5rem;
+}
+
+.dropdown-submenu.is-open > .dropdown-toggle::after {
+    transform: rotate(90deg);
+}
+
+/* Touch / no-hover: keep submenu inside the ⋮ menu (no left:100% flyout) */
+@media (hover: none), (pointer: coarse) {
+    .dropdown-submenu > .dropdown-menu {
+        position: static !important;
+        left: auto !important;
+        float: none;
+        margin: 0.2rem 0 0.35rem 0.35rem;
+        box-shadow: none;
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+        border-radius: var(--mod-radius-pill, 1rem);
+        min-width: 0;
+        width: calc(100% - 0.35rem);
+        max-width: none;
+        display: none;
+    }
+
+    .dropdown-submenu:hover > .dropdown-menu {
+        display: none;
+    }
+
+    .dropdown-submenu > .dropdown-menu.show,
+    .dropdown-submenu.is-open > .dropdown-menu {
+        display: block !important;
+    }
+
+    .dropdown-submenu > .dropdown-toggle::after {
+        transform: none;
+        float: right;
+        margin-top: 0.35rem;
+    }
 }
 
 /* Dark Mode Context Menu */
@@ -1345,7 +1391,7 @@ div.avatar-circle-mobile,
     .email-content-header .btn-group:not(.email-zoom-controls) .btn {
         flex: 1 1 auto;
         min-width: 0;
-        min-height: 36px;
+        min-height: 44px;
         padding: 0.35rem 0.5rem;
         font-size: 0.8rem;
     }
@@ -1363,9 +1409,9 @@ div.avatar-circle-mobile,
 
     .email-content-header .email-zoom-controls .btn {
         flex: 0 0 auto;
-        min-width: 36px;
-        width: 36px;
-        min-height: 36px;
+        min-width: 44px;
+        width: 44px;
+        min-height: 44px;
         padding: 0.25rem;
     }
     
@@ -1880,6 +1926,24 @@ div.avatar-circle-mobile,
     display: block !important;
 }
 
+/* Mobile actions modal: nested folder list always expands under ⋮ (no hover flyout) */
+#emailActionsContent .dropdown-submenu > .dropdown-menu {
+    position: static !important;
+    left: auto !important;
+    float: none;
+    margin: 0.25rem 0 0.4rem;
+    box-shadow: none;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+    border-radius: var(--mod-radius-pill, 1rem);
+    width: 100%;
+    display: none;
+}
+
+#emailActionsContent .dropdown-submenu > .dropdown-menu.show,
+#emailActionsContent .dropdown-submenu.is-open > .dropdown-menu {
+    display: block !important;
+}
+
 /* Hide empty-state helper */
 .email-empty-placeholder {
     padding: 2.5rem 1rem;
@@ -2263,8 +2327,10 @@ div.avatar-circle-mobile,
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.35rem;
-    height: 2.35rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
     border-radius: 999px !important;
     border: 1px solid var(--bs-border-color, #e9ecef) !important;
     background: var(--bs-tertiary-bg, #f8f9fa) !important;
