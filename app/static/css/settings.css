@@ -627,6 +627,27 @@
     border-color: #198754;
 }
 
+[data-bs-theme="dark"] .settings-appearance-lang-badge--low,
+[data-oled-mode="true"] .settings-appearance-lang-badge--low {
+    color: #f1aeb5;
+    background: color-mix(in srgb, #dc3545 22%, var(--bs-body-bg, #1a1a1a));
+    border-color: color-mix(in srgb, #dc3545 40%, transparent);
+}
+
+[data-bs-theme="dark"] .settings-appearance-lang-badge--mid,
+[data-oled-mode="true"] .settings-appearance-lang-badge--mid {
+    color: #ffe69c;
+    background: color-mix(in srgb, #ffc107 18%, var(--bs-body-bg, #1a1a1a));
+    border-color: color-mix(in srgb, #ffc107 35%, transparent);
+}
+
+[data-bs-theme="dark"] .settings-appearance-lang-badge--high,
+[data-oled-mode="true"] .settings-appearance-lang-badge--high {
+    color: #a3cfbb;
+    background: color-mix(in srgb, #198754 22%, var(--bs-body-bg, #1a1a1a));
+    border-color: color-mix(in srgb, #198754 40%, transparent);
+}
+
 .settings-appearance-field .form-label {
     font-size: 0.85rem;
     font-weight: 550;

@@ -187,6 +187,8 @@ class Checkout(db.Model):
     legacy_borrow_group_id = db.Column(db.String(50), nullable=True, index=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=True, index=True)
     event_appointment_id = db.Column(db.Integer, db.ForeignKey('event_appointments.id'), nullable=True, index=True)
+    receipt_email_sent = db.Column(db.Boolean, default=False, nullable=False)
+    return_email_sent = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -238,6 +240,7 @@ class CheckoutItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
     source_set_id = db.Column(db.Integer, db.ForeignKey('product_sets.id'), nullable=True, index=True)
     returned_at = db.Column(db.DateTime, nullable=True)
+    return_email_sent = db.Column(db.Boolean, default=False, nullable=False)
     legacy_transaction_id = db.Column(db.Integer, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

@@ -401,8 +401,8 @@
     flex-shrink: 0;
 }
 
-/* Mobile: 3-day view */
-@media (max-width: 767.98px) {
+/* Tablet + Mobile: 3-day week under bottom-nav (<992) */
+@media (max-width: 991.98px) {
     .week-header {
         grid-template-columns: 60px repeat(3, 1fr);
         min-width: auto;
@@ -454,8 +454,8 @@
     overflow: hidden;
 }
 
-/* Mobile: 3-day view */
-@media (max-width: 767.98px) {
+/* Tablet + Mobile: 3-day multi-day strip */
+@media (max-width: 991.98px) {
     .week-multi-day-events {
         grid-template-columns: 60px repeat(3, 1fr);
     }
@@ -489,8 +489,8 @@
     height: auto;
 }
 
-/* Mobile: 3-day view */
-@media (max-width: 767.98px) {
+/* Tablet + Mobile: 3-day time grid */
+@media (max-width: 991.98px) {
     .time-row {
         grid-template-columns: 60px repeat(3, 1fr);
     }
@@ -594,8 +594,8 @@
     background: var(--bs-secondary-bg);
 }
 
-/* Mobile Responsiveness */
-@media (max-width: 767.98px) {
+/* Tablet + Mobile week layout (matches bottom-nav / lg) */
+@media (max-width: 991.98px) {
     .calendar-grid {
         font-size: 0.875rem;
     }
@@ -614,7 +614,7 @@
     }
     
     .calendar-event {
-        font-size: 0.625rem;
+        font-size: 0.75rem;
         padding: 0.125rem;
     }
     

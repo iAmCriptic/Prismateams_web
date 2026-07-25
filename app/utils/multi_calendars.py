@@ -155,9 +155,40 @@ def can_create_in_calendar(user, calendar):
     return False
 
 
+def _is_module_managed_calendar_event(event):
+    """Termine aus Events-/Booking-Modul — nicht frei über die Kalender-UI änderbar.
+
+    Admins dürfen weiterhin über can_edit_event / can_delete_event.
+    Änderungen laufen sonst über Events-/Booking-Modul (Sync schreibt zurück).
+    """
+    if event is None:
+        return False
+    cal = getattr(event, 'calendar', None)
+    if cal is not None and getattr(cal, 'calendar_type', None) == 'events':
+        return True
+    if getattr(event, 'booking_request_id', None):
+        return True
+    event_id = getattr(event, 'id', None)
+    if not event_id:
+        return False
+    try:
+        from app.models.event import EventAppointment
+        return (
+            EventAppointment.query
+            .filter_by(calendar_event_id=event_id)
+            .first()
+            is not None
+        )
+    except Exception:
+        return False
+
+
 def can_edit_event(user, event):
     if getattr(user, 'is_admin', False):
         return True
+    # Veranstaltungen/Booking: nur Modul (oder Admin), nicht jeder Kalender-Nutzer
+    if _is_module_managed_calendar_event(event):
+        return False
     if not is_calendar_multi_enabled():
         return True
     cal = event.calendar
@@ -165,25 +196,23 @@ def can_edit_event(user, event):
         return event.created_by == user.id
     if cal.calendar_type == 'public':
         return True
-    if cal.calendar_type == 'events':
-        return True
     if cal.calendar_type == 'personal':
         return event.created_by == user.id
-    # imported: read-only events
+    # imported / events: read-only via calendar UI
     return False
 
 
 def can_delete_event(user, event):
     if getattr(user, 'is_admin', False):
         return True
+    if _is_module_managed_calendar_event(event):
+        return False
     if not is_calendar_multi_enabled():
-        return getattr(user, 'is_admin', False)
+        return False
     cal = event.calendar
     if cal is None:
         return event.created_by == user.id
     if cal.calendar_type == 'public':
-        return True
-    if cal.calendar_type == 'events':
         return True
     if cal.calendar_type == 'personal':
         return event.created_by == user.id

@@ -166,6 +166,11 @@ def create_checkout(
         logging.error(f"Borrow receipt email failed for {checkout.checkout_number}: {email_err}")
         receipt_email_sent = False
     checkout.receipt_email_sent = receipt_email_sent
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        checkout.receipt_email_sent = receipt_email_sent
 
     return checkout
 
@@ -227,6 +232,10 @@ def return_checkout_items(
     for checkout in checkouts.values():
         if checkout:
             checkout.return_email_sent = return_email_sent
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     return returned
 
@@ -249,6 +258,10 @@ def return_checkout_by_ref(ref: str, item_ids: Optional[Sequence[int]] = None) -
     checkout.return_email_sent = (
         getattr(returned[0], "return_email_sent", True) if returned else True
     )
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     return checkout
 
 

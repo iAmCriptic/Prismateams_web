@@ -79,6 +79,8 @@ class Config:
     # Redis für SocketIO Message Queue (optional, für Multi-Worker-Setups)
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
+    # Optional: explizites Limiter-Backend (sonst Redis wenn REDIS_ENABLED, sonst Memory)
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', '').strip() or None
 
 
 class DevelopmentConfig(Config):

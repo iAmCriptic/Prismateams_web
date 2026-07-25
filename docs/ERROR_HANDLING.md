@@ -1,16 +1,35 @@
-# Team Portal – Error Handling
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
+</p>
 
-**Dokumentation:** [INSTALLATION.md](INSTALLATION.md) · [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · [WARTUNG.md](WARTUNG.md)
+<h1 align="center">Prismateams – Fehlerbehebung</h1>
 
-Fehlerbehebung für typische Probleme nach der Installation.
+<p align="center">
+  <strong>Dokumentation · Version 3.0.0</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+</p>
+
+<p align="center">
+  <a href="README.md">Übersicht</a> ·
+  <a href="INSTALLATION.md">Installation</a> ·
+  <a href="INSTALLATION_SCRIPT.md">Ubuntu-Skript</a> ·
+  <a href="WARTUNG.md">Wartung</a>
+</p>
+
+---
+
+Fehlerbehebung für typische Probleme nach der Installation von **Prismateams 3.0.0**.
+
+> **Installer:** Modularer Ubuntu-Installer ist einsatzbereit — [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Bei Skript-Problemen Terminal-Ausgabe und `$INSTALL_DIR/install-report.txt` prüfen.
 
 ## Skript-Installation schlägt fehl
 
 Bei Problemen mit der automatischen Ubuntu-Installation:
 
 - Terminal-Ausgabe und `[ERROR]`-Meldungen während der Installation prüfen
+- `$INSTALL_DIR/install-report.txt` und Schritt-Status (`ok` / `failed` / `skipped`) prüfen
 - `.env`-Datei im Installationsverzeichnis überprüfen
-- Details zum Skript: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)
+- Doku zum Skript: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)
 - Manuelle Nacharbeit (Webserver, Docker): [INSTALLATION.md](INSTALLATION.md)
 - Logs nach abgeschlossener Installation: [WARTUNG.md – Logs](WARTUNG.md#logs-überprüfen)
 
@@ -227,3 +246,10 @@ Bei anhaltenden Problemen:
 2. Dieses Dokument und [INSTALLATION.md](INSTALLATION.md) durchgehen
 3. [GitHub Issues](https://github.com/iAmCriptic/Prismateams_web/issues) durchsuchen
 4. Neues Issue mit detaillierter Fehlerbeschreibung und Log-Auszügen erstellen
+
+---
+
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="40"><br>
+  <sub>Prismateams 3.0.0</sub>
+</p>

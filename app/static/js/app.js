@@ -1642,12 +1642,40 @@ function manageSidebarNavigation() {
                 desktopMoreMenuItems.innerHTML = '';
                 hiddenItems.forEach(item => {
                     const link = item.querySelector('a');
-                    if (link) {
-                        const menuItem = document.createElement('li');
-                        menuItem.className = 'nav-item';
-                        menuItem.innerHTML = link.outerHTML;
-                        desktopMoreMenuItems.appendChild(menuItem);
+                    if (!link) return;
+
+                    const menuItem = document.createElement('li');
+                    menuItem.className = 'nav-item';
+
+                    const cloned = link.cloneNode(true);
+                    cloned.classList.add('more-menu-link');
+
+                    const icon = cloned.querySelector(':scope > i.bi');
+                    if (icon) {
+                        icon.classList.remove('me-2');
+                        const iconWrap = document.createElement('span');
+                        iconWrap.className = 'more-menu-icon';
+                        iconWrap.appendChild(icon);
+                        cloned.insertBefore(iconWrap, cloned.firstChild);
                     }
+
+                    const textParts = [];
+                    [...cloned.childNodes].forEach(node => {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const t = node.textContent.trim();
+                            if (t) textParts.push(t);
+                            node.remove();
+                        }
+                    });
+                    if (textParts.length && !cloned.querySelector('.more-menu-label')) {
+                        const label = document.createElement('span');
+                        label.className = 'more-menu-label';
+                        label.textContent = textParts.join(' ');
+                        cloned.appendChild(label);
+                    }
+
+                    menuItem.appendChild(cloned);
+                    desktopMoreMenuItems.appendChild(menuItem);
                 });
             }
         }

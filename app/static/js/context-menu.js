@@ -333,11 +333,10 @@
         const menuType = zone.getAttribute('data-context-menu');
         if (!menuType || menuType === 'none') return;
 
-        e.preventDefault();
-        e.stopPropagation();
-
         if (menuType === 'quill') {
             if (!quillInstance) return;
+            e.preventDefault();
+            e.stopPropagation();
             showFloatingMenu(e.clientX, e.clientY, buildQuillMenu());
             return;
         }
@@ -345,6 +344,8 @@
         if (menuType === 'dashboard-widget') {
             const widgetId = zone.getAttribute('data-widget-id');
             if (!widgetId) return;
+            e.preventDefault();
+            e.stopPropagation();
             showFloatingMenu(e.clientX, e.clientY, buildDashboardWidgetMenu(widgetId));
             return;
         }
@@ -352,6 +353,8 @@
         const sourceMenu = resolveSourceMenu(zone, menuType);
         if (!sourceMenu || !sourceMenu.children.length) return;
 
+        e.preventDefault();
+        e.stopPropagation();
         const menu = prepareClonedMenu(sourceMenu);
         showFloatingMenu(e.clientX, e.clientY, menu);
     }

@@ -637,7 +637,11 @@
       },
       "quick_access": {
         "title": "Schnellzugriff",
-        "description": "Wählen Sie aus, welche Links im Schnellzugriff angezeigt werden sollen.",
+        "description": "Wählen Sie aus, welche Module und Unterseiten im Schnellzugriff angezeigt werden sollen.",
+        "groups": {
+          "inventory": "Inventar",
+          "assessment": "Bewertungstool"
+        },
         "items": {
           "files": "Dateien",
           "chat": "Chats",
@@ -650,6 +654,12 @@
           "wiki": "Wiki",
           "booking": "Buchungen",
           "music": "Musik",
+          "assessment": "Bewertung",
+          "assessment_evaluate": "Bewerten",
+          "assessment_my_evaluations": "Meine Bewertungen",
+          "assessment_ranking": "Rangliste",
+          "assessment_inspections": "Rauminspektionen",
+          "assessment_warnings": "Verwarnungen",
           "settings": "Einstellungen",
           "profile": "Profil",
           "logout": "Abmelden"
@@ -1978,7 +1988,9 @@
         "title": "Speicherplatz",
         "usage": "{used} / {quota} ({percent}%)",
         "file_limit": "Dateigrößenlimit: {limit}",
-        "warning": "Speicher fast voll"
+        "warning": "Speicher fast voll",
+        "file_too_large": "Die Datei ist zu groß (max. {limit}).",
+        "quota_exceeded": "Speicherkontingent voll ({used} von {quota} belegt, noch {free} frei)."
       },
       "list": {
         "name": "Name",

@@ -144,9 +144,22 @@
         return { ok: res.ok, status: res.status, data: null, blob: await res.blob() };
     }
 
+    let bulkBusy = false;
+
+    function setBulkBusy(on) {
+        bulkBusy = !!on;
+        ['filesBulkZipBtn', 'filesBulkDeleteBtn', 'filesBulkRestoreBtn', 'filesBulkPurgeBtn', 'filesBulkShareBtn']
+            .forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = true;
+            });
+        if (!on) updateSelectionUI();
+    }
+
     async function downloadZip() {
         const items = selectedItems();
-        if (!items.length) return;
+        if (!items.length || bulkBusy) return;
+        setBulkBusy(true);
         banner('ZIP wird erstellt…', 'info');
         try {
             const res = await fetch(window.FILES_BULK_ZIP_URL || '/files/api/download-zip', {
@@ -159,13 +172,20 @@
                 credentials: 'same-origin',
                 body: JSON.stringify({ items }),
             });
-            const ct = res.headers.get('content-type') || '';
-            if (!res.ok || ct.includes('application/json')) {
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            const looksZip = ct.includes('application/zip')
+                || ct.includes('application/octet-stream')
+                || ct.includes('application/x-zip');
+            if (!res.ok || ct.includes('application/json') || ct.includes('text/html') || !looksZip) {
                 let msg = 'ZIP-Download fehlgeschlagen.';
-                try {
-                    const data = await res.json();
-                    if (data && data.error) msg = data.error;
-                } catch (e) { /* ignore */ }
+                if (ct.includes('text/html')) {
+                    msg = 'Sitzung abgelaufen oder Serverfehler — bitte neu anmelden.';
+                } else {
+                    try {
+                        const data = await res.json();
+                        if (data && data.error) msg = data.error;
+                    } catch (e) { /* ignore */ }
+                }
                 banner(msg, 'danger');
                 return;
             }
@@ -188,17 +208,20 @@
         } catch (err) {
             console.error(err);
             banner('ZIP-Download fehlgeschlagen.', 'danger');
+        } finally {
+            setBulkBusy(false);
         }
     }
 
     async function bulkDelete(purge) {
         const items = selectedItems();
-        if (!items.length) return;
+        if (!items.length || bulkBusy) return;
         const label = purge
             ? `Wirklich ${items.length} Element(e) endgültig löschen?`
             : `Wirklich ${items.length} Element(e) in den Papierkorb legen?`;
         if (!window.confirm(label)) return;
 
+        setBulkBusy(true);
         const url = window.FILES_BULK_DELETE_URL || '/files/api/bulk-delete';
         try {
             const result = await postJson(url, { items, purge: !!purge });
@@ -212,12 +235,15 @@
         } catch (err) {
             console.error(err);
             banner('Löschen fehlgeschlagen.', 'danger');
+        } finally {
+            setBulkBusy(false);
         }
     }
 
     async function bulkRestore() {
         const items = selectedItems();
-        if (!items.length) return;
+        if (!items.length || bulkBusy) return;
+        setBulkBusy(true);
         const url = window.FILES_BULK_RESTORE_URL || '/files/api/bulk-restore';
         try {
             const result = await postJson(url, { items });
@@ -231,6 +257,8 @@
         } catch (err) {
             console.error(err);
             banner('Wiederherstellen fehlgeschlagen.', 'danger');
+        } finally {
+            setBulkBusy(false);
         }
     }
 

@@ -2239,9 +2239,13 @@ def _parse_bulk_items(payload):
 def _user_can_delete_file(file_obj):
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         return False
-    if not is_private_folders_enabled():
+    if getattr(current_user, 'is_admin', False):
         return True
-    return can_edit_file(file_obj, current_user) or file_obj.uploaded_by == current_user.id or current_user.is_admin
+    if file_obj.uploaded_by == current_user.id:
+        return True
+    if is_private_folders_enabled():
+        return can_edit_file(file_obj, current_user)
+    return False
 
 
 def _user_can_delete_folder(folder):
@@ -2249,9 +2253,13 @@ def _user_can_delete_folder(folder):
         return False
     if getattr(folder, 'is_personal_root', False):
         return False
-    if not is_private_folders_enabled():
+    if getattr(current_user, 'is_admin', False):
         return True
-    return can_edit_folder(folder, current_user) or folder.created_by == current_user.id or current_user.is_admin
+    if folder.created_by == current_user.id:
+        return True
+    if is_private_folders_enabled():
+        return can_edit_folder(folder, current_user)
+    return False
 
 
 def _user_can_view_file_item(file_obj):

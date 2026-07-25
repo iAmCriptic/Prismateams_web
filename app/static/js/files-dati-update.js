@@ -1037,15 +1037,31 @@
             sharing: !!window.FILES_SHARING_ENABLED,
             dropbox: !!window.FILES_DROPBOX_ENABLED
         };
-        fetch(endpoint)
-            .then(r => r.json())
+        fetch(endpoint, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(async (r) => {
+                const ct = (r.headers.get('content-type') || '').toLowerCase();
+                if (!r.ok || !ct.includes('application/json')) {
+                    throw new Error(r.status === 401 || r.status === 403 ? 'Keine Berechtigung' : 'Serverfehler');
+                }
+                return r.json();
+            })
             .then(data => {
-                if (!data.success) return;
+                if (!data || !data.success) {
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner((data && data.error) || 'Freigaben konnten nicht geladen werden.', 'danger');
+                    }
+                    return;
+                }
                 const html = renderShareMgmt(type, id, data.item || {}, flags);
                 const modal = showSimpleModal(L.manage_title || 'Freigaben', html, { large: true });
                 bindShareMgmtEvents(modal, formAction);
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error(err);
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(err.message || 'Freigaben konnten nicht geladen werden.', 'danger');
+                }
+            });
     }
 
     function renderPresence(presenceMap) {
@@ -1141,24 +1157,41 @@
         aclState = { type, id };
         const modalEl = document.getElementById('internalShareModal');
         if (!modalEl) return;
-        const res = await fetch(`/files/api/resource-acl/${type}/${id}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const data = await res.json();
-        if (!data.success) {
-            if (typeof window.showAppBanner === 'function') {
-                window.showAppBanner(data.error || 'Fehler', 'danger');
+        try {
+            const res = await fetch(`/files/api/resource-acl/${type}/${id}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            if (!res.ok || !ct.includes('application/json')) {
+                throw new Error(res.status === 401 || res.status === 403 ? 'Keine Berechtigung' : 'Serverfehler');
             }
-            return;
+            const data = await res.json();
+            if (!data.success) {
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(data.error || 'Fehler', 'danger');
+                }
+                return;
+            }
+            const select = document.getElementById('aclUserSelect');
+            if (select) {
+                select.innerHTML = (data.users || []).map(u =>
+                    `<option value="${u.id}">${u.full_name || u.username || ('#' + u.id)}</option>`
+                ).join('') || '<option value="">—</option>';
+            }
+            renderAclEntries(data.entries || []);
+            if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                modalEl.classList.add('show');
+                modalEl.style.display = 'block';
+            }
+        } catch (err) {
+            console.error(err);
+            if (typeof window.showAppBanner === 'function') {
+                window.showAppBanner(err.message || 'Freigabe konnte nicht geladen werden.', 'danger');
+            }
         }
-        const select = document.getElementById('aclUserSelect');
-        if (select) {
-            select.innerHTML = (data.users || []).map(u =>
-                `<option value="${u.id}">${u.full_name || u.username || ('#' + u.id)}</option>`
-            ).join('') || '<option value="">—</option>';
-        }
-        renderAclEntries(data.entries || []);
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
     window.openInternalShare = openInternalShare;
 

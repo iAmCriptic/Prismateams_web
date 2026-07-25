@@ -313,7 +313,7 @@
 {% set current_folder_obj = _cf_matches[0] if _cf_matches else none %}
 <div class="email-content w-100" data-module="email">
 <!-- Mobile Header (wie Dateien-Topbar) -->
-<div class="d-md-none mb-3 mod-mobile-topbar email-mobile-topbar">
+<div class="d-lg-none mb-3 mod-mobile-topbar email-mobile-topbar">
     <div class="d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex align-items-center min-width-0 gap-2">
             <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#mobileFolderMenu" aria-controls="mobileFolderMenu" aria-label="{{ _('email.index.mobile.folders_title') }}">
@@ -365,7 +365,7 @@
 </div>
 
 <!-- Mobile Email List -->
-<div class="d-md-none">
+<div class="d-lg-none">
     <div class="card">
         <div class="card-body p-0">
             {% if emails %}
@@ -434,8 +434,8 @@
     </div>
 </div>
 
-<!-- Mid-desktop Header (md to xl) -->
-<div class="d-none d-md-flex d-xl-none row mb-3">
+<!-- Mid-desktop Header (lg to xl) -->
+<div class="d-none d-lg-flex d-xl-none row mb-3">
     <div class="col">
         <div class="d-flex align-items-center">
             <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
@@ -470,7 +470,7 @@
 </div>
 
 <!-- Mid-desktop email list (md to xl) -->
-<div class="d-none d-md-block d-xl-none">
+<div class="d-none d-lg-block d-xl-none">
     <div class="card">
         <div class="card-header email-list-toolbar">
             <h5 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>

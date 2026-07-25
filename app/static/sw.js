@@ -1,10 +1,12 @@
 // Service Worker für Team Portal PWA - Serverbasiertes Push-System
 // Network-First Strategie: Cache nur als Backup bei Offline-Verbindung
-const CACHE_NAME = 'team-portal-v7';
+const CACHE_NAME = 'team-portal-v9';
 const PORTAL_INFO_CACHE_KEY = 'portal-info';
 const urlsToCache = [
   '/static/css/style.css',
+  '/static/css/cookie-consent.css',
   '/static/js/app.js',
+  '/static/js/cookie-consent.js',
   '/static/img/logo.png',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css',
@@ -60,21 +62,26 @@ async function getPortalInfo() {
   };
 }
 
-// Install Event - Cache wichtige Ressourcen
+// Install Event - Cache wichtige Ressourcen (einzeln, CDN-Fehler blockieren nicht alles)
 self.addEventListener('install', function(event) {
   event.waitUntil(
     Promise.all([
       caches.open(CACHE_NAME)
         .then(function(cache) {
-          return cache.addAll(urlsToCache);
+          return Promise.allSettled(
+            urlsToCache.map(function(url) {
+              return cache.add(url).catch(function(err) {
+                console.warn('Service Worker: Cache übersprungen für', url, err);
+              });
+            })
+          );
         })
         .catch(function(error) {
           console.error('Service Worker: Fehler beim Caching:', error);
         }),
-      fetchAndCachePortalInfo()  // Portal-Infos beim Install abrufen
+      fetchAndCachePortalInfo()
     ])
   );
-  // Sofort aktivieren
   self.skipWaiting();
 });
 
@@ -117,6 +124,40 @@ self.addEventListener('activate', function(event) {
   return self.clients.claim();
 });
 
+// Offline-/Netzwerkfehler: Cache → erneuter Fetch — kein Fake-503 für Scripts/CSS
+function networkFirstWithCache(request, fetchOptions) {
+  const doFetch = fetchOptions ? fetch(request, fetchOptions) : fetch(request);
+  return doFetch
+    .then(function(networkResponse) {
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(request, responseToCache);
+        });
+      }
+      return networkResponse;
+    })
+    .catch(function() {
+      return caches.match(request).then(function(cachedResponse) {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // Server oft noch erreichbar (z.B. nach Abort) — normaler Retry
+        return fetch(request).catch(function() {
+          if (request.mode === 'navigate' || request.destination === 'document') {
+            return new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+            });
+          }
+          // Kein Fake-HTTP-Status für Assets (vermeidet ERR_ABORTED 503)
+          return Response.error();
+        });
+      });
+    });
+}
+
 // Fetch Event - Network-First Strategie: Cache nur als Backup bei Offline
 self.addEventListener('fetch', function(event) {
   const requestUrl = new URL(event.request.url);
@@ -126,36 +167,21 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Spezieller Handler für Portal-Info API: Immer vom Netzwerk holen und aktualisieren
-  if (requestUrl.pathname === '/api/portal-info') {
-    event.respondWith(
-      fetch(event.request)
-        .then(function(response) {
-          if (response && response.status === 200) {
-            // Cache aktualisieren
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then(function(cache) {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(function(error) {
-          // Bei Netzwerkfehler: Fallback auf Cache
-          return caches.match(event.request).then(function(cachedResponse) {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            throw error;
-          });
-        })
-    );
+  // Nur http(s), same-origin oder bekannte CDN-URLs — rest dem Browser lassen
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  const isCachedCdn = urlsToCache.some(function(u) { return u === event.request.url || event.request.url.startsWith(u.split('?')[0]); });
+  if (!requestUrl.protocol.startsWith('http') || (!isSameOrigin && !isCachedCdn)) {
     return;
   }
 
-  // API-Requests und POST/PUT/DELETE: IMMER direkt zum Netzwerk, nie cachen
-  if (event.request.url.includes('/api/') || 
-      event.request.method !== 'GET') {
+  // Spezieller Handler für Portal-Info API: Immer vom Netzwerk holen und aktualisieren
+  if (requestUrl.pathname === '/api/portal-info') {
+    event.respondWith(networkFirstWithCache(event.request));
+    return;
+  }
+
+  // API-Requests: IMMER direkt zum Netzwerk, nie cachen
+  if (event.request.url.includes('/api/')) {
     return;
   }
   
@@ -174,58 +200,14 @@ self.addEventListener('fetch', function(event) {
   // Für HTML-Dokumente und dynamische Routen: Network-First (immer frisch)
   if (event.request.destination === 'document' || shouldAlwaysUseNetwork) {
     event.respondWith(
-      fetch(event.request, {
-        cache: 'no-store' // Browser-Cache ignorieren, immer frisch laden
-      })
-        .then(function(networkResponse) {
-          // Nur bei erfolgreicher Antwort cachen (als Backup für Offline)
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then(function(cache) {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(function(error) {
-          // Nur bei Netzwerkfehler: Fallback auf Cache (Offline-Modus)
-          console.log('Network-Fehler, verwende Cache:', requestUrl.pathname);
-          return caches.match(event.request).then(function(cachedResponse) {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Kein Cache verfügbar - zeige Offline-Seite oder Fehler
-            throw error;
-          });
-        })
+      networkFirstWithCache(event.request, { cache: 'no-store' })
     );
     return;
   }
 
   // Für statische Ressourcen (CSS, JS, Bilder): Network-First mit Cache-Backup
   event.respondWith(
-    fetch(event.request, {
-      cache: 'reload' // Browser-Cache neu validieren
-    })
-      .then(function(networkResponse) {
-        // Nur bei erfolgreicher Antwort cachen
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(function(error) {
-        // Bei Netzwerkfehler: Fallback auf Cache
-        return caches.match(event.request).then(function(cachedResponse) {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          throw error;
-        });
-      })
+    networkFirstWithCache(event.request)
   );
 });
 

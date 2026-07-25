@@ -725,8 +725,15 @@
     }
 
     .booking-page {
-        overflow-x: hidden;
-        padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+        overflow-x: auto;
+        padding-bottom: calc(var(--portal-mobile-nav-clearance, 5.75rem) );
+        max-width: 100%;
+    }
+
+    .booking-page .mod-list-table-wrap,
+    .booking-page .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .booking-page .booking-admin-header > h2 {

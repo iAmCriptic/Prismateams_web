@@ -1,10 +1,30 @@
-﻿# Team Portal - Installationsanleitung
+﻿<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
+</p>
 
-**Dokumentation:** [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · [WARTUNG.md](WARTUNG.md) · [ERROR_HANDLING.md](ERROR_HANDLING.md)
+<h1 align="center">Prismateams – Installation</h1>
+
+<p align="center">
+  <strong>Dokumentation · Version 3.0.0</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+</p>
+
+<p align="center">
+  <a href="README.md">Übersicht</a> ·
+  <a href="INSTALLATION_SCRIPT.md">Ubuntu-Skript</a> ·
+  <a href="WARTUNG.md">Wartung</a> ·
+  <a href="ERROR_HANDLING.md">Fehlerbehebung</a>
+</p>
+
+---
+
+> **Empfohlen: modularer Ubuntu-Installer**  
+> Produktion auf Ubuntu 24.04: `sudo bash scripts/install_ubuntu.sh` — vollständig einsatzbereit. Alle Optionen: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md). Diese Seite beschreibt die **manuelle** Installation für Sonderfälle.
 
 ## Hinweis zu VAPID- und Encryption-Keys
 
-Zurzeit kann eine nachträgliche Eintragung der VAPID- und Secret Keys für Benachrichtigungen, Passwörter und Music erforderlich sein:
+Der Installer erzeugt Keys in der Regel automatisch. Bei manueller Installation ggf. in `.env` nachtragen (Benachrichtigungen, Zugangsdaten, Music):
 
 ```bash
 # Encryption Keys (aus generate_encryption_keys.py kopieren)
@@ -15,20 +35,21 @@ VAPID_PUBLIC_KEY=your-vapid-public-key-here
 VAPID_PRIVATE_KEY=your-vapid-private-key-here
 ```
 
-## Empfohlene Installation (Ubuntu)
+Beispiel-Konfiguration: [env.example](env.example)
 
-Für Ubuntu Server 24.04 existiert ein automatisches Installationsskript: `scripts/install_ubuntu.sh`
+## Empfohlene Installation (Ubuntu)
 
 ```bash
 sudo bash scripts/install_ubuntu.sh
 ```
 
-Alle Details, CLI-Optionen und interaktive Abfragen: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
+CLI, Module und Beispiele: **[INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)**
 
 ---
-## Produktionsinstallation (Ubuntu Server) - Manuelle Methode
 
-Diese Anleitung führt Sie Schritt für Schritt durch die vollständige Installation von Prismateams auf einem Ubuntu Server, inklusive optionaler Integrationen für Excalidraw und OnlyOffice.
+## Produktionsinstallation (Ubuntu Server) – Manuelle Methode
+
+Schritt-für-Schritt-Installation von **Prismateams 3.0.0** auf Ubuntu Server (Alternative zum Skript), inkl. optionaler Integrationen (Excalidraw, OnlyOffice).
 
 **⚠️ Wichtiger Hinweis zu optionalen Features:**
 - **OnlyOffice** und **Excalidraw** sind **OPTIONAL** und nicht zwingend erforderlich
@@ -749,6 +770,9 @@ sudo ufw status
 - [ ] Nur notwendige Services laufen
 - [ ] System-Updates sind aktuell
 - [ ] OnlyOffice JWT ist aktiviert (falls OnlyOffice installiert)
+- [ ] 2FA (TOTP) für Admin-Accounts empfohlen
+- [ ] Redis aktiv, wenn Gunicorn mit mehreren Workern läuft
+- [ ] `TOTP_ENCRYPTION_KEY` / Encryption-Keys gesetzt ([env.example](env.example))
 - [ ] `.env`-Datei hat korrekte Berechtigungen (nicht öffentlich lesbar)
 - [ ] Docker-Container laufen mit `--restart=always` (falls installiert)
 
@@ -794,3 +818,10 @@ Bei Problemen:
 1. [ERROR_HANDLING.md](ERROR_HANDLING.md) durchgehen
 2. [WARTUNG.md](WARTUNG.md) für Logs und Updates
 3. GitHub Issues durchsuchen oder neues Issue erstellen
+
+---
+
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="40"><br>
+  <sub>Prismateams 3.0.0</sub>
+</p>

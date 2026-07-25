@@ -5,6 +5,9 @@
     --accent-style: #0d6efd;
     /* Angenehmes Light-Mode-Grau (nicht Schneeweiß) */
     --portal-bg: #f0f2f5;
+    /* Fixed Bottom-Nav (~56–64px) + Home-FAB-Überstand + Puffer + iOS Safe-Area.
+       Ein Wert für .main-content — kein zusätzliches margin-bottom. */
+    --portal-mobile-nav-clearance: calc(5.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Bootstrap Color Mode: Body-Fläche grau statt #fff */
@@ -556,9 +559,9 @@ body {
     background-color: transparent !important;
 }
 
-/* Main Content */
+/* Main Content — Abstand für fixed .mobile-nav (nur Padding, kein Margin) */
 .main-content {
-    padding-bottom: 92px; /* Space für mobile nav inkl. Home-FAB */
+    padding-bottom: var(--portal-mobile-nav-clearance);
 }
 
 /* Mobile Chat Full Screen Override */
@@ -646,10 +649,10 @@ body {
    (z. B. E-Mail-Zoom per transform) nicht global in .card abschneiden. */
 @media (max-width: 767.98px) {
     .main-content {
-        padding-bottom: 100px; /* Extra space for mobile nav */
+        padding-bottom: var(--portal-mobile-nav-clearance);
+        margin-bottom: 0;
         max-width: 100%;
         box-sizing: border-box;
-        margin-bottom: 60px; /* Ensure space for fixed nav */
     }
 
     /* Chat-specific mobile adjustments */
@@ -707,7 +710,7 @@ body {
 /* Tablet (768px-991px) - kann Mobile oder Desktop Layout verwenden */
 @media (min-width: 768px) and (max-width: 991.98px) {
     .main-content {
-        padding-bottom: 92px; /* Space für mobile nav falls aktiv */
+        padding-bottom: var(--portal-mobile-nav-clearance);
     }
     
     /* Wenn Desktop-Layout erzwungen wird, Sidebar anzeigen */
@@ -735,7 +738,7 @@ body {
     
     body.force-mobile-layout .main-content {
         margin-left: 0;
-        padding-bottom: 92px;
+        padding-bottom: var(--portal-mobile-nav-clearance);
     }
 }
 
@@ -768,7 +771,7 @@ body.force-mobile-layout .sidebar {
 
 body.force-mobile-layout .main-content {
     margin-left: 0;
-    padding-bottom: 92px;
+    padding-bottom: var(--portal-mobile-nav-clearance);
 }
 
 /* Desktop More Menu Offcanvas - Positionierung rechts neben Sidebar */
@@ -1288,21 +1291,256 @@ button, .btn {
     background-clip: text !important;
 }
 
-/* Offcanvas Mehr – aktiver Link in Akzent */
-.offcanvas-accent .nav-link.active {
-    color: var(--accent-color) !important;
-    background-color: transparent !important;
-}
-.offcanvas-accent .nav-link.active i {
-    background: var(--accent-style) !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    background-clip: text !important;
+/* ——— More Menu (Mobile Module Offcanvas) — Pill Design ——— */
+.more-menu.offcanvas-accent,
+.offcanvas-accent.more-menu {
+    --more-menu-radius: var(--mod-radius-pill, 1.5rem);
+    width: min(20rem, 88vw);
+    border: none;
+    border-left: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2));
+    background-color: var(--bs-body-bg, var(--portal-bg, #f0f2f5));
+    box-shadow: -0.5rem 0 1.75rem rgba(0, 0, 0, 0.12);
 }
 
-/* Offcanvas Mehr – bessere Tap-Ziele */
-.offcanvas-accent .nav-link {
-    padding: 0.75rem 0.5rem;
+@media (max-width: 991.98px) {
+    .more-menu.offcanvas-accent {
+        border-radius: 1.25rem 0 0 1.25rem;
+    }
+}
+
+.more-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.65rem;
+    border-bottom: none;
+}
+
+.more-menu-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--bs-body-color, #212529);
+}
+
+.more-menu-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bs-body-color, #212529) 8%, transparent);
+    color: var(--bs-body-color, #212529);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.more-menu-close:hover,
+.more-menu-close:focus {
+    background: color-mix(in srgb, var(--bs-body-color, #212529) 14%, transparent);
+    color: var(--bs-body-color, #212529);
+}
+
+.more-menu-close:focus-visible {
+    outline: 2px solid var(--accent-color, #0d6efd);
+    outline-offset: 2px;
+}
+
+.more-menu-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem 0.85rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+}
+
+.more-menu-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.more-menu-nav .nav-item {
+    margin: 0;
+}
+
+.more-menu-link,
+a.more-menu-link,
+button.more-menu-link,
+.more-menu .nav-link.more-menu-link {
+    display: flex !important;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    min-height: 2.85rem;
+    padding: 0.55rem 0.85rem !important;
+    margin: 0;
+    border: none !important;
+    border-radius: var(--more-menu-radius, 1.5rem) !important;
+    background: transparent !important;
+    color: var(--bs-body-color, #212529) !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    text-align: left;
+    text-decoration: none !important;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.more-menu-link:hover,
+.more-menu-link:focus,
+a.more-menu-link:hover,
+a.more-menu-link:focus,
+button.more-menu-link:hover,
+button.more-menu-link:focus,
+.more-menu .nav-link.more-menu-link:hover,
+.more-menu .nav-link.more-menu-link:focus {
+    background: rgba(127, 127, 127, 0.12) !important;
+    color: var(--bs-body-color, #212529) !important;
+}
+
+.more-menu-link.active,
+a.more-menu-link.active,
+.more-menu .nav-link.more-menu-link.active {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+    font-weight: 600;
+}
+
+.more-menu-link.active .more-menu-icon,
+.more-menu-link.active .more-menu-icon i {
+    color: var(--accent-color, #0d6efd) !important;
+    background: none !important;
+    -webkit-text-fill-color: currentColor !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
+}
+
+.more-menu-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 12%, transparent);
+    color: var(--accent-color, #0d6efd);
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.more-menu-link.active .more-menu-icon {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 22%, transparent);
+}
+
+.more-menu-icon i {
+    margin: 0 !important;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.95;
+}
+
+.more-menu-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.more-menu-divider {
+    height: 1px;
+    margin: 0.85rem 0.5rem;
+    background: var(--bs-border-color-translucent, rgba(127, 127, 127, 0.28));
+    border: none;
+}
+
+.more-menu-link--danger,
+.more-menu-link--danger:hover,
+.more-menu-link--danger:focus {
+    color: var(--bs-danger, #dc3545) !important;
+}
+
+.more-menu-link--danger .more-menu-icon {
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 12%, transparent);
+    color: var(--bs-danger, #dc3545);
+}
+
+.more-menu-link--danger:hover,
+.more-menu-link--danger:focus {
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 10%, transparent) !important;
+}
+
+/* Dark / OLED */
+[data-bs-theme="dark"] .more-menu.offcanvas-accent {
+    background-color: #212529;
+    border-left-color: #495057;
+    box-shadow: -0.5rem 0 1.75rem rgba(0, 0, 0, 0.45);
+}
+
+[data-oled-mode="true"] .more-menu.offcanvas-accent {
+    background-color: #000000;
+    border-left-color: #1a1a1a;
+}
+
+[data-bs-theme="dark"] .more-menu-close,
+[data-oled-mode="true"] .more-menu-close {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8f9fa;
+}
+
+[data-bs-theme="dark"] .more-menu-close:hover,
+[data-bs-theme="dark"] .more-menu-close:focus,
+[data-oled-mode="true"] .more-menu-close:hover,
+[data-oled-mode="true"] .more-menu-close:focus {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
+/* Legacy offcanvas-accent (Desktop-Mehr) — gleiche Pill-Links */
+.offcanvas-accent:not(.more-menu) .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem !important;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-weight: 500;
+    color: inherit !important;
+    background: transparent !important;
+    transition: background 0.15s ease;
+}
+
+.offcanvas-accent:not(.more-menu) .nav-link:hover,
+.offcanvas-accent:not(.more-menu) .nav-link:focus {
+    background: rgba(127, 127, 127, 0.12) !important;
+}
+
+.offcanvas-accent:not(.more-menu) .nav-link.active {
+    background: color-mix(in srgb, var(--accent-color, #0d6efd) 18%, transparent) !important;
+    color: var(--accent-color, #0d6efd) !important;
+    font-weight: 600;
+}
+
+.offcanvas-accent:not(.more-menu) .nav-link.active i {
+    color: var(--accent-color, #0d6efd) !important;
+    background: none !important;
+    -webkit-text-fill-color: currentColor !important;
+    -webkit-background-clip: unset !important;
+    background-clip: unset !important;
 }
 
 /* Form Controls */

@@ -30,9 +30,11 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    /* Gr??ere Icons f?r Touch — Menü-Icon ausnehmen */
-    .bi {
-        font-size: 1.2em;
+    /* Icons: nicht global vergrößern (zerreißt Toolbars) — nur Aktions-Icons */
+    .product-card .bi,
+    .inventory-scan-controls .bi,
+    .inventory-pill-btn .bi {
+        font-size: 1.15em;
     }
 
     .mod-menu-btn .bi {
@@ -142,12 +144,11 @@ html {
     }
 }
 
-/* PWA-spezifische Styles */
+/* PWA: Safe-Area nur an Top — Bottom kommt von .mobile-nav / --portal-mobile-nav-clearance */
 @media (display-mode: standalone) {
-    /* Zus?tzliche Styles f?r installierte PWA */
     body {
         padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
+        padding-bottom: 0;
     }
 }
 
@@ -2136,8 +2137,8 @@ button.mod-list-name.inventory-item-name {
 .inventory-scan-stage {
     position: relative;
     width: 100%;
-    height: min(50vh, 360px);
-    min-height: 260px;
+    height: min(42vh, 320px);
+    min-height: 220px;
     background: #000;
     border-radius: calc(var(--mod-radius-pill, 1.5rem) - 0.35rem);
     overflow: hidden;
@@ -2417,8 +2418,8 @@ button.mod-list-name.inventory-item-name {
 
 @media (max-width: 991.98px) {
     .inventory-scan-stage {
-        height: min(50vh, 360px);
-        min-height: 280px;
+        height: min(40vh, 280px);
+        min-height: 200px;
     }
 
     .inventory-scan-controls #startScannerBtn,

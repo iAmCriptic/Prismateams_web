@@ -118,12 +118,6 @@
                         <i class="bi bi-book"></i><span>{{ _('dashboard.edit.quick_access.items.manuals') }}</span>
                     </label>
                     {% endif %}
-                    {% if is_module_enabled('module_inventory') %}
-                    <label class="dashboard-edit-qa-item" for="link_inventory">
-                        <input class="form-check-input" type="checkbox" name="link_inventory" id="link_inventory" {% if 'inventory' in quick_access_links %}checked{% endif %}>
-                        <i class="bi bi-box-seam"></i><span>{{ _('dashboard.edit.quick_access.items.inventory') }}</span>
-                    </label>
-                    {% endif %}
                     {% if is_module_enabled('module_wiki') %}
                     <label class="dashboard-edit-qa-item" for="link_wiki">
                         <input class="form-check-input" type="checkbox" name="link_wiki" id="link_wiki" {% if 'wiki' in quick_access_links %}checked{% endif %}>
@@ -154,10 +148,72 @@
                         <i class="bi bi-download"></i><span>{{ _('layout.nav.media_downloader') }}</span>
                     </label>
                     {% endif %}
+                    {% if is_module_enabled('module_inventory') %}
+                    <div class="dashboard-edit-qa-divider"></div>
+                    <div class="dashboard-edit-qa-group">{{ _('dashboard.edit.quick_access.groups.inventory') }}</div>
+                    <label class="dashboard-edit-qa-item" for="link_inventory">
+                        <input class="form-check-input" type="checkbox" name="link_inventory" id="link_inventory" {% if 'inventory' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-box-seam"></i><span>{{ _('dashboard.edit.quick_access.items.inventory') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_stock">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_stock" id="link_inventory_stock" {% if 'inventory_stock' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-box-seam"></i><span>{{ _('inventory.shell.nav.stock') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_quick_scan">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_quick_scan" id="link_inventory_quick_scan" {% if 'inventory_quick_scan' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-qr-code-scan"></i><span>{{ _('inventory.shell.nav.quick_scan') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_checkout">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_checkout" id="link_inventory_checkout" {% if 'inventory_checkout' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-box-arrow-right"></i><span>{{ _('inventory.shell.nav.checkout') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_borrows">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_borrows" id="link_inventory_borrows" {% if 'inventory_borrows' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-clock-history"></i><span>{{ _('inventory.shell.nav.borrows') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_sets">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_sets" id="link_inventory_sets" {% if 'inventory_sets' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-collection"></i><span>{{ _('inventory.shell.nav.sets') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_tool">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_tool" id="link_inventory_tool" {% if 'inventory_tool' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-clipboard2-check"></i><span>{{ _('inventory.shell.nav.inventory_tool') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_print_qr">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_print_qr" id="link_inventory_print_qr" {% if 'inventory_print_qr' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-printer"></i><span>{{ _('inventory.shell.nav.print_qr') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_inventory_statistics">
+                        <input class="form-check-input" type="checkbox" name="link_inventory_statistics" id="link_inventory_statistics" {% if 'inventory_statistics' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-graph-up"></i><span>{{ _('inventory.shell.nav.statistics') }}</span>
+                    </label>
+                    {% endif %}
                     {% if is_module_enabled('module_assessment') %}
+                    <div class="dashboard-edit-qa-divider"></div>
+                    <div class="dashboard-edit-qa-group">{{ _('dashboard.edit.quick_access.groups.assessment') }}</div>
                     <label class="dashboard-edit-qa-item" for="link_assessment">
                         <input class="form-check-input" type="checkbox" name="link_assessment" id="link_assessment" {% if 'assessment' in quick_access_links %}checked{% endif %}>
-                        <i class="bi bi-clipboard2-check"></i><span>Bewertung</span>
+                        <i class="bi bi-clipboard2-check"></i><span>{{ _('dashboard.edit.quick_access.items.assessment') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_assessment_evaluate">
+                        <input class="form-check-input" type="checkbox" name="link_assessment_evaluate" id="link_assessment_evaluate" {% if 'assessment_evaluate' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-pencil-square"></i><span>{{ _('dashboard.edit.quick_access.items.assessment_evaluate') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_assessment_my_evaluations">
+                        <input class="form-check-input" type="checkbox" name="link_assessment_my_evaluations" id="link_assessment_my_evaluations" {% if 'assessment_my_evaluations' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-ui-checks"></i><span>{{ _('dashboard.edit.quick_access.items.assessment_my_evaluations') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_assessment_ranking">
+                        <input class="form-check-input" type="checkbox" name="link_assessment_ranking" id="link_assessment_ranking" {% if 'assessment_ranking' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-trophy"></i><span>{{ _('dashboard.edit.quick_access.items.assessment_ranking') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_assessment_inspections">
+                        <input class="form-check-input" type="checkbox" name="link_assessment_inspections" id="link_assessment_inspections" {% if 'assessment_inspections' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-bucket"></i><span>{{ _('dashboard.edit.quick_access.items.assessment_inspections') }}</span>
+                    </label>
+                    <label class="dashboard-edit-qa-item" for="link_assessment_warnings">
+                        <input class="form-check-input" type="checkbox" name="link_assessment_warnings" id="link_assessment_warnings" {% if 'assessment_warnings' in quick_access_links %}checked{% endif %}>
+                        <i class="bi bi-exclamation-octagon"></i><span>{{ _('dashboard.edit.quick_access.items.assessment_warnings') }}</span>
                     </label>
                     {% endif %}
                     <div class="dashboard-edit-qa-divider"></div>

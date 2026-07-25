@@ -113,10 +113,18 @@ def check_upload_allowed(
     limits = resolve_limits_for_user(user_id)
     max_file = limits["max_file_size"]
     if new_size > max_file:
+        try:
+            from app.utils.i18n import translate
+            msg = translate(
+                "files.storage.file_too_large",
+                limit=format_bytes_de(max_file),
+            )
+        except Exception:
+            msg = f"Die Datei ist zu groß (max. {format_bytes_de(max_file)})."
         return (
             False,
             "file_too_large",
-            f"Die Datei ist zu groß (max. {format_bytes_de(max_file)}).",
+            msg,
         )
 
     if limits["quota_enabled"] and limits["quota_bytes"] is not None:
@@ -124,14 +132,24 @@ def check_upload_allowed(
         quota = limits["quota_bytes"]
         if usage + new_size > quota:
             free = max(0, quota - usage)
-            return (
-                False,
-                "quota_exceeded",
-                (
+            try:
+                from app.utils.i18n import translate
+                msg = translate(
+                    "files.storage.quota_exceeded",
+                    used=format_bytes_de(usage),
+                    quota=format_bytes_de(quota),
+                    free=format_bytes_de(free),
+                )
+            except Exception:
+                msg = (
                     f"Speicherkontingent voll "
                     f"({format_bytes_de(usage)} von {format_bytes_de(quota)} belegt, "
                     f"noch {format_bytes_de(free)} frei)."
-                ),
+                )
+            return (
+                False,
+                "quota_exceeded",
+                msg,
             )
 
     return True, None, None

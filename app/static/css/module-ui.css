@@ -469,8 +469,8 @@ a.mod-nav-link.active,
     align-items: center;
     justify-content: flex-end;
     gap: 0.15rem;
-    min-height: 2rem;
-    min-width: 2.5rem;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
     width: 100%;
 }
 
@@ -708,7 +708,7 @@ a.mod-nav-link.active,
     }
 
     .mod-list-actions {
-        min-width: 2.5rem;
+        min-width: 2.75rem;
     }
 
     /* 3-Punkte-Menü bleibt immer sichtbar */

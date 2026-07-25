@@ -348,73 +348,70 @@ body.files-dnd-dragging .folder-item {
     color: #ffffff !important;
 }
 
-/* Mobile 3-Punkte-Menü - Komplett neu implementiert */
+/* Mobile 3-Punkte-Menü — nur Listen-/Karten-Kebabs (nicht Neu/Share/Viewer) */
 @media (max-width: 767.98px) {
-    /* Dropdown komplett deaktivieren und durch Custom ersetzen */
-    .dropdown {
+    .file-item > .card-body .dropdown,
+    .folder-item > .card-body .dropdown,
+    .file-item .dropdown,
+    .folder-item .dropdown,
+    .wiki-card-menu,
+    .mod-list-actions > .dropdown {
         position: relative !important;
-        z-index: 99999 !important;
+        z-index: 2 !important;
         isolation: auto !important;
     }
-    
-    /* Custom 3-Punkte-Button für mobile - gilt für alle Dropdown-Buttons */
-    .dropdown-toggle,
-    .dropdown button[data-bs-toggle="dropdown"],
-    .dropdown .btn-link[data-bs-toggle="dropdown"] {
-        width: 80px !important;
-        height: 80px !important;
+
+    .file-item .dropdown > [data-bs-toggle="dropdown"],
+    .folder-item .dropdown > [data-bs-toggle="dropdown"],
+    .wiki-card-menu > [data-bs-toggle="dropdown"],
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+        min-width: 2.75rem !important;
+        min-height: 2.75rem !important;
         padding: 0 !important;
         margin: 0 !important;
         border: none !important;
         background: transparent !important;
         position: relative !important;
-        display: flex !important;
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        z-index: 99999 !important;
         cursor: pointer !important;
         touch-action: manipulation !important;
         -webkit-tap-highlight-color: transparent !important;
         user-select: none !important;
-        isolation: auto !important;
     }
-    
-    /* Größerer unsichtbarer Touch-Bereich */
-    .dropdown-toggle::after,
-    .dropdown button[data-bs-toggle="dropdown"]::after {
-        content: '';
-        position: absolute;
-        top: -20px;
-        left: -20px;
-        right: -20px;
-        bottom: -20px;
-        z-index: 10000;
-        background: transparent;
-    }
-    
-    /* 3-Punkte-Icon vergrößern */
-    .dropdown-toggle i,
-    .dropdown button[data-bs-toggle="dropdown"] i {
-        font-size: 24px !important;
+
+    .file-item .dropdown > [data-bs-toggle="dropdown"] i,
+    .folder-item .dropdown > [data-bs-toggle="dropdown"] i,
+    .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i {
+        font-size: 1.25rem !important;
         color: #6c757d !important;
         pointer-events: none !important;
     }
-    
-    /* Hover-Effekt */
-    .dropdown-toggle:hover i,
-    .dropdown button[data-bs-toggle="dropdown"]:hover i {
+
+    .file-item .dropdown > [data-bs-toggle="dropdown"]:hover i,
+    .folder-item .dropdown > [data-bs-toggle="dropdown"]:hover i,
+    .wiki-card-menu > [data-bs-toggle="dropdown"]:hover i,
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"]:hover i {
         color: var(--accent-color) !important;
     }
-    
-    /* Active-Effekt */
-    .dropdown-toggle:active,
-    .dropdown button[data-bs-toggle="dropdown"]:active {
-        transform: scale(0.9) !important;
+
+    .file-item .dropdown > [data-bs-toggle="dropdown"]:active,
+    .folder-item .dropdown > [data-bs-toggle="dropdown"]:active,
+    .wiki-card-menu > [data-bs-toggle="dropdown"]:active,
+    .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"]:active {
+        transform: scale(0.94) !important;
         transition: transform 0.1s ease !important;
     }
-    
-    /* Kompaktere Buttons für mobile */
-    .dropdown-item {
+
+    .file-item .dropdown-item,
+    .folder-item .dropdown-item,
+    .wiki-card-menu .dropdown-item,
+    .mod-list-actions .dropdown-item,
+    .wiki-pill-dropdown .dropdown-item {
         padding: 12px 16px !important;
         font-size: 15px !important;
         min-height: 48px !important;
@@ -422,25 +419,31 @@ body.files-dnd-dragging .folder-item {
         align-items: center !important;
         border-bottom: 1px solid rgba(0,0,0,0.1) !important;
     }
-    
-    .dropdown-item:last-child {
+
+    .file-item .dropdown-item:last-child,
+    .folder-item .dropdown-item:last-child,
+    .wiki-card-menu .dropdown-item:last-child,
+    .mod-list-actions .dropdown-item:last-child,
+    .wiki-pill-dropdown .dropdown-item:last-child {
         border-bottom: none !important;
     }
-    
-    .dropdown-item i {
+
+    .file-item .dropdown-item i,
+    .folder-item .dropdown-item i,
+    .wiki-card-menu .dropdown-item i,
+    .mod-list-actions .dropdown-item i,
+    .wiki-pill-dropdown .dropdown-item i {
         margin-right: 12px !important;
         width: 20px !important;
         font-size: 18px !important;
         text-align: center !important;
     }
-    
-    /* Verhindere dass andere Elemente das Dropdown blockieren */
+
     .file-item, .folder-item {
         position: relative !important;
         z-index: 1 !important;
     }
-    
-    /* Container für Dateien/Ordner haben niedrigen z-index und erzeugen KEINEN Stacking Context */
+
     .card.file-item, .card.folder-item,
     .card-body,
     #gridView, #foldersGridView, #foldersListTableBody, #filesListTableBody,
@@ -453,14 +456,13 @@ body.files-dnd-dragging .folder-item {
         filter: none !important;
         will-change: auto !important;
     }
-    
-    /* Mobile Dropdown Positionierung - muss über allem liegen.
-       Share-Art-Picker im Modal ausnehmen (sonst volle Viewport-Breite). */
-    .dropdown-menu:not(.files-sidebar-new-menu):not(.files-share-mode-menu),
-    .dropdown .dropdown-menu:not(.files-sidebar-new-menu):not(.files-share-mode-menu),
-    .card .dropdown-menu,
+
+    /* Item-Menüs als Bottom-Sheet; Neu-/Share-Menüs ausnehmen */
     .file-item .dropdown-menu,
-    .folder-item .dropdown-menu {
+    .folder-item .dropdown-menu,
+    .wiki-card-menu .dropdown-menu,
+    .mod-list-actions .dropdown-menu,
+    .wiki-pill-dropdown {
         position: fixed !important;
         top: auto !important;
         left: 10px !important;
@@ -470,7 +472,7 @@ body.files-dnd-dragging .folder-item {
         max-width: none !important;
         max-height: calc(100vh - 160px) !important;
         overflow-y: auto !important;
-        z-index: 99999 !important;
+        z-index: 1055 !important;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
         border-radius: 16px !important;
         border: none !important;
@@ -489,20 +491,17 @@ body.files-dnd-dragging .folder-item {
         min-height: 2.5rem !important;
         padding: 0.45rem 0.9rem !important;
     }
-    
-    /* Wenn Dropdown geöffnet ist, sicherstellen dass es sichtbar ist */
-    .dropdown-menu.show:not(.files-share-mode-menu),
-    .dropdown.show .dropdown-menu:not(.files-share-mode-menu) {
-        position: fixed !important;
-        z-index: 99999 !important;
+
+    .file-item .dropdown-menu.show,
+    .folder-item .dropdown-menu.show,
+    .wiki-card-menu .dropdown-menu.show,
+    .mod-list-actions .dropdown-menu.show,
+    .wiki-pill-dropdown.show {
         display: block !important;
-    }
-    
-    .dropdown-menu.show {
-        display: block !important;
+        z-index: 1055 !important;
         animation: slideUpIn 0.3s ease-out;
     }
-    
+
     @keyframes slideUpIn {
         from {
             opacity: 0;
@@ -513,19 +512,26 @@ body.files-dnd-dragging .folder-item {
             transform: translateY(0);
         }
     }
-    
-    /* Dark Mode Anpassungen */
-    [data-bs-theme="dark"] .dropdown-toggle i,
-    [data-bs-theme="dark"] .dropdown button[data-bs-toggle="dropdown"] i {
+
+    [data-bs-theme="dark"] .file-item .dropdown > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .folder-item .dropdown > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .wiki-card-menu > [data-bs-toggle="dropdown"] i,
+    [data-bs-theme="dark"] .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"] i {
         color: #adb5bd !important;
     }
-    
-    [data-bs-theme="dark"] .dropdown-toggle:hover i,
-    [data-bs-theme="dark"] .dropdown button[data-bs-toggle="dropdown"]:hover i {
+
+    [data-bs-theme="dark"] .file-item .dropdown > [data-bs-toggle="dropdown"]:hover i,
+    [data-bs-theme="dark"] .folder-item .dropdown > [data-bs-toggle="dropdown"]:hover i,
+    [data-bs-theme="dark"] .wiki-card-menu > [data-bs-toggle="dropdown"]:hover i,
+    [data-bs-theme="dark"] .mod-list-actions > .dropdown > [data-bs-toggle="dropdown"]:hover i {
         color: var(--accent-color) !important;
     }
-    
-    [data-bs-theme="dark"] .dropdown-item {
+
+    [data-bs-theme="dark"] .file-item .dropdown-item,
+    [data-bs-theme="dark"] .folder-item .dropdown-item,
+    [data-bs-theme="dark"] .wiki-card-menu .dropdown-item,
+    [data-bs-theme="dark"] .mod-list-actions .dropdown-item,
+    [data-bs-theme="dark"] .wiki-pill-dropdown .dropdown-item {
         border-bottom-color: rgba(255,255,255,0.1) !important;
     }
 }
@@ -1337,10 +1343,17 @@ body.files-dnd-dragging .folder-item {
     flex-shrink: 0;
 }
 
-/* Private folders shell / sidebar — layout + domain overrides (shared chrome in module-ui.css) */
-.files-shell--private {
+[data-bs-theme="dark"] .onlyoffice-mobile-banner,
+[data-oled-mode="true"] .onlyoffice-mobile-banner {
+    background: color-mix(in srgb, #ffc107 18%, var(--bs-body-bg, #1a1a1a));
+    color: #ffe69c;
+    border-bottom-color: color-mix(in srgb, #ffc107 35%, transparent);
+}
+
+/* Files shell — layout + domain overrides (shared chrome in module-ui.css) */
+.files-shell {
     display: flex;
-    align-items: flex-start;
+    align-items: stretch;
     gap: var(--mod-gap, 1.25rem);
     position: relative;
 }
@@ -1350,42 +1363,75 @@ body.files-dnd-dragging .folder-item {
     z-index: 40;
 }
 
-.files-shell--private .mod-main {
+.files-shell .mod-main {
     position: relative;
     z-index: 1;
 }
 
-/* Desktop: Seiten-Scroll vermeiden; nur Dateiliste scrollt; Nav bleibt stehen */
+/* Viewport sperren: nur Dateiliste scrollt, nicht die ganze Seite (Navbar bleibt fix) */
+body:has(.files-shell) {
+    overflow: hidden;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.main-content:has(.files-shell) {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    /* überschreibt base .main-content { min-height: 100vh } — sonst Seiten-Scroll */
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.main-content:has(.files-shell) > .container-fluid {
+    flex: 1 1 auto;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.files-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    /* hidden: Sidebar-Footer darf die Seite nicht mitwachsen lassen */
+    overflow: hidden;
+}
+
+.files-shell .mod-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile/Tablet: Platz für Bottom-Navbar einrechnen */
+@media (max-width: 991.98px) {
+    .main-content:has(.files-shell) {
+        padding-bottom: var(--portal-mobile-nav-clearance) !important;
+    }
+}
+
+/* Desktop: Modul-Sidebar mitziehen, Bottom-Nav-Padding weg */
 @media (min-width: 992px) {
-    .main-content:has(.files-shell--private) {
-        height: 100vh;
-        height: 100dvh;
-        max-height: 100vh;
-        max-height: 100dvh;
-        overflow: hidden;
-        padding-bottom: 0;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-    }
-
-    .main-content:has(.files-shell--private) > .container-fluid {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-
-    .files-shell--private {
-        flex: 1 1 auto;
-        min-height: 0;
-        width: 100%;
-        align-items: stretch;
-        /* hidden: Sidebar-Footer darf die Seite nicht mitwachsen lassen */
-        overflow: hidden;
+    .main-content:has(.files-shell) {
+        padding-bottom: 0.75rem !important;
     }
 
     .files-shell--private .mod-sidebar {
@@ -1398,17 +1444,6 @@ body.files-dnd-dragging .folder-item {
         /* visible: NEU-Menü; Seiten-Scroll wird vom Shell (overflow:hidden) verhindert */
         overflow: visible;
         z-index: 60;
-    }
-
-    .files-shell--private .mod-main {
-        flex: 1 1 auto;
-        min-width: 0;
-        min-height: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        position: relative;
-        z-index: 1;
     }
 }
 
@@ -2666,7 +2701,7 @@ body:has(.dropbox-shell) .container-fluid {
     gap: 0.75rem;
     border: 1px solid color-mix(in srgb, var(--files-hint-accent) 22%, transparent) !important;
     border-radius: 1.35rem !important;
-    background: #fff !important;
+    background: var(--bs-body-bg, #fff) !important;
     color: var(--bs-body-color, #212529) !important;
     box-shadow:
         0 0.35rem 1.15rem color-mix(in srgb, var(--files-hint-accent) 32%, transparent),

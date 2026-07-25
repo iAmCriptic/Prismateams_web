@@ -846,16 +846,27 @@ def build_portal_message(subject, recipients, template_name, body_text=None, att
     return msg, html_content, portal_name
 
 def render_and_send_portal_email(subject, recipients, template_name, body_text=None, attachments=None, **ctx):
-    """Rendert Template, baut CID-Message und sendet."""
+    """Rendert Template, baut CID-Message und sendet.
+
+    Returns:
+        True bei erfolgreichem Versand, False bei Config-/Send-Fehler.
+    """
     if not _mail_configured():
         logging.warning(f'E-Mail-Konfiguration unvollständig. Versand übersprungen: {subject}')
         return False
-    msg, _, _ = build_portal_message(
-        subject, recipients, template_name,
-        body_text=body_text, attachments=attachments, **ctx
-    )
-    send_email_with_lock(msg)
-    return True
+    try:
+        msg, _, _ = build_portal_message(
+            subject, recipients, template_name,
+            body_text=body_text, attachments=attachments, **ctx
+        )
+        ok = send_email_with_lock(msg)
+        if not ok:
+            logging.error(f'E-Mail-Versand fehlgeschlagen (kein Erfolg vom Sender): {subject}')
+            return False
+        return True
+    except Exception as e:
+        logging.error(f'E-Mail-Versand fehlgeschlagen: {subject}: {e}')
+        return False
 
 def send_confirmation_email(user):
     """Sendet eine Bestätigungs-E-Mail an den Benutzer."""
@@ -882,7 +893,7 @@ def send_confirmation_email(user):
             'Bitte geben Sie diesen Code zur Bestätigung Ihrer E-Mail-Adresse ein.'
         )
         try:
-            render_and_send_portal_email(
+            ok = render_and_send_portal_email(
                 subject=f'E-Mail-Bestätigung - {portal_name}',
                 recipients=[user.email],
                 template_name='emails/confirmation_code.html',
@@ -890,24 +901,26 @@ def send_confirmation_email(user):
                 user=user,
                 confirmation_code=confirmation_code,
             )
-            logging.info('Confirmation email sent to %s', user.email)
-            return True
-        except Exception as send_error:
-            logging.error(f'Failed to send confirmation email to {user.email}: {str(send_error)}')
-            try:
-                render_and_send_portal_email(
-                    subject=f'E-Mail-Bestätigung - {portal_name}',
-                    recipients=[user.email],
-                    template_name='emails/confirmation_code.html',
-                    body_text=plain_text,
-                    user=user,
-                    confirmation_code=confirmation_code,
-                )
+            if ok:
+                logging.info('Confirmation email sent to %s', user.email)
+                return True
+            logging.error('Confirmation email send returned False for %s — retrying once', user.email)
+            ok = render_and_send_portal_email(
+                subject=f'E-Mail-Bestätigung - {portal_name}',
+                recipients=[user.email],
+                template_name='emails/confirmation_code.html',
+                body_text=plain_text,
+                user=user,
+                confirmation_code=confirmation_code,
+            )
+            if ok:
                 logging.info(f'Alternative E-Mail erfolgreich gesendet an {user.email}')
                 return True
-            except Exception as alt_error:
-                logging.error(f'Alternative E-Mail-Versand auch fehlgeschlagen: {str(alt_error)}')
-                return False
+            logging.error(f'Alternative E-Mail-Versand auch fehlgeschlagen für {user.email}')
+            return False
+        except Exception as send_error:
+            logging.error(f'Failed to send confirmation email to {user.email}: {str(send_error)}')
+            return False
     except Exception as e:
         logging.error(f'Failed to send confirmation email to {user.email}: {str(e)}')
         return False
@@ -955,7 +968,7 @@ def send_password_reset_email(user):
             'Bitte geben Sie diesen Code ein, um Ihr Passwort zurückzusetzen. Der Code ist 1 Stunde gültig.'
         )
         try:
-            render_and_send_portal_email(
+            ok = render_and_send_portal_email(
                 subject=f'Passwort zurücksetzen - {portal_name}',
                 recipients=[user.email],
                 template_name='emails/password_reset.html',
@@ -963,6 +976,9 @@ def send_password_reset_email(user):
                 user=user,
                 reset_code=reset_code,
             )
+            if not ok:
+                logging.error(f'Password reset email send returned False for {user.email}')
+                return False
             logging.info('Password reset email sent to %s', user.email)
             return True
         except Exception as send_error:
@@ -1042,7 +1058,7 @@ def send_borrow_receipt_email(checkout):
             f'Ausleihe: {borrow_date}\n'
             f'Rückgabe: {expected_return_date}\n'
         )
-        render_and_send_portal_email(
+        ok = render_and_send_portal_email(
             subject=f'Ausleihschein - {portal_name}',
             recipients=[recipient],
             template_name='emails/borrow_receipt.html',
@@ -1056,6 +1072,9 @@ def send_borrow_receipt_email(checkout):
             contact_email=recipient,
             items=items,
         )
+        if not ok:
+            logging.error(f'Borrow receipt email send returned False for {checkout.checkout_number}')
+            return False
         logging.info(f'Borrow receipt email sent to {recipient} for {checkout.checkout_number}')
         return True
     except Exception as e:
@@ -1104,7 +1123,7 @@ def send_return_confirmation_email(checkout, returned_items=None):
             f'Projekt: {checkout.event_name}\n'
             f'Rückgabe: {return_date}\n'
         )
-        render_and_send_portal_email(
+        ok = render_and_send_portal_email(
             subject=f'Rückgabe-Bestätigung - {portal_name}',
             recipients=[recipient],
             template_name='emails/return_confirmation.html',
@@ -1116,6 +1135,9 @@ def send_return_confirmation_email(checkout, returned_items=None):
             return_date=return_date,
             items=items,
         )
+        if not ok:
+            logging.error(f'Return confirmation email send returned False for {checkout.checkout_number}')
+            return False
         logging.info(f'Return confirmation email sent to {recipient} for {checkout.checkout_number}')
         return True
     except Exception as e:
@@ -1129,7 +1151,14 @@ def _persist_booking_outbound(booking_request, msg, subject, body_text, body_htm
     in_reply_to = None
     if getattr(msg, 'extra_headers', None):
         in_reply_to = msg.extra_headers.get('In-Reply-To')
-    send_email_with_lock(msg)
+    try:
+        ok = send_email_with_lock(msg)
+    except Exception as send_error:
+        logging.error(f'Booking outbound send failed for request {booking_request.id}: {send_error}')
+        return False
+    if not ok:
+        logging.error(f'Booking outbound send returned False for request {booking_request.id}')
+        return False
     try:
         save_outbound_message(
             booking_request,
@@ -1166,7 +1195,8 @@ def send_booking_confirmation_email(booking_request):
             booking_url=booking_url,
         )
         try:
-            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
+            if not _persist_booking_outbound(booking_request, msg, subject, body_text, html_content):
+                return False
             logging.info(
                 f'Booking confirmation email sent to {booking_request.email} for booking {booking_request.id}'
             )
@@ -1210,7 +1240,8 @@ def send_booking_accepted_email(booking_request, calendar_event):
             calendar_url=calendar_url,
         )
         try:
-            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
+            if not _persist_booking_outbound(booking_request, msg, subject, body_text, html_content):
+                return False
             logging.info(
                 f'Booking accepted email sent to {booking_request.email} for booking {booking_request.id}'
             )
@@ -1248,7 +1279,8 @@ def send_booking_rejected_email(booking_request):
             booking_url=booking_url,
         )
         try:
-            _persist_booking_outbound(booking_request, msg, subject, body_text, html_content)
+            if not _persist_booking_outbound(booking_request, msg, subject, body_text, html_content):
+                return False
             logging.info(
                 f'Booking rejected email sent to {booking_request.email} for booking {booking_request.id}'
             )
@@ -1287,10 +1319,11 @@ def send_booking_staff_message(booking_request, subject, body_text, created_by=N
             message_body=message_body,
         )
         try:
-            _persist_booking_outbound(
+            if not _persist_booking_outbound(
                 booking_request, msg, subject, full_body,
                 body_html=html_content, created_by=created_by,
-            )
+            ):
+                return False
             logging.info(
                 f'Booking staff message sent to {booking_request.email} for booking {booking_request.id}'
             )
@@ -1311,13 +1344,16 @@ def send_smtp_test_email(recipient_email):
             logging.warning('E-Mail-Konfiguration unvollständig. SMTP-Test nicht gesendet.')
             return False
         portal_name = _portal_name()
-        render_and_send_portal_email(
+        ok = render_and_send_portal_email(
             subject=f'Test-E-Mail - {portal_name}',
             recipients=[recipient_email],
             template_name='emails/smtp_test.html',
             body_text=f'Dies ist eine Test-E-Mail von {portal_name}.',
             recipient_email=recipient_email,
         )
+        if not ok:
+            logging.error(f'SMTP test email send returned False for {recipient_email}')
+            raise RuntimeError('SMTP test email send failed')
         logging.info(f'SMTP test email sent to {recipient_email}')
         return True
     except Exception as e:
@@ -1351,7 +1387,7 @@ def send_account_creation_email(user, password):
             f'Nach dem ersten Login sollten Sie Ihr Passwort ändern.\n'
         )
         try:
-            render_and_send_portal_email(
+            ok = render_and_send_portal_email(
                 subject=f'Zugangsdaten für {portal_name}',
                 recipients=[user.email],
                 template_name='emails/account_created.html',
@@ -1360,6 +1396,9 @@ def send_account_creation_email(user, password):
                 password=password,
                 login_url=login_url,
             )
+            if not ok:
+                logging.error(f'Account creation email send returned False for {user.email}')
+                return False
             logging.info(f'Account creation email sent to {user.email}')
             return True
         except Exception as send_error:

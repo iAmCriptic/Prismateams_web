@@ -633,7 +633,11 @@
       },
       "quick_access": {
         "title": "Quick access",
-        "description": "Choose which links should appear in the quick access panel.",
+        "description": "Choose which modules and subpages should appear in the quick access panel.",
+        "groups": {
+          "inventory": "Inventory",
+          "assessment": "Assessment"
+        },
         "items": {
           "files": "Files",
           "chat": "Chats",
@@ -646,6 +650,12 @@
           "wiki": "Wiki",
           "booking": "Bookings",
           "music": "Music",
+          "assessment": "Assessment",
+          "assessment_evaluate": "Evaluate",
+          "assessment_my_evaluations": "My evaluations",
+          "assessment_ranking": "Ranking",
+          "assessment_inspections": "Room inspections",
+          "assessment_warnings": "Warnings",
           "settings": "Settings",
           "profile": "Profile",
           "logout": "Log out"
@@ -1975,7 +1985,9 @@
         "title": "Storage",
         "usage": "{used} / {quota} ({percent}%)",
         "file_limit": "File size limit: {limit}",
-        "warning": "Storage almost full"
+        "warning": "Storage almost full",
+        "file_too_large": "The file is too large (max. {limit}).",
+        "quota_exceeded": "Storage quota full ({used} of {quota} used, {free} free)."
       },
       "list": {
         "name": "Name",

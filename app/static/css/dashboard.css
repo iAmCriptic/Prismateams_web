@@ -1275,7 +1275,8 @@ body:has(.dashboard-edit-page) .back-button:hover {
         grid-template-columns: 1fr 1fr;
     }
 
-    .dashboard-edit-qa-divider {
+    .dashboard-edit-qa-divider,
+    .dashboard-edit-qa-group {
         grid-column: 1 / -1;
     }
 }
@@ -1321,6 +1322,15 @@ body:has(.dashboard-edit-page) .back-button:hover {
     height: 1px;
     margin: 0.45rem 0.5rem;
     background: color-mix(in srgb, var(--bs-border-color, #dee2e6) 80%, transparent);
+}
+
+.dashboard-edit-qa-group {
+    font-size: 0.75rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.35rem 0.95rem 0.15rem;
 }
 
 .dashboard-edit-actions {

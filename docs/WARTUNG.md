@@ -1,10 +1,28 @@
-# Team Portal – Wartung
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
+</p>
 
-**Dokumentation:** [INSTALLATION.md](INSTALLATION.md) · [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · [ERROR_HANDLING.md](ERROR_HANDLING.md)
+<h1 align="center">Prismateams – Wartung</h1>
 
-Anleitungen für den laufenden Betrieb: Logs, Neustart, Updates, Migrationen, Backups und Performance.
+<p align="center">
+  <strong>Dokumentation · Version 3.0.0</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+</p>
+
+<p align="center">
+  <a href="README.md">Übersicht</a> ·
+  <a href="INSTALLATION.md">Installation</a> ·
+  <a href="INSTALLATION_SCRIPT.md">Ubuntu-Skript</a> ·
+  <a href="ERROR_HANDLING.md">Fehlerbehebung</a>
+</p>
+
+---
+
+Laufender Betrieb von **Prismateams 3.0.0**: Logs, Neustart, Updates, Migrationen, Backups und Performance.
 
 Bei Fehlern: [ERROR_HANDLING.md](ERROR_HANDLING.md)
+
+> **Hinweis:** Standard nach Skript-Installation: Installationsverzeichnis oft `/var/www/teamportal`, systemd-Service `teamportal`. Abweichungen stehen in `$INSTALL_DIR/install-report.txt`.
 
 ## Logs überprüfen
 
@@ -81,11 +99,16 @@ sudo systemctl restart teamportal
 
 ```bash
 cd /var/www/teamportal
-# Beispiel Migration:
-sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_2_4_3.py"
+
+# Empfohlen: verfügbare Migrationen nacheinander (siehe migrations/)
+sudo -u www-data bash -c "source venv/bin/activate && python migrations/run_all.py"
+
+# Oder gezielt, z. B. auf 3.0.0 / Folgeversionen:
+# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_0_0.py"
+# sudo -u www-data bash -c "source venv/bin/activate && python migrations/migrate_to_3_1_0_file_storage_quotas.py"
 ```
 
-**Hinweis:** Prüfen Sie die verfügbaren Migrationsdateien im `migrations/` Verzeichnis und führen Sie die entsprechende Migration für Ihre Zielversion aus.
+**Hinweis:** Im Ordner `migrations/` liegen die Skripte für **3.0.0** und nachfolgende Patches (z. B. `3.1.x`). Nur die Migrationen ausführen, die zu eurem Ausgangsstand passen – oder `run_all.py`, sofern das Skript eure Umgebung unterstützt.
 
 ## Docker-Container aktualisieren (falls installiert)
 
@@ -242,3 +265,10 @@ sudo docker stats excalidraw excalidraw-room
 1. Logs prüfen (siehe oben)
 2. [ERROR_HANDLING.md](ERROR_HANDLING.md) durchgehen
 3. GitHub Issues durchsuchen oder neues Issue erstellen
+
+---
+
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="40"><br>
+  <sub>Prismateams 3.0.0</sub>
+</p>

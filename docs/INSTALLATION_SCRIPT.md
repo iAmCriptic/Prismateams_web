@@ -1,147 +1,173 @@
-# Team Portal – Installationsskript (Ubuntu)
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="Prismateams Logo" width="96">
+</p>
 
-**Dokumentation:** [INSTALLATION.md](INSTALLATION.md) · [WARTUNG.md](WARTUNG.md) · [ERROR_HANDLING.md](ERROR_HANDLING.md)
+<h1 align="center">Prismateams – Installationsskript (Ubuntu)</h1>
 
-Für Ubuntu Server 24.04 existiert ein vollautomatisiertes Installationsskript: [`scripts/install_ubuntu.sh`](../scripts/install_ubuntu.sh).
+<p align="center">
+  <strong>Dokumentation · Version 3.0.0</strong><br>
+  <img src="https://img.shields.io/badge/version-3.0.0-7c3aed?style=flat-square" alt="Version 3.0.0">
+  <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu">
+  <img src="https://img.shields.io/badge/Installer-ready-22c55e?style=flat-square" alt="Installer ready">
+</p>
+
+<p align="center">
+  <a href="README.md">Übersicht</a> ·
+  <a href="INSTALLATION.md">Manuelle Installation</a> ·
+  <a href="WARTUNG.md">Wartung</a> ·
+  <a href="ERROR_HANDLING.md">Fehlerbehebung</a>
+</p>
+
+---
+
+> **Einsatzbereit**  
+> Der modulare Ubuntu-Installer (`scripts/install_ubuntu.sh` + `scripts/install_ubuntu/*.sh`) ist für **Produktion freigegeben**. Empfohlener Weg auf Ubuntu Server 24.04. Manuelle Schritte nur bei Sonderfällen: [INSTALLATION.md](INSTALLATION.md).
+
+Für Ubuntu Server 24.04:
+
+- Entry: [`scripts/install_ubuntu.sh`](../scripts/install_ubuntu.sh)
+- Module: [`scripts/install_ubuntu/`](../scripts/install_ubuntu/)
 
 ## Voraussetzungen
 
-- Ubuntu 24.04.3 LTS (oder kompatibel)
-- Root-Zugriff (sudo)
+- Ubuntu 24.04 LTS (oder kompatibel)
+- Root-Zugriff (`sudo`)
 - Internet-Verbindung
-- Mindestens 4 GB RAM empfohlen (für OnlyOffice und Excalidraw)
+- Mindestens 4 GB RAM empfohlen (für OnlyOffice)
 
 ## Schnellstart
 
-1. **Repository klonen oder Dateien kopieren**
-   ```bash
-   git clone <repository-url>
-   cd Prismateams_web
-   ```
+```bash
+git clone https://github.com/iAmCriptic/Prismateams_web.git
+cd Prismateams_web
+chmod +x scripts/install_ubuntu.sh
+sudo bash scripts/install_ubuntu.sh
+```
 
-2. **Skript ausführbar machen**
-   ```bash
-   chmod +x scripts/install_ubuntu.sh
-   ```
+Ohne Optionen fragt das Skript interaktiv alle leeren Werte ab und zeigt vor dem Start eine Kurzbestätigung.
 
-3. **Skript als root ausführen**
-   ```bash
-   sudo bash scripts/install_ubuntu.sh
-   ```
+## Architektur
 
-## Was wird installiert?
+Jeder Installationsschritt ist ein eigenes Modul und meldet Status `ok` / `skipped` / `failed` / `aborted`. Am Ende erscheint eine Übersicht inkl. generierter Passwörter; zusätzlich wird `$INSTALL_DIR/install-report.txt` geschrieben (chmod 600).
 
-Das Skript installiert und konfiguriert automatisch:
+| Modul | Aufgabe |
+|-------|---------|
+| `common.sh` | Logging, Hilfsfunktionen, manuelle Hinweise |
+| `args.sh` | CLI-Parser / `--help` |
+| `prompts.sh` | Interaktive Abfragen (nur wenn Wert leer) |
+| `steps.sh` | `run_step` + Status-Registry |
+| `step_*.sh` | Einzelne Installationsschritte |
+| `summary.sh` | Abschlussbericht + Credentials |
 
-- System-Updates und Basis-Pakete
-- Python 3.12+ und pip
-- MySQL/MariaDB mit automatischer Datenbank- und Benutzererstellung
-- Nginx oder Apache mit vollständiger Konfiguration (optional)
-- Gunicorn als WSGI-Server
-- Docker (nur wenn OnlyOffice oder Excalidraw gewählt)
-- OnlyOffice Document Server (Docker, optional)
-- Excalidraw Client und Room Server (Docker, optional)
-- Media Downloader / FFmpeg (optional)
-- Python Virtual Environment
-- Automatische Generierung aller Keys:
-  - Flask `SECRET_KEY`
-  - VAPID Keys (Push-Benachrichtigungen)
-  - Encryption Keys (Credentials und Music-Modul)
-  - OnlyOffice Secret Key
-- Automatische `.env`-Konfiguration
-- Datenbank-Initialisierung (automatisch beim ersten Gunicorn-Start)
-- Systemd-Service für Gunicorn
-- Firewall-Konfiguration (UFW)
-- Optional: SSL mit Let's Encrypt
+## Was kann konfiguriert werden?
 
-## Interaktive Abfragen
-
-Das Skript fragt Sie nach:
-
-1. **Installationspfad** (Standard: `/var/www/teamportal`)
-2. **Gunicorn-Port** (Standard: `5000`) — frei wählbar; der Webserver muss auf diesen Port weiterleiten
-3. **Webserver automatisch einrichten** (Standard: ja) — Nginx oder Apache vHost inkl. Reverse-Proxy; bei **Nein** nur Gunicorn-Systemd-Service mit `[MANUELL]`-Hinweisen
-4. **Domain oder IP-Adresse** — erforderlich bei automatischer Webserver-Einrichtung
-5. **SSL mit Let's Encrypt** — nur bei automatischer Webserver-Einrichtung
-6. **Docker-Services** (OnlyOffice, Excalidraw — Standard: ja) — einzeln überspringbar
-7. **Media Downloader (FFmpeg)** — optional (Standard: nein)
-8. **MySQL Root-Passwort** — leer lassen für automatische Generierung
-9. **E-Mail-Konfiguration** — SMTP/IMAP (optional)
+- Installationsverzeichnis
+- Git-Repository-URL und Branch (Fork / Development)
+- Gunicorn-Port, Worker-Anzahl, Service ja/nein
+- Nginx oder Apache (oder manuell)
+- MySQL ja/nein (inkl. DB-Name/User/Passwort)
+- Redis ja/nein
+- OnlyOffice inkl. JWT (`JWT_SECRET` = `ONLYOFFICE_SECRET_KEY`) und Proxy `/onlyoffice` + `/cache`
+- FFmpeg / Media Downloader
+- `.env`: Modus `auto` | `manual` | `file` (`--env-file`)
 
 ## Kommandozeilen-Optionen
 
-Ohne Optionen führt das Skript interaktive Abfragen durch. Optionen können einzelne Fragen vorbelegen:
-
 ```bash
 sudo bash scripts/install_ubuntu.sh --help
-
-# Beispiele:
-sudo bash scripts/install_ubuntu.sh --port 8000
-sudo bash scripts/install_ubuntu.sh --no-webserver --port 8000
-sudo bash scripts/install_ubuntu.sh --webserver nginx --skip-excalidraw
 ```
 
-### CLI-Referenz
+### Wichtige Flags
 
 | Option | Beschreibung |
 |--------|--------------|
-| `--port PORT` | Gunicorn-Port (Standard: 5000) |
-| `--no-webserver` | Kein Nginx/Apache vHost einrichten |
-| `--webserver nginx\|apache` | Webserver-Typ vorgeben |
-| `--skip-docker` | Docker, OnlyOffice und Excalidraw überspringen |
-| `--skip-onlyoffice` | OnlyOffice Document Server überspringen |
-| `--skip-excalidraw` | Excalidraw Client und Room Server überspringen |
-| `--skip-media-downloader` | Media Downloader (FFmpeg) überspringen |
-| `--help`, `-h` | Hilfe anzeigen |
+| `--install-dir PATH` | Installationsverzeichnis |
+| `--repo-url URL` | Git-Remote (Fork/Dev) |
+| `--branch BRANCH` | Git-Branch |
+| `--port PORT` | Gunicorn-Port (Standard 5000) |
+| `--workers N` | Gunicorn-Worker (bei N>1: One-Shot-DB-Init, dann N Worker) |
+| `--no-gunicorn` | Keinen systemd-Service anlegen |
+| `--no-webserver` | Kein Nginx/Apache |
+| `--webserver nginx\|apache` | Webserver-Typ |
+| `--domain DOMAIN` | Domain/IP |
+| `--ssl` / `--letsencrypt-email` | Let's Encrypt |
+| `--skip-mysql` / `--skip-redis` | DB/Redis manuell |
+| `--db-name` `--db-user` `--db-pass` `--mysql-root-pass` | DB-Parameter |
+| `--skip-docker` | Docker + OnlyOffice überspringen |
+| `--skip-onlyoffice` / `--onlyoffice` | OnlyOffice |
+| `--skip-media-downloader` / `--ffmpeg` | FFmpeg |
+| `--env-mode auto\|manual\|file` | `.env`-Strategie |
+| `--env-file PATH` | Bestehende `.env` mergen |
+| `--timezone` / `--vapid-claim-email` | Häufige `.env`-Werte |
+| `--non-interactive` | Keine Prompts (fehlende Pflichtwerte = Fehler) |
+| `--continue-on-error` | Optionale Schritte bei Fehler fortsetzen |
 
-Bei übersprungenen Schritten gibt das Skript `[MANUELL]`-Hinweise mit den Standard-Einstellungen aus, die es sonst gesetzt hätte.
+### Beispiele
 
-### Manuelle Nacharbeit
+```bash
+# Standard interaktiv
+sudo bash scripts/install_ubuntu.sh
 
-Wenn Schritte übersprungen wurden (z. B. `--no-webserver`, `--skip-docker`):
+# Fork / Development-Branch
+sudo bash scripts/install_ubuntu.sh \
+  --repo-url https://github.com/MEINUSER/Prismateams_web.git \
+  --branch Development
 
-- **Webserver / SSL / Firewall:** [INSTALLATION.md – Schritt 11–13](INSTALLATION.md#schritt-11-nginx-konfigurieren)
-- **Docker / OnlyOffice:** [INSTALLATION.md – Schritt 2 und 5](INSTALLATION.md#schritt-2-docker-installieren-für-excalidraw-und-onlyoffice)
-- **Excalidraw:** [INSTALLATION.md – Schritt 6](INSTALLATION.md#schritt-6-optionale-installation---excalidraw)
-- **Media Downloader:** [INSTALLATION.md – Schritt 6b](INSTALLATION.md#schritt-6b-optionale-installation---media-downloader)
+# Nur App + FFmpeg, ohne Webserver/OnlyOffice
+sudo bash scripts/install_ubuntu.sh --no-webserver --skip-onlyoffice --ffmpeg --port 8000
 
-## Automatisch generierte Werte
+# Produktion mit Nginx, 4 Workern
+sudo bash scripts/install_ubuntu.sh \
+  --webserver nginx --domain portal.example.com --workers 4 --onlyoffice
 
-Das Skript generiert automatisch:
+# Non-interactive mit vorbereiteter .env
+sudo bash scripts/install_ubuntu.sh --non-interactive \
+  --install-dir /var/www/teamportal \
+  --domain portal.example.com --webserver nginx \
+  --env-mode file --env-file /root/teamportal.env
+```
 
-- MySQL Root-Passwort (falls nicht angegeben)
-- Datenbank-Benutzer-Passwort
-- Flask `SECRET_KEY`
-- VAPID Keys
-- Encryption Keys
-- OnlyOffice Secret Key (falls OnlyOffice installiert)
+Regel: **CLI setzt Werte vorab → Prompt nur für leere Felder.**
 
-**WICHTIG:** Speichern Sie die am Ende ausgegebenen Passwörter und Keys sicher!
+## OnlyOffice-Verdrahtung
+
+Bei Installation setzt das Skript:
+
+1. Docker-Container mit `JWT_ENABLED=true` und `JWT_SECRET=<secret>`
+2. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
+3. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
+4. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+
+## Gunicorn-Worker
+
+- Default: 1 Worker (DB-Init beim ersten Start)
+- `--workers N` mit N>1: One-Shot `create_app()` vor Service-Start, dann systemd mit N Workern
+- Redis empfohlen bei mehreren Workern (Warnung, falls `--skip-redis`)
+
+## Abschlussübersicht
+
+Am Ende (auch bei Abbruch, soweit möglich):
+
+1. Schritt-Tabelle mit Status
+2. Zugangsdaten (MySQL-Root, DB-Passwort, OnlyOffice-JWT)
+3. Gewählte Config (Pfad, Repo, Port, Worker, Webserver)
+4. `[MANUELL]`-Hinweise für übersprungene Schritte
+5. Datei `$INSTALL_DIR/install-report.txt`
+
+**WICHTIG:** Generierte Passwörter und Keys sicher speichern.
 
 ## Nach der Installation
 
-1. **E-Mail-Konfiguration prüfen** — Einstellungen liegen in `$INSTALL_DIR/.env`
-2. **Anwendung öffnen** — `http://ihre-domain.de` (oder `https://` bei SSL)
-3. **Admin anlegen** — Setup-Assistent im Browser
-4. **Service-Status prüfen**
-   ```bash
-   systemctl status teamportal
-   systemctl status nginx   # falls Webserver eingerichtet
-   docker ps              # falls Docker-Services installiert
-   ```
+1. `.env` prüfen (`$INSTALL_DIR/.env`) — siehe auch [env.example](env.example)
+2. Anwendung öffnen (`http://` oder `https://` Domain)
+3. Admin über Setup-Assistent anlegen
+4. Status: `systemctl status teamportal` · `docker ps` (falls Docker)
 
-Weitere Schritte (Updates, Backups): [WARTUNG.md](WARTUNG.md)
+Weitere Schritte: [WARTUNG.md](WARTUNG.md) · Probleme: [ERROR_HANDLING.md](ERROR_HANDLING.md) · manuell: [INSTALLATION.md](INSTALLATION.md)
 
-## Vorteile der automatischen Installation
+---
 
-- **Vollautomatisch:** Alle Schritte werden automatisch ausgeführt
-- **Konsistent:** Gleiche Konfiguration bei jeder Installation
-- **Schnell:** Installation in wenigen Minuten
-- **Sicher:** Automatische Generierung sicherer Passwörter und Keys
-
-## Bei Problemen
-
-- Logs während der Installation im Terminal prüfen
-- `.env`-Datei überprüfen
-- [ERROR_HANDLING.md](ERROR_HANDLING.md) — Fehlerbehebung
-- Manuelle Installation als Alternative: [INSTALLATION.md](INSTALLATION.md)
+<p align="center">
+  <img src="../app/static/img/logo.png" alt="" width="40"><br>
+  <sub>Prismateams 3.0.0 · Modularer Ubuntu-Installer · einsatzbereit</sub>
+</p>

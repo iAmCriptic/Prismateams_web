@@ -436,7 +436,13 @@ function loadBookingRoles(bookingRoles) {
         const formCard = document.createElement('div');
         formCard.className = 'card mb-3';
         const cardHeader = document.createElement('div');
-        cardHeader.className = formData.form_is_active ? 'card-header bg-light' : 'card-header bg-secondary text-white';
+        cardHeader.className = formData.form_is_active
+            ? 'card-header'
+            : 'card-header bg-secondary text-white';
+        if (formData.form_is_active) {
+            cardHeader.style.backgroundColor = 'var(--bs-secondary-bg)';
+            cardHeader.style.color = 'var(--bs-body-color)';
+        }
         let headerText = `<strong>${formData.form_title}</strong>`;
         if (!formData.form_is_active) {
             headerText += ' <span class="badge bg-warning ms-2">Inaktiv</span>';

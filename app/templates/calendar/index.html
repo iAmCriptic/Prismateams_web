@@ -853,7 +853,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentWeekDate = loadStoredDate('week') || new Date();
     
     function isMobileView() {
-        return window.innerWidth < 768; // Bootstrap md breakpoint
+        // Align with bottom-nav shell (lg = 992), not Bootstrap md
+        return window.innerWidth < 992;
     }
     
     function getDaysToShow() {

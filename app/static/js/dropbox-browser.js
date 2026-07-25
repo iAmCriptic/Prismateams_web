@@ -77,7 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const file of selectedFiles) {
             if (file.size > maxSize) {
-                window.alert(`Die Datei "${file.name}" ist zu groß. Maximale Größe: 100MB pro Datei.`);
+                const maxLabel = (typeof window.FILES_MAX_UPLOAD_LABEL === 'string' && window.FILES_MAX_UPLOAD_LABEL)
+                    ? window.FILES_MAX_UPLOAD_LABEL
+                    : (Math.round(maxSize / (1024 * 1024)) + 'MB');
+                window.alert(`Die Datei "${file.name}" ist zu groß. Maximale Größe: ${maxLabel} pro Datei.`);
                 if (source === 'Dateien' && fileInput) fileInput.value = '';
                 if (source === 'Ordner' && folderInput) folderInput.value = '';
                 updateSelectionInfo('Wählen Sie Dateien oder einen Ordner aus. Upload startet automatisch.');
