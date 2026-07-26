@@ -181,6 +181,7 @@
       "fill_all_fields": "Bitte füllen Sie alle Pflichtfelder aus.",
       "passwords_dont_match": "Die Passwörter stimmen nicht überein.",
       "password_too_short": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+      "password_requirements": "Das Passwort muss mindestens 12 Zeichen lang sein und Groß- und Kleinbuchstaben, Zahlen sowie Sonderzeichen enthalten.",
       "email_already_registered": "Diese E-Mail-Adresse ist bereits registriert.",
       "register_success_whitelisted": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. Bitte bestätigen Sie Ihre E-Mail-Adresse.",
       "register_success_whitelisted_no_email": "Registrierung erfolgreich! Ihr Konto wurde automatisch aktiviert. E-Mail-Bestätigung konnte nicht gesendet werden.",

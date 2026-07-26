@@ -3584,10 +3584,6 @@ def revoke_all_sessions_route():
     return redirect(url_for('settings.security_devices'))
 
 
-ABOUT_RELEASE_VERSION = 'v3.0.0'
-ABOUT_BUILD_NUMBER = 'B300.262607261025.01'
-
-
 @settings_bp.route('/about')
 @login_required
 def about():
@@ -3611,8 +3607,8 @@ def about():
         'settings/about.html',
         creator_name=creator_name,
         portal_name=portal_name,
-        release_version=ABOUT_RELEASE_VERSION,
-        build_number=ABOUT_BUILD_NUMBER,
+        release_version=current_app.config.get('ABOUT_RELEASE_VERSION', 'v0.0.0'),
+        build_number=current_app.config.get('ABOUT_BUILD_NUMBER', ''),
         onlyoffice_enabled=onlyoffice_enabled,
         onlyoffice_version=onlyoffice_version,
         media_downloader_compatible=media_downloader_compatible,

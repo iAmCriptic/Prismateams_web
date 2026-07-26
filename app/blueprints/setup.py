@@ -464,7 +464,9 @@ def setup_step2():
                     'setup/step2.html',
                     **_setup_template_kwargs(2, admin_user=existing_admin, editing=editing),
                 )
-            if len(password) < 8:
+            from app.utils.password_policy import validate_password
+            is_valid, _ = validate_password(password, min_length=8, require_complexity=False)
+            if not is_valid:
                 flash(translate('setup.flash.password_too_short'), 'danger')
                 return render_template(
                     'setup/step2.html',

@@ -45,13 +45,18 @@
 
                     <div class="mb-3">
                         <label for="password" class="form-label">{{ _('auth.register.password') }}</label>
-                        <input type="password" class="form-control" id="password" name="password" required minlength="8">
-                        <div class="form-text">{{ _('auth.register.password_help') }}</div>
+                        <div class="password-req-wrap">
+                            <input type="password" class="form-control password-req-input" id="password" name="password" required minlength="12" autocomplete="new-password" aria-describedby="passwordHelp">
+                            <span class="password-req-icon" id="passwordReqIcon" aria-hidden="true" hidden title="{{ _('auth.register.password_help') }}">
+                                <i class="bi bi-exclamation-circle-fill"></i>
+                            </span>
+                        </div>
+                        <div class="form-text password-req-help is-idle" id="passwordHelp">{{ _('auth.register.password_help') }}</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="password_confirm" class="form-label">{{ _('auth.register.confirm_password') }}</label>
-                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
+                        <input type="password" class="form-control" id="password_confirm" name="password_confirm" required minlength="12" autocomplete="new-password">
                     </div>
 
                     <div class="mb-3">
@@ -87,8 +92,57 @@
 (function () {
     var form = document.getElementById('registerForm');
     var btn = document.getElementById('registerSubmitBtn');
+    var password = document.getElementById('password');
+    var icon = document.getElementById('passwordReqIcon');
+    var help = document.getElementById('passwordHelp');
+
+    function passwordMeetsRequirements(value) {
+        if (!value || value.length < 12) return false;
+        if (!/[A-Z]/.test(value)) return false;
+        if (!/[a-z]/.test(value)) return false;
+        if (!/\d/.test(value)) return false;
+        if (!/[^A-Za-z0-9]/.test(value)) return false;
+        return true;
+    }
+
+    function updatePasswordFeedback() {
+        if (!password || !icon || !help) return;
+        var value = password.value || '';
+        var hasInput = value.length > 0;
+        var ok = passwordMeetsRequirements(value);
+
+        help.classList.remove('is-idle', 'is-invalid', 'is-valid');
+        icon.classList.remove('is-invalid', 'is-valid');
+
+        if (!hasInput) {
+            help.classList.add('is-idle');
+            icon.hidden = true;
+            password.removeAttribute('aria-invalid');
+            return;
+        }
+
+        icon.classList.toggle('is-invalid', !ok);
+        icon.classList.toggle('is-valid', ok);
+        icon.hidden = ok;
+        help.classList.toggle('is-invalid', !ok);
+        help.classList.toggle('is-valid', ok);
+        password.setAttribute('aria-invalid', ok ? 'false' : 'true');
+    }
+
+    if (password) {
+        password.addEventListener('input', updatePasswordFeedback);
+        password.addEventListener('change', updatePasswordFeedback);
+        updatePasswordFeedback();
+    }
+
     if (!form || !btn) return;
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (e) {
+        if (password && !passwordMeetsRequirements(password.value)) {
+            e.preventDefault();
+            updatePasswordFeedback();
+            password.focus();
+            return;
+        }
         if (btn.disabled) return;
         btn.disabled = true;
         btn.setAttribute('aria-busy', 'true');

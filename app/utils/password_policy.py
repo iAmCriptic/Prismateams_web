@@ -14,7 +14,8 @@ def check_password_complexity(password):
         'has_upper': bool(re.search(r'[A-Z]', password)),
         'has_lower': bool(re.search(r'[a-z]', password)),
         'has_digit': bool(re.search(r'\d', password)),
-        'has_special': bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password)),
+        # Beliebiges Nicht-Alphanumerisch = Sonderzeichen
+        'has_special': bool(re.search(r'[^A-Za-z0-9]', password)),
         'length': len(password)
     }
     
@@ -23,7 +24,7 @@ def check_password_complexity(password):
         complexity['has_lower'] and
         complexity['has_digit'] and
         complexity['has_special'] and
-        complexity['length'] >= 8
+        complexity['length'] >= 12
     )
     
     return complexity

@@ -159,6 +159,7 @@
       "fill_all_fields": "Please fill in all required fields.",
       "passwords_dont_match": "The passwords do not match.",
       "password_too_short": "The password must be at least 8 characters long.",
+      "password_requirements": "The password must be at least 12 characters long and include uppercase, lowercase, numbers and special characters.",
       "email_already_registered": "This email address is already registered.",
       "register_success_whitelisted": "Registration successful! Your account has been automatically activated. Please confirm your email address.",
       "register_success_whitelisted_no_email": "Registration successful! Your account has been automatically activated. Email confirmation could not be sent.",

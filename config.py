@@ -2,11 +2,18 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
+# About-Seite (Release / Build)
+ABOUT_RELEASE_VERSION = 'v3.0.0'
+ABOUT_BUILD_NUMBER = 'B300.262607262357.01'
+
 load_dotenv()
 
 class Config:
     """Base configuration."""
-    
+
+    ABOUT_RELEASE_VERSION = ABOUT_RELEASE_VERSION
+    ABOUT_BUILD_NUMBER = ABOUT_BUILD_NUMBER
+
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI') or 'sqlite:///teamportal.db'

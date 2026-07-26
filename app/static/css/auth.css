@@ -316,6 +316,45 @@ body:has(.auth-container) .pwa-install-prompt {
     opacity: 1;
 }
 
+/* Live password requirements (register) */
+.auth-card .password-req-wrap {
+    position: relative;
+}
+
+.auth-card .password-req-wrap .password-req-input {
+    padding-right: 2.75rem;
+}
+
+.auth-card .password-req-icon {
+    position: absolute;
+    top: 50%;
+    right: 0.95rem;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    font-size: 1.15rem;
+    line-height: 1;
+    z-index: 2;
+}
+
+.auth-card .password-req-icon.is-invalid {
+    color: #dc3545;
+}
+
+.auth-card .password-req-help.is-idle {
+    color: var(--auth-muted) !important;
+}
+
+.auth-card .password-req-help.is-invalid {
+    color: #dc3545 !important;
+}
+
+.auth-card .password-req-help.is-valid {
+    color: #198754 !important;
+}
+
 /* Checkbox */
 .auth-card .form-check-label {
     color: var(--auth-text);

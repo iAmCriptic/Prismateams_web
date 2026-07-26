@@ -171,9 +171,11 @@ def register():
         if password != password_confirm:
             flash(translate('auth.flash.passwords_dont_match'), 'danger')
             return render_template('auth/register.html', **_auth_template_kwargs())
-        
-        if len(password) < 8:
-            flash(translate('auth.flash.password_too_short'), 'danger')
+
+        # Registrierung: mind. 12 Zeichen + Groß-/Kleinbuchstaben, Zahl, Sonderzeichen
+        is_valid, _ = validate_password(password, min_length=12, require_complexity=True)
+        if not is_valid:
+            flash(translate('auth.flash.password_requirements'), 'danger')
             return render_template('auth/register.html', **_auth_template_kwargs())
         
         # Check if user already exists
