@@ -354,6 +354,7 @@
                     </div>
                     <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form">
                         <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}
                         <input type="text" class="form-control form-control-sm files-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
                         <div class="d-flex gap-2 mt-2">
                             <button type="submit" class="btn btn-sm btn-accent flex-fill files-pill-btn">
@@ -491,6 +492,7 @@
                     </div>
                     <form method="POST" class="inline-create-form" id="inlineFileForm">
                         <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}
                         <input type="text" class="form-control form-control-sm files-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
                         <div class="d-flex gap-2 mt-2">
                             <button type="submit" class="btn btn-sm btn-accent flex-fill files-pill-btn">
@@ -569,7 +571,10 @@
                     <!-- File Info -->
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1 min-width-0">
-                            <h6 class="mb-1 files-presence-anchor files-item-name" data-rename-target="file-{{ file.id }}" title="{{ file.name }}">{{ file.name }}</h6>
+                            <div class="d-flex align-items-center gap-1 min-width-0 mb-1">
+                                <h6 class="mb-0 files-item-name" data-rename-target="file-{{ file.id }}" title="{{ file.name }}">{{ file.name }}</h6>
+                                <span class="files-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
+                            </div>
                             {% if file.version_number > 1 %}
                             <span class="badge bg-info">v{{ file.version_number }}</span>
                             {% endif %}
@@ -698,6 +703,7 @@
             <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
             <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2">
                 <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
+                {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}
                 <input type="text" class="form-control form-control-sm files-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
                 <button type="submit" class="btn btn-sm btn-accent files-pill-btn">
                     <i class="bi bi-check"></i> {{ _('common.create') }}
@@ -717,6 +723,7 @@
             <i class="bi bi-file-earmark fs-4 text-primary me-3" id="inlineFileIconList"></i>
             <form method="POST" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2" id="inlineFileFormList">
                 <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
+                {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}
                 <input type="text" class="form-control form-control-sm files-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
                 <button type="submit" class="btn btn-sm btn-accent files-pill-btn">
                     <i class="bi bi-check"></i> {{ _('common.create') }}
@@ -826,6 +833,7 @@
                         <a class="mod-list-name text-decoration-none files-item-name" data-rename-target="file-{{ file.id }}" href="{{ open_url }}">
                             {{ file_type_icon(file.original_name or file.name, 'sm') }}<span class="files-item-name-text" title="{{ file.original_name or file.name }}">{{ file.original_name or file.name }}</span>
                         </a>
+                        <span class="files-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
                     </td>
                     <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else (file.uploader.full_name if file.uploader else '—') }}</td>
                     <td class="d-none d-md-table-cell"><span class="badge bg-secondary">v{{ file.version_number }}</span></td>

@@ -2238,6 +2238,81 @@
     --sar-border: rgba(255, 255, 255, 0.12);
 }
 
+/* Rollen-Modal (Benutzerverwaltung) */
+.settings-admin-roles-modal .modal-content {
+    border-radius: 1.15rem;
+    border: 1px solid var(--sar-border, var(--bs-border-color-translucent, #e9ecef));
+    overflow: hidden;
+    --sar-surface: var(--bs-tertiary-bg, #f8f9fa);
+    --sar-elevated: var(--bs-body-bg, #fff);
+    --sar-border: var(--bs-border-color-translucent, #e9ecef);
+    --sar-text: var(--bs-body-color, #212529);
+    --sar-muted: var(--bs-secondary-color, #6c757d);
+}
+
+.settings-admin-roles-modal-header {
+    border-bottom: 1px solid var(--sar-border);
+    padding: 1rem 1.15rem;
+}
+
+.settings-admin-roles-modal-header .modal-title {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.settings-admin-roles-modal-body {
+    padding: 0.85rem 1.15rem 1rem;
+    background: var(--sar-surface);
+}
+
+.settings-admin-roles-modal-body .settings-admin-roles-form {
+    gap: 0.65rem;
+}
+
+.settings-admin-roles-modal-footer {
+    border-top: 1px solid var(--sar-border);
+    padding: 0.85rem 1.15rem;
+    gap: 0.5rem;
+    background: var(--sar-elevated);
+}
+
+.settings-admin-roles-switch-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.settings-admin-roles-empty {
+    margin: 0;
+    color: var(--sar-muted);
+    font-size: 0.875rem;
+}
+
+.settings-admin-roles-booking {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.settings-admin-roles-booking-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.settings-admin-roles-booking-title {
+    font-size: 0.85rem;
+    font-weight: 650;
+    color: var(--sar-text);
+}
+
+[data-bs-theme="dark"] .settings-admin-roles-modal .modal-content {
+    --sar-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
+    --sar-elevated: var(--bs-body-bg, #212529);
+    --sar-border: rgba(255, 255, 255, 0.12);
+}
+
 /* Admin create user / guest */
 .settings-admin-create {
     --sac-surface: var(--bs-tertiary-bg, #f8f9fa);

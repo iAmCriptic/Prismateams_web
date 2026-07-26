@@ -869,8 +869,17 @@ def render_and_send_portal_email(subject, recipients, template_name, body_text=N
         return False
 
 def send_confirmation_email(user):
-    """Sendet eine Bestätigungs-E-Mail an den Benutzer."""
+    """Sendet eine Bestätigungs-E-Mail an den Benutzer (nur bei aktivem Konto)."""
     try:
+        if not user or getattr(user, 'is_guest', False):
+            return False
+        if not getattr(user, 'is_active', False):
+            logging.info(
+                'Bestätigungs-E-Mail für %s übersprungen — Konto noch nicht freigeschaltet.',
+                getattr(user, 'email', '?'),
+            )
+            return False
+
         confirmation_code = generate_confirmation_code()
         expires_at = portal_now_naive() + timedelta(hours=24)
         user.confirmation_code = confirmation_code
@@ -889,8 +898,11 @@ def send_confirmation_email(user):
 
         portal_name = _portal_name()
         plain_text = (
-            f'E-Mail-Bestätigungscode: {confirmation_code}\n\n'
-            'Bitte geben Sie diesen Code zur Bestätigung Ihrer E-Mail-Adresse ein.'
+            'Ihr Konto wurde nun aktiviert.\n\n'
+            'Zur Identitätsbestätigung müssen Sie sich innerhalb von 24 Stunden '
+            'anmelden und den unten stehenden Code angeben.\n\n'
+            f'Bestätigungscode: {confirmation_code}\n\n'
+            'Der Code ist 24 Stunden gültig und darf nicht an Dritte weitergegeben werden.'
         )
         try:
             ok = render_and_send_portal_email(

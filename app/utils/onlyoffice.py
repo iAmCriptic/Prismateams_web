@@ -1,10 +1,12 @@
 """
 ONLYOFFICE helper functions and utilities.
 """
-import os
-import secrets
 import hashlib
+import os
+import re
+import secrets
 from datetime import datetime, timedelta
+
 from flask import current_app
 
 try:
@@ -13,10 +15,65 @@ try:
 except ImportError:
     JWT_AVAILABLE = False
 
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+
+_ONLYOFFICE_VERSION_RE = re.compile(
+    r'(?:buildVersion["\']?\s*[:=]\s*["\']|ver(?:sion)?\.?\s+)(\d+(?:\.\d+)+)',
+    re.IGNORECASE,
+)
+
 
 def is_onlyoffice_enabled():
     """Check if ONLYOFFICE is enabled in configuration."""
     return current_app.config.get('ONLYOFFICE_ENABLED', False)
+
+
+def get_onlyoffice_version():
+    """Return Document Server version string, or None if unreachable."""
+    if not is_onlyoffice_enabled() or not REQUESTS_AVAILABLE:
+        return None
+
+    candidates = ['http://127.0.0.1:8080']
+    configured = (current_app.config.get('ONLYOFFICE_DOCUMENT_SERVER_URL') or '').strip()
+    if configured.startswith('http://') or configured.startswith('https://'):
+        candidates.append(configured.rstrip('/'))
+
+    for base in candidates:
+        version = _fetch_onlyoffice_version_from_base(base)
+        if version:
+            return version
+    return None
+
+
+def _fetch_onlyoffice_version_from_base(base_url):
+    """Try info.json, then welcome page, for a Document Server base URL."""
+    info_url = f"{base_url.rstrip('/')}/info/info.json"
+    try:
+        response = requests.get(info_url, timeout=3)
+        if response.ok:
+            data = response.json()
+            server_info = data.get('serverInfo') or {}
+            build_version = (server_info.get('buildVersion') or data.get('buildVersion') or '').strip()
+            if build_version:
+                return build_version
+    except Exception:
+        current_app.logger.debug('OnlyOffice info.json version lookup failed for %s', info_url, exc_info=True)
+
+    welcome_url = f"{base_url.rstrip('/')}/welcome/"
+    try:
+        response = requests.get(welcome_url, timeout=3)
+        if response.ok and response.text:
+            match = _ONLYOFFICE_VERSION_RE.search(response.text)
+            if match:
+                return match.group(1)
+    except Exception:
+        current_app.logger.debug('OnlyOffice welcome version lookup failed for %s', welcome_url, exc_info=True)
+
+    return None
 
 
 def is_onlyoffice_file_type(file_ext):

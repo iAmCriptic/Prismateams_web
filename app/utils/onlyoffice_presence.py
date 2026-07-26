@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 from datetime import datetime, timedelta
 from typing import Any
@@ -21,6 +22,17 @@ def _avatar_url(filename: str | None) -> str | None:
         return url_for('settings.profile_picture', filename=filename)
     except Exception:
         return None
+
+
+def _initials(display_name: str | None) -> str:
+    """Build avatar initials; ignore punctuation like '(Admin)'."""
+    cleaned = re.sub(r'[^\w\s]', ' ', display_name or '', flags=re.UNICODE)
+    parts = [p for p in cleaned.split() if p]
+    if not parts:
+        return '?'
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
 
 
 def cleanup_stale_sessions() -> int:
@@ -104,13 +116,12 @@ def presence_for_file_ids(file_ids: list[int]) -> dict[int, list[dict[str, Any]]
         if identity in seen_users[row.file_id]:
             continue
         seen_users[row.file_id].add(identity)
-        initials = ''.join(part[:1] for part in (row.display_name or '?').split()[:2]).upper() or '?'
         result[row.file_id].append(
             {
                 'user_id': row.user_id,
                 'display_name': row.display_name,
                 'avatar_url': _avatar_url(row.avatar_filename),
-                'initials': initials,
+                'initials': _initials(row.display_name),
             }
         )
     return result

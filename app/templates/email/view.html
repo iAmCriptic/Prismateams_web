@@ -7,9 +7,6 @@
 {% set view_subject = email.subject|decode_email_header %}
 <div class="email-view-page">
     <div class="email-view-mobile-top d-md-none">
-        <a href="{{ view_back_url }}" class="email-view-back-icon" aria-label="{{ _('layout.nav.back') }}">
-            <i class="bi bi-arrow-left fs-4" aria-hidden="true"></i>
-        </a>
         <div class="email-view-actions">
             <a class="email-view-action-btn" href="{{ url_for('email.reply', email_id=email.id) }}" title="{{ _('email.index.actions.reply') }}">
                 <i class="bi bi-reply" aria-hidden="true"></i>
@@ -24,7 +21,7 @@
     </div>
 
     <div class="email-view-header">
-        <a href="{{ view_back_url }}" class="email-view-back d-none d-md-inline-flex">
+        <a href="{{ view_back_url }}" class="email-view-back">
             <i class="bi bi-arrow-left" aria-hidden="true"></i>
             <span>{{ _('layout.nav.back') }}</span>
         </a>

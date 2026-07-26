@@ -14,11 +14,8 @@
     <div class="email-compose-wrapper">
         <div class="email-composer">
             <div class="email-composer-header">
-                <a href="{{ compose_back_url }}" class="email-compose-back-icon d-md-none" aria-label="{{ _('layout.nav.back') }}">
-                    <i class="bi bi-arrow-left fs-4" aria-hidden="true"></i>
-                </a>
                 <div class="email-composer-header-main">
-                    <a href="{{ compose_back_url }}" class="email-compose-back d-none d-md-inline-flex">
+                    <a href="{{ compose_back_url }}" class="email-compose-back">
                         <i class="bi bi-arrow-left" aria-hidden="true"></i>
                         <span>{{ _('layout.nav.back') }}</span>
                     </a>
@@ -708,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Speichere Entwurf beim Klick auf Zurück / Abbrechen
     var leaveComposeLinks = document.querySelectorAll(
-        '#cancelComposeButton, .email-compose-back, .email-compose-back-icon'
+        '#cancelComposeButton, .email-compose-back'
     );
     leaveComposeLinks.forEach(function(leaveLink) {
         leaveLink.addEventListener('click', function(e) {

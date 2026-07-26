@@ -21,7 +21,7 @@
                 <h5 class="text-center mb-2">{{ _('auth.register.title') }}</h5>
                 <p class="text-center text-muted auth-subtitle mb-4">{{ _('auth.register.subtitle') }}</p>
 
-                <form method="POST">
+                <form method="POST" id="registerForm">
                     <div class="row">
                         <div class="col-12 col-md-6 mb-3">
                             <label for="first_name" class="form-label">{{ _('auth.register.first_name') }}</label>
@@ -68,7 +68,7 @@
                     {% set bot_context = 'register' %}
                     {% include 'auth/_bot_protection.html' %}
 
-                    <button type="submit" class="btn btn-accent w-100">{{ _('auth.register.submit') }}</button>
+                    <button type="submit" class="btn btn-accent w-100" id="registerSubmitBtn">{{ _('auth.register.submit') }}</button>
                 </form>
 
                 <hr class="my-4">
@@ -83,4 +83,16 @@
 </div>
 
 {% include 'auth/_auth_bg.html' %}
+<script>
+(function () {
+    var form = document.getElementById('registerForm');
+    var btn = document.getElementById('registerSubmitBtn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function () {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+    });
+})();
+</script>
 {% endblock %}

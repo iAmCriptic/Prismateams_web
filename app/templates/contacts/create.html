@@ -71,13 +71,15 @@
     </div>
 
     <div class="contacts-form">
-        <div class="contacts-form-header d-none d-lg-block">
+        <div class="contacts-form-header">
             <a href="{{ url_for('contacts.index') }}" class="contacts-form-back">
                 <i class="bi bi-arrow-left" aria-hidden="true"></i>
                 <span>{{ _('contacts.form.back') }}</span>
             </a>
-            <h1 class="contacts-form-title">{{ _('contacts.form.create.card_title') }}</h1>
-            <p class="contacts-form-subtitle">{{ _('contacts.form.create.subtitle') }}</p>
+            <div class="d-none d-lg-block">
+                <h1 class="contacts-form-title">{{ _('contacts.form.create.card_title') }}</h1>
+                <p class="contacts-form-subtitle">{{ _('contacts.form.create.subtitle') }}</p>
+            </div>
         </div>
 
         <form method="POST" class="contacts-form-body">

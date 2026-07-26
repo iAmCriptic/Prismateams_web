@@ -46,6 +46,9 @@
                     <span class="settings-about-meta-value">
                         {% if onlyoffice_enabled %}
                         <span class="badge rounded-pill text-bg-success">{{ _('settings.about.onlyoffice_active') }}</span>
+                        {% if onlyoffice_version %}
+                        <span class="settings-about-meta-value--mono ms-2">{{ onlyoffice_version }}</span>
+                        {% endif %}
                         {% else %}
                         <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.onlyoffice_inactive') }}</span>
                         {% endif %}
@@ -56,6 +59,9 @@
                     <span class="settings-about-meta-value">
                         {% if media_downloader_compatible %}
                         <span class="badge rounded-pill text-bg-success">{{ _('settings.about.media_downloader_compatible') }}</span>
+                        {% if ffmpeg_version %}
+                        <span class="settings-about-meta-value--mono ms-2">{{ ffmpeg_version }}</span>
+                        {% endif %}
                         {% else %}
                         <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.media_downloader_not_compatible') }}</span>
                         {% endif %}

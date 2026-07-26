@@ -253,82 +253,86 @@
     </section>
 </div>
 
-{# —— Rollen-Modal (Logik unverändert) —— #}
-<div class="modal fade" id="rolesModal" tabindex="-1" aria-labelledby="rolesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+{# —— Rollen-Modal (neues Settings-Design) —— #}
+<div class="modal fade settings-admin-roles-modal" id="rolesModal" tabindex="-1" aria-labelledby="rolesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header settings-admin-roles-modal-header">
                 <h5 class="modal-title" id="rolesModalLabel">
-                    <i class="bi bi-person-badge"></i> {{ _('settings.admin.users.manage_roles') }}: <span id="modalUserName"></span>
+                    {{ _('settings.admin.users.manage_roles') }}: <span id="modalUserName"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
-            <div class="modal-body">
-                <form id="rolesForm">
+            <div class="modal-body settings-admin-roles-modal-body">
+                <form id="rolesForm" class="settings-admin-roles-form" onsubmit="return false;">
                     <input type="hidden" id="modalUserId" name="user_id">
 
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access"
-                                   onchange="toggleModuleRoles()">
-                            <label class="form-check-label" for="modalHasFullAccess">
-                                <strong>{{ _('settings.admin.users.badge_full') }}</strong>
-                            </label>
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-full-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-full-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.badge_full') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.full_access_help') }}" aria-label="{{ _('settings.admin.users.full_access_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
                         </div>
-                        <small class="text-muted d-block mt-2">
-                            {{ _('settings.admin.users.full_access_help') }}
-                        </small>
-                    </div>
+                        <div class="form-check form-switch settings-admin-roles-switch">
+                            <input class="form-check-input" type="checkbox" id="modalHasFullAccess" name="has_full_access">
+                            <label class="form-check-label" for="modalHasFullAccess">{{ _('settings.admin.users.badge_full') }}</label>
+                        </div>
+                    </section>
 
-                    <div id="moduleRolesSection">
-                        <h6 class="mb-3">{{ _('settings.admin.users.module_roles_title') }}</h6>
-                        <p class="text-muted mb-3">{{ _('settings.admin.users.module_roles_help') }}</p>
-                        <div class="row g-3" id="moduleCheckboxes"></div>
-                    </div>
+                    <section id="moduleRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-modules-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-modules-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.module_roles_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.module_roles_help') }}" aria-label="{{ _('settings.admin.users.module_roles_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <p id="rolesModalFullHint" class="settings-admin-roles-hint" hidden>{{ _('settings.admin.roles.full_access_active_hint') }}</p>
+                        <div class="settings-admin-roles-chips" id="moduleCheckboxes" role="group" aria-label="{{ _('settings.admin.users.module_roles_title') }}"></div>
+                    </section>
 
-                    <hr class="my-4">
-
-                    <div id="emailPermissionsSection">
-                        <h6 class="mb-3"><i class="bi bi-envelope"></i> {{ _('settings.admin.users.email_perms_title') }}</h6>
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-email-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-email-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.email_perms_title') }}</h2>
+                        </div>
+                        <div class="settings-admin-roles-switch-stack">
+                            <div class="form-check form-switch settings-admin-roles-switch">
                                 <input class="form-check-input" type="checkbox" id="emailCanRead" name="email_can_read">
-                                <label class="form-check-label" for="emailCanRead"><strong>{{ _('settings.admin.users.email_read') }}</strong></label>
+                                <label class="form-check-label" for="emailCanRead">{{ _('settings.admin.users.email_read') }}</label>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
+                            <div class="form-check form-switch settings-admin-roles-switch">
                                 <input class="form-check-input" type="checkbox" id="emailCanSend" name="email_can_send">
-                                <label class="form-check-label" for="emailCanSend"><strong>{{ _('settings.admin.users.email_send') }}</strong></label>
+                                <label class="form-check-label" for="emailCanSend">{{ _('settings.admin.users.email_send') }}</label>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <hr class="my-4">
-
-                    <div id="borrowPermissionsSection">
-                        <h6 class="mb-3"><i class="bi bi-box-arrow-right"></i> {{ _('settings.admin.users.borrow_title') }}</h6>
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="canBorrow" name="can_borrow">
-                                <label class="form-check-label" for="canBorrow"><strong>{{ _('settings.admin.users.borrow_toggle') }}</strong></label>
-                            </div>
+                    <section class="settings-admin-roles-card" aria-labelledby="roles-modal-borrow-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-borrow-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.borrow_title') }}</h2>
                         </div>
-                    </div>
+                        <div class="form-check form-switch settings-admin-roles-switch">
+                            <input class="form-check-input" type="checkbox" id="canBorrow" name="can_borrow">
+                            <label class="form-check-label" for="canBorrow">{{ _('settings.admin.users.borrow_toggle') }}</label>
+                        </div>
+                    </section>
 
-                    <hr class="my-4">
-
-                    <div id="bookingRolesSection">
-                        <h6 class="mb-3">{{ _('settings.admin.users.booking_roles_title') }}</h6>
-                        <p class="text-muted mb-3">{{ _('settings.admin.users.booking_roles_help') }}</p>
-                        <div id="bookingRolesCheckboxes"></div>
-                    </div>
+                    <section id="bookingRolesSection" class="settings-admin-roles-card" aria-labelledby="roles-modal-booking-heading">
+                        <div class="settings-admin-roles-card-head">
+                            <h2 id="roles-modal-booking-heading" class="settings-admin-roles-section-title mb-0">{{ _('settings.admin.users.booking_roles_title') }}</h2>
+                            <button type="button" class="settings-admin-roles-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.booking_roles_help') }}" aria-label="{{ _('settings.admin.users.booking_roles_help') }}">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div id="bookingRolesCheckboxes" class="settings-admin-roles-booking"></div>
+                    </section>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-                <button type="button" class="btn btn-primary" onclick="saveRoles()">
-                    <i class="bi bi-save"></i> {{ _('common.save') }}
+            <div class="modal-footer settings-admin-roles-modal-footer">
+                <button type="button" class="btn btn-outline-secondary settings-admin-roles-cancel" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="button" class="btn btn-accent settings-admin-roles-btn" id="rolesSaveBtn">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                    {{ _('common.save') }}
                 </button>
             </div>
         </div>
@@ -338,7 +342,7 @@
 <script>
 const allModules = {{ all_modules|tojson }};
 
-document.querySelectorAll('.settings-admin-users [data-bs-toggle="tooltip"]').forEach(function (el) {
+document.querySelectorAll('.settings-admin-users [data-bs-toggle="tooltip"], #rolesModal [data-bs-toggle="tooltip"]').forEach(function (el) {
     if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
         new bootstrap.Tooltip(el);
     }
@@ -359,6 +363,7 @@ document.querySelectorAll('.settings-admin-users-copy').forEach(function (btn) {
 
 document.getElementById('rolesModal').addEventListener('show.bs.modal', function (event) {
     const button = event.relatedTarget;
+    if (!button) return;
     const userId = button.getAttribute('data-user-id');
     const userName = button.getAttribute('data-user-name');
     document.getElementById('modalUserId').value = userId;
@@ -366,43 +371,42 @@ document.getElementById('rolesModal').addEventListener('show.bs.modal', function
     loadUserRoles(userId);
 });
 
+document.getElementById('modalHasFullAccess').addEventListener('change', toggleModuleRoles);
+document.getElementById('rolesSaveBtn').addEventListener('click', saveRoles);
+
 function loadUserRoles(userId) {
     fetch(`/settings/admin/roles/user/${userId}?format=json`)
         .then(response => response.json())
         .then(data => {
-            document.getElementById('modalHasFullAccess').checked = data.has_full_access || false;
+            document.getElementById('modalHasFullAccess').checked = !!data.has_full_access;
             if (data.email_permissions) {
-                document.getElementById('emailCanRead').checked = data.email_permissions.can_read || false;
-                document.getElementById('emailCanSend').checked = data.email_permissions.can_send || false;
+                document.getElementById('emailCanRead').checked = !!data.email_permissions.can_read;
+                document.getElementById('emailCanSend').checked = !!data.email_permissions.can_send;
             } else {
                 document.getElementById('emailCanRead').checked = false;
                 document.getElementById('emailCanSend').checked = false;
             }
-            document.getElementById('canBorrow').checked = data.can_borrow || false;
+            document.getElementById('canBorrow').checked = !!data.can_borrow;
 
             const container = document.getElementById('moduleCheckboxes');
             container.innerHTML = '';
             allModules.forEach(module => {
                 const key = Array.isArray(module) ? module[0] : module.key;
                 const name = Array.isArray(module) ? module[1] : module.name;
-                const col = document.createElement('div');
-                col.className = 'col-md-6';
-                const formCheck = document.createElement('div');
-                formCheck.className = 'form-check form-switch';
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.className = 'form-check-input module-checkbox';
+                checkbox.className = 'btn-check module-checkbox';
                 checkbox.id = `modal_${key}`;
                 checkbox.name = key;
-                checkbox.checked = (data.module_roles && data.module_roles[key]) || false;
+                checkbox.value = 'on';
+                checkbox.autocomplete = 'off';
+                checkbox.checked = !!(data.module_roles && data.module_roles[key]);
                 const label = document.createElement('label');
-                label.className = 'form-check-label';
+                label.className = 'settings-admin-roles-chip';
                 label.htmlFor = `modal_${key}`;
                 label.textContent = name;
-                formCheck.appendChild(checkbox);
-                formCheck.appendChild(label);
-                col.appendChild(formCheck);
-                container.appendChild(col);
+                container.appendChild(checkbox);
+                container.appendChild(label);
             });
             loadBookingRoles(data.booking_roles || []);
             toggleModuleRoles();
@@ -417,7 +421,7 @@ function loadBookingRoles(bookingRoles) {
     const container = document.getElementById('bookingRolesCheckboxes');
     container.innerHTML = '';
     if (!bookingRoles || bookingRoles.length === 0) {
-        container.innerHTML = '<p class="text-muted">Keine Buchungsrollen verfügbar.</p>';
+        container.innerHTML = '<p class="settings-admin-roles-empty">Keine Buchungsrollen verfügbar.</p>';
         return;
     }
     const formsMap = {};
@@ -433,68 +437,62 @@ function loadBookingRoles(bookingRoles) {
     });
     Object.keys(formsMap).forEach(formId => {
         const formData = formsMap[formId];
-        const formCard = document.createElement('div');
-        formCard.className = 'card mb-3';
-        const cardHeader = document.createElement('div');
-        cardHeader.className = formData.form_is_active
-            ? 'card-header'
-            : 'card-header bg-secondary text-white';
-        if (formData.form_is_active) {
-            cardHeader.style.backgroundColor = 'var(--bs-secondary-bg)';
-            cardHeader.style.color = 'var(--bs-body-color)';
-        }
-        let headerText = `<strong>${formData.form_title}</strong>`;
+        const group = document.createElement('div');
+        group.className = 'settings-admin-roles-booking-group';
+        const title = document.createElement('div');
+        title.className = 'settings-admin-roles-booking-title';
+        title.textContent = formData.form_title;
         if (!formData.form_is_active) {
-            headerText += ' <span class="badge bg-warning ms-2">Inaktiv</span>';
+            const badge = document.createElement('span');
+            badge.className = 'badge rounded-pill text-bg-warning ms-2';
+            badge.textContent = 'Inaktiv';
+            title.appendChild(badge);
         }
-        cardHeader.innerHTML = headerText;
-        formCard.appendChild(cardHeader);
-        const cardBody = document.createElement('div');
-        cardBody.className = 'card-body';
+        group.appendChild(title);
+        const chips = document.createElement('div');
+        chips.className = 'settings-admin-roles-chips';
         formData.roles.forEach(role => {
-            const formCheck = document.createElement('div');
-            formCheck.className = 'form-check form-switch mb-2';
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.className = 'form-check-input booking-role-checkbox';
+            checkbox.className = 'btn-check booking-role-checkbox';
             checkbox.id = `booking_role_${role.role_id}`;
             checkbox.name = 'booking_role';
             checkbox.value = role.role_id;
-            checkbox.checked = role.is_assigned || false;
+            checkbox.checked = !!role.is_assigned;
+            checkbox.autocomplete = 'off';
             const label = document.createElement('label');
-            label.className = 'form-check-label';
+            label.className = 'settings-admin-roles-chip';
             label.htmlFor = `booking_role_${role.role_id}`;
-            label.innerHTML = `${role.role_name} ${role.is_required ? '<span class="badge bg-danger ms-2">Erforderlich</span>' : '<span class="badge bg-secondary ms-2">Optional</span>'}`;
-            formCheck.appendChild(checkbox);
-            formCheck.appendChild(label);
-            cardBody.appendChild(formCheck);
+            label.textContent = role.role_name + (role.is_required ? ' · erforderlich' : '');
+            chips.appendChild(checkbox);
+            chips.appendChild(label);
         });
-        formCard.appendChild(cardBody);
-        container.appendChild(formCard);
+        group.appendChild(chips);
+        container.appendChild(group);
     });
 }
 
 function toggleModuleRoles() {
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
-    const moduleSection = document.getElementById('moduleRolesSection');
+    const chips = document.getElementById('moduleCheckboxes');
+    const hint = document.getElementById('rolesModalFullHint');
     const moduleCheckboxes = document.querySelectorAll('.module-checkbox');
-    if (fullAccess) {
-        moduleSection.style.opacity = '0.5';
-        moduleCheckboxes.forEach(cb => { cb.disabled = true; });
-    } else {
-        moduleSection.style.opacity = '1';
-        moduleCheckboxes.forEach(cb => { cb.disabled = false; });
-    }
+    if (hint) hint.hidden = !fullAccess;
+    if (chips) chips.hidden = fullAccess;
+    moduleCheckboxes.forEach(cb => { cb.disabled = fullAccess; });
 }
 
 function saveRoles() {
     const userId = document.getElementById('modalUserId').value;
     const formData = new FormData();
-    formData.append('has_full_access', document.getElementById('modalHasFullAccess').checked ? 'on' : '');
+    const fullAccess = document.getElementById('modalHasFullAccess').checked;
+    formData.append('has_full_access', fullAccess ? 'on' : '');
+    // Disabled chips mitsenden (FormData liest .checked direkt)
+    document.querySelectorAll('.module-checkbox').forEach(cb => { cb.disabled = false; });
     allModules.forEach(module => {
         const key = Array.isArray(module) ? module[0] : module.key;
         const checkbox = document.getElementById(`modal_${key}`);
-        if (checkbox && checkbox.checked) {
+        if (checkbox && checkbox.checked && !fullAccess) {
             formData.append(key, 'on');
         }
     });
@@ -504,6 +502,8 @@ function saveRoles() {
     document.querySelectorAll('.booking-role-checkbox:checked').forEach(checkbox => {
         formData.append('booking_role', checkbox.value);
     });
+    const saveBtn = document.getElementById('rolesSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
     fetch(`/settings/admin/roles/user/${userId}/update`, {
         method: 'POST',
         body: formData,
@@ -513,14 +513,18 @@ function saveRoles() {
     .then(data => {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('rolesModal'));
-            modal.hide();
+            if (modal) modal.hide();
             location.reload();
         } else {
+            if (saveBtn) saveBtn.disabled = false;
+            toggleModuleRoles();
             alert('Fehler beim Speichern: ' + (data.error || 'Unbekannter Fehler'));
         }
     })
     .catch(error => {
         console.error('Fehler beim Speichern:', error);
+        if (saveBtn) saveBtn.disabled = false;
+        toggleModuleRoles();
         alert('Fehler beim Speichern der Rollen. Bitte erneut versuchen.');
     });
 }

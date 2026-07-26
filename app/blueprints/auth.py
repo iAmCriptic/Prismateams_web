@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy.exc import IntegrityError
 from app import db, limiter
 from app.models.user import User
 from app.models.email import EmailPermission
@@ -12,6 +13,7 @@ from app.utils.totp import verify_totp
 from app.utils.password_policy import validate_password
 from app.utils.bot_protection import get_template_context, validate_bot_protection
 from datetime import datetime, timedelta
+import logging
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -28,6 +30,30 @@ def get_color_gradient():
     """Holt den Farbverlauf aus den System-Einstellungen."""
     gradient_setting = SystemSettings.query.filter_by(key='color_gradient').first()
     return gradient_setting.value if gradient_setting else None
+
+
+def _flash_existing_registration(existing_user):
+    """Zeigt passende Meldung wenn E-Mail schon registriert ist (Pending vs. aktiv)."""
+    if existing_user and not existing_user.is_active:
+        flash(translate('auth.flash.account_not_activated'), 'info')
+        return redirect(url_for('auth.login'))
+    flash(translate('auth.flash.email_already_registered'), 'danger')
+    return render_template('auth/register.html', **_auth_template_kwargs())
+
+
+def _finish_registration(new_user, email_sent, is_whitelisted):
+    """Erfolgsmeldung + Redirect nach erfolgreicher Registrierung."""
+    if is_whitelisted:
+        login_user(new_user, remember=False)
+        if email_sent:
+            flash(translate('auth.flash.register_success_whitelisted'), 'success')
+        else:
+            flash(translate('auth.flash.register_success_whitelisted_no_email'), 'warning')
+        return redirect(url_for('auth.confirm_email'))
+
+    # Manuelle Freischaltung: noch kein Bestätigungscode — erst nach Admin-Aktivierung
+    flash(translate('auth.flash.register_pending_admin'), 'info')
+    return redirect(url_for('auth.login'))
 
 
 def _clear_pending_2fa_login():
@@ -151,9 +177,10 @@ def register():
             return render_template('auth/register.html', **_auth_template_kwargs())
         
         # Check if user already exists
-        if User.query.filter_by(email=email).first():
-            flash(translate('auth.flash.email_already_registered'), 'danger')
-            return render_template('auth/register.html', **_auth_template_kwargs())
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            # Pending-User: Freigabe-Hinweis statt irreführender "bereits registriert"-Fehler
+            return _flash_existing_registration(existing_user)
         
         # Check if email is whitelisted
         is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
@@ -176,91 +203,64 @@ def register():
         )
         new_user.set_password(password)
         
-        db.session.add(new_user)
-        db.session.commit()
-        
-        # Create email permissions (default: can read and send)
-        email_perm = EmailPermission(
-            user_id=new_user.id,
-            can_read=True,
-            can_send=True
-        )
-        db.session.add(email_perm)
-        
-        # Send confirmation email
-        from app.utils.email_sender import send_confirmation_email
-        email_sent = send_confirmation_email(new_user)
-        
-        # Zuweise Standardrollen
-        from app.models.settings import SystemSettings
-        from app.models.role import UserModuleRole
-        from app.utils.access_control import has_module_access
-        from app.utils.common import is_module_enabled
-        import json
-        
-        default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
-        if default_roles_setting:
-            try:
-                default_roles = json.loads(default_roles_setting.value)
-                
-                if default_roles.get('full_access', False):
-                    new_user.has_full_access = True
-                else:
-                    # Modulspezifische Rollen zuweisen
-                    all_modules = [
-                        'module_chat', 'module_files', 'module_calendar', 'module_email',
-                        'module_credentials', 'module_manuals',
-                        'module_inventory', 'module_wiki', 'module_booking', 'module_music', 'module_assessment', 'module_shortlinks'
-                    ]
-                    
-                    for module_key in all_modules:
-                        if default_roles.get(module_key, False) and is_module_enabled(module_key):
-                            role = UserModuleRole(
-                                user_id=new_user.id,
-                                module_key=module_key,
-                                has_access=True
-                            )
-                            db.session.add(role)
-            except:
-                pass  # Bei Fehler: Keine Standardrollen zuweisen
-        
-        # Commit rollen first, so has_module_access works correctly
-        db.session.commit()
-        
-        # Add user to main chat if it exists
-        # Alle aktiven Benutzer werden zum Haupt-Chat hinzugefügt (vollwertige Accounts)
-        from app.models.chat import Chat, ChatMember
-        if new_user.is_active and not new_user.is_guest:
-            main_chat = Chat.query.filter_by(is_main_chat=True).first()
-            if main_chat:
-                # Prüfe ob Benutzer bereits Mitglied ist
-                existing_member = ChatMember.query.filter_by(
-                    chat_id=main_chat.id,
-                    user_id=new_user.id
-                ).first()
-                if not existing_member:
-                    member = ChatMember(
+        email_sent = False
+        try:
+            db.session.add(new_user)
+            db.session.flush()
+
+            # Standardrollen + E-Mail-Rechte vor dem Commit — unabhängig vom Mailversand
+            from app.utils.access_control import apply_default_roles_to_user
+            apply_default_roles_to_user(new_user)
+
+            email_perm = EmailPermission(
+                user_id=new_user.id,
+                can_read=True,
+                can_send=True
+            )
+            db.session.add(email_perm)
+            db.session.commit()
+        except IntegrityError:
+            # Doppel-Submit / Race: User wurde parallel angelegt
+            db.session.rollback()
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                return _flash_existing_registration(existing_user)
+            flash(translate('auth.flash.email_already_registered'), 'danger')
+            return render_template('auth/register.html', **_auth_template_kwargs())
+        except Exception as e:
+            db.session.rollback()
+            logging.exception('User create failed during registration for %s: %s', email, e)
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
+            return render_template('auth/register.html', **_auth_template_kwargs())
+
+        try:
+            # Bestätigungscode erst nach Freischaltung:
+            # Whitelist = sofort aktiv → Code jetzt; sonst erst bei Admin-Freischaltung.
+            if is_whitelisted:
+                from app.utils.email_sender import send_confirmation_email
+                email_sent = send_confirmation_email(new_user)
+
+            # Add user to main chat if it exists
+            # Alle aktiven Benutzer werden zum Haupt-Chat hinzugefügt (vollwertige Accounts)
+            if new_user.is_active and not new_user.is_guest:
+                main_chat = Chat.query.filter_by(is_main_chat=True).first()
+                if main_chat:
+                    # Prüfe ob Benutzer bereits Mitglied ist
+                    existing_member = ChatMember.query.filter_by(
                         chat_id=main_chat.id,
                         user_id=new_user.id
-                    )
-                    db.session.add(member)
-                    db.session.commit()
+                    ).first()
+                    if not existing_member:
+                        member = ChatMember(
+                            chat_id=main_chat.id,
+                            user_id=new_user.id
+                        )
+                        db.session.add(member)
+                        db.session.commit()
+        except Exception as e:
+            logging.exception('Post-create steps failed during registration for %s: %s', email, e)
         
-        if is_whitelisted:
-            # Benutzer ist whitelisted - direkt einloggen und zur E-Mail-Bestätigung weiterleiten
-            login_user(new_user, remember=False)
-            if email_sent:
-                flash(translate('auth.flash.register_success_whitelisted'), 'success')
-            else:
-                flash(translate('auth.flash.register_success_whitelisted_no_email'), 'warning')
-            return redirect(url_for('auth.confirm_email'))
-        else:
-            # Benutzer ist nicht whitelisted - zurück zum Login mit entsprechender Meldung
-            if email_sent:
-                flash(translate('auth.flash.register_pending_admin'), 'info')
-            else:
-                flash(translate('auth.flash.register_pending_admin_no_email'), 'warning')
-            return redirect(url_for('auth.login'))
+        return _finish_registration(new_user, email_sent, is_whitelisted)
     
     return render_template('auth/register.html', **_auth_template_kwargs())
 
@@ -469,6 +469,10 @@ def resend_confirmation():
     if current_user.is_email_confirmed:
         flash(translate('auth.flash.email_already_confirmed'), 'info')
         return redirect(url_for('dashboard.index'))
+
+    if not current_user.is_active:
+        flash(translate('auth.flash.account_not_activated'), 'warning')
+        return redirect(url_for('auth.login'))
     
     from app.utils.email_sender import resend_confirmation_email
     

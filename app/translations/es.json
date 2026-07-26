@@ -109,7 +109,7 @@
       "title": "Confirmar correo electrónico",
       "subtitle": "Introduce el código de verificación que te hemos enviado.",
       "info_title": "Información",
-      "info_message": "El código es válido durante 15 minutos. Revisa también la carpeta de spam.",
+      "info_message": "El código es válido durante 24 horas. Revisa también la carpeta de spam.",
       "code": "Código de verificación",
       "code_help": "Encontrarás el código en el correo con el asunto \"Confirmar correo electrónico\".",
       "submit": "Confirmar código",

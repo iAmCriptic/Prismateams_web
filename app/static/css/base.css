@@ -5,7 +5,9 @@
     --accent-style: #0d6efd;
     /* Angenehmes Light-Mode-Grau (nicht Schneeweiß) */
     --portal-bg: #f0f2f5;
-    /* Fixed Bottom-Nav (~56–64px) + Home-FAB-Überstand + Puffer + iOS Safe-Area.
+    /* Tatsächliche Bottom-Nav-Höhe (ohne FAB-Puffer) — für Overlays die auf der Nav sitzen */
+    --portal-mobile-nav-height: calc(3.6rem + env(safe-area-inset-bottom, 0px));
+    /* Fixed Bottom-Nav + Home-FAB-Überstand + Puffer + iOS Safe-Area.
        Ein Wert für .main-content — kein zusätzliches margin-bottom. */
     --portal-mobile-nav-clearance: calc(5.25rem + env(safe-area-inset-bottom, 0px));
 }
@@ -1354,9 +1356,13 @@ button, .btn {
 @media (max-width: 991.98px) {
     .more-menu.offcanvas-accent {
         top: 0;
-        bottom: var(--portal-mobile-nav-clearance);
+        /* Bündig auf der Bottom-Nav (nicht clearance mit FAB-Puffer) */
+        bottom: var(--portal-mobile-nav-height);
         height: auto;
-        border-radius: 1.25rem 0 0 0;
+        max-height: none;
+        /* Oben links + unten links abgerundet */
+        border-radius: 1.25rem 0 0 1.25rem;
+        overflow: hidden;
         z-index: 1045;
     }
 
@@ -1415,7 +1421,7 @@ button, .btn {
 .more-menu-body {
     display: flex;
     flex-direction: column;
-    padding: 0.35rem 0.85rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    padding: 0.35rem 0.85rem 1rem;
     overflow-y: auto;
 }
 

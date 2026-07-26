@@ -2,8 +2,11 @@
 {% block title %}E-Mail-Bestätigung - {{ app_name or 'Prismateams' }}{% endblock %}
 {% block content %}
 <h2>Hallo {{ user.first_name }}!</h2>
-<p>Vielen Dank für Ihre Registrierung bei <strong>{{ app_name or 'Prismateams' }}</strong>.</p>
-<p>Um Ihr Konto zu aktivieren, bestätigen Sie bitte Ihre E-Mail-Adresse mit dem folgenden Code:</p>
+<p><strong>Ihr Konto wurde nun aktiviert.</strong></p>
+<p>
+    Zur Identitätsbestätigung müssen Sie sich innerhalb von 24 Stunden bei
+    <strong>{{ app_name or 'Prismateams' }}</strong> anmelden und den unten stehenden Code angeben.
+</p>
 
 <div class="email-code-box">
     <div class="email-code-label">Ihr 6-stelliger Bestätigungscode</div>
@@ -11,11 +14,11 @@
 </div>
 
 <div class="email-note">
-    <p style="margin: 0 0 8px 0; font-weight: 600;">So bestätigen Sie Ihre E-Mail-Adresse:</p>
+    <p style="margin: 0 0 8px 0; font-weight: 600;">So bestätigen Sie Ihre Identität:</p>
     <ol style="margin: 0; padding-left: 20px;">
         <li>Melden Sie sich mit Ihren Zugangsdaten an.</li>
-        <li>Geben Sie den obigen 6-stelligen Code ein.</li>
-        <li>Ihr Konto wird automatisch aktiviert.</li>
+        <li>Geben Sie den oben stehenden 6-stelligen Code ein.</li>
+        <li>Danach stehen Ihnen alle freigeschalteten Funktionen zur Verfügung.</li>
     </ol>
 </div>
 

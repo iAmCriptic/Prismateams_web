@@ -79,8 +79,17 @@ function toggleDefaultModuleRoles() {
 
 document.addEventListener('DOMContentLoaded', function () {
     var full = document.getElementById('default_full_access');
+    var form = document.getElementById('defaultRolesForm');
     if (full) {
         full.addEventListener('change', toggleDefaultModuleRoles);
+    }
+    if (form) {
+        form.addEventListener('submit', function () {
+            // Disabled Felder würden sonst nicht mitgeschickt
+            document.querySelectorAll('.default-module-checkbox').forEach(function (cb) {
+                cb.disabled = false;
+            });
+        });
     }
     document.querySelectorAll('.settings-admin-roles [data-bs-toggle="tooltip"]').forEach(function (el) {
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {

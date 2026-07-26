@@ -1065,20 +1065,26 @@
     }
 
     function renderPresence(presenceMap) {
-        document.querySelectorAll('.files-presence-stack').forEach(el => el.remove());
+        document.querySelectorAll('.files-presence-anchor').forEach(el => {
+            el.innerHTML = '';
+            el.hidden = true;
+        });
         Object.keys(presenceMap || {}).forEach(fileId => {
             const users = presenceMap[fileId] || [];
             if (!users.length) return;
-            const targets = document.querySelectorAll(`[data-item-type="file"][data-item-id="${fileId}"]`);
-            targets.forEach(target => {
-                let anchor = target.querySelector('.files-presence-anchor') || target.querySelector('.card-title, .fw-semibold, h6, .file-name');
-                if (!anchor) anchor = target;
+            const anchors = document.querySelectorAll(`.files-presence-anchor[data-presence-file="${fileId}"]`);
+            anchors.forEach(anchor => {
                 const stack = document.createElement('span');
                 stack.className = 'files-presence-stack';
-                stack.title = users.map(u => u.display_name).join(', ');
+                const names = users.map(u => u.display_name).filter(Boolean);
+                stack.title = names.join(', ');
+                stack.setAttribute('aria-label', names.length
+                    ? ('Aktuell im Dokument: ' + names.join(', '))
+                    : 'Aktuell im Dokument');
                 users.slice(0, 4).forEach(u => {
                     const av = document.createElement('span');
                     av.className = 'files-presence-avatar';
+                    av.title = u.display_name || '';
                     if (u.avatar_url) {
                         av.innerHTML = `<img src="${escapeHtml(u.avatar_url)}" alt="">`;
                     } else {
@@ -1088,11 +1094,13 @@
                 });
                 if (users.length > 4) {
                     const more = document.createElement('span');
-                    more.className = 'files-presence-avatar';
+                    more.className = 'files-presence-avatar files-presence-avatar--more';
                     more.textContent = '+' + (users.length - 4);
+                    more.title = names.slice(4).join(', ');
                     stack.appendChild(more);
                 }
                 anchor.appendChild(stack);
+                anchor.hidden = false;
             });
         });
     }
@@ -1295,7 +1303,9 @@
             }, true);
         }
 
-        document.querySelectorAll('form[action*="create-folder"]').forEach(form => {
+        document.querySelectorAll(
+            'form[action*="create-folder"], form[action*="create-office-file"], form[action*="create-file"], #inlineFileForm, #inlineFileFormList, #uploadForm, #newFolderModal form'
+        ).forEach(form => {
             if (window.FILES_VIEW && !form.querySelector('input[name="view"]')) {
                 const inp = document.createElement('input');
                 inp.type = 'hidden';

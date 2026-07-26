@@ -434,9 +434,10 @@ def admin_users():
     from datetime import datetime
     now = datetime.utcnow()
 
-    # Ausstehende E-Mail-Bestätigungscodes (noch gültig)
+    # Ausstehende E-Mail-Bestätigungscodes (nur aktive Konten — Code startet erst nach Freischaltung)
     pending_code_users = User.query.filter(
         User.is_email_confirmed == False,
+        User.is_active == True,
         User.confirmation_code.isnot(None),
         ~User.is_guest,
         User.email != 'anonymous@system.local',
@@ -526,44 +527,8 @@ def create_user():
             db.session.add(new_user)
             db.session.flush()  # Flush um ID zu bekommen
             
-            # Wähle Standardrollen aus SystemSettings
-            default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
-            if default_roles_setting:
-                try:
-                    default_roles = json.loads(default_roles_setting.value)
-                    
-                    if default_roles.get('full_access', False):
-                        new_user.has_full_access = True
-                    else:
-                        # Modulspezifische Rollen zuweisen
-                        all_modules = [
-                            'module_chat',
-                            'module_files',
-                            'module_calendar',
-                            'module_events',
-                            'module_email',
-                            'module_contacts',
-                            'module_credentials',
-                            'module_manuals',
-                            'module_inventory',
-                            'module_wiki',
-                            'module_booking',
-                            'module_music',
-                            'module_media_downloader',
-                            'module_assessment',
-                            'module_shortlinks',
-                        ]
-                        
-                        for module_key in all_modules:
-                            if default_roles.get(module_key, False) and is_module_enabled(module_key):
-                                role = UserModuleRole(
-                                    user_id=new_user.id,
-                                    module_key=module_key,
-                                    has_access=True
-                                )
-                                db.session.add(role)
-                except:
-                    pass  # Bei Fehler: Standard-Rollen verwenden
+            from app.utils.access_control import apply_default_roles_to_user
+            apply_default_roles_to_user(new_user)
             
             # Erstelle E-Mail-Berechtigungen
             email_perm = EmailPermission(
@@ -912,6 +877,11 @@ def activate_user(user_id):
     
     user = User.query.get_or_404(user_id)
     user.is_active = True
+
+    # Fehlende Standardrollen nachziehen (z.B. nach fehlgeschlagener Zuweisung bei Registrierung)
+    from app.utils.access_control import apply_default_roles_to_user, user_lacks_module_access
+    if not user.is_guest and user_lacks_module_access(user):
+        apply_default_roles_to_user(user)
     
     # Ensure user is added to main chat when activated (only for full accounts, not guest accounts)
     from app.models.chat import Chat, ChatMember
@@ -933,8 +903,22 @@ def activate_user(user_id):
                 db.session.add(member)
     
     db.session.commit()
-    
-    flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
+
+    # Bestätigungscode erst nach Freischaltung — Gültigkeit (1 Tag) startet jetzt
+    confirmation_sent = False
+    if (
+        not user.is_guest
+        and not user.is_email_confirmed
+        and user.email
+        and user.email != 'anonymous@system.local'
+    ):
+        from app.utils.email_sender import send_confirmation_email
+        confirmation_sent = send_confirmation_email(user)
+
+    if confirmation_sent:
+        flash(translate('settings.admin.users.flash_user_activated_email', name=user.full_name), 'success')
+    else:
+        flash(translate('settings.admin.users.flash_user_activated', name=user.full_name), 'success')
     return redirect(url_for('settings.admin_users'))
 
 
@@ -2832,7 +2816,6 @@ def admin_roles_default():
         return redirect(url_for('settings.index'))
     
     import json
-    from app.utils.common import is_module_enabled
     
     # Liste aller Module
     all_modules = [
@@ -2853,13 +2836,15 @@ def admin_roles_default():
         ('module_shortlinks', 'Kurzlinks')
     ]
     
+    from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
+
     if request.method == 'POST':
         # Sammle Standardrollen-Einstellungen
         default_roles = {
             'full_access': request.form.get('default_full_access') == 'on'
         }
         
-        # Modulspezifische Rollen
+        # Modulspezifische Rollen (auch bei Vollzugriff mitspeichern, damit Umschalten Werte behält)
         for module_key, _ in all_modules:
             default_roles[module_key] = request.form.get(f'default_{module_key}') == 'on'
         
@@ -2879,15 +2864,13 @@ def admin_roles_default():
         flash(translate('settings.admin.roles.flash_default_saved'), 'success')
         return redirect(url_for('settings.admin_roles_default'))
     
-    # GET: Lade aktuelle Standardrollen
-    default_roles_setting = SystemSettings.query.filter_by(key='default_module_roles').first()
-    if default_roles_setting and default_roles_setting.value:
-        try:
-            default_roles = json.loads(default_roles_setting.value)
-        except:
-            default_roles = {}
-    else:
-        default_roles = {}
+    # GET: Lade aktuelle Standardrollen (Fallback: Vollzugriff)
+    raw_roles = load_default_module_roles()
+    default_roles = {
+        'full_access': _roles_flag_enabled(raw_roles.get('full_access', True)),
+    }
+    for module_key, _ in all_modules:
+        default_roles[module_key] = _roles_flag_enabled(raw_roles.get(module_key, False))
     
     return render_template('settings/admin_roles_default.html', 
                          default_roles=default_roles,
@@ -3617,10 +3600,12 @@ def about():
     portal_name = (portal_name_setting.value or '').strip() if portal_name_setting else ''
 
     # OnlyOffice Status prüfen
-    from app.utils.onlyoffice import is_onlyoffice_enabled
-    from app.utils.media_downloader import is_media_downloader_compatible
+    from app.utils.onlyoffice import is_onlyoffice_enabled, get_onlyoffice_version
+    from app.utils.media_downloader import is_media_downloader_compatible, get_ffmpeg_version
     onlyoffice_enabled = is_onlyoffice_enabled()
+    onlyoffice_version = get_onlyoffice_version() if onlyoffice_enabled else None
     media_downloader_compatible = is_media_downloader_compatible()
+    ffmpeg_version = get_ffmpeg_version() if media_downloader_compatible else None
 
     return render_template(
         'settings/about.html',
@@ -3629,7 +3614,9 @@ def about():
         release_version=ABOUT_RELEASE_VERSION,
         build_number=ABOUT_BUILD_NUMBER,
         onlyoffice_enabled=onlyoffice_enabled,
+        onlyoffice_version=onlyoffice_version,
         media_downloader_compatible=media_downloader_compatible,
+        ffmpeg_version=ffmpeg_version,
     )
 
 

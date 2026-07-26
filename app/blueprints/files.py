@@ -1050,43 +1050,55 @@ def create_file():
     file_type = request.form.get('file_type', 'txt')
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
-    
+    files_view = normalize_view(
+        request.form.get('view') or request.args.get('view') or session.get('files_last_view')
+    )
+    private_enabled = is_private_folders_enabled()
+    if private_enabled and not folder_id and files_view == 'ablage':
+        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
+
     if not filename:
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
-    
+
     # Add file extension
     if file_type == 'md' and not filename.endswith('.md'):
         filename += '.md'
     elif file_type == 'txt' and not filename.endswith('.txt'):
         filename += '.txt'
-    
+
     # Check if file with same name exists in folder
     existing_file = File.query.filter_by(
         name=filename,
         folder_id=folder_id,
         is_current=True
     ).first()
-    
+
     if existing_file:
         flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
-    
+
+    parent_folder = Folder.query.get(folder_id) if folder_id else None
+    if private_enabled and parent_folder and not can_edit_folder(parent_folder, current_user):
+        flash('Keine Berechtigung für diesen Ordner.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    space = resolve_space_for_parent(parent_folder, files_view or 'public')
+
     # Create file
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     stored_filename = f"{timestamp}_{filename}"
     filepath = os.path.join('uploads', 'files', stored_filename)
-    
+
     # Ensure directory exists
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    
+
     # Write content to file
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(content)
-    
+
     # Store absolute path in database
     absolute_filepath = os.path.abspath(filepath)
-    
+
     new_file = File(
         name=filename,
         original_name=filename,
@@ -1096,17 +1108,18 @@ def create_file():
         file_size=os.path.getsize(absolute_filepath),
         mime_type='text/plain' if file_type == 'txt' else 'text/markdown',
         version_number=1,
-        is_current=True
+        is_current=True,
+        space=space,
     )
     db.session.add(new_file)
     db.session.commit()
-    
+
     # Sende Dashboard-Update an den Benutzer
     try:
         recent_files = File.query.filter_by(
             uploaded_by=current_user.id
         ).order_by(File.updated_at.desc()).limit(3).all()
-        
+
         files_data = [{
             'id': file.id,
             'name': file.name,
@@ -1115,16 +1128,13 @@ def create_file():
             'mime_type': file.mime_type,
             'url': flask_url_for('files.view_file', file_id=file.id)
         } for file in recent_files]
-        
+
         emit_dashboard_update(current_user.id, 'files_update', {'files': files_data})
     except Exception as e:
         logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
     
     flash(f'Datei "{filename}" wurde erstellt.', 'success')
-    
-    if folder_id:
-        return redirect(url_for('files.browse_folder', folder_id=folder_id))
-    return redirect(url_for('files.index'))
+    return redirect(_files_context_url(folder_id=folder_id, folder=parent_folder))
 
 
 @files_bp.route('/create-office-file', methods=['POST'])
@@ -1141,6 +1151,12 @@ def create_office_file():
     file_type = request.form.get('file_type', 'docx')  # docx, xlsx, pptx
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
+    files_view = normalize_view(
+        request.form.get('view') or request.args.get('view') or session.get('files_last_view')
+    )
+    private_enabled = is_private_folders_enabled()
+    if private_enabled and not folder_id and files_view == 'ablage':
+        folder_id = resolve_default_parent_for_view('ablage', current_user.id)
     
     if not filename:
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
@@ -1165,6 +1181,12 @@ def create_office_file():
     if existing_file:
         flash(f'Datei "{filename}" existiert bereits in diesem Ordner.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
+
+    parent_folder = Folder.query.get(folder_id) if folder_id else None
+    if private_enabled and parent_folder and not can_edit_folder(parent_folder, current_user):
+        flash('Keine Berechtigung für diesen Ordner.', 'danger')
+        return redirect(request.referrer or url_for('files.index'))
+    space = resolve_space_for_parent(parent_folder, files_view or 'public')
     
     # Create empty Office file
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -1210,7 +1232,8 @@ def create_office_file():
         file_size=os.path.getsize(absolute_filepath),
         mime_type=mime_type,
         version_number=1,
-        is_current=True
+        is_current=True,
+        space=space,
     )
     db.session.add(new_file)
     db.session.commit()
@@ -1235,10 +1258,7 @@ def create_office_file():
         logging.error(f"Fehler beim Senden der Dashboard-Updates für Dateien: {e}")
     
     flash(f'Datei "{filename}" wurde erstellt.', 'success')
-    
-    if folder_id:
-        return redirect(url_for('files.browse_folder', folder_id=folder_id))
-    return redirect(url_for('files.index'))
+    return redirect(_files_context_url(folder_id=folder_id, folder=parent_folder))
 
 
 @files_bp.route('/upload', methods=['POST'])

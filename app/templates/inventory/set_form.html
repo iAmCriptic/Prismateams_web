@@ -6,6 +6,12 @@
 
 
 {% block inventory_content %}
+<div class="inventory-back-row mb-3">
+    <a href="{{ url_for('inventory.sets') }}" class="inventory-back-link" aria-label="{{ _('layout.nav.back') }}">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+</div>
 <form method="POST" id="setForm" class="inventory-form">
     <section class="inventory-form-card inventory-form-card--wide" aria-labelledby="set-form-basics">
         <div class="inventory-form-card-head">

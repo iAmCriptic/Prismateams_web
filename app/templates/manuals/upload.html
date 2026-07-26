@@ -54,13 +54,15 @@
     </div>
 
     <div class="manuals-form">
-        <div class="manuals-form-header d-none d-lg-block">
+        <div class="manuals-form-header">
             <a href="{{ index_url }}" class="manuals-form-back">
                 <i class="bi bi-arrow-left" aria-hidden="true"></i>
                 <span>{{ _('manuals.upload.back') }}</span>
             </a>
-            <h1 class="manuals-form-title">{{ _('manuals.upload.card_title') }}</h1>
-            <p class="manuals-form-subtitle">{{ _('manuals.upload.subtitle') }}</p>
+            <div class="d-none d-lg-block">
+                <h1 class="manuals-form-title">{{ _('manuals.upload.card_title') }}</h1>
+                <p class="manuals-form-subtitle">{{ _('manuals.upload.subtitle') }}</p>
+            </div>
         </div>
 
         <form method="POST" enctype="multipart/form-data" class="manuals-form-body">

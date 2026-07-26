@@ -170,6 +170,21 @@ body:has(.auth-container) .pwa-install-prompt {
     background: transparent !important;
 }
 
+.auth-code-input {
+    letter-spacing: 0.45em;
+    font-size: 1.35rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+}
+
+.auth-code-input::placeholder {
+    letter-spacing: 0.35em;
+    font-weight: 500;
+    opacity: 0.45;
+}
+
 /* Brand / titles */
 .auth-card h1 {
     color: var(--auth-text);

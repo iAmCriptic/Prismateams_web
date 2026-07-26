@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
@@ -99,6 +100,28 @@ def get_ffmpeg_path():
 def is_media_downloader_compatible():
     """True when FFmpeg is available (system requirement for downloads)."""
     return bool(get_ffmpeg_path())
+
+
+def get_ffmpeg_version():
+    """Return installed FFmpeg version string, or None if unavailable."""
+    ffmpeg_path = get_ffmpeg_path()
+    if not ffmpeg_path:
+        return None
+
+    try:
+        result = subprocess.run(
+            [ffmpeg_path, '-version'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        first_line = (result.stdout or '').splitlines()[0] if result.stdout else ''
+        match = re.search(r'ffmpeg version\s+(\S+)', first_line, flags=re.IGNORECASE)
+        return match.group(1) if match else None
+    except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError):
+        logger.debug('Could not determine FFmpeg version', exc_info=True)
+        return None
 
 
 def _get_playlist_list_id(parsed):

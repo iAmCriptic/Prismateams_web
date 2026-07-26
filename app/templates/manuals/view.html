@@ -3,6 +3,7 @@
 {% block title %}{{ manual.title }} - {{ _('manuals.view.page_title_suffix') }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/manuals.css') }}">
 <style>
     .file-viewer {
         position: fixed;
@@ -176,6 +177,10 @@
     <div class="file-viewer-header">
         <div class="file-viewer-header-inner">
             <div class="file-viewer-meta">
+                <a href="{{ back_url }}" class="manuals-form-back mb-2 d-inline-flex">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    <span>{{ _('layout.nav.back') }}</span>
+                </a>
                 <h4 title="{{ manual.title }}">{{ manual.title }}</h4>
                 <small class="text-muted">
                     {{ (manual.file_size / 1024)|round(2) }} KB •

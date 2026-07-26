@@ -55,13 +55,15 @@
     </div>
 
     <div class="shortlinks-form">
-        <div class="shortlinks-form-header d-none d-lg-block">
+        <div class="shortlinks-form-header">
             <a href="{{ index_url }}" class="shortlinks-form-back">
                 <i class="bi bi-arrow-left" aria-hidden="true"></i>
                 <span>Zurück</span>
             </a>
-            <h1 class="shortlinks-form-title">{{ page_title }}</h1>
-            <p class="shortlinks-form-subtitle">{{ page_subtitle }}</p>
+            <div class="d-none d-lg-block">
+                <h1 class="shortlinks-form-title">{{ page_title }}</h1>
+                <p class="shortlinks-form-subtitle">{{ page_subtitle }}</p>
+            </div>
         </div>
 
         <form method="POST" class="shortlinks-form-body">

@@ -4,9 +4,97 @@ Zugriffskontroll-Utilities für modulbasierte Rollen.
 from functools import wraps
 from flask import abort, redirect, url_for, flash
 from flask_login import current_user
-from app.utils.common import is_module_enabled
+from app.utils.common import AVAILABLE_MODULES, is_module_enabled
 from app.models.role import UserModuleRole
+import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
+
+
+def _roles_flag_enabled(value):
+    """Robust truthiness for stored default-role flags (bool/int/str)."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    return bool(value)
+
+
+def load_default_module_roles():
+    """
+    Lädt Standardrollen aus SystemSettings.
+    Fehlt die Einstellung oder ist sie ungültig → Vollzugriff als Default.
+    """
+    from app.models.settings import SystemSettings
+
+    setting = SystemSettings.query.filter_by(key='default_module_roles').first()
+    if not setting or not setting.value:
+        return {'full_access': True}
+
+    try:
+        data = json.loads(setting.value)
+        # Doppelkodierung abfangen
+        if isinstance(data, str):
+            data = json.loads(data)
+        if not isinstance(data, dict):
+            return {'full_access': True}
+        return data
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning('default_module_roles ungültig, Fallback Vollzugriff: %s', exc)
+        return {'full_access': True}
+
+
+def apply_default_roles_to_user(user):
+    """
+    Weist einem neuen (Nicht-Gast-)Benutzer die konfigurierten Standardrollen zu.
+    Muss vor dem Commit aufgerufen werden (user.id nach flush vorhanden).
+    """
+    if user is None or getattr(user, 'is_guest', False):
+        return
+
+    roles = load_default_module_roles()
+
+    if _roles_flag_enabled(roles.get('full_access', True)):
+        user.has_full_access = True
+        return
+
+    user.has_full_access = False
+    for module_key in AVAILABLE_MODULES:
+        if not _roles_flag_enabled(roles.get(module_key, False)):
+            continue
+        if not is_module_enabled(module_key):
+            continue
+        existing = UserModuleRole.query.filter_by(
+            user_id=user.id,
+            module_key=module_key,
+        ).first()
+        if existing:
+            existing.has_access = True
+        else:
+            from app import db
+            db.session.add(UserModuleRole(
+                user_id=user.id,
+                module_key=module_key,
+                has_access=True,
+            ))
+
+
+def user_lacks_module_access(user):
+    """True wenn Benutzer weder Vollzugriff noch Modulrollen hat."""
+    if user is None or getattr(user, 'is_guest', False):
+        return False
+    if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
+        return False
+    if getattr(user, 'has_full_access', False):
+        return False
+    return not UserModuleRole.query.filter_by(
+        user_id=user.id,
+        has_access=True,
+    ).first()
 
 
 def has_module_access(user, module_key):
