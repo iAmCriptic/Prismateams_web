@@ -992,7 +992,7 @@ body.files-dnd-dragging .folder-item {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    max-width: min(360px, calc(100vw - 1.5rem));
+    max-width: min(360px, calc(100% - 1.5rem));
     pointer-events: none;
     right: 1rem;
     bottom: 1rem;

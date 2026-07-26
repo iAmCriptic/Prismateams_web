@@ -2,29 +2,50 @@
 # Gunicorn systemd-Service inkl. Worker-Logik
 
 init_database_oneshot() {
-    log_info "One-Shot Datenbank-Initialisierung (für Multi-Worker)..."
+    log_info "Datenbank-Initialisierung (Schema + Migrationen)..."
     cd "$INSTALL_DIR" || return 1
     # shellcheck disable=SC1091
     source venv/bin/activate
-    if ! sudo -u www-data env PATH="${INSTALL_DIR}/venv/bin:$PATH" \
-        FLASK_ENV=production \
-        "${INSTALL_DIR}/venv/bin/python" -c "
-from app import create_app
-app = create_app()
-print('DB init via create_app OK')
-"; then
-        log_warning "One-Shot-Init als www-data fehlgeschlagen – versuche als root..."
-        if ! FLASK_ENV=production "${INSTALL_DIR}/venv/bin/python" -c "
-from app import create_app
-app = create_app()
-print('DB init via create_app OK')
-"; then
-            log_error "Datenbank-One-Shot-Init fehlgeschlagen"
-            return 1
-        fi
+
+    local init_script="${INSTALL_DIR}/scripts/init_database.py"
+    if [ ! -f "$init_script" ]; then
+        log_error "init_database.py nicht gefunden: $init_script"
+        return 1
     fi
-    log_success "Datenbank initialisiert"
-    return 0
+
+    # Immer production + Force-Schema, damit DEBUG/Reloader-Logik nicht skippt
+    local run_env=(
+        "PATH=${INSTALL_DIR}/venv/bin:$PATH"
+        "FLASK_ENV=production"
+        "PRISMATEAMS_FORCE_SCHEMA_INIT=1"
+        "PRISMATEAMS_SKIP_BACKGROUND_JOBS=1"
+    )
+
+    if sudo -u www-data env "${run_env[@]}" \
+        "${INSTALL_DIR}/venv/bin/python" "$init_script"; then
+        log_success "Datenbank initialisiert (www-data)"
+        return 0
+    fi
+
+    log_warning "Init als www-data fehlgeschlagen – versuche als root..."
+    if env "${run_env[@]}" "${INSTALL_DIR}/venv/bin/python" "$init_script"; then
+        log_success "Datenbank initialisiert (root)"
+        # Rechte für www-data sicherstellen falls SQLite-Fallbacks o.ä.
+        chown -R www-data:www-data "${INSTALL_DIR}/instance" 2>/dev/null || true
+        return 0
+    fi
+
+    log_error "Datenbank-Initialisierung fehlgeschlagen"
+    return 1
+}
+
+step_database() {
+    # Eigenständiger Schritt: Schema auch ohne Gunicorn / vor Service-Start
+    if [ ! -d "${INSTALL_DIR}/venv" ] || [ ! -f "${INSTALL_DIR}/.env" ]; then
+        log_error "venv oder .env fehlt – Database-Init nicht möglich"
+        return 1
+    fi
+    init_database_oneshot
 }
 
 step_gunicorn() {
@@ -43,12 +64,8 @@ step_gunicorn() {
         pip install gunicorn --quiet || { log_error "Gunicorn Installation fehlgeschlagen"; return 1; }
     fi
 
-    if [ "$GUNICORN_WORKERS" -gt 1 ]; then
-        if ! is_yes "$SETUP_REDIS"; then
-            log_warning "Worker > 1 ohne Redis – empfohlen: Redis aktivieren"
-        fi
-        init_database_oneshot || return 1
-    fi
+    # Schema nochmals sicherstellen (idempotent), falls step_database übersprungen wurde
+    init_database_oneshot || return 1
 
     cat > /etc/systemd/system/teamportal.service <<EOF
 [Unit]
@@ -61,6 +78,7 @@ Group=www-data
 WorkingDirectory=${INSTALL_DIR}
 Environment="PATH=${INSTALL_DIR}/venv/bin"
 Environment="FLASK_ENV=production"
+Environment="PRISMATEAMS_SKIP_BACKGROUND_JOBS=0"
 ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
     --workers ${GUNICORN_WORKERS} \\
     --bind 127.0.0.1:${GUNICORN_PORT} \\

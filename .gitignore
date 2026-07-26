@@ -35,6 +35,7 @@ instance/
 *.db
 *.sqlite
 *.sqlite3
+.schema_init.lock
 
 # Uploads
 uploads/

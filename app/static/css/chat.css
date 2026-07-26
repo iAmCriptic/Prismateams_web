@@ -1299,7 +1299,7 @@
     .chat-menu-dropdown {
         border-radius: 1.1rem;
         padding: 0.55rem;
-        min-width: min(18rem, calc(100vw - 1.5rem));
+        min-width: min(18rem, calc(100% - 1.5rem));
     }
 
     .mobile-chat-header .dropdown-item,

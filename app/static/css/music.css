@@ -166,6 +166,10 @@
     margin-bottom: 0.15rem;
 }
 
+.music-track-meta {
+    min-width: 0;
+}
+
 .music-track-actions {
     display: inline-flex;
     flex-direction: row;
@@ -612,6 +616,39 @@
 }
 
 @media (max-width: 576px) {
+    .music-track-row {
+        flex-wrap: wrap;
+        align-items: center;
+        row-gap: 0.45rem;
+    }
+
+    .music-track-meta,
+    .music-track-row > .flex-grow-1,
+    .music-track-row > .min-width-0 {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .music-track-actions {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        padding-left: calc(48px + 0.65rem);
+    }
+
+    .music-track-actions .btn {
+        width: 2.25rem;
+        height: 2.25rem;
+    }
+
+    .music-sidebar-actions {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
     .music-public-search {
         flex-direction: column;
     }

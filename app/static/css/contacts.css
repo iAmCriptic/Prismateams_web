@@ -195,16 +195,34 @@
     }
     
     .chip-text {
-        max-width: 150px;
+        max-width: 7rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     .contact-chip-input {
-        min-width: 100px;
+        min-width: 4.5rem;
+        flex: 1 1 4.5rem;
         font-size: 16px; /* Verhindert Zoom auf iOS */
     }
     
     .autocomplete-item {
         padding: 1rem;
+    }
+
+    .contacts-notes-cell {
+        max-width: 8rem;
+    }
+
+    .contacts-list-actions-cell {
+        max-width: 3.5rem;
+    }
+
+    .mod-list-actions .contacts-actions-menu,
+    .contacts-actions-menu {
+        min-width: min(14rem, calc(100% - 1.5rem)) !important;
+        max-width: calc(100% - 1rem);
     }
 }
 

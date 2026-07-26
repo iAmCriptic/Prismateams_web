@@ -8,7 +8,7 @@
     bottom: 1rem;
     transform: translateY(calc(100% + 1.5rem));
     z-index: 12050;
-    width: min(400px, calc(100vw - 2rem));
+    width: min(400px, calc(100% - 2rem));
     max-height: calc(100vh - 2rem);
     transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
     opacity: 0;
@@ -31,7 +31,7 @@
     .cookie-consent--with-nav {
         left: 0.75rem;
         bottom: 5.5rem;
-        width: min(420px, calc(100vw - 1.5rem));
+        width: min(420px, calc(100% - 1.5rem));
         max-height: calc(100vh - 6.5rem);
     }
 }
@@ -41,7 +41,7 @@
     body.force-desktop-layout .cookie-consent--with-nav {
         left: 0.75rem;
         bottom: 5.5rem;
-        width: min(420px, calc(100vw - 1.5rem));
+        width: min(420px, calc(100% - 1.5rem));
         max-height: calc(100vh - 6.5rem);
     }
 }

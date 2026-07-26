@@ -19,7 +19,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
 
-            <div class="whats-new-progress" id="whatsNewDots" aria-hidden="true"></div>
+            <div class="whats-new-progress" id="whatsNewDots" aria-hidden="true">
+                <div class="whats-new-progress-meta">
+                    <div class="whats-new-progress-bar" aria-hidden="true"><span id="whatsNewProgressFill"></span></div>
+                    <span class="whats-new-progress-count" id="whatsNewProgressCount">1/20</span>
+                </div>
+            </div>
 
             <div class="modal-body pt-1">
                 <div class="whats-new-panels">

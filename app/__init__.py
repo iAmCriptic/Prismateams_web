@@ -924,20 +924,18 @@ def create_app(config_name='default'):
     def service_worker():
         return app.send_static_file('sw.js')
     
-    # Initialisierung nur im Hauptprozess ausführen (verhindert doppelte Ausführung durch Flask Reloader)
-    # WERKZEUG_RUN_MAIN ist nur im Hauptprozess gesetzt (nach "Restarting with stat"), nicht im Reloader-Prozess
-    # Im Debug-Modus: Nur initialisieren wenn WERKZEUG_RUN_MAIN='true' (Hauptprozess)
-    # Ohne Debug-Modus: Immer initialisieren (kein Reloader)
+    # Schema-Init: immer (außer Reloader-Parent / explizitem Skip).
+    # Background-Jobs: nicht im Reloader-Parent und nicht während Migrationen.
     werkzeug_run_main = os.environ.get('WERKZEUG_RUN_MAIN')
     is_debug = app.config.get('DEBUG', False)
-    # Initialisierung nur wenn: (Hauptprozess nach Reload) ODER (kein Debug-Modus)
+    from app.utils.schema_init import should_run_startup_schema, ensure_all_tables
+    run_schema_init = should_run_startup_schema(debug=is_debug)
+    # Legacy-Name: Background-Jobs nur im „Hauptprozess“ (kein Reloader-Parent)
     is_main_process = (werkzeug_run_main == 'true') or (not is_debug)
     
     with app.app_context():
-        if is_main_process:
+        if run_schema_init:
             try:
-                # Stelle sicher, dass alle Modelle importiert sind, bevor db.create_all() aufgerufen wird
-                # Dies ist notwendig, damit SQLAlchemy alle Tabellen erstellt
                 from app.models.user import User
                 from app.models.chat import Chat, ChatMessage, ChatMember, ChatPin
                 from app.models.file import File, FileVersion, Folder, FileEditLock
@@ -948,7 +946,7 @@ def create_app(config_name='default'):
                 from app.models.settings import SystemSettings
                 from app.models.whitelist import WhitelistEntry
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
-                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
+                from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock, Checkout, CheckoutItem
                 from app.models.api_token import ApiToken
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
@@ -976,90 +974,12 @@ def create_app(config_name='default'):
                     AssessmentRoomInspection,
                     AssessmentAppSetting,
                 )
-                
-                # Prüfe welche Tabellen bereits existieren
                 from sqlalchemy import inspect, text
-                inspector = inspect(db.engine)
-                existing_tables = set(inspector.get_table_names())
-                
-                # Erstelle fehlende Tabellen mit Fehlerbehandlung
-                try:
-                    db.create_all()
-                    
-                    # Prüfe ob neue Tabellen erstellt wurden
-                    current_tables = set(inspector.get_table_names())
-                    new_tables = current_tables - existing_tables
-                    if new_tables:
-                        print(f"[OK] {len(new_tables)} neue Tabellen erstellt: {', '.join(sorted(new_tables))}")
-                    else:
-                        print("[OK] Alle Tabellen sind bereits vorhanden")
-                except Exception as create_error:
-                    # Bei Tablespace-Fehlern (MySQL Error 1813) prüfe, ob die Tabellen trotzdem existieren
-                    error_code = None
-                    error_message = str(create_error)
-                    if hasattr(create_error, 'orig'):
-                        if hasattr(create_error.orig, 'args') and len(create_error.orig.args) > 0:
-                            error_code = create_error.orig.args[0]
-                        elif hasattr(create_error.orig, 'msg'):
-                            error_message = str(create_error.orig.msg)
-                    
-                    if error_code == 1813 or 'Tablespace' in error_message or '1813' in error_message:  # MySQL Tablespace-Fehler
-                        print("[WARNUNG] Tablespace-Fehler erkannt. Prüfe vorhandene Tabellen...")
-                        # Prüfe ob Tabellen in INFORMATION_SCHEMA existieren
-                        try:
-                            with db.engine.connect() as connection:
-                                result = connection.execute(text("""
-                                    SELECT TABLE_NAME 
-                                    FROM INFORMATION_SCHEMA.TABLES 
-                                    WHERE TABLE_SCHEMA = DATABASE()
-                                """))
-                                db_tables = {row[0] for row in result}
-                            if db_tables:
-                                print(f"[INFO] {len(db_tables)} Tabellen in Datenbank gefunden")
-                                
-                                # Erstelle nur fehlende Tabellen einzeln
-                                all_models = [
-                                    CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource,
-                                    BookingRequest, BookingForm, BookingFormField, BookingFormImage,
-                                    BookingRequestField, BookingRequestFile, BookingFormRole,
-                                    BookingFormRoleUser, BookingRequestApproval
-                                ]
-                                
-                                created_count = 0
-                                for model_class in all_models:
-                                    table_name = model_class.__tablename__
-                                    if table_name not in db_tables:
-                                        try:
-                                            model_class.__table__.create(db.engine, checkfirst=True)
-                                            print(f"[OK] Tabelle '{table_name}' erstellt")
-                                            created_count += 1
-                                        except Exception as e:
-                                            # Ignoriere Fehler wenn Tabelle bereits existiert
-                                            if 'already exists' not in str(e).lower() and '1813' not in str(e):
-                                                print(f"[WARNUNG] Konnte Tabelle '{table_name}' nicht erstellen: {e}")
-                                
-                                if created_count == 0:
-                                    print("[OK] Alle benötigten Tabellen sind bereits vorhanden")
-                            else:
-                                print("[WARNUNG] Keine Tabellen in Datenbank gefunden, aber Tablespace-Fehler aufgetreten")
-                        except Exception as check_error:
-                            print(f"[WARNUNG] Fehler beim Prüfen der Tabellen: {check_error}")
-                            print(f"[INFO] Original-Fehler: {create_error}")
-                    else:
-                        # Andere Fehler: prüfe ob Tabellen trotzdem existieren
-                        print(f"[WARNUNG] Fehler beim Erstellen der Tabellen: {create_error}")
-                        current_tables = set(inspector.get_table_names())
-                        if current_tables:
-                            print(f"[INFO] {len(current_tables)} Tabellen sind trotzdem vorhanden")
-                            # Versuche fehlende Tabellen trotzdem zu erstellen
-                            print("[INFO] Versuche fehlende Tabellen zu erstellen...")
-                            try:
-                                db.create_all()
-                                print("[OK] Tabellenerstellung erfolgreich wiederholt")
-                            except:
-                                pass
-                        else:
-                            print("[FEHLER] Keine Tabellen gefunden und Erstellung fehlgeschlagen")
+
+                # Robust: create_all + kritische Tabellen einzeln nachziehen (MySQL-Lock bei Multi-Worker)
+                schema_ok, missing_tables = ensure_all_tables(db)
+                if not schema_ok:
+                    print(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
 
                 # Alle migrate_*.py aus migrations/ automatisch ausführen (vor Server-Start)
                 if not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
@@ -1068,6 +988,11 @@ def create_app(config_name='default'):
                         run_pending_migrations(db)
                     except Exception as auto_mig_err:
                         print(f"[WARNUNG] Auto-Migration fehlgeschlagen: {auto_mig_err}")
+                    # Nach Migrationen nochmals kritische Tabellen sicherstellen
+                    try:
+                        ensure_all_tables(db)
+                    except Exception as schema_again_err:
+                        print(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
                 
                 try:
                     from sqlalchemy import inspect

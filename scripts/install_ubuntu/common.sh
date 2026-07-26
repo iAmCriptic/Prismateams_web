@@ -241,13 +241,24 @@ print_manual_webserver_hint() {
 
 print_manual_onlyoffice_hint() {
     echo
-    log_manual "=== OnlyOffice manuell einrichten ==="
+    log_manual "=== OnlyOffice Docs (Document Server) manuell einrichten ==="
+    log_manual "  Hinweis: Portal braucht Document Server, NICHT Community Server/Workspace."
+    log_manual "  Offiziell: https://github.com/ONLYOFFICE/Docker-DocumentServer"
     log_manual "  1. Docker installieren (docs/INSTALLATION.md Schritt 2)"
-    log_manual "  2. Container: docker run -d -p 8080:80 --restart=always --name onlyoffice-documentserver \\"
-    log_manual "       -e JWT_SECRET=IHR-SECRET -e JWT_ENABLED=true onlyoffice/documentserver:latest"
-    log_manual "  3. In .env: ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice,"
+    log_manual "  2. Volumes: mkdir -p /var/lib/onlyoffice/DocumentServer/{data,logs,lib,fonts}"
+    log_manual "  3. Container:"
+    log_manual "       docker pull onlyoffice/documentserver:latest"
+    log_manual "       docker run -d --name onlyoffice-documentserver --restart=always \\"
+    log_manual "         -p 127.0.0.1:8080:80 \\"
+    log_manual "         -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \\"
+    log_manual "         -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \\"
+    log_manual "         -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \\"
+    log_manual "         -e JWT_ENABLED=true -e JWT_SECRET=IHR-SECRET \\"
+    log_manual "         -e ALLOW_PRIVATE_IP_ADDRESS=true \\"
+    log_manual "         onlyoffice/documentserver:latest"
+    log_manual "  4. In .env: ONLYOFFICE_ENABLED=True, ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice,"
     log_manual "     ONLYOFFICE_SECRET_KEY=<gleicher JWT_SECRET>"
-    log_manual "  4. Webserver-Proxy fuer /onlyoffice und /cache auf Port 8080"
+    log_manual "  5. Webserver-Proxy fuer /onlyoffice und /cache auf 127.0.0.1:8080"
     echo
 }
 
@@ -284,9 +295,10 @@ print_manual_gunicorn_hint() {
     echo
     log_manual "=== Gunicorn manuell einrichten ==="
     log_manual "  1. cd $INSTALL_DIR && source venv/bin/activate && pip install gunicorn"
-    log_manual "  2. Systemd-Unit /etc/systemd/system/teamportal.service anlegen"
-    log_manual "  3. gunicorn --workers ${GUNICORN_WORKERS:-1} --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
-    log_manual "  4. systemctl enable --now teamportal"
+    log_manual "  2. FLASK_ENV=production python scripts/init_database.py"
+    log_manual "  3. Systemd-Unit /etc/systemd/system/teamportal.service anlegen"
+    log_manual "  4. gunicorn --workers ${GUNICORN_WORKERS:-1} --bind 127.0.0.1:${GUNICORN_PORT:-5000} wsgi:app"
+    log_manual "  5. systemctl enable --now teamportal"
     echo
 }
 

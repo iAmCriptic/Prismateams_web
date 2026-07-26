@@ -156,6 +156,7 @@ parse_arguments() {
             --onlyoffice)
                 INSTALL_ONLYOFFICE="j"
                 INSTALL_DOCKER="j"
+                INSTALL_DOCKER="j"
                 shift
                 ;;
             --skip-media-downloader)

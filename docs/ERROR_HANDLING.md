@@ -94,7 +94,7 @@ sudo journalctl -u teamportal -n 100
 sudo docker ps | grep onlyoffice
 
 # Prüfe Port 8080
-sudo netstat -tlnp | grep 8080
+sudo ss -ltnp | grep 8080
 
 # Prüfe OnlyOffice Logs
 sudo docker logs onlyoffice-documentserver
@@ -102,16 +102,20 @@ sudo docker logs onlyoffice-documentserver
 # OnlyOffice neu starten
 sudo docker restart onlyoffice-documentserver
 
-# Teste ob OnlyOffice direkt auf Port 8080 erreichbar ist
-curl http://127.0.0.1:8080/welcome/
+# Healthcheck / Welcome (Installer bindet 127.0.0.1:8080)
+curl -s http://127.0.0.1:8080/healthcheck
+curl -s http://127.0.0.1:8080/welcome/ | head
 
 # Teste ob OnlyOffice API über Nginx erreichbar ist
 curl http://IHRE-DOMAIN/onlyoffice/web-apps/apps/api/documents/api.js | head -20
 
 # Wenn die API HTML statt JavaScript zurückgibt, ist die Nginx-Konfiguration fehlerhaft
-# Nginx-Konfiguration neu laden:
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+**Installer: `OnlyOffice FEHLGESCHLAGEN Fehlercode 1`:** meist `docker pull`/`docker run` fehlgeschlagen (zu wenig RAM/Disk, kein amd64, Port 8080 belegt, Daemon down). Installer-Output und `docker logs onlyoffice-documentserver` prüfen. Neu: `sudo docker pull onlyoffice/documentserver:latest`.
+
+**Hinweis:** Portal braucht **Document Server (Docs)**, nicht Community Server/Workspace.
 
 **Hinweis zur Nginx-Konfiguration:** Für OnlyOffice muss `proxy_pass` mit trailing slash gesetzt sein: `proxy_pass http://127.0.0.1:8080/;` — siehe [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren).
 

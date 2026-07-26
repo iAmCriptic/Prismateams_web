@@ -124,7 +124,7 @@ gather_information() {
     fi
 
     if is_yes "$INSTALL_DOCKER"; then
-        prompt_yes_no INSTALL_ONLYOFFICE "OnlyOffice Document Server installieren?" "j"
+        prompt_yes_no INSTALL_ONLYOFFICE "OnlyOffice Document Server (Docs) installieren?" "j"
         if ! is_yes "$INSTALL_ONLYOFFICE"; then
             print_manual_onlyoffice_hint
         fi
@@ -133,6 +133,10 @@ gather_information() {
         if ! is_yes "$INSTALL_ONLYOFFICE"; then
             print_manual_onlyoffice_hint
         fi
+    fi
+    # OnlyOffice Docs braucht immer Docker
+    if is_yes "$INSTALL_ONLYOFFICE"; then
+        INSTALL_DOCKER="j"
     fi
 
     log_info ""

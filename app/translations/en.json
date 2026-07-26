@@ -2625,7 +2625,11 @@
         "month": "Month view",
         "week": "Week view",
         "day": "Day view",
-        "list": "Agenda"
+        "list": "Agenda",
+        "month_short": "Month",
+        "week_short": "Week",
+        "day_short": "Day",
+        "list_short": "List"
       },
       "new_event": "New event",
       "context_create_event": "Create event",

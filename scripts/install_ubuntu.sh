@@ -97,6 +97,7 @@ main() {
     run_step "venv" "Python-venv" step_venv critical
     run_step "env" ".env / Keys" step_env critical
     run_step "uploads" "Upload-Verzeichnisse" step_uploads critical
+    run_step "database" "Datenbank-Schema" step_database critical
     run_step "gunicorn" "Gunicorn" step_gunicorn critical
     run_step "nginx" "Nginx" step_nginx optional
     run_step "apache" "Apache" step_apache optional

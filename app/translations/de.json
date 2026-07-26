@@ -3192,7 +3192,11 @@
         "month": "Monatsansicht",
         "week": "Wochenansicht",
         "day": "Tagesansicht",
-        "list": "Terminübersicht"
+        "list": "Terminübersicht",
+        "month_short": "Monat",
+        "week_short": "Woche",
+        "day_short": "Tag",
+        "list_short": "Liste"
       },
       "new_event": "Neuer Termin",
       "context_create_event": "Termin anlegen",

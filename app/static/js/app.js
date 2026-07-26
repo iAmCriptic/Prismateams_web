@@ -1,6 +1,33 @@
 // Team Portal JavaScript
 const disablePublicPrompts = !!window.PRISMATEAMS_DISABLE_PUBLIC_PROMPTS;
 
+/**
+ * Apply user layout preference (auto | mobile | desktop) from <html data-preferred-layout>.
+ * Must run early so chrome matches preference before first paint settles.
+ */
+function applyPreferredLayout() {
+    const body = document.body;
+    if (!body) return;
+    const pref = (
+        document.documentElement.getAttribute('data-preferred-layout') ||
+        'auto'
+    ).trim().toLowerCase();
+
+    body.classList.remove('force-desktop-layout', 'force-mobile-layout');
+    if (pref === 'desktop') {
+        body.classList.add('force-desktop-layout');
+    } else if (pref === 'mobile') {
+        body.classList.add('force-mobile-layout');
+    }
+}
+
+if (document.body) {
+    applyPreferredLayout();
+} else {
+    document.addEventListener('DOMContentLoaded', applyPreferredLayout);
+}
+window.applyPreferredLayout = applyPreferredLayout;
+
 function ptI18nCommon(key, fallback) {
     const common = (window.PRISMATEAMS_I18N && window.PRISMATEAMS_I18N.common) || {};
     return common[key] || fallback;

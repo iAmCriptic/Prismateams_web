@@ -1056,7 +1056,7 @@
 .calendar-sidebar-actions .dropdown-menu,
 .calendar-more-dropdown {
     min-width: max-content;
-    max-width: min(20rem, calc(100vw - 1rem));
+    max-width: min(20rem, calc(100% - 1rem));
     white-space: nowrap;
     z-index: 1080;
     border-radius: 1.1rem !important;
@@ -1068,8 +1068,8 @@
 @media (max-width: 767.98px) {
     .calendar-sidebar-actions .dropdown-menu,
     .calendar-more-dropdown {
-        min-width: min(16rem, calc(100vw - 1rem));
-        max-width: calc(100vw - 1rem);
+        min-width: min(16rem, calc(100% - 1rem));
+        max-width: calc(100% - 1rem);
         white-space: normal;
     }
 
@@ -1319,6 +1319,9 @@
     line-height: 1.2;
     text-align: start;
 }
+.calendar-view-pill-label--short {
+    display: none;
+}
 .calendar-view-pills--sidebar .calendar-view-pill {
     width: 100%;
 }
@@ -1387,6 +1390,18 @@
     box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.18);
     text-decoration: none;
     white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+@media (max-width: 991.98px) {
+    .calendar-mobile-new-btn {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.82rem;
+        max-width: 38vw;
+    }
 }
 .calendar-mobile-new-btn:hover,
 .calendar-mobile-new-btn:focus {
@@ -1515,20 +1530,43 @@
     }
     .calendar-view-pills--toolbar {
         width: 100%;
+        max-width: 100%;
         justify-content: stretch;
+        flex-wrap: nowrap !important;
+        gap: 0.2rem;
+        padding: 0.22rem;
+        box-sizing: border-box;
+        overflow: hidden;
     }
     .calendar-view-pills--toolbar .calendar-view-pill {
         flex: 1 1 0;
+        min-width: 0;
         justify-content: center;
-        padding: 0.45rem 0.5rem;
-        font-size: 0.78rem;
+        padding: 0.38rem 0.28rem;
+        font-size: 0.72rem;
+        gap: 0.22rem;
+        white-space: nowrap;
     }
-    .calendar-view-pills--toolbar .calendar-view-pill span {
-        display: none;
+    .calendar-view-pills--toolbar .calendar-view-pill i {
+        font-size: 0.95rem;
+        flex-shrink: 0;
     }
-    @media (min-width: 400px) {
-        .calendar-view-pills--toolbar .calendar-view-pill span {
-            display: inline;
+    .calendar-view-pills--toolbar .calendar-view-pill-label--full {
+        display: none !important;
+    }
+    .calendar-view-pills--toolbar .calendar-view-pill-label--short {
+        display: inline;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        font-size: 0.7rem;
+    }
+    @media (max-width: 359.98px) {
+        .calendar-view-pills--toolbar .calendar-view-pill-label--short {
+            display: none;
+        }
+        .calendar-view-pills--toolbar .calendar-view-pill {
+            padding: 0.4rem 0.2rem;
         }
     }
     /* Wochen-/Tages-Header kompakter auf Mobil — lesbar (≥ ~11px) */

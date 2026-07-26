@@ -131,12 +131,17 @@ Regel: **CLI setzt Werte vorab → Prompt nur für leere Felder.**
 
 ## OnlyOffice-Verdrahtung
 
+Das Skript installiert **ONLYOFFICE Docs (Document Server)** (`onlyoffice/documentserver:latest`), nicht Community Server/Workspace.
+
 Bei Installation setzt das Skript:
 
-1. Docker-Container mit `JWT_ENABLED=true` und `JWT_SECRET=<secret>`
-2. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
-3. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
-4. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+1. `docker pull` + Container mit offiziellen Volumes (`data`, `logs`, `lib`), `JWT_ENABLED=true`, `JWT_SECRET=<secret>`, `ALLOW_PRIVATE_IP_ADDRESS=true`, Bind `127.0.0.1:8080`
+2. Warte auf `/healthcheck` bzw. `/welcome/` (bis 180s)
+3. In `.env`: `ONLYOFFICE_ENABLED=True`, `ONLYOFFICE_DOCUMENT_SERVER_URL=/onlyoffice`, `ONLYOFFICE_SECRET_KEY=<gleiches Secret>`
+4. Optional `ONLYOFFICE_PUBLIC_URL` aus Domain (+ SSL)
+5. Nginx/Apache-Proxy für `/cache` und `/onlyoffice`
+
+Bei Fehler: `docker logs onlyoffice-documentserver` und Schritt-Tabelle (`Fehlercode 1` = Start/Pull fehlgeschlagen).
 
 ## Gunicorn-Worker
 

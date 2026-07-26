@@ -142,27 +142,44 @@ sudo ./venv/bin/pip install --upgrade pip
 sudo ./venv/bin/pip install -r requirements.txt
 ```
 
-### Schritt 5: Optionale Installation - OnlyOffice Document Server
+### Schritt 5: Optionale Installation - OnlyOffice Document Server (Docs)
 
-**⚠️ OPTIONAL:** Dieser Schritt ist nur erforderlich, wenn Sie OnlyOffice für die Dokumentenbearbeitung verwenden möchten. Wenn nicht, setzen Sie `ONLYOFFICE_ENABLED=False` in der `.env`-Datei.
+**⚠️ OPTIONAL:** Nur nötig für Dokumentenbearbeitung im Portal. Sonst `ONLYOFFICE_ENABLED=False` in der `.env`.
+
+**Wichtig:** Installieren Sie **ONLYOFFICE Docs (Document Server)**, nicht Community Server / Workspace.
+Community Server ([Docker-CommunityServer](https://github.com/ONLYOFFICE/Docker-CommunityServer)) ist ein eigenes Portal und kollidiert mit Nginx/Apache (Port 80/443).
+Offizielles Image: [Docker-DocumentServer](https://github.com/ONLYOFFICE/Docker-DocumentServer) → `onlyoffice/documentserver:latest`.
+
+**Voraussetzungen:** ≥4 GB RAM, mehrere GB freier Disk, Architektur **amd64/x86_64**, Docker Engine ≥20.10.21.
 
 ```bash
-# OnlyOffice Document Server Container starten (Port 8080)
-sudo docker run -i -t -d -p 8080:80 --restart=always \
-    --name onlyoffice-documentserver \
-    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
-    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
-    -e JWT_SECRET=dein-jwt-secret-key-hier \
-    onlyoffice/documentserver
+# Volumes (Community Edition, offizielles Layout)
+sudo mkdir -p /var/lib/onlyoffice/DocumentServer/{data,logs,lib,fonts}
 
-# Prüfen ob OnlyOffice läuft
+# Neueste Docs-Version laden und starten (JWT aktiv, nur localhost)
+sudo docker pull onlyoffice/documentserver:latest
+sudo docker run -d --restart=always \
+    --name onlyoffice-documentserver \
+    -p 127.0.0.1:8080:80 \
+    -v /var/lib/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+    -v /var/lib/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
+    -v /var/lib/onlyoffice/DocumentServer/fonts:/usr/share/fonts/truetype/custom \
+    -e JWT_ENABLED=true \
+    -e JWT_SECRET=dein-jwt-secret-key-hier \
+    -e JWT_HEADER=Authorization \
+    -e ALLOW_PRIVATE_IP_ADDRESS=true \
+    onlyoffice/documentserver:latest
+
+# Prüfen (Erststart kann 1–3 Minuten dauern)
 sudo docker ps | grep onlyoffice
-curl http://localhost:8080/welcome/
+curl -s http://127.0.0.1:8080/healthcheck
+curl -s http://127.0.0.1:8080/welcome/ | head
 ```
 
-**Wichtig:** Notieren Sie sich den `JWT_SECRET`-Wert! Sie benötigen ihn später für die Konfiguration in der `.env`-Datei.
+**Wichtig:** Notieren Sie den `JWT_SECRET`-Wert – er muss mit `ONLYOFFICE_SECRET_KEY` in der `.env` übereinstimmen.
 
-**Hinweis:** Wenn Sie OnlyOffice ohne JWT-Authentifizierung betreiben möchten, können Sie die `-e JWT_SECRET=...` Zeile weglassen. In diesem Fall lassen Sie `ONLYOFFICE_SECRET_KEY` in der `.env` leer.
+**Hinweis:** JWT ist seit Docs ≥7.2 standardmäßig aktiv. Ohne JWT: `-e JWT_ENABLED=false` und `ONLYOFFICE_SECRET_KEY` in der `.env` leer lassen.
 
 ### Schritt 6: Optionale Installation - Excalidraw
 

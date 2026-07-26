@@ -80,7 +80,7 @@
         top: 4.25rem;
         left: 1rem;
         bottom: auto;
-        width: min(400px, calc(100vw - 2rem));
+        width: min(400px, calc(100% - 2rem));
     }
 }
 

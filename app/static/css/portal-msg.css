@@ -121,6 +121,26 @@
     margin-top: 0.85rem;
 }
 
+@media (max-width: 575.98px) {
+    .portal-msg__body {
+        gap: 0.6rem;
+        padding: 0.9rem 0.95rem;
+    }
+
+    .portal-msg__actions {
+        width: 100%;
+    }
+
+    .portal-msg__btn {
+        font-size: 0.75rem;
+        padding: 0.32rem 0.75rem !important;
+    }
+
+    .portal-msg__close {
+        margin-left: 0;
+    }
+}
+
 .portal-msg__btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     font-weight: 600;
@@ -225,10 +245,5 @@
     .portal-msg,
     .alert:not(.portal-msg) {
         border-radius: 1.25rem !important;
-    }
-
-    .portal-msg__btn {
-        font-size: 0.75rem;
-        padding: 0.32rem 0.75rem !important;
     }
 }

@@ -24,21 +24,25 @@
 
 {% macro calendar_view_pills(variant='toolbar', with_ids=false) %}
 <div class="calendar-view-pills calendar-view-pills--{{ variant }}" role="group" aria-label="{{ _('calendar.index.heading') }}">
-    <button type="button" class="calendar-view-pill active"{% if with_ids %} id="monthViewBtn"{% endif %} data-calendar-view="month">
+    <button type="button" class="calendar-view-pill active"{% if with_ids %} id="monthViewBtn"{% endif %} data-calendar-view="month" title="{{ _('calendar.index.view_buttons.month') }}">
         <i class="bi bi-calendar-month" aria-hidden="true"></i>
-        <span>{{ _('calendar.index.view_buttons.month') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.month') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.month_short') }}</span>
     </button>
-    <button type="button" class="calendar-view-pill"{% if with_ids %} id="weekViewBtn"{% endif %} data-calendar-view="week">
+    <button type="button" class="calendar-view-pill"{% if with_ids %} id="weekViewBtn"{% endif %} data-calendar-view="week" title="{{ _('calendar.index.view_buttons.week') }}">
         <i class="bi bi-calendar-week" aria-hidden="true"></i>
-        <span>{{ _('calendar.index.view_buttons.week') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.week') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.week_short') }}</span>
     </button>
-    <button type="button" class="calendar-view-pill"{% if with_ids %} id="dayViewBtn"{% endif %} data-calendar-view="day">
+    <button type="button" class="calendar-view-pill"{% if with_ids %} id="dayViewBtn"{% endif %} data-calendar-view="day" title="{{ _('calendar.index.view_buttons.day') }}">
         <i class="bi bi-calendar-day" aria-hidden="true"></i>
-        <span>{{ _('calendar.index.view_buttons.day') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.day') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.day_short') }}</span>
     </button>
-    <button type="button" class="calendar-view-pill"{% if with_ids %} id="listViewBtn"{% endif %} data-calendar-view="list">
+    <button type="button" class="calendar-view-pill"{% if with_ids %} id="listViewBtn"{% endif %} data-calendar-view="list" title="{{ _('calendar.index.view_buttons.list') }}">
         <i class="bi bi-list-ul" aria-hidden="true"></i>
-        <span>{{ _('calendar.index.view_buttons.list') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.list') }}</span>
+        <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.list_short') }}</span>
     </button>
 </div>
 {% endmacro %}

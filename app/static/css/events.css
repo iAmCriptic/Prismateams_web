@@ -398,6 +398,26 @@
     white-space: nowrap;
 }
 
+@media (max-width: 575.98px) {
+    .events-form-input-group {
+        flex-wrap: wrap;
+    }
+
+    .events-form-input-group .form-control {
+        width: 100%;
+        flex: 1 1 100%;
+        border-radius: var(--mod-radius-pill, 1.5rem) !important;
+        margin-bottom: 0.45rem;
+    }
+
+    .events-form-input-group .btn {
+        width: 100%;
+        flex: 1 1 100%;
+        border-radius: var(--mod-radius-pill, 1.5rem) !important;
+        justify-content: center;
+    }
+}
+
 .events-form-needs-list {
     display: flex;
     flex-direction: column;

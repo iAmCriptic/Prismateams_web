@@ -327,9 +327,25 @@ setInterval(updateClock, 1000);
 
         const dots = document.getElementById('whatsNewDots');
         if (dots) {
-            dots.innerHTML = panelsOrder.map((p) =>
+            const progressMeta = dots.querySelector('.whats-new-progress-meta');
+            const dotsHtml = panelsOrder.map((p) =>
                 `<button type="button" class="whats-new-dot${p === name ? ' active' : ''}" data-goto="${p}" title="${moduleTitles[p] || ''}" aria-label="${moduleTitles[p] || ''}"></button>`
             ).join('');
+            dots.innerHTML = `<div class="whats-new-dots">${dotsHtml}</div>`;
+            if (progressMeta) {
+                dots.appendChild(progressMeta);
+            } else {
+                const meta = document.createElement('div');
+                meta.className = 'whats-new-progress-meta';
+                meta.innerHTML = '<div class="whats-new-progress-bar" aria-hidden="true"><span id="whatsNewProgressFill"></span></div><span class="whats-new-progress-count" id="whatsNewProgressCount"></span>';
+                dots.appendChild(meta);
+            }
+            const fill = dots.querySelector('#whatsNewProgressFill') || document.getElementById('whatsNewProgressFill');
+            const count = dots.querySelector('#whatsNewProgressCount') || document.getElementById('whatsNewProgressCount');
+            const step = Math.max(idx, 0) + 1;
+            const total = panelsOrder.length;
+            if (fill) fill.style.setProperty('--whats-new-progress', `${(step / total) * 100}%`);
+            if (count) count.textContent = `${step}/${total}`;
         }
     }
 

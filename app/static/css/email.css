@@ -1378,7 +1378,9 @@ div.avatar-circle-mobile,
     .email-content-header > .d-flex {
         max-width: 100%;
         min-width: 0;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
+        row-gap: 0.45rem;
+        align-items: center;
     }
 
     .email-content-header .btn-group:not(.email-zoom-controls) {
@@ -1386,6 +1388,7 @@ div.avatar-circle-mobile,
         min-width: 0;
         width: auto;
         max-width: 100%;
+        flex-wrap: wrap;
     }
 
     .email-content-header .btn-group:not(.email-zoom-controls) .btn {
@@ -1400,11 +1403,11 @@ div.avatar-circle-mobile,
         margin-right: 0.2rem !important;
     }
 
-    /* Mobile Zoom Controls — compact, never force full width */
+    /* Mobile Zoom Controls — own row when space is tight */
     .email-content-header .email-zoom-controls {
         flex: 0 0 auto;
         width: auto;
-        flex-shrink: 0;
+        margin-left: auto;
     }
 
     .email-content-header .email-zoom-controls .btn {
@@ -1413,6 +1416,20 @@ div.avatar-circle-mobile,
         width: 44px;
         min-height: 44px;
         padding: 0.25rem;
+    }
+
+    @media (max-width: 575.98px) {
+        .email-content-header .btn-group:not(.email-zoom-controls) .btn {
+            flex: 0 1 auto;
+            padding: 0.35rem 0.45rem;
+            font-size: 0.75rem;
+        }
+
+        .email-content-header .email-zoom-controls {
+            width: 100%;
+            justify-content: flex-end;
+            margin-left: 0;
+        }
     }
     
     /* Zoom-Funktion für E-Mail-Inhalte */
@@ -2167,7 +2184,7 @@ div.avatar-circle-mobile,
 .email-folder-parent-menu {
     min-width: 100%;
     width: max-content;
-    max-width: min(28rem, calc(100vw - 1.5rem));
+    max-width: min(28rem, calc(100% - 1.5rem));
     border-radius: 1.1rem !important;
     padding: 0.45rem !important;
     border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25)) !important;

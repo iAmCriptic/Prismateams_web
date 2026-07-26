@@ -5,6 +5,9 @@
     align-items: stretch;
     gap: 1.25rem;
     position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* Modul-Sidebar: auf Mobile aus, Desktop wie Kalender */
@@ -185,6 +188,41 @@
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 1rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 991.98px) {
+    .dashboard-shell > .mod-main {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: clip;
+    }
+
+    .dashboard-widget-grid {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .dash-widget {
+        padding: 0.85rem 0.9rem;
+        min-height: 9.5rem;
+    }
+
+    .dashboard-mobile-welcome {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .dashboard-mobile-welcome .dash-hello,
+    .dashboard-mobile-welcome .dash-sub {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }
 
 @media (min-width: 992px) {
@@ -238,10 +276,14 @@
     box-shadow: 0 0.125rem 0.35rem rgba(0, 0, 0, 0.06);
     padding: 1rem 1.1rem;
     min-height: 11rem;
+    max-width: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .dash-widget:hover {
@@ -566,11 +608,123 @@ body:has(#whatsNewModal.show) .modal-backdrop {
 
 @media (max-width: 767.98px) {
     .whats-new-dialog {
-        width: calc(100vw - 1.25rem);
-        max-width: calc(100vw - 1.25rem);
-        height: min(86vh, 640px);
-        max-height: min(86vh, 640px);
+        width: calc(100% - 1rem);
+        max-width: calc(100% - 1rem);
+        margin: 0.5rem auto;
+        height: min(90dvh, 100%);
+        max-height: min(90dvh, calc(100dvh - 1rem));
     }
+
+    .whats-new-modal {
+        border-radius: 1.15rem;
+    }
+
+    .whats-new-modal .modal-header {
+        padding: 0.75rem 0.9rem 0.25rem;
+    }
+
+    .whats-new-modal .modal-title {
+        font-size: 0.95rem;
+        min-width: 0;
+    }
+
+    .whats-new-modal .modal-title span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .whats-new-modal .modal-body {
+        padding: 0.15rem 0.85rem 0.45rem;
+    }
+
+    .whats-new-modal .modal-footer {
+        padding: 0.45rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .whats-new-welcome {
+        gap: 0.65rem;
+        padding: 0.25rem 0.15rem 0.75rem;
+        justify-content: flex-start;
+    }
+
+    .whats-new-welcome-title {
+        font-size: clamp(1.25rem, 6vw, 1.55rem);
+    }
+
+    .whats-new-welcome-text {
+        font-size: 0.88rem;
+        max-width: none;
+    }
+
+    .whats-new-welcome-highlights {
+        max-width: none;
+        gap: 0.5rem;
+    }
+
+    .whats-new-welcome-highlights li {
+        padding: 0.7rem 0.8rem;
+        font-size: 0.82rem;
+    }
+
+    .whats-new-progress {
+        gap: 0.4rem;
+        padding: 0.1rem 0.85rem 0.4rem;
+        flex-wrap: nowrap;
+    }
+
+    .whats-new-dots {
+        display: none !important;
+    }
+
+    .whats-new-progress-meta {
+        display: flex !important;
+        align-items: center;
+        gap: 0.55rem;
+        width: 100%;
+    }
+
+    .whats-new-progress-bar {
+        flex: 1 1 auto;
+        height: 0.35rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--bs-secondary-color, #6c757d) 22%, transparent);
+        overflow: hidden;
+    }
+
+    .whats-new-progress-bar > span {
+        display: block;
+        height: 100%;
+        width: var(--whats-new-progress, 5%);
+        border-radius: inherit;
+        background: var(--accent-color, #0d6efd);
+        transition: width 0.2s ease;
+    }
+
+    .whats-new-progress-count {
+        flex: 0 0 auto;
+        font-size: 0.72rem;
+        font-weight: 650;
+        color: var(--bs-secondary-color, #6c757d);
+        font-variant-numeric: tabular-nums;
+        min-width: 2.75rem;
+        text-align: end;
+    }
+
+    .whats-new-btn--next {
+        min-width: 0;
+        padding: 0.55rem 1.1rem !important;
+        font-size: 0.88rem;
+    }
+
+    .whats-new-footer {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+}
+
+.whats-new-progress-meta {
+    display: none;
 }
 
 .whats-new-modal {
@@ -732,6 +886,9 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     gap: 0.32rem;
     padding: 0.15rem 1.05rem 0.55rem;
     max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .whats-new-overview-subtitle {
@@ -964,6 +1121,7 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     justify-content: center;
     gap: 0.32rem;
     min-height: 0.7rem;
+    max-width: 100%;
 }
 
 .whats-new-footer {
