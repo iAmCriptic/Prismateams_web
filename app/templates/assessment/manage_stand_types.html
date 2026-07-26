@@ -2,76 +2,110 @@
 {% from "assessment/_macros.html" import assessment_page_header %}
 {% block title %}Stand-Typen - Bewertung{% endblock %}
 {% block assessment_heading_icon %}bi-tags{% endblock %}
-{% block assessment_heading %}Stand-Typen{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.stand_types') }}{% endblock %}
 {% block assessment_content %}
 {{ assessment_page_header('Stand-Typen', icon='tags') }}
     <div class="assessment-panel mb-4">
-        <div class="card-body">
             <form id="typeForm" class="row g-3 align-items-end">
                 <input type="hidden" id="typeId">
                 <div class="col-md-5">
                     <label class="form-label">Name</label>
-                    <input class="form-control" id="typeName" required placeholder="z. B. Essen, Aktivität">
+                    <input class="form-control assessment-pill-input" id="typeName" required placeholder="z. B. Essen, Aktivität">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Sortierung</label>
-                    <input type="number" class="form-control" id="typeSort" value="0">
+                    <input type="number" class="form-control assessment-pill-input" id="typeSort" value="0">
                 </div>
                 <div class="col-md-4 text-end">
                     <button type="button" class="btn btn-outline-secondary" id="resetBtn" hidden>Abbrechen</button>
                     <button type="submit" class="btn btn-accent" id="saveBtn">Anlegen</button>
                 </div>
             </form>
-        </div>
     </div>
-    <div class="assessment-panel">
-        <div class="card-body">
-            <table class="table assessment-table align-middle mb-0">
-                <thead><tr><th>Name</th><th>Stände</th><th class="text-end">Aktion</th></tr></thead>
-                <tbody id="rows"></tbody>
-            </table>
-        </div>
+    <h2 class="assessment-panel-title mb-2">Stand-Typen</h2>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col" class="d-none d-md-table-cell">Stände</th>
+                    <th scope="col" class="text-end assessment-col-actions">{{ _('assessment.common.actions') }}</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
     </div>
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-const form = document.getElementById('typeForm');
-function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-async function load() {
-    const res = await fetch('/assessment/api/stand_types');
-    const data = await res.json();
-    document.getElementById('rows').innerHTML = (data.stand_types||[]).map(t=>`
-        <tr><td>${escapeHtml(t.name)}</td><td>${t.stand_count}</td>
-        <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary" onclick='editType(${JSON.stringify(t)})'><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="delType(${t.id})"><i class="bi bi-trash"></i></button>
-        </td></tr>`).join('');
-}
-function editType(t) {
-    document.getElementById('typeId').value=t.id;
-    document.getElementById('typeName').value=t.name;
-    document.getElementById('typeSort').value=t.sort_order;
-    document.getElementById('resetBtn').hidden=false;
-    document.getElementById('saveBtn').textContent='Speichern';
-}
-function reset() {
-    form.reset(); document.getElementById('typeId').value='';
-    document.getElementById('resetBtn').hidden=true;
-    document.getElementById('saveBtn').textContent='Anlegen';
-}
-document.getElementById('resetBtn').addEventListener('click', reset);
-form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const id=document.getElementById('typeId').value;
-    const payload={name:document.getElementById('typeName').value, sort_order:Number(document.getElementById('typeSort').value)};
-    await fetch(id?`/assessment/api/stand_types/${id}`:'/assessment/api/stand_types',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    reset(); load();
-});
-async function delType(id) {
-    if(!confirm('Stand-Typ löschen?')) return;
-    const res=await fetch(`/assessment/api/stand_types/${id}`,{method:'DELETE'});
-    const data=await res.json();
-    alert(data.message||'Fertig');
+(function () {
+    const form = document.getElementById('typeForm');
+    let typesById = {};
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
+
+    async function load() {
+        const res = await fetch('/assessment/api/stand_types');
+        const data = await res.json();
+        const types = data.stand_types || [];
+        typesById = Object.fromEntries(types.map(t => [String(t.id), t]));
+        document.getElementById('rows').innerHTML = types.map(t => `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-tag-fill', t.name)}</td>
+                <td class="d-none d-md-table-cell text-muted">${t.stand_count}</td>
+                <td class="text-end assessment-col-actions">${buildRowActions([
+                    { icon: 'bi-pencil', label: 'Bearbeiten', title: 'Bearbeiten', attrs: `data-edit-id="${t.id}"`, hover: true },
+                    { icon: 'bi-trash', label: 'Löschen', attrs: `data-delete="${t.id}"`, danger: true },
+                ])}</td>
+            </tr>`).join('') || `<tr><td colspan="3" class="text-center text-muted py-4">—</td></tr>`;
+    }
+
+    function editType(t) {
+        document.getElementById('typeId').value = t.id;
+        document.getElementById('typeName').value = t.name;
+        document.getElementById('typeSort').value = t.sort_order;
+        document.getElementById('resetBtn').hidden = false;
+        document.getElementById('saveBtn').textContent = 'Speichern';
+    }
+
+    function reset() {
+        form.reset();
+        document.getElementById('typeId').value = '';
+        document.getElementById('resetBtn').hidden = true;
+        document.getElementById('saveBtn').textContent = 'Anlegen';
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', reset);
+    document.getElementById('rows').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const t = typesById[editBtn.getAttribute('data-edit-id')];
+            if (t) editType(t);
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) {
+            const ok = window.ptConfirm ? await window.ptConfirm('Stand-Typ löschen?', { danger: true }) : confirm('Stand-Typ löschen?');
+            if (!ok) return;
+            const res = await fetch(`/assessment/api/stand_types/${delBtn.dataset.delete}`, { method: 'DELETE' });
+            const data = await res.json();
+            alert(data.message || 'Fertig');
+            load();
+        }
+    });
+    form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const id = document.getElementById('typeId').value;
+        const payload = { name: document.getElementById('typeName').value, sort_order: Number(document.getElementById('typeSort').value) };
+        await fetch(id ? `/assessment/api/stand_types/${id}` : '/assessment/api/stand_types', {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        reset();
+        load();
+    });
     load();
-}
-load();
+})();
 </script>
 {% endblock %}

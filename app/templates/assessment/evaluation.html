@@ -1,76 +1,90 @@
 {% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
-{% block title %}Bewertung abgeben{% endblock %}
+{% block title %}{{ _('assessment.evaluate.page_title') }}{% endblock %}
 {% block assessment_heading_icon %}bi-pencil-square{% endblock %}
-{% block assessment_heading %}Bewerten{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.evaluate') }}{% endblock %}
 {% block assessment_content %}
-{{ assessment_page_header('Bewertung abgeben', icon='clipboard-check') }}
+{{ assessment_page_header(_('assessment.evaluate.heading'), _('assessment.evaluate.subtitle'), 'clipboard-check') }}
     <div class="assessment-panel">
-        <div class="card-body">
             <div class="mb-3" id="listPickerWrap" {% if evaluation_lists|length <= 1 %}hidden{% endif %}>
-                <label class="form-label">Bewertungsliste</label>
-                <select class="form-select" id="listSelect">
+                <label class="form-label" for="listSelect">{{ _('assessment.common.list_label') }}</label>
+                <select class="form-select" id="listSelect" data-inv-pill-select>
                     {% for lst in evaluation_lists %}
                     <option value="{{ lst.id }}">{{ lst.name }}{% if lst.welcome_label %} – {{ lst.welcome_label }}{% endif %}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="mb-3">
-                <label class="form-label" id="targetLabel">Bewertungsziel</label>
-                <select class="form-select" id="target"></select>
+                <label class="form-label" id="targetLabel" for="target">{{ _('assessment.evaluate.target') }}</label>
+                <select class="form-select" id="target" data-inv-pill-select></select>
             </div>
-            <div id="criteria" class="row g-2"></div>
-            <button class="btn btn-accent mt-3" onclick="submitEval()">Speichern</button>
+            <div id="criteria" class="row g-3"></div>
+            <button class="btn btn-accent mt-3 w-100 w-md-auto" type="button" id="saveEvalBtn">{{ _('assessment.common.save') }}</button>
             <p class="text-muted mt-2 mb-0" id="status"></p>
-        </div>
     </div>
+{% endblock %}
+
+{% block assessment_extra_js %}
 <script>
-let criteria = [];
-let currentList = null;
+(function () {
+    let criteria = [];
+    let currentList = null;
+    const escapeHtml = window.AssessmentUI ? window.AssessmentUI.escapeHtml : (s) => String(s ?? '');
 
-function escapeHtml(str) { return String(str ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-async function loadData() {
-    const listId = document.getElementById('listSelect').value;
-    const res = await fetch(`/assessment/api/evaluate?list_id=${listId}`);
-    const data = await res.json();
-    if (!data.success) {
-        document.getElementById('status').textContent = data.message || 'Fehler beim Laden';
-        return;
+    function syncPrint() {
+        if (window.AssessmentUI) {
+            window.AssessmentUI.syncPrintLinks({ list_id: document.getElementById('listSelect').value });
+        }
     }
-    currentList = data.list;
-    const isStand = currentList.subject_mode === 'stand';
-    document.getElementById('targetLabel').textContent = isStand ? 'Stand' : 'Bewertungsziel';
-    const targets = isStand ? (data.stands || []) : (data.subjects || []);
-    document.getElementById('target').innerHTML = targets.map(t => {
-        const extra = isStand && t.stand_type_name ? ` (${t.stand_type_name})` : '';
-        return `<option value="${t.id}">${escapeHtml(t.name)}${escapeHtml(extra)}</option>`;
-    }).join('');
-    criteria = data.criteria || [];
-    document.getElementById('criteria').innerHTML = criteria.map(c => `
-        <div class="col-md-6">
-            <label class="form-label">${escapeHtml(c.name)} (0-${c.max_score})</label>
-            <input class="form-control" id="criterion_${c.id}" type="number" min="0" max="${c.max_score}" value="0">
-        </div>
-    `).join('');
-    document.getElementById('status').textContent = '';
-}
 
-async function submitEval() {
-    const scores = {};
-    criteria.forEach(c => scores[c.id] = Number(document.getElementById(`criterion_${c.id}`).value || 0));
-    const payload = { list_id: Number(document.getElementById('listSelect').value), scores };
-    if (currentList.subject_mode === 'stand') {
-        payload.stand_id = Number(document.getElementById('target').value);
-    } else {
-        payload.subject_id = Number(document.getElementById('target').value);
+    async function loadData() {
+        const listId = document.getElementById('listSelect').value;
+        syncPrint();
+        const res = await fetch(`/assessment/api/evaluate?list_id=${listId}`);
+        const data = await res.json();
+        if (!data.success) {
+            document.getElementById('status').textContent = data.message || '{{ _("assessment.common.load_error") }}';
+            return;
+        }
+        currentList = data.list;
+        const isStand = currentList.subject_mode === 'stand';
+        document.getElementById('targetLabel').textContent = isStand
+            ? '{{ _("assessment.evaluate.stand") }}'
+            : '{{ _("assessment.evaluate.target") }}';
+        const targets = isStand ? (data.stands || []) : (data.subjects || []);
+        const targetSel = document.getElementById('target');
+        targetSel.innerHTML = targets.map(t => {
+            const extra = isStand && t.stand_type_name ? ` (${t.stand_type_name})` : '';
+            return `<option value="${t.id}">${escapeHtml(t.name)}${escapeHtml(extra)}</option>`;
+        }).join('');
+        criteria = data.criteria || [];
+        document.getElementById('criteria').innerHTML = criteria.map(c => `
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="criterion_${c.id}">${escapeHtml(c.name)} (0-${c.max_score})</label>
+                <input class="form-control assessment-pill-input" id="criterion_${c.id}" type="number" min="0" max="${c.max_score}" value="0" inputmode="numeric">
+            </div>
+        `).join('');
+        document.getElementById('status').textContent = '';
+        if (window.AssessmentUI) window.AssessmentUI.enhancePills(document.querySelector('.assessment-panel'));
     }
-    const res = await fetch('/assessment/api/evaluate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    const data = await res.json();
-    document.getElementById('status').textContent = data.message || (data.success ? 'Gespeichert' : 'Fehler');
-}
 
-document.getElementById('listSelect').addEventListener('change', loadData);
-loadData();
+    async function submitEval() {
+        const scores = {};
+        criteria.forEach(c => scores[c.id] = Number(document.getElementById(`criterion_${c.id}`).value || 0));
+        const payload = { list_id: Number(document.getElementById('listSelect').value), scores };
+        if (currentList.subject_mode === 'stand') {
+            payload.stand_id = Number(document.getElementById('target').value);
+        } else {
+            payload.subject_id = Number(document.getElementById('target').value);
+        }
+        const res = await fetch('/assessment/api/evaluate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+        const data = await res.json();
+        document.getElementById('status').textContent = data.message || (data.success ? '{{ _("assessment.common.saved") }}' : '{{ _("assessment.common.error") }}');
+    }
+
+    document.getElementById('listSelect').addEventListener('change', loadData);
+    document.getElementById('saveEvalBtn').addEventListener('click', submitEval);
+    loadData();
+})();
 </script>
 {% endblock %}

@@ -1,52 +1,52 @@
 {% extends "assessment/layout.html" %}
-{% block title %}{{ assessment_welcome_title or 'Bewertung' }} – {{ app_name or 'Prismateams' }}{% endblock %}
+{% block title %}{{ assessment_welcome_title or _('assessment.dashboard.welcome_default') }} – {{ app_name or 'Prismateams' }}{% endblock %}
 {% block assessment_heading_icon %}bi-speedometer2{% endblock %}
-{% block assessment_heading %}Dashboard{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.dashboard') }}{% endblock %}
 
 {% block assessment_content %}
 <div class="d-none d-lg-block mb-3">
     <h2 class="mod-view-heading mb-1">
         <i class="bi bi-speedometer2" aria-hidden="true"></i>
-        <span>{{ assessment_welcome_title or 'Bewertung' }}</span>
+        <span>{{ assessment_welcome_title or _('assessment.dashboard.welcome_default') }}</span>
     </h2>
-    <p class="assessment-view-sub mb-0">{{ assessment_welcome_subtitle or 'Bewerten, Ranglisten und Verwaltung.' }}</p>
+    <p class="assessment-view-sub mb-0">{{ assessment_welcome_subtitle or _('assessment.dashboard.subtitle_default') }}</p>
 </div>
 
 <div class="mod-stat-grid">
     <div class="mod-stat mod-stat--accent">
         <span class="mod-stat-value">{{ stand_count }}</span>
-        <span class="mod-stat-label">Aktive Stände</span>
+        <span class="mod-stat-label">{{ _('assessment.dashboard.stat_stands') }}</span>
     </div>
     <div class="mod-stat">
         <span class="mod-stat-value">{{ active_list_count }}</span>
-        <span class="mod-stat-label">Aktive Listen</span>
+        <span class="mod-stat-label">{{ _('assessment.dashboard.stat_lists') }}</span>
     </div>
     <div class="mod-stat">
         <span class="mod-stat-value">{{ eval_count }}</span>
-        <span class="mod-stat-label">Bewertungen gesamt</span>
+        <span class="mod-stat-label">{{ _('assessment.dashboard.stat_evals') }}</span>
     </div>
     {% if 'my_evaluations' in assessment_sections %}
     <div class="mod-stat">
         <span class="mod-stat-value">{{ my_eval_count }}</span>
-        <span class="mod-stat-label">Meine Bewertungen</span>
+        <span class="mod-stat-label">{{ _('assessment.dashboard.stat_my_evals') }}</span>
     </div>
     {% endif %}
     {% if avg_points is not none %}
     <div class="mod-stat mod-stat--accent">
         <span class="mod-stat-value">{{ avg_points }}</span>
-        <span class="mod-stat-label">Ø Punkte ({{ sort_label }})</span>
+        <span class="mod-stat-label">{{ _('assessment.dashboard.stat_avg', sort_label=sort_label) }}</span>
     </div>
     {% endif %}
     {% if warning_count is not none %}
     <div class="mod-stat">
         <span class="mod-stat-value">{{ warning_count }}</span>
-        <span class="mod-stat-label">Verwarnungen</span>
+        <span class="mod-stat-label">{{ _('assessment.nav.warnings') }}</span>
     </div>
     {% endif %}
     {% if inspection_count is not none %}
     <div class="mod-stat">
         <span class="mod-stat-value">{{ inspection_count }}</span>
-        <span class="mod-stat-label">Rauminspektionen</span>
+        <span class="mod-stat-label">{{ _('assessment.nav.inspections') }}</span>
     </div>
     {% endif %}
 </div>
@@ -55,7 +55,7 @@
     {% if 'ranking' in assessment_sections %}
     <div class="assessment-panel">
         <div class="mod-dash-panel-title">
-            Rangliste{% if primary_list %} – {{ primary_list.name }}{% endif %}
+            {{ _('assessment.nav.ranking') }}{% if primary_list %} – {{ primary_list.name }}{% endif %}
         </div>
         {% if ranking_preview %}
         <ol class="mod-dash-list">
@@ -67,52 +67,52 @@
                     {% if sort_mode == 'avg' %}
                     {{ '%.1f'|format(row.displayed_avg) }} Ø
                     {% else %}
-                    {{ row.displayed_total }} Pkt.
+                    {{ row.displayed_total }} {{ _('assessment.dashboard.points_abbr') }}
                     {% endif %}
                 </span>
             </li>
             {% endfor %}
         </ol>
         <a class="assessment-dash-link" href="{{ url_for('assessment.ranking.view_ranking') }}">
-            Volle Rangliste <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            {{ _('assessment.dashboard.full_ranking') }} <i class="bi bi-arrow-right" aria-hidden="true"></i>
         </a>
         {% else %}
-        <div class="mod-dash-empty">Noch keine Ranglisten-Daten.</div>
+        <div class="mod-dash-empty">{{ _('assessment.dashboard.ranking_empty') }}</div>
         {% endif %}
     </div>
     {% endif %}
 
     <div class="assessment-panel">
-        <div class="mod-dash-panel-title">Schnellzugriff</div>
+        <div class="mod-dash-panel-title">{{ _('assessment.dashboard.quick_access') }}</div>
         <div class="assessment-quick-pills">
             {% if 'evaluate' in assessment_sections %}
             <a class="btn assessment-quick-pill" href="{{ url_for('assessment.evaluations.evaluate_page') }}">
-                <i class="bi bi-pencil-square" aria-hidden="true"></i>Bewertung abgeben
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>{{ _('assessment.dashboard.cta_evaluate') }}
             </a>
             {% endif %}
             {% if 'my_evaluations' in assessment_sections %}
             <a class="btn assessment-quick-pill" href="{{ url_for('assessment.evaluations.view_my_evaluations_page') }}">
-                <i class="bi bi-ui-checks" aria-hidden="true"></i>Meine Bewertungen
+                <i class="bi bi-ui-checks" aria-hidden="true"></i>{{ _('assessment.nav.my_evaluations') }}
             </a>
             {% endif %}
             {% if 'ranking' in assessment_sections %}
             <a class="btn assessment-quick-pill" href="{{ url_for('assessment.ranking.view_ranking') }}">
-                <i class="bi bi-trophy" aria-hidden="true"></i>Rangliste
+                <i class="bi bi-trophy" aria-hidden="true"></i>{{ _('assessment.nav.ranking') }}
             </a>
             {% endif %}
             {% if 'inspections' in assessment_sections %}
             <a class="btn assessment-quick-pill" href="{{ url_for('assessment.inspections.room_inspections_page') }}">
-                <i class="bi bi-bucket" aria-hidden="true"></i>Rauminspektionen
+                <i class="bi bi-bucket" aria-hidden="true"></i>{{ _('assessment.nav.inspections') }}
             </a>
             {% endif %}
             {% if 'warnings' in assessment_sections %}
             <a class="btn assessment-quick-pill" href="{{ url_for('assessment.warnings.warnings_page') }}">
-                <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>Verwarnungen
+                <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>{{ _('assessment.nav.warnings') }}
             </a>
             {% endif %}
             {% if 'admin' in assessment_sections %}
             <a class="btn assessment-quick-pill" href="{{ url_for('assessment.lists.manage_lists_page') }}">
-                <i class="bi bi-list-ul" aria-hidden="true"></i>Listen verwalten
+                <i class="bi bi-list-ul" aria-hidden="true"></i>{{ _('assessment.dashboard.cta_lists') }}
             </a>
             {% endif %}
         </div>

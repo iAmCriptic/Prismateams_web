@@ -532,7 +532,8 @@ def create_app(config_name='default'):
         mobile_nav_slots = None
         mobile_nav_left = None
         mobile_nav_right = None
-        if current_user.is_authenticated:
+        # Assessment-Scope: keine Portal-Mobile-Nav (nur Modul-Sidebar inkl. Logout).
+        if current_user.is_authenticated and session.get('user_scope') != 'assessment':
             from app.utils.navigation import (
                 get_mobile_nav_slots,
                 resolve_nav_link,

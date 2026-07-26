@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
-from sqlalchemy import func, or_
+from flask import Blueprint, jsonify, redirect, render_template, request, send_file, url_for, abort
+from sqlalchemy import func
 
 from app import db
 from app.models.assessment import (
@@ -11,13 +11,15 @@ from app.models.assessment import (
     AssessmentList,
     AssessmentListSubject,
     AssessmentStand,
-    AssessmentStandType,
 )
 from app.utils.assessment_auth import assessment_role_required
+from app.utils.assessment_pdf import generate_blank_evaluation_pdf, generate_evaluation_detail_pdf
 
 from .helpers import (
+    actor_can_access_list,
     current_actor,
     list_to_dict,
+    lists_for_actor,
     resolve_evaluation_list_from_request,
     stands_for_list,
     subjects_for_list,
@@ -30,9 +32,7 @@ evaluations_bp = Blueprint("evaluations", __name__)
 @evaluations_bp.route("/evaluate", methods=["GET"])
 @assessment_role_required(["Administrator", "Bewerter"])
 def evaluate_page():
-    lists = AssessmentList.query.filter_by(is_active=True).order_by(
-        AssessmentList.sort_order.asc(), AssessmentList.name.asc()
-    ).all()
+    lists = lists_for_actor(require_active=True)
     return render_template("assessment/evaluation.html", evaluation_lists=lists)
 
 
@@ -92,9 +92,10 @@ def api_evaluate():
 
     data = request.get_json(silent=True) or {}
     list_id = data.get("list_id") or evaluation_list.id
-    evaluation_list = AssessmentList.query.get(list_id)
-    if not evaluation_list or not evaluation_list.is_active:
+    candidate = AssessmentList.query.get(list_id)
+    if not candidate or not candidate.is_active or not actor_can_access_list(candidate):
         return jsonify({"success": False, "message": "Bewertungsliste nicht gefunden."}), 404
+    evaluation_list = candidate
 
     stand_id = data.get("stand_id")
     subject_id = data.get("subject_id")
@@ -164,6 +165,9 @@ def view_my_evaluations_page():
 def api_my_evaluations():
     actor = current_actor()
     list_id = request.args.get("list_id", type=int)
+    allowed_ids = {lst.id for lst in lists_for_actor(actor, require_active=False)}
+    if not allowed_ids:
+        return jsonify({"success": True, "evaluations": []})
 
     query = (
         db.session.query(
@@ -180,8 +184,11 @@ def api_my_evaluations():
         .outerjoin(AssessmentListSubject, AssessmentListSubject.id == AssessmentEvaluation.subject_id)
         .outerjoin(AssessmentEvaluationScore, AssessmentEvaluationScore.evaluation_id == AssessmentEvaluation.id)
         .filter(AssessmentEvaluation.user_type == actor["user_type"], AssessmentEvaluation.user_id == actor["user_id"])
+        .filter(AssessmentEvaluation.list_id.in_(allowed_ids))
     )
     if list_id:
+        if list_id not in allowed_ids:
+            return jsonify({"success": True, "evaluations": []})
         query = query.filter(AssessmentEvaluation.list_id == list_id)
 
     rows = (
@@ -217,29 +224,56 @@ def api_my_evaluations():
 @evaluations_bp.route("/print_blank", methods=["GET"])
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def blank_print_page():
+    return redirect(url_for("assessment.evaluations.pdf_blank", **request.args))
+
+
+@evaluations_bp.route("/pdf/blank", methods=["GET"])
+@assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
+def pdf_blank():
     evaluation_list = resolve_evaluation_list_from_request(require_active=False)
     if not evaluation_list:
-        evaluation_list = AssessmentList.query.order_by(AssessmentList.id.asc()).first()
+        evaluation_list = (lists_for_actor(require_active=False) or [None])[0]
     if not evaluation_list:
-        return render_template("assessment/print_evaluation_template.html", stands=[], criteria=[], evaluation_list=None)
+        abort_empty = generate_blank_evaluation_pdf(None, [], [])
+        return send_file(
+            abort_empty,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="bewertungsformular.pdf",
+        )
 
-    criteria = AssessmentCriterion.query.filter_by(list_id=evaluation_list.id).order_by(AssessmentCriterion.id.asc()).all()
-    if evaluation_list.subject_mode == "stand":
-        targets = stands_for_list(evaluation_list)
-    else:
-        targets = subjects_for_list(evaluation_list)
-    return render_template(
-        "assessment/print_evaluation_template.html",
-        stands=targets,
-        criteria=criteria,
-        evaluation_list=evaluation_list,
+    criteria = (
+        AssessmentCriterion.query.filter_by(list_id=evaluation_list.id)
+        .order_by(AssessmentCriterion.id.asc())
+        .all()
+    )
+    targets = (
+        stands_for_list(evaluation_list)
+        if evaluation_list.subject_mode == "stand"
+        else subjects_for_list(evaluation_list)
+    )
+    pdf = generate_blank_evaluation_pdf(evaluation_list, targets, criteria)
+    return send_file(
+        pdf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"bewertungsformular-{evaluation_list.slug}.pdf",
     )
 
 
 @evaluations_bp.route("/print_evaluation/<int:evaluation_id>")
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def print_evaluation(evaluation_id):
+    return redirect(url_for("assessment.evaluations.pdf_evaluation", evaluation_id=evaluation_id))
+
+
+@evaluations_bp.route("/pdf/evaluation/<int:evaluation_id>")
+@assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
+def pdf_evaluation(evaluation_id):
     evaluation = AssessmentEvaluation.query.get_or_404(evaluation_id)
+    if evaluation.evaluation_list and not actor_can_access_list(evaluation.evaluation_list):
+        abort(403)
+
     target_name = None
     if evaluation.stand_id:
         stand = AssessmentStand.query.get(evaluation.stand_id)
@@ -253,9 +287,11 @@ def print_evaluation(evaluation_id):
         .filter(AssessmentEvaluationScore.evaluation_id == evaluation.id)
         .all()
     )
-    return render_template(
-        "assessment/print_evaluation.html",
-        evaluation=evaluation,
-        stand_name=target_name,
-        score_rows=score_rows,
+    list_name = evaluation.evaluation_list.name if evaluation.evaluation_list else None
+    pdf = generate_evaluation_detail_pdf(evaluation, target_name, score_rows, list_name=list_name)
+    return send_file(
+        pdf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"bewertung-{evaluation.id}.pdf",
     )

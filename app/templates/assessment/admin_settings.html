@@ -1,124 +1,133 @@
 {% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
-{% block title %}Einstellungen – Bewertung{% endblock %}
+{% block title %}{{ _('assessment.admin_settings.page_title') }}{% endblock %}
 {% block assessment_heading_icon %}bi-sliders{% endblock %}
-{% block assessment_heading %}Einstellungen{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.settings') }}{% endblock %}
 {% block assessment_content %}
-{{ assessment_page_header('Bewertungsmodul-Einstellungen', 'Texte, Ranking und Darstellung', 'sliders') }}
+{{ assessment_page_header(_('assessment.admin_settings.heading'), _('assessment.admin_settings.subtitle'), 'sliders') }}
 
-<div class="row g-3">
-    <div class="col-lg-7">
-        <div class="assessment-panel h-100">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-card-text text-primary me-2"></i>Inhalte</h2>
-                <form id="settingsForm" class="row g-3">
-                    <div class="col-12">
-                        <label class="form-label">Titel der Startseite</label>
-                        <input class="form-control" name="welcome_title">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Untertitel der Startseite</label>
-                        <input class="form-control" name="welcome_subtitle">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Standard-Sortierung der Rangliste</label>
-                        <select class="form-select" name="ranking_sort_mode">
-                            <option value="total">Gesamtpunktzahl</option>
-                            <option value="avg">Ø-Punktzahl</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-accent"><i class="bi bi-save me-1"></i>Speichern</button>
-                    </div>
-                </form>
-                <p id="settingsStatus" class="text-muted small mt-2 mb-0"></p>
+<div class="assessment-panel">
+    <form id="settingsForm" class="row g-4">
+        <div class="col-12">
+            <h2 class="assessment-panel-title mb-3"><i class="bi bi-card-text me-2"></i>{{ _('assessment.settings.content') }}</h2>
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="welcome_title">{{ _('assessment.settings.welcome_title') }}</label>
+            <input class="form-control assessment-pill-input" name="welcome_title" id="welcome_title">
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="welcome_subtitle">{{ _('assessment.settings.welcome_subtitle') }}</label>
+            <input class="form-control assessment-pill-input" name="welcome_subtitle" id="welcome_subtitle">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="ranking_sort_mode">{{ _('assessment.settings.ranking_sort') }}</label>
+            <select class="form-select" name="ranking_sort_mode" id="ranking_sort_mode" data-inv-pill-select>
+                <option value="total">{{ _('assessment.ranking.sort_total') }}</option>
+                <option value="avg">{{ _('assessment.ranking.sort_avg') }}</option>
+            </select>
+        </div>
+
+        <div class="col-12"><hr class="my-1"></div>
+        <div class="col-12">
+            <h2 class="assessment-panel-title mb-3"><i class="bi bi-moon-stars me-2"></i>{{ _('assessment.appearance.title') }}</h2>
+        </div>
+        {% if show_assessment_appearance %}
+        <div class="col-12">
+            <div class="settings-appearance-switch-row d-flex align-items-center justify-content-between gap-3 py-2">
+                <label class="mb-0" for="dark_mode">{{ _('assessment.appearance.dark_mode') }}</label>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
+                </div>
+            </div>
+            <div class="settings-appearance-switch-row d-flex align-items-center justify-content-between gap-3 py-2 ps-3">
+                <label class="mb-0" for="oled_mode">{{ _('assessment.appearance.oled_mode') }}</label>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="oled_mode" name="oled_mode">
+                </div>
             </div>
         </div>
-    </div>
-
-    <div class="col-lg-5">
-        <div class="assessment-panel h-100">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-moon-stars text-primary me-2"></i>Darstellung</h2>
-                {% if show_assessment_appearance %}
-                <form id="appearanceForm">
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="dark_mode" name="dark_mode">
-                        <label class="form-check-label" for="dark_mode">Dark Mode</label>
-                    </div>
-                    <div class="form-check form-switch ms-4 mb-3">
-                        <input class="form-check-input" type="checkbox" id="oled_mode" name="oled_mode">
-                        <label class="form-check-label" for="oled_mode">OLED-Modus</label>
-                    </div>
-                    <button type="submit" class="btn btn-outline-primary">Darstellung speichern</button>
-                </form>
-                <p id="appearanceStatus" class="text-muted small mt-2 mb-0"></p>
-                {% else %}
-                <p class="text-muted mb-3">Dark Mode und Akzentfarbe werden über Ihr Portal-Profil gesteuert.</p>
-                <a href="{{ url_for('settings.appearance') }}" class="btn btn-outline-primary">
-                    Zur Portal-Darstellung <i class="bi bi-arrow-right"></i>
-                </a>
-                {% endif %}
-            </div>
+        {% else %}
+        <div class="col-12">
+            <p class="text-muted mb-2">{{ _('assessment.appearance.portal_hint') }}</p>
+            <a href="{{ url_for('settings.appearance') }}" class="btn btn-outline-secondary btn-sm">
+                {{ _('assessment.appearance.portal_link') }} <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
-    </div>
+        {% endif %}
+
+        <div class="col-12">
+            <button type="submit" class="btn btn-accent"><i class="bi bi-save me-1"></i>{{ _('assessment.common.save') }}</button>
+        </div>
+    </form>
+    <p id="settingsStatus" class="text-muted small mt-2 mb-0"></p>
 </div>
 {% endblock %}
 
 {% block assessment_extra_js %}
 <script>
-async function loadSettings() {
-    const res = await fetch('/assessment/api/admin_settings');
-    const data = await res.json();
-    const s = data.settings || {};
-    for (const key of ['welcome_title', 'welcome_subtitle', 'ranking_sort_mode']) {
-        const el = document.querySelector(`#settingsForm [name="${key}"]`);
-        if (el) el.value = s[key] ?? '';
-    }
-    const darkEl = document.getElementById('dark_mode');
-    const oledEl = document.getElementById('oled_mode');
-    if (darkEl) {
-        darkEl.checked = !!s.dark_mode;
-        if (oledEl) {
-            oledEl.checked = !!s.oled_mode;
-            oledEl.disabled = !darkEl.checked;
+(async function () {
+    const darkModeEl = document.getElementById('dark_mode');
+    const oledModeEl = document.getElementById('oled_mode');
+
+    async function loadSettings() {
+        const res = await fetch('/assessment/api/admin_settings');
+        const data = await res.json();
+        const s = data.settings || {};
+        for (const key of ['welcome_title', 'welcome_subtitle', 'ranking_sort_mode']) {
+            const el = document.querySelector(`#settingsForm [name="${key}"]`);
+            if (el) el.value = s[key] ?? '';
         }
+        if (darkModeEl) {
+            darkModeEl.checked = !!s.dark_mode;
+            if (oledModeEl) {
+                oledModeEl.checked = !!s.oled_mode;
+                oledModeEl.disabled = !darkModeEl.checked;
+            }
+        }
+        if (window.AssessmentUI) window.AssessmentUI.enhancePills(document.getElementById('settingsForm'));
     }
-}
-loadSettings();
 
-document.getElementById('settingsForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = Object.fromEntries(new FormData(e.target).entries());
-    const res = await fetch('/assessment/api/admin_settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    const data = await res.json();
-    document.getElementById('settingsStatus').textContent = data.message || '';
-});
-
-const darkModeEl = document.getElementById('dark_mode');
-const oledModeEl = document.getElementById('oled_mode');
-darkModeEl?.addEventListener('change', () => {
-    if (!darkModeEl.checked) {
-        oledModeEl.checked = false;
-        oledModeEl.disabled = true;
-    } else {
-        oledModeEl.disabled = false;
-    }
-});
-
-document.getElementById('appearanceForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const res = await fetch('/assessment/api/admin_settings/appearance', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            dark_mode: darkModeEl.checked,
-            oled_mode: oledModeEl.checked,
-        }),
+    darkModeEl?.addEventListener('change', () => {
+        if (!darkModeEl.checked) {
+            oledModeEl.checked = false;
+            oledModeEl.disabled = true;
+        } else {
+            oledModeEl.disabled = false;
+        }
     });
-    const data = await res.json();
-    document.getElementById('appearanceStatus').textContent = data.message || '';
-    if (data.success) setTimeout(() => location.reload(), 600);
-});
+
+    document.getElementById('settingsForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = Object.fromEntries(new FormData(e.target).entries());
+        const res = await fetch('/assessment/api/admin_settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        let msg = data.message || '';
+
+        if (darkModeEl) {
+            const appRes = await fetch('/assessment/api/admin_settings/appearance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dark_mode: darkModeEl.checked,
+                    oled_mode: !!(oledModeEl && oledModeEl.checked),
+                }),
+            });
+            const appData = await appRes.json();
+            if (appData.message) msg = appData.message;
+            if (appData.success) {
+                document.getElementById('settingsStatus').textContent = msg;
+                setTimeout(() => location.reload(), 600);
+                return;
+            }
+        }
+        document.getElementById('settingsStatus').textContent = msg;
+    });
+
+    await loadSettings();
+})();
 </script>
 {% endblock %}

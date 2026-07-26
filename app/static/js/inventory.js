@@ -4113,12 +4113,14 @@ class BorrowScannerManager {
             emailInput.focus();
             return;
         }
-        if (eventNameInput && !eventNameInput.value.trim()) {
+        // Quick Scan: Projekt + Rückgabe-bis sind optional (kein required-Attribut).
+        // Standard-Checkout: Felder mit required bleiben Pflicht.
+        if (eventNameInput && eventNameInput.required && !eventNameInput.value.trim()) {
             if (window.showAppBanner) window.showAppBanner('Bitte Projekt / Veranstaltung angeben.', 'warning');
             else this.showError?.('Bitte Projekt / Veranstaltung angeben.');
             return;
         }
-        if (endInput && !endInput.value) {
+        if (endInput && endInput.required && !endInput.value) {
             if (window.showAppBanner) window.showAppBanner('Bitte Rückgabe-Zeitraum (Bis) angeben.', 'warning');
             else this.showError?.('Bitte Rückgabe-Zeitraum (Bis) angeben.');
             return;

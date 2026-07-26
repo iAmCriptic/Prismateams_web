@@ -111,6 +111,7 @@
         {% elif 'media_downloader' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/media_downloader.css') }}?v=4">
         {% elif 'assessment' in request.endpoint %}
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
             <link rel="stylesheet" href="{{ url_for('static', filename='css/assessment.css') }}">
         {% elif 'dashboard' in request.endpoint %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">

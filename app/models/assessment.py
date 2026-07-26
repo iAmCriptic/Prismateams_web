@@ -38,6 +38,12 @@ class AssessmentUser(UserMixin, db.Model):
         back_populates="users",
         lazy="joined",
     )
+    evaluation_lists = db.relationship(
+        "AssessmentList",
+        secondary="ass_user_lists",
+        back_populates="assigned_users",
+        lazy="joined",
+    )
 
     def set_password(self, password):
         self.password_hash = password_hasher.hash(password)
@@ -98,6 +104,10 @@ class AssessmentUser(UserMixin, db.Model):
     def get_id(self):
         return f"ass:{self.id}"
 
+    def get_dashboard_config(self):
+        """Assessment-User haben kein Portal-Dashboard — leere Default-Config."""
+        return {"widgets": [], "mobile_nav_slots": {}}
+
     def __repr__(self):
         return f"<AssessmentUser {self.username}>"
 
@@ -123,6 +133,14 @@ class AssessmentUserRole(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey("ass_users.id", ondelete="CASCADE"), primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey("ass_roles.id", ondelete="CASCADE"), primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AssessmentUserList(db.Model):
+    __tablename__ = "ass_user_lists"
+
+    user_id = db.Column(db.Integer, db.ForeignKey("ass_users.id", ondelete="CASCADE"), primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey("ass_lists.id", ondelete="CASCADE"), primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -158,6 +176,11 @@ class AssessmentList(db.Model):
 
     criteria = db.relationship("AssessmentCriterion", back_populates="evaluation_list", cascade="all, delete-orphan")
     subjects = db.relationship("AssessmentListSubject", back_populates="evaluation_list", cascade="all, delete-orphan")
+    assigned_users = db.relationship(
+        "AssessmentUser",
+        secondary="ass_user_lists",
+        back_populates="evaluation_lists",
+    )
 
     def get_stand_type_id_list(self):
         if not self.stand_type_ids:

@@ -1,40 +1,50 @@
 {% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
-{% block title %}Rauminspektionen{% endblock %}
+{% block title %}{{ _('assessment.inspections.page_title') }}{% endblock %}
 {% block assessment_heading_icon %}bi-bucket{% endblock %}
-{% block assessment_heading %}Rauminspektionen{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.inspections') }}{% endblock %}
 {% block assessment_content %}
-{{ assessment_page_header('Rauminspektionen', icon='clipboard2-pulse') }}
+{{ assessment_page_header(_('assessment.nav.inspections'), icon='clipboard2-pulse') }}
     <div id="rooms" class="row g-3"></div>
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-async function saveInspection(roomId, card) {
-    const isClean = card.querySelector('.is-clean').checked;
-    const comment = card.querySelector('.comment').value;
-    await fetch('/assessment/api/room_inspections', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({room_id: roomId, is_clean: isClean, comment})
-    });
-}
-async function loadRooms() {
-    const res = await fetch('/assessment/api/room_inspections');
-    const data = await res.json();
-    document.getElementById('rooms').innerHTML = (data.rooms || []).map(r => `
-        <div class="col-md-6">
-            <div class="assessment-panel">
-                <div class="card-body">
-                    <h2 class="h6">${r.name}</h2>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input is-clean" type="checkbox" ${r.inspection && r.inspection.is_clean ? 'checked' : ''}>
-                        <label class="form-check-label">Sauber</label>
+(function () {
+    const escapeHtml = window.AssessmentUI ? window.AssessmentUI.escapeHtml : (s) => String(s ?? '');
+    async function saveInspection(roomId, panel) {
+        const isClean = panel.querySelector('.is-clean').checked;
+        const comment = panel.querySelector('.comment').value;
+        await fetch('/assessment/api/room_inspections', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({room_id: roomId, is_clean: isClean, comment})
+        });
+    }
+    async function loadRooms() {
+        const res = await fetch('/assessment/api/room_inspections');
+        const data = await res.json();
+        document.getElementById('rooms').innerHTML = (data.rooms || []).map(r => `
+            <div class="col-12 col-md-6">
+                <div class="assessment-panel assessment-inspection-card h-100">
+                    <h2 class="assessment-panel-title">${escapeHtml(r.name)}</h2>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input is-clean" type="checkbox" id="clean_${r.id}" ${r.inspection && r.inspection.is_clean ? 'checked' : ''}>
+                        <label class="form-check-label" for="clean_${r.id}">{{ _('assessment.inspections.clean') }}</label>
                     </div>
-                    <textarea class="form-control comment" rows="2" placeholder="Kommentar">${r.inspection && r.inspection.comment ? r.inspection.comment : ''}</textarea>
-                    <button class="btn btn-sm btn-accent mt-2" onclick="saveInspection(${r.id}, this.closest('.card'))">Speichern</button>
+                    <textarea class="form-control assessment-pill-input comment" rows="2" placeholder="{{ _('assessment.warnings.comment') }}">${r.inspection && r.inspection.comment ? escapeHtml(r.inspection.comment) : ''}</textarea>
+                    <button type="button" class="btn btn-accent mt-3 w-100" data-room="${r.id}">{{ _('assessment.common.save') }}</button>
                 </div>
             </div>
-        </div>
-    `).join('');
-}
-loadRooms();
+        `).join('') || `<div class="col-12"><div class="mod-dash-empty">{{ _('assessment.inspections.empty') }}</div></div>`;
+
+        document.getElementById('rooms').querySelectorAll('button[data-room]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const panel = btn.closest('.assessment-panel');
+                saveInspection(Number(btn.dataset.room), panel);
+            });
+        });
+    }
+    loadRooms();
+})();
 </script>
 {% endblock %}

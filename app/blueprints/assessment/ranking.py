@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, redirect, render_template, request, send_file, url_for
 from sqlalchemy import func
 
 from app import db
@@ -12,8 +12,9 @@ from app.models.assessment import (
     AssessmentStandType,
 )
 from app.utils.assessment_auth import assessment_role_required
+from app.utils.assessment_pdf import generate_ranking_pdf
 
-from .helpers import get_setting, list_to_dict, resolve_evaluation_list_from_request, stands_for_list
+from .helpers import get_setting, list_to_dict, lists_for_actor, resolve_evaluation_list_from_request, stands_for_list
 
 ranking_bp = Blueprint("ranking", __name__)
 
@@ -137,9 +138,7 @@ def _resolve_sort(args, evaluation_list):
 @ranking_bp.route("/view_ranking")
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def view_ranking():
-    lists = AssessmentList.query.filter_by(is_active=True).order_by(
-        AssessmentList.sort_order.asc(), AssessmentList.name.asc()
-    ).all()
+    lists = lists_for_actor(require_active=True)
     return render_template(
         "assessment/view_ranking.html",
         sort_labels=SORT_LABELS,
@@ -169,14 +168,26 @@ def api_ranking():
 @ranking_bp.route("/print_ranking")
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
 def print_ranking():
+    return redirect(url_for("assessment.ranking.pdf_ranking", **request.args))
+
+
+@ranking_bp.route("/pdf/ranking")
+@assessment_role_required(["Administrator", "Bewerter", "Betrachter"])
+def pdf_ranking():
     evaluation_list = resolve_evaluation_list_from_request(require_active=True)
     if not evaluation_list:
-        evaluation_list = AssessmentList.query.first()
+        evaluation_list = (lists_for_actor(require_active=True) or [None])[0]
     sort_mode = _resolve_sort(request.args, evaluation_list) if evaluation_list else "total"
     rows = _sort_rows(_collect_rows(evaluation_list), sort_mode) if evaluation_list else []
-    return render_template(
-        "assessment/print_ranking.html",
-        ranking=rows,
-        sort_label=SORT_LABELS.get(sort_mode, sort_mode),
-        evaluation_list=evaluation_list,
+    pdf = generate_ranking_pdf(
+        evaluation_list,
+        rows,
+        SORT_LABELS.get(sort_mode, sort_mode),
+    )
+    slug = evaluation_list.slug if evaluation_list else "rangliste"
+    return send_file(
+        pdf,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"rangliste-{slug}-{sort_mode}.pdf",
     )

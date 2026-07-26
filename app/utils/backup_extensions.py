@@ -16,7 +16,7 @@ from app.models import (
     Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem,
     MusicSettings, MusicWish, MusicQueue,
     MediaDownloadJob,
-    AssessmentUser, AssessmentRole, AssessmentUserRole, AssessmentStandType,
+    AssessmentUser, AssessmentRole, AssessmentUserRole, AssessmentUserList, AssessmentStandType,
     AssessmentList, AssessmentListSubject, AssessmentRoom, AssessmentStand,
     AssessmentCriterion, AssessmentEvaluation, AssessmentEvaluationScore,
     AssessmentVisitorEvaluation, AssessmentVisitorEvaluationScore,
@@ -868,6 +868,13 @@ def export_assessment_bundle() -> Dict[str, List]:
         'list_export_id': getattr(s, 'list_id', None),
         'room_name': AssessmentRoom.query.get(s.room_id).name if getattr(s, 'room_id', None) and AssessmentRoom.query.get(s.room_id) else None,
     } for s in AssessmentStand.query.all()]
+    data['assessment_users'] = [{
+        'username': u.username,
+        'display_name': u.display_name,
+        'is_admin': u.is_admin,
+        'role_names': u.role_names,
+        'list_names': [lst.name for lst in (u.evaluation_lists or [])],
+    } for u in AssessmentUser.query.all()]
     return data
 
 

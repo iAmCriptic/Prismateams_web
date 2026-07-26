@@ -110,6 +110,41 @@ def run_assessment_migrations():
                 # wenn Spalte schon NULL angelegt wurde. Kein Table-Rebuild nötig für den Normalfall.
                 pass
 
+    # User ↔ Listen-Zuordnung
+    inspector = inspect(db.engine)
+    tables = set(inspector.get_table_names())
+    if "ass_user_lists" not in tables and "ass_users" in tables and "ass_lists" in tables:
+        with db.engine.begin() as connection:
+            if dialect == "sqlite":
+                connection.execute(text(
+                    """
+                    CREATE TABLE ass_user_lists (
+                        user_id INTEGER NOT NULL,
+                        list_id INTEGER NOT NULL,
+                        created_at DATETIME,
+                        PRIMARY KEY (user_id, list_id),
+                        FOREIGN KEY(user_id) REFERENCES ass_users (id) ON DELETE CASCADE,
+                        FOREIGN KEY(list_id) REFERENCES ass_lists (id) ON DELETE CASCADE
+                    )
+                    """
+                ))
+            else:
+                connection.execute(text(
+                    """
+                    CREATE TABLE ass_user_lists (
+                        user_id INT NOT NULL,
+                        list_id INT NOT NULL,
+                        created_at DATETIME NULL,
+                        PRIMARY KEY (user_id, list_id),
+                        CONSTRAINT fk_ass_user_lists_user
+                            FOREIGN KEY (user_id) REFERENCES ass_users (id) ON DELETE CASCADE,
+                        CONSTRAINT fk_ass_user_lists_list
+                            FOREIGN KEY (list_id) REFERENCES ass_lists (id) ON DELETE CASCADE
+                    )
+                    """
+                ))
+            print("[OK] Tabelle ass_user_lists angelegt")
+
     _migrate_default_data()
 
 

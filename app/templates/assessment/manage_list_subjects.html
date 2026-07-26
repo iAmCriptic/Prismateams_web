@@ -10,159 +10,108 @@
 
 {{ assessment_page_header('Bewertungsziele: ' ~ evaluation_list.name, subtitle='Eigene Ziele für diese Bewertungsliste', icon='stars') }}
 
-
-
     <div class="assessment-panel mb-4">
-
-        <div class="card-body">
-
-            <h2 class="h5 mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Bewertungsziel</h2>
-
+            <h2 class="assessment-panel-title mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Neues Bewertungsziel</h2>
             <form id="subjectForm" class="row g-3">
-
                 <input type="hidden" id="subjectId">
-
-                <div class="col-md-5"><label class="form-label">Name</label><input class="form-control" id="subjectName" required></div>
-
-                <div class="col-md-5"><label class="form-label">Beschreibung</label><input class="form-control" id="subjectDesc"></div>
-
+                <div class="col-md-5"><label class="form-label">Name</label><input class="form-control assessment-pill-input" id="subjectName" required></div>
+                <div class="col-md-5"><label class="form-label">Beschreibung</label><input class="form-control assessment-pill-input" id="subjectDesc"></div>
                 <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-accent w-100">Speichern</button></div>
-
             </form>
-
-        </div>
-
     </div>
-
-
 
     {{ assessment_excel_upload(
-
         'Bewertungsziele per Excel hochladen',
-
         'excelForm',
-
         'subjects',
-
         'Pflicht-Spalten: <code>Name</code>, <code>Beschreibung</code>',
-
         'Import für diese Bewertungsliste (' ~ evaluation_list.name ~ ').'
-
     ) }}
 
-
-
-    <div class="assessment-panel">
-
-        <div class="card-body">
-
-            <h2 class="h5 mb-3"><i class="bi bi-list-check me-2 text-primary"></i>Vorhandene Ziele</h2>
-
-            <div class="table-responsive">
-
-                <table class="table assessment-table align-middle mb-0">
-
-                    <thead><tr><th>Name</th><th>Beschreibung</th><th class="text-end">Aktion</th></tr></thead>
-
-                    <tbody id="rows"></tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
+    <h2 class="assessment-panel-title mb-2"><i class="bi bi-list-check me-2 text-primary"></i>Vorhandene Ziele</h2>
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col" class="d-none d-md-table-cell">Beschreibung</th>
+                    <th scope="col" class="text-end assessment-col-actions">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+        </table>
     </div>
-
-<script>
-
-const LIST_ID = {{ evaluation_list.id }};
-
-function escapeHtml(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-async function load() {
-
-    const res = await fetch(`/assessment/api/lists/${LIST_ID}/subjects`);
-
-    const data = await res.json();
-
-    document.getElementById('rows').innerHTML = (data.subjects||[]).map(s=>`
-
-        <tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.description||'')}</td>
-
-        <td class="text-end">
-
-            <button class="btn btn-sm btn-outline-primary" onclick='editSub(${JSON.stringify(s)})'><i class="bi bi-pencil"></i></button>
-
-            <button class="btn btn-sm btn-outline-danger" onclick="delSub(${s.id})"><i class="bi bi-trash"></i></button>
-
-        </td></tr>`).join('');
-
-}
-
-function editSub(s) {
-
-    document.getElementById('subjectId').value=s.id;
-
-    document.getElementById('subjectName').value=s.name;
-
-    document.getElementById('subjectDesc').value=s.description||'';
-
-}
-
-document.getElementById('subjectForm').addEventListener('submit', async e => {
-
-    e.preventDefault();
-
-    const id=document.getElementById('subjectId').value;
-
-    const payload={name:document.getElementById('subjectName').value, description:document.getElementById('subjectDesc').value};
-
-    const url=id?`/assessment/api/lists/${LIST_ID}/subjects/${id}`:`/assessment/api/lists/${LIST_ID}/subjects`;
-
-    await fetch(url,{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-
-    document.getElementById('subjectForm').reset();
-
-    document.getElementById('subjectId').value='';
-
-    load();
-
-});
-
-async function delSub(id) {
-
-    if(!confirm('Löschen?')) return;
-
-    await fetch(`/assessment/api/lists/${LIST_ID}/subjects/${id}`,{method:'DELETE'});
-
-    load();
-
-}
-
-document.getElementById('excelForm').addEventListener('submit', async e => {
-
-    e.preventDefault();
-
-    const fd = new FormData(e.target);
-
-    const res = await fetch(`/assessment/api/import/subjects?list_id=${LIST_ID}`, {method:'POST', body: fd});
-
-    const data = await res.json();
-
-    alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
-
-    if (!data.success) return;
-
-    e.target.reset();
-
-    load();
-
-});
-
-load();
-
-</script>
-
 {% endblock %}
+{% block assessment_extra_js %}
+<script>
+(function () {
+    const LIST_ID = {{ evaluation_list.id }};
+    let subjectsById = {};
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
 
+    async function load() {
+        const res = await fetch(`/assessment/api/lists/${LIST_ID}/subjects`);
+        const data = await res.json();
+        const subjects = data.subjects || [];
+        subjectsById = Object.fromEntries(subjects.map(s => [String(s.id), s]));
+        document.getElementById('rows').innerHTML = subjects.map(s => `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-bullseye', s.name)}</td>
+                <td class="d-none d-md-table-cell text-muted">${escapeHtml(s.description || '')}</td>
+                <td class="text-end assessment-col-actions">${buildRowActions([
+                    { icon: 'bi-pencil', label: 'Bearbeiten', title: 'Bearbeiten', attrs: `data-edit-id="${s.id}"`, hover: true },
+                    { icon: 'bi-trash', label: 'Löschen', attrs: `data-delete="${s.id}"`, danger: true },
+                ])}</td>
+            </tr>`).join('') || `<tr><td colspan="3" class="text-center text-muted py-4">—</td></tr>`;
+    }
+
+    function editSub(s) {
+        document.getElementById('subjectId').value = s.id;
+        document.getElementById('subjectName').value = s.name;
+        document.getElementById('subjectDesc').value = s.description || '';
+    }
+
+    document.getElementById('rows').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('[data-edit-id]');
+        if (editBtn) {
+            const s = subjectsById[editBtn.getAttribute('data-edit-id')];
+            if (s) editSub(s);
+            return;
+        }
+        const delBtn = e.target.closest('[data-delete]');
+        if (delBtn) {
+            const ok = window.ptConfirm ? await window.ptConfirm('Löschen?', { danger: true }) : confirm('Löschen?');
+            if (!ok) return;
+            await fetch(`/assessment/api/lists/${LIST_ID}/subjects/${delBtn.dataset.delete}`, { method: 'DELETE' });
+            load();
+        }
+    });
+
+    document.getElementById('subjectForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const id = document.getElementById('subjectId').value;
+        const payload = { name: document.getElementById('subjectName').value, description: document.getElementById('subjectDesc').value };
+        const url = id ? `/assessment/api/lists/${LIST_ID}/subjects/${id}` : `/assessment/api/lists/${LIST_ID}/subjects`;
+        await fetch(url, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        document.getElementById('subjectForm').reset();
+        document.getElementById('subjectId').value = '';
+        load();
+    });
+
+    document.getElementById('excelForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const res = await fetch(`/assessment/api/import/subjects?list_id=${LIST_ID}`, { method: 'POST', body: fd });
+        const data = await res.json();
+        alert(data.message || (data.success ? 'Fertig' : 'Import fehlgeschlagen.'));
+        if (!data.success) return;
+        e.target.reset();
+        load();
+    });
+
+    load();
+})();
+</script>
+{% endblock %}

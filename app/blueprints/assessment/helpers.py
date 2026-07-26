@@ -7,6 +7,7 @@ from app.models.assessment import (
     AssessmentList,
     AssessmentListSubject,
     AssessmentStand,
+    AssessmentUser,
 )
 from app.utils.assessment_auth import get_assessment_identity
 
@@ -36,6 +37,45 @@ def utcnow():
     return datetime.utcnow()
 
 
+def actor_is_admin(actor=None):
+    actor = actor or current_actor()
+    return "Administrator" in (actor.get("roles") or [])
+
+
+def lists_for_actor(actor=None, require_active=True):
+    """Aktive Listen, die der Actor bewerten/sehen darf.
+
+    - Administrator / Portal-Vollzugriff: immer alle Listen
+    - Assessment-User ohne Zuordnung: alle Listen
+    - Assessment-User mit Zuordnung: nur zugeordnete Listen
+    """
+    actor = actor or current_actor()
+    query = AssessmentList.query
+    if require_active:
+        query = query.filter_by(is_active=True)
+    query = query.order_by(AssessmentList.sort_order.asc(), AssessmentList.name.asc())
+
+    if actor_is_admin(actor):
+        return query.all()
+
+    if actor.get("user_type") == "ass" and actor.get("user_id"):
+        user = AssessmentUser.query.get(actor["user_id"])
+        if user is not None:
+            assigned = list(user.evaluation_lists or [])
+            if assigned:
+                allowed_ids = {lst.id for lst in assigned}
+                return [lst for lst in query.all() if lst.id in allowed_ids]
+
+    return query.all()
+
+
+def actor_can_access_list(evaluation_list, actor=None):
+    if not evaluation_list:
+        return False
+    allowed = {lst.id for lst in lists_for_actor(actor, require_active=False)}
+    return evaluation_list.id in allowed
+
+
 def get_evaluation_list(list_id=None, slug=None, require_active=True):
     if list_id:
         evaluation_list = AssessmentList.query.get(list_id)
@@ -50,14 +90,21 @@ def get_evaluation_list(list_id=None, slug=None, require_active=True):
     return evaluation_list
 
 
-def resolve_evaluation_list_from_request(require_active=True):
+def resolve_evaluation_list_from_request(require_active=True, actor=None):
+    actor = actor or current_actor()
+    allowed = lists_for_actor(actor, require_active=require_active)
+    allowed_ids = {lst.id for lst in allowed}
+
     list_id = request.args.get("list_id", type=int) or (request.get_json(silent=True) or {}).get("list_id")
     slug = request.args.get("list_slug") or (request.get_json(silent=True) or {}).get("list_slug")
     evaluation_list = get_evaluation_list(list_id=list_id, slug=slug, require_active=require_active)
+
+    if evaluation_list and evaluation_list.id not in allowed_ids:
+        return None
+
     if not evaluation_list and list_id is None and not slug:
-        evaluation_list = AssessmentList.query.filter_by(is_active=True).order_by(
-            AssessmentList.sort_order.asc(), AssessmentList.id.asc()
-        ).first()
+        evaluation_list = allowed[0] if allowed else None
+
     return evaluation_list
 
 

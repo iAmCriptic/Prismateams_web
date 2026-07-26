@@ -14,7 +14,7 @@ from app.models.assessment import (
 )
 from app.utils.assessment_auth import assessment_role_required, has_section_access
 
-from .helpers import current_actor, get_setting, list_to_dict
+from .helpers import current_actor, get_setting, list_to_dict, lists_for_actor
 from .ranking import SORT_LABELS, _collect_rows, _sort_rows
 
 general_bp = Blueprint("general", __name__)
@@ -22,11 +22,7 @@ general_bp = Blueprint("general", __name__)
 
 def _dashboard_stats(actor):
     roles = actor.get("roles") or []
-    active_lists = (
-        AssessmentList.query.filter_by(is_active=True)
-        .order_by(AssessmentList.sort_order.asc(), AssessmentList.name.asc())
-        .all()
-    )
+    active_lists = lists_for_actor(actor, require_active=True)
     primary_list = active_lists[0] if active_lists else None
 
     stand_count = AssessmentStand.query.count()
@@ -102,7 +98,7 @@ def api_session_data():
 @general_bp.route("/manage_list", methods=["GET"])
 @assessment_role_required(["Administrator"])
 def manage_list_page():
-    lists = AssessmentList.query.order_by(AssessmentList.sort_order.asc(), AssessmentList.name.asc()).all()
+    lists = lists_for_actor(require_active=False)
     return render_template("assessment/manage_list.html", evaluation_lists=lists)
 
 
@@ -157,9 +153,7 @@ def api_reset_data():
 @general_bp.route("/api/lists/active", methods=["GET"])
 @assessment_role_required(["Administrator", "Bewerter", "Betrachter", "Inspektor", "Verwarner"])
 def api_active_lists():
-    lists = AssessmentList.query.filter_by(is_active=True).order_by(
-        AssessmentList.sort_order.asc(), AssessmentList.name.asc()
-    ).all()
+    lists = lists_for_actor(require_active=True)
     return jsonify({"success": True, "lists": [list_to_dict(item) for item in lists]})
 
 

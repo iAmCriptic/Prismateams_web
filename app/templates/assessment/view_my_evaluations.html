@@ -1,56 +1,79 @@
 {% extends "assessment/layout.html" %}
 {% from "assessment/_macros.html" import assessment_page_header %}
-{% block title %}Meine Bewertungen{% endblock %}
+{% block title %}{{ _('assessment.my_evaluations.page_title') }}{% endblock %}
 {% block assessment_heading_icon %}bi-ui-checks{% endblock %}
-{% block assessment_heading %}Meine Bewertungen{% endblock %}
+{% block assessment_heading %}{{ _('assessment.nav.my_evaluations') }}{% endblock %}
 {% block assessment_content %}
-{{ assessment_page_header('Meine Bewertungen', icon='journal-text') }}
+{{ assessment_page_header(_('assessment.nav.my_evaluations'), icon='journal-text') }}
     <div class="assessment-panel mb-3" id="listPickerWrap" hidden>
-        <label class="form-label">Bewertungsliste (optional)</label>
-        <select class="form-select" id="listFilter">
-            <option value="">Alle Listen</option>
+        <label class="form-label" for="listFilter">{{ _('assessment.common.list_filter') }}</label>
+        <select class="form-select" id="listFilter" data-inv-pill-select>
+            <option value="">{{ _('assessment.common.all_lists') }}</option>
         </select>
     </div>
-    <div class="assessment-panel">
-    <div class="table-responsive">
-        <table class="table assessment-table align-middle mb-0">
-            <thead><tr><th>Liste</th><th>Ziel</th><th>Punkte</th><th>Zeit</th><th>Druck</th></tr></thead>
+
+    <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">{{ _('assessment.my_evaluations.col_target') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('assessment.my_evaluations.col_list') }}</th>
+                    <th scope="col" class="text-end">{{ _('assessment.my_evaluations.col_points') }}</th>
+                    <th scope="col" class="d-none d-lg-table-cell">{{ _('assessment.my_evaluations.col_time') }}</th>
+                    <th scope="col" class="text-end assessment-col-actions">{{ _('assessment.common.actions') }}</th>
+                </tr>
+            </thead>
             <tbody id="rows"></tbody>
         </table>
     </div>
-    </div>
+{% endblock %}
+{% block assessment_extra_js %}
 <script>
-async function loadLists() {
-    const res = await fetch('/assessment/api/lists/active');
-    const data = await res.json();
-    const lists = data.lists || [];
-    const sel = document.getElementById('listFilter');
-    const wrap = document.getElementById('listPickerWrap');
-    lists.forEach(l => {
-        const opt = document.createElement('option');
-        opt.value = l.id;
-        opt.textContent = l.name;
-        sel.appendChild(opt);
-    });
-    // Nur bei mehreren Listen Filter zeigen
-    wrap.hidden = lists.length <= 1;
-}
-async function load() {
-    const listId = document.getElementById('listFilter').value;
-    const url = listId ? `/assessment/api/my_evaluations?list_id=${listId}` : '/assessment/api/my_evaluations';
-    const res = await fetch(url);
-    const data = await res.json();
-    document.getElementById('rows').innerHTML = (data.evaluations || []).map(e => `
-        <tr>
-            <td>${e.list_name || '—'}</td>
-            <td>${e.target_name || '—'}</td>
-            <td>${e.total_score}</td>
-            <td>${e.timestamp ? new Date(e.timestamp).toLocaleString() : '-'}</td>
-            <td><a target="_blank" href="/assessment/print_evaluation/${e.id}" class="btn btn-sm btn-outline-primary">Druck</a></td>
-        </tr>
-    `).join('') || '<tr><td colspan="5" class="text-muted text-center">Keine Bewertungen</td></tr>';
-}
-document.getElementById('listFilter').addEventListener('change', load);
-loadLists().then(load);
+(async function () {
+    const escapeHtml = (s) => window.AssessmentUI.escapeHtml(s);
+    const buildRowActions = (items) => window.AssessmentUI.buildRowActions(items);
+    const buildNameCell = (icon, text, opts) => window.AssessmentUI.buildNameCell(icon, text, opts);
+    const printLabel = '{{ _("assessment.nav.print") }}';
+
+    async function loadLists() {
+        const res = await fetch('/assessment/api/lists/active');
+        const data = await res.json();
+        const lists = data.lists || [];
+        const sel = document.getElementById('listFilter');
+        const wrap = document.getElementById('listPickerWrap');
+        lists.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.id;
+            opt.textContent = l.name;
+            sel.appendChild(opt);
+        });
+        wrap.hidden = lists.length <= 1;
+        window.AssessmentUI.enhancePills(wrap);
+    }
+    async function load() {
+        const listId = document.getElementById('listFilter').value;
+        window.AssessmentUI.syncPrintLinks({ list_id: listId });
+        const url = listId ? `/assessment/api/my_evaluations?list_id=${listId}` : '/assessment/api/my_evaluations';
+        const res = await fetch(url);
+        const data = await res.json();
+        document.getElementById('rows').innerHTML = (data.evaluations || []).map(e => {
+            const pdfHref = `/assessment/pdf/evaluation/${e.id}`;
+            const actions = buildRowActions([
+                { icon: 'bi-printer', label: printLabel, title: printLabel, href: pdfHref, target: '_blank', rel: 'noopener', hover: true },
+            ]);
+            return `
+            <tr class="mod-list-row">
+                <td>${buildNameCell('bi-clipboard2-check', e.target_name || '—')}</td>
+                <td class="d-none d-md-table-cell text-muted">${escapeHtml(e.list_name || '—')}</td>
+                <td class="text-end"><strong>${e.total_score}</strong></td>
+                <td class="d-none d-lg-table-cell text-muted">${e.timestamp ? new Date(e.timestamp).toLocaleString() : '—'}</td>
+                <td class="text-end assessment-col-actions">${actions}</td>
+            </tr>`;
+        }).join('') || `<tr><td colspan="5" class="text-muted text-center py-4">{{ _('assessment.my_evaluations.empty') }}</td></tr>`;
+    }
+    document.getElementById('listFilter').addEventListener('change', load);
+    await loadLists();
+    await load();
+})();
 </script>
 {% endblock %}
