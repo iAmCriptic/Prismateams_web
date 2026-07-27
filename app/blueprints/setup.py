@@ -52,12 +52,34 @@ def mark_setup_completed():
     db.session.commit()
 
 
+def mark_setup_incomplete():
+    """Markiert Setup als laufend (Flag vorhanden, aber nicht abgeschlossen)."""
+    from app.utils.bot_protection import upsert_setting
+    upsert_setting(SETUP_COMPLETED_KEY, 'false', 'Portal-Setup abgeschlossen')
+
+
+def ensure_setup_flag_started(commit=True):
+    """Setzt setup_completed=false sobald der Wizard läuft.
+
+    Muss VOR dem ersten Admin-User greifen. Sonst sieht bei Multi-Worker
+    (Gunicorn) ein anderer Worker kurz „User vorhanden, kein Flag“ und
+    markiert Setup fälschlich als abgeschlossen → Redirect zum Login.
+    """
+    setting = SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+    if setting is not None:
+        return setting
+    mark_setup_incomplete()
+    if commit:
+        db.session.commit()
+    return SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+
+
 def is_setup_needed():
     """Prüft ob das Setup noch durchgeführt werden muss.
 
     Neue Logik: SystemSettings.setup_completed.
     Legacy: vorhandene User ohne Flag gelten als abgeschlossen (einmalig nachziehen).
-    Während des Wizards wird das Flag explizit auf false gesetzt (nach Admin-Anlage).
+    Während des Wizards muss das Flag bereits auf false stehen (vor Admin-Anlage).
     """
     try:
         setting = SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
@@ -66,6 +88,20 @@ def is_setup_needed():
 
         user_count = User.query.count()
         if user_count > 0:
+            # Race-Schutz: während Setup-Routen niemals als fertig markieren.
+            # Anderer Worker kann User schon sehen, Flag aber noch nicht.
+            try:
+                endpoint = getattr(request, 'endpoint', None) or ''
+            except RuntimeError:
+                endpoint = ''
+            if str(endpoint).startswith('setup.'):
+                return True
+
+            # Nochmal lesen – paralleler Worker kann Flag inzwischen gesetzt haben
+            setting = SystemSettings.query.filter_by(key=SETUP_COMPLETED_KEY).first()
+            if setting is not None:
+                return str(setting.value).lower() not in ('true', '1', 'yes')
+
             # Bestehende Installation ohne Flag → als erledigt behandeln
             try:
                 mark_setup_completed()
@@ -80,12 +116,6 @@ def is_setup_needed():
             return User.query.count() == 0
         except Exception:
             return True
-
-
-def mark_setup_incomplete():
-    """Markiert Setup als laufend (Flag vorhanden, aber nicht abgeschlossen)."""
-    from app.utils.bot_protection import upsert_setting
-    upsert_setting(SETUP_COMPLETED_KEY, 'false', 'Portal-Setup abgeschlossen')
 
 
 def _has_portal_org():
@@ -194,6 +224,9 @@ def setup():
     if blocked:
         return blocked
 
+    # Flag früh setzen, bevor Admin-User existiert (Multi-Worker-sicher)
+    ensure_setup_flag_started()
+
     # Expliziter Step-Parameter: freie Navigation bis Abschluss
     step = request.args.get('step', type=int)
     if step in (1, 2, 3, 4) and step in _setup_unlocked_steps():
@@ -216,6 +249,8 @@ def setup_import_backup():
     blocked = _require_setup()
     if blocked:
         return blocked
+
+    ensure_setup_flag_started()
 
     current_gradient = _current_gradient()
     backup_ctx = {
@@ -289,6 +324,8 @@ def setup_step1():
     blocked = _require_step_access(1)
     if blocked:
         return blocked
+
+    ensure_setup_flag_started()
 
     if request.method == 'POST':
         portal_name = request.form.get('portal_name', '').strip()
@@ -429,6 +466,8 @@ def setup_step2():
     if blocked:
         return blocked
 
+    ensure_setup_flag_started()
+
     existing_admin = User.query.filter_by(is_super_admin=True).order_by(User.id.asc()).first()
     if not existing_admin:
         existing_admin = User.query.filter_by(is_admin=True).order_by(User.id.asc()).first()
@@ -504,6 +543,10 @@ def setup_step2():
                 session['setup_admin_email'] = email
                 return redirect(url_for('setup.setup_step3'))
 
+            # Flag ZUERST (vor sichtbarem User) – sonst Multi-Worker-Race:
+            # anderer Worker sieht User ohne Flag → mark_setup_completed() → Login.
+            mark_setup_incomplete()
+
             admin_user = User(
                 email=email,
                 first_name=first_name,
@@ -518,9 +561,16 @@ def setup_step2():
             )
             admin_user.set_password(password)
             db.session.add(admin_user)
-            db.session.commit()
+            db.session.flush()
 
-            admin_user.ensure_email_permissions()
+            # Kein ensure_email_permissions(): das commitet früh und öffnet die Race erneut.
+            from app.models.email import EmailPermission
+            if not EmailPermission.query.filter_by(user_id=admin_user.id).first():
+                db.session.add(EmailPermission(
+                    user_id=admin_user.id,
+                    can_read=True,
+                    can_send=True,
+                ))
 
             main_chat = Chat.query.filter_by(is_main_chat=True).order_by(Chat.id.asc()).first()
             if not main_chat:
@@ -544,7 +594,7 @@ def setup_step2():
                     created_by=admin_user.id,
                 ))
 
-            mark_setup_incomplete()
+            # Ein Commit: setup_completed=false + Admin + Nebenobjekte
             db.session.commit()
             # Wie beim normalen Login: Flask-Login + Portal-Session (session_id).
             # Ohne create_session wirft ensure_portal_session_tracking den User
