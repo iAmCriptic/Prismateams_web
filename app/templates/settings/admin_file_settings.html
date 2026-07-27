@@ -59,6 +59,27 @@
                                 <p class="settings-admin-files-meta mb-0">{{ _('settings.admin.file_settings.private_folders_help') }}</p>
                             </div>
                         </div>
+
+                        <div class="settings-admin-files-row">
+                            <div class="settings-admin-files-row-main">
+                                <span class="settings-admin-files-name">{{ _('settings.admin.file_settings.document_format_label') }}</span>
+                                <p class="settings-admin-files-meta mb-2">{{ _('settings.admin.file_settings.document_format_help') }}</p>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="files_document_format" id="files_document_format_office" value="office" {% if files_document_format != 'opendocument' %}checked{% endif %}>
+                                        <label class="form-check-label" for="files_document_format_office">
+                                            {{ _('settings.admin.file_settings.document_format_office') }}
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="files_document_format" id="files_document_format_opendocument" value="opendocument" {% if files_document_format == 'opendocument' %}checked{% endif %}>
+                                        <label class="form-check-label" for="files_document_format_opendocument">
+                                            {{ _('settings.admin.file_settings.document_format_opendocument') }}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

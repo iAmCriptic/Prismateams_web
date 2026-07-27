@@ -1409,6 +1409,7 @@
         "credentials_warn": "Zugangsdaten werden im Klartext in der Backup-Datei gespeichert. Datei sicher aufbewahren.",
         "import_warn": "Import ergänzt oder aktualisiert Daten. IDs werden neu gemappt. Vorher aktuelles Backup anlegen.",
         "import_confirm": "Backup wirklich importieren? Bestehende Daten können überschrieben oder ergänzt werden.",
+        "import_confirm_title": "Import bestätigen",
         "export_submit": "Backup erstellen",
         "import_submit": "Backup importieren",
         "flash_no_export_categories": "Bitte wählen Sie mindestens eine Kategorie zum Exportieren aus.",
@@ -1682,7 +1683,7 @@
         },
         "file_settings": {
           "title": "Datei-Einstellungen",
-          "description": "Briefkästen, Freigaben, private Ordner und Speicherlimits"
+          "description": "Briefkästen, Freigaben, private Ordner, Dokumentformate und Speicherlimits"
         },
         "calendar_settings": {
           "title": "Kalender-Einstellungen",
@@ -1733,7 +1734,7 @@
         "page_title": "Datei-Einstellungen - Administration",
         "breadcrumb_file_settings": "Datei-Einstellungen",
         "heading": "Datei-Einstellungen",
-        "subtitle": "Briefkästen, Freigaben, private Ordner sowie Speicherlimits und Kontingente steuern.",
+        "subtitle": "Briefkästen, Freigaben, private Ordner, Dokumentformate sowie Speicherlimits und Kontingente steuern.",
         "section_title": "Datei-Funktionen",
         "dropbox_label": "Briefkästen aktivieren",
         "dropbox_help": "Ermöglicht das Erstellen von Briefkästen (Upload-only Ordner) für Buchungen und andere Zwecke.",
@@ -1741,6 +1742,10 @@
         "sharing_help": "Ermöglicht das Erstellen von geteilten Ordnern (Shared Folders) für Buchungen und andere Zwecke.",
         "private_folders_label": "Private Ordner aktivieren",
         "private_folders_help": "Aktiviert Meine Ablage, Freigaben, Public und Papierkorb (Drive-Ansicht). Bestehende Dateien bleiben unter Public.",
+        "document_format_label": "Standardformat für neue Dokumente",
+        "document_format_help": "Legt fest, welche Dateitypen beim Erstellen über „Neu“ angelegt werden. Bestehende Dateien bleiben unverändert.",
+        "document_format_office": "Office-Formate (DOCX, XLSX, PPTX)",
+        "document_format_opendocument": "OpenDocument-Formate (ODT, ODS, ODP)",
         "storage_section_title": "Speicher & Limits",
         "max_file_label": "Maximale Dateigröße",
         "max_file_help": "Gilt für alle Uploads. Ausnahme-Regeln können einzelne Nutzer überschreiben.",
@@ -2050,9 +2055,9 @@
         "upload_files": "Dateien hochladen",
         "upload_folder": "Ordner hochladen",
         "create_folder": "Ordner erstellen",
-        "create_word": "Word-Dokument erstellen (.docx)",
-        "create_excel": "Excel-Tabelle erstellen (.xlsx)",
-        "create_powerpoint": "PowerPoint-Präsentation erstellen (.pptx)",
+        "create_document": "Textdokument erstellen",
+        "create_spreadsheet": "Tabelle erstellen",
+        "create_presentation": "Präsentation erstellen",
         "create_markdown": "Markdown-Datei erstellen (.md)"
       },
       "sections": {
@@ -2062,9 +2067,9 @@
       "inline": {
         "folder_name_placeholder": "Ordnername",
         "file_name_placeholder": "Dateiname",
-        "word_name_placeholder": "Word-Dokument Name",
-        "excel_name_placeholder": "Excel-Tabelle Name",
-        "powerpoint_name_placeholder": "PowerPoint-Präsentation Name",
+        "document_name_placeholder": "Textdokument Name",
+        "spreadsheet_name_placeholder": "Tabelle Name",
+        "presentation_name_placeholder": "Präsentation Name",
         "markdown_name_placeholder": "Markdown-Datei Name"
       },
       "buttons": {

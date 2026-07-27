@@ -707,6 +707,9 @@ def browse_folder(folder_id):
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
+
+    from app.utils.document_formats import get_create_type_map
+    create_types = get_create_type_map()
     
     # Check ONLYOFFICE availability
     from app.utils.onlyoffice import is_onlyoffice_enabled
@@ -748,6 +751,7 @@ def browse_folder(folder_id):
         files_sharing_enabled=files_sharing_enabled,
         files_private_folders_enabled=private_enabled,
         files_view=files_view,
+        create_types=create_types,
         onlyoffice_available=onlyoffice_available,
         breadcrumb_folders=breadcrumb_folders,
         users_by_id=users_by_id,
@@ -1141,14 +1145,22 @@ def create_file():
 @login_required
 @check_module_access('module_files')
 def create_office_file():
-    """Create a new empty Office file (DOCX, XLSX, PPTX)."""
+    """Create a new empty document (Office OOXML or OpenDocument, per admin setting)."""
+    from app.utils.document_formats import (
+        create_empty_document,
+        get_allowed_create_types,
+        get_create_type_map,
+    )
+
     # Gast-Accounts können keine Office-Dateien erstellen
     if hasattr(current_user, 'is_guest') and current_user.is_guest:
         flash('Gast-Accounts können keine Dateien erstellen.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
     filename = request.form.get('filename', '').strip()
-    file_type = request.form.get('file_type', 'docx')  # docx, xlsx, pptx
+    create_types = get_create_type_map()
+    allowed_types = get_allowed_create_types()
+    file_type = (request.form.get('file_type') or create_types['document']).strip().lower()
     folder_id = request.form.get('folder_id')
     folder_id = int(folder_id) if folder_id else None
     files_view = normalize_view(
@@ -1162,8 +1174,8 @@ def create_office_file():
         flash('Bitte geben Sie einen Dateinamen ein.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
-    # Validate file type
-    if file_type not in ['docx', 'xlsx', 'pptx']:
+    # Validate file type against admin format setting
+    if file_type not in allowed_types:
         flash('Ungültiger Dateityp.', 'danger')
         return redirect(request.referrer or url_for('files.index'))
     
@@ -1188,7 +1200,7 @@ def create_office_file():
         return redirect(request.referrer or url_for('files.index'))
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
     
-    # Create empty Office file
+    # Create empty document
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     stored_filename = f"{timestamp}_{filename}"
     filepath = os.path.join('uploads', 'files', stored_filename)
@@ -1197,23 +1209,13 @@ def create_office_file():
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     
     try:
-        if file_type == 'docx':
-            from docx import Document
-            doc = Document()
-            doc.save(filepath)
-            mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        elif file_type == 'xlsx':
-            from openpyxl import Workbook
-            wb = Workbook()
-            wb.save(filepath)
-            mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        elif file_type == 'pptx':
-            from pptx import Presentation
-            prs = Presentation()
-            prs.save(filepath)
-            mime_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    except ImportError as e:
-        flash(f'Fehler: Erforderliche Bibliothek nicht installiert. Bitte installieren Sie python-docx, openpyxl und python-pptx.', 'danger')
+        mime_type = create_empty_document(filepath, file_type)
+    except ImportError:
+        flash(
+            'Fehler: Erforderliche Bibliothek nicht installiert. '
+            'Bitte installieren Sie python-docx, openpyxl und python-pptx.',
+            'danger',
+        )
         return redirect(request.referrer or url_for('files.index'))
     except Exception as e:
         logging.error(f"Fehler beim Erstellen der Office-Datei: {e}")
@@ -4355,6 +4357,7 @@ def edit_onlyoffice(file_id):
         token=token or '',  # Pass empty string instead of None
         guest_mode=False,
         return_url=return_url,
+        download_url=url_for('files.download_file', file_id=file.id),
         accent_color=accent_color,
         accent_style=accent_style,
         current_language=current_language,
@@ -4496,6 +4499,10 @@ def share_edit_onlyoffice(token):
     
     # Calculate return URL for shared files
     return_url = url_for('files.public_share', token=token)
+    if request.args.get('file_id'):
+        download_url = url_for('files.public_share_folder_file_download', token=token, file_id=file.id)
+    else:
+        download_url = url_for('files.public_share_download', token=token)
     
     # For guest users, use default accent color
     accent_color = '#0d6efd'
@@ -4518,6 +4525,7 @@ def share_edit_onlyoffice(token):
         guest_name=guest_name,
         share_token=token,
         return_url=return_url,
+        download_url=download_url,
         accent_color=accent_color,
         accent_style=accent_style,
         current_language=current_language,

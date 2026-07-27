@@ -116,7 +116,11 @@
                 </p>
 
                 <div class="settings-admin-backup-actions">
-                    <button type="submit" class="btn btn-accent settings-admin-backup-submit" data-confirm-delete="{{ _('settings.admin.backup.import_confirm') }}">
+                    <button type="submit" class="btn btn-accent settings-admin-backup-submit"
+                            data-pt-confirm="{{ _('settings.admin.backup.import_confirm') }}"
+                            data-pt-confirm-title="{{ _('settings.admin.backup.import_confirm_title') }}"
+                            data-pt-confirm-ok="{{ _('settings.admin.backup.import_submit') }}"
+                            data-pt-confirm-danger="false">
                         <i class="bi bi-upload" aria-hidden="true"></i>
                         {{ _('settings.admin.backup.import_submit') }}
                     </button>

@@ -14,15 +14,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="{{ 'dark' if _theme_dark else 'light' }}">
     <title>{{ file.name }} - {{ _('files.onlyoffice.page_title_suffix') }}</title>
-    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
+        :root {
+            --accent-color: {{ accent_color|default('#0d6efd') }};
+            --accent-style: {{ accent_style|default('linear-gradient(45deg, #0d6efd, #0d6efd)') }};
+            --mod-radius-pill: 1.5rem;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         html, body {
             width: 100%;
             height: 100%;
@@ -43,13 +49,14 @@
             background: #000;
             color: #f5f5f5;
         }
-        
+
         .onlyoffice-editor-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             background: #fff;
@@ -62,158 +69,117 @@
         html[data-oled-mode="true"] .onlyoffice-editor-container {
             background: #000;
         }
-    
-        .onlyoffice-editor-toolbar {
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            padding: 0.5rem 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-shrink: 0;
+
+        /* Kopfleiste wie Markdown-Viewer: Logo + Dateiname | Download + Schließen */
+        .onlyoffice-viewer-header {
+            flex: 0 0 auto;
+            background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
+            border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+            padding: 0.65rem 1rem;
             z-index: 1000;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
         }
 
-        html[data-bs-theme="dark"] .onlyoffice-editor-toolbar {
+        html[data-bs-theme="dark"] .onlyoffice-viewer-header {
             background: #121212;
             border-bottom-color: rgba(255, 255, 255, 0.12);
         }
 
-        html[data-oled-mode="true"] .onlyoffice-editor-toolbar {
+        html[data-oled-mode="true"] .onlyoffice-viewer-header {
             background: #000;
             border-bottom-color: #1a1a1a;
         }
-        
-        .onlyoffice-editor-toolbar button {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.875rem;
-            border: 1px solid #dee2e6;
-            background: #fff;
-            border-radius: 0.25rem;
-            cursor: pointer;
-            color: #495057;
+
+        .onlyoffice-viewer-header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            min-width: 0;
         }
 
-        html[data-bs-theme="dark"] .onlyoffice-editor-toolbar button {
-            background: #2a2a2a;
-            border-color: rgba(255, 255, 255, 0.16);
-            color: #e9ecef;
-        }
-        
-        .onlyoffice-editor-toolbar button:hover {
-            background: #e9ecef;
+        .onlyoffice-viewer-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+            min-width: 0;
+            flex: 1 1 auto;
         }
 
-        html[data-bs-theme="dark"] .onlyoffice-editor-toolbar button:hover {
-            background: #333;
-        }
-        
-        .onlyoffice-editor-toolbar .vr {
-            width: 1px;
-            height: 1.5rem;
-            background: #dee2e6;
-        }
-
-        html[data-bs-theme="dark"] .onlyoffice-editor-toolbar .vr {
-            background: rgba(255, 255, 255, 0.16);
-        }
-        
-        .onlyoffice-editor-toolbar .text-muted {
-            color: #6c757d;
-            font-size: 0.875rem;
+        .onlyoffice-viewer-brand-logo {
+            width: 2.1rem;
+            height: 2.1rem;
+            border-radius: 999px;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-shadow: 0 0.12rem 0.4rem rgba(13, 110, 253, 0.18);
         }
 
-        html[data-bs-theme="dark"] .onlyoffice-editor-toolbar .text-muted {
-            color: rgba(233, 236, 239, 0.65);
-        }
-        
-        .onlyoffice-editor-toolbar .ms-auto {
-            margin-left: auto;
-        }
-        
-        .onlyoffice-editor-toolbar .badge {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            border-radius: 0.25rem;
-            font-weight: 500;
-        }
-        
-        .badge.bg-info {
-            background-color: #0dcaf0;
-            color: #000;
-        }
-        
-        .badge.bg-success {
-            background-color: #198754;
+        .onlyoffice-viewer-brand-mark {
+            width: 2.1rem;
+            height: 2.1rem;
+            border-radius: 999px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-style, var(--accent-color, #0d6efd));
             color: #fff;
+            font-weight: 700;
+            font-size: 0.95rem;
         }
-        
-        .badge.bg-warning {
-            background-color: #ffc107;
-            color: #000;
+
+        .onlyoffice-viewer-brand-text {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.05rem;
         }
-        
-        .badge.bg-danger {
-            background-color: #dc3545;
-            color: #fff;
+
+        .onlyoffice-viewer-filename {
+            font-size: 1.05rem;
+            font-weight: 650;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--bs-body-color);
+            margin: 0;
         }
-        
+
+        .onlyoffice-viewer-meta-line {
+            display: block;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .onlyoffice-viewer-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .onlyoffice-viewer-actions .files-pill-btn,
+        .onlyoffice-viewer-actions .btn.files-pill-btn {
+            border-radius: var(--mod-radius-pill, 1.5rem) !important;
+        }
+
         .onlyoffice-editor-content {
-            flex: 1;
+            flex: 1 1 auto;
             overflow: hidden;
             position: relative;
             min-height: 0;
             background: inherit;
         }
-        
+
         #onlyoffice-editor {
             width: 100%;
             height: 100%;
             border: none;
-        }
-        
-        /* Zurück-Button im ONLYOFFICE-Branding-Bereich */
-        .onlyoffice-back-button {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 10001;
-            background: #000;
-            border: none;
-            border-bottom: 2px solid {{ accent_color }};
-            border-right: 2px solid {{ accent_color }};
-            padding: 4px 12px;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            transition: all 0.2s;
-            border-radius: 0 0 8px 0; /* Nur unten rechts abgerundet, stärker */
-            height: 27px;
-            min-width: 100px;
-        }
-        
-        .onlyoffice-back-button:hover {
-            background: #1a1a1a;
-        }
-        
-        .onlyoffice-back-button:active {
-            background: #333;
-        }
-        
-        .onlyoffice-back-button .button-text {
-            background: {{ accent_style }};
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 500;
-        }
-        
-        .onlyoffice-back-button i {
-            font-size: 16px;
-            color: {{ accent_color }};
         }
 
         .onlyoffice-mobile-banner {
@@ -237,20 +203,60 @@
             color: #ffe49a;
             border-bottom-color: #1a1a1a;
         }
-        
+
+        @media (max-width: 576px) {
+            .onlyoffice-viewer-actions .btn-label {
+                display: none;
+            }
+
+            .onlyoffice-viewer-actions .btn {
+                padding-left: 0.65rem;
+                padding-right: 0.65rem;
+            }
+        }
     </style>
 </head>
 <body>
+{% set oo_download_url = download_url|default(url_for('files.download_file', file_id=file.id)) %}
 <div class="onlyoffice-editor-container">
     {% if is_mobile_client|default(false) %}
     <div class="onlyoffice-mobile-banner">
         Live-Bearbeitung am Document Server (gemeinsam). OnlyOffice-App kann Prismateams nicht live anbinden — Editor läuft im Browser.
     </div>
     {% endif %}
-    <button class="onlyoffice-back-button" onclick="goBack()" title="{{ _('files.onlyoffice.back_button_title') }}">
-        <i class="bi bi-arrow-left"></i>
-        <span class="button-text">{{ _('files.onlyoffice.back_button_label') }}</span>
-    </button>
+    <div class="onlyoffice-viewer-header">
+        <div class="onlyoffice-viewer-header-inner">
+            <div class="onlyoffice-viewer-brand">
+                {% if portal_logo_filename %}
+                <img class="onlyoffice-viewer-brand-logo" src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% elif app_logo %}
+                <img class="onlyoffice-viewer-brand-logo" src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}">
+                {% else %}
+                <span class="onlyoffice-viewer-brand-mark" aria-hidden="true">{{ (app_name or 'P')[0]|upper }}</span>
+                {% endif %}
+                <div class="onlyoffice-viewer-brand-text">
+                    <h4 class="onlyoffice-viewer-filename" title="{{ file.name }}">{{ file.name }}</h4>
+                    <small class="onlyoffice-viewer-meta-line text-muted">
+                        {% if guest_mode|default(false) and guest_name %}
+                        {{ guest_name }}
+                        {% else %}
+                        Von {{ file.uploader.full_name if file.uploader else '—' }}
+                        {% endif %}
+                        -
+                        {{ file.updated_at|localdatetime('%d.%m.%Y %H:%M') if file.updated_at else file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
+                    </small>
+                </div>
+            </div>
+            <div class="onlyoffice-viewer-actions">
+                <a href="{{ oo_download_url }}" class="btn btn-outline-primary files-pill-btn" title="{{ _('files.view.download') }}">
+                    <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
+                </a>
+                <button type="button" class="btn btn-outline-secondary files-pill-btn" onclick="goBack()" title="{{ _('files.view.close') }}">
+                    <i class="bi bi-x-lg"></i><span class="btn-label ms-1">{{ _('files.view.close') }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="onlyoffice-editor-content">
         <div id="onlyoffice-editor"></div>
     </div>
@@ -553,10 +559,6 @@ document.addEventListener('keydown', function(e) {
         goBack();
     }
 });
-
-// Hide toolbar by default for fullscreen experience
-// Uncomment the line below if you want to show the toolbar
-// document.getElementById('toolbar').style.display = 'flex';
 </script>
 </body>
 </html>

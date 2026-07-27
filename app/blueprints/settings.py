@@ -1823,12 +1823,26 @@ def admin_file_settings():
             return _settings_redirect('settings.admin_file_settings')
 
         # Feature Flags: Dateien
+        from app.utils.document_formats import (
+            FORMAT_OFFICE,
+            FORMAT_OPENDOCUMENT,
+            SETTING_DOCUMENT_FORMAT,
+        )
+
         dropbox_enabled = request.form.get('files_dropbox_enabled') == 'on'
         sharing_enabled = request.form.get('files_sharing_enabled') == 'on'
         private_folders_enabled = request.form.get('files_private_folders_enabled') == 'on'
+        document_format = (request.form.get('files_document_format') or FORMAT_OFFICE).strip().lower()
+        if document_format not in (FORMAT_OFFICE, FORMAT_OPENDOCUMENT):
+            document_format = FORMAT_OFFICE
         _upsert_text('files_dropbox_enabled', str(dropbox_enabled))
         _upsert_text('files_sharing_enabled', str(sharing_enabled))
         _upsert_text('files_private_folders_enabled', str(private_folders_enabled))
+        _upsert_text(
+            SETTING_DOCUMENT_FORMAT,
+            document_format,
+            'Format für neue Dokumente: office (docx/xlsx/pptx) oder opendocument (odt/ods/odp)',
+        )
 
         max_file_bytes = bytes_from_value_unit(
             request.form.get('files_max_file_value', '100'),
@@ -1858,6 +1872,8 @@ def admin_file_settings():
         return _settings_redirect('settings.admin_file_settings')
 
     # GET
+    from app.utils.document_formats import FORMAT_OFFICE, get_document_format
+
     dropbox_setting = SystemSettings.query.filter_by(key='files_dropbox_enabled').first()
     sharing_setting = SystemSettings.query.filter_by(key='files_sharing_enabled').first()
     private_setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
@@ -1865,6 +1881,7 @@ def admin_file_settings():
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
     files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
+    files_document_format = get_document_format() or FORMAT_OFFICE
 
     max_file_value, max_file_unit = split_bytes_for_ui(get_global_max_file_size())
     quota_value, quota_unit = split_bytes_for_ui(get_default_quota())
@@ -1903,6 +1920,7 @@ def admin_file_settings():
         files_dropbox_enabled=files_dropbox_enabled,
         files_sharing_enabled=files_sharing_enabled,
         files_private_folders_enabled=files_private_folders_enabled,
+        files_document_format=files_document_format,
         max_file_value=max_file_value,
         max_file_unit=max_file_unit,
         quota_enabled=quota_enabled,

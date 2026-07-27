@@ -72,9 +72,9 @@
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</a></li>
             {% if onlyoffice_available %}
-            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</a></li>
-            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</a></li>
-            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</a></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="{{ create_types.document }}"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_document') }} (.{{ create_types.document }})</a></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="{{ create_types.spreadsheet }}"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_spreadsheet') }} (.{{ create_types.spreadsheet }})</a></li>
+            <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="{{ create_types.presentation }}"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_presentation') }} (.{{ create_types.presentation }})</a></li>
             {% endif %}
             <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</a></li>
         </ul>
@@ -150,9 +150,9 @@
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</a></li>
                 {% if onlyoffice_available %}
-                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</a></li>
-                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</a></li>
-                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</a></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="{{ create_types.document }}"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_document') }} (.{{ create_types.document }})</a></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="{{ create_types.spreadsheet }}"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_spreadsheet') }} (.{{ create_types.spreadsheet }})</a></li>
+                <li><a class="dropdown-item" href="#" data-pt-trigger-click='[data-create-type="{{ create_types.presentation }}"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_presentation') }} (.{{ create_types.presentation }})</a></li>
                 {% endif %}
                 <li><a class="dropdown-item" href="#" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</a></li>
             </ul>
@@ -244,18 +244,18 @@
                         </li>
                         {% if onlyoffice_available %}
                         <li>
-                            <a class="dropdown-item" href="#" data-create-type="docx">
-                                <i class="bi bi-file-earmark-word me-2"></i> {{ _('files.index.dropdown.create_word') }}
+                            <a class="dropdown-item" href="#" data-create-type="{{ create_types.document }}">
+                                <i class="bi bi-file-earmark-word me-2"></i> {{ _('files.index.dropdown.create_document') }} (.{{ create_types.document }})
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="#" data-create-type="xlsx">
-                                <i class="bi bi-file-earmark-spreadsheet me-2"></i> {{ _('files.index.dropdown.create_excel') }}
+                            <a class="dropdown-item" href="#" data-create-type="{{ create_types.spreadsheet }}">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i> {{ _('files.index.dropdown.create_spreadsheet') }} (.{{ create_types.spreadsheet }})
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="#" data-create-type="pptx">
-                                <i class="bi bi-file-earmark-slides me-2"></i> {{ _('files.index.dropdown.create_powerpoint') }}
+                            <a class="dropdown-item" href="#" data-create-type="{{ create_types.presentation }}">
+                                <i class="bi bi-file-earmark-slides me-2"></i> {{ _('files.index.dropdown.create_presentation') }} (.{{ create_types.presentation }})
                             </a>
                         </li>
                         {% endif %}
@@ -284,9 +284,9 @@
         <li><hr class="dropdown-divider"></li>
         <li><button type="button" class="dropdown-item" data-pt-trigger-click="#createFolderMenuItem"><i class="bi bi-folder-plus me-2"></i>{{ _('files.index.dropdown.create_folder') }}</button></li>
         {% if onlyoffice_available %}
-        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="docx"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_word') }}</button></li>
-        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="xlsx"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_excel') }}</button></li>
-        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="pptx"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_powerpoint') }}</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="{{ create_types.document }}"]'><i class="bi bi-file-earmark-word me-2"></i>{{ _('files.index.dropdown.create_document') }} (.{{ create_types.document }})</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="{{ create_types.spreadsheet }}"]'><i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ _('files.index.dropdown.create_spreadsheet') }} (.{{ create_types.spreadsheet }})</button></li>
+        <li><button type="button" class="dropdown-item" data-pt-trigger-click='[data-create-type="{{ create_types.presentation }}"]'><i class="bi bi-file-earmark-slides me-2"></i>{{ _('files.index.dropdown.create_presentation') }} (.{{ create_types.presentation }})</button></li>
         {% endif %}
         <li><button type="button" class="dropdown-item" data-pt-trigger-click="#createMdMenuItem"><i class="bi bi-file-earmark-text me-2"></i>{{ _('files.index.dropdown.create_markdown') }}</button></li>
         <li><hr class="dropdown-divider"></li>
@@ -1879,18 +1879,18 @@ document.addEventListener('DOMContentLoaded', function() {
             let iconClass = '';
             let placeholder = FILES_I18N.inline.file_name_placeholder;
             
-            if (fileType === 'docx') {
+            if (fileType === 'docx' || fileType === 'odt') {
                 actionUrl = '{{ url_for("files.create_office_file") }}';
                 iconClass = 'bi-file-earmark-word text-primary';
-                placeholder = FILES_I18N.inline.word_name_placeholder;
-            } else if (fileType === 'xlsx') {
+                placeholder = FILES_I18N.inline.document_name_placeholder;
+            } else if (fileType === 'xlsx' || fileType === 'ods') {
                 actionUrl = '{{ url_for("files.create_office_file") }}';
                 iconClass = 'bi-file-earmark-spreadsheet text-success';
-                placeholder = FILES_I18N.inline.excel_name_placeholder;
-            } else if (fileType === 'pptx') {
+                placeholder = FILES_I18N.inline.spreadsheet_name_placeholder;
+            } else if (fileType === 'pptx' || fileType === 'odp') {
                 actionUrl = '{{ url_for("files.create_office_file") }}';
                 iconClass = 'bi-file-earmark-slides text-warning';
-                placeholder = FILES_I18N.inline.powerpoint_name_placeholder;
+                placeholder = FILES_I18N.inline.presentation_name_placeholder;
             } else if (fileType === 'md') {
                 actionUrl = '{{ url_for("files.create_file") }}';
                 iconClass = 'bi-file-earmark-text text-info';
@@ -1901,8 +1901,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 formGrid.action = actionUrl;
                 formList.action = actionUrl;
                 
-                // Füge file_type hinzu wenn Office-Datei
-                if (fileType === 'docx' || fileType === 'xlsx' || fileType === 'pptx') {
+                // Füge file_type hinzu wenn Office-/OpenDocument-Datei
+                if (['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp'].includes(fileType)) {
                     let typeInputGrid = formGrid.querySelector('input[name="file_type"]');
                     let typeInputList = formList.querySelector('input[name="file_type"]');
                     if (!typeInputGrid) {

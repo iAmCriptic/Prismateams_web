@@ -564,6 +564,14 @@
         </div>
         <div class="offcanvas-body more-menu-body">
             <ul class="nav more-menu-nav flex-column">
+                {% if is_module_enabled('module_chat') and (not current_user.is_authenticated or has_module_access(current_user, 'module_chat')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('chat.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'chat' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-chat-dots"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.chats') }}</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_files') and (not current_user.is_authenticated or has_module_access(current_user, 'module_files')) %}
                 <li class="nav-item">
                     <a href="{{ url_for('files.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'files' in request.endpoint %}active{% endif %}">
@@ -572,19 +580,25 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
+                <li class="nav-item">
+                    <a href="{{ url_for('calendar.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'calendar' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-calendar-event"></i></span>
+                        <span class="more-menu-label">{{ _('layout.nav.calendar') }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('events.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
+                        <span class="more-menu-icon"><i class="bi bi-calendar2-week"></i></span>
+                        <span class="more-menu-label">Veranstaltungen</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% if is_module_enabled('module_email') and (not current_user.is_authenticated or has_module_access(current_user, 'module_email')) %}
                 <li class="nav-item">
                     <a href="{{ url_for('email.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'email' in request.endpoint %}active{% endif %}">
                         <span class="more-menu-icon"><i class="bi bi-envelope"></i></span>
                         <span class="more-menu-label">{{ _('layout.nav.email') }}</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if is_module_enabled('module_calendar') and (not current_user.is_authenticated or has_module_access(current_user, 'module_calendar')) %}
-                <li class="nav-item">
-                    <a href="{{ url_for('events.index') }}" class="nav-link more-menu-link {% if request.endpoint and 'events' in request.endpoint %}active{% endif %}">
-                        <span class="more-menu-icon"><i class="bi bi-calendar2-week"></i></span>
-                        <span class="more-menu-label">Veranstaltungen</span>
                     </a>
                 </li>
                 {% endif %}

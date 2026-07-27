@@ -1276,39 +1276,12 @@ class ServerPushManager {
     }
     
     showTestResult(type, message) {
-        // Erstelle Toast-Benachrichtigung
-        const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'danger'} border-0`;
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <strong>Test-Push:</strong> ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        `;
-        
-        // Füge Toast-Container hinzu falls nicht vorhanden
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-            toastContainer.style.zIndex = '1060';
-            document.body.appendChild(toastContainer);
+        if (typeof window.showAppBanner === 'function') {
+            window.showAppBanner(message, type, { title: 'Test-Push' });
+            return;
         }
-        
-        toastContainer.appendChild(toast);
-        
-        // Zeige Toast
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-        
-        // Entferne Toast nach dem Ausblenden
-        toast.addEventListener('hidden.bs.toast', () => {
-            toast.remove();
-        });
+        // Fallback falls Banner-API fehlt
+        window.alert('Test-Push: ' + message);
     }
 }
 

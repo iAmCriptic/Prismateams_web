@@ -1346,7 +1346,7 @@
         },
         "file_settings": {
           "title": "File Settings",
-          "description": "Mailboxes, shares, private folders and storage limits"
+          "description": "Mailboxes, shares, private folders, document formats and storage limits"
         },
         "calendar_settings": {
           "title": "Calendar Settings",
@@ -1397,7 +1397,7 @@
         "page_title": "File Settings - Administration",
         "breadcrumb_file_settings": "File Settings",
         "heading": "File Settings",
-        "subtitle": "Control mailboxes, shares, private folders, and storage limits for the files module.",
+        "subtitle": "Control mailboxes, shares, private folders, document formats, and storage limits for the files module.",
         "section_title": "File Functions",
         "dropbox_label": "Enable Mailboxes",
         "dropbox_help": "Allows creating mailboxes (upload-only folders) for bookings and other purposes.",
@@ -1405,6 +1405,10 @@
         "sharing_help": "Allows creating shared folders for bookings and other purposes.",
         "private_folders_label": "Enable private folders",
         "private_folders_help": "Enables My Drive, Shared, Public and Trash (Drive-style). Existing files stay under Public.",
+        "document_format_label": "Default format for new documents",
+        "document_format_help": "Controls which file types are created via “New”. Existing files are unchanged.",
+        "document_format_office": "Office formats (DOCX, XLSX, PPTX)",
+        "document_format_opendocument": "OpenDocument formats (ODT, ODS, ODP)",
         "storage_section_title": "Storage & Limits",
         "max_file_label": "Maximum file size",
         "max_file_help": "Applies to all uploads. Exception rules can override this per user.",
@@ -1705,6 +1709,7 @@
         "credentials_warn": "Credentials are stored in plaintext in the backup file. Keep the file secure.",
         "import_warn": "Import adds or updates data. IDs are remapped. Create a current backup first.",
         "import_confirm": "Really import this backup? Existing data may be overwritten or merged.",
+        "import_confirm_title": "Confirm import",
         "export_submit": "Create backup",
         "import_submit": "Import backup",
         "flash_no_export_categories": "Please select at least one category to export.",
@@ -2048,9 +2053,9 @@
         "upload_files": "Upload files",
         "upload_folder": "Upload folder",
         "create_folder": "Create folder",
-        "create_word": "Create Word document (.docx)",
-        "create_excel": "Create Excel spreadsheet (.xlsx)",
-        "create_powerpoint": "Create PowerPoint presentation (.pptx)",
+        "create_document": "Create text document",
+        "create_spreadsheet": "Create spreadsheet",
+        "create_presentation": "Create presentation",
         "create_markdown": "Create Markdown file (.md)"
       },
       "sections": {
@@ -2060,9 +2065,9 @@
       "inline": {
         "folder_name_placeholder": "Folder name",
         "file_name_placeholder": "File name",
-        "word_name_placeholder": "Word document name",
-        "excel_name_placeholder": "Excel spreadsheet name",
-        "powerpoint_name_placeholder": "PowerPoint presentation name",
+        "document_name_placeholder": "Text document name",
+        "spreadsheet_name_placeholder": "Spreadsheet name",
+        "presentation_name_placeholder": "Presentation name",
         "markdown_name_placeholder": "Markdown file name"
       },
       "buttons": {

@@ -64,7 +64,11 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" name="action" value="import" class="btn btn-primary btn-lg" data-confirm-delete="{{ _('settings.admin.backup.import_confirm') }}">
+                        <button type="submit" name="action" value="import" class="btn btn-primary btn-lg"
+                                data-pt-confirm="{{ _('settings.admin.backup.import_confirm') }}"
+                                data-pt-confirm-title="{{ _('settings.admin.backup.import_confirm_title') }}"
+                                data-pt-confirm-ok="{{ _('settings.admin.backup.import_submit') }}"
+                                data-pt-confirm-danger="false">
                             <i class="bi bi-upload me-2" aria-hidden="true"></i>
                             {{ _('settings.admin.backup.import_submit') }}
                         </button>

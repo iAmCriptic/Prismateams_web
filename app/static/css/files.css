@@ -107,23 +107,32 @@ body.files-has-selection .files-select-check {
     padding-right: 0.15rem !important;
 }
 
+/* table-cell behalten — display:flex auf <td> zerstört Zeilenhöhe/Namen (wie Assessment-Fix) */
 .files-list-name-cell {
     position: relative;
     max-width: 0;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
+    display: table-cell;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
+/* Platz für Checkbox beim Hover/Auswahl — Icon und Name bleiben eng beieinander */
 .files-list-name-cell .mod-list-name.files-item-name {
+    display: inline-flex;
+    align-items: center;
     min-width: 0;
-    flex: 1 1 auto;
+    max-width: calc(100% - 2rem);
+    vertical-align: middle;
+    color: var(--bs-body-color, #212529);
+    padding-left: 0;
+    transition: padding-left 0.12s ease;
 }
 
 .files-list-name-cell .files-presence-anchor {
-    margin-left: 0;
-    flex: 0 0 auto;
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 0.35rem;
 }
 
 .files-select-check--list {
@@ -142,12 +151,6 @@ body.files-has-selection .files-select-check {
 .mod-list-row.is-selected .files-select-check--list,
 body.files-has-selection .files-select-check--list {
     opacity: 1;
-}
-
-/* Platz für Checkbox beim Hover/Auswahl — Icon und Name bleiben eng beieinander */
-.files-list-name-cell .mod-list-name.files-item-name {
-    padding-left: 0;
-    transition: padding-left 0.12s ease;
 }
 
 .mod-list-row:hover .files-list-name-cell .mod-list-name.files-item-name,
@@ -2149,8 +2152,9 @@ body:has(.files-shell) {
     min-width: 0;
 }
 
-.mod-list-name .files-item-name-text,
-.files-item-name-text {
+/* Grid: max. 2 Zeilen. Liste: einzeilig (siehe .mod-list-name .files-item-name-text unten) */
+.card.folder-item .files-item-name-text,
+.card.file-item .files-item-name-text {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -2160,7 +2164,17 @@ body:has(.files-shell) {
     word-break: break-word;
     overflow-wrap: anywhere;
     min-width: 0;
+}
+
+.mod-list-name .files-item-name-text {
+    display: block;
     flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
 }
 
 .files-inline-rename {
@@ -2939,13 +2953,6 @@ body:has(.dropbox-shell) .container-fluid {
     gap: 0;
     min-width: 0;
     max-width: 100%;
-}
-
-.mod-list-name .files-item-name-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .share-browser-card .image-mini-preview {
