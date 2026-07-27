@@ -820,6 +820,145 @@ def _is_placeholder_imap_config(imap_server, username, password):
     return any(any(marker in value for marker in placeholder_markers) for value in values)
 
 
+def _format_imap_error(exc):
+    """IMAP-Fehler lesbar machen (oft bytes in Exception-Args)."""
+    parts = []
+    for arg in getattr(exc, 'args', ()) or ():
+        if isinstance(arg, bytes):
+            parts.append(arg.decode('utf-8', errors='replace'))
+        elif arg is not None:
+            parts.append(str(arg))
+    if parts:
+        return ' '.join(parts).strip()
+    if isinstance(exc, bytes):
+        return exc.decode('utf-8', errors='replace')
+    return str(exc)
+
+
+def _imap_error_is_transient(exc):
+    """True bei temporären Provider-/Verbindungsfehlern (Retry sinnvoll)."""
+    text = _format_imap_error(exc).upper()
+    markers = (
+        'TOO MANY',
+        'CONNECTION',
+        'TIMEOUT',
+        'TIMED OUT',
+        'TEMPORAR',
+        'UNAVAILABLE',
+        'TRY AGAIN',
+        'RATE',
+        'LIMIT',
+        'BUSY',
+        'EOF',
+        'BROKEN PIPE',
+        'RESET',
+        'SSL',
+    )
+    return any(m in text for m in markers) or isinstance(
+        exc, (TimeoutError, OSError, ConnectionError, imaplib.IMAP4.abort)
+    )
+
+
+def _open_imap_connection(timeout=20):
+    """
+    Öffnet eine IMAP-Verbindung aus App-Config (ohne Ordner-Select).
+    Raises bei Fehler.
+    """
+    import ssl
+
+    imap_server = current_app.config.get('IMAP_SERVER')
+    imap_port = int(current_app.config.get('IMAP_PORT', 993) or 993)
+    imap_use_ssl = current_app.config.get('IMAP_USE_SSL', True)
+    username = current_app.config.get('MAIL_USERNAME')
+    password = current_app.config.get('MAIL_PASSWORD')
+    timeout = int(current_app.config.get('MAIL_TIMEOUT', timeout) or timeout)
+
+    if not all([imap_server, username, password]):
+        raise RuntimeError('IMAP-Konfiguration unvollständig')
+
+    if _is_placeholder_imap_config(imap_server, username, password):
+        raise RuntimeError('IMAP enthält Platzhalterwerte')
+
+    if imap_use_ssl:
+        ctx = ssl.create_default_context()
+        conn = imaplib.IMAP4_SSL(imap_server, imap_port, ssl_context=ctx, timeout=timeout)
+    else:
+        conn = imaplib.IMAP4(imap_server, imap_port, timeout=timeout)
+        try:
+            conn.starttls(ssl_context=ssl.create_default_context())
+        except Exception:
+            # Server ohne STARTTLS auf Klartext-Port
+            pass
+
+    conn.login(username, password)
+    return conn, imap_server, imap_port
+
+
+def probe_imap_connection(timeout=20, retries=3, wait_for_sync_seconds=8):
+    """
+    Prüft IMAP Login + INBOX (für Einstellungs-Test).
+
+    Versucht kurz, den Sync-Lock zu bekommen (weniger Parallel-Logins),
+    retryt bei transienten Provider-Fehlern.
+
+    Returns:
+        (ok: bool, message: str, meta: dict)
+    """
+    last_error = None
+    sync_was_busy = False
+
+    def _do_probe():
+        conn = None
+        try:
+            conn, server, port = _open_imap_connection(timeout=timeout)
+            status, _ = conn.select('INBOX', readonly=True)
+            if status != 'OK':
+                status, _ = conn.select('"INBOX"', readonly=True)
+            if status != 'OK':
+                status, _ = conn.select('INBOX')
+            if status != 'OK':
+                return False, f"INBOX konnte nicht geöffnet werden (Status: {status})", {
+                    'server': server, 'port': port,
+                }
+            return True, f"{server}:{port}", {'server': server, 'port': port}
+        finally:
+            _imap_logout(conn)
+
+    def _run_attempts():
+        nonlocal last_error
+        attempts = max(1, int(retries))
+        for attempt in range(attempts):
+            try:
+                ok, msg, meta = _do_probe()
+                if ok and sync_was_busy:
+                    meta = dict(meta or {})
+                    meta['sync_was_busy'] = True
+                return ok, msg, meta
+            except Exception as e:
+                last_error = e
+                if attempt + 1 < attempts and _imap_error_is_transient(e):
+                    time.sleep(1.2 * (attempt + 1))
+                    continue
+                hint = ''
+                if sync_was_busy:
+                    hint = ' (Sync parallel — ggf. Verbindungs-Limit des Providers)'
+                return False, _format_imap_error(e) + hint, {}
+        return False, _format_imap_error(last_error) if last_error else 'IMAP-Test fehlgeschlagen', {}
+
+    # Warte auf freien Sync-Lock, halte ihn während des Probes
+    deadline = time.time() + max(0, float(wait_for_sync_seconds))
+    while True:
+        with acquire_email_sync_lock(timeout=0) as acquired:
+            if acquired:
+                return _run_attempts()
+            sync_was_busy = True
+
+        if time.time() >= deadline:
+            # Letzter Versuch ohne exklusiven Lock
+            return _run_attempts()
+        time.sleep(0.75)
+
+
 def _imap_logout(mail_conn):
     """Schließt und loggt eine IMAP-Verbindung aus (best effort)."""
     if not mail_conn:
@@ -844,59 +983,27 @@ def connect_imap(folder='INBOX'):
         IMAP connection object or None if connection failed
     """
     try:
-        imap_server = current_app.config.get('IMAP_SERVER')
-        imap_port = current_app.config.get('IMAP_PORT', 993)
-        imap_use_ssl = current_app.config.get('IMAP_USE_SSL', True)
-        username = current_app.config.get('MAIL_USERNAME')
-        password = current_app.config.get('MAIL_PASSWORD')
-        
-        if not all([imap_server, username, password]):
-            logging.warning("IMAP-Konfiguration unvollständig - E-Mail-Sync wird übersprungen")
-            logging.debug(
-                "IMAP_SERVER gesetzt: %s, MAIL_USERNAME gesetzt: %s, MAIL_PASSWORD gesetzt: %s",
-                bool(imap_server),
-                bool(username),
-                bool(password),
-            )
-            return None
-
-        if _is_placeholder_imap_config(imap_server, username, password):
-            logging.warning(
-                "IMAP-Konfiguration enthält Platzhalterwerte (z. B. *.example.com) - E-Mail-Sync wird übersprungen"
-            )
-            return None
-        
-        logging.debug(f"Connecting to IMAP server: {imap_server}:{imap_port} (SSL: {imap_use_ssl})")
-        
-        if imap_use_ssl:
-            mail = imaplib.IMAP4_SSL(imap_server, imap_port, timeout=30)
-        else:
-            mail = imaplib.IMAP4(imap_server, imap_port, timeout=30)
-        
-        logging.debug(f"Logging in as {username}")
-        mail.login(username, password)
+        mail_conn, _, _ = _open_imap_connection(timeout=30)
         
         logging.debug(f"Selecting folder: {folder}")
-        status, messages = mail.select(folder)
+        status, messages = mail_conn.select(folder)
         if status != 'OK':
-            # Versuche mit Anführungszeichen
             try:
-                status, messages = mail.select(f'"{folder}"')
+                status, messages = mail_conn.select(f'"{folder}"')
             except Exception:
                 pass
             if status != 'OK':
                 logging.warning(f"Could not select folder '{folder}', status: {status}")
-                # Weiter mit INBOX als Fallback
-                mail.select('INBOX')
+                mail_conn.select('INBOX')
         
         logging.debug("IMAP connection established successfully")
-        return mail
+        return mail_conn
     except imaplib.IMAP4.error as e:
-        error_msg = str(e).encode('ascii', errors='replace').decode('ascii')
+        error_msg = _format_imap_error(e).encode('ascii', errors='replace').decode('ascii')
         logging.error(f"IMAP authentication error: {error_msg}")
         return None
     except Exception as e:
-        error_msg = str(e).encode('ascii', errors='replace').decode('ascii')
+        error_msg = _format_imap_error(e).encode('ascii', errors='replace').decode('ascii')
         logging.error(f"IMAP connection failed: {error_msg}")
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")

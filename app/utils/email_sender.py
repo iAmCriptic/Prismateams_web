@@ -4,16 +4,103 @@ import string
 import logging
 import base64
 import threading
+import smtplib
+from email.utils import parseaddr
 from datetime import datetime, timedelta
 from flask import render_template, current_app, url_for
 from flask_mail import Message
-from app import mail
 from app.models.user import User
 from app.utils.common import portal_now_naive
 
 # Flask-Mail ist nicht thread-sicher innerhalb eines Workers; Worker untereinander
 # dürfen parallel SMTP nutzen (kein Cross-Process-File-Lock mit 60s-Wartezeit).
 _smtp_send_lock = threading.Lock()
+
+
+def _envelope_addr(addr):
+    """Extrahiert die reine E-Mail-Adresse aus 'Name <mail@x>' oder 'mail@x'."""
+    if addr is None:
+        return ''
+    if isinstance(addr, tuple):
+        return (addr[1] or addr[0] or '').strip()
+    parsed = parseaddr(str(addr))
+    return (parsed[1] or str(addr)).strip()
+
+
+def _smtp_connect(timeout=20):
+    """Öffnet eine SMTP-Verbindung aus Flask-Config (mit Timeout)."""
+    server = current_app.config.get('MAIL_SERVER')
+    port = int(current_app.config.get('MAIL_PORT', 587) or 587)
+    use_ssl = bool(current_app.config.get('MAIL_USE_SSL', False))
+    use_tls = bool(current_app.config.get('MAIL_USE_TLS', True))
+    username = current_app.config.get('MAIL_USERNAME')
+    password = current_app.config.get('MAIL_PASSWORD')
+    timeout = int(current_app.config.get('MAIL_TIMEOUT', timeout) or timeout)
+
+    if not server:
+        raise RuntimeError('MAIL_SERVER ist nicht gesetzt')
+
+    if use_ssl:
+        smtp = smtplib.SMTP_SSL(server, port, timeout=timeout)
+    else:
+        smtp = smtplib.SMTP(server, port, timeout=timeout)
+        smtp.ehlo()
+        if use_tls:
+            smtp.starttls()
+            smtp.ehlo()
+
+    if username and password:
+        smtp.login(username, password)
+    return smtp
+
+
+def _smtp_close(smtp):
+    """Schließt SMTP robust — SMTPServerDisconnected nach Versand ist harmlos."""
+    if smtp is None:
+        return
+    try:
+        smtp.quit()
+    except smtplib.SMTPServerDisconnected:
+        # Viele Provider trennen nach DATA; Mail ist trotzdem zugestellt.
+        pass
+    except Exception:
+        try:
+            smtp.close()
+        except Exception:
+            pass
+
+
+def send_message_via_smtplib(msg, timeout=20):
+    """
+    Sendet eine Flask-Mail Message direkt per smtplib.
+
+    Umgeht Flask-Mail Connection.__exit__ → host.quit(), das nach erfolgreichem
+    sendmail oft SMTPServerDisconnected wirft (False-Negative im UI).
+    """
+    if current_app.config.get('MAIL_SUPPRESS_SEND') or current_app.config.get('TESTING'):
+        logging.info('MAIL_SUPPRESS_SEND/TESTING aktiv — Versand übersprungen')
+        return True
+
+    if not getattr(msg, 'sender', None):
+        raise RuntimeError('E-Mail hat keinen Absender (MAIL_DEFAULT_SENDER / sender)')
+    recipients = list(getattr(msg, 'send_to', None) or getattr(msg, 'recipients', None) or [])
+    if not recipients:
+        raise RuntimeError('E-Mail hat keine Empfänger')
+
+    payload = msg.as_bytes() if hasattr(msg, 'as_bytes') else bytes(msg)
+    from_addr = _envelope_addr(msg.sender)
+    to_addrs = [_envelope_addr(r) for r in recipients]
+    to_addrs = [a for a in to_addrs if a]
+    if not from_addr or not to_addrs:
+        raise RuntimeError('Ungültige Absender-/Empfänger-Adresse')
+
+    smtp = None
+    try:
+        smtp = _smtp_connect(timeout=timeout)
+        smtp.sendmail(from_addr, to_addrs, payload)
+        return True
+    finally:
+        _smtp_close(smtp)
 
 def _msg_has_nested_related(msg):
     """True if msg.msg is mixed with an inner multipart/related (CID + attachments)."""
@@ -74,30 +161,41 @@ def send_email_with_lock(msg, timeout=60):
     """
     Sendet eine E-Mail mit prozesslokalem Thread-Lock (Flask-Mail-Sicherheit).
 
+    Nutzt smtplib direkt statt flask_mail.Connection, damit ein abgerissener
+    SMTP-QUIT nach erfolgreichem Versand nicht als Fehler gilt.
+
     Args:
         msg: Flask-Mail Message-Objekt
-        timeout: Ungenutzt (API-Kompatibilität); kein Cross-Process-Warten mehr.
+        timeout: SMTP-Socket-Timeout in Sekunden (Default aus MAIL_TIMEOUT/20)
 
     Returns:
-        True wenn erfolgreich gesendet, False sonst
+        True wenn erfolgreich gesendet
 
     Raises:
         Exception: Wenn E-Mail-Versand fehlschlägt
     """
-    del timeout  # API-Kompatibilität; absichtlich kein File-Lock-Warten
+    smtp_timeout = int(current_app.config.get('MAIL_TIMEOUT', 20) or 20)
+    if timeout and timeout < 300:
+        # Alte API nutzte timeout für Lock-Wartezeit; sinnvolle SMTP-Timeouts übernehmen
+        smtp_timeout = min(smtp_timeout, int(timeout)) if timeout > 0 else smtp_timeout
+
     try:
-        # Flask-Mail Message-Struktur vorab erstellen, damit Inline-CID sauber gesetzt werden kann.
         if hasattr(msg, '_message') and getattr(msg, 'msg', None) is None:
-            msg.msg = msg._message()
+            # Nur vorbereiten wenn nötig; Flask-Mail 0.10 baut ohnehin via as_bytes()/_message()
+            pass
     except Exception as e:
-        logging.warning("Fehler beim Erstellen von msg.msg: %s", e)
+        logging.warning("Fehler bei Message-Vorbereitung: %s", e)
 
     _mark_logo_inline(msg)
 
     with _smtp_send_lock:
         try:
-            mail.send(msg)
-            return True
+            return send_message_via_smtplib(msg, timeout=smtp_timeout)
+        except smtplib.SMTPServerDisconnected as send_err:
+            # Extrem selten: Disconnect während sendmail nach 250 — als Erfolg werten
+            # nur wenn wir unsicher sind? Nein: ohne Bestätigung nicht als Erfolg.
+            logging.error("SMTP-Verbindung abgebrochen: %s", send_err)
+            raise
         except Exception as send_err:
             logging.error("Fehler beim Senden der E-Mail: %s", send_err)
             raise

@@ -252,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setStatus(kind, 'running', i18n.running);
         return fetch(url, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -259,17 +260,30 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             body: '{}'
         })
-            .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+            .then(function (res) {
+                return res.text().then(function (text) {
+                    var data = {};
+                    try {
+                        data = text ? JSON.parse(text) : {};
+                    } catch (e) {
+                        data = {
+                            success: false,
+                            message: (i18n.error || 'Fehler') + ' (HTTP ' + res.status + ')'
+                        };
+                    }
+                    return { ok: res.ok, status: res.status, data: data };
+                });
+            })
             .then(function (result) {
                 var data = result.data || {};
                 if (data.success) {
                     setStatus(kind, 'ok', data.message || i18n.ok);
                 } else {
-                    setStatus(kind, 'fail', data.message || i18n.fail);
+                    setStatus(kind, 'fail', data.message || data.error || i18n.fail);
                 }
             })
-            .catch(function () {
-                setStatus(kind, 'fail', i18n.error);
+            .catch(function (err) {
+                setStatus(kind, 'fail', (i18n.error || 'Fehler') + ': ' + (err && err.message ? err.message : ''));
             });
     }
 
@@ -283,9 +297,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (runAll) {
         runAll.addEventListener('click', function () {
             runAll.disabled = true;
-            Promise.all([runTest('smtp'), runTest('imap')]).finally(function () {
-                runAll.disabled = false;
-            });
+            // Sequentiell: SMTP zuerst, dann IMAP (weniger Parallel-Last am Provider)
+            runTest('smtp')
+                .then(function () { return runTest('imap'); })
+                .finally(function () {
+                    runAll.disabled = false;
+                });
         });
     }
 });

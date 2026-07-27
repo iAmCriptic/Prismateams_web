@@ -2469,6 +2469,7 @@ def admin_email_test_smtp():
 
     from flask import current_app
     from app.utils.email_sender import send_smtp_test_email
+    import smtplib
 
     mail_server = current_app.config.get('MAIL_SERVER')
     mail_username = current_app.config.get('MAIL_USERNAME')
@@ -2486,6 +2487,19 @@ def admin_email_test_smtp():
             'success': True,
             'message': translate('settings.admin.email_module.test.smtp_ok', email=current_user.email),
         })
+    except smtplib.SMTPAuthenticationError as e:
+        return jsonify({
+            'success': False,
+            'message': translate('settings.admin.email_module.test.smtp_fail', error=f'Auth: {e}'),
+        })
+    except (smtplib.SMTPConnectError, TimeoutError, OSError) as e:
+        return jsonify({
+            'success': False,
+            'message': translate(
+                'settings.admin.email_module.test.smtp_fail',
+                error=f'Verbindung zu {mail_server}: {e}',
+            ),
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -2500,15 +2514,17 @@ def admin_email_test_imap():
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
-    import imaplib
     from flask import current_app
-    from app.blueprints.email import _is_placeholder_imap_config
+    from app.blueprints.email import (
+        _is_placeholder_imap_config,
+        probe_imap_connection,
+    )
 
     imap_server = current_app.config.get('IMAP_SERVER')
     imap_port = int(current_app.config.get('IMAP_PORT', 993) or 993)
-    imap_use_ssl = current_app.config.get('IMAP_USE_SSL', True)
     username = current_app.config.get('MAIL_USERNAME')
     password = current_app.config.get('MAIL_PASSWORD')
+    imap_timeout = int(current_app.config.get('MAIL_TIMEOUT', 20) or 20)
 
     if not all([imap_server, username, password]):
         return jsonify({
@@ -2522,45 +2538,33 @@ def admin_email_test_imap():
             'message': translate('settings.admin.email_module.test.imap_placeholder'),
         })
 
-    mail_conn = None
     try:
-        if imap_use_ssl:
-            mail_conn = imaplib.IMAP4_SSL(imap_server, imap_port, timeout=30)
-        else:
-            mail_conn = imaplib.IMAP4(imap_server, imap_port, timeout=30)
-        mail_conn.login(username, password)
-        status, _ = mail_conn.select('INBOX')
-        if status != 'OK':
-            status, _ = mail_conn.select('"INBOX"')
-        if status != 'OK':
-            return jsonify({
-                'success': False,
-                'message': translate('settings.admin.email_module.test.imap_inbox_fail'),
-            })
-        return jsonify({
-            'success': True,
-            'message': translate(
+        ok, detail, meta = probe_imap_connection(
+            timeout=imap_timeout,
+            retries=3,
+            wait_for_sync_seconds=10,
+        )
+        if ok:
+            server = (meta or {}).get('server', imap_server)
+            port = (meta or {}).get('port', imap_port)
+            msg = translate(
                 'settings.admin.email_module.test.imap_ok',
-                server=imap_server,
-                port=imap_port,
-            ),
-        })
-    except imaplib.IMAP4.error as e:
+                server=server,
+                port=port,
+            )
+            if (meta or {}).get('sync_was_busy'):
+                msg = f"{msg} (Hinweis: Sync war parallel aktiv)"
+            return jsonify({'success': True, 'message': msg})
+
         return jsonify({
             'success': False,
-            'message': translate('settings.admin.email_module.test.imap_fail', error=str(e)),
+            'message': translate('settings.admin.email_module.test.imap_fail', error=detail),
         })
     except Exception as e:
         return jsonify({
             'success': False,
             'message': translate('settings.admin.email_module.test.imap_fail', error=str(e)),
         })
-    finally:
-        if mail_conn is not None:
-            try:
-                mail_conn.logout()
-            except Exception:
-                pass
 
 
 @settings_bp.route('/admin/music', methods=['GET', 'POST'])

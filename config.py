@@ -44,6 +44,8 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('MAIL_USERNAME')
     MAIL_SENDER_NAME = os.environ.get('MAIL_SENDER_NAME', '')
+    # Socket-Timeout für SMTP (vermeidet hängende Worker / Proxy-Timeouts)
+    MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT', 20))
     
     IMAP_SERVER = os.environ.get('IMAP_SERVER')
     IMAP_PORT = int(os.environ.get('IMAP_PORT', 993))
